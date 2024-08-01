@@ -1,0 +1,25 @@
+name: Check License Header
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  check-license-header:
+    name: Check License Header
+    if: github.repository == 'oneapi-src/oneDAL'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - name: Check License Header
+        uses: apache/skywalking-eyes/header@cd7b195c51fd3d6ad52afceb760719ddc6b3ee91     # always prefer to use a revision instead of `main`.
+        with:
+          config: ".github/.licenserc.yaml"
+          mode: "check"
