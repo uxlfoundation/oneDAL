@@ -21,7 +21,7 @@ See the differences in CPU and GPU support below.
 
 GPU-Supported Targets
 *********************
-OneDAL is designed to work with Intel(R) GPUs specifically, but it could potentially
+The oneAPI Data Analytics Library (oneDAL) is designed to work with Intel(R) GPUs specifically, but it could potentially
 run on other hardware platforms if a SYCL runtime is available.
 
 .. tabularcolumns::  |\Y{0.5}|\Y{0.5}|
