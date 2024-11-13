@@ -13,7 +13,7 @@ permissions: read-all
 jobs:
   check-license-header:
     name: Check License Header
-    if: github.repository == 'oneapi-src/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout code"
