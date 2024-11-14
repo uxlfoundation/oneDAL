@@ -38,6 +38,10 @@ function install_mkl {
     sudo apt-get install -y intel-oneapi-mkl-devel-2025.0 intel-oneapi-tbb-devel-2022.0
 }
 
+function install_tbb {
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
+}
+
 function install_clang-format {
     sudo apt-get install -y clang-format-14
 }
@@ -100,6 +104,9 @@ if [ "${component}" == "dpcpp" ]; then
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "tbb" ]; then
+    add_repo
+    install_tbb
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -126,6 +133,6 @@ elif [ "${component}" == "build-sysroot" ] ; then
     build_sysroot "$2" "$3" "$4" "$5"
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|mkl|tbb|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
     exit 1
 fi
