@@ -30,6 +30,7 @@ function show_help_text {
 --conda-env:The Conda environment to load
 --build-system:The type of build to perform, e.g. cmake
 --backend:The backend C library to use. Must be one of [mkl, ref]
+--rng-backend:The RNG backend library to use. Must be one of [mkl, ref, openrng]
 --platform:Explicitly pass the platform. This is the same as is passed to the top-level oneDAL build script
 --cross-compile:Indicates whether cross-compilation is being performed
 '
@@ -65,6 +66,10 @@ while [[ $# -gt 0 ]]; do
         ;;
         --backend)
         backend="$2"
+        shift
+        ;;
+        --rng-backend)
+        rng_backend="$2"
         shift
         ;;
         --platform)
@@ -107,6 +112,11 @@ fi
 
 build_system=${build_system:-cmake}
 backend=${backend:-mkl}
+if [ "${backend}" == "mkl" ]; then
+    rng_backend=mkl
+else
+    rng_backend=${rng_backend:-ref}
+fi
 
 if [ "${OS}" == "lnx" ]; then
     if [ -f /usr/share/miniconda/etc/profile.d/conda.sh ] ; then
@@ -205,6 +215,11 @@ for link_mode in "${link_modes[@]}"; do
 
         if [ "${backend}" == "ref" ] ; then
             ref_backend="ON"
+            if [ "${rng_backend}" == "openrng" ]; then
+                openrng_backend="ON"
+            else
+                openrng_backend="OFF"
+            fi
         else
             ref_backend="OFF"
         fi
@@ -213,7 +228,8 @@ for link_mode in "${link_modes[@]}"; do
             -S .
             -G "Unix Makefiles"
             -DONEDAL_LINK="${link_mode}"
-            -DREF_BACKEND="${ref_backend}")
+            -DREF_BACKEND="${ref_backend}"
+            -DOPENRNG_BACKEND="${openrng_backend}")
 
         if [ "${cross_compile}" == "yes" ] ; then
             # Set the cmake toolchain file to set up the cross-compilation

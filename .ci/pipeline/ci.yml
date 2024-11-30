@@ -25,6 +25,7 @@ pr:
 
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
+  OPENRNG_VERSION: 'v24.04'
   TBB_VERSION : 'v2021.10.0'
   VM_IMAGE : 'ubuntu-22.04'
   SYSROOT_OS: 'jammy'
@@ -171,6 +172,90 @@ jobs:
       export TBBROOT=$(TBB_CACHE_DIR)
       export ARCH_ONEDAL=aarch64
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
+    displayName: 'oneapi/cpp examples'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
+
+- job: 'LinuxMakeGNU_OpenBLAS_OpenRNG_ARM'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_gnu'
+    platform.type : 'lnxarm'
+    OPENBLAS_CACHE_DIR: $(Pipeline.Workspace)/openblas-aarch64-gnu
+    OPENRNG_CACHE_DIR: $(Pipeline.Workspace)/openrng-aarch64-gnu
+    TBB_CACHE_DIR: $(Pipeline.Workspace)/tbb-aarch64-gnu
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get and conda install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers aarch64
+    displayName: 'arm-compiler installation'
+  - script: |
+      .ci/env/apt.sh qemu-apt
+    displayName: 'qemu-emulation installation'
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"gcc" | "aarch64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      .ci/env/openblas.sh --target ARMV8 --host-compiler gcc --compiler aarch64-linux-gnu-gcc --cflags -march=armv8-a+sve --cross-compile --target-arch aarch64 --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"gcc" | "aarch64" | "openrng" | "$(OPENRNG_VERSION)" | "$(VM_IMAGE)"'
+      path: $(OPENRNG_CACHE_DIR)
+      cacheHitVar: OPENRNG_RESTORED
+  - script: |
+      .ci/env/openrng.sh --CC aarch64-linux-gnu-gcc --CXX aarch64-linux-gnu-g++ --cross-compile --target-arch aarch64 --version $(OPENRNG_VERSION) --prefix $(OPENRNG_CACHE_DIR)
+    displayName: 'Build OpenRNG'
+    condition: ne(variables.OPENRNG_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"gcc" | "aarch64" | "tbb" | "$(TBB_VERSION)" | "$(VM_IMAGE)"'
+      path: $(TBB_CACHE_DIR)
+      cacheHitVar: TBB_RESTORED
+  - script: |
+      .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/arm-gnu-crosscompile-toolchain.cmake --target-arch aarch64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
+    displayName: 'Build oneTBB'
+    condition: ne(variables.TBB_RESTORED, 'true')
+  - script: |
+      .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --conda-env ci-env --cross-compile --use-openrng yes --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR) --openrng-dir $(OPENRNG_CACHE_DIR)
+    displayName: 'make daal'
+  - script: |
+      .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --cross-compile --use-openrng yes --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR) --openrng-dir $(OPENRNG_CACHE_DIR)
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) ARM OpenBLAS OpenRNG gnu build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref --rng-backend openrng
+    displayName: 'daal/cpp examples'
+  - script: |
+      export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref --rng-backend openrng
     displayName: 'oneapi/cpp examples'
   - task: PublishPipelineArtifact@1
     inputs:
