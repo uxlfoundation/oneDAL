@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2023 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2023 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 ==================
 Objective function
@@ -43,14 +41,14 @@ Computing
 ---------
 
 Algorithm takes dataset :math:`X = \{ x_1, \ldots, x_n \}` with :math:`n` feature vectors of dimension :math:`p`, vector with correct class labels
-:math:`y = \{ y_1, \ldots, y_n \}` and coefficients vector `w = \{ w_0, \ldots, w_p \}`of size :math:`p + 1` as input. Then it calculates 
+:math:`y = \{ y_1, \ldots, y_n \}` and coefficients vector `w = \{ w_0, \ldots, w_p \}`of size :math:`p + 1` as input. Then it calculates
 logistic loss, its gradient or hessian.
 
 #####
-Value 
+Value
 #####
 
-:math:`L(X, w, y)` - value of objective function. 
+:math:`L(X, w, y)` - value of objective function.
 
 ########
 Gradient
