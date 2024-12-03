@@ -37,13 +37,13 @@ https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html
 
 ## Docker Development Environment
 
-[Docker file](https://github.com/oneapi-src/oneDAL/tree/main/dev/docker) with the oneDAL development environment
+[Docker file](https://github.com/uxlfoundation/oneDAL/tree/main/dev/docker) with the oneDAL development environment
 is available as an alternative to the manual setup.
 
 ## Installation Steps
 1. Clone the sources from GitHub\* as follows:
 
-        git clone https://github.com/oneapi-src/oneDAL.git
+        git clone https://github.com/uxlfoundation/oneDAL.git
 
 2. Set the PATH environment variable to the MSYS2\* bin directory (Windows\* only). For example:
 
@@ -164,14 +164,14 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
 ---
 
-After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex/tree/main) or for executing the usage examples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
+After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main) or for executing the usage examples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
 
 ```shell
 cd daal/latest
 source env/vars.sh
 ```
 
-The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/oneapi-src/oneDAL/tree/main/dev/bazel) for more information.
+The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for more information.
 
 Examples of library usage will also be auto-generated as part of the build under path `daal/latest/examples/daal/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
 

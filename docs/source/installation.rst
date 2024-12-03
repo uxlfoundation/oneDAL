@@ -16,10 +16,10 @@
 
 
 .. |github_rls| replace:: Download a binary file with the specific version of |short_name|
-.. _github_rls: https://github.com/oneapi-src/oneDAL/releases
+.. _github_rls: https://github.com/uxlfoundation/oneDAL/releases
 
 .. |install_sources| replace:: Install |short_name| from sources
-.. _install_sources: https://github.com/oneapi-src/oneDAL/blob/main/INSTALL.md
+.. _install_sources: https://github.com/uxlfoundation/oneDAL/blob/main/INSTALL.md
 
 Installation
 ============

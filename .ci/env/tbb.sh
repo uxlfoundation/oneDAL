@@ -120,7 +120,7 @@ sudo apt-get install build-essential gcc gfortran cmake -y
 tbb_src=${tbb_src:-${ONEDAL_DIR}/__work/onetbb-src}
 if [[ ! -d "${tbb_src}" ]] ; then
   TBB_VERSION="${TBB_VERSION:-${TBB_DEFAULT_VERSION}}"
-  git clone --depth 1 --branch "${TBB_VERSION}" https://github.com/oneapi-src/oneTBB.git "${tbb_src}"
+  git clone --depth 1 --branch "${TBB_VERSION}" https://github.com/uxlfoundation/oneTBB.git "${tbb_src}"
 fi
 
 rm -rf "${tbb_prefix}"

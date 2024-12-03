@@ -17,7 +17,7 @@
 #===============================================================================
 
 TBB_VERSION="2021.10.0"
-TBB_URL_ROOT="https://github.com/oneapi-src/oneTBB/releases/download/v${TBB_VERSION}"
+TBB_URL_ROOT="https://github.com/uxlfoundation/oneTBB/releases/download/v${TBB_VERSION}"
 
 os=$(uname)
 if [ "${os}" = "Linux" ]; then

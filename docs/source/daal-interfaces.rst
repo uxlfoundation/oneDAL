@@ -19,7 +19,7 @@
 DAAL Interfaces
 ===============
 
-This chapter documents algorithms implemented in `DAAL interfaces <https://github.com/oneapi-src/oneDAL/tree/main/cpp/daal>`_.
+This chapter documents algorithms implemented in `DAAL interfaces <https://github.com/uxlfoundation/oneDAL/tree/main/cpp/daal>`_.
 See :ref:`oneapi_dal_guide` to find documentation on oneAPI interfaces.
 Refer to :ref:`oneapi_vs_daal` to learn the difference between them.
 
@@ -38,5 +38,5 @@ Examples
 
 You can find examples on Github*:
 
-- `C++ <https://github.com/oneapi-src/oneDAL/tree/main/examples/daal/cpp/source>`_ (CPU)
-- `Python* <https://github.com/intel/scikit-learn-intelex/tree/main/examples/daal4py>`_
+- `C++ <https://github.com/uxlfoundation/oneDAL/tree/main/examples/daal/cpp/source>`_ (CPU)
+- `Python* <https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/daal4py>`_

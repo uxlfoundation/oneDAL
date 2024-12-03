@@ -273,7 +273,7 @@ inline void threader_for_int64(int64_t n, const F & func)
 /// This means the threading layer tries to assign consecutive iterations to
 /// different threads, if possible.
 /// In case of oneTBB threading backend this means that `simple_partitioner`
-/// (https://oneapi-src.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html)
+/// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html)
 /// with chunk size 1 is used to produce iteration to threads mappings.
 ///
 /// Data dependencies between the iterations are allowed, but may requre the use

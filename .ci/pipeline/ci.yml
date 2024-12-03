@@ -605,7 +605,7 @@ jobs:
       conda create -q -y -n CB -c conda-forge python=$(python.version) mpich
     displayName: 'Conda create'
   - script: |
-      git clone https://github.com/intel/scikit-learn-intelex.git sklearnex
+      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git sklearnex
     displayName: Clone sklearnex
   - script: |
       source /usr/share/miniconda/etc/profile.d/conda.sh
