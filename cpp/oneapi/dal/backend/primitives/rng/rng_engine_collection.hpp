@@ -16,11 +16,17 @@
 
 #pragma once
 
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
-
+#include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include <vector>
 
+#include "oneapi/dal/backend/primitives/rng/utils.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
+#include "oneapi/dal/table/common.hpp"
+
 namespace oneapi::dal::backend::primitives {
+
+#ifdef ONEDAL_DATA_PARALLEL
 
 template <typename Size = std::int64_t>
 class engine_collection {
@@ -33,7 +39,7 @@ public:
               daal_engine_list_(count) {}
 
     template <typename Op>
-    std::vector<engine> operator()(Op&& op) {
+    std::vector<daal_engine<engine_list::mt2203>> operator()(Op&& op) {
         daal::services::Status status;
         for (Size i = 0; i < count_; ++i) {
             op(i, params_.nSkip[i]);
@@ -49,7 +55,7 @@ public:
             dal::backend::interop::status_to_exception(status);
         }
 
-        std::vector<engine> engine_list(count_);
+        std::vector<daal_engine<engine_list::mt2203>> engine_list(count_);
         for (Size i = 0; i < count_; ++i) {
             engine_list[i] = daal_engine_list_[i];
         }
@@ -90,4 +96,27 @@ private:
         daal_engine_list_;
 };
 
+template <typename Size = std::int64_t, engine_list EngineType = engine_list::mt2203>
+class engine_collection_oneapi {
+public:
+    engine_collection_oneapi(sycl::queue& queue, Size count, std::int64_t seed = 777)
+            : count_(count),
+              seed_(seed) {
+        engines_.reserve(count_);
+        for (Size i = 0; i < count_; ++i) {
+            engines_.push_back(onedal_engine<EngineType>(queue, seed_));
+        }
+    }
+
+    std::vector<onedal_engine<EngineType>> get_engines() const {
+        return engines_;
+    }
+
+private:
+    Size count_;
+    std::int64_t seed_;
+    std::vector<onedal_engine<EngineType>> engines_;
+};
+
+#endif
 } // namespace oneapi::dal::backend::primitives

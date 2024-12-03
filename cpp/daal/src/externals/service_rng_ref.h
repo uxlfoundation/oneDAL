@@ -36,9 +36,11 @@
     #include <random>
 
     // RNGs
-    #define __DAAL_BRNG_MT2203  (1 << 20) * 9 //VSL_BRNG_MT2203
-    #define __DAAL_BRNG_MT19937 (1 << 20) * 8 //VSL_BRNG_MT19937
-    #define __DAAL_BRNG_MCG59   (1 << 20) * 4 //VSL_BRNG_MCG59
+    #define __DAAL_BRNG_MT2203        (1 << 20) * 9  //VSL_BRNG_MT2203
+    #define __DAAL_BRNG_MT19937       (1 << 20) * 8  //VSL_BRNG_MT19937
+    #define __DAAL_BRNG_MCG59         (1 << 20) * 4  //VSL_BRNG_MCG59
+    #define __DAAL_BRNG_MRG32K3A      (1 << 20) * 3  //VSL_BRNG_MRG32K3A
+    #define __DAAL_BRNG_PHILOX4X32X10 (1 << 20) * 16 //VSL_BRNG_PHILOX4X32X10
 
     #define __DAAL_RNG_METHOD_UNIFORM_STD         0 //VSL_RNG_METHOD_UNIFORM_STD
     #define __DAAL_RNG_METHOD_UNIFORMBITS32_STD   4
