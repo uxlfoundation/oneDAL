@@ -227,33 +227,50 @@ sycl::event convert_vector_device2host(sycl::queue& q,
     // To perform conversion, we gather data from device to host in temporary
     // contigious array and then run host conversion function
 
-    const std::int64_t element_size_in_bytes = dal::detail::get_data_type_size(src_type);
+    const std::int64_t dst_element_size_in_bytes = dal::detail::get_data_type_size(dst_type);
+    const std::int64_t dst_size_in_bytes =
+        dal::detail::check_mul_overflow(dst_element_size_in_bytes, element_count);
+    const std::int64_t dst_stride_in_bytes =
+        dal::detail::check_mul_overflow(dst_element_size_in_bytes, dst_stride);
+
+    const std::int64_t src_element_size_in_bytes = dal::detail::get_data_type_size(src_type);
     const std::int64_t src_size_in_bytes =
-        dal::detail::check_mul_overflow(element_size_in_bytes, element_count);
+        dal::detail::check_mul_overflow(src_element_size_in_bytes, element_count);
     const std::int64_t src_stride_in_bytes =
-        dal::detail::check_mul_overflow(element_size_in_bytes, src_stride);
+        dal::detail::check_mul_overflow(src_element_size_in_bytes, src_stride);
+    if (src_type == dst_type && src_size_in_bytes == dst_size_in_bytes &&
+        src_stride_in_bytes == dst_stride_in_bytes) {
+        auto copy_event = memcpy_usm2host(q,
+                                          dst_host,
+                                          src_device,
+                                          src_element_size_in_bytes * element_count,
+                                          deps);
 
-    const auto tmp_host_unique = make_unique_usm_host(q, src_size_in_bytes);
+        return copy_event;
+    }
+    else {
+        const auto tmp_host_unique = make_unique_usm_host(q, src_size_in_bytes);
 
-    auto gather_event = gather_device2host(q,
-                                           tmp_host_unique.get(),
-                                           src_device,
-                                           element_count,
-                                           src_stride_in_bytes,
-                                           element_size_in_bytes,
-                                           deps);
-    gather_event.wait_and_throw();
+        auto gather_event = gather_device2host(q,
+                                               tmp_host_unique.get(),
+                                               src_device,
+                                               element_count,
+                                               src_stride_in_bytes,
+                                               src_element_size_in_bytes,
+                                               deps);
+        gather_event.wait_and_throw();
 
-    convert_vector(dal::detail::default_host_policy{},
-                   tmp_host_unique.get(),
-                   dst_host,
-                   src_type,
-                   dst_type,
-                   1L,
-                   dst_stride,
-                   element_count);
+        convert_vector(dal::detail::default_host_policy{},
+                       tmp_host_unique.get(),
+                       dst_host,
+                       src_type,
+                       dst_type,
+                       1L,
+                       dst_stride,
+                       element_count);
 
-    return sycl::event{};
+        return sycl::event{};
+    }
 }
 
 sycl::event convert_vector_host2device(sycl::queue& q,
@@ -275,43 +292,60 @@ sycl::event convert_vector_host2device(sycl::queue& q,
     // To perform conversion, we perform conversion on the host and gather data
     // in temporary contigious array and then scatter it from host to device
 
-    const std::int64_t element_size_in_bytes = dal::detail::get_data_type_size(dst_type);
+    const std::int64_t dst_element_size_in_bytes = dal::detail::get_data_type_size(dst_type);
     const std::int64_t dst_size_in_bytes =
-        dal::detail::check_mul_overflow(element_size_in_bytes, element_count);
+        dal::detail::check_mul_overflow(dst_element_size_in_bytes, element_count);
     const std::int64_t dst_stride_in_bytes =
-        dal::detail::check_mul_overflow(element_size_in_bytes, dst_stride);
+        dal::detail::check_mul_overflow(dst_element_size_in_bytes, dst_stride);
 
-    const auto tmp_host_unique = make_unique_usm_host(q, dst_size_in_bytes);
+    const std::int64_t src_element_size_in_bytes = dal::detail::get_data_type_size(src_type);
+    const std::int64_t src_size_in_bytes =
+        dal::detail::check_mul_overflow(src_element_size_in_bytes, element_count);
+    const std::int64_t src_stride_in_bytes =
+        dal::detail::check_mul_overflow(src_element_size_in_bytes, src_stride);
+    if (src_type == dst_type && src_size_in_bytes == dst_size_in_bytes &&
+        src_stride_in_bytes == dst_stride_in_bytes) {
+        auto copy_event = memcpy_host2usm(q,
+                                          dst_device,
+                                          src_host,
+                                          src_element_size_in_bytes * element_count,
+                                          deps);
 
-    convert_vector(dal::detail::default_host_policy{},
-                   src_host,
-                   tmp_host_unique.get(),
-                   src_type,
-                   dst_type,
-                   src_stride,
-                   1L,
-                   element_count);
-    const std::int64_t max_loop_range = std::numeric_limits<std::int32_t>::max();
-    sycl::event scatter_event;
-    if (element_count > max_loop_range) {
-        scatter_event = scatter_host2device_blocking(q,
-                                                     dst_device,
-                                                     tmp_host_unique.get(),
-                                                     element_count,
-                                                     dst_stride_in_bytes,
-                                                     element_size_in_bytes,
-                                                     deps);
+        return copy_event;
     }
     else {
-        scatter_event = scatter_host2device(q,
-                                            dst_device,
-                                            tmp_host_unique.get(),
-                                            element_count,
-                                            dst_stride_in_bytes,
-                                            element_size_in_bytes,
-                                            deps);
+        const auto tmp_host_unique = make_unique_usm_host(q, dst_size_in_bytes);
+
+        convert_vector(dal::detail::default_host_policy{},
+                       src_host,
+                       tmp_host_unique.get(),
+                       src_type,
+                       dst_type,
+                       src_stride,
+                       1L,
+                       element_count);
+        const std::int64_t max_loop_range = std::numeric_limits<std::int32_t>::max();
+        sycl::event scatter_event;
+        if (element_count > max_loop_range) {
+            scatter_event = scatter_host2device_blocking(q,
+                                                         dst_device,
+                                                         tmp_host_unique.get(),
+                                                         element_count,
+                                                         dst_stride_in_bytes,
+                                                         dst_element_size_in_bytes,
+                                                         deps);
+        }
+        else {
+            scatter_event = scatter_host2device(q,
+                                                dst_device,
+                                                tmp_host_unique.get(),
+                                                element_count,
+                                                dst_stride_in_bytes,
+                                                dst_element_size_in_bytes,
+                                                deps);
+        }
+        return scatter_event;
     }
-    return scatter_event;
 }
 
 void convert_vector(const detail::data_parallel_policy& policy,

@@ -72,11 +72,7 @@ sycl::event gather_device2host(sycl::queue& q,
                                       block_count * block_size_in_bytes,
                                       { gather_event });
 
-    // We need to wait until gather kernel is completed to deallocate
-    // `gathered_device_unique`
-    copy_event.wait_and_throw();
-
-    return sycl::event{};
+    return copy_event;
 }
 
 sycl::event scatter_host2device(sycl::queue& q,
