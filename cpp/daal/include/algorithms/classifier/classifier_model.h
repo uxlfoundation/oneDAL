@@ -97,6 +97,10 @@ class DAAL_EXPORT Model : public daal::algorithms::Model
 public:
     DAAL_CAST_OPERATOR(Model)
 
+    Model()                                = default;
+    Model(const Model & other)             = default;
+    Model & operator=(const Model & other) = default;
+
     virtual ~Model() DAAL_C11_OVERRIDE {}
 
     /**

@@ -154,6 +154,8 @@ public:
     /** Copy constructor */
     Input(const Input & other) : algorithms::regression::training::Input(other) {}
 
+    Input & operator=(const Input & other) = default;
+
     virtual ~Input() {};
 
     /**

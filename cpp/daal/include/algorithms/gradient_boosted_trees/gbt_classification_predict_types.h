@@ -107,6 +107,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
 
     Parameter(size_t nClasses = 2) : super(nClasses), nIterations(0), resultsToCompute(predictionResult) {}
     Parameter(const Parameter & o) : super(o), nIterations(o.nIterations), resultsToCompute(o.resultsToCompute) {}
+    Parameter & operator=(const Parameter & o) = default;
     size_t nIterations;           /*!< Number of iterations of the trained model to be used for prediction */
     DAAL_UINT64 resultsToCompute; /*!< 64 bit integer flag that indicates the results to compute */
 };
@@ -185,6 +186,7 @@ class DAAL_EXPORT Input : public classifier::prediction::Input
 public:
     Input() : super() {}
     Input(const Input & other) : super(other) {}
+    Input & operator=(const Input & other) = default;
     virtual ~Input() {}
 
     using super::get;

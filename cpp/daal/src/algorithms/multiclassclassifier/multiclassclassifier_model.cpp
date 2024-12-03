@@ -46,6 +46,33 @@ Model::Model(size_t nFeatures, const multi_class_classifier::interface2::Paramet
     if (!_models) st.add(services::ErrorMemoryAllocationFailed);
 }
 
+Model::Model(const Model & other) :
+    _nFeatures(other._nFeatures),
+    _models(new data_management::DataCollection(other.getNumberOfTwoClassClassifierModels())),
+    _modelsArray(nullptr)
+{
+    const size_t nModels = other.getNumberOfTwoClassClassifierModels();
+    for (size_t i = 0; i < nModels; ++i)
+    {
+        setTwoClassClassifierModel(i, other.getTwoClassClassifierModel(i));
+    }
+}
+
+Model & Model::operator=(const Model & other)
+{
+    if (this != &other)
+    {
+        _nFeatures = other._nFeatures;
+        const size_t nModels = other.getNumberOfTwoClassClassifierModels();
+        _models = data_management::DataCollectionPtr(new data_management::DataCollection(nModels));
+        for (size_t i = 0; i < nModels; ++i)
+        {
+            setTwoClassClassifierModel(i, other.getTwoClassClassifierModel(i));
+        }
+    }
+    return *this;
+}
+
 Model::Model() : _nFeatures(0), _models(new data_management::DataCollection()), _modelsArray(nullptr) {}
 
 ModelPtr Model::create(size_t nFeatures, const multi_class_classifier::interface2::ParameterBase * par, services::Status * stat)

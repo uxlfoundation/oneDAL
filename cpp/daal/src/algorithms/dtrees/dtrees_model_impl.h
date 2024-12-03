@@ -91,6 +91,7 @@ public:
     }
 #else
     ClassifierResponse() : value(0) {}
+    ~ClassifierResponse() {}
 #endif
     ClassifierResponse(const ClassifierResponse &)               = delete;
     ClassifierResponse & operator=(const ClassifierResponse & o) = delete;
@@ -143,6 +144,8 @@ struct TreeNodeLeaf : public TreeNodeBase
     double * hist;
 
     TreeNodeLeaf() {}
+    TreeNodeLeaf(const TreeNodeLeaf &)                   = delete;
+    TreeNodeLeaf & operator=(const TreeNodeLeaf & other) = delete;
 
     // nCLasses = 0 for regression
     TreeNodeLeaf(double * memoryForHist) : hist(memoryForHist) {}
@@ -212,6 +215,8 @@ class DAAL_EXPORT MemoryManager
 {
 public:
     MemoryManager(size_t chunkSize) : _chunkSize(chunkSize), _posInChunk(0), _iCurChunk(-1) {}
+    MemoryManager(const MemoryManager &)                   = delete;
+    MemoryManager & operator=(const MemoryManager & other) = delete;
     ~MemoryManager() { destroy(); }
 
     void * alloc(size_t nBytes);
@@ -299,6 +304,8 @@ public:
         : _allocator(_cNumNodesHint), _top(t), _hasUnorderedFeatureSplits(bHasUnorderedFeatureSplits)
     {}
     TreeImpl() : _allocator(_cNumNodesHint), _top(nullptr), _hasUnorderedFeatureSplits(false) {}
+    TreeImpl(const TreeImpl &)                   = delete;
+    TreeImpl & operator=(const TreeImpl & other) = delete;
     ~TreeImpl() { destroy(); }
     void destroy();
     void reset(typename NodeType::Base * t, bool bHasUnorderedFeatureSplits)
@@ -473,6 +480,10 @@ class DAAL_EXPORT ModelImpl
 {
 public:
     ModelImpl();
+
+    ModelImpl(const ModelImpl & other);
+    ModelImpl & operator=(const ModelImpl & other);
+
     virtual ~ModelImpl();
 
     size_t size() const { return _nTree.get(); }
