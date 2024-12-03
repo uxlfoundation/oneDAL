@@ -63,6 +63,7 @@ class DAAL_EXPORT Input : public classifier::prediction::Input
 public:
     Input() : classifier::prediction::Input() {}
     Input(const Input & other) : classifier::prediction::Input(other) {}
+    Input & operator=(const Input & other) = default;
     virtual ~Input() {}
 
     using super::get;
