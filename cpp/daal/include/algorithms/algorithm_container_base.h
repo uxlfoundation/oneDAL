@@ -65,7 +65,7 @@ public:
 class AlgorithmContainerIfaceImpl : public AlgorithmContainerIface
 {
 public:
-    AlgorithmContainerIfaceImpl()                                                      = default;
+    AlgorithmContainerIfaceImpl();
     AlgorithmContainerIfaceImpl(const AlgorithmContainerIfaceImpl &)                   = delete;
     AlgorithmContainerIfaceImpl & operator=(const AlgorithmContainerIfaceImpl & other) = delete;
 
@@ -101,7 +101,7 @@ template <ComputeMode mode>
 class AlgorithmContainer : public AlgorithmContainerIfaceImpl
 {
 public:
-    AlgorithmContainer()                                                         = default;
+    AlgorithmContainer();
     AlgorithmContainer(const AlgorithmContainer &)                               = delete;
     AlgorithmContainer<mode> & operator=(const AlgorithmContainer<mode> & other) = delete;
 

@@ -53,7 +53,7 @@ template <>
 class AlgorithmContainer<batch> : public AlgorithmContainerIfaceImpl
 {
 public:
-    AlgorithmContainer()                                                           = default;
+    AlgorithmContainer();
     AlgorithmContainer(const AlgorithmContainer &)                                 = delete;
     AlgorithmContainer<batch> & operator=(const AlgorithmContainer<batch> & other) = delete;
 

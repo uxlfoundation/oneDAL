@@ -36,6 +36,11 @@ namespace prediction
 {
 namespace interface2
 {
+Input::Input()                                = default;
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
+Input::~Input()                               = default;
+
 /**
  * Returns the input Numeric Table object in the prediction stage of the classification algorithm
  * \param[in] id    Identifier of the input NumericTable object
