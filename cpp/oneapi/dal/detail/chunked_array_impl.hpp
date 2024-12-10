@@ -74,6 +74,8 @@ public:
         return *this;
     }
 
+    ~chunked_array_base() = default;
+
     chunked_array_base() {
         reset();
     }
