@@ -35,12 +35,17 @@ Note: the Intel(R) oneAPI components listed here can be installed together throu
 
 https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html
 
+These dependencies can also be installed through the `conda` software, but doing so will require a few additional setup steps - see rest of the instructions for details.
+
 ## Docker Development Environment
 
 [Docker file](https://github.com/uxlfoundation/oneDAL/tree/main/dev/docker) with the oneDAL development environment
 is available as an alternative to the manual setup.
 
 ## Installation Steps
+
+_(If using `conda`, see subsequent sections for instructions)_
+
 1. Clone the sources from GitHub\* as follows:
 
         git clone https://github.com/uxlfoundation/oneDAL.git
@@ -194,4 +199,68 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 
 ```shell
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+## Installation with a conda environment
+
+The previous instructions assumed system-wide installs of the necessary dependencies. These can also be installed at a user-level through the `conda` or [mamba](https://github.com/conda-forge/miniforge) ecosystems.
+
+To create a conda environment for building oneDAL, after `conda` has been installed:
+
+```shell
+conda create -y -n onedal_env
+conda activate onedal_env
+```
+
+To install the necessary dependencies with `conda`, **assuming a linux system**:
+
+```shell
+conda install -y -c https://software.repos.intel.com/python/conda/ \ `# Intel's repository`
+    make python \ `# used by the build system`
+    dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \ `# Intel compiler packages`
+    tbb tbb-devel \ `# required TBB packages`
+    mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \ `# required MKL packages`
+    cmake `# required to build the examples only`
+```
+
+_(for windows, replace `dpcpp_linux-64` with `dpcpp_win-64`)_
+
+Then, one needs to modify environment variables as appropriate to point to the necessary libraries - **assuming a linux system:**
+
+```shell
+export MKLROOT=${CONDA_PREFIX}
+export TBBROOT=${CONDA_PREFIX}
+export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+export CPATH="${CONDA_PREFIX}/include:${CPATH}"
+export PATH="${CONDA_PREFIX}/bin:${PATH}"
+export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+```
+
+Equivalent for windows:
+
+```bat
+set MKLROOT=%CONDA_PREFIX%\Library
+set TBBROOT=%CONDA_PREFIX%\Library
+set "LD_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LD_LIBRARY_PATH%"
+set "LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LIBRARY_PATH%"
+set "CPATH=%CONDA_PREFIX%\Library\include;%CPATH%"
+set "PATH=%CONDA_PREFIX%\Library\bin;%PATH%"
+set "PKG_CONFIG_PATH=%CONDA_PREFIX%\Library\lib\pkgconfig;%PKG_CONFIG_PATH%"
+set "CMAKE_PREFIX_PATH=%CONDA_PREFIX%\Library\lib\cmake;%CMAKE_PREFIX_PATH%"
+```
+
+.. And then, previous commands from the Makefile for the Intel compiler should work - e.g.:
+
+* For linux:
+
+```shell
+make -f makefile daal PLAT=lnx32e
+```
+
+* For windows:
+
+```shell
+make -f makefile oneapi PLAT=win32e
 ```
