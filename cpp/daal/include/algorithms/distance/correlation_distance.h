@@ -63,6 +63,10 @@ public:
     BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
+    /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */
+    BatchContainer(const BatchContainer &)             = delete;
+    BatchContainer & operator=(const BatchContainer &) = delete;
+
     /**
      * Computes the result of the correlation distance algorithm in the batch processing mode
      */

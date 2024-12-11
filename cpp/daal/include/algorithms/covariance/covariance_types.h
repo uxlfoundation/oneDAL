@@ -126,8 +126,9 @@ class DAAL_EXPORT InputIface : public daal::algorithms::Input
 {
 public:
     InputIface(size_t nElements) : daal::algorithms::Input(nElements) {}
-    InputIface(const InputIface & other) : daal::algorithms::Input(other) {}
-    virtual size_t getNumberOfFeatures() const = 0;
+    InputIface(const InputIface & other)             = default;
+    InputIface & operator=(const InputIface & other) = default;
+    virtual size_t getNumberOfFeatures() const       = 0;
     virtual ~InputIface() {}
 };
 
@@ -139,7 +140,8 @@ class DAAL_EXPORT Input : public InputIface
 {
 public:
     Input();
-    Input(const Input & other) : InputIface(other) {}
+    Input(const Input & other)             = default;
+    Input & operator=(const Input & other) = default;
 
     virtual ~Input() {}
 
@@ -280,6 +282,12 @@ struct DAAL_EXPORT OnlineParameter : public Parameter
     OnlineParameter(const OnlineParameter & other);
 
     /**
+    *  Copy-assignment operator for parameters of the Covariance Online algorithm
+    *  \param[in] other    Parameters of the Covariance Online algorithm
+    */
+    OnlineParameter & operator=(const OnlineParameter & other);
+
+    /**
      * Check the correctness of the %OnlineParameter object
      */
     services::Status check() const DAAL_C11_OVERRIDE;
@@ -380,7 +388,8 @@ class DAAL_EXPORT DistributedInput<step1Local> : public Input
 {
 public:
     DistributedInput() : Input() {}
-    DistributedInput(const DistributedInput & other) : Input(other) {}
+    DistributedInput(const DistributedInput & other)             = default;
+    DistributedInput & operator=(const DistributedInput & other) = default;
 
     virtual ~DistributedInput() {}
 };
@@ -395,7 +404,8 @@ class DAAL_EXPORT DistributedInput<step2Master> : public InputIface
 {
 public:
     DistributedInput();
-    DistributedInput(const DistributedInput & other) : InputIface(other) {}
+    DistributedInput(const DistributedInput & other)             = default;
+    DistributedInput & operator=(const DistributedInput & other) = default;
 
     virtual ~DistributedInput() {}
 
