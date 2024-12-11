@@ -22,7 +22,7 @@ SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 SCRIPT_DIR=$(dirname "${SCRIPT_PATH}")
 ONEDAL_DIR=$(readlink -f "${SCRIPT_DIR}/../..")
 OPENBLAS_DEFAULT_SOURCE_DIR="${ONEDAL_DIR}/__work/openblas"
-BLAS_DEFAULT_VERSION="v0.3.27"
+BLAS_DEFAULT_VERSION="v0.3.28"
 
 show_help() {
   echo "Usage: $0 [--help]"
