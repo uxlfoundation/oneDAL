@@ -2,17 +2,22 @@ module(name = "onedal")
 
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
-declare_onedal_config = use_extension("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
-use_repo(declare_onedal_config, "declare_onedal_config")
+declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
+declare_onedal_config(name = "config",)
+#use_repo(declare_onedal_config, "config")
 
-declare_onedal_cc_toolchain = use_extension("@onedal//dev/bazel/toolchains:cc_toolchain.bzl", "declare_onedal_cc_toolchain")
-use_repo(declare_onedal_cc_toolchain, "onedal_cc_toolchain",)
+declare_onedal_cc_toolchain = use_repo_rule("@onedal//dev/bazel/toolchains:cc_toolchain.bzl", "onedal_cc_toolchain")
+declare_onedal_cc_toolchain(name = "onedal_cc_toolchain")
 
-declare_onedal_extra_toolchain = use_extension("@onedal//dev/bazel/toolchains:extra_toolchain.bzl", "declare_onedal_extra_toolchain")
-use_repo(declare_onedal_extra_toolchain, "declare_onedal_extra_toolchain")
+declare_onedal_extra_toolchain = use_repo_rule("@onedal//dev/bazel/toolchains:extra_toolchain.bzl", "onedal_extra_toolchain")
+declare_onedal_extra_toolchain(name = "onedal_extra_toolchain")
 
-opencl_repo = use_extension("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
-use_repo(opencl_repo, "opencl")
+opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
+opencl_repo(name = "opencl")
+
+openblas_repo = use_repo_rule("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
+openblas_repo(name = "openblas", root_env_var = "OPENBLASROOT",)
+
 
 
 tbb_repo = use_repo_rule("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
@@ -94,6 +99,7 @@ onedal_repo(
 )
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "catch2",
     url = "https://github.com/catchorg/Catch2/archive/v3.7.1.tar.gz",
