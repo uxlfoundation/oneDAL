@@ -8,14 +8,14 @@ declare_onedal_config(
 )
 
 declare_onedal_cc_toolchain = use_repo_rule("@onedal//dev/bazel/toolchains:cc_toolchain.bzl", "declare_onedal_cc_toolchain")
-declare_onedal_cc_toolchain(
-    name = "onedal_cc_toolchain",
-)
+#declare_onedal_cc_toolchain(
+#    name = "onedal_cc_toolchain",
+#)
 
 declare_onedal_extra_toolchain = use_repo_rule("@onedal//dev/bazel/toolchains:extra_toolchain.bzl", "declare_onedal_extra_toolchain")
-declare_onedal_extra_toolchain(
-    name = "onedal_extra_toolchain",
-)
+#declare_onedal_extra_toolchain(
+#    name = "onedal_extra_toolchain",
+#)
 
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(
