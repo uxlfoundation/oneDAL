@@ -376,56 +376,6 @@ jobs:
     condition: failed()
     continueOnError: true
 
-- job: 'LinuxMakeGNU_OpenBLAS_x86'
-  timeoutInMinutes: 0
-  variables:
-    release.dir: '__release_lnx_gnu'
-    platform.type : 'lnx32e'
-    OPENBLAS_CACHE_DIR: $(Pipeline.Workspace)/openblas-x86_64-gnu
-  pool:
-    vmImage: '$(VM_IMAGE)'
-  steps:
-  - script: |
-      .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
-  - script: |
-      .ci/scripts/describe_system.sh
-    displayName: 'System info'
-  - task: Cache@2
-    inputs:
-      key: '"gcc" | "x86_64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
-      path: $(OPENBLAS_CACHE_DIR)
-      cacheHitVar: OPENBLAS_RESTORED
-  - script: |
-      .ci/env/openblas.sh --target-arch x86_64 --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
-    displayName: 'Build OpenBLAS'
-    condition: ne(variables.OPENBLAS_RESTORED, 'true')
-  - script: |
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --backend-config ref --conda-env ci-env --blas-dir $(OPENBLAS_CACHE_DIR)
-    displayName: 'make daal'
-  - script: |
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c --backend-config ref --blas-dir $(OPENBLAS_CACHE_DIR)
-    displayName: 'make onedal_c'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) OpenBLAS build'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Upload build artifacts'
-    continueOnError: true
-  - script: |
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake --backend ref
-    displayName: 'daal/cpp examples'
-  - script: |
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake --backend ref
-    displayName: 'oneapi/cpp examples'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) fail'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Uploading on fail'
-    condition: failed()
-    continueOnError: true
-
 - job: 'LinuxMakeDPCPP'
   timeoutInMinutes: 0
   variables:
