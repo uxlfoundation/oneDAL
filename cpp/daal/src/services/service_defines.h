@@ -28,7 +28,6 @@
 #include <stdint.h>
 #include "services/env_detect.h"
 
-DAAL_EXPORT bool __daal_serv_cpu_extensions_available();
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
@@ -42,7 +41,11 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define DAAL_BASE_CPU daal::rv64
 #endif
 
-#define DAAL_CHECK_CPU_ENVIRONMENT (__daal_serv_cpu_extensions_available())
+#if defined(TARGET_X86_64)
+    #define DAAL_CHECK_CPU_ENVIRONMENT 1
+#else
+    #define DAAL_CHECK_CPU_ENVIRONMENT 0
+#endif
 
 #if defined(__INTEL_COMPILER)
     #define PRAGMA_IVDEP            _Pragma("ivdep")

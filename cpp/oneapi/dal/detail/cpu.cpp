@@ -38,15 +38,11 @@ cpu_extension from_daal_cpu_type(int cpu_type) {
 }
 
 cpu_extension detect_top_cpu_extension() {
-    if (!__daal_serv_cpu_extensions_available()) {
-#if defined(TARGET_X86_64)
-        return detail::cpu_extension::sse2;
-#elif defined(TARGET_ARM)
-        return detail::cpu_extension::sve;
+#if defined(TARGET_ARM)
+    return detail::cpu_extension::sve;
 #elif defined(TARGET_RISCV64)
-        return detail::cpu_extension::rv64;
+    return detail::cpu_extension::rv64;
 #endif
-    }
     const auto daal_cpu = __daal_serv_cpu_detect(0);
 
     return from_daal_cpu_type(daal_cpu);
