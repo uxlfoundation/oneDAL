@@ -44,6 +44,7 @@ public:
     bool isWhitening;
     ResultImpl(const size_t n) : DataCollection(n), isWhitening(false) {}
     ResultImpl(const ResultImpl & o) : DataCollection(o), isWhitening(o.isWhitening) {}
+    ResultImpl & operator=(const ResultImpl & o);
     virtual ~ResultImpl() {};
 
     /**
