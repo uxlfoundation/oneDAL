@@ -577,7 +577,7 @@ public:
 
         for (std::int32_t ij = 0; ij < num_checks; ++ij) {
             primitives::host_engine eng(2007 + dim * num_checks + ij);
-            pr::uniform<float_t>(dim, vec_host.get_mutable_data(), eng, -1.0, 1.0);
+            primitives::uniform<float_t>(dim, vec_host.get_mutable_data(), eng, -1.0, 1.0);
             auto vec_gpu = vec_host.to_device(this->get_queue());
             auto out_vector =
                 ndarray<float_t, 1>::empty(this->get_queue(), { dim }, sycl::usm::alloc::device);
