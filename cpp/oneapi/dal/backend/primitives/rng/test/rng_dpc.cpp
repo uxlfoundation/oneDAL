@@ -107,6 +107,7 @@ using rng_types = COMBINE_TYPES((float, double), (mt2203, mt19937, mcg59, mrg32k
 
 TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
     std::int64_t elem_count = GENERATE_COPY(10, 777, 10000, 50000);
@@ -131,6 +132,7 @@ using rng_types_skip_ahead_support = COMBINE_TYPES((float, double),
 
 TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahead_support) {
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
     std::int64_t elem_count = GENERATE_COPY(10, 777, 10000, 100000);
@@ -162,6 +164,7 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahe
 
 TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahead_support) {
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
     std::int64_t elem_count = GENERATE_COPY(10, 100, 777, 10000);
@@ -196,42 +199,6 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
     this->check_results(arr_gpu, arr_host);
 }
 
-//TODO: add engine collection test + host_engine tests
-// TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip collection", "[rng]", rng_types_skip) {
-//     SKIP_IF(this->get_policy().is_cpu());
-//     std::int64_t elem_count = GENERATE_COPY(10, 100, 777, 10000);
-//     std::int64_t seed = GENERATE_COPY(1, 777, 999);
-
-//     engine_collection<std::int64_t,engine_method::mcg59> collection(this->get_queue(), 2, seed);
-
-//     auto engine_arr = collection.get_dpc_engines();
-
-//     auto [arr_device_init_1, arr_device_init_2] = this->allocate_arrays_shared(elem_count);
-
-//     auto arr_device_init_1_ptr = arr_device_init_1.get_mutable_data();
-//     auto arr_device_init_2_ptr = arr_device_init_2.get_mutable_data();
-
-//     auto rn_gen = this->get_rng();
-
-//     rn_gen.uniform(this->get_queue(),
-//                    elem_count,
-//                    arr_device_init_1_ptr,
-//                    engine_arr[0],
-//                    0,
-//                    elem_count);
-
-//     rn_gen.uniform(this->get_queue(),
-//                    elem_count,
-//                    arr_device_init_2_ptr,
-//                    engine_arr[1],
-//                    0,
-//                    elem_count);
-
-//     // rn_gen.uniform(this->get_queue(), elem_count, arr_gpu_ptr, engine_arr[0], 0, elem_count);
-//     // rn_gen.uniform(elem_count, arr_host_ptr, engine_arr[1], 0, elem_count);
-
-//     //this->check_results_device(arr_device_init_1, arr_device_init_2);
-//     this->check_results(arr_device_init_1, arr_device_init_2);
-// }
+//TODO: add engine collection test + separate host_engine tests
 
 } // namespace oneapi::dal::backend::primitives::test
