@@ -143,7 +143,7 @@ public:
         solution_ = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
         auto b_host = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
 
-        primitives::engine eng(4014 + n_);
+        primitives::host_engine eng(4014 + n_);
         uniform<float_t>(n_, solution_.get_mutable_data(), eng, -1.0, 1.0);
 
         create_stable_matrix(this->get_queue(), A_host, float_t(0.1), float_t(5.0));
