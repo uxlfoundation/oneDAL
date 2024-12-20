@@ -17,6 +17,7 @@
 #include "oneapi/dal/algo/linear_regression/train_types.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/exceptions.hpp"
+#include <iostream>
 
 namespace oneapi::dal::linear_regression {
 
@@ -68,7 +69,7 @@ std::int64_t train_parameters<Task>::get_cpu_macro_block() const {
 
 template <typename Task>
 void train_parameters<Task>::set_cpu_macro_block_impl(std::int64_t val) {
-    impl_->cpu_macro_block = val;
+    impl_->cpu_macro_block = 1024;
 }
 
 template <typename Task>
