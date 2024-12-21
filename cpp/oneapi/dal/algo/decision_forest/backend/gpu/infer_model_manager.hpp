@@ -25,6 +25,7 @@
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_model_impl.h>
 #include <daal/src/algorithms/dtrees/forest/regression/df_regression_model_impl.h>
 #include <daal/src/algorithms/dtrees/dtrees_predict_dense_default_impl.i>
+#include <iostream>
 
 namespace oneapi::dal::decision_forest::backend {
 
@@ -87,20 +88,23 @@ public:
         }
 
         max_tree_size_ = dal::detail::integral_cast<Index>(tree_size_max);
-
+        std::cout << "overflow here 4" << std::endl;
         const Index tree_block_size = dal::detail::check_mul_overflow(max_tree_size_, tree_count);
 
         auto fi_list_host = dal::backend::primitives::ndarray<Index, 1>::empty({ tree_block_size });
         auto lc_list_host = dal::backend::primitives::ndarray<Index, 1>::empty({ tree_block_size });
         auto fv_list_host = dal::backend::primitives::ndarray<Float, 1>::empty({ tree_block_size });
 
+        std::cout << "overflow here 5" << std::endl;
         Index mul_class_count_and_tree_in_group_count =
             dal::detail::check_mul_overflow(ctx_.class_count, ctx_.tree_in_group_count);
+        std::cout << "overflow here 6" << std::endl;
         dal::detail::check_mul_overflow(ctx_.row_count, mul_class_count_and_tree_in_group_count);
 
         dal::backend::primitives::ndarray<Float, 1> probas_list_host;
 
         if (ctx_.voting_mode == voting_mode::weighted && daal_model_ptr->getProbas(0)) {
+            std::cout << "overflow here 7" << std::endl;
             dal::detail::check_mul_overflow<std::int64_t>(tree_block_size, ctx_.class_count);
             probas_list_host = dal::backend::primitives::ndarray<Float, 1>::empty(
                 { tree_block_size * ctx_.class_count });

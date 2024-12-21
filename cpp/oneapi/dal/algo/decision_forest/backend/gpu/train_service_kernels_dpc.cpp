@@ -19,6 +19,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
+#include <iostream>
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -139,6 +140,7 @@ train_service_kernels<Float, Bin, Index, Task>::calculate_left_child_row_count_o
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
     ONEDAL_ASSERT(tree_order.get_count() == ctx.tree_in_block_ * ctx.selected_row_total_count_);
 
+    std::cout << "overflow here 50" << std::endl;
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
     const Index node_prop_count =
@@ -249,6 +251,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
     ONEDAL_ASSERT(tree_order.get_count() == data_selected_row_count * tree_count);
     ONEDAL_ASSERT(tree_order_buf.get_count() == data_selected_row_count * tree_count);
 
+    std::cout << "overflow here 51" << std::endl;
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
     // node_aux_list is auxilliary buffer for synchronization of left and right boundaries of blocks (elems_to_left_count, elems_to_right_count)
@@ -497,7 +500,9 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
     Index krn_local_size,
     Index sbg_sum_count,
     const bk::event_vector& deps) {
+    std::cout << "overflow here 52" << std::endl;
     ONEDAL_ASSERT(row_list.get_count() == de::check_mul_overflow(global_row_count, node_count));
+    std::cout << "overflow here 53" << std::endl;
     ONEDAL_ASSERT(row_buffer.get_count() == de::check_mul_overflow(block_row_count, node_count));
 
     const Index* rows_list_ptr = row_list.get_data();

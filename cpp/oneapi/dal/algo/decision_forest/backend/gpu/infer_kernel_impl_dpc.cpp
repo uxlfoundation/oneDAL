@@ -17,7 +17,7 @@
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
-
+#include <iostream>
 #include "oneapi/dal/algo/decision_forest/backend/gpu/infer_kernel_impl.hpp"
 
 namespace oneapi::dal::decision_forest::backend {
@@ -126,6 +126,7 @@ infer_kernel_impl<Float, Index, Task>::predict_by_tree_group_weighted(
     const Float* cls_prb_list_ptr = class_proba_list.get_data();
 
     Index obs_tree_group_response_count = ctx.class_count * ctx.tree_in_group_count;
+    std::cout << "first overflow here" << std::endl;
     de::check_mul_overflow(ctx.row_count, obs_tree_group_response_count);
     auto [obs_response_list, zero_obs_response_event] =
         pr::ndarray<Float, 1>::zeros(queue_,
@@ -230,6 +231,7 @@ infer_kernel_impl<Float, Index, Task>::predict_by_tree_group(const infer_context
     Index obs_tree_group_response_count = ctx.tree_in_group_count;
     if constexpr (is_classification) {
         obs_tree_group_response_count = ctx.class_count * ctx.tree_in_group_count;
+        std::cout << "second overflow here" << std::endl;
         de::check_mul_overflow(ctx.row_count, obs_tree_group_response_count);
     }
     auto [obs_response_list, zero_obs_response_event] =
@@ -322,6 +324,7 @@ infer_kernel_impl<Float, Index, Task>::reduce_tree_group_response(
     if constexpr (is_classification) {
         ONEDAL_ASSERT(obs_response_list.get_count() ==
                       ctx.row_count * ctx.class_count * ctx.tree_in_group_count);
+        std::cout << "third overflow here" << std::endl;
         de::check_mul_overflow(ctx.class_count, ctx.row_count);
         response_count = ctx.row_count * ctx.class_count;
     }

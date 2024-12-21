@@ -19,7 +19,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
-
+#include <iostream>
 #ifdef ONEDAL_DATA_PARALLEL
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_splitter_impl.hpp"
@@ -134,7 +134,6 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
     const auto nd_range =
         bk::make_multiple_nd_range_2d({ local_size, node_in_block_count }, { local_size, 1 });
-
     sycl::event last_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         local_accessor_rw_t<hist_type_t> local_hist_buf(hist_size, cgh);
@@ -537,7 +536,24 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
     const Index bin_block =
         compute_bin_block_size<hist_type_t, Index, Float, Task>(queue, hist_prop_count, bin_count);
 
-    const Index local_size = bk::device_max_wg_size(queue);
+    const Index local_size_initial = bk::device_max_wg_size(queue);
+    Index local_size = local_size_initial;
+    const auto max_int_limit = std::numeric_limits<int>::max();
+
+    if (node_count * ftr_count > 0 && node_count * ftr_count <= max_int_limit) {
+        while (node_count * ftr_count * local_size > max_int_limit) {
+            local_size /= 2;
+        }
+    }
+    else {
+        std::cerr << "Error: node_count * ftr_count exceeds int limit" << std::endl;
+    }
+
+    std::cout << "node count = " << node_count << std::endl;
+    std::cout << "ftr_count = " << ftr_count << std::endl;
+    std::cout << "local_size = " << local_size << std::endl;
+    std::cout << "total range size = " << node_count * ftr_count * local_size << std::endl;
+
     const auto nd_range =
         bk::make_multiple_nd_range_3d({ node_count, ftr_count, local_size }, { 1, 1, local_size });
 
@@ -686,7 +702,6 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
             }
         });
     });
-
     // Merging kernel: selects best split among all features.
     const auto merge_range =
         bk::make_multiple_nd_range_2d({ node_count, local_size }, { 1, local_size });
