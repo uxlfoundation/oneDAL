@@ -65,7 +65,7 @@ multiclassclassifier += classifier
 k_nearest_neighbors += engines classifier
 logistic_regression += classifier optimization_solver objective_function engines
 implicit_als += engines distributions
-engines += engines/mt19937 engines/mcg59 engines/mt2203
+engines += engines/mt19937 engines/mcg59 engines/mrg32k3a engines/philox4x32x10 engines/mt2203
 distributions += distributions/bernoulli distributions/normal distributions/uniform
 tsne +=
 
@@ -95,6 +95,8 @@ CORE.ALGORITHMS.FULL :=                                                       \
     elastic_net                                                               \
     engines                                                                   \
     engines/mcg59                                                             \
+    engines/mrg32k3a                                                          \
+    engines/philox4x32x10                                                     \
     engines/mt19937                                                           \
     engines/mt2203                                                            \
     em                                                                        \
@@ -309,6 +311,8 @@ JJ.ALGORITHMS       := adaboost                                                 
                        elastic_net/prediction                                    \
                        engines                                                   \
                        engines/mcg59                                             \
+                       engines/mrg32k3a                                          \
+                       engines/philox4x32x10                                     \
                        engines/mt19937                                           \
                        engines/mt2203                                            \
                        em_gmm                                                    \

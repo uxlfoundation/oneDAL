@@ -1,6 +1,6 @@
-/* file: mcg59_batch_impl.h */
+/* file: mrg32k3a_batch_impl.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 
 /*
 //++
-//  Implementation of the class defining the mcg59 engine
+//  Implementation of the class defining the mrg32k3a engine.
 //--
 */
 
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
@@ -32,17 +32,18 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mcg59
+namespace mrg32k3a
 {
 namespace internal
 {
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class BatchImpl : public algorithms::engines::mcg59::interface1::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
+class BatchImpl : public algorithms::engines::mrg32k3a::interface1::Batch<algorithmFPType, method>,
+                  public algorithms::engines::internal::BatchBaseImpl
 {
 public:
-    typedef algorithms::engines::mcg59::interface1::Batch<algorithmFPType, method> super1;
+    typedef algorithms::engines::mrg32k3a::interface1::Batch<algorithmFPType, method> super1;
     typedef algorithms::engines::internal::BatchBaseImpl super2;
-    BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_MCG59), super2(seed) {}
+    BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_MRG32K3A), super2(seed) {}
 
     void * getState() DAAL_C11_OVERRIDE { return baseRng.getState(); }
 
@@ -107,7 +108,7 @@ protected:
 };
 
 } // namespace internal
-} // namespace mcg59
+} // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
