@@ -24,7 +24,7 @@ CORE.ALGORITHMS.CUSTOM.AVAILABLE := low_order_moments quantiles covariance cosdi
                 dtrees/gbt dtrees/forest linear_regression ridge_regression naivebayes stump adaboost brownboost       \
                 logitboost svm multiclassclassifier k_nearest_neighbors logistic_regression implicit_als               \
                 coordinate_descent jaccard triangle_counting shortest_paths subgraph_isomorphism connected_components  \
-                louvain tsne
+                louvain tsne spectral_embedding
 
 classifier += classifier/inner
 low_order_moments +=
@@ -68,6 +68,7 @@ implicit_als += engines distributions
 engines += engines/mt19937 engines/mcg59 engines/mt2203
 distributions += distributions/bernoulli distributions/normal distributions/uniform
 tsne +=
+spectral_embedding += cosdistance
 
 CORE.ALGORITHMS.FULL :=                                                       \
     adaboost                                                                  \
@@ -141,7 +142,8 @@ CORE.ALGORITHMS.FULL :=                                                       \
     svd                                                                       \
     svm                                                                       \
     weak_learner/inner                                                        \
-    tsne
+    tsne                                                                      \
+    spectral_embedding
 
 CORE.ALGORITHMS := $(if $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.FULL))
 CORE.ALGORITHMS := $(sort $(foreach alg,$(CORE.ALGORITHMS),$(foreach alg1,$($(alg)),$(foreach alg2,$($(alg1)),$($(alg2)) $(alg2)) $(alg1)) $(alg)))
@@ -216,6 +218,7 @@ ONEAPI.ALGOS.pca           := CORE.pca
 ONEAPI.ALGOS.polynomial_kernel := CORE.kernel_function
 ONEAPI.ALGOS.sigmoid_kernel := CORE.kernel_function
 ONEAPI.ALGOS.rbf_kernel    := CORE.kernel_function
+ONEAPI.ALGOS.spectral_embedding := CORE.spectral_embedding
 ONEAPI.ALGOS.svm           := CORE.svm
 
 # List of algorithms in oneAPI part
@@ -244,6 +247,7 @@ ONEAPI.ALGOS :=          \
     polynomial_kernel    \
     sigmoid_kernel       \
     rbf_kernel           \
+    spectral_embedding   \
     svm                  \
     jaccard              \
     triangle_counting    \
