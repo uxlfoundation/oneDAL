@@ -1,13 +1,20 @@
 module(name = "onedal")
 
+bazel_dep(name = "platforms", version = "0.0.5")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
 declare_onedal_config(name = "config",)
 
-config_onedal_cc_toolchain = use_repo_rule("@onedal//dev/bazel/toolchains:cc_toolchain.bzl", "onedal_cc_toolchain")
-config_onedal_cc_toolchain(name = "onedal_cc_toolchain")
+sh_config_ext = use_extension("//:local_cc_toolchain_extension.bzl", "cc_toolchain_extension")
+use_repo(sh_config_ext, "onedal_cc_toolchain")
 register_toolchains("@{}//:all".format("onedal_cc_toolchain"))
+
+
+extra_toolchain_ext = use_extension("//:local_extra_toolchain_extension.bzl", "onedal_extra_toolchain_extension")
+use_repo(extra_toolchain_ext, "onedal_extra_toolchain")
+register_toolchains("@{}//:all".format("onedal_extra_toolchain"))
+
 
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
