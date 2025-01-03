@@ -24,8 +24,7 @@ dal_test_suite(
     ]),
     srcs = glob([
         "test/*perf_dpc.cpp",
-    ], 
-    allow_empty=True),
+    ]),
     dal_deps = [
         ":sparse_blas",
     ],

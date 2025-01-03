@@ -24,8 +24,7 @@ dal_test_suite(
         "test/*_dpc.cpp",
     ], exclude=[
         "test/*perf*.cpp",
-    ],
-    allow_empty=True),
+    ]),
     dal_deps = [
         ":rng",
     ],

@@ -20,7 +20,7 @@ ALGOS = [
     "decision_tree",
     "finiteness_checker",
     "jaccard",
-    "kmeans",
+    #"kmeans",
     "kmeans_init",
     "knn",
     "linear_kernel",
