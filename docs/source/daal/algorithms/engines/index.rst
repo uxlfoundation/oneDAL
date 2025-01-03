@@ -111,4 +111,6 @@ These methods are represented with member functions of classes that represent fu
 
     mt19937.rst
     mcg59.rst
+    mrg32k3a.rst
+    philox4x32x10.rst
     mt2203.rst

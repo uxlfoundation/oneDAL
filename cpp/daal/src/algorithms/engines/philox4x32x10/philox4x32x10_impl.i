@@ -1,6 +1,6 @@
-/* file: mt2203_kernel.h */
+/* file: philox4x32x10_impl.i */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,19 +15,14 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
 //++
-//  Declaration of template function that calculate mt2203s.
+//  Implementation of philox4x32x10 algorithm.
 //--
+*/
 
-#ifndef __MT2203_KERNEL_H__
-#define __MT2203_KERNEL_H__
-
-#include "algorithms/engines/mt2203/mt2203.h"
-#include "src/algorithms/kernel.h"
-#include "data_management/data/numeric_table.h"
-
-using namespace daal::services;
-using namespace daal::data_management;
+#ifndef __PHILOX4X32X10_IMPL_I__
+#define __PHILOX4X32X10_IMPL_I__
 
 namespace daal
 {
@@ -35,22 +30,18 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt2203
+namespace philox4x32x10
 {
 namespace internal
 {
-/**
- *  \brief Kernel for mt2203 calculation
- */
 template <typename algorithmFPType, Method method, CpuType cpu>
-class Mt2203Kernel : public Kernel
+Status philox4x32x10Kernel<algorithmFPType, method, cpu>::compute(NumericTable * resultTensor)
 {
-public:
-    Status compute(NumericTable * resultTable);
-};
+    return Status();
+}
 
 } // namespace internal
-} // namespace mt2203
+} // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
