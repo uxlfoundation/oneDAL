@@ -109,6 +109,8 @@ public:
         input.set(eigenvalues, other.input.get(eigenvalues));
     }
 
+    ~Batch() = default;
+
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
