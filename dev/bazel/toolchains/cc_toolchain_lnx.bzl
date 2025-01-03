@@ -20,8 +20,6 @@ load(
     "get_starlark_list",
     "write_builtin_include_directory_paths",
 )
-
-
 load(
     "@onedal//dev/bazel:utils.bzl",
     "paths",

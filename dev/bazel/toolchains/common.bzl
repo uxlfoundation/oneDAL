@@ -22,8 +22,6 @@ load(
 load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "get_starlark_list",
 )
-#load("@bazel_tools//tools/cpp:lib_cc_configure.bzl",    
-#"get_starlark_list", )
 
 TEST_CPP_FILE = "empty.cpp"
 
