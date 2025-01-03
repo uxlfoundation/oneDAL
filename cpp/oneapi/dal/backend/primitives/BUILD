@@ -71,7 +71,8 @@ dal_test_suite(
         ],
         exclude = [
             "test/*_dpc.cpp",
-        ]),
+        ],
+    ),
     dal_deps = [
         ":common",
     ],
