@@ -125,10 +125,11 @@ namespace interface1
 class DAAL_EXPORT InputIface : public daal::algorithms::Input
 {
 public:
-    InputIface(size_t nElements) : daal::algorithms::Input(nElements) {}
-    InputIface(const InputIface & other) : daal::algorithms::Input(other) {}
+    InputIface(size_t nElements);
+    InputIface(const InputIface & other);
+    InputIface & operator=(const InputIface & other);
     virtual size_t getNumberOfFeatures() const = 0;
-    virtual ~InputIface() {}
+    virtual ~InputIface();
 };
 
 /**
@@ -139,9 +140,10 @@ class DAAL_EXPORT Input : public InputIface
 {
 public:
     Input();
-    Input(const Input & other) : InputIface(other) {}
+    Input(const Input & other);
+    Input & operator=(const Input & other);
 
-    virtual ~Input() {}
+    virtual ~Input();
 
     /**
      * Returns number of columns in the input data set
@@ -280,6 +282,12 @@ struct DAAL_EXPORT OnlineParameter : public Parameter
     OnlineParameter(const OnlineParameter & other);
 
     /**
+    *  Copy-assignment operator for parameters of the Covariance Online algorithm
+    *  \param[in] other    Parameters of the Covariance Online algorithm
+    */
+    OnlineParameter & operator=(const OnlineParameter & other);
+
+    /**
      * Check the correctness of the %OnlineParameter object
      */
     services::Status check() const DAAL_C11_OVERRIDE;
@@ -380,7 +388,8 @@ class DAAL_EXPORT DistributedInput<step1Local> : public Input
 {
 public:
     DistributedInput() : Input() {}
-    DistributedInput(const DistributedInput & other) : Input(other) {}
+    DistributedInput(const DistributedInput & other)             = default;
+    DistributedInput & operator=(const DistributedInput & other) = default;
 
     virtual ~DistributedInput() {}
 };
@@ -395,9 +404,10 @@ class DAAL_EXPORT DistributedInput<step2Master> : public InputIface
 {
 public:
     DistributedInput();
-    DistributedInput(const DistributedInput & other) : InputIface(other) {}
+    DistributedInput(const DistributedInput & other);
+    DistributedInput & operator=(const DistributedInput & other);
 
-    virtual ~DistributedInput() {}
+    virtual ~DistributedInput();
 
     /**
      * Returns number of columns in the input data set

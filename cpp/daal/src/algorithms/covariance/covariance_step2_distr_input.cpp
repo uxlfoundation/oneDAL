@@ -40,6 +40,10 @@ DistributedInput<step2Master>::DistributedInput() : InputIface(lastMasterInputId
     Argument::set(partialResults, DataCollectionPtr(new DataCollection()));
 }
 
+DistributedInput<step2Master>::DistributedInput(const DistributedInput & other)                          = default;
+DistributedInput<step2Master> & DistributedInput<step2Master>::operator=(const DistributedInput & other) = default;
+DistributedInput<step2Master>::~DistributedInput()                                                       = default;
+
 size_t DistributedInput<step2Master>::getNumberOfFeatures() const
 {
     DataCollectionPtr collectionOfPartialResults = staticPointerCast<DataCollection, SerializationIface>(Argument::get(partialResults));
