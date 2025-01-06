@@ -151,7 +151,7 @@ def _dump_config_info_impl(ctx):
     config_file = ctx.actions.declare_file("config.json")
     flags_json = []
     for target in ctx.attr.flags:
-        json = "      {}: {},".format(target.label.name, target[ConfigFlagInfo].to_json())
+        json = "      {}: {},".format(target.label.name, json.encode(target[ConfigFlagInfo]))
         flags_json.append(json)
     content = ("{\n" +
     "   cpu: {},\n".format(ctx.attr.cpu_info[CpuInfo].to_json()) +
