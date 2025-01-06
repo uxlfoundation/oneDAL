@@ -474,7 +474,7 @@ jobs:
       # Display oneDAL build configuration
       bazel build @config//:dump
       echo
-      cat bazel-bin/external/+_repo_rules+config/config/config.json
+      cat bazel-bin/external/+_repo_rules+config/config.json
       echo
     displayName: 'bazel-configure'
   - script: |
