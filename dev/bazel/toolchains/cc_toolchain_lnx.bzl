@@ -65,7 +65,6 @@ def _create_ar_merge_tool(repo_ctx, ar_path):
         ar_merge_name,
         Label("@onedal//dev/bazel/toolchains/tools:merge_static_libs_lnx.tpl.sh"),
         {"%{ar_path}": ar_path},
-        watch_template='no',
     )
     ar_merge_path = repo_ctx.path(ar_merge_name)
     return str(ar_merge_path)

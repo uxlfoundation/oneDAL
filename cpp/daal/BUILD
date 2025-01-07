@@ -258,14 +258,14 @@ daal_dynamic_lib(
     ],
 )
 
-daal_module(
-    name = "threading_static",
-    deps = select({
-        "@config//:test_thread_mode_par": [
-            "@onedal//cpp/daal:thread_static",
-        ]
-    }),
-)
+#daal_module(
+#    name = "threading_static",
+#    deps = select({
+#        "@config//:test_thread_mode_par": [
+#            "@onedal//cpp/daal:thread_static",
+#        ]
+#    }),
+#)
 
 daal_module(
     name = "threading_dynamic",
