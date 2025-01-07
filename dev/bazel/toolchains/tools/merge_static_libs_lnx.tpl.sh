@@ -26,5 +26,5 @@ do
     mri+="ADDLIB ${lib}\n"
 done
 mri+="SAVE\n"
-
+echo "${mri[@]}" 
 printf "${mri[@]}" | %{ar_path} -M
