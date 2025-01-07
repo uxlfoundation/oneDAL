@@ -418,6 +418,8 @@ nitpick_ignore = [
     ('cpp:identifier', 'ndshape<new_axis_count>'),
     ('cpp:identifier', 'ndview'),
     ('cpp:identifier', 'order'),
+    ('cpp:identifier', 'sycl::range<1>'),
+    ('cpp:identifier', 'sycl::range<2>'),
     ('cpp:identifier', 'shape_t'),
     ('cpp:identifier', 'shared_t')
 ]

@@ -1333,7 +1333,6 @@ private:
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-
 template <typename T, std::int64_t axis_count, ndorder order>
 ndarray<T, axis_count, order> ndview<T, axis_count, order>::to_host(
     sycl::queue& q,
