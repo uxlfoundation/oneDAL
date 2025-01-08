@@ -45,7 +45,6 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   steps:
     - script: |
-        echo $(CODECOV_TOKEN)
         echo $TOK
         .ci/env/apt.sh clang-format
         .ci/env/editorconfig-checker.sh
