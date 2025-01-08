@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2019 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2019 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. daal_rst documentation master file, created by
    sphinx-quickstart on Mon May 20 15:10:10 2019.
@@ -20,7 +18,8 @@
    contain the root `toctree` directive.
 
 .. |spec| replace:: |short_name| specification
-.. _spec: https://spec.oneapi.com/versions/latest/elements/oneDAL/source/index.html
+.. _spec: https://oneapi-spec.uxlfoundation.org/specifications/oneapi/v1.3-rev-1/elements/onedal/source/#
+
 
 |full_name| (|short_name|)
 ------------------------------------------------------

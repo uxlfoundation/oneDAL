@@ -62,7 +62,7 @@ To build oneDAL documentation locally:
 
 1. Clone the repository:
 
-		git clone https://github.com/oneapi-src/oneDAL.git
+		git clone https://github.com/uxlfoundation/oneDAL.git
 
 2. Go to `docs` folder:
 

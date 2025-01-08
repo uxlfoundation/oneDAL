@@ -21,6 +21,31 @@ namespace daal
 {
 namespace internal
 {
+#ifdef ONEDAL_KERNEL_PROFILER
+
+ProfilerTask::ProfilerTask(const char * taskName) : _taskName(taskName)
+{
+    _handle = __itt_string_handle_create(taskName);
+
+    __itt_task_begin(Profiler::getDomain(), __itt_null, __itt_null, _handle);
+}
+
+ProfilerTask::~ProfilerTask()
+{
+    Profiler::endTask(_taskName);
+}
+
+ProfilerTask Profiler::startTask(const char * taskName)
+{
+    return ProfilerTask(taskName);
+}
+
+void Profiler::endTask(const char * taskName)
+{
+    __itt_task_end(Profiler::getDomain());
+}
+
+#else
 ProfilerTask Profiler::startTask(const char * taskName)
 {
     return ProfilerTask(taskName);
@@ -34,6 +59,7 @@ ProfilerTask::~ProfilerTask()
 {
     Profiler::endTask(_taskName);
 }
+#endif
 
 } // namespace internal
 } // namespace daal

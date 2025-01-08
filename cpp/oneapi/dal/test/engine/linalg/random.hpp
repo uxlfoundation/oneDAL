@@ -35,7 +35,7 @@ inline matrix<T> generate_uniform_matrix(const shape& s, T a, T b, int seed) {
 }
 
 /// Generates symmetric positive-definite matrix with diagonal dominance.
-/// $\frac{1}{2}(A + A^T) + nE$, where $A$ is uniformly distributed matrix, $dim(A) = n$.
+/// \f$\frac{1}{2}(A + A^T) + nE\f$, where $A$ is uniformly distributed matrix, \f$dim(A) = n\f$.
 template <typename Float>
 inline matrix<Float> generate_symmetric_positive_matrix(std::int64_t dim,
                                                         Float a,

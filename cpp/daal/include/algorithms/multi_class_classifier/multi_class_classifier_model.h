@@ -127,6 +127,9 @@ public:
      */
     Model();
 
+    Model(const Model & other);
+    Model & operator=(const Model & other);
+
     /**
      * Constructs multi-class classifier model
      * \param[in] nFeatures Number of features in the dataset

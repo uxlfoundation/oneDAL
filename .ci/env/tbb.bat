@@ -18,7 +18,7 @@ rem ============================================================================
 rem req: PowerShell 3.0+
 powershell.exe -command "if ($PSVersionTable.PSVersion.Major -ge 3) {exit 1} else {Write-Host \"The script requires PowerShell 3.0 or above (current version: $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor))\"}" && goto Error_load
 
-set TBBURLROOT=https://github.com/oneapi-src/oneTBB/releases/download/v2021.5.0/
+set TBBURLROOT=https://github.com/uxlfoundation/oneTBB/releases/download/v2021.5.0/
 set TBBVERSION=oneapi-tbb-2021.5.0
 set TBBPACKAGE=%TBBVERSION%-win
 

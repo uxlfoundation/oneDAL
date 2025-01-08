@@ -312,6 +312,10 @@ public:
     using TreeType = gbt::internal::TreeImpRegression<>;
     using super    = dtrees::internal::ModelImpl;
 
+    ModelImpl()                                    = default;
+    ModelImpl(const ModelImpl & other)             = default;
+    ModelImpl & operator=(const ModelImpl & other) = default;
+
     ~ModelImpl() DAAL_C11_OVERRIDE;
     size_t size() const;
     bool reserve(const size_t nTrees);

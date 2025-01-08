@@ -23,11 +23,14 @@ set(ONEDAL_USE_CCL no)
 set(MPIEXEC_MAX_NUMPROCS "4" CACHE STRING "Number of processes")
 set(MPIEXEC_NUMPROCS_PER_NODE "4" CACHE STRING "Number of processes per node")
 
-set(CMAKE_C_COMPILER "mpiicx")
+set(MPI_C_COMPILER "mpiicx")
+set(CMAKE_C_COMPILER "icx")
 if(WIN32)
-    set(CMAKE_CXX_COMPILER "mpiicx")
+    set(MPI_CXX_COMPILER "mpiicx")
+    set(CMAKE_CXX_COMPILER "icx")
 elseif(UNIX)
-    set(CMAKE_CXX_COMPILER "mpiicpx")
+    set(MPI_CXX_COMPILER "mpiicpx")
+    set(CMAKE_CXX_COMPILER "icpx")
 endif()
 
 # Add cmake scripts and modules to CMake search path

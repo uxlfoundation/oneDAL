@@ -20,8 +20,12 @@
 #include "oneapi/dal/algo/kmeans/backend/gpu/kernels_csr_impl.hpp"
 #include "oneapi/dal/algo/kmeans/detail/train_init_centroids.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/sparse_blas.hpp"
+#include "oneapi/dal/algo/kmeans/backend/gpu/empty_cluster_handling.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
+
+#include <tuple>
 
 namespace oneapi::dal::kmeans::backend {
 
@@ -74,9 +78,8 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                               const descriptor_t& params,
                                               const train_input<task::clustering>& input) const {
         auto& queue = ctx.get_queue();
-        auto& comm = ctx.get_communicator();
         ONEDAL_ASSERT(input.get_data().get_kind() == dal::csr_table::kind());
-        const auto data = static_cast<const csr_table&>(input.get_data());
+        const csr_table& data = static_cast<const csr_table&>(input.get_data());
         const std::int64_t row_count = data.get_row_count();
         const std::int64_t column_count = data.get_column_count();
         const std::int64_t cluster_count = params.get_cluster_count();
@@ -94,13 +97,28 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             pr::ndarray<std::int64_t, 1>::wrap(arr_col.get_data(), arr_col.get_count());
         auto row_offsets =
             pr::ndarray<std::int64_t, 1>::wrap(arr_row.get_data(), arr_row.get_count());
+
+        pr::sparse_matrix_handle data_handle(queue);
+        auto set_csr_data_event = pr::set_csr_data(queue,
+                                                   data_handle,
+                                                   row_count,
+                                                   column_count,
+                                                   sparse_indexing::zero_based,
+                                                   arr_val.get_data(),
+                                                   arr_col.get_data(),
+                                                   arr_row.get_data());
+
         auto arr_initial = get_initial_centroids<Float, method::lloyd_csr>(ctx, params, input);
         auto arr_centroid_squares =
             pr::ndarray<Float, 1>::empty(queue, cluster_count, sycl::usm::alloc::device);
         auto arr_data_squares =
             pr::ndarray<Float, 1>::empty(queue, row_count, sycl::usm::alloc::device);
-        auto data_squares_event =
-            compute_data_squares(queue, values, column_indices, row_offsets, arr_data_squares);
+        auto data_squares_event = compute_data_squares(queue,
+                                                       values,
+                                                       column_indices,
+                                                       row_offsets,
+                                                       arr_data_squares,
+                                                       { set_csr_data_event });
 
         auto distances = pr::ndarray<Float, 2>::empty(queue,
                                                       { row_count, cluster_count },
@@ -126,58 +144,58 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                                    iter == 0 ? arr_initial : arr_centroids,
                                                    arr_centroid_squares,
                                                    { last_event });
+
             auto assign_event = assign_clusters(queue,
-                                                values,
-                                                column_indices,
-                                                row_offsets,
+                                                row_count,
+                                                data_handle,
                                                 arr_data_squares,
                                                 iter == 0 ? arr_initial : arr_centroids,
                                                 arr_centroid_squares,
                                                 distances,
                                                 arr_responses,
                                                 arr_closest_distances,
-                                                { centroid_squares_event, last_event });
+                                                { centroid_squares_event });
+
             auto count_event = count_clusters(queue,
                                               arr_responses,
                                               cluster_count,
                                               cluster_counts,
                                               { assign_event });
 
-            {
-                // Cluster counters over all ranks in case of distributed computing
-                auto count_reduce_event =
-                    comm.allreduce(cluster_counts.flatten(queue, { count_event }));
-                count_reduce_event.wait();
-            }
+            auto objective_function =
+                calc_objective_function(queue, arr_closest_distances, { count_event });
 
-            auto empty_cluster_event = handle_empty_clusters(ctx,
-                                                             row_count,
-                                                             arr_responses,
-                                                             cluster_counts,
-                                                             arr_closest_distances,
-                                                             { count_event });
-
-            auto objective_function = calc_objective_function(queue,
-                                                              arr_closest_distances,
-                                                              { empty_cluster_event, count_event });
-
-            {
-                // Reduce objective function value over all ranks
-                auto obj_func_reduce_event = comm.allreduce(objective_function);
-                obj_func_reduce_event.wait();
-            }
             auto update_event = update_centroids(queue,
-                                                 comm,
                                                  values,
                                                  column_indices,
                                                  row_offsets,
                                                  column_count,
                                                  arr_responses,
                                                  arr_centroids,
-                                                 cluster_counts,
-                                                 { count_event });
+                                                 cluster_counts);
 
-            last_event = update_event;
+            const std::int64_t empty_cluster_count =
+                count_empty_clusters(queue, cluster_count, cluster_counts, { count_event });
+
+            Float correction(0);
+            sycl::event empty_cluster_event;
+            if (empty_cluster_count > 0) {
+                std::tie(correction, empty_cluster_event) =
+                    handle_empty_clusters(queue,
+                                          values,
+                                          column_indices,
+                                          row_offsets,
+                                          row_count,
+                                          arr_centroids,
+                                          empty_cluster_count,
+                                          cluster_counts,
+                                          arr_closest_distances,
+                                          { update_event });
+            }
+
+            objective_function += correction;
+
+            last_event = empty_cluster_event;
 
             if (accuracy_threshold > 0 &&
                 objective_function + accuracy_threshold > prev_objective_function) {
@@ -186,15 +204,15 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             }
             prev_objective_function = objective_function;
         }
+
         auto centroid_squares_event =
             kernels_fp<Float>::compute_squares(queue,
                                                iter == 0 ? arr_initial : arr_centroids,
                                                arr_centroid_squares,
                                                { last_event });
         auto assign_event = assign_clusters(queue,
-                                            values,
-                                            column_indices,
-                                            row_offsets,
+                                            row_count,
+                                            data_handle,
                                             arr_data_squares,
                                             iter == 0 ? arr_initial : arr_centroids,
                                             arr_centroid_squares,
@@ -206,11 +224,6 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             calc_objective_function(queue,
                                     arr_closest_distances,
                                     { last_event, centroid_squares_event, assign_event });
-        {
-            // Reduce objective function value over all ranks
-            auto obj_func_reduce_event = comm.allreduce(objective_function);
-            obj_func_reduce_event.wait();
-        }
 
         model<task::clustering> model;
         model.set_centroids(

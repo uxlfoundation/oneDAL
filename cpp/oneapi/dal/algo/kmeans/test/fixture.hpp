@@ -61,6 +61,16 @@ public:
             .set_accuracy_threshold(accuracy_threshold);
     }
 
+    kmeans::descriptor<float_t, kmeans::method::lloyd_dense, task_t> get_dense_descriptor(
+        std::int64_t cluster_count,
+        std::int64_t max_iteration_count,
+        float_t accuracy_threshold) const {
+        return kmeans::descriptor<float_t, kmeans::method::lloyd_dense, task_t>{}
+            .set_cluster_count(cluster_count)
+            .set_max_iteration_count(max_iteration_count)
+            .set_accuracy_threshold(accuracy_threshold);
+    }
+
     descriptor_t get_descriptor(std::int64_t cluster_count) const {
         return descriptor_t{ cluster_count };
     }
@@ -294,11 +304,13 @@ public:
         this->exact_checks(x, x, x, y, cluster_count, 1, 0.0);
     }
 
-    void test_on_sparse_data(const oneapi::dal::test::engine::csr_make_blobs& input,
+    void test_on_sparse_data(const oneapi::dal::test::engine::csr_make_blobs<float_t>& input,
                              std::int64_t max_iter_count,
                              float_t accuracy_threshold,
                              bool init_centroids) {
         const table data = input.get_data(this->get_policy());
+        const table dense_data = input.get_dense_data(this->get_policy());
+
         const auto cluster_count = input.cluster_count_;
         REQUIRE(data.get_kind() == csr_table::kind());
         auto desc = this->get_descriptor(cluster_count, max_iter_count, accuracy_threshold);

@@ -88,7 +88,7 @@ public:
 
         auto builder = te::csr_table_builder<float_t>(n_, p_, 0.3, sparse_indexing::zero_based);
         this->data_ = builder.build_csr_table(this->get_policy());
-        this->dense_data_ = builder.build_dense_table();
+        this->dense_data_ = builder.build_dense_table(this->get_policy());
 
         const auto parameters =
             GENERATE_DATAFRAME(te::dataframe_builder{ 1, p_ + 1 }.fill_uniform(-1, 1));

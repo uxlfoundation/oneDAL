@@ -31,6 +31,8 @@ class global_context : public global_context_iface {
 public:
     static const global_context_iface& get_global_context();
 
+    virtual ~global_context() = default;
+
     global_context(const global_context& ctx) = delete;
     global_context& operator=(const global_context& ctx) = delete;
 

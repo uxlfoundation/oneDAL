@@ -82,10 +82,20 @@ extern "C"
     extern void ssyevd_(char *, char *, DAAL_INT *, float *, DAAL_INT *, float *, float *, DAAL_INT *, DAAL_INT *, DAAL_INT *, DAAL_INT *);
     extern void dsyevd_(char *, char *, DAAL_INT *, double *, DAAL_INT *, double *, double *, DAAL_INT *, DAAL_INT *, DAAL_INT *, DAAL_INT *);
 
+    extern void ssyevr_(const char *, const char *, const char *, const DAAL_INT *, float *, const DAAL_INT *, const float *, const float *,
+                        const DAAL_INT *, const DAAL_INT *, const float *, DAAL_INT *, float *, float *, const DAAL_INT *, DAAL_INT *, float *,
+                        const DAAL_INT *, DAAL_INT *, const DAAL_INT *, DAAL_INT *);
+    extern void dsyevr_(const char *, const char *, const char *, const DAAL_INT *, double *, const DAAL_INT *, const double *, const double *,
+                        const DAAL_INT *, const DAAL_INT *, const double *, DAAL_INT *, double *, double *, const DAAL_INT *, DAAL_INT *, double *,
+                        const DAAL_INT *, DAAL_INT *, const DAAL_INT *, DAAL_INT *);
+
     extern void sormqr_(char *, char *, DAAL_INT *, DAAL_INT *, DAAL_INT *, float *, DAAL_INT *, float *, float *, DAAL_INT *, float *, DAAL_INT *,
                         DAAL_INT *);
     extern void dormqr_(char *, char *, DAAL_INT *, DAAL_INT *, DAAL_INT *, double *, DAAL_INT *, double *, double *, DAAL_INT *, double *,
                         DAAL_INT *, DAAL_INT *);
+
+    extern void drscl_(const DAAL_INT *, const double *, double *, const DAAL_INT *);
+    extern void srscl_(const DAAL_INT *, const float *, float *, const DAAL_INT *);
 }
 
 } // namespace ref

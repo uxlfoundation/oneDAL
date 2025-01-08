@@ -1,0 +1,85 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: contributors to the oneDAL project
+    pattern: |
+      (Copyright \d{4} Intel Corporation|Copyright contributors to the oneDAL project)
+
+      Licensed under the Apache License, Version 2\.0 \(the "License"\);
+      you may not use this file except in compliance with the License\.
+      You may obtain a copy of the License at
+
+          http:\/\/www\.apache\.org\/licenses\/LICENSE-2\.0
+
+      Unless required by applicable law or agreed to in writing, software
+      distributed under the License is distributed on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied\.
+      See the License for the specific language governing permissions and
+      limitations under the License\.
+
+  paths:
+    - '**'
+
+  paths-ignore:
+    - '.gitignore'
+    - '.gitattributes'
+    # Bazel related files
+    - '.bazelrc'
+    - '.bazelversion'
+    - 'BUILD'
+    - 'WORKSPACE'
+    - 'MODULE.bazel'
+    - '**/*.tpl.BUILD'
+    # Clang-format config
+    - '.clang-format'
+    # Editorconfig configs
+    - '.ecrc'
+    - '.editorconfig'
+    # Samples READMEs and licenses:
+    - 'samples/daal/cpp/mpi/README.md'
+    - 'samples/daal/cpp/mysql/README.md'
+    - 'samples/daal/cpp/mpi/license.txt'
+    - 'samples/daal/cpp/mysql/license.txt'
+    # All .csv files
+    - '**/*.csv'
+    # All Doxygen files and something from docs/
+    - 'docs/doxygen/**'
+    - 'docs/requirements.txt'
+    - 'docs/source/_static/style.css'
+    - 'docs/source/_templates/layout.html'
+    - 'docs/source/substitutions_common.txt'
+    - 'docs/source/substitutions_specific.txt'
+    # TODO: Remove `conformance-scripts` from the ignore list after the files will be deleted
+    - '.ci/scripts/conformance-scripts/algorithms.txt'
+    - '.ci/scripts/conformance-scripts/run_tests_with_context.py'
+    # Some files from .ci/.github
+    - '.ci/pipeline/**/*.yml'
+    - '.ci/env/environment.yml'
+    - '.github/workflows/*.yml'
+    - '.github/.mergify.yml'
+    - '.github/CODEOWNERS'
+    - '.github/renovate.json'
+    # Specific files
+    - 'LICENSE'
+    - 'third-party-programs-mkl.txt'
+    - 'third-party-programs.txt'
+    - 'deploy/local/config.txt'
+    - 'deploy/nuget/inteldal.nuspec.tpl'
+
+  comment: never
+
+  license-location-threshold: 111  # specifies the index threshold where the license header can be located.

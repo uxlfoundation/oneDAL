@@ -222,6 +222,9 @@ public:
         other.reset_data();
     }
 
+    // Add destructor
+    ~array() = default;
+
     /// Creates a new array instance which owns a memory block of externally-allocated mutable data.
     /// The ownership structure is created for a block, the input :literal:`deleter`
     /// is assigned to it.
@@ -400,7 +403,7 @@ public:
     /// @post :expr:`data == other.data`
     /// @post :expr:`mutable_data == other.mutable_data`
     /// @post :expr:`count == other.count`
-    array<T> operator=(const array<T>& other) {
+    array<T>& operator=(const array<T>& other) {
         array<T> tmp{ other };
         swap(*this, tmp);
         return *this;
@@ -408,7 +411,7 @@ public:
 
     /// Swaps the values of :literal:`data`, :literal:`mutable_data` pointers, :literal:`count`, and
     /// pointer to the ownership structure in the array instance and :literal:`other`.
-    array<T> operator=(array<T>&& other) {
+    array<T>& operator=(array<T>&& other) {
         swap(*this, other);
         return *this;
     }

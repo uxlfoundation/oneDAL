@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2014 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2014 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. highlight:: cpp
 
@@ -25,7 +23,7 @@ Any developer should be able to quickly understand the code written by another d
 By ensuring **consistency** in the code base you save time and effort for both yourself and others.
 
 These guidelines cover our coding style along with more practical issues.
-To learn more about contribution process, see `How to Contribute <https://github.com/oneapi-src/oneDAL/blob/main/CONTRIBUTING.md>`_.
+To learn more about contribution process, see `How to Contribute <https://github.com/uxlfoundation/oneDAL/blob/main/CONTRIBUTING.md>`_.
 
 Coding Style
 ============
@@ -1436,7 +1434,7 @@ Below we discuss conversion between integer types in different cases:
 
 .. note:: Conversion of floating point data types is not a security problem.
 
-.. important:: It is required to add error code into `error_handling.cpp <https://github.com/oneapi-src/oneDAL/blob/main/cpp/daal/src/services/error_handling.cpp>`_.
+.. important:: It is required to add error code into `error_handling.cpp <https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/src/services/error_handling.cpp>`_.
 
 Code is performance-oriented
 ++++++++++++++++++++++++++++

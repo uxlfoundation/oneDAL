@@ -15,7 +15,7 @@
 #===============================================================================
 
 MAJOR   =       2025
-MINOR   =       0
+MINOR   =       2
 UPDATE  =       0
 BUILD   =       $(shell date +'%Y%m%d')
 STATUS  =       P
@@ -34,8 +34,8 @@ VERSION_DATA_FILE = $(WORKDIR)/daal_version_gen.h
 # content of version data file to be included in product
 define DAAL_VERSION_DATA
 // DO NOT EDIT: file is auto-generated on build time
-// DO NOT PUT THIS FILE TO SVN: file is auto-generated on build time
-// Product version is specified in src/makefile.ver file
+// DO NOT PUT THIS FILE TO VERSIONING: file is auto-generated on build time
+// Product version is specified in `makefile.ver` file
 #define MAJORVERSION $(MAJOR)
 #define MINORVERSION $(MINOR)
 #define UPDATEVERSION $(UPDATE)
@@ -61,9 +61,17 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 # update public headers in release directory with actual version data
 update_headers_version:
 	@file=$(RELEASEDIR.include)/services/library_version_info.h && mark="#define __INTEL_DAAL" && \
-	sed $(sed.-b) $(sed.-i) -e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
-		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/;s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
-		-e "s/\($${mark}_MAJOR_BINARY__\).*/\1 $(MAJORBINARY)$(sed.eol)/;s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
+	sed $(sed.-b) \
+		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
+		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
+		-e "s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
+		-e "s/\($${mark}_MAJOR_BINARY__\).*/\1 $(MAJORBINARY)$(sed.eol)/" \
+		-e "s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
 		-e "s/\($${mark}_UPDATE__\).*/\1 $(UPDATE)$(sed.eol)/" \
-		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" $$file && \
-        rm -f $$file.bak
+		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
+		$$file > $$file.tmp; \
+	if ! cmp -s $$file.tmp $$file; then \
+		mv $$file.tmp $$file; \
+	else \
+		rm $$file.tmp; \
+	fi

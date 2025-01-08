@@ -291,6 +291,151 @@ public:
         }
     }
 
+    /* Note: difference between this test and the above, is that the linear system to solve
+    here is not positive-definite, thus it has an infinite number of possible solutions. The
+    solution here is the one with minimum norm, which is typically more desirable. */
+    void run_and_check_linear_indefinite(double tol = 1e-3) {
+        const auto dtype =
+            std::is_same<float_t, double>::value ? data_type::float64 : data_type::float32;
+        const float_t X[] = { -0.98912135, -0.36778665, 1.28792526, 0.19397442,  0.9202309,
+                              0.57710379,  -0.63646365, 0.54195222, -0.31659545, -0.32238912,
+                              0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942 };
+        const float_t y[] = { 0.13632112, 1.53203308, -0.65996941 };
+        auto X_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(3, 5)
+                         .copy_data(X, 3, 5)
+                         .build();
+        auto y_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(3, 1)
+                         .copy_data(y, 3, 1)
+                         .build();
+
+        auto desc = this->get_descriptor();
+        auto train_res = this->train(desc, X_tbl, y_tbl);
+        const auto coefs = train_res.get_coefficients();
+
+        if (desc.get_result_options().test(result_options::intercept)) {
+            const float_t expected_beta[] = { 0.27785494,
+                                              0.53011669,
+                                              0.34352259,
+                                              0.40506216,
+                                              -1.26026447 };
+            const float_t expected_intercept[] = { 1.24485441 };
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(1, 5)
+                                               .copy_data(expected_beta, 1, 5)
+                                               .build();
+            const auto expected_intercept_tbl = oneapi::dal::detail::homogen_table_builder()
+                                                    .set_data_type(dtype)
+                                                    .set_layout(data_layout::row_major)
+                                                    .allocate(1, 1)
+                                                    .copy_data(expected_intercept, 1, 1)
+                                                    .build();
+
+            const auto intercept = train_res.get_intercept();
+
+            SECTION("Checking intercept values") {
+                check_if_close(intercept, expected_intercept_tbl, tol);
+            }
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+
+        else {
+            const float_t expected_beta[] = { 0.38217445,
+                                              0.2732197,
+                                              1.87135517,
+                                              0.63458468,
+                                              -2.08473134 };
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(1, 5)
+                                               .copy_data(expected_beta, 1, 5)
+                                               .build();
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+    }
+
+    void run_and_check_linear_indefinite_multioutput(double tol = 1e-3) {
+        const auto dtype =
+            std::is_same<float_t, double>::value ? data_type::float64 : data_type::float32;
+        const float_t X[] = { -0.98912135, -0.36778665, 1.28792526, 0.19397442,  0.9202309,
+                              0.57710379,  -0.63646365, 0.54195222, -0.31659545, -0.32238912,
+                              0.09716732,  -1.52593041, 1.1921661,  -0.67108968, 1.00026942 };
+        const float_t y[] = { 0.13632112,  1.53203308, -0.65996941,
+                              -0.31179486, 0.33776913, -2.2074711 };
+        auto X_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(3, 5)
+                         .copy_data(X, 3, 5)
+                         .build();
+        auto y_tbl = oneapi::dal::detail::homogen_table_builder()
+                         .set_data_type(dtype)
+                         .set_layout(data_layout::row_major)
+                         .allocate(3, 2)
+                         .copy_data(y, 3, 2)
+                         .build();
+
+        auto desc = this->get_descriptor();
+        auto train_res = this->train(desc, X_tbl, y_tbl);
+        const auto coefs = train_res.get_coefficients();
+
+        if (desc.get_result_options().test(result_options::intercept)) {
+            const float_t expected_beta[] = {
+                -0.18692112, -0.20034801, -0.09590892, -0.13672683, 0.56229012,
+                -0.97006008, 1.39413595,  0.49238012,  1.11041239,  -0.79213452,
+            };
+            const float_t expected_intercept[] = { -0.48964358, 0.96467681 };
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(2, 5)
+                                               .copy_data(expected_beta, 2, 5)
+                                               .build();
+            const auto expected_intercept_tbl = oneapi::dal::detail::homogen_table_builder()
+                                                    .set_data_type(dtype)
+                                                    .set_layout(data_layout::row_major)
+                                                    .allocate(1, 2)
+                                                    .copy_data(expected_intercept, 1, 2)
+                                                    .build();
+
+            const auto intercept = train_res.get_intercept();
+
+            SECTION("Checking intercept values") {
+                check_if_close(intercept, expected_intercept_tbl, tol);
+            }
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+
+        else {
+            const float_t expected_beta[] = { -0.22795353, -0.09930168, -0.69685744, -0.22700585,
+                                              0.88658098,  -0.88921961, 1.19505839,  1.67634561,
+                                              1.2882766,   -1.43103981 };
+            const auto expected_beta_tbl = oneapi::dal::detail::homogen_table_builder()
+                                               .set_data_type(dtype)
+                                               .set_layout(data_layout::row_major)
+                                               .allocate(2, 5)
+                                               .copy_data(expected_beta, 2, 5)
+                                               .build();
+            SECTION("Checking coefficient values") {
+                check_if_close(coefs, expected_beta_tbl, tol);
+            }
+        }
+    }
+
     template <typename Float>
     std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
         ONEDAL_ASSERT(0l < split_count);

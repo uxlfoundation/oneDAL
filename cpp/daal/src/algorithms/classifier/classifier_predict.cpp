@@ -36,8 +36,12 @@ namespace prediction
 namespace interface1
 {
 InputIface::InputIface(size_t nElements) : daal::algorithms::Input(nElements) {}
+InputIface::InputIface(const InputIface & other)             = default;
+InputIface & InputIface::operator=(const InputIface & other) = default;
 
 Input::Input() : InputIface(lastModelInputId + 1) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns the number of rows in the input data set

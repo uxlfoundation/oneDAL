@@ -47,6 +47,10 @@ public:
 #endif
     ~profiler_task();
 
+    profiler_task(profiler_task& other) = delete;
+
+    profiler_task& operator=(profiler_task& other) = delete;
+
 private:
     const char* task_name_;
 #ifdef ONEDAL_DATA_PARALLEL

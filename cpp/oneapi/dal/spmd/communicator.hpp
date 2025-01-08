@@ -251,18 +251,24 @@ public:
     }
     template <typename D>
     request bcast(const array<D>& ary, std::int64_t root = -1) const;
+
     /// Gathers data from all ranks and distributes the results back to all ranks
     ///
-    /// @param send_buf   The send buffer
-    /// @param send_count The number of elements of `dtype` in `send_buf`
-    /// @param recv_buf   The receiving buffer
-    /// @param recv_count The number of elements of `dtype` in `recv_buf`
-    /// @param dtype      The type of elements in the passed buffers
+    /// @param send   The send buffer
+    /// @param recv   The receiving buffer
+    /// @tparam D     The type of elements in the passed buffers
     ///
     /// @return The object to track the progress of the operation
     template <typename D>
     request allgather(const array<D>& send, const array<D>& recv) const;
 
+    /// Gathers data from all ranks and distributes the results back to all ranks
+    ///
+    /// @param scalar The send element
+    /// @param recv   The receiving buffer
+    /// @tparam D     The type of elements in send / recv
+    ///
+    /// @return The object to track the progress of the operation
     template <typename D>
     request allgather(const D& scalar, const array<D>& recv) const;
     /// Collects data from all the ranks within a communicator into a single buffer
@@ -274,9 +280,9 @@ public:
     /// @param recv_buf   The receiveing buffer, must contain at least
     ///                   `rank_count * recv_count` elements,
     ///                   significant only at `root`
-    /// @param recv_count The number of elements of `dtype` received from
-    ///                   each rank, must contain at least `rank_count` elements,
-    ///                   significant only at `root`
+    /// @param recv_counts The number of elements of `dtype` received from
+    ///                    each rank, must contain at least `rank_count` elements,
+    ///                    significant only at `root`
     /// @param displs     Entry $i$ specifies the displacement relative to
     ///                   `recv_buf` at which to place the incoming data
     ///                   from process $i$, must contain at least `rank_count`

@@ -1,24 +1,22 @@
-.. ******************************************************************************
-.. * Copyright 2023 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2023 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 
 Deprecation Notice
 ==================
 
-This page provides information about the deprecations of a specific oneDAL functionality.
+This page provides information about the deprecations of a specific oneAPI Data Analytics Library (oneDAL) functionality.
 
 Java* Interfaces
 ****************
@@ -29,17 +27,6 @@ Java* Interfaces
 
 **Alternatives:** Intel(R) Optimized Analytics Package* (OAP) project for the Spark* users.
 The project offers a comprehensive set of optimized libraries, including the OAP* MLlib* component. For more information, visit https://github.com/oap-project/oap-mllib.
-
-
-DAAL CPP SYCL Interfaces
-************************
-
-**Deprecation:** The `DAAL CPP SYCL Interfaces <https://github.com/oneapi-src/oneDAL/tree/main/examples/daal/cpp_sycl>`_ in the oneDAL library are deprecated. Starting with the 2024.0 release, oneDAL will not support the DAAL CPP SYCL Interfaces.
-
-**Reasons for deprecation:** Deprecating initial version of SYCL interfaces in favour of oneDAL SYCL interfaces. The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
-
-**Alternatives:** `oneDAL SYCL interfaces <https://github.com/oneapi-src/oneDAL/tree/main/examples/oneapi/dpc>`_
-
 
 Compression Functionality
 *************************

@@ -206,7 +206,7 @@ fi
 if [[ ! -z "${TBB_INSTALL_DIR}" ]] ; then
     export TBBROOT="${TBB_INSTALL_DIR}"
     export LD_LIBRARY_PATH="${TBBROOT}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-elif [[ "${ARCH}" == "32e" ]]; then
+elif [ "${ARCH}" == "32e" ] && [ "${backend_config}" == "ref" ]; then
     "${ONEDAL_DIR}"/dev/download_tbb.sh
 elif [[ "${ARCH}" == "arm" || ("${ARCH}" == "riscv64") ]]; then
     if [[ "${ARCH}" == "arm" ]] ; then

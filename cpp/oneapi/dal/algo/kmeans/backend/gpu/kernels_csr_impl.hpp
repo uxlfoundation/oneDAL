@@ -14,11 +14,13 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/backend/primitives/reduction.hpp"
+#include "oneapi/dal/algo/kmeans/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/backend/atomic.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include "oneapi/dal/backend/atomic.hpp"
+#include "oneapi/dal/backend/primitives/reduction.hpp"
+#include "oneapi/dal/backend/primitives/sparse_blas.hpp"
 
 namespace oneapi::dal::kmeans::backend {
 
@@ -39,7 +41,8 @@ sycl::event compute_data_squares(sycl::queue& q,
                                  const pr::ndview<Float, 1>& values,
                                  const pr::ndview<std::int64_t, 1>& column_indices,
                                  const pr::ndview<std::int64_t, 1>& row_offsets,
-                                 pr::ndview<Float, 1>& squares) {
+                                 pr::ndview<Float, 1>& squares,
+                                 const event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(compute_data_squares, q);
     return pr::reduce_by_rows(q,
                               values,
@@ -48,91 +51,84 @@ sycl::event compute_data_squares(sycl::queue& q,
                               sparse_indexing::zero_based,
                               squares,
                               pr::sum<Float>{},
-                              pr::square<Float>{});
+                              pr::square<Float>{},
+                              deps);
 }
 
-// Temporary function, TODO: replace this call with spgemm call
-// TODO: need to add dimensions integer overflow
+/// Transpose 2d ndview
+///
+/// @tparam Float   The type of elements in the input and output ndviews.
+///                 The `Float` type should be at least `float` or `double`.
+///
+/// @param[in] q        The SYCL* queue object
+/// @param[in] src      Input 2d ndview of size [n x p]
+/// @param[out] dst     Resulting ndview of size [p x n]
+/// @param[in] deps     Events indicating availability of the input and output views
+///                     for reading or writing
+/// @return             SYCL* enevt indicating availability of the output view
+///                     for reading or writing
 template <typename Float>
-sycl::event custom_spgemm(sycl::queue& q,
-                          const pr::ndview<Float, 1>& values,
-                          const pr::ndview<std::int64_t, 1>& column_indices,
-                          const pr::ndview<std::int64_t, 1>& row_offsets,
-                          const pr::ndview<Float, 2>& b,
-                          pr::ndview<Float, 2>& c,
-                          const Float alpha,
-                          const Float beta,
-                          const event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(custom_spgemm, q);
-    const size_t a_row_count = row_offsets.get_count() - 1;
-    const size_t reduce_dim = b.get_dimension(1);
-    const size_t b_row_count = b.get_dimension(0);
+sycl::event transpose(sycl::queue& q,
+                      const pr::ndview<Float, 2>& src,
+                      pr::ndview<Float, 2>& dst,
+                      const event_vector& deps = {}) {
+    const auto src_shape = src.get_shape();
+    ONEDAL_ASSERT(src_shape[0] > 0);
+    ONEDAL_ASSERT(src_shape[1] > 0);
+    ONEDAL_ASSERT(src_shape[0] == dst.get_dimension(1));
+    ONEDAL_ASSERT(src_shape[1] == dst.get_dimension(0));
+    const auto row_count = src_shape[0];
+    const auto col_count = src_shape[1];
 
-    const auto local_size =
-        std::min<std::int32_t>(bk::device_max_wg_size(q), bk::down_pow2(reduce_dim));
-    auto res_ptr = c.get_mutable_data();
-    const auto a_ptr = values.get_data();
-    const auto row_ofs = row_offsets.get_data();
-    const auto col_ind = column_indices.get_data();
-    const auto b_ptr = b.get_data();
+    const auto range = sycl::range<2>(row_count, col_count);
 
-    // Compute matrix block by block to avoid integer overflow
-    const std::int64_t row_block = 8 * bk::device_max_wg_size(q);
-    const std::int64_t row_block_size = std::min<std::int64_t>(row_block, a_row_count);
-    const std::int64_t col_block_size = std::min<std::int64_t>(row_block, b_row_count);
-
-    const auto nd_range =
-        bk::make_multiple_nd_range_3d({ row_block_size, col_block_size, local_size },
-                                      { 1, 1, local_size });
-
-    return q.submit([&](sycl::handler& cgh) {
+    const Float* src_ptr = src.get_data();
+    Float* dst_ptr = dst.get_mutable_data();
+    auto event = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
-        cgh.parallel_for(nd_range, [=](auto item) {
-            const auto row_shift = item.get_global_id(0);
-            const auto col_shift = item.get_global_id(1);
-            const auto local_id = item.get_local_id(2);
-
-            for (auto row_idx = row_shift; row_idx < a_row_count; row_idx += row_block) {
-                for (auto col_idx = col_shift; col_idx < b_row_count; col_idx += row_block) {
-                    const auto start = row_ofs[row_idx] + local_id;
-                    const auto end = row_ofs[row_idx + 1];
-                    Float acc = Float(0);
-                    for (std::int64_t data_idx = start; data_idx < end; data_idx += local_size) {
-                        const auto reduce_id = col_ind[data_idx];
-                        acc += a_ptr[data_idx] * b_ptr[col_idx * reduce_dim + reduce_id];
-                    }
-                    const Float scalar_mul =
-                        sycl::reduce_over_group(item.get_group(),
-                                                acc,
-                                                Float(0),
-                                                sycl::ext::oneapi::plus<Float>());
-                    if (local_id == 0) {
-                        res_ptr[row_idx * b_row_count + col_idx] =
-                            beta * res_ptr[row_idx * b_row_count + col_idx] + alpha * scalar_mul;
-                    }
-                }
-            }
+        cgh.parallel_for(range, [=](sycl::id<2> item) {
+            auto i = item[0], j = item[1];
+            dst_ptr[j * row_count + i] = src_ptr[i * col_count + j];
         });
     });
+
+    return event;
 }
 
-/// Calculates distances from each data point to each centroid and selects the closest centroid to each data point
-/// @param[in] q                    A sycl-queue to perform operations on device
-/// @param[in] values               A data part of csr table with :expr:`non_zero_count x 1` dimensions
-/// @param[in] column_indices       An array of column indices in csr table with :expr:`non_zero_count x 1` dimensions
-/// @param[in] row_offsets          An arrat of row offsets in csr table with :expr:`(row_count + 1) x 1` dimensions
-/// @param[in] data_squares         An array of data squared elementwise with :expr:`row_count x 1` dimensions
-/// @param[in] centroids           An array of centroids with :expr:`cluster_count x column_count` dimensions
-/// @param[in] centroids_squares   An array of centroids squares with :expr:`cluster_count x 1` dimensions
+/// Calculates distances from each data point to each centroid and selects the closest centroid
+/// to each data point and the corresponding closest distance D*_i for a data point.
+///
+/// Distance Dij from i-th data point (x_i) to j-th centroid (c_j) is caluclated as:
+///
+///     D_ij = || x_i - c_j || ^ 2 = || x_i ||^2 + || c_j ||^2 - 2 * (x_i, c_j),
+///
+///     where (x_i, c_j) denotes a dot product.
+///
+/// Closes distance D*_i is selected as:
+///
+///     D*_i = min_j (D_ij)
+///
+/// @param[in] q                    The SYCL* queue object
+/// @param[in] row_count            Number of rows in the input dataset
+/// @param[in] data_handle          Handle that stores the information about input dataset in CSR layout
+/// @param[in] data_squares         An array of data points squares with :expr:`row_count x 1` dimensions,
+///                                 value at i-th position is || x_i ||^2, where x_i is i-th data point
+/// @param[in] centroids            An array of centroids with :expr:`cluster_count x column_count` dimensions
+/// @param[in] centroids_squares    An array of centroids squares with :expr:`cluster_count x 1` dimensions,
+///                                 value at i-th position is || c_i ||^2, where c_i is i-th centroid
 /// @param[out] distances           An array of distances of dataset to each cluster with :expr:`row_count x cluster_count` dimensions
 /// @param[out] responses           An array of responses with :expr:`row_count x 1` dimensions
+///                                 value at i-th position is $\idxmin_j D_ij$
 /// @param[out] closest_dists       An array of closests distances for each data point with :expr:`row_count x 1` dimensions
+///                                 value at i-th position is D*_i = $\min_j D_ij$
 /// @param[in] deps                 An event vector of dependencies for specified kernel
+///
+/// @return             SYCL* enevt indicating availability of the output arrays
+///                     for reading or writing
 template <typename Float>
 sycl::event assign_clusters(sycl::queue& q,
-                            const pr::ndview<Float, 1>& values,
-                            const pr::ndview<std::int64_t, 1>& column_indices,
-                            const pr::ndview<std::int64_t, 1>& row_offsets,
+                            const std::size_t row_count,
+                            pr::sparse_matrix_handle& data_handle,
                             const pr::ndview<Float, 1>& data_squares,
                             const pr::ndview<Float, 2>& centroids,
                             const pr::ndview<Float, 1>& centroid_squares,
@@ -141,77 +137,52 @@ sycl::event assign_clusters(sycl::queue& q,
                             pr::ndview<Float, 2>& closest_dists,
                             const event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(assign_clusters, q);
-    auto data_squares_ptr = data_squares.get_data();
-    auto cent_squares_ptr = centroid_squares.get_data();
-    auto responses_ptr = responses.get_mutable_data();
-    auto closest_dists_ptr = closest_dists.get_mutable_data();
-    // Calculate rest part of distances
-    auto dist_event = custom_spgemm(q,
-                                    values,
-                                    column_indices,
-                                    row_offsets,
-                                    centroids,
-                                    distances,
-                                    Float(-2.0),
-                                    Float(0),
-                                    deps);
 
-    const auto distances_ptr = distances.get_data();
+    // Workaround. Sparse gemm cannot accept transposed dense inputs in oneMKL 2025.0.
+    // Error text:
+    // oneapi::mkl::sparse::gemm: unimplemented functionality: Only non-transpose
+    // operation is supported for dense matrix
+    // TODO: Remove separate transpore and pass centroids.t() into gemm after updating
+    //       to oneMKL that supports transposed dense input matrix.
+    auto centroids_transposed =
+        pr::ndarray<Float, 2>::empty(q,
+                                     { centroids.get_dimension(1), centroids.get_dimension(0) },
+                                     sycl::usm::alloc::device);
 
-    const auto cluster_count = centroids.get_dimension(0);
-    const auto row_count = static_cast<size_t>(row_offsets.get_count() - 1);
-    // based on bechmarks an optimal block size is equal to 8 work-group sizes
-    const std::int64_t block_multiplier = 8;
-    const std::int64_t row_block = block_multiplier * bk::device_max_wg_size(q);
+    sycl::event transpose_event = transpose(q, centroids, centroids_transposed, deps);
 
-    const auto local_size =
-        std::min<std::int64_t>(bk::device_max_wg_size(q), bk::down_pow2(cluster_count));
-    const auto nd_range =
-        bk::make_multiple_nd_range_2d({ row_block, local_size }, { 1, local_size });
+    // Compute dot products of each data point and each cluster centroid:
+    // -2 * (x_i, c_j) term in the distances calculation
+    auto dist_event = pr::gemm(q,
+                               pr::transpose::nontrans,
+                               data_handle,
+                               centroids_transposed,
+                               distances,
+                               Float(-2.0),
+                               Float(0),
+                               { transpose_event });
 
-    auto event = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on({ dist_event });
-        cgh.depends_on(deps);
-        cgh.parallel_for(nd_range, [=](auto item) {
-            const auto row_shift = item.get_global_id(0);
-            const auto local_id = item.get_local_id(1);
-            const auto max_val = std::numeric_limits<Float>::max();
-            const auto max_index = std::numeric_limits<std::int32_t>::max();
-            for (auto row_idx = row_shift; row_idx < row_count; row_idx += row_block) {
-                auto min_dist = max_val;
-                auto min_idx = max_index;
-                auto row_dists = distances_ptr + row_idx * cluster_count;
-                for (std::int32_t cluster_id = local_id; cluster_id < cluster_count;
-                     cluster_id += local_size) {
-                    const auto dist = cent_squares_ptr[cluster_id] + row_dists[cluster_id] +
-                                      data_squares_ptr[row_idx];
-                    if (dist < min_dist) {
-                        min_dist = dist;
-                        min_idx = cluster_id;
-                    }
-                }
-                const Float closest = sycl::reduce_over_group(item.get_group(),
-                                                              min_dist,
-                                                              max_val,
-                                                              sycl::ext::oneapi::minimum<Float>());
-                const std::int32_t dist_idx = closest == min_dist ? min_idx : max_index;
-                const std::int32_t closest_id =
-                    sycl::reduce_over_group(item.get_group(),
-                                            dist_idx,
-                                            max_index,
-                                            sycl::ext::oneapi::minimum<std::int32_t>());
-                if (local_id == 0) {
-                    responses_ptr[row_idx] = closest_id;
-                    closest_dists_ptr[row_idx] = closest;
-                }
-            }
-        });
-    });
-    return event;
+    // Select min_j (D_ij) and idxmin_j (D_ij),
+    // where min_j (D_ij) == min_j (|| c_j ||^2 - 2 * (x_i, c_j)$),
+    //      as || x_i ||^2 is constant for each j.
+    // The same applies to idxmin_j
+    auto selection_event = kernels_fp<Float>::select(q,
+                                                     distances,
+                                                     centroid_squares,
+                                                     closest_dists,
+                                                     responses,
+                                                     { dist_event });
+
+    // Complete the computaions of D*_i by adding || x_i ||^2 term to the results
+    // computed on the previous step
+    return kernels_fp<Float>::complete_closest_distances(q,
+                                                         data_squares,
+                                                         closest_dists,
+                                                         { selection_event });
 }
 
-// Calculates an objective function, which is sum of all distances from points to centroid.
-/// @param[in] q                A sycl-queue to perform operations on device
+/// Calculates an objective function, which is sum of all distances from points to centroid.
+/// @param[in] q                The SYCL* queue object
 /// @param[in] dists            An array of distances for each data point to the closest cluster
 /// @param[in] deps             An event vector of dependencies for specified kernel
 template <typename Float>
@@ -225,28 +196,30 @@ Float calc_objective_function(sycl::queue& q,
     return pr::reduce_1d(q, view_1d, sum, ident, deps);
 }
 
-// Updates the centroids based on new responses and cluster counts.
-// New centroid is a mean among all points in cluster.
-// If cluster is empty, centroid remains the same as in previous iteration.
-/// @param[in] q                A sycl-queue to perform operations on device
-/// @param[in] values           A data part of csr table with :expr:`non_zero_count x 1` dimensions
-/// @param[in] column_indices   An array of column indices in csr table :expr:`non_zero_count x 1` dimensions
-/// @param[in] row_offsets      An arrat of row offsets in csr table with :expr:`(row_count + 1) x 1` dimensions
-/// @param[in] column_count     A number of column in input dataset
-/// @param[in] reponses         An array of cluster assignments with :expr:`row_count x 1` dimensions
+/// Updates the centroids based on new responses and cluster counts.
+/// New centroid is a mean among all points in cluster.
+/// If cluster is empty, centroid remains the same as in previous iteration.
+///
+/// @param[in] q                The SYCL* queue object
+/// @param[in] values           A data part of csr table with :expr:`non_zero_count` dimensions
+/// @param[in] column_indices   An array of zero-based column indices in csr table :expr:`non_zero_count` dimensions
+/// @param[in] row_offsets      An arrat of zero-based row offsets in csr table with :expr:`(row_count + 1)` dimensions
+/// @param[in] column_count     A number of columns in input dataset
+/// @param[in] responses        An array of cluster assignments with :expr:`row_count x 1` dimensions
 /// @param[out] centroids       An array of centroids with :expr:`cluster_count x column_count` dimensions
-/// @param[in] cluster_counts   An array of cluster counts with :expr:`cluster_count x 1` dimensions
-/// @param[in] deps             An event vector of dependencies for specified kernel
+/// @param[in] counters         An array of size `cluster_count` that stores the number of observations
+///                             assigned to each cluster,
+///                             value at i-th position indicates that i-th clusters
+///                             consists of `counters[i]` observations
 template <typename Float>
 sycl::event update_centroids(sycl::queue& q,
-                             const bk::communicator<spmd::device_memory_access::usm>& comm,
                              const pr::ndview<Float, 1>& values,
                              const pr::ndview<std::int64_t, 1>& column_indices,
                              const pr::ndview<std::int64_t, 1>& row_offsets,
                              std::int64_t column_count,
                              const pr::ndarray<std::int32_t, 2>& responses,
                              pr::ndarray<Float, 2>& centroids,
-                             const pr::ndarray<std::int32_t, 1>& cluster_counts,
+                             const pr::ndarray<std::int32_t, 1>& counters,
                              const event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(update_centroids, q);
     const auto resp_ptr = responses.get_data();
@@ -255,21 +228,17 @@ sycl::event update_centroids(sycl::queue& q,
     const auto data_ptr = values.get_data();
     const auto row_ofs_ptr = row_offsets.get_data();
     const auto col_ind_ptr = column_indices.get_data();
-    const auto counts_ptr = cluster_counts.get_data();
+    const auto counts_ptr = counters.get_data();
 
     const auto local_size = bk::device_max_wg_size(q);
     const auto num_clusters = centroids.get_dimension(0);
 
-    const auto clean_range =
-        bk::make_multiple_nd_range_2d({ num_clusters, column_count }, { 1, 1 });
-    auto clean_event = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(clean_range, [=](auto it) {
-            const auto cluster_id = it.get_global_id(0);
-            const auto col_id = it.get_global_id(1);
-            centroids_ptr[cluster_id * column_count + col_id] = 0;
-        });
-    });
+    ONEDAL_ASSERT_MUL_OVERFLOW(std::int64_t, num_clusters, column_count);
+    const auto centroids_elem_count = num_clusters * column_count;
+    ONEDAL_ASSERT_MUL_OVERFLOW(std::int64_t, centroids_elem_count, sizeof(Float));
+    const auto centroids_num_bytes = centroids_elem_count * sizeof(Float);
+
+    auto clean_event = q.memset(centroids_ptr, 0, centroids_num_bytes, deps);
 
     const auto row_block =
         std::min<std::int32_t>(bk::device_max_wg_size(q) * 8, bk::down_pow2(row_count));
@@ -278,26 +247,34 @@ sycl::event update_centroids(sycl::queue& q,
     const auto range =
         bk::make_multiple_nd_range_3d({ num_clusters, row_block, col_block }, { 1, 1, col_block });
 
+    // Compute sums of observations belonging to each cluster in dense format
     auto centroids_sum_event = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(clean_event);
+        // Allocate storage for partial sums of observations at each worker in dense format
         local_accessor_rw_t<Float> local_centroid(column_count, cgh);
         cgh.parallel_for(range, [=](auto it) {
             const auto cluster_id = it.get_global_id(0);
             const auto row_shift = it.get_global_id(1);
             const auto local_id = static_cast<std::int64_t>(it.get_local_id(2));
             if (counts_ptr[cluster_id] == 0) {
+                // Skip computations for empty clusters
                 return;
             }
+            // Get pointer to this worker's local storage
             auto local_centroid_ptr =
                 local_centroid.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
+
+            // Initialize the storage
             for (std::int64_t col_idx = local_id; col_idx < column_count; col_idx += col_block) {
                 local_centroid_ptr[col_idx] = 0;
             }
             it.barrier();
             for (std::int64_t row_idx = row_shift; row_idx < row_count; row_idx += row_block) {
                 if (resp_ptr[row_idx] == static_cast<std::int32_t>(cluster_id)) {
+                    // Do computations only in case the workitem corresponds to this data row's centroid id
                     const auto start = row_ofs_ptr[row_idx];
                     const auto end = row_ofs_ptr[row_idx + 1];
+                    // Update local sums of observations with the data from the respective observation in sparse format
                     for (auto idx = start + local_id; idx < end; idx += col_block) {
                         const auto col_idx = col_ind_ptr[idx];
                         const auto val = data_ptr[idx];
@@ -306,6 +283,7 @@ sycl::event update_centroids(sycl::queue& q,
                 }
             }
             it.barrier();
+            // Update global sums of observations by adding up all the local sums
             if (local_id == 0) {
                 for (std::int64_t col_idx = 0; col_idx < column_count; ++col_idx) {
                     const auto pos = cluster_id * column_count + col_idx;
@@ -314,14 +292,12 @@ sycl::event update_centroids(sycl::queue& q,
             }
         });
     });
-    {
-        // Reduce centroids over all ranks in of distributed computing
-        auto centroids_reduce_event = comm.allreduce(centroids.flatten(q, { centroids_sum_event }));
-        centroids_reduce_event.wait();
-    }
 
     const auto finalize_range =
         bk::make_multiple_nd_range_2d({ num_clusters, local_size }, { 1, local_size });
+
+    // Compute the array of centroids by dividing the respective sums of observations
+    // by the number of observations in each centroid
     auto finalize_centroids = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(centroids_sum_event);
         cgh.parallel_for(finalize_range, [=](auto it) {
@@ -337,75 +313,6 @@ sycl::event update_centroids(sycl::queue& q,
         });
     });
     return finalize_centroids;
-}
-
-/// Handling empty clusters.
-/// @param[in] ctx              GPU context structure
-/// @param[in] row_count        A number of rows in the dataset
-/// @param[out] responses       An array of cluster assignments with :expr:`row_count x 1` dimensions
-/// @param[out] cluster_counts  An array of cluster counts with :expr:`cluster_count x 1` dimensions
-/// @param[out] dists           An array of closest distances to cluster with :expr:`row_count x 1` dimensions
-/// @param[in] deps             An event vector of dependencies for specified kernel
-template <typename Float>
-sycl::event handle_empty_clusters(const dal::backend::context_gpu& ctx,
-                                  const std::int64_t row_count,
-                                  pr::ndarray<std::int32_t, 2>& responses,
-                                  pr::ndarray<std::int32_t, 1>& cluster_counts,
-                                  pr::ndarray<Float, 2>& dists,
-                                  const event_vector& deps = {}) {
-    auto& queue = ctx.get_queue();
-    auto& comm = ctx.get_communicator();
-    ONEDAL_PROFILER_TASK(handle_empty_clusters, queue);
-    const auto rank_count = comm.get_rank_count();
-    const auto rank = comm.get_rank();
-    const auto num_clusters = cluster_counts.get_dimension(0);
-
-    auto resp_ptr = responses.get_mutable_data();
-    auto counts_ptr = cluster_counts.get_mutable_data();
-    auto dists_ptr = dists.get_mutable_data();
-
-    const auto abs_min_val = -std::numeric_limits<Float>::max();
-
-    auto local_size = bk::device_max_wg_size(queue);
-    auto range = bk::make_multiple_nd_range_1d(local_size, local_size);
-    auto event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(range, [=](auto it) {
-            const auto local_id = it.get_local_id()[1];
-            for (std::int64_t cluster_id = rank; cluster_id < num_clusters;
-                 cluster_id += rank_count) {
-                // no need to handle non-empty clusters
-                if (counts_ptr[cluster_id] > 0) {
-                    continue;
-                }
-                std::int64_t cand_idx = -1;
-                Float cand_dist = abs_min_val;
-                for (std::int64_t row_idx = local_id; row_idx < row_count; row_idx += local_size) {
-                    const auto dist = dists_ptr[row_idx];
-                    if (dist > cand_dist) {
-                        cand_dist = dist;
-                        cand_idx = row_idx;
-                    }
-                }
-                const Float longest_dist =
-                    sycl::reduce_over_group(it.get_group(),
-                                            cand_dist,
-                                            abs_min_val,
-                                            sycl::ext::oneapi::maximum<Float>());
-                const auto id = longest_dist == cand_dist ? cand_idx : -1;
-                const auto longest_id =
-                    sycl::reduce_over_group(it.get_group(),
-                                            id,
-                                            sycl::ext::oneapi::maximum<std::int64_t>());
-                if (local_id == 0 && longest_id != -1) {
-                    resp_ptr[longest_id] = cluster_id;
-                    counts_ptr[longest_id] = 1;
-                    dists_ptr[cluster_id] = Float(0);
-                }
-            }
-        });
-    });
-    return event;
 }
 
 } // namespace oneapi::dal::kmeans::backend

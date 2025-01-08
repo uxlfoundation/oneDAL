@@ -50,6 +50,15 @@ TEMPLATE_LIST_TEST_M(lr_batch_test, "LR common flow", "[lr][batch]", lr_types) {
     this->run_and_check_linear();
 }
 
+TEMPLATE_LIST_TEST_M(lr_batch_test, "LR with non-PSD matrix", "[lr][batch-nonpsd]", lr_types) {
+    SKIP_IF(this->not_float64_friendly());
+
+    this->generate(777);
+
+    this->run_and_check_linear_indefinite();
+    this->run_and_check_linear_indefinite_multioutput();
+}
+
 TEMPLATE_LIST_TEST_M(lr_batch_test, "RR common flow", "[rr][batch]", lr_types) {
     SKIP_IF(this->not_float64_friendly());
 

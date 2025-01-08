@@ -303,6 +303,8 @@ MSG(input_y_is_empty, "Input y is empty")
 /* Linear Regression */
 MSG(intercept_result_option_requires_intercept_flag,
     "Intercept result option requires intercept flag")
+MSG(too_small_singular_values,
+    "Linear system has too small singular values, cannot calculate a solution")
 
 /* Logistic Regression */
 MSG(class_count_neq_two,

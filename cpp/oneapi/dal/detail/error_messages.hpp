@@ -242,6 +242,7 @@ public:
 
     /* Linear Regression */
     MSG(intercept_result_option_requires_intercept_flag);
+    MSG(too_small_singular_values);
 
     /* Logistic Regression */
     MSG(class_count_neq_two);

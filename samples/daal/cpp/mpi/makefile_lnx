@@ -59,7 +59,9 @@ ifndef TBBROOT
     TBBROOT = ./../../../../../../tbb/latest
 endif
 
-ifeq ($(MKL_FPK_GPU_VERSION_LINE),2024.0.0)
+OLD_TBB_LAYOUT := $(if $(wildcard $(TBBROOT)/lib/intel64/),yes,no)
+
+ifeq ($(OLD_TBB_LAYOUT),no)
 	TBB_PATH = "$(TBBROOT)/lib"
 else
 	TBB_PATH = "$(TBBROOT)/lib/intel64/gcc4.8"

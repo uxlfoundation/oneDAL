@@ -79,12 +79,12 @@ struct BinParams
     {}
     BinParams(const BinParams & o) : maxBins(o.maxBins), minBinSize(o.minBinSize), binningStrategy(o.binningStrategy) {}
 
-    /* Strategy to create bins for feature values. Default: quantiles */
-    BinningStrategy binningStrategy = BinningStrategy::quantiles;
     /* Maximum number of bins for indexed data. Default: 256 */
     size_t maxBins = 256;
     /* Minimum bin width (number of data points per bin). Default: 5*/
     size_t minBinSize = 5;
+    /* Strategy to create bins for feature values. Default: quantiles */
+    BinningStrategy binningStrategy = BinningStrategy::quantiles;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -100,16 +100,17 @@ public:
     struct FeatureEntry
     {
         DAAL_NEW_DELETE();
-        IndexType numIndices     = 0;       //number of indices or bins
-        ModelFPType * binBorders = nullptr; //right bin borders
-        ModelFPType min          = 0;       //used for random splitter, since all borders are known but min.
+        IndexType numIndices     = 0;       // number of indices or bins
+        ModelFPType * binBorders = nullptr; // right bin borders
+        ModelFPType min          = 0;       // used for random splitter, since all borders are known but min.
 
         services::Status allocBorders();
         ~FeatureEntry();
     };
 
 public:
-    IndexedFeatures() : _data(nullptr), _entries(nullptr), _sizeOfIndex(sizeof(IndexType)), _nCols(0), _nRows(0), _capacity(0), _maxNumIndices(0) {}
+    IndexedFeatures() : _data(nullptr), _entries(nullptr), _sizeOfIndex(sizeof(IndexType)), _nRows(0), _nCols(0), _capacity(0), _maxNumIndices(0) {}
+
     ~IndexedFeatures();
 
     //initialize the feature indices, i.e. bins
@@ -133,7 +134,7 @@ public:
     ModelFPType binRightBorder(size_t iCol, size_t iBin) const
     {
         DAAL_ASSERT(isBinned(iCol));
-        DAAL_ASSERT(iBin < numIndices(iCol));
+        DAAL_ASSERT(iBin < static_cast<size_t>(numIndices(iCol)));
         return _entries[iCol].binBorders[iBin];
     }
 

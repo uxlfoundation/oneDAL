@@ -146,6 +146,17 @@ void setHostApp(const services::SharedPtr<services::HostAppIface> & pHostApp, da
 
 namespace algorithms
 {
+namespace interface1
+{
+
+AlgorithmContainerIfaceImpl::AlgorithmContainerIfaceImpl() = default;
+AlgorithmContainer<batch>::AlgorithmContainer()            = default;
+
+template <ComputeMode mode>
+AlgorithmContainer<mode>::AlgorithmContainer() = default;
+
+} //namespace interface1
+
 template <ComputeMode mode>
 services::Status AlgorithmImpl<mode>::computeNoThrow()
 {

@@ -31,11 +31,16 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp intel-oneapi-runtime-libs
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs=2025.0.0-406
+}
+
+function install_tbb {
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
 }
 
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel=2024.2.1-103
+    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
+    install_tbb
 }
 
 function install_clang-format {
@@ -59,36 +64,11 @@ function install_qemu_emulation_apt {
 }
 
 function install_qemu_emulation_deb {
-    set +e
-
-    versions=(9.0.2 9.0.1 8.2.4)
-    suffixes=("" "~bpo12+1")
-    found_version=""
-    for version in ${versions[@]}; do
-        for suffix in ${suffixes[@]}; do
-            qemu_deb="qemu-user-static_${version}+ds-1${suffix}_amd64.deb"
-            echo "Checking for http://ftp.debian.org/debian/pool/main/q/qemu/${qemu_deb}"
-            if wget -q --method=HEAD http://ftp.debian.org/debian/pool/main/q/qemu/${qemu_deb} &> /dev/null;
-            then
-                echo "Found qemu version ${version}"
-                found_version=${qemu_deb}
-                break 2
-            fi
-        done
-    done
-
-    set -eo pipefail
-    if [[ -z "${found_version}" ]] ; then
-        # If nothing is found, error out and fail
-        echo "None of the requested qemu versions ${versions[*]} are available."
-        false
-    fi
-
+    # get last version of qemu listed on debian, changes may need to occur to this with version 10 of qemu
+    found_version=$(wget -q http://ftp.debian.org/debian/pool/main/q/qemu/ -O - | grep -oP "(?<=\")$1_.*_amd64.deb(?=\")" | tail -1)
     wget http://ftp.debian.org/debian/pool/main/q/qemu/${found_version}
     sudo dpkg -i ${found_version}
-
     sudo systemctl restart systemd-binfmt.service
-    set +eo pipefail
 }
 
 function install_llvm_version {
@@ -122,6 +102,9 @@ function build_sysroot {
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
+elif [ "${component}" == "tbb" ]; then
+    add_repo
+    install_tbb
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
@@ -140,7 +123,9 @@ elif [ "${component}" == "qemu-apt" ]; then
     install_qemu_emulation_apt
 elif [ "${component}" == "qemu-deb" ]; then
     update
-    install_qemu_emulation_deb
+    install_qemu_emulation_deb qemu-user
+    install_qemu_emulation_deb qemu-user-binfmt
+    install_qemu_emulation_deb qemu-user-static
 elif [ "${component}" == "llvm-version" ] ; then
     update
     install_llvm_version "$2"
@@ -149,6 +134,6 @@ elif [ "${component}" == "build-sysroot" ] ; then
     build_sysroot "$2" "$3" "$4" "$5"
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
     exit 1
 fi
