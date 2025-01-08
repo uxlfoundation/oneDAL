@@ -40,7 +40,7 @@ InputIface::InputIface(const InputIface & other) : daal::algorithms::Input(other
 
 Input::Input() : InputIface(lastInputDatasetId + 1) {};
 Input::Input(const Input & other) : InputIface(other) {}
-
+Input & Input::operator=(const Input & other) = default;
 /**
 * Returns the input object of the PCA algorithm
  * \param[in] id    Identifier of the input object
