@@ -46,9 +46,12 @@ jobs:
   steps:
     - script: |
         echo $(CODECOV_TOKEN)
+        echo $TOK
         .ci/env/apt.sh clang-format
         .ci/env/editorconfig-checker.sh
       displayName: 'Install Dependencies'
+      env:
+        TOK: $(CODECOV_TOKEN)
     - script: |
         .ci/scripts/clang-format.sh
       displayName: 'clang-format check'
