@@ -549,11 +549,6 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
         std::cerr << "Error: node_count * ftr_count exceeds int limit" << std::endl;
     }
 
-    std::cout << "node count = " << node_count << std::endl;
-    std::cout << "ftr_count = " << ftr_count << std::endl;
-    std::cout << "local_size = " << local_size << std::endl;
-    std::cout << "total range size = " << node_count * ftr_count * local_size << std::endl;
-
     const auto nd_range =
         bk::make_multiple_nd_range_3d({ node_count, ftr_count, local_size }, { 1, 1, local_size });
 

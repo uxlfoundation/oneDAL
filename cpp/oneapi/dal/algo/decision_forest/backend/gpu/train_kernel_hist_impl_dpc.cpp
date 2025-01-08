@@ -125,6 +125,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.selected_row_count_ = ctx.distr_mode_
                                   ? impl_const_t::bad_val_
                                   : desc.get_observations_per_tree_fraction() * ctx.row_count_;
+
     ctx.selected_row_total_count_ =
         desc.get_observations_per_tree_fraction() * ctx.row_total_count_;
 
@@ -270,21 +271,17 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
         max_node_count_per_tree *= 2;
     }
     // node_lists for one tree
-    std::cout << "overflow here 11" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Index) * impl_const_t::node_prop_count_,
                                max_node_count_per_tree);
     // node_vs_tree_map_list structure
-    std::cout << "overflow here 12" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Index), max_node_count_per_tree);
     // Selected features and random bin tresholds
-    std::cout << "overflow here 13" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow((sizeof(Index) + sizeof(Float)) * ctx.selected_ftr_count_,
                                max_node_count_per_tree);
     // Impurity data for each node
-    std::cout << "overflow here 14" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Float) * impl_const_t::node_imp_prop_count_,
                                max_node_count_per_tree);
@@ -322,8 +319,8 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const train_context_t& ctx) {
     ONEDAL_PROFILER_TASK(allocate_buffers, queue_);
-    std::cout << "overflow here 15" << std::endl;
-    de::check_mul_overflow(ctx.selected_row_total_count_, ctx.tree_in_block_);
+    de::check_mul_overflow(ctx.selected_row_total_count_,
+                           static_cast<std::int64_t>(ctx.tree_in_block_));
 
     // main tree order and auxilliary one are used for partitioning
     tree_order_lev_ =
@@ -336,7 +333,6 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
                                      alloc::device);
     if (ctx.oob_required_) {
         // oob_per_obs_list contains class_count number of counters for all out of bag observations for all trees
-        std::cout << "overflow here 16" << std::endl;
         de::check_mul_overflow(ctx.row_count_, ctx.class_count_);
         auto [oob_per_obs_list, event] =
             pr::ndarray<hist_type_t, 1>::zeros(queue_,
@@ -450,7 +446,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         if (ctx.distr_mode_) {
             row_count = 0;
             if (ctx.global_row_offset_ < ctx.selected_row_total_count_) {
-                row_count = std::min(ctx.selected_row_total_count_ - ctx.global_row_offset_,
+                row_count = std::min(static_cast<std::int32_t>(ctx.selected_row_total_count_ -
+                                                               ctx.global_row_offset_),
                                      ctx.row_count_);
             }
             // in case of no bootstrap
@@ -486,7 +483,6 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
     ONEDAL_PROFILER_TASK(gen_feature_list, queue_);
 
     ONEDAL_ASSERT(node_vs_tree_map_list.get_count() == node_count);
-    std::cout << "overflow here 17" << std::endl;
     de::check_mul_overflow((node_count + 1), ctx.selected_ftr_count_);
     // first part is used for features indices, +1 block - part for generator
     auto selected_features_host =
@@ -1995,13 +1991,10 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
     model_manager_t model_manager(ctx, ctx.tree_count_, ctx.column_count_);
 
     /*init engines*/
-    std::cout << "overflow here 18" << std::endl;
     auto skip_num =
         de::check_mul_overflow<std::size_t>(ctx.row_total_count_, (ctx.selected_ftr_count_ + 1));
-    std::cout << "overflow here 19" << std::endl;
     skip_num = de::check_mul_overflow<std::size_t>(ctx.tree_count_, skip_num);
 
-    std::cout << "overflow here 20" << std::endl;
     de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
 
     pr::engine_collection_oneapi<std::int64_t, pr::engine_method::philox4x32x10> collection(
@@ -2030,9 +2023,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
         imp_data_mng_t imp_data_holder(queue_, ctx);
         // initilizing imp_list and class_hist_list (for classification)
         imp_data_holder.init_new_level(node_count);
-        std::cout << "overflow here 30" << std::endl;
         de::check_mul_overflow(node_count, impl_const_t::node_prop_count_);
-        std::cout << "overflow here 31" << std::endl;
         de::check_mul_overflow(node_count, impl_const_t::node_imp_prop_count_);
         auto node_vs_tree_map_list =
             pr::ndarray<Index, 1>::empty(queue_, { node_count }, alloc::device);
@@ -2156,7 +2147,6 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             if (node_count_new) {
                 //there are split nodes -> next level is required
                 node_count_new *= 2;
-                std::cout << "overflow here 40" << std::endl;
                 de::check_mul_overflow(node_count_new, impl_const_t::node_prop_count_);
                 auto node_list_new = pr::ndarray<Index, 1>::empty(
                     queue_,

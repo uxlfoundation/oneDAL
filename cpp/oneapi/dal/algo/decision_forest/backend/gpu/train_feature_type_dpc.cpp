@@ -133,7 +133,6 @@ sycl::event indexed_features<Float, Bin, Index>::fill_bin_map(
     ONEDAL_ASSERT(bin_borders_nd.get_count() >= bin_count);
     ONEDAL_ASSERT(bins_nd.get_count() == row_count_);
 
-    std::cout << "overflow here 10" << std::endl;
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(de::check_mul_overflow(local_size, local_blocks_count),
                                       local_size);

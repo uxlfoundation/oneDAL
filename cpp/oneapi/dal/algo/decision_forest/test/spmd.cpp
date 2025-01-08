@@ -209,7 +209,7 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls default flow") {
     desc.set_max_tree_depth(max_tree_depth_val);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -233,7 +233,7 @@ DF_SPMD_CLS_TEST_EXT("df cls corner flow") {
     desc.set_min_observations_in_leaf_node(8);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -257,7 +257,7 @@ DF_SPMD_CLS_TEST_EXT("df cls small flow") {
     desc.set_tree_count(tree_count);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -288,7 +288,7 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls impurity flow") {
     desc.set_impurity_threshold(impurity_threshold_val);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -317,7 +317,7 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls all features flow") {
     desc.set_features_per_node(data.get_column_count() - 1); // skip responses column
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -342,7 +342,7 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls bootstrap flow") {
     desc.set_max_tree_depth(50);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -372,7 +372,7 @@ DF_SPMD_CLS_TEST_NIGHTLY_EXT("df cls oob per observation flow") {
     desc.set_observations_per_tree_fraction(observations_per_tree_fraction_val);
     desc.set_class_count(wl.ds_info.class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -393,30 +393,30 @@ DF_SPMD_CLS_TEST("df cls base check with default params") {
 
     desc.set_class_count(class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
-// DF_SPMD_CLS_TEST("df cls base check with default params and train weights") {
-//     SKIP_IF(this->get_policy().is_cpu());
-//     SKIP_IF(this->not_available_on_device());
-//     SKIP_IF(this->not_float64_friendly());
-//     const auto [data, data_test, class_count, checker_list] =
-//         this->get_cls_dataframe_weighted_base();
+DF_SPMD_CLS_TEST("df cls base check with default params and train weights") {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+    const auto [data, data_test, class_count, checker_list] =
+        this->get_cls_dataframe_weighted_base();
 
-//     auto desc = this->get_default_descriptor();
+    auto desc = this->get_default_descriptor();
 
-//     desc.set_class_count(class_count);
+    desc.set_class_count(class_count);
 
-//     this->set_rank_count(2);
-//     const auto train_result =
-//         this->train_spmd_weighted_base_checks(desc, data, this->get_homogen_table_id());
-//     const auto model = train_result.get_model();
-//     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
-// }
+    this->set_rank_count(4);
+    const auto train_result =
+        this->train_spmd_weighted_base_checks(desc, data, this->get_homogen_table_id());
+    const auto model = train_result.get_model();
+    this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
 
 DF_SPMD_CLS_TEST("df cls base check with non default params") {
     SKIP_IF(this->get_policy().is_cpu());
@@ -444,7 +444,7 @@ DF_SPMD_CLS_TEST("df cls base check with non default params") {
     desc.set_voting_mode(df::voting_mode::unweighted);
     desc.set_class_count(class_count);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -462,7 +462,7 @@ DF_SPMD_REG_TEST("df reg base check with default params") {
 
     auto desc = this->get_default_descriptor();
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -478,7 +478,7 @@ DF_SPMD_REG_TEST("df reg base check with default params and train weights") {
 
     auto desc = this->get_default_descriptor();
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_weighted_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -505,7 +505,7 @@ DF_SPMD_REG_TEST("df reg base check with non default params") {
     desc.set_variable_importance_mode(variable_importance_mode_val);
     desc.set_error_metric_mode(error_metric_mode_val);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -524,7 +524,7 @@ DF_SPMD_REG_TEST_NIGHTLY_EXT("df reg default flow") {
 
     auto desc = this->get_default_descriptor();
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -547,7 +547,7 @@ DF_SPMD_REG_TEST_EXT("df reg small flow") {
     desc.set_tree_count(tree_count);
     desc.set_min_observations_in_leaf_node(1);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -572,7 +572,7 @@ DF_SPMD_REG_TEST_NIGHTLY_EXT("df reg impurity flow") {
     desc.set_min_observations_in_leaf_node(min_observations_in_leaf_node);
     desc.set_impurity_threshold(impurity_threshold_val);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
@@ -599,7 +599,7 @@ DF_SPMD_REG_TEST_NIGHTLY_EXT("df reg bootstrap flow") {
     desc.set_max_tree_depth(max_tree_depth_val);
     desc.set_bootstrap(bootstrap_val);
 
-    this->set_rank_count(2);
+    this->set_rank_count(4);
     const auto train_result =
         this->train_spmd_base_checks(desc, data, this->get_homogen_table_id());
     const auto model = train_result.get_model();
