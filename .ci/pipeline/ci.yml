@@ -45,6 +45,7 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   steps:
     - script: |
+        echo $(CODECOV_TOKEN)
         .ci/env/apt.sh clang-format
         .ci/env/editorconfig-checker.sh
       displayName: 'Install Dependencies'
