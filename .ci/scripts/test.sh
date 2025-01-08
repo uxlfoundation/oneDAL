@@ -221,6 +221,14 @@ for link_mode in "${link_modes[@]}"; do
             cmake_options+=(-DCMAKE_TOOLCHAIN_FILE="${ONEDAL_DIR}"/.ci/env/"${ARCH}"-"${compiler}"-crosscompile-toolchain.cmake)
         fi
 
+        if [ "$compiler" == "gnu" ] ; then
+            if [ "$TEST_KIND" = "examples" ] ; then
+                # Build examples with -Werror=deprecated-copy enabled to catch deprecated copy constructors
+                # and assignment operators in the code
+                cmake_options+=(-DCMAKE_CXX_FLAGS="-Werror=deprecated-copy")
+            fi
+        fi
+
         echo cmake "${cmake_options[@]}"
         cmake "${cmake_options[@]}"
         err=$?
