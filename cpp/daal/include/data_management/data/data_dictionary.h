@@ -72,10 +72,24 @@ public:
     }
 
     /**
+     * Copy constructor for a data feature
+     */
+    NumericTableFeature(const NumericTableFeature & f)
+    {
+        indexType      = f.indexType;
+        pmmlType       = f.pmmlType;
+        featureType    = f.featureType;
+        typeSize       = f.typeSize;
+        categoryNumber = f.categoryNumber;
+    }
+
+    /**
      *  Copy operator for a data feature
      */
     NumericTableFeature & operator=(const NumericTableFeature & f)
     {
+        if (this == &f) return *this;
+
         indexType      = f.indexType;
         pmmlType       = f.pmmlType;
         featureType    = f.featureType;
