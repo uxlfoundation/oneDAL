@@ -26,7 +26,6 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_thread.a",
         "lib/intel64/libonedal.a",
         "lib/intel64/libonedal_dpc.a",
-        "lib/intel64/libonedal_sycl.a",
         "lib/intel64/libonedal_parameters.a",
         "lib/intel64/libonedal_parameters_dpc.a",
 

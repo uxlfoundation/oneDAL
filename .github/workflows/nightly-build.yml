@@ -19,64 +19,82 @@ name: Nightly-build
 on:
   schedule:
     - cron: '0 21 * * *'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/nightly-build.yml
+      - .ci/pipeline/ci.yml
+      - makefile
+      - '.ci/env/**'
+      - '.ci/scripts/**'
+      - 'dev/make/**'
+      - 'dev/make/compiler_definitions/**'
+      - 'dev/make/function_definitions/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
 env:
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d91caaa0-7306-46ea-a519-79a0423e1903/w_BaseKit_p_2024.2.1.101_offline.exe'
   WINDOWS_ALL_COMPONENTS: 'intel.oneapi.win.cpp-dpcpp-common:intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel'
 
 jobs:
   build_lnx:
     name: oneDAL Linux nightly build
-    if: github.repository == 'oneapi-src/oneDAL'
-    runs-on: ubuntu-22.04
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@v4
-        with:
-          repository: oneapi-src/oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
         run: .ci/env/apt.sh mkl
       - name: System Info
         run: |
-          source /opt/intel/oneapi/compiler/latest/env/vars.sh
+          source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
         run: |
-          source /opt/intel/oneapi/compiler/latest/env/vars.sh
+          source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
       - name: Make onedal
         run: |
-          source /opt/intel/oneapi/compiler/latest/env/vars.sh
+          source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: __release_lnx
           path: ./__release_lnx
+      - name: Archive oneDAL environment
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: oneDAL_env
+          path: .ci/env
 
   build_win:
     name: oneDAL Windows nightly build
-    if: github.repository == 'oneapi-src/oneDAL'
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-2022
     timeout-minutes: 120
 
     steps:
       - name: Checkout oneDAL
-        uses: actions/checkout@v4
-        with:
-          repository: oneapi-src/oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install DPC++
         shell: cmd
         run: |
-            call .\.ci\scripts\install_basekit.bat ${{ env.WINDOWS_BASEKIT_URL }} ${{ env.WINDOWS_ALL_COMPONENTS }} .\oneapi\
+          set PATH=C:\msys64\usr\bin;%PATH%
+          for /f "delims=" %%i in ('grep -oP -m 1 "(?<=WINDOWS_BASEKIT_URL: ).*" .ci\pipeline\ci.yml') do set "baseurl=%%i"
+          call .ci\scripts\install_basekit.bat %baseurl:'="% ${{ env.WINDOWS_ALL_COMPONENTS }} .\oneapi\
       - name: Prepare Intel OpenCL CPU runtime
         run: |
           # Store the unpacked runtime to centralize and reduce external downloads
@@ -113,17 +131,17 @@ jobs:
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
           tar -cvzf oneapi.tar.gz .\oneapi
       - name: Archive build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: __release_win
           path: .\__release_win_vc
       - name: Archive Intel BaseKit
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: intel_oneapi_basekit
           path: .\oneapi.tar.gz
       - name: Archive Intel OpenCL CPU runtime
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: opencl_rt_installer
           path: .\opencl_rt.msi

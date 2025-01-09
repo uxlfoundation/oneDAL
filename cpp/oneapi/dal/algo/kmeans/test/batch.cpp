@@ -277,41 +277,43 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
 
+    using Float = std::tuple_element_t<0, TestType>;
+
     SECTION("cluster=5") {
-        auto input = oneapi::dal::test::engine::csr_make_blobs(5, 50, 20);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(5, 50, 20);
         bool init_centroids = true;
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=16") {
         bool init_centroids = true;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(16, 200, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(16, 200, 100);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=128") {
         SKIP_IF(this->get_policy().is_cpu());
         bool init_centroids = true;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(128, 100000, 200);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(128, 100000, 200);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=5") {
-        auto input = oneapi::dal::test::engine::csr_make_blobs(5, 50, 20);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(5, 50, 20);
         bool init_centroids = false;
         this->test_on_sparse_data(input, 20, 0.01, init_centroids);
     }
 
     SECTION("cluster=16") {
         bool init_centroids = false;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(16, 200, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(16, 200, 100);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=32") {
         SKIP_IF(this->get_policy().is_cpu());
         bool init_centroids = false;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(32, 10000, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(32, 10000, 100);
         this->test_on_sparse_data(input, 30, 0.01, init_centroids);
     }
 }

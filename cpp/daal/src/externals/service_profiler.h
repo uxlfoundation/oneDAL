@@ -31,19 +31,24 @@
 #ifndef __SERVICE_PROFILER_H__
     #define __SERVICE_PROFILER_H__
 
+
     #define DAAL_ITTNOTIFY_CONCAT2(x, y) x##y
     #define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
 
+
     #define DAAL_ITTNOTIFY_UNIQUE_ID __LINE__
+
 
     #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                               \
         daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) = \
             daal::internal::profiler::start_task(#name);
 
+
 namespace daal
 {
 namespace internal
 {
+
 
 struct task
 {
@@ -79,6 +84,7 @@ public:
 private:
     std::uint64_t start_time;
     task task_;
+
 };
 
 } // namespace internal

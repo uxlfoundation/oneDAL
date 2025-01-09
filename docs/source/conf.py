@@ -81,10 +81,10 @@ exclude_patterns = ["opt-notice.rst", 'daal/data-management/numeric-tables/*.rst
                     'daal/includes/*', 'onedal/algorithms/.*/includes/*', 'index-toc.rst']
 
 extlinks = {
-    'cpp_example': ('https://github.com/oneapi-src/oneDAL/tree/main/examples/daal/cpp/source/%s', None),
-    'daal4py_example': ('https://github.com/intel/scikit-learn-intelex/tree/main/examples/daal4py/%s', None),
-    'daal4py_sklearnex_example': ('https://github.com/intel/scikit-learn-intelex/tree/main/examples/sklearnex/%s', None),
-    'cpp_sample': ('https://github.com/oneapi-src/oneDAL/tree/main/samples/daal/cpp/%s', None)
+    'cpp_example': ('https://github.com/uxlfoundation/oneDAL/tree/main/examples/daal/cpp/source/%s', None),
+    'daal4py_example': ('https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/daal4py/%s', None),
+    'daal4py_sklearnex_example': ('https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/sklearnex/%s', None),
+    'cpp_sample': ('https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/%s', None)
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -101,7 +101,7 @@ html_favicon = '_static/favicons.png'
 
 # Theme options
 html_theme_options = {
-    'repository_url': 'https://github.com/oneapi-src/oneDAL',
+    'repository_url': 'https://github.com/uxlfoundation/oneDAL',
     'path_to_docs': 'docs/source',
     'use_issues_button': True,
     'use_edit_page_button': True,
@@ -115,7 +115,7 @@ html_theme_options = {
 }
 
 html_theme_options = {
-    "extra_footer": "<div><a href='https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html' data-cookie-notice='true'>Cookies</a> <a href='https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html'>| Privacy</a> <a data-wap_ref='dns' id='wap_dns' href='https://www.intel.com/content/www/us/en/privacy/intel-cookie- notice.html'>| Do Not Share My Personal Information</a> </div><div>&copy; Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others. No license (express or implied, by estoppel or otherwise) to any intellectual property rights is granted by this document, with the sole exception that code included in this document is licensed subject to the Zero-Clause BSD open source license (OBSD), <a href='http://opensource.org/licenses/0BSD'>http://opensource.org/licenses/0BSD</a>. </div><br><div>oneDAL is licensed under Apache License Version 2.0. Refer to the <a href='https://github.com/oneapi-src/oneDAL/blob/main/LICENSE'>LICENSE </a> file for the full license text and copyright notice.</div>"
+    "extra_footer": "<div><a href='https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html' data-cookie-notice='true'>Cookies</a> <a href='https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html'>| Privacy</a> <a data-wap_ref='dns' id='wap_dns' href='https://www.intel.com/content/www/us/en/privacy/intel-cookie- notice.html'>| Do Not Share My Personal Information</a> </div><div>&copy; Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others. No license (express or implied, by estoppel or otherwise) to any intellectual property rights is granted by this document, with the sole exception that code included in this document is licensed subject to the Zero-Clause BSD open source license (OBSD), <a href='http://opensource.org/licenses/0BSD'>http://opensource.org/licenses/0BSD</a>. </div><br><div>oneDAL is licensed under Apache License Version 2.0. Refer to the <a href='https://github.com/uxlfoundation/oneDAL/blob/main/LICENSE'>LICENSE </a> file for the full license text and copyright notice.</div>"
 }
 
 # oneDAL project directory is needed for `dalapi` extension

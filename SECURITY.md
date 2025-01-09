@@ -88,6 +88,6 @@ If you have any suggestions on how this Policy could be improved, submit
 an issue or a pull request to this repository. **Do not** report
 potential vulnerabilities or security flaws via a pull request.
 
-[1]: https://github.com/oneapi-src/oneDAL/releases
-[2]: https://github.com/oneapi-src/oneDAL/security/advisories/new
-[3]: https://github.com/oneapi-src/oneDAL/security/advisories
+[1]: https://github.com/uxlfoundation/oneDAL/releases
+[2]: https://github.com/uxlfoundation/oneDAL/security/advisories/new
+[3]: https://github.com/uxlfoundation/oneDAL/security/advisories

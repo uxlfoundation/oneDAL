@@ -13,6 +13,7 @@ dal_module(
         "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
         "@onedal//cpp/oneapi/dal/backend/primitives:distance",
         "@onedal//cpp/oneapi/dal/backend/primitives:sort",
+        "@onedal//cpp/oneapi/dal/backend/primitives:sparse_blas",
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",

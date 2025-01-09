@@ -472,6 +472,8 @@ public:
     }
     scoped_lock(const scoped_lock &) = delete;
     scoped_lock(scoped_lock &&) = delete;
+    scoped_lock &operator=(scoped_lock &other) = delete;
+    scoped_lock &operator=(scoped_lock &&other) = delete;
     ~scoped_lock() {
         mutex_.unlock();
     }

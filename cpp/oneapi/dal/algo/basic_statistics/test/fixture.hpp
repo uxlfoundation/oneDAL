@@ -113,7 +113,7 @@ public:
             bs::descriptor<float_t, basic_statistics::method::sparse>{}.set_result_options(
                 compute_mode);
         const auto csr_table = data.build_csr_table(this->get_policy());
-        const auto dense_table = data.build_dense_table();
+        const auto dense_table = data.build_dense_table(this->get_policy());
 
         auto compute_result = this->compute(desc, csr_table);
         table weights;

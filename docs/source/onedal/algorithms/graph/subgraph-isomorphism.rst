@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2021 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2021 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. default-domain:: cpp
 
@@ -33,11 +31,11 @@ Mathematical formulation
 Subgraphs definition
 --------------------
 
-A graph :math:`H = (V'; E')` is called a subgraph of graph :math:`G = (V; E)` if 
-:math:`V' \subseteq V; E' \subseteq E` and :math:`V'` contains all the endpoints of all the 
+A graph :math:`H = (V'; E')` is called a subgraph of graph :math:`G = (V; E)` if
+:math:`V' \subseteq V; E' \subseteq E` and :math:`V'` contains all the endpoints of all the
 edges in :math:`E'` [Gross2014]_.
 
-Further we denote the :capterm:`induced subgraph on the vertex set<Induced subgraph on the vertex set>` 
+Further we denote the :capterm:`induced subgraph on the vertex set<Induced subgraph on the vertex set>`
 as **induced** subgraph, the :capterm:`induced subgraph on the edge set<Induced subgraph on the edge set>`
 as **non-induced** subgraph.
 
@@ -50,7 +48,7 @@ graph :math:`G`.
 
 :math:`G` is called **target** graph, :math:`H` is called **pattern** graph.
 
-Mapping is a bijection or one-to-one correspondence between vertices of :math:`H` and a subgraph of 
+Mapping is a bijection or one-to-one correspondence between vertices of :math:`H` and a subgraph of
 graph :math:`G`. Two vertices are adjacent if there is an existing edge between them, and non-adjacent otherwise.
 Induced subgraph isomorphism preserves both adjacency and non-adjacency relationships between vertices,
 while non-induced subgraph isomorphism preserves only adjacency relationship.

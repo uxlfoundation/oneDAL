@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2020 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2020 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. default-domain:: cpp
 
@@ -73,7 +71,7 @@ corresponding to their children, :math:`t_L` and :math:`t_R`.
 Training method: *Dense*
 ++++++++++++++++++++++++
 
-In the *dense* training method, all possible data points for each feature are considered as possible splits for the current node 
+In the *dense* training method, all possible data points for each feature are considered as possible splits for the current node
 and evaluated best-split computation.
 
 .. _df_t_math_hist:
@@ -87,8 +85,8 @@ They are computed for each feature during the initialization stage of the algori
 Each value from the initially provided data is substituted
 with the value of the corresponding bin. It decreases the computational time complexity
 from :math:`O(n_r \cdot n_f)` to :math:`O(n_b \cdot n_f)`,
-but decreases algorithm accuracy, where :math:`n_r` is number of rows, :math:`n_b` is number of bins, 
-and :math:`n_f` is number of selected features. 
+but decreases algorithm accuracy, where :math:`n_r` is number of rows, :math:`n_b` is number of bins,
+and :math:`n_f` is number of selected features.
 
 Split strategy
 ++++++++++++++

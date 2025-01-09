@@ -53,6 +53,10 @@ template <>
 class AlgorithmContainer<batch> : public AlgorithmContainerIfaceImpl
 {
 public:
+    AlgorithmContainer();
+    AlgorithmContainer(const AlgorithmContainer &)                                 = delete;
+    AlgorithmContainer<batch> & operator=(const AlgorithmContainer<batch> & other) = delete;
+
     /**
      * Default constructor
      * \param[in] daalEnv   Pointer to the structure that contains information about the environment
@@ -90,6 +94,9 @@ class AlgorithmContainerImpl<batch> : public AlgorithmContainer<batch>
 {
 public:
     DAAL_NEW_DELETE();
+
+    AlgorithmContainerImpl(const AlgorithmContainerImpl &)                                 = delete;
+    AlgorithmContainerImpl<batch> & operator=(const AlgorithmContainerImpl<batch> & other) = delete;
 
     /**
      * Default constructor

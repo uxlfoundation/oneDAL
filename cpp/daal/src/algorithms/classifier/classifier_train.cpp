@@ -52,7 +52,12 @@ namespace interface1
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_CLASSIFIER_TRAINING_RESULT_ID);
 
 InputIface::InputIface(size_t nElements) : daal::algorithms::Input(nElements) {}
+InputIface::InputIface(const InputIface & other)             = default;
+InputIface & InputIface::operator=(const InputIface & other) = default;
+
 Input::Input(size_t nElements) : InputIface(nElements) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 size_t Input::getNumberOfFeatures() const
 {

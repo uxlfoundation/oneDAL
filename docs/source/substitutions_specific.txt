@@ -1,3 +1,3 @@
 .. |full_name| replace:: oneAPI Data Analytics Library
 .. |onedal-landing| replace:: |short_name| GitHub\* repository
-.. _onedal-landing: https://github.com/oneapi-src/oneDAL
+.. _onedal-landing: https://github.com/uxlfoundation/oneDAL

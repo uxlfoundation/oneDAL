@@ -28,7 +28,11 @@ endif()
 # ONEDAL_LINK: static | dynamic. Default is dynamic
 # ONEDAL_USE_DPCPP: yes | no. Default is yes
 # ONEDAL_INTERFACE: yes | no. Default is no
+
+# Internal variables:
 # ONEDAL_SET_TBB_MANUALLY: yes | no. Default is no
+# MKL_DEPENDENCY: yes | no. Default is no
+# MATH_BACKEND: mkl | ref. Default is mkl
 unset(DAL_LIBS)
 
 # default CMAKE_BUILD_TYPE to Release
@@ -61,8 +65,24 @@ if(NOT DEFINED ONEDAL_SET_TBB_MANUALLY AND DEFINED SET_TBB_MANUALLY)
   set(ONEDAL_SET_TBB_MANUALLY ${SET_TBB_MANUALLY})
 endif()
 
-if ("${ONEDAL_LINK}" STREQUAL "")
+if ("${REF_BACKEND}" STREQUAL "" OR "${REF_BACKEND}" STREQUAL "OFF")
+    set(MATH_BACKEND "mkl")
+elseif ("${REF_BACKEND}" STREQUAL "ON")
+    set(MATH_BACKEND "ref")
+elseif (NOT "${REF_BACKEND}" STREQUAL "OFF" AND NOT "${REF_BACKEND}" STREQUAL "ON")
+    message(FATAL_ERROR "REF_BACKEND must be 'ON' or 'OFF'")
+endif()
+
+if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
     set(ONEDAL_LINK "dynamic")
+    set(MKL_DEPENDENCY "no")
+elseif ("${ONEDAL_LINK}" STREQUAL "static")
+    set(ONEDAL_LINK "static")
+    if("${MATH_BACKEND}" STREQUAL "mkl")
+        set(MKL_DEPENDENCY "yes")
+    elseif("${MATH_BACKEND}" STREQUAL "ref")
+        set(MKL_DEPENDENCY "no")
+    endif()
 elseif (NOT "${ONEDAL_LINK}" STREQUAL "static" AND NOT "${ONEDAL_LINK}" STREQUAL "dynamic")
     message(FATAL_ERROR "ONEDAL_LINK must be 'static' or 'dynamic'")
 endif()
@@ -92,6 +112,9 @@ message(STATUS "ONEDAL_LINK:             ${ONEDAL_LINK}")
 message(STATUS "ONEDAL_USE_DPCPP:        ${ONEDAL_USE_DPCPP}")
 message(STATUS "ONEDAL_INTERFACE:        ${ONEDAL_INTERFACE}")
 message(STATUS "ONEDAL_SET_TBB_MANUALLY: ${ONEDAL_SET_TBB_MANUALLY}")
+message(STATUS "MATH_BACKEND:            ${MATH_BACKEND}")
+message(STATUS "REF_BACKEND:             ${REF_BACKEND}")
+message(STATUS "MKL_DEPENDENCY:          ${MKL_DEPENDENCY}")
 message(STATUS "ONEDAL_USE_DPCPP:        ${ONEDAL_USE_DPCPP}")
 
 if (NOT DAL_LIBRARIES)
@@ -116,15 +139,29 @@ elseif (@VERSIONS_SET@ STREQUAL "FALSE")
     string(REGEX REPLACE ".*#define __INTEL_DAAL_MINOR_BINARY__ ([0-9]+).*" "\\1" _dal_ver_minor_bin "${DAL_VERSION_INFO}")
 endif()
 
+if(MKL_DEPENDENCY STREQUAL "yes")
+    set(MKL_THREADING "tbb_thread")
+    set(MKL_SYCL_LINK "static")
+    set(MKL_LINK "static")
+    set(MKL_SYCL_INTERFACE_FULL "intel_ilp64")
+    set(MKL_INTERFACE_FULL "intel_ilp64")
+    find_package(MKL REQUIRED MKL::MKL_SYCL)
+endif()
+
 if (ONEDAL_USE_DPCPP STREQUAL "yes" AND ONEDAL_INTERFACE STREQUAL "no")
-    list(APPEND DAL_LIBS onedal_sycl${DAL_DEBUG_SUFFIX})
+    if(MKL_DEPENDENCY STREQUAL "yes")
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl${DAL_DEBUG_SUFFIX})
+    endif()
 elseif (ONEDAL_USE_DPCPP STREQUAL "no" AND ONEDAL_INTERFACE STREQUAL "yes")
     list(APPEND DAL_LIBS onedal${DAL_DEBUG_SUFFIX})
     if(ONEDAL_USE_PARAMETERS_LIBRARY)
         list(APPEND DAL_LIBS onedal_parameters${DAL_DEBUG_SUFFIX})
     endif()
 elseif (ONEDAL_USE_DPCPP STREQUAL "yes" AND ONEDAL_INTERFACE STREQUAL "yes")
-    list(APPEND DAL_LIBS onedal_dpc${DAL_DEBUG_SUFFIX} onedal_sycl${DAL_DEBUG_SUFFIX})
+    list(APPEND DAL_LIBS onedal_dpc${DAL_DEBUG_SUFFIX})
+    if(MKL_DEPENDENCY STREQUAL "yes")
+        list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_sycl${DAL_DEBUG_SUFFIX})
+    endif()
     if(ONEDAL_USE_PARAMETERS_LIBRARY)
         list(APPEND DAL_LIBS onedal_parameters_dpc${DAL_DEBUG_SUFFIX})
     endif()
@@ -212,7 +249,7 @@ foreach (_dal_component ${DAL_LIBS})
 
     set(oneDAL_${_dal_component}_FOUND 0)
 
-    if (${ONEDAL_LINK} STREQUAL "static" OR ${_dal_component} STREQUAL "onedal_sycl")
+    if (${ONEDAL_LINK} STREQUAL "static")
         add_library(oneDAL::${_dal_component} STATIC IMPORTED)
         find_library(
             _dal_lib
@@ -233,7 +270,7 @@ foreach (_dal_component ${DAL_LIBS})
                             INTERFACE_INCLUDE_DIRECTORIES "${_dal_include_dir}")
     unset(_dal_include_dir)
 
-    if (WIN32 AND ${ONEDAL_LINK} STREQUAL "dynamic" AND NOT ${_dal_component} STREQUAL "onedal_sycl")
+    if (WIN32 AND ${ONEDAL_LINK} STREQUAL "dynamic")
         find_file(${_dal_component}_dll ${_dal_component}.${_dal_ver_major_bin}.dll PATHS "${_dal_root}/@DLL_REL_PATH@")
         set_target_properties(oneDAL::${_dal_component} PROPERTIES
                               IMPORTED_LOCATION "${${_dal_component}_dll}"

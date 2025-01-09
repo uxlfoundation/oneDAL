@@ -22,6 +22,7 @@ namespace daal
 {
 namespace internal
 {
+
 profiler::profiler()
 {
     start_time = get_time();
@@ -107,6 +108,7 @@ profiler_task profiler::start_task(const char * task_name, sycl::queue & task_qu
     tasks_info.current_kernel++;
     return profiler_task(task_name, task_queue);
 }
+#endif
 
 profiler_task::profiler_task(const char * task_name, const sycl::queue & task_queue)
     : task_name_(task_name), task_queue_(task_queue), has_queue_(true)

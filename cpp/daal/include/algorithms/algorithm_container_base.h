@@ -65,6 +65,10 @@ public:
 class AlgorithmContainerIfaceImpl : public AlgorithmContainerIface
 {
 public:
+    AlgorithmContainerIfaceImpl();
+    AlgorithmContainerIfaceImpl(const AlgorithmContainerIfaceImpl &)                   = delete;
+    AlgorithmContainerIfaceImpl & operator=(const AlgorithmContainerIfaceImpl & other) = delete;
+
     /**
      * Default constructor
      * \param[in] daalEnv   Pointer to the structure that contains information about the environment
@@ -97,6 +101,10 @@ template <ComputeMode mode>
 class AlgorithmContainer : public AlgorithmContainerIfaceImpl
 {
 public:
+    AlgorithmContainer();
+    AlgorithmContainer(const AlgorithmContainer &)                               = delete;
+    AlgorithmContainer<mode> & operator=(const AlgorithmContainer<mode> & other) = delete;
+
     /**
      * Default constructor
      * \param[in] daalEnv   Pointer to the structure that contains information about the environment
@@ -152,11 +160,16 @@ template <ComputeMode mode>
 class AlgorithmContainerImpl : public AlgorithmContainer<mode>
 {
 public:
+    AlgorithmContainerImpl(const AlgorithmContainerImpl &)                       = delete;
+    AlgorithmContainer<mode> & operator=(const AlgorithmContainer<mode> & other) = delete;
+
     /**
      * Default constructor
      * \param[in] daalEnv   Pointer to the structure that contains information about the environment
      */
-    AlgorithmContainerImpl(daal::services::Environment::env * daalEnv = 0) : AlgorithmContainer<mode>(daalEnv), _in(0), _pres(0), _res(0), _par(0) {}
+    AlgorithmContainerImpl(daal::services::Environment::env * daalEnv = 0)
+        : AlgorithmContainer<mode>(daalEnv), _in(0), _pres(0), _res(0), _par(0), _hpar(0)
+    {}
 
     virtual ~AlgorithmContainerImpl() {}
 

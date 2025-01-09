@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/kmeans/backend/gpu/empty_cluster_handling.hpp"
+#include "oneapi/dal/backend/primitives/selection/select_indexed_rows.hpp"
 #include "oneapi/dal/backend/primitives/sort/sort.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
@@ -142,6 +143,47 @@ static auto copy_candidates_from_data(sycl::queue& queue,
             const std::int64_t dst_i = empty_cluster_indices_ptr[i];
             const std::int64_t src_i = candidate_indices_ptr[i];
             centroids_ptr[dst_i * column_count + j] = data_ptr[src_i * column_count + j];
+        });
+    });
+
+    return event;
+}
+
+template <typename Float>
+auto copy_candidates_from_data(sycl::queue& queue,
+                               const pr::ndview<Float, 1>& values,
+                               const pr::ndview<std::int64_t, 1>& column_indices,
+                               const pr::ndview<std::int64_t, 1>& row_offsets,
+                               const centroid_candidates<Float>& candidates,
+                               pr::ndview<Float, 2>& centroids,
+                               const bk::event_vector& deps) -> sycl::event {
+    ONEDAL_PROFILER_TASK(copy_candidates, queue);
+    ONEDAL_ASSERT(centroids.get_dimension(0) >= candidates.get_candidate_count());
+
+    const std::int64_t column_count = centroids.get_dimension(1);
+    const std::int64_t candidate_count = candidates.get_candidate_count();
+
+    const auto* values_ptr = values.get_data();
+    const auto* column_indices_ptr = column_indices.get_data();
+    const auto* row_offsets_ptr = row_offsets.get_data();
+    Float* centroids_ptr = centroids.get_mutable_data();
+    const std::int32_t* candidate_indices_ptr = candidates.get_indices().get_data();
+    const std::int32_t* empty_cluster_indices_ptr =
+        candidates.get_empty_cluster_indices().get_data();
+
+    auto event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.parallel_for(sycl::range(candidate_count), [=](sycl::id<1> id) {
+            const std::int64_t dst_i = empty_cluster_indices_ptr[id];
+            const std::int64_t src_i = candidate_indices_ptr[id];
+            const std::int64_t begin_idx = row_offsets_ptr[src_i];
+            const std::int64_t end_idx = row_offsets_ptr[src_i + 1];
+            for (std::int64_t j = 0; j < column_count; ++j) {
+                centroids_ptr[dst_i * column_count + j] = Float(0.0);
+            }
+            for (std::int64_t j = begin_idx; j < end_idx; ++j) {
+                centroids_ptr[dst_i * column_count + column_indices_ptr[j]] = values_ptr[j];
+            }
         });
     });
 
@@ -426,6 +468,14 @@ auto fill_empty_clusters(sycl::queue& queue,
                                       const centroid_candidates<Float>& candidates,            \
                                       pr::ndview<Float, 2>& centroids,                         \
                                       const bk::event_vector& deps)                            \
+        ->sycl::event;                                                                         \
+    template auto copy_candidates_from_data(sycl::queue& queue,                                \
+                                            const pr::ndview<Float, 1>& values,                \
+                                            const pr::ndview<std::int64_t, 1>& column_indices, \
+                                            const pr::ndview<std::int64_t, 1>& row_offsets,    \
+                                            const centroid_candidates<Float>& candidates,      \
+                                            pr::ndview<Float, 2>& centroids,                   \
+                                            const bk::event_vector& deps)                      \
         ->sycl::event;
 
 INSTANTIATE(float)
