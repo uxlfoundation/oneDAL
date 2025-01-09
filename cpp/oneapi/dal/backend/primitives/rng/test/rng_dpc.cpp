@@ -20,6 +20,7 @@
 
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_engine_collection.hpp"
+
 namespace oneapi::dal::backend::primitives::test {
 
 namespace te = dal::test::engine;
@@ -62,7 +63,7 @@ template <typename engine_type>
 constexpr auto engine_v = engine_map<engine_type>::value;
 
 template <typename TestType>
-class rng_test : public te::policy_fixture {
+class rng_test : public te::float_algo_fixture<TestType> {
 public:
     using DataType = std::tuple_element_t<0, TestType>;
     using EngineType = std::tuple_element_t<1, TestType>;
