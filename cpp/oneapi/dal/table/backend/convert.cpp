@@ -31,7 +31,6 @@ static void convert_vector(const void* src,
                            std::int64_t src_stride,
                            std::int64_t dst_stride,
                            std::int64_t element_count) {
-    std::cout << "here1" << std::endl;
     if (src_stride == 1 && dst_stride == 1) {
         interop::daal_convert(src, dst, src_type, dst_type, element_count);
     }
@@ -56,7 +55,6 @@ void convert_vector(const detail::default_host_policy& policy,
                     data_type src_type,
                     data_type dst_type,
                     std::int64_t element_count) {
-    std::cout << "here2" << std::endl;
     convert_vector(src, dst, src_type, dst_type, 1, 1, element_count);
 }
 
@@ -68,7 +66,6 @@ void convert_vector(const detail::default_host_policy& policy,
                     std::int64_t src_stride,
                     std::int64_t dst_stride,
                     std::int64_t element_count) {
-    std::cout << "here3" << std::endl;
     if (src_stride == 1 && dst_stride == 1) {
         interop::daal_convert(src, dst, src_type, dst_type, element_count);
     }
@@ -98,7 +95,6 @@ void convert_matrix(const detail::default_host_policy& policy,
                     const std::int64_t dst_col_stride,
                     const std::int64_t dst_row_count,
                     const std::int64_t dst_col_count) {
-    std::cout << "here4" << std::endl;
     dispatch_by_data_type(src_type, [&](auto src_type_id) {
         dispatch_by_data_type(dst_type, [&](auto dst_type_id) {
             using src_t = decltype(src_type_id);
@@ -154,7 +150,6 @@ static sycl::event convert_vector_kernel(sycl::queue& q,
                                          std::int64_t dst_stride,
                                          std::int64_t element_count,
                                          const event_vector& deps = {}) {
-    std::cout << "here5" << std::endl;
     const int src_stride_int = dal::detail::integral_cast<int>(src_stride);
     const int dst_stride_int = dal::detail::integral_cast<int>(dst_stride);
     const int element_count_int = dal::detail::integral_cast<int>(element_count);
@@ -199,7 +194,6 @@ sycl::event convert_vector_device2device(sycl::queue& q,
                                          std::int64_t dst_stride,
                                          std::int64_t element_count,
                                          const event_vector& deps) {
-    std::cout << "here6" << std::endl;
     return dispatch_by_data_type(src_type, [&](auto src_type_id) {
         return dispatch_by_data_type(dst_type, [&](auto dst_type_id) {
             using src_t = decltype(src_type_id);
@@ -224,7 +218,6 @@ sycl::event convert_vector_device2host(sycl::queue& q,
                                        std::int64_t dst_stride,
                                        std::int64_t element_count,
                                        const event_vector& deps) {
-    std::cout << "here7" << std::endl;
     ONEDAL_ASSERT(src_device);
     ONEDAL_ASSERT(dst_host);
     ONEDAL_ASSERT(src_stride > 0);
@@ -273,7 +266,6 @@ sycl::event convert_vector_host2device(sycl::queue& q,
                                        std::int64_t dst_stride,
                                        std::int64_t element_count,
                                        const std::vector<sycl::event>& deps) {
-    std::cout << "here8" << std::endl;
     ONEDAL_ASSERT(src_host);
     ONEDAL_ASSERT(dst_device);
     ONEDAL_ASSERT(src_stride > 0);
@@ -303,7 +295,6 @@ sycl::event convert_vector_host2device(sycl::queue& q,
     const std::int64_t max_loop_range = std::numeric_limits<std::int32_t>::max();
     sycl::event scatter_event;
     if (element_count > max_loop_range) {
-        std::cout << "here elem max" << std::endl;
         scatter_event = scatter_host2device_blocking(q,
                                                      dst_device,
                                                      tmp_host_unique.get(),
@@ -313,7 +304,6 @@ sycl::event convert_vector_host2device(sycl::queue& q,
                                                      deps);
     }
     else {
-        std::cout << "else here elem max" << std::endl;
         scatter_event = scatter_host2device(q,
                                             dst_device,
                                             tmp_host_unique.get(),
@@ -331,7 +321,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
                     data_type src_type,
                     data_type dst_type,
                     std::int64_t element_count) {
-    std::cout << "here10" << std::endl;
     convert_vector(policy, src, dst, src_type, dst_type, 1, 1, element_count);
 }
 
@@ -343,7 +332,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
                     std::int64_t src_stride,
                     std::int64_t dst_stride,
                     std::int64_t element_count) {
-    std::cout << "here11" << std::endl;
     // We treat shared memory as device assuming actual copy of shared memory
     // tend to reside on device
     sycl::queue& q = policy.get_queue();
@@ -351,7 +339,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
     const bool dst_device_friendly = is_device_friendly_usm(q, dst);
 
     if (src_device_friendly && dst_device_friendly) {
-        std::cout << "here21" << std::endl;
         // Device -> Device
         convert_vector_device2device(q,
                                      src,
@@ -364,7 +351,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
             .wait_and_throw();
     }
     else if (src_device_friendly) {
-        std::cout << "here22" << std::endl;
         // Device -> Host
         convert_vector_device2host(q,
                                    src,
@@ -377,7 +363,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
             .wait_and_throw();
     }
     else if (dst_device_friendly) {
-        std::cout << "here23" << std::endl;
         // Host -> Device
         convert_vector_host2device(q,
                                    src,
@@ -390,7 +375,6 @@ void convert_vector(const detail::data_parallel_policy& policy,
             .wait_and_throw();
     }
     else {
-        std::cout << "here24" << std::endl;
         // Host -> Host
         convert_vector(detail::default_host_policy{},
                        src,
@@ -415,7 +399,6 @@ sycl::event convert_matrix_host2device(sycl::queue& q,
                                        const std::int64_t dst_col_stride,
                                        const std::int64_t dst_row_count,
                                        const std::int64_t dst_col_count) {
-    std::cout << "here12" << std::endl;
     ONEDAL_ASSERT(src_host);
     ONEDAL_ASSERT(dst_device);
     ONEDAL_ASSERT(src_row_stride > 0);
@@ -457,7 +440,6 @@ void convert_matrix(const detail::data_parallel_policy& policy,
                     const std::int64_t dst_col_stride,
                     const std::int64_t dst_row_count,
                     const std::int64_t dst_col_count) {
-    std::cout << "here13" << std::endl;
     dispatch_by_data_type(src_type, [&](auto src_type_id) {
         dispatch_by_data_type(dst_type, [&](auto dst_type_id) {
             using src_t = decltype(src_type_id);

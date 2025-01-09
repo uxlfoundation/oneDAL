@@ -69,9 +69,6 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
     auto rows_count_global = row_count;
     const std::int64_t column_count = data.get_column_count();
     ONEDAL_ASSERT(column_count > 0);
-    // int flag = 100;
-    // comm_.is_init(&flag);
-    // std::cout << "MPI_initialized = " << flag << std::endl;
 
     auto bias = desc.get_bias();
     auto assume_centered = desc.get_assume_centered();
@@ -147,8 +144,6 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
         }
     }
 
-    // comm_.is_init(&flag);
-    // std::cout << "MPI_initialized = " << flag << std::endl;
     return result;
 }
 

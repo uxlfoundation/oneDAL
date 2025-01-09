@@ -127,7 +127,6 @@ static void pull_row_major_impl(const Policy& policy,
     }
     else {
         if (!block_has_enough_space || !block_has_mutable_data || !nocopy_alloc_kind) {
-            std::cout << "if line 131" << std::endl;
             reset_array(policy, block_data, block_info.get_element_count(), requested_alloc_kind);
         }
 
@@ -135,7 +134,6 @@ static void pull_row_major_impl(const Policy& policy,
         auto dst_data = block_data.get_mutable_data();
 
         if (block_info.get_column_count() > 1) {
-            std::cout << "if line 139" << std::endl;
             const std::int64_t subblocks_count =
                 contiguous_block_requested ? 1 : block_info.get_row_count();
             const std::int64_t subblock_size = contiguous_block_requested
@@ -153,7 +151,6 @@ static void pull_row_major_impl(const Policy& policy,
             }
         }
         else {
-            std::cout << "if line 157" << std::endl;
             backend::convert_vector(policy,
                                     src_data,
                                     dst_data,
@@ -192,7 +189,6 @@ static void pull_column_major_impl(const Policy& policy,
     const bool block_has_mutable_data = block_data.has_mutable_data();
 
     if (!block_has_enough_space || !block_has_mutable_data || !nocopy_alloc_kind) {
-        std::cout << "if &&& line 196" << std::endl;
         reset_array(policy, block_data, block_info.get_element_count(), requested_alloc_kind);
     }
 

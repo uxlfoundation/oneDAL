@@ -23,6 +23,12 @@ namespace daal
 namespace internal
 {
 
+bool is_verbose_enabled()
+{
+    const char * env_var = std::getenv("ONEDAL_VERBOSE");
+    return env_var && std::string(env_var) == "1";
+}
+
 profiler::profiler()
 {
     start_time = get_time();
@@ -32,7 +38,10 @@ profiler::~profiler()
 {
     auto end_time   = get_time();
     auto total_time = end_time - start_time;
-    std::cerr << "DAAL_KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+    if (is_verbose_enabled())
+    {
+        std::cerr << "DAAL_KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+    }
 }
 
 std::uint64_t profiler::get_time()
@@ -52,18 +61,6 @@ task & profiler::get_task()
 {
     return task_;
 }
-
-#ifdef ONEDAL_DATA_PARALLEL
-sycl::queue & profiler::get_queue()
-{
-    return queue_;
-}
-
-void profiler::set_queue(const sycl::queue & q)
-{
-    queue_ = q;
-}
-#endif
 
 profiler_task profiler::start_task(const char * task_name)
 {
@@ -94,35 +91,16 @@ void profiler::end_task(const char * task_name)
     {
         it->second += times;
     }
-    std::cerr << "DAAL_KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
+    if (is_verbose_enabled())
+    {
+        std::cerr << "DAAL_KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
+    }
 }
-
-#ifdef ONEDAL_DATA_PARALLEL
-profiler_task profiler::start_task(const char * task_name, sycl::queue & task_queue)
-{
-    task_queue.wait_and_throw();
-    get_instance()->set_queue(task_queue);
-    auto ns_start                                      = get_time();
-    auto & tasks_info                                  = get_instance()->get_task();
-    tasks_info.time_kernels[tasks_info.current_kernel] = ns_start;
-    tasks_info.current_kernel++;
-    return profiler_task(task_name, task_queue);
-}
-#endif
-
-profiler_task::profiler_task(const char * task_name, const sycl::queue & task_queue)
-    : task_name_(task_name), task_queue_(task_queue), has_queue_(true)
-{}
-
-#endif
 
 profiler_task::profiler_task(const char * task_name) : task_name_(task_name) {}
 
 profiler_task::~profiler_task()
 {
-#ifdef ONEDAL_DATA_PARALLEL
-    if (has_queue_) task_queue_.wait_and_throw();
-#endif // ONEDAL_DATA_PARALLEL
     profiler::end_task(task_name_);
 }
 } // namespace internal

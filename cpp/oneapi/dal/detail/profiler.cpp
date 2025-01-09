@@ -19,6 +19,11 @@
 
 namespace oneapi::dal::detail {
 
+bool is_verbose_enabled() {
+    const char* env_var = std::getenv("ONEDAL_VERBOSE");
+    return env_var && std::string(env_var) == "1";
+}
+
 profiler::profiler() {
     start_time = get_time();
 }
@@ -26,7 +31,9 @@ profiler::profiler() {
 profiler::~profiler() {
     auto end_time = get_time();
     auto total_time = end_time - start_time;
-    std::cerr << "KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+    if (is_verbose_enabled()) {
+        std::cerr << "KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+    }
 }
 
 std::uint64_t profiler::get_time() {
@@ -79,7 +86,10 @@ void profiler::end_task(const char* task_name) {
     else {
         it->second += times;
     }
-    std::cerr << "KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
+    if (is_verbose_enabled()) {
+        std::cerr << "KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6
+                  << std::endl;
+    }
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
