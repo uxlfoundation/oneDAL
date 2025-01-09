@@ -304,6 +304,13 @@ public:
      *                  and parameters of the algorithm
      */
     OnlineImpl(const OnlineImpl & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    OnlineImpl & operator=(const OnlineImpl & other)
+    {
+        input     = other.input;
+        parameter = other.parameter;
+        initialize();
+        return *this;
+    }
 
     virtual ~OnlineImpl() {}
 
