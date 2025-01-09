@@ -93,23 +93,20 @@ profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queu
     return profiler_task(task_name, task_queue);
 }
 
-
-
 profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue)
         : task_name_(task_name),
           task_queue_(task_queue),
           has_queue_(true) {}
-          
+
 #endif
 
-profiler_task::profiler_task(const char* task_name) 
-    : task_name_(task_name) {}
+profiler_task::profiler_task(const char* task_name) : task_name_(task_name) {}
 
 profiler_task::~profiler_task() {
-    #ifdef ONEDAL_DATA_PARALLEL
+#ifdef ONEDAL_DATA_PARALLEL
     if (has_queue_)
         task_queue_.wait_and_throw();
-    #endif // ONEDAL_DATA_PARALLEL
+#endif // ONEDAL_DATA_PARALLEL
     profiler::end_task(task_name_);
 }
 

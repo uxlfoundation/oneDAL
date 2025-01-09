@@ -98,11 +98,8 @@ sycl::event scatter_host2device(sycl::queue& q,
     // const auto gathered_device_unique =
     //     make_unique_usm_device(q, block_count * block_size_in_bytes);
 
-    auto copy_event = memcpy_host2usm(q,
-                                      dst_device,
-                                      src_host,
-                                      block_count * block_size_in_bytes,
-                                      deps);
+    auto copy_event =
+        memcpy_host2usm(q, dst_device, src_host, block_count * block_size_in_bytes, deps);
     copy_event.wait_and_throw();
     // auto scatter_event = q.submit([&](sycl::handler& cgh) {
     //     cgh.depends_on(copy_event);

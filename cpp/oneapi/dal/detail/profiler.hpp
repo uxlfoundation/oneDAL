@@ -19,7 +19,6 @@
 #ifdef ONEDAL_DATA_PARALLEL
 #include <sycl/sycl.hpp>
 #endif
- 
 
 #include <sys/time.h>
 #include <time.h>
@@ -47,8 +46,6 @@
 
 namespace oneapi::dal::detail {
 
-
-    
 struct task {
     static const std::uint64_t MAX_KERNELS = 256;
     std::map<const char*, std::uint64_t> kernels;
@@ -85,7 +82,6 @@ public:
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();
     void set_queue(const sycl::queue& q);
-    
 
     static profiler_task start_task(const char* task_name, sycl::queue& task_queue);
 #endif

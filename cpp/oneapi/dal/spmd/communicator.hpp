@@ -193,7 +193,6 @@ public:
         impl_->barrier();
     }
 
-
     // void is_init(int * flag) const {
     //     wait_for_exception_handling();
     //         impl_->is_init(flag);

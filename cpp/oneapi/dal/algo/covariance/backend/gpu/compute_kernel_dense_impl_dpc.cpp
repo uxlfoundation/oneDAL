@@ -57,8 +57,9 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
                                                       const input_t& input) {
     using daal::services::Environment;
     Environment* env = Environment::getInstance();
-    std::cerr << "number of threads = " << static_cast<std::uint32_t>(env->getNumberOfThreads()) << std::endl;
-    ONEDAL_PROFILER_TASK(compute_covariance_kernel_dense);                                                    
+    std::cerr << "number of threads = " << static_cast<std::uint32_t>(env->getNumberOfThreads())
+              << std::endl;
+    ONEDAL_PROFILER_TASK(compute_covariance_kernel_dense);
     ONEDAL_ASSERT(input.get_data().has_data());
 
     const auto data = input.get_data();
@@ -103,7 +104,6 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
         comm_.allreduce(xtx.flatten(q_, { gemm_event }), spmd::reduce_op::sum).wait();
     }
 
-
     if (desc.get_result_options().test(result_options::cov_matrix)) {
         auto [cov, cov_event] = compute_covariance(q_,
                                                    rows_count_global,
@@ -123,8 +123,8 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
             compute_correlation(q_, rows_count_global, xtx, sums, { gemm_event });
         {
             ONEDAL_PROFILER_TASK(corr_flatten, q_);
-            result.set_cor_matrix(
-                (homogen_table::wrap(corr.flatten(q_, { corr_event }), column_count, column_count)));
+            result.set_cor_matrix((
+                homogen_table::wrap(corr.flatten(q_, { corr_event }), column_count, column_count)));
         }
     }
     if (desc.get_result_options().test(result_options::means)) {
@@ -146,7 +146,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
             }
         }
     }
-    
+
     // comm_.is_init(&flag);
     // std::cout << "MPI_initialized = " << flag << std::endl;
     return result;
