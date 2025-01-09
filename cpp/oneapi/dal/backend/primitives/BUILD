@@ -84,6 +84,7 @@ dal_collect_test_suites(
     name = "tests",
     modules = [
         "blas",
+        "distance",
         "heap",
         "lapack",
         "optimizers",
@@ -93,6 +94,7 @@ dal_collect_test_suites(
         "regression",
         "rng",
         "selection",
+        "search",
         "sort",
         "sparse_blas",
         "stat",
