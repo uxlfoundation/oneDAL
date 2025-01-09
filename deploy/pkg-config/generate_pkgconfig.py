@@ -33,8 +33,8 @@ def detect_cpu_architecture():
     elif architecture.startswith('arm') or architecture == 'aarch64':
         return 'aarch64'
     else:
-        sys.stderr.write(f"Unknown Architecture {architecture} Detected. " \
-                         "Only 'x86_64', 'AMD64' and 'aarch64' supported.\n")
+        sys.stderr.write("Unknown Architecture {} Detected. "
+                         "Only 'x86_64', 'AMD64' and 'aarch64' supported.\n".format(architecture))
         sys.exit(1)
 
 LIBS_PAR_STAT, LIBS_PAR_DYN = [], []
@@ -72,7 +72,7 @@ if platform in ["linux2", "linux"]:
     elif ARCH == 'aarch64':
         LIBDIR = 'lib/arm'
     else:
-        sys.stderr.write(f"Unknown CPU architecture '{ARCH}'\n")
+        sys.stderr.write("Unknown CPU architecture '{}'\n".format(ARCH))
 
     SUFF_DYN_LIB = ".so"
     SUFF_STAT_LIB = ".a"
