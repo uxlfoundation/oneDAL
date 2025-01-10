@@ -21,7 +21,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng.hpp"
 #include "oneapi/dal/backend/primitives/blas/gemv.hpp"
 #include "oneapi/dal/backend/primitives/element_wise.hpp"
 
@@ -133,11 +133,10 @@ void create_stable_matrix(sycl::queue& queue,
     ONEDAL_ASSERT(A.get_dimension(1) == n);
     auto J = ndarray<Float, 2>::empty(queue, { n, n }, sycl::usm::alloc::host);
     auto eigen_values = ndarray<Float, 1>::empty(queue, { n }, sycl::usm::alloc::host);
-    primitives::rng<Float> rn_gen;
-    primitives::engine eng(2007 + n);
+    primitives::host_engine eng(2007 + n);
 
-    rn_gen.uniform(n * n, J.get_mutable_data(), eng.get_state(), -1.0, 1.0);
-    rn_gen.uniform(n, eigen_values.get_mutable_data(), eng.get_state(), bottom_eig, top_eig);
+    primitives::uniform<Float>(n * n, J.get_mutable_data(), eng, -1.0, 1.0);
+    primitives::uniform<Float>(n, eigen_values.get_mutable_data(), eng, bottom_eig, top_eig);
 
     // orthogonalize matrix J
     gram_schmidt(J);

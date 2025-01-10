@@ -22,7 +22,7 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng.hpp"
 #include <math.h>
 
 #include "oneapi/dal/backend/primitives/objective_function.hpp"
@@ -56,10 +56,10 @@ public:
             ndarray<std::int32_t, 1>::empty(this->get_queue(), { n_ + 1 }, sycl::usm::alloc::host);
         auto params_host =
             ndarray<float_t, 1>::empty(this->get_queue(), { p_ + 1 }, sycl::usm::alloc::host);
-        primitives::rng<float_t> rn_gen;
-        primitives::engine eng(2007 + n);
-        rn_gen.uniform(n_ * p_, X_host.get_mutable_data(), eng.get_state(), -10.0, 10.0);
-        rn_gen.uniform(p_ + 1, params_host.get_mutable_data(), eng.get_state(), -5.0, 5.0);
+
+        primitives::host_engine eng(2007 + n);
+        primitives::uniform<float_t>(n_ * p_, X_host.get_mutable_data(), eng, -10.0, 10.0);
+        primitives::uniform<float_t>(p_ + 1, params_host.get_mutable_data(), eng, -5.0, 5.0);
         for (std::int64_t i = 0; i < n_; ++i) {
             float_t val = 0;
             for (std::int64_t j = 0; j < p_; ++j) {
@@ -142,9 +142,9 @@ public:
             ndarray<float_t, 2>::empty(this->get_queue(), { n_, n_ }, sycl::usm::alloc::host);
         solution_ = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
         auto b_host = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
-        primitives::rng<float_t> rn_gen;
+
         primitives::engine eng(4014 + n_);
-        rn_gen.uniform(n_, solution_.get_mutable_data(), eng.get_state(), -1.0, 1.0);
+        uniform<float_t>(n_, solution_.get_mutable_data(), eng, -1.0, 1.0);
 
         create_stable_matrix(this->get_queue(), A_host, float_t(0.1), float_t(5.0));
 
@@ -164,7 +164,7 @@ public:
         auto buffer = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
 
         for (std::int32_t test_num = 0; test_num < 5; ++test_num) {
-            rn_gen.uniform(n_, x_host.get_mutable_data(), eng.get_state(), -1.0, 1.0);
+            uniform<float_t>(n_, x_host.get_mutable_data(), eng, -1.0, 1.0);
             auto x_gpu = x_host.to_device(this->get_queue());
             auto compute_event_vec = func_->update_x(x_gpu, true, {});
             wait_or_pass(compute_event_vec).wait_and_throw();
