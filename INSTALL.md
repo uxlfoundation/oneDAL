@@ -268,3 +268,34 @@ set "CMAKE_PREFIX_PATH=%CONDA_PREFIX%\Library\lib\cmake;%CMAKE_PREFIX_PATH%"
 ```
 
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.
+
+For other setups in **Linux\***, such as building for platforms like `aarch64` that are not supported by Intel's toolkits or using non-default options offered by the Makefile, other software can be installed as follows:
+
+* GCC compilers (option `COMPILER=gnu`):
+
+```shell
+conda install -y -c conda-forge \
+    gcc gxx c-compiler cxx-compiler
+```
+
+(no environment variables are needed for `COMPILER=gnu`)
+
+* Reference (non-tuned) computational backends, and BLAS/LAPACK backends from OpenBLAS (both through option `BACKEND_CONFIG=ref`):
+
+```shell
+conda install -y -c conda-forge \
+    blas=*=*openblas* openblas
+```
+
+* Optionally, if one wishes to install the OpenMP variant of OpenBLAS instead of the pthreads one, or to use the ILP64 variant:
+```shell
+conda install -y -c conda-forge \
+    blas=*=*openblas* openblas-ilp64=*=openmp*
+```
+
+Then set environment variables as needed:
+```shell
+export OPENBLASROOT=${CONDA_PREFIX}
+```
+
+(note that other variables such as `TBBROOT` and `CMAKE_PREFIX_PATH` are still required)
