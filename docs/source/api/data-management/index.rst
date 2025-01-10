@@ -26,3 +26,4 @@ Refer to :ref:`Developer Guide: Data Management <dg_data_management>`.
    graphs.rst
    graph-service.rst
    tables.rst
+   backend-primitives.rst

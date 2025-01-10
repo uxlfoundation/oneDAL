@@ -205,10 +205,12 @@ class FunctionDirective(DoxyDirective):
     has_content = False
 
     def rst(self, x: RstBuilder):
-        func = self.ctx.index.find(self.arguments[0])
-        if self.ctx.listing_enabled:
-            self.add_listing(func, x)
-        self.add_function_base(func, x, is_free=True)
+        # Find all functions with the same name in the index and add them to the documentation
+        funcs = self.ctx.index.find_all(self.arguments[0])
+        for func in funcs:
+            if self.ctx.listing_enabled:
+                self.add_listing(func, x)
+            self.add_function_base(func, x, is_free=True)
 
 @directive
 class EnumClassDirective(DoxyDirective):

@@ -131,6 +131,7 @@ notfound_urls_prefix = '/oneDAL/'
 nitpick_ignore = [
     # top level namespace
     ('cpp:identifier', 'dal'),
+    ('cpp:identifier', 'base'),
     # method
     ('cpp:identifier', 'method'),
     ('cpp:identifier', 'Method'),
@@ -139,6 +140,8 @@ nitpick_ignore = [
     ('cpp:identifier', 'task::by_default'),
     ('cpp:identifier', 'Task'),
     # detail
+    ('cpp:identifier', 'dal::detail'),
+    ('cpp:identifier', 'dal::detail::empty_delete<T>'),
     ('cpp:identifier', 'detail'),
     ('cpp:identifier', 'detail::descriptor_base<>'),
     ('cpp:identifier', 'detail::descriptor_base<>::float_t'),
@@ -392,5 +395,32 @@ nitpick_ignore = [
     ('cpp:identifier', 'kind::induced'),
     ('cpp:identifier', 'kind::non_induced'),
     ('cpp:identifier', 'preview'),
-    ('cpp:identifier', 'connected_components')
+    ('cpp:identifier', 'connected_components'),
+
+    # sycl
+    ('cpp:identifier', 'event_vector'),
+    ('cpp:identifier', 'sycl'),
+    ('cpp:identifier', 'sycl::event'),
+    ('cpp:identifier', 'sycl::queue'),
+    ('cpp:identifier', 'sycl::range'),
+    ('cpp:identifier', 'sycl::usm'),
+    ('cpp:identifier', 'sycl::usm::alloc'),
+    ('cpp:identifier', 'sycl::usm::alloc::shared'),
+
+    # backend primitives - data management
+    ('cpp:identifier', 'array_t'),
+    ('cpp:identifier', 'axis_count'),
+    ('cpp:identifier', 'ndarray'),
+    ('cpp:identifier', 'ndindex<axis_count>'),
+    ('cpp:identifier', 'ndorder'),
+    ('cpp:identifier', 'ndorder::c'),
+    ('cpp:identifier', 'ndorder::f'),
+    ('cpp:identifier', 'ndshape'),
+    ('cpp:identifier', 'ndshape<new_axis_count>'),
+    ('cpp:identifier', 'ndview'),
+    ('cpp:identifier', 'order'),
+    ('cpp:identifier', 'sycl::range<1>'),
+    ('cpp:identifier', 'sycl::range<2>'),
+    ('cpp:identifier', 'shape_t'),
+    ('cpp:identifier', 'shared_t')
 ]
