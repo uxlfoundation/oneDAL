@@ -19,6 +19,14 @@
 #ifdef ONEDAL_DATA_PARALLEL
 #include <sycl/sycl.hpp>
 #endif
+ 
+
+#include <sys/time.h>
+#include <time.h>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <vector>
 
 #define ONEDAL_PROFILER_CONCAT2(x, y) x##y
 #define ONEDAL_PROFILER_CONCAT(x, y)  ONEDAL_PROFILER_CONCAT2(x, y)
@@ -39,6 +47,16 @@
 
 namespace oneapi::dal::detail {
 
+
+    
+struct task {
+    static const std::uint64_t MAX_KERNELS = 256;
+    std::map<const char*, std::uint64_t> kernels;
+    std::uint64_t current_kernel = 0;
+    std::uint64_t time_kernels[MAX_KERNELS];
+    void clear();
+};
+
 class profiler_task {
 public:
     profiler_task(const char* task_name);
@@ -47,24 +65,38 @@ public:
 #endif
     ~profiler_task();
 
-    profiler_task(profiler_task& other) = delete;
-
-    profiler_task& operator=(profiler_task& other) = delete;
-
 private:
     const char* task_name_;
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue task_queue_;
+    bool has_queue_;
 #endif
 };
 
 class profiler {
 public:
+    profiler();
+    ~profiler();
     static profiler_task start_task(const char* task_name);
+    static std::uint64_t get_time();
+    static profiler* get_instance();
+    task& get_task();
+
 #ifdef ONEDAL_DATA_PARALLEL
-    static profiler_task start_task(const char* task_name, const sycl::queue& task_queue);
+    sycl::queue& get_queue();
+    void set_queue(const sycl::queue& q);
+    
+
+    static profiler_task start_task(const char* task_name, sycl::queue& task_queue);
 #endif
     static void end_task(const char* task_name);
+
+private:
+    std::uint64_t start_time;
+    task task_;
+#ifdef ONEDAL_DATA_PARALLEL
+    sycl::queue queue_;
+#endif
 };
 
 } // namespace oneapi::dal::detail

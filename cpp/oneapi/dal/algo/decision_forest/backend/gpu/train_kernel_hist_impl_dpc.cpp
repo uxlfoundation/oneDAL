@@ -60,7 +60,6 @@ template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::validate_input(const descriptor_t& desc,
                                                                      const table& data,
                                                                      const table& labels) const {
-    ONEDAL_PROFILER_TASK(validate_input, queue_);
     if (data.get_row_count() > de::limits<Index>::max()) {
         throw domain_error(msg::invalid_range_of_rows());
     }
