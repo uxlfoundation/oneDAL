@@ -91,10 +91,6 @@ Table to ndarray conversion functions
 
 .. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_1d
 
-.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray(sycl::queue& q, const table& table, sycl::usm::alloc alloc)
-
-.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_1d(sycl::queue& q, const table& table, sycl::usm::alloc alloc)
-
 .. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_rm
 
 .. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_cm
