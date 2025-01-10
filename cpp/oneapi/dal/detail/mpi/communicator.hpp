@@ -213,6 +213,10 @@ public:
         mpi_call(MPI_Barrier(mpi_comm_));
     }
 
+    // void is_init(int * flag) override {
+    //     mpi_call(MPI_Initialized(flag));
+    // }
+
     spmd::request_iface* bcast(byte_t* send_buf,
                                std::int64_t count,
                                const data_type& dtype,

@@ -71,6 +71,8 @@ public:
 
     virtual void barrier() = 0;
 
+    // virtual void is_init(int * flag) = 0;
+
     virtual request_iface* bcast(byte_t* send_buf,
                                  std::int64_t count,
                                  const data_type& dtype,
@@ -107,6 +109,7 @@ public:
     using base_t::get_rank_count;
     using base_t::get_default_root_rank;
     using base_t::barrier;
+    // using base_t::is_init;
     using base_t::bcast;
     using base_t::allgatherv;
     using base_t::allreduce;
@@ -189,6 +192,11 @@ public:
         wait_for_exception_handling();
         impl_->barrier();
     }
+
+    // void is_init(int * flag) const {
+    //     wait_for_exception_handling();
+    //         impl_->is_init(flag);
+    // }
 
     /// Broadcasts a message from the `root` rank to all other ranks
     ///

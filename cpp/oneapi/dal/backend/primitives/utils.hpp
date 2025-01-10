@@ -22,6 +22,7 @@
 
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -119,6 +120,7 @@ template <typename Type, ndorder order = ndorder::c>
 inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
                                              const table& table,
                                              sycl::usm::alloc alloc = sycl::usm::alloc::shared) {
+    ONEDAL_PROFILER_TASK(table2ndarray, q);
     [[maybe_unused]] const auto layout = table.get_data_layout();
     if constexpr (order == ndorder::c) {
         ONEDAL_ASSERT(layout == decltype(layout)::row_major);
@@ -150,6 +152,7 @@ template <typename Type>
 inline ndarray<Type, 1> table2ndarray_1d(sycl::queue& q,
                                          const table& table,
                                          sycl::usm::alloc alloc = sycl::usm::alloc::shared) {
+    ONEDAL_PROFILER_TASK(table2ndarray_1d, q);
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull(q, { 0, -1 }, alloc);
     return ndarray<Type, 1>::wrap(data, { data.get_count() });
