@@ -902,7 +902,8 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = */backend/interop/*                            \
+EXCLUDE_PATTERNS       = */algo/*/backend/*                             \
+                         */backend/interop/*                            \
                          */backend/primitives/blas/*                    \
                          */backend/primitives/distance/*                \
                          */backend/primitives/heap/*                    \

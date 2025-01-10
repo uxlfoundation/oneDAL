@@ -310,10 +310,10 @@ public:
     /// Returns a reference to the element of 1d immutable view at specified location.
     ///
     /// @note This method does not perform boundary checks in release build.
-    ///       In debug build, the method asserts that the index is out of the bounds.
+    ///       In debug build, the method asserts that the index is not out of bounds.
     ///
-    /// @note Should be used carefully in performance-critical parts of the code
-    ///       due to the absence of inlining.
+    /// @note Should be used carefully in performance-critical parts of the code,
+    ///       as inlining is not guaranteed.
     ///
     /// @param id  The index of the element to be returned.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
@@ -326,10 +326,10 @@ public:
     /// Returns a reference to the element of 2d immutable view at specified location.
     ///
     /// @note This method does not perform boundary checks in release build.
-    ///       In debug build, the method asserts that the index is out of the bounds.
+    ///       In debug build, the method asserts that the index is not out of bounds.
     ///
-    /// @note Should be used carefully in performance-critical parts of the code
-    ///       due to the absence of inlining.
+    /// @note Should be used carefully in performance-critical parts of the code,
+    ///       as inlining is not guaranteed.
     ///
     /// @param id0  The index of the element along the ``0``-th axis.
     /// @param id1  The index of the element along the ``1``-st axis.
@@ -527,27 +527,27 @@ public:
     }
 #endif
 
-    /// Returns the iterator to the first element of the 1-dimensional view.
+    /// Returns the pointer to the first element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T* begin() {
         ONEDAL_ASSERT(data_is_mutable_);
         return get_mutable_data();
     }
 
-    /// Returns the iterator to the past-the-last element of the 1-dimensional view.
+    /// Returns the pointer to the past-the-last element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T* end() {
         ONEDAL_ASSERT(data_is_mutable_);
         return get_mutable_data() + this->get_count();
     }
 
-    /// Returns the constant iterator to the first element of the 1-dimensional view.
+    /// Returns the constant pointer to the first element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     const T* cbegin() const {
         return get_data();
     }
 
-    /// Returns the constant iterator to the past-the-last element of the 1-dimensional view.
+    /// Returns the constant pointer to the past-the-last element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     const T* cend() const {
         return get_data() + this->get_count();
@@ -717,7 +717,7 @@ inline sycl::event fill(sycl::queue& q,
 /// Multidimensional array
 ///
 /// @tparam T           The type of the memory block elements within the multidimensional array.
-///                     :literal:`T` can represent :expr:`float`, :expr:`double` or :expr:`std::int32_t`.
+///
 /// @tparam axis_count  The number of dimensions in the multidimensional array.
 /// @tparam order       Row-major or column-major order of the 2-dimensional array.
 template <typename T, std::int64_t axis_count, ndorder order>
@@ -905,7 +905,7 @@ public:
 
     /// Creates an uninitialized multidimensional array of a requested shape.
     ///
-    /// @param ary  The r-value reference to array that stores a homogeneous data block.
+    /// @param shape The shape of the created multidimensional array.
     ///
     /// @return The new multidimensional array instance.
     static ndarray empty(const shape_t& shape) {
