@@ -256,6 +256,7 @@ public:
     /// @param data         The pointer to externally-allocated memory block.
     /// @param count        The number of elements of type :literal:`Data` in the memory block.
     /// @param deleter      The object used to free :literal:`Data`.
+    /// @param dependencies  Events that indicate when :literal:`Data` becomes ready to be read or written.
     template <typename Deleter>
     explicit array(const sycl::queue& queue,
                    T* data,
@@ -592,6 +593,7 @@ public:
     /// @tparam ConstDeleter The type of a deleter used to free.
     ///                      The deleter implements `void operator()(const Data*)`` member function.
     ///
+    /// @param queue        The SYCL* queue object.
     /// @param data          The immutable memory block pointer to be assigned inside the array
     /// @param count         The number of elements of type :literal:`Data` into the block
     /// @param deleter       The object used to free :literal:`Data`.
