@@ -414,6 +414,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'ndindex<axis_count>'),
     ('cpp:identifier', 'ndorder'),
     ('cpp:identifier', 'ndorder::c'),
+    ('cpp:identifier', 'ndorder::f'),
     ('cpp:identifier', 'ndshape'),
     ('cpp:identifier', 'ndshape<new_axis_count>'),
     ('cpp:identifier', 'ndview'),

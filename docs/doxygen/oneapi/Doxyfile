@@ -922,6 +922,7 @@ EXCLUDE_PATTERNS       = */algo/*/backend/*                             \
                          */backend/primitives/stat/*                    \
                          */backend/primitives/test/*                    \
                          */backend/primitives/voting/*                  \
+                         */backend/memory*                              \
                          */detail/*                                     \
                          */table/backend/*
 

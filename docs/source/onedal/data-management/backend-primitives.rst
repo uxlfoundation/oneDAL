@@ -26,12 +26,12 @@ by |short_name| to have a convenient and efficient way to work with data.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
-.. list-table:: Data Management Backend Primitives Types
+.. list-table:: Data Management Backend Primitives
    :header-rows: 1
    :widths: 10 70
    :class: longtable
 
-   * - Type
+   * - Primitive
      - Description
 
    * - :ref:`api_ndorder`
@@ -48,6 +48,10 @@ by |short_name| to have a convenient and efficient way to work with data.
    * - :ref:`api_ndarray`
      - A class that provides a way to store and manipulate homogeneous data
        in a multidimensional structure.
+
+   * - :ref:`api_table2ndarray`
+     - Functions that create ndarray objects from data tables. If possible, the data is stored in the
+       same memory location as the data table and no data copying is performed.
 
 -------------
 Usage Example

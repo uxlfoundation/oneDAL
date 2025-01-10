@@ -32,22 +32,6 @@ All types and functions in this section are declared in the
 ``oneapi::dal::backend::primitives`` namespace and be available via inclusion of the
 ``oneapi/dal/backend/primitives/ndarray.hpp`` header file.
 
-.. _api_ndorder:
-
-Multidimensional array order
-----------------------------
-
-Refers to data indexing order, or how a linear sequence is translated into a multi-dimensional array.
-
-.. onedal_enumclass:: oneapi::dal::backend::primitives::ndorder
-
-.. _api_ndshape:
-
-Multidimensional array shape
-----------------------------
-
-.. onedal_class:: oneapi::dal::backend::primitives::ndshape
-
 Multidimensional data view (ndview)
 -----------------------------------
 
@@ -97,6 +81,43 @@ All the ``ndarray`` class methods can be divided into several groups:
 
 #. The group of methods like ``fill()``, ``assign()``, ``assign_from_host()``, etc. that are used to
    fill the array with the specified values.
+
+.. _api_table2ndarray:
+
+Table to ndarray conversion functions
+-------------------------------------
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_1d
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray(sycl::queue& q, const table& table, sycl::usm::alloc alloc)
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_1d(sycl::queue& q, const table& table, sycl::usm::alloc alloc)
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_rm
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_cm
+
+.. onedal_func:: oneapi::dal::backend::primitives::homogen_table2ndarray_cm
+
+.. onedal_func:: oneapi::dal::backend::primitives::table2ndarray_variant
+
+.. _api_ndorder:
+
+Multidimensional array order
+----------------------------
+
+Refers to data indexing order, or how a linear sequence is translated into a multi-dimensional array.
+
+.. onedal_enumclass:: oneapi::dal::backend::primitives::ndorder
+
+.. _api_ndshape:
+
+Multidimensional array shape
+----------------------------
+
+.. onedal_class:: oneapi::dal::backend::primitives::ndshape
 
 .. toctree::
 
