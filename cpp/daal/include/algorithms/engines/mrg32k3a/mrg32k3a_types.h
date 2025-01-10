@@ -1,6 +1,6 @@
-/* file: mt2203_kernel.h */
+/* file: mrg32k3a_types.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,19 +15,20 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
 //++
-//  Declaration of template function that calculate mt2203s.
+//  Implementation of the MRG32k3a engine: a 32-bit combined multiple recursive generator
+//  with two components of order 3, optimized for batch processing.
 //--
+*/
 
-#ifndef __MT2203_KERNEL_H__
-#define __MT2203_KERNEL_H__
+#ifndef __MRG32K3A_TYPES_H__
+#define __MRG32K3A_TYPES_H__
 
-#include "algorithms/engines/mt2203/mt2203.h"
-#include "src/algorithms/kernel.h"
+#include "algorithms/algorithm.h"
+#include "services/daal_defines.h"
 #include "data_management/data/numeric_table.h"
-
-using namespace daal::services;
-using namespace daal::data_management;
+#include "data_management/data/homogen_numeric_table.h"
 
 namespace daal
 {
@@ -35,22 +36,28 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt2203
-{
-namespace internal
+/**
+ * @defgroup engines_mrg32k3a mrg32k3a Engine
+ * \copydoc daal::algorithms::engines::mrg32k3a
+ * @ingroup engines
+ * @{
+ */
+/**
+ * \brief Contains classes for mrg32k3a engine
+ */
+namespace mrg32k3a
 {
 /**
- *  \brief Kernel for mt2203 calculation
+ * <a name="DAAL-ENUM-ALGORITHMS__ENGINES__mrg32k3a__METHOD"></a>
+ * Available methods to compute mrg32k3a engine
  */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class Mt2203Kernel : public Kernel
+enum Method
 {
-public:
-    Status compute(NumericTable * resultTable);
+    defaultDense = 0 /*!< Default: performance-oriented method. */
 };
 
-} // namespace internal
-} // namespace mt2203
+} // namespace mrg32k3a
+/** @} */
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

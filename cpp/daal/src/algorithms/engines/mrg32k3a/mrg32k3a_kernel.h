@@ -1,6 +1,6 @@
-/* file: mt2203_kernel.h */
+/* file: mrg32k3a_kernel.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
 *******************************************************************************/
 
 //++
-//  Declaration of template function that calculate mt2203s.
+//  Declaration of a template function for calculating values using the MRG32k3a generator.
 //--
 
-#ifndef __MT2203_KERNEL_H__
-#define __MT2203_KERNEL_H__
+#ifndef __MRG32K3A_KERNEL_H__
+#define __MRG32K3A_KERNEL_H__
 
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 
@@ -35,22 +35,22 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt2203
+namespace mrg32k3a
 {
 namespace internal
 {
 /**
- *  \brief Kernel for mt2203 calculation
+ *  \brief Kernel for mrg32k3a calculation
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
-class Mt2203Kernel : public Kernel
+class mrg32k3aKernel : public Kernel
 {
 public:
     Status compute(NumericTable * resultTable);
 };
 
 } // namespace internal
-} // namespace mt2203
+} // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
