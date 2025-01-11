@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.0.3
+VERSION=v3.1.2
 NAME=ec-linux-amd64
 ASSET=$NAME.tar.gz
 
