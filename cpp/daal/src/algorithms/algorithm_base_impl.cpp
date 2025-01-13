@@ -55,6 +55,14 @@ algorithms::Argument::Argument(const algorithms::Argument & other)
     : _storage(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get())), idx(0)
 {}
 
+algorithms::Argument & algorithms::Argument::operator=(const algorithms::Argument & other)
+{
+    if (this == &other) return *this;
+    _storage = data_management::DataCollectionPtr(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get()));
+    idx      = 0;
+    return *this;
+}
+
 const data_management::SerializationIfacePtr & algorithms::Argument::get(size_t index) const
 {
     return (*_storage)[index];
