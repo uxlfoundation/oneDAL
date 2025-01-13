@@ -102,6 +102,7 @@ basic usage scenarios of |short_name| with DPCPP. Go to
       Otherwise, you need to copy :file:`examples/oneapi/dpc` and :file:`examples/oneapi/data` folders
       to the directory with right permissions. These two folders must be retained
       in the same directory level relative to each other.
+      If you want to build examples from /examples/oneapi/cpp you can set CC and CXX with other compliers as well.
 
    .. tabs::
 
@@ -111,9 +112,11 @@ basic usage scenarios of |short_name| with DPCPP. Go to
 
             # Navigate to examples directory and build examples
             cd /examples/oneapi/dpc
-            cmake -G "Unix Makefiles⁮" -DEXAMPLES_LIST=svm_two_class_thunder # This would generate makefiles for all svm examples matching passed name
+            export CC=icx
+            export CXX=icpx or export CXX=icx
+            cmake -G "Unix Makefiles" -DEXAMPLES_LIST=svm_two_class_thunder # This would generate makefiles for all svm examples matching passed name
             make               # This will compile and run generated svm examples
-            cmake -G "Unix Makefiles⁮" -DONEDAL_LINK=static # This wouldgenerate make for static version
+            cmake -G "Unix Makefiles" -DONEDAL_LINK=static # This wouldgenerate make for static version
             make               # This will compile and run all the examples
 
       .. group-tab:: Windows
@@ -124,9 +127,9 @@ basic usage scenarios of |short_name| with DPCPP. Go to
             cd /examples/oneapi/dpc
             set CC=icx
             set CXX=icx
-            cmake  -G "NMake Makefiles" -DEXAMPLES_LIST=svm_two_class_thunder # This would generate makefiles for all svm examples matching passed name
+            cmake  -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DEXAMPLES_LIST=svm_two_class_thunder # This would generate makefiles for all svm examples matching passed name
             nmake             # This will compile and run generated svm examples
-            cmake  -G "NMake Makefiles" -DONEDAL_LINK=static # This wouldgenerate make for static version
+            cmake  -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DONEDAL_LINK=static # This wouldgenerate make for static version
             nmake              # This will compile and run all the examples
 
 
