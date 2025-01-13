@@ -219,7 +219,7 @@ Then, install the necessary dependencies from the appropriate channels with `con
 conda install -y \
     -c https://software.repos.intel.com/python/conda/ `# Intel's repository` \
     -c conda-forge `# for tools like 'make'` \
-    make python>=3.9 `# used by the build system` \
+    make "python>=3.9" `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
@@ -232,7 +232,7 @@ conda install -y \
 conda install -y^
     -c https://software.repos.intel.com/python/conda/^
     -c conda-forge^
-    make dos2unix python>=3.9^
+    make dos2unix "python>=3.9"^
     dpcpp-cpp-rt dpcpp_win-64 intel-sycl-rt^
     tbb tbb-devel^
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp^
