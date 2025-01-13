@@ -98,7 +98,8 @@ class DAAL_EXPORT InputIface : public daal::algorithms::Input
 {
 public:
     InputIface(size_t nElements);
-    InputIface(const InputIface & other) : daal::algorithms::Input(other) {}
+    InputIface(const InputIface & other);
+    InputIface & operator=(const InputIface & other);
     virtual ~InputIface() {}
     virtual size_t getNumberOfFeatures() const = 0;
 };
@@ -111,8 +112,8 @@ class DAAL_EXPORT Input : public InputIface
 {
 public:
     Input(size_t nElements = lastInputId + 1);
-    Input(const Input & other) : InputIface(other) {}
-
+    Input(const Input & other);
+    Input & operator=(const Input & other);
     virtual ~Input() {}
 
     virtual size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;

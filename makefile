@@ -59,6 +59,8 @@ PLAT_is_$(PLAT)                    := yes
 MSVC_RT_is_$(MSVC_RUNTIME_VERSION) := yes
 ARCH_is_$(ARCH)                    := yes
 
+GCOV_ENABLED                       := $(if $(filter yes,$(CODE_COVERAGE)),$(if $(OS_is_lnx),yes,no),no)
+
 DEFAULT_BUILD_PARAMETERS_LIB       := $(if $(OS_is_win),no,yes)
 BUILD_PARAMETERS_LIB               ?= $(DEFAULT_BUILD_PARAMETERS_LIB)
 

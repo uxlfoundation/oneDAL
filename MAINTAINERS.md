@@ -124,7 +124,7 @@ opening a PR against MAINTAINERS.md file.
 
 ## oneDAL core
 
-Team: @oneapi-src/onedal-write
+Team: @uxlfoundation/onedal-write
 
 Currently entire Intel oneDAL team serves at contributor level and have corresponding rights
 with additional separation of roles coming with repository migration to UXL

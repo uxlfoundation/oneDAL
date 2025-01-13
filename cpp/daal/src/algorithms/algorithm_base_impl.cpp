@@ -55,6 +55,14 @@ algorithms::Argument::Argument(const algorithms::Argument & other)
     : _storage(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get())), idx(0)
 {}
 
+algorithms::Argument & algorithms::Argument::operator=(const algorithms::Argument & other)
+{
+    if (this == &other) return *this;
+    _storage = data_management::DataCollectionPtr(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get()));
+    idx      = 0;
+    return *this;
+}
+
 const data_management::SerializationIfacePtr & algorithms::Argument::get(size_t index) const
 {
     return (*_storage)[index];
@@ -146,6 +154,17 @@ void setHostApp(const services::SharedPtr<services::HostAppIface> & pHostApp, da
 
 namespace algorithms
 {
+namespace interface1
+{
+
+AlgorithmContainerIfaceImpl::AlgorithmContainerIfaceImpl() = default;
+AlgorithmContainer<batch>::AlgorithmContainer()            = default;
+
+template <ComputeMode mode>
+AlgorithmContainer<mode>::AlgorithmContainer() = default;
+
+} //namespace interface1
+
 template <ComputeMode mode>
 services::Status AlgorithmImpl<mode>::computeNoThrow()
 {

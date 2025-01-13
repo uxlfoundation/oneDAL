@@ -42,6 +42,8 @@ namespace interface1
 {
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_CLASSIFIER_MULTICLASS_CONFUSION_MATRIX_RESULT_ID);
 Parameter::Parameter(size_t nClasses, double beta) : nClasses(nClasses), beta(beta) {}
+Parameter::Parameter(const Parameter & other)             = default;
+Parameter & Parameter::operator=(const Parameter & other) = default;
 
 Status Parameter::check() const
 {
@@ -51,6 +53,8 @@ Status Parameter::check() const
 }
 
 Input::Input() : daal::algorithms::Input(lastInputId + 1) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns the input object of the quality metric of the classification algorithm

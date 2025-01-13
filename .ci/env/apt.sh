@@ -34,8 +34,13 @@ function install_dpcpp {
     sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs=2025.0.0-406
 }
 
+function install_tbb {
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
+}
+
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0 intel-oneapi-tbb-devel-2022.0
+    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
+    install_tbb
 }
 
 function install_clang-format {
@@ -97,6 +102,9 @@ function build_sysroot {
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
+elif [ "${component}" == "tbb" ]; then
+    add_repo
+    install_tbb
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
@@ -126,6 +134,6 @@ elif [ "${component}" == "build-sysroot" ] ; then
     build_sysroot "$2" "$3" "$4" "$5"
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
     exit 1
 fi

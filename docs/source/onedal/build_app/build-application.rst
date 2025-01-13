@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2014 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2014 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 Build applications with oneDAL
 ==============================
@@ -116,11 +114,11 @@ Applications on Windows* OS
       :class: longtable
 
       * - Static linking
-        - 
+        -
           | onedal_core.lib,
           | onedal_thread.lib
       * - Dynamic linking
-        - 
+        -
           | onedal_core_dll.lib
 
    You may also add debug versions of the libraries based on the threading mode and linking method:
@@ -156,14 +154,14 @@ Examples
 Dynamic linking |short_name| with the GPU target:
 
 * Linux* OS:
-   
+
   .. code-block:: text
 
      icpx -fsycl my_first_dal_program.cpp -Wl,
      --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -lOpenCL -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc <install dir>/dal/latest/lib/libonedal_sycl.a -Wl,--end-group
 
 * Windows* OS:
-   
+
   .. code-block:: text
 
      icx-cl -fsycl my_first_dal_program.cpp -Wl,

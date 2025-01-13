@@ -60,10 +60,10 @@ class DAAL_EXPORT Input : public classifier::prediction::Input
     typedef classifier::prediction::Input super;
 
 public:
-    Input() : classifier::prediction::Input() {}
-    Input(const Input & other) : classifier::prediction::Input(other) {}
-    Input & operator=(const Input & other) = default;
-    virtual ~Input() {}
+    Input();
+    Input(const Input & other);
+    Input & operator=(const Input & other);
+    virtual ~Input();
 
     using super::get;
     using super::set;

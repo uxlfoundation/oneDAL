@@ -35,15 +35,19 @@ Note: the Intel(R) oneAPI components listed here can be installed together throu
 
 https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html
 
+All of these dependencies can alternatively be installed through the `conda` software, but doing so will require a few additional setup steps - see [Conda Development Environment Setup](https://github.com/uxlfoundation/oneDAL/blob/main/INSTALL.md#conda-development-environment-setup) for details.
+
 ## Docker Development Environment
 
-[Docker file](https://github.com/oneapi-src/oneDAL/tree/main/dev/docker) with the oneDAL development environment
+[Docker file](https://github.com/uxlfoundation/oneDAL/tree/main/dev/docker) with the oneDAL development environment
 is available as an alternative to the manual setup.
 
 ## Installation Steps
+
+
 1. Clone the sources from GitHub\* as follows:
 
-        git clone https://github.com/oneapi-src/oneDAL.git
+        git clone https://github.com/uxlfoundation/oneDAL.git
 
 2. Set the PATH environment variable to the MSYS2\* bin directory (Windows\* only). For example:
 
@@ -164,14 +168,14 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
 ---
 
-After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex/tree/main) or for executing the usage examples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
+After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main) or for executing the usage examples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
 
 ```shell
 cd daal/latest
 source env/vars.sh
 ```
 
-The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/oneapi-src/oneDAL/tree/main/dev/bazel) for more information.
+The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for more information.
 
 Examples of library usage will also be auto-generated as part of the build under path `daal/latest/examples/daal/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
 
@@ -195,3 +199,72 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ```shell
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
+
+## Conda Development Environment Setup
+
+The previous instructions assumed system-wide installs of the necessary dependencies. These can also be installed at a user-level through the `conda` or [mamba](https://github.com/conda-forge/miniforge) ecosystems.
+
+First, create a conda environment for building oneDAL, after `conda` has been installed:
+
+```shell
+conda create -y -n onedal_env
+conda activate onedal_env
+```
+
+Then, install the necessary dependencies from the appropriate channels with `conda`:
+
+* **Linux\***:
+
+```shell
+conda install -y \
+    -c https://software.repos.intel.com/python/conda/ `# Intel's repository` \
+    -c conda-forge `# for tools like 'make'` \
+    make python>=3.9 `# used by the build system` \
+    dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
+    tbb tbb-devel `# required TBB packages` \
+    mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
+    cmake `# required to build the examples only`
+```
+
+* **Windows\***:
+
+```bat
+conda install -y^
+    -c https://software.repos.intel.com/python/conda/^
+    -c conda-forge^
+    make dos2unix python>=3.9^
+    dpcpp-cpp-rt dpcpp_win-64 intel-sycl-rt^
+    tbb tbb-devel^
+    mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp^
+    cmake
+```
+
+Then modify the relevant environment variables to point to the conda-installed libraries:
+
+* **Linux\***:
+
+```shell
+export MKLROOT=${CONDA_PREFIX}
+export TBBROOT=${CONDA_PREFIX}
+export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+export CPATH="${CONDA_PREFIX}/include:${CPATH}"
+export PATH="${CONDA_PREFIX}/bin:${PATH}"
+export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+```
+
+* **Windows\***:
+
+```bat
+set MKLROOT=%CONDA_PREFIX%\Library
+set TBBROOT=%CONDA_PREFIX%\Library
+set "LD_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LD_LIBRARY_PATH%"
+set "LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LIBRARY_PATH%"
+set "CPATH=%CONDA_PREFIX%\Library\include;%CPATH%"
+set "PATH=%CONDA_PREFIX%\Library\bin;%PATH%"
+set "PKG_CONFIG_PATH=%CONDA_PREFIX%\Library\lib\pkgconfig;%PKG_CONFIG_PATH%"
+set "CMAKE_PREFIX_PATH=%CONDA_PREFIX%\Library\lib\cmake;%CMAKE_PREFIX_PATH%"
+```
+
+After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.

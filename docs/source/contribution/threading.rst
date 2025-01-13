@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright contributors to the oneDAL project
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright contributors to the oneDAL project
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. highlight:: cpp
 
@@ -28,7 +26,7 @@ This is done in order not to be dependent on possible oneTBB API changes and eve
 on the particular threading technology like oneTBB, C++11 standard threads, etc.
 
 The API of the layer is defined in
-`threading.h <https://github.com/oneapi-src/oneDAL/blob/main/cpp/daal/src/threading/threading.h>`_.
+`threading.h <https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/src/threading/threading.h>`_.
 Please be aware that the threading API is not a part of |short_name| product API.
 This is the product internal API that aimed to be used only by |short_name| developers, and can be changed at any time
 without any prior notification.
@@ -112,7 +110,7 @@ Static Work Scheduling
 **********************
 
 By default, oneTBB uses
-`dynamic work scheduling <https://oneapi-src.github.io/oneTBB/main/tbb_userguide/How_Task_Scheduler_Works.html>`_
+`dynamic work scheduling <https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/How_Task_Scheduler_Works.html>`_
 and work stealing.
 It means that two different runs of the same parallel loop can produce different
 mappings of the loop's iteration space to the available threads.

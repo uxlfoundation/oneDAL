@@ -55,6 +55,8 @@ namespace interface1
 {
 /** Default constructor */
 Input::Input() : algorithms::regression::training::Input(lastInputId + 1) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for decision forest model-based training

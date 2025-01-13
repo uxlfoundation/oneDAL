@@ -94,8 +94,8 @@ class DAAL_EXPORT InputIface : public daal::algorithms::Input
 {
 public:
     InputIface(size_t nElements);
-    InputIface(const InputIface & other) : daal::algorithms::Input(other) {}
-
+    InputIface(const InputIface & other);
+    InputIface & operator=(const InputIface & other);
     virtual ~InputIface() {}
     /**
      * Returns the number of rows in the input data set
@@ -112,7 +112,8 @@ class DAAL_EXPORT Input : public InputIface
 {
 public:
     Input();
-    Input(const Input & other) : InputIface(other) {}
+    Input(const Input & other);
+    Input & operator=(const Input & other);
     virtual ~Input() {}
 
     /**

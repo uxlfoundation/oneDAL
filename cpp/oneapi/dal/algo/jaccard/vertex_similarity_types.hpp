@@ -39,8 +39,8 @@ public:
                   "Only undirected_adjacency_vector_graph is supported.");
     /// Constructs the algorithm input initialized with the graph and the caching builder.
     ///
-    /// @param [in]   graph  The input graph
-    /// @param [in/out]  builder  The caching builder
+    /// @param [in]       g        The input graph
+    /// @param [in, out]  builder  The caching builder
     vertex_similarity_input(const Graph& g, caching_builder& builder);
 
     /// Returns the constant reference to the input graph

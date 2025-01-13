@@ -33,6 +33,10 @@ public:
 
     virtual ~sparse_matrix_handle_impl();
 
+    sparse_matrix_handle_impl(sparse_matrix_handle_impl& other) = delete;
+
+    sparse_matrix_handle_impl& operator=(sparse_matrix_handle_impl& other) = delete;
+
     inline mkl::sparse::matrix_handle_t& get() {
         return handle_;
     }
