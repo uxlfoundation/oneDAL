@@ -100,7 +100,7 @@ basic usage scenarios of |short_name| with DPCPP. Go to
       Otherwise, you need to copy :file:`examples/oneapi/dpc` and :file:`examples/oneapi/data` folders
       to the directory with right permissions. These two folders must be retained
       in the same directory level relative to each other.
-      If you want to build examples from /examples/oneapi/cpp you can set CC and CXX with other compliers as well.
+      If you want to build examples from /examples/oneapi/cpp you can set CC and CXX to other compilers as well.
 
    .. tabs::
 
