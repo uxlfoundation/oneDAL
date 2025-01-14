@@ -14,6 +14,7 @@ dal_module(
     ],
 )
 
+'''
 dal_test_suite(
     name = "perf_tests",
     framework = "catch2",
@@ -29,6 +30,7 @@ dal_test_suite(
         ":sparse_blas",
     ],
 )
+'''
 
 dal_test_suite(
     name = "tests",

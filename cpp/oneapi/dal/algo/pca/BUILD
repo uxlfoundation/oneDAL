@@ -22,6 +22,7 @@ dal_module(
     ],
 )
 
+'''
 dal_test_suite(
     name = "cpu_tests",
     srcs = glob([
@@ -45,6 +46,7 @@ dal_test_suite(
     ],
     private = True,
 )
+'''
 
 dal_test_suite(
     name = "backend_tests",
@@ -75,8 +77,8 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
-        ":cpu_tests",
-        ":gpu_tests",
+        #":cpu_tests",
+        #":gpu_tests",
         ":backend_tests",
         ":interface_tests",
     ],

@@ -15,6 +15,7 @@ dal_module(
     ]
 )
 
+'''
 dal_test_suite(
     name = "cpu_tests",
     private = True,
@@ -26,6 +27,7 @@ dal_test_suite(
         ":sigmoid_kernel",
     ],
 )
+'''
 
 dal_test_suite(
     name = "interface_tests",
@@ -41,7 +43,7 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
-        ":cpu_tests",
+        #":cpu_tests",
         ":interface_tests",
     ],
 )

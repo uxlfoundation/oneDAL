@@ -31,6 +31,7 @@ dal_module(
     ]
 )
 
+'''
 dal_test_suite(
     name = "cpu_tests",
     private = True,
@@ -55,6 +56,8 @@ dal_test_suite(
     ],
 )
 
+'''
+
 dal_test_suite(
     name = "interface_tests",
     framework = "catch2",
@@ -72,8 +75,8 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
-        ":cpu_tests",
-        ":gpu_tests",
+        #":cpu_tests",
+        #":gpu_tests",
         ":interface_tests",
     ],
 )

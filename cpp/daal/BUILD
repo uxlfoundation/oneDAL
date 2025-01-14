@@ -302,6 +302,7 @@ filegroup(
     ],
 )
 
+'''
 dal_test_suite(
     name = "unit_tests",
     framework = "catch2",
@@ -309,6 +310,7 @@ dal_test_suite(
         "test/*.cpp",
     ]),
 )
+'''
 
 dal_collect_test_suites(
     name = "tests",

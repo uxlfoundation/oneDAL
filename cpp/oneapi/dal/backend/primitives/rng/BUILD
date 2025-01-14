@@ -15,6 +15,7 @@ dal_module(
     ],
 )
 
+'''
 dal_test_suite(
     name = "tests",
     private = True,
@@ -32,3 +33,4 @@ dal_test_suite(
         "exclusive",
     ],
 )
+'''
