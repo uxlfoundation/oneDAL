@@ -290,7 +290,7 @@ conda install -y -c conda-forge \
 * Optionally, if one wishes to install the OpenMP variant of OpenBLAS instead of the pthreads one, or to use the ILP64 variant:
 ```shell
 conda install -y -c conda-forge \
-    blas=*=*openblas* openblas-ilp64=*=openmp*
+    blas=*=*openblas* openblas-ilp64=*=*openmp*
 ```
 
 Then set environment variables as needed:
