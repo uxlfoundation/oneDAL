@@ -379,6 +379,7 @@ public:
 
 #ifdef ONEDAL_DATA_PARALLEL
     /// Returns a copy of the element of 1d immutable view located in USM at specified location.
+    /// The data is copied from the device to the host after the dependency events are completed.
     ///
     /// @param queue    The SYCL* queue object.
     /// @param id       The index of the element to be returned.
@@ -389,6 +390,7 @@ public:
     }
 
     /// Returns a copy of the element of 2d immutable view located in USM at specified location.
+    /// The data is copied from the device to the host after the dependency events are completed.
     ///
     /// @param queue    The SYCL* queue object.
     /// @param id0      The index of the element along the ``0``-th axis.
