@@ -13,8 +13,3 @@ daal_module(
     ],
 )
 
-daal_module(
-    name = "model_impl",
-    hdrs = []
-    #hdrs = glob(["*.hpp"]),
-)

@@ -14,23 +14,3 @@ dal_module(
         "@onedal//cpp/daal:engines",
     ],
 )
-
-'''
-dal_test_suite(
-    name = "tests",
-    private = True,
-    framework = "catch2",
-    compile_as = [ "dpc++" ],
-    srcs = glob([
-        "test/*_dpc.cpp",
-    ], exclude=[
-        "test/*perf*.cpp",
-    ]),
-    dal_deps = [
-        ":rng",
-    ],
-    tags = [
-        "exclusive",
-    ],
-)
-'''
