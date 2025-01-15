@@ -64,7 +64,6 @@ dal_test_suite(
     mpi_ranks = 2,
     framework = "catch2",
     hdrs = glob([
-        "test/ccl_*.hpp",
         "test/data.hpp",
         "test/spmd_backend_fixture.hpp",
         "test/spmd_backend_template.hpp",
