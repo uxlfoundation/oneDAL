@@ -20,6 +20,8 @@
 
 #include <sycl/ext/oneapi/experimental/builtins.hpp>
 
+#include <oneapi/dpl/experimental/kernel_templates>
+
 namespace oneapi::dal::backend::primitives {
 
 namespace de = dal::detail;
@@ -33,202 +35,6 @@ inline std::uint64_t inv_bits(std::uint64_t x) {
 }
 
 using sycl::ext::oneapi::plus;
-
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_scan(sycl::queue& queue,
-                                                                 const ndview<Float, 1>& val,
-                                                                 ndarray<Index, 1>& part_hist,
-                                                                 Index elem_count,
-                                                                 std::uint32_t bit_offset,
-                                                                 std::int64_t local_size,
-                                                                 std::int64_t local_hist_count,
-                                                                 sycl::event& deps) {
-    ONEDAL_ASSERT(part_hist.get_count() == hist_buff_size_);
-
-    const sycl::nd_range<1> nd_range =
-        make_multiple_nd_range_1d(de::check_mul_overflow(local_size, local_hist_count), local_size);
-
-    const radix_integer_t* val_ptr = reinterpret_cast<const radix_integer_t*>(val.get_data());
-    Index* part_hist_ptr = part_hist.get_mutable_data();
-
-    auto event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
-            auto sbg = item.get_sub_group();
-            if (sbg.get_group_id() > 0) {
-                return;
-            }
-            const std::uint32_t n_groups = item.get_group_range(0);
-            const std::uint32_t n_sub_groups = sbg.get_group_range()[0];
-            const std::uint32_t n_total_sub_groups = n_sub_groups * n_groups;
-            const Index elems_for_sbg =
-                elem_count / n_total_sub_groups + bool(elem_count % n_total_sub_groups);
-            const std::uint32_t local_size = sbg.get_local_range()[0];
-
-            const std::uint32_t local_id = sbg.get_local_id();
-            const std::uint32_t sub_group_id = sbg.get_group_id();
-            const std::uint32_t group_id = item.get_group(0) * n_sub_groups + sub_group_id;
-
-            Index ind_start = group_id * elems_for_sbg;
-            Index ind_end =
-                sycl::min(static_cast<Index>((group_id + 1) * elems_for_sbg), elem_count);
-
-            Index offset[radix_range_];
-            for (std::uint32_t i = 0; i < radix_range_; i++) {
-                offset[i] = 0;
-            }
-
-            for (Index i = ind_start + local_id; i < ind_end; i += local_size) {
-                radix_integer_t data_bits = ((inv_bits(val_ptr[i]) >> bit_offset) & radix_range_1_);
-                for (std::uint32_t j = 0; j < radix_range_; j++) {
-                    Index value = static_cast<Index>(data_bits == j);
-                    Index partial_offset = sycl::reduce_over_group(sbg, value, plus<Index>());
-                    offset[j] += partial_offset;
-                }
-            }
-
-            if (local_id == 0) {
-                for (std::uint32_t j = 0; j < radix_range_; j++) {
-                    part_hist_ptr[group_id * radix_range_ + j] = offset[j];
-                }
-            }
-        });
-    });
-
-    return event;
-}
-
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_hist_scan(
-    sycl::queue& queue,
-    const ndarray<Index, 1>& part_hist,
-    ndarray<Index, 1>& part_prefix_hist,
-    std::int64_t local_size,
-    std::int64_t local_hist_count,
-    sycl::event& deps) {
-    ONEDAL_ASSERT(part_hist.get_count() == hist_buff_size_);
-    ONEDAL_ASSERT(part_prefix_hist.get_count() == hist_buff_size_);
-
-    const Index* part_hist_ptr = part_hist.get_data();
-    Index* part_prefix_hist_ptr = part_prefix_hist.get_mutable_data();
-
-    const sycl::nd_range<1> nd_range = make_multiple_nd_range_1d(local_size, local_size);
-
-    auto event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
-            auto sbg = item.get_sub_group();
-            if (sbg.get_group_id() > 0) {
-                return;
-            }
-
-            const std::uint32_t local_size = sbg.get_local_range()[0];
-            const std::uint32_t local_id = sbg.get_local_id();
-
-            Index offset[radix_range_];
-            for (std::uint32_t i = 0; i < radix_range_; i++) {
-                offset[i] = 0;
-            }
-
-            for (std::uint32_t i = local_id; i < local_hist_count; i += local_size) {
-                for (std::uint32_t j = 0; j < radix_range_; j++) {
-                    Index value = part_hist_ptr[i * radix_range_ + j];
-                    Index boundary = sycl::exclusive_scan_over_group(sbg, value, plus<Index>());
-                    part_prefix_hist_ptr[i * radix_range_ + j] = offset[j] + boundary;
-                    Index partial_offset = sycl::reduce_over_group(sbg, value, plus<Index>());
-                    offset[j] += partial_offset;
-                }
-            }
-
-            if (local_id == 0) {
-                Index total_sum = 0;
-                for (std::uint32_t j = 0; j < radix_range_; j++) {
-                    part_prefix_hist_ptr[local_hist_count * radix_range_ + j] = total_sum;
-                    total_sum += offset[j];
-                }
-            }
-        });
-    });
-
-    return event;
-}
-
-template <typename Float, typename Index>
-sycl::event radix_sort_indices_inplace<Float, Index>::radix_reorder(
-    sycl::queue& queue,
-    const ndview<Float, 1>& val_in,
-    const ndview<Index, 1>& ind_in,
-    const ndview<Index, 1>& part_prefix_hist,
-    ndview<Float, 1>& val_out,
-    ndview<Index, 1>& ind_out,
-    Index elem_count,
-    std::uint32_t bit_offset,
-    std::int64_t local_size,
-    std::int64_t local_hist_count,
-    sycl::event& deps) {
-    ONEDAL_ASSERT(part_prefix_hist.get_count() == ((local_hist_count + 1) << radix_bits_));
-    ONEDAL_ASSERT(val_in.get_count() == ind_in.get_count());
-    ONEDAL_ASSERT(val_in.get_count() == val_out.get_count());
-    ONEDAL_ASSERT(val_in.get_count() == ind_out.get_count());
-
-    const radix_integer_t* val_in_ptr = reinterpret_cast<const radix_integer_t*>(val_in.get_data());
-    const Index* ind_in_ptr = ind_in.get_data();
-    const Index* part_prefix_hist_ptr = part_prefix_hist.get_data();
-    radix_integer_t* val_out_ptr = reinterpret_cast<radix_integer_t*>(val_out.get_mutable_data());
-    Index* ind_out_ptr = ind_out.get_mutable_data();
-
-    const sycl::nd_range<1> nd_range =
-        make_multiple_nd_range_1d(de::check_mul_overflow(local_size, local_hist_count), local_size);
-
-    auto event = queue.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(deps);
-        cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
-            auto sbg = item.get_sub_group();
-            if (sbg.get_group_id() > 0) {
-                return;
-            }
-
-            const std::uint32_t n_groups = item.get_group_range(0);
-            const std::uint32_t n_sub_groups = sbg.get_group_range()[0];
-            const std::uint32_t n_total_sub_groups = n_sub_groups * n_groups;
-            const Index elems_for_sbg =
-                elem_count / n_total_sub_groups + bool(elem_count % n_total_sub_groups);
-            const std::uint32_t local_size = sbg.get_local_range()[0];
-
-            const std::uint32_t local_id = sbg.get_local_id();
-            const std::uint32_t sub_group_id = sbg.get_group_id();
-            const std::uint32_t group_id = item.get_group(0) * n_sub_groups + sub_group_id;
-
-            Index ind_start = group_id * elems_for_sbg;
-            Index ind_end =
-                sycl::min(static_cast<Index>((group_id + 1) * elems_for_sbg), elem_count);
-
-            Index offset[radix_range_];
-
-            for (std::uint32_t i = 0; i < radix_range_; i++) {
-                offset[i] = part_prefix_hist_ptr[group_id * radix_range_ + i] +
-                            part_prefix_hist_ptr[n_total_sub_groups * radix_range_ + i];
-            }
-
-            for (Index i = ind_start + local_id; i < ind_end; i += local_size) {
-                radix_integer_t data_value = val_in_ptr[i];
-                radix_integer_t data_bits = ((inv_bits(data_value) >> bit_offset) & radix_range_1_);
-                Index pos_new = 0;
-                for (std::uint32_t j = 0; j < radix_range_; j++) {
-                    Index value = static_cast<Index>(data_bits == j);
-                    Index boundary = sycl::exclusive_scan_over_group(sbg, value, plus<Index>());
-                    pos_new |= value * (offset[j] + boundary);
-                    Index partial_offset = sycl::reduce_over_group(sbg, value, plus<Index>());
-                    offset[j] = offset[j] + partial_offset;
-                }
-                val_out_ptr[pos_new] = data_value;
-                ind_out_ptr[pos_new] = ind_in_ptr[i];
-            }
-        });
-    });
-
-    return event;
-}
 
 template <typename Float, typename Index>
 radix_sort_indices_inplace<Float, Index>::radix_sort_indices_inplace(const sycl::queue& queue)
@@ -276,75 +82,82 @@ sycl::event radix_sort_indices_inplace<Float, Index>::operator()(ndview<Float, 1
     if (val_in.get_count() > de::limits<std::uint32_t>::max()) {
         throw domain_error(dal::detail::error_messages::invalid_number_of_elements_to_sort());
     }
+    auto event = oneapi::dpl::experimental::kt::gpu::esimd::radix_sort_by_key<true, 8>(
+        queue_,
+        val_in.get_mutable_data(),
+        val_in.get_mutable_data() + val_in.get_count(),
+        ind_in.get_mutable_data(),
+        dpl::experimental::kt::kernel_param<256, 32>{});
+    return event;
 
-    sycl::event::wait_and_throw(deps);
-    sort_event_.wait_and_throw();
+    // sycl::event::wait_and_throw(deps);
+    // sort_event_.wait_and_throw();
 
-    init(queue_, val_in.get_count());
+    // init(queue_, val_in.get_count());
 
-    std::uint32_t rev = 1;
+    // std::uint32_t rev = 1;
 
-    sycl::event res_deps = {};
-    for (std::uint32_t bit_offset = 0; bit_offset < byte_range_ * sizeof(Float);
-         bit_offset += radix_bits_, rev ^= 1) {
-        if (rev) {
-            auto scan_deps = radix_scan(queue_,
-                                        val_in,
-                                        part_hist_,
-                                        elem_count_,
-                                        bit_offset,
-                                        local_size_,
-                                        local_hist_count_,
-                                        res_deps);
-            auto hist_scan_deps = radix_hist_scan(queue_,
-                                                  part_hist_,
-                                                  part_prefix_hist_,
-                                                  local_size_,
-                                                  local_hist_count_,
-                                                  scan_deps);
-            res_deps = radix_reorder(queue_,
-                                     val_in,
-                                     ind_in,
-                                     part_prefix_hist_,
-                                     val_buff_,
-                                     ind_buff_,
-                                     elem_count_,
-                                     bit_offset,
-                                     local_size_,
-                                     local_hist_count_,
-                                     hist_scan_deps);
-        }
-        else {
-            auto scan_deps = radix_scan(queue_,
-                                        val_buff_,
-                                        part_hist_,
-                                        elem_count_,
-                                        bit_offset,
-                                        local_size_,
-                                        local_hist_count_,
-                                        res_deps);
-            auto hist_scan_deps = radix_hist_scan(queue_,
-                                                  part_hist_,
-                                                  part_prefix_hist_,
-                                                  local_size_,
-                                                  local_hist_count_,
-                                                  scan_deps);
-            res_deps = radix_reorder(queue_,
-                                     val_buff_,
-                                     ind_buff_,
-                                     part_prefix_hist_,
-                                     val_in,
-                                     ind_in,
-                                     elem_count_,
-                                     bit_offset,
-                                     local_size_,
-                                     local_hist_count_,
-                                     hist_scan_deps);
-        }
-    }
+    // sycl::event res_deps = {};
+    // for (std::uint32_t bit_offset = 0; bit_offset < byte_range_ * sizeof(Float);
+    //      bit_offset += radix_bits_, rev ^= 1) {
+    //     if (rev) {
+    //         auto scan_deps = radix_scan(queue_,
+    //                                     val_in,
+    //                                     part_hist_,
+    //                                     elem_count_,
+    //                                     bit_offset,
+    //                                     local_size_,
+    //                                     local_hist_count_,
+    //                                     res_deps);
+    //         auto hist_scan_deps = radix_hist_scan(queue_,
+    //                                               part_hist_,
+    //                                               part_prefix_hist_,
+    //                                               local_size_,
+    //                                               local_hist_count_,
+    //                                               scan_deps);
+    //         res_deps = radix_reorder(queue_,
+    //                                  val_in,
+    //                                  ind_in,
+    //                                  part_prefix_hist_,
+    //                                  val_buff_,
+    //                                  ind_buff_,
+    //                                  elem_count_,
+    //                                  bit_offset,
+    //                                  local_size_,
+    //                                  local_hist_count_,
+    //                                  hist_scan_deps);
+    //     }
+    //     else {
+    //         auto scan_deps = radix_scan(queue_,
+    //                                     val_buff_,
+    //                                     part_hist_,
+    //                                     elem_count_,
+    //                                     bit_offset,
+    //                                     local_size_,
+    //                                     local_hist_count_,
+    //                                     res_deps);
+    //         auto hist_scan_deps = radix_hist_scan(queue_,
+    //                                               part_hist_,
+    //                                               part_prefix_hist_,
+    //                                               local_size_,
+    //                                               local_hist_count_,
+    //                                               scan_deps);
+    //         res_deps = radix_reorder(queue_,
+    //                                  val_buff_,
+    //                                  ind_buff_,
+    //                                  part_prefix_hist_,
+    //                                  val_in,
+    //                                  ind_in,
+    //                                  elem_count_,
+    //                                  bit_offset,
+    //                                  local_size_,
+    //                                  local_hist_count_,
+    //                                  hist_scan_deps);
+    //     }
+    // }
 
-    sort_event_ = res_deps;
-    return res_deps;
+    // sort_event_ = res_deps;
+    // return res_deps;
 }
 
 template <typename Integer>
