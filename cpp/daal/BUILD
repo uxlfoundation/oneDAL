@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 load("@onedal//dev/bazel:dal.bzl",
-    #"dal_test_suite",
+    "dal_test_suite",
     "dal_collect_test_suites",
 )
 load("@onedal//dev/bazel:daal.bzl",
@@ -308,7 +308,5 @@ dal_collect_test_suites(
     modules = [
         "dtrees/gbt/regression"
     ],
-    tests = [
-        ":unit_tests",
-    ],
 )
+
