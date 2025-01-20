@@ -29,7 +29,7 @@ variables:
   VM_IMAGE : 'ubuntu-22.04'
   SYSROOT_OS: 'jammy'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
-  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel'
+  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
   repositories:
@@ -71,6 +71,9 @@ jobs:
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
+  - script: |
+      .ci/env/apt.sh dpl
+    displayName: 'dpl installation'
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
@@ -393,6 +396,9 @@ jobs:
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
+  - script: |
+      .ci/env/apt.sh dpl
+    displayName: 'dpl installation'
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh

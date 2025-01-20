@@ -56,7 +56,6 @@ private:
     sycl::event select_winner(ndview<ClassType, 1>& results, const event_vector& deps) const;
 
     ndarray<ClassType, 2> swp_, out_;
-    radix_sort<ClassType> sorting_;
 };
 
 template <typename ClassType = std::int32_t>

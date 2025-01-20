@@ -43,6 +43,10 @@ function install_mkl {
     install_tbb
 }
 
+function install_dpl {
+    sudo apt-get install -y intel-oneapi-dpl-2022.7.0
+}
+
 function install_clang-format {
     sudo apt-get install -y clang-format-14
 }
@@ -108,6 +112,9 @@ elif [ "${component}" == "tbb" ]; then
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"

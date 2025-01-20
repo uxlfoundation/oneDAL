@@ -76,7 +76,7 @@ public:
         auto ref = create_reference_on_host(val);
 
         INFO("run sort with indices");
-        auto event = radix_sort_indices_inplace<Float, Index>{ this->get_queue() }(val, ind);
+        auto event = radix_sort_indices_inplace<Float, Index>(this->get_queue(), val, ind);
         event.wait_and_throw();
 
         check_results(val, ind, ref);
@@ -153,7 +153,7 @@ public:
         auto val_out = ndarray<Integer, 2>::empty(q, { vector_count, elem_count });
 
         INFO("run sort");
-        radix_sort<Integer>{ this->get_queue() }(val, val_out, sorted_elem_count).wait_and_throw();
+        radix_sort<Integer>(this->get_queue(), val, val_out, sorted_elem_count).wait_and_throw();
 
         check_results(val_out, ref, sorted_elem_count);
     }

@@ -35,7 +35,7 @@ inline sycl::event sort_inplace(sycl::queue& queue_,
                                 const bk::event_vector& deps = {}) {
     ONEDAL_ASSERT(src.get_count() > 0);
     auto src_ind = pr::ndarray<Index, 1>::empty(queue_, { src.get_count() });
-    return pr::radix_sort_indices_inplace<Float, Index>{ queue_ }(src, src_ind, deps);
+    return pr::radix_sort_indices_inplace<Float, Index>(queue_, src, src_ind, deps);
 }
 
 template <typename Float, typename Bin, typename Index>
@@ -429,13 +429,14 @@ sycl::event indexed_features<Float, Bin, Index>::operator()(const table& tbl,
             pr::ndarray<Bin, 1>::empty(queue_, { row_count_ }, sycl::usm::alloc::device);
     }
 
-    pr::radix_sort_indices_inplace<Float, Index> sort{ queue_ };
-
     sycl::event last_event;
 
     for (Index i = 0; i < column_count_; i++) {
         last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
-        last_event = sort(values_nd, indices_nd, { last_event });
+        last_event = pr::radix_sort_indices_inplace<Float, Index>(queue_,
+                                                                  values_nd,
+                                                                  indices_nd,
+                                                                  { last_event });
         last_event =
             compute_bins(values_nd, indices_nd, column_bin_vec_[i], entries_[i], i, { last_event });
     }
