@@ -16,11 +16,11 @@
 
 #pragma once
 
-#ifdef ONEDAL_DATA_PARALLEL
-
 #include "oneapi/dal/backend/primitives/rng/dpc_engine.hpp"
 
 namespace oneapi::dal::backend::primitives {
+
+#ifdef ONEDAL_DATA_PARALLEL
 
 template <typename Type, typename Size, engine_method EngineType>
 void uniform(Size count, Type* dst, dpc_engine<EngineType>& engine_, Type a, Type b) {
@@ -94,6 +94,6 @@ void shuffle(sycl::queue& queue,
              dpc_engine<EngineType>& engine_,
              const event_vector& deps = {});
 
-}; // namespace oneapi::dal::backend::primitives
-
 #endif
+
+}; // namespace oneapi::dal::backend::primitives

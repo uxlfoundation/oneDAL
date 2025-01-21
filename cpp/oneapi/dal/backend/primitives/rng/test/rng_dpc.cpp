@@ -18,9 +18,15 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_dpc.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine_collection.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include <vector>
+
+#include "oneapi/dal/backend/primitives/rng/utils.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
+#include "oneapi/dal/table/common.hpp"
+// #include "oneapi/dal/backend/primitives/rng/rng_engine_collection_dpc.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 

@@ -19,6 +19,11 @@
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 #include <oneapi/mkl.hpp>
+#include <daal/include/algorithms/engines/mt2203/mt2203.h>
+#include <daal/include/algorithms/engines/mcg59/mcg59.h>
+#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
+#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
+#include <daal/include/algorithms/engines/mt19937/mt19937.h>
 
 namespace mkl = oneapi::mkl;
 namespace oneapi::dal::backend::primitives {

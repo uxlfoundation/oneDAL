@@ -22,6 +22,7 @@
 
 #ifdef ONEDAL_DATA_PARALLEL
 
+#include "oneapi/dal/backend/primitives/rng/rng_engine_collection_host.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel_hist_impl.hpp"
 
 namespace oneapi::dal::decision_forest::backend {
