@@ -522,7 +522,7 @@ Status computeMinMaxAndSumOfSquared(const size_t nFeatures, const size_t nVector
         const size_t startRows = iBlock * numRowsInBlock;
         const size_t chunkRows = (iBlock < (nBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
 
-        for (size_t i = startRows; i < chunkRows; i++)
+        for (size_t i = startRows; i < startRows + chunkRows; i++)
         {
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS

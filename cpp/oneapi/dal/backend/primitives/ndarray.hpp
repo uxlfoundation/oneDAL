@@ -23,8 +23,10 @@
 namespace oneapi::dal::backend::primitives {
 
 enum class ndorder {
-    c, /* C-style ordering, row-major in 2D case */
-    f /* Fortran-style ordering, column-major in 2D case */
+    /// C-style ordering, row-major in 2D case
+    c,
+    /// Fortran-style ordering, column-major in 2D case
+    f
 };
 
 template <ndorder order>
@@ -168,6 +170,14 @@ private:
 template <typename T, std::int64_t axis_count, ndorder order = ndorder::c>
 class ndarray;
 
+/// The class represents a multi-dimensional view of an externally-defined memory block
+/// with a fixed number of dimensions.
+/// The view does not own the memory block and does not perform any memory management.
+///
+/// @tparam T           The type of elements in the view.
+/// @tparam axis_count  The number of dimensions in the view.
+/// @tparam order       C-contiguous (row-major) or FORTRAN-contiguous (column-major) order
+///                     of the elements in 2-dimensional view.
 template <typename T, std::int64_t axis_count, ndorder order = ndorder::c>
 class ndview : public ndarray_base<axis_count, order> {
     static_assert(!std::is_const_v<T>, "T must be non-const");
@@ -184,62 +194,128 @@ public:
 
     ndview() : data_(nullptr) {}
 
+    /// Creates a new multidimensional view instance by passing the pointer to externally-defined memory block
+    /// for mutable data.
+    ///
+    /// @param data     The pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap(T* data, const shape_t& shape) {
         return ndview{ data, shape };
     }
 
+    /// Creates a new multidimensional view instance by passing the pointer to externally-defined memory block
+    /// for immutable data.
+    ///
+    /// @param data     The pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap(const T* data, const shape_t& shape) {
         return ndview{ data, shape };
     }
 
+    /// Creates a new strided multidimensional view instance by passing the pointer to externally-defined
+    /// memory block for mutable data.
+    ///
+    /// @param data     The pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional view.
+    /// @param strides  The strides of the created multidimensional view.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap(T* data, const shape_t& shape, const shape_t& strides) {
         return ndview{ data, shape, strides };
     }
 
+    /// Creates a new strided multidimensional view instance by passing the pointer to externally-defined
+    /// memory block for immutable data.
+    ///
+    /// @param data     The pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional view.
+    /// @param strides  The strides of the created multidimensional view.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap(const T* data, const shape_t& shape, const shape_t& strides) {
         return ndview{ data, shape, strides };
     }
 
+    /// Creates a new multidimensional view instance from a mutable array.
+    ///
+    /// @param data    The array that stores a homogeneous data block.
+    /// @param shape   The shape of the created multidimensional view.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap_mutable(const array<T>& data, const shape_t& shape) {
         ONEDAL_ASSERT(data.has_mutable_data());
         ONEDAL_ASSERT(data.get_count() >= shape.get_count());
         return wrap(data.get_mutable_data(), shape);
     }
 
+    /// Creates a new strided multidimensional view instance from a mutable array.
+    ///
+    /// @param data    The array that stores a homogeneous data block.
+    /// @param shape   The shape of the created multidimensional view.
+    /// @param strides The strides of the created multidimensional view.
+    ///
+    /// @return The new multidimensional view instance.
     static ndview wrap_mutable(const array<T>& data, const shape_t& shape, const shape_t& strides) {
         ONEDAL_ASSERT(data.has_mutable_data());
         ONEDAL_ASSERT(data.get_count() >= shape.get_count());
         return wrap(data.get_mutable_data(), shape, strides);
     }
 
+    /// Creates a new 1d view instance from an immutable array.
+    ///
+    /// @param data    The array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d view instance.
     template <std::int64_t d = axis_count, typename = std::enable_if_t<d == 1>>
     static ndview wrap(const array<T>& data) {
         return wrap(data.get_data(), { data.get_count() });
     }
 
+    /// Creates a new 1d view instance from a mutable array.
+    ///
+    /// @param data    The array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d view instance.
     template <std::int64_t d = axis_count, typename = std::enable_if_t<d == 1>>
     static ndview wrap_mutable(const array<T>& data) {
         ONEDAL_ASSERT(data.has_mutable_data());
         return wrap(data.get_mutable_data(), { data.get_count() });
     }
 
+    /// The pointer to the memory block holding immutable data.
     const T* get_data() const {
         return data_;
     }
 
+    /// The pointer to the memory block holding mutable data.
     T* get_mutable_data() const {
         ONEDAL_ASSERT(data_is_mutable_);
         return const_cast<T*>(data_);
     }
 
+    /// Returns whether the view contains data or not.
     bool has_data() const {
         return this->get_count() > 0;
     }
 
+    /// Returns whether the view contains mutable data or not.
     bool has_mutable_data() const {
         return this->has_data() && this->data_is_mutable_;
     }
 
+    /// Returns a reference to the element of 1d immutable view at specified location.
+    ///
+    /// @note This method does not perform boundary checks in release build.
+    ///       In debug build, the method asserts that the index is not out of bounds.
+    ///
+    /// @note Should be used carefully in performance-critical parts of the code,
+    ///       as inlining is not guaranteed.
+    ///
+    /// @param id  The index of the element to be returned.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     const T& at(std::int64_t id) const {
         ONEDAL_ASSERT(has_data());
@@ -247,6 +323,16 @@ public:
         return *(get_data() + id);
     }
 
+    /// Returns a reference to the element of 2d immutable view at specified location.
+    ///
+    /// @note This method does not perform boundary checks in release build.
+    ///       In debug build, the method asserts that the index is not out of bounds.
+    ///
+    /// @note Should be used carefully in performance-critical parts of the code,
+    ///       as inlining is not guaranteed.
+    ///
+    /// @param id0  The index of the element along the ``0``-th axis.
+    /// @param id1  The index of the element along the ``1``-st axis.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 2>>
     const T& at(std::int64_t id0, std::int64_t id1) const {
         ONEDAL_ASSERT(has_data());
@@ -262,6 +348,9 @@ public:
         }
     }
 
+    /// Returns a reference to the element of 1d mutable view at specified location.
+    ///
+    /// @param id  The index of the element to be returned.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T& at(std::int64_t id) {
         ONEDAL_ASSERT(has_mutable_data());
@@ -269,6 +358,10 @@ public:
         return *(get_mutable_data() + id);
     }
 
+    /// Returns a reference to the element of 2d mutable view at specified location.
+    ///
+    /// @param id0  The index of the element along the ``0``-th axis.
+    /// @param id1  The index of the element along the ``1``-st axis.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 2>>
     T& at(std::int64_t id0, std::int64_t id1) {
         ONEDAL_ASSERT(has_mutable_data());
@@ -285,11 +378,24 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Returns a copy of the element of 1d immutable view located in USM at specified location.
+    /// The data is copied from the device to the host after the dependency events are completed.
+    ///
+    /// @param queue    The SYCL* queue object.
+    /// @param id       The index of the element to be returned.
+    /// @param deps     The vector of events that the operation depends on.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T at_device(sycl::queue& queue, std::int64_t id, const event_vector& deps = {}) const {
         return this->get_slice(id, id + 1).to_host(queue, deps).at(0);
     }
 
+    /// Returns a copy of the element of 2d immutable view located in USM at specified location.
+    /// The data is copied from the device to the host after the dependency events are completed.
+    ///
+    /// @param queue    The SYCL* queue object.
+    /// @param id0      The index of the element along the ``0``-th axis.
+    /// @param id1      The index of the element along the ``1``-st axis.
+    /// @param deps     The vector of events that the operation depends on.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 2>>
     T at_device(sycl::queue& queue,
                 std::int64_t id0,
@@ -302,6 +408,13 @@ public:
     }
 #endif // ONEDAL_DATA_PARALLEL
 
+    /// Get transposed multidimensional view.
+    /// The shape and strides of the transposed multidimensional view are swapped.
+    ///
+    /// The data is not modified or copied: The transposed ndview points to the same memory block
+    /// as the original ndview.
+    ///
+    /// @return The transposed multidimensional view.
     auto t() const {
         using tranposed_ndview_t = ndview<T, axis_count, transposed_ndorder_v<order>>;
         const auto& shape = this->get_shape();
@@ -309,6 +422,16 @@ public:
         return tranposed_ndview_t{ data_, shape.t(), strides.t(), data_is_mutable_ };
     }
 
+    /// Get the multidimensional view of the data reshaped to the requested shape.
+    /// The total number of elements in the reshaped view must remain the same.
+    /// The data is not copied: the reshaped ndview points to the same memory block
+    /// as the original ndview.
+    ///
+    /// @tparam new_axis_count  The number of dimensions in the reshaped multidimensional view.
+    ///
+    /// @param new_shape        The shape of the reshaped multidimensional view.
+    ///
+    /// @return The reshaped multidimensional view.
     template <std::int64_t new_axis_count, ndorder new_order = order>
     auto reshape(const ndshape<new_axis_count>& new_shape) const {
         check_reshape_conditions(new_shape);
@@ -316,6 +439,15 @@ public:
         return reshaped_ndview_t{ data_, new_shape, data_is_mutable_ };
     }
 
+    /// Get 1-dimensional slice of 1-dimensional view.
+    /// The slice is a view into the original memory block.
+    /// The data is not copied: The sliced view points to the data within the same memory block
+    /// as the original ndview.
+    ///
+    /// @param from The starting index of the data slice within the input view.
+    /// @param to   The ending index of the data slice within the input view.
+    ///
+    /// @return The 1-dimensional view with a data slice.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     ndview get_slice(std::int64_t from, std::int64_t to) const {
         ONEDAL_ASSERT((this->get_dimension(0) >= from) && (from >= 0));
@@ -326,6 +458,16 @@ public:
         return ndview(new_start_point, new_shape, this->get_strides(), this->data_is_mutable_);
     }
 
+    /// Get 2-dimensional row slice of 2-dimensional view.
+    /// The slice is a view into the original memory block.
+    /// The data is not copied: The sliced view points to the data within the same memory block
+    /// as the original ndview.
+    ///
+    /// @param from_row The starting row index of the data slice within the input view.
+    /// @param to_row   The ending row index of the data slice within the input view.
+    ///
+    /// @return The 2-dimensional view with a data slice containing data rows [from_row, ..., to_row)
+    ///         from the original view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 2>>
     ndview get_row_slice(std::int64_t from_row, std::int64_t to_row) const {
         ONEDAL_ASSERT((this->get_dimension(0) >= from_row) && (from_row >= 0));
@@ -340,39 +482,74 @@ public:
         return ndview(new_start_point, new_shape, this->get_strides(), this->data_is_mutable_);
     }
 
+    /// Get 2-dimensional column slice of 2-dimensional view.
+    /// The slice is a view into the original memory block.
+    /// The data is not copied: The sliced view points to the data within the same memory block
+    /// as the original ndview.
+    ///
+    /// @param from_col The starting column index of the data slice within the input view.
+    /// @param to_col   The ending column index of the data slice within the input view.
+    ///
+    /// @return The 2-dimensional view with a data slice containing data columns [from_col, ..., to_col)
+    ///         from the original view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 2>>
     ndview get_col_slice(std::int64_t from_col, std::int64_t to_col) const {
         return this->t().get_row_slice(from_col, to_col).t();
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array with the same shape as the view,
+    /// but having the data allocated on host. The data from the view is copied to the array on host.
+    ///
+    /// @param q    The SYCL* queue object.
+    /// @param deps The vector of events that the operation depends on.
+    ///
+    /// @return The new multidimensional array instance.
     ndarray<T, axis_count, order> to_host(sycl::queue& q, const event_vector& deps = {}) const;
-    ndarray<T, axis_count, order> to_device(sycl::queue& q, const event_vector& deps = {}) const;
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array with the same shape as the view,
+    /// but having the data allocated in USM on device.
+    /// The data from the view is copied to the array on device.
+    ///
+    /// @param q    The SYCL* queue object.
+    /// @param deps The vector of events that the operation depends on.
+    ///
+    /// @return The new multidimensional array instance.
+    ndarray<T, axis_count, order> to_device(sycl::queue& q, const event_vector& deps = {}) const;
+
+    /// Prefetches the data from high bandwidth memory to local cache.
+    /// Should be submitted ahead the expected computations to have enough time for data transfer.
+    ///
+    /// @param queue The SYCL* queue object.
+    ///
+    /// @return The SYCL* event object indicating the availability of the data in the view for reading
+    ///         and writing.
     sycl::event prefetch(sycl::queue& queue) const {
         return queue.prefetch(data_, this->get_count());
     }
 #endif
 
+    /// Returns the pointer to the first element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T* begin() {
         ONEDAL_ASSERT(data_is_mutable_);
         return get_mutable_data();
     }
 
+    /// Returns the pointer to the past-the-last element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     T* end() {
         ONEDAL_ASSERT(data_is_mutable_);
         return get_mutable_data() + this->get_count();
     }
 
+    /// Returns the constant pointer to the first element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     const T* cbegin() const {
         return get_data();
     }
 
+    /// Returns the constant pointer to the past-the-last element of the 1-dimensional view.
     template <std::int64_t n = axis_count, typename = std::enable_if_t<n == 1>>
     const T* cend() const {
         return get_data() + this->get_count();
@@ -539,14 +716,26 @@ inline sycl::event fill(sycl::queue& q,
 }
 #endif
 
+/// Multidimensional array
+///
+/// @tparam T           The type of the memory block elements within the multidimensional array.
+///
+/// @tparam axis_count  The number of dimensions in the multidimensional array.
+/// @tparam order       Row-major or column-major order of the 2-dimensional array.
 template <typename T, std::int64_t axis_count, ndorder order>
 class ndarray : public ndview<T, axis_count, order> {
     template <typename, std::int64_t, ndorder>
     friend class ndarray;
 
     using base = ndview<T, axis_count, order>;
+
+    /// Type of the object holding the multidimensional array shape
     using shape_t = ndshape<axis_count>;
+
+    /// Type of a shared pointer to :literal:`T`
     using shared_t = dal::detail::shared<T>;
+
+    /// Type of the array with elements of type :literal:`T`
     using array_t = dal::array<std::remove_const_t<T>>;
 
     struct array_deleter {
@@ -562,54 +751,130 @@ class ndarray : public ndview<T, axis_count, order> {
 public:
     ndarray() = default;
 
+    /// Creates a new multidimensional array instance by passing the pointer to externally-defined memory block
+    /// for mutable data.
+    ///
+    /// @tparam Deleter     The type of a deleter called on ``data`` when
+    ///                     the last ndarray that refers it is out of the scope.
+    ///
+    /// @param data         The pointer to a homogeneous data block.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param deleter      The deleter that is called on the ``data`` when the last ndarray that refers it
+    ///                     is out of the scope.
+    ///
+    /// @return The new multidimensional array instance.
     template <typename Deleter = dal::detail::empty_delete<T>>
     static ndarray wrap(T* data, const shape_t& shape, Deleter&& deleter = Deleter{}) {
         auto shared = shared_t{ data, std::forward<Deleter>(deleter) };
         return wrap(std::move(shared), shape);
     }
 
+    /// Creates a new multidimensional array instance by passing the pointer to externally-defined memory block
+    /// for immutable data.
+    ///
+    /// @tparam Deleter     The type of a deleter called on ``data`` when
+    ///                     the last ndarray that refers it is out of the scope.
+    ///
+    /// @param data         The pointer to a homogeneous data block.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param deleter      The deleter that is called on the ``data`` when the last ndarray that refers it
+    ///                     is out of the scope.
+    ///
+    /// @return The new multidimensional array instance.
     template <typename Deleter = dal::detail::empty_delete<T>>
     static ndarray wrap(const T* data, const shape_t& shape, Deleter&& deleter = Deleter{}) {
         auto shared = shared_t{ const_cast<T*>(data), std::forward<Deleter>(deleter) };
         return wrap(std::move(shared), shape).set_mutability(false);
     }
 
+    /// Creates a new multidimensional array instance by passing the shared pointer to externally-defined
+    /// memory block for mutable data.
+    ///
+    /// @param data     The shared pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap(const shared_t& data, const shape_t& shape) {
         return ndarray{ data, shape };
     }
 
+    /// Creates a new multidimensional array instance by moving a shared pointer
+    /// to externally-defined memory block for mutable data.
+    ///
+    /// @param data     R-value reference to the shared pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap(shared_t&& data, const shape_t& shape) {
         return ndarray{ std::move(data), shape };
     }
 
+    /// Creates a new multidimensional array instance from an immutable array.
+    /// The created multidimensional array shares data ownership with the given array.
+    ///
+    /// @param ary      The array that stores a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap(const array_t& ary, const shape_t& shape) {
         ONEDAL_ASSERT(ary.get_count() == shape.get_count());
         return wrap(ary.get_data(), shape, array_deleter{ ary });
     }
 
+    /// Creates a new multidimensional array instance by moving an immutable input array.
+    ///
+    /// @param ary      The r-value reference to array that stores a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap(array_t&& ary, const shape_t& shape) {
         ONEDAL_ASSERT(ary.get_count() == shape.get_count());
         const T* data_ptr = ary.get_data();
         return wrap(data_ptr, shape, array_deleter{ std::move(ary) });
     }
 
+    /// Creates a 1d ndarray instance from an immutable array.
+    /// The created ndarray shares data ownership with the given array.
+    ///
+    /// @param ary  The array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d ndarray instance.
     static ndarray wrap(const array_t& ary) {
         static_assert(axis_count == 1);
         return wrap(ary, shape_t{ ary.get_count() });
     }
 
+    /// Creates a 1d ndarray instance by moving an immutable input array.
+    /// The created ndarray shares data ownership with the given array.
+    ///
+    /// @param ary  The r-value reference to array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d ndarray instance.
     static ndarray wrap(array_t&& ary) {
         static_assert(axis_count == 1);
         std::int64_t ary_count = ary.get_count();
         return wrap(std::move(ary), shape_t{ ary_count });
     }
 
+    /// Creates a new multidimensional array instance from a mutable array.
+    /// The created multidimensional array shares data ownership with the given array.
+    ///
+    /// @param ary      The array that stores a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap_mutable(const array_t& ary, const shape_t& shape) {
         ONEDAL_ASSERT(ary.get_count() == shape.get_count());
         auto shared = shared_t{ ary.get_mutable_data(), array_deleter{ ary } };
         return wrap(std::move(shared), shape);
     }
 
+    /// Creates a new multidimensional array instance by moving a mutable input array.
+    ///
+    /// @param ary      The r-value reference to array that stores a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray wrap_mutable(array_t&& ary, const shape_t& shape) {
         ONEDAL_ASSERT(ary.get_count() == shape.get_count());
         T* data_ptr = ary.get_mutable_data();
@@ -617,17 +882,34 @@ public:
         return wrap(std::move(shared), shape);
     }
 
+    /// Creates a 1d ndarray instance from a mutable array.
+    /// The created ndarray shares data ownership with the given array.
+    ///
+    /// @param ary  The array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d ndarray instance.
     static ndarray wrap_mutable(const array_t& ary) {
         static_assert(axis_count == 1);
         return wrap_mutable(ary, shape_t{ ary.get_count() });
     }
 
+    /// Creates a 1d ndarray instance by moving a mutable input array.
+    /// The created ndarray shares data ownership with the given array.
+    ///
+    /// @param ary  The array that stores a homogeneous data block.
+    ///
+    /// @return The new 1d ndarray instance.
     static ndarray wrap_mutable(array_t&& ary) {
         static_assert(axis_count == 1);
         std::int64_t ary_count = ary.get_count();
         return wrap_mutable(std::move(ary), shape_t{ ary_count });
     }
 
+    /// Creates an uninitialized multidimensional array of a requested shape.
+    ///
+    /// @param shape The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray empty(const shape_t& shape) {
         T* ptr = dal::detail::malloc<T>(dal::detail::default_host_policy{}, shape.get_count());
         return wrap(ptr,
@@ -635,12 +917,24 @@ public:
                     dal::detail::make_default_delete<T>(dal::detail::default_host_policy{}));
     }
 
+    /// Creates a multidimensional array of the requested shape and copies the values
+    /// from the input pointer to a memory block into that multidimensional array.
+    ///
+    /// @param data     The pointer to a homogeneous data block.
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray copy(const T* data, const shape_t& shape) {
         auto ary = empty(shape);
         ary.assign(data, shape.get_count());
         return ary;
     }
 
+    /// Creates a multidimensional array of the requested shape and fills it with zeros.
+    ///
+    /// @param shape    The shape of the created multidimensional array.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray zeros(const shape_t& shape) {
         auto ary = empty(shape);
         ary.fill(T(0));
@@ -648,15 +942,32 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Creates an uninitialized multidimensional array of a requested shape
+    /// with the elements stored in SYCL* USM.
+    ///
+    /// @param q            The SYCL* queue object.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param alloc_kind   The kind of USM to be allocated.
+    ///
+    /// @return The new multidimensional array instance.
     static ndarray empty(const sycl::queue& q,
                          const shape_t& shape,
                          const sycl::usm::alloc& alloc_kind = sycl::usm::alloc::shared) {
         T* ptr = malloc<T>(q, shape.get_count(), alloc_kind);
         return wrap(ptr, shape, usm_deleter<T>{ q });
     }
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array of the requested shape with the elements
+    /// stored in SYCL* USM and copies the values from the input pointer to a memory block
+    /// into that multidimensional array.
+    ///
+    /// @param q            The SYCL* queue object.
+    /// @param data         The pointer to a homogeneous data block.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param alloc_kind   The kind of USM to be allocated.
+    ///
+    /// @return A tuple with the created multidimensional array and the SYCL* event object
+    ///         indicating the availability of the resulting array for reading and writing.
     static std::tuple<ndarray, sycl::event> copy(
         sycl::queue& q,
         const T* data,
@@ -666,9 +977,18 @@ public:
         auto event = ary.assign(q, data, shape.get_count());
         return { ary, event };
     }
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array of the requested shape with the elements
+    /// stored in SYCL* USM and fills it with a scalar value provided.
+    ///
+    /// @param q            The SYCL* queue object.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param value        The scalar value to fill the array with.
+    /// @param alloc_kind   The kind of USM to be allocated.
+    /// @param deps         The vector of events that the operation depends on.
+    ///
+    /// @return A tuple with the created multidimensional array and the SYCL* event object
+    ///         indicating the availability of the resulting array for reading and writing.
     static std::tuple<ndarray, sycl::event> full(
         sycl::queue& q,
         const shape_t& shape,
@@ -679,18 +999,32 @@ public:
         auto event = ary.fill(q, value, deps);
         return { ary, event };
     }
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array of the requested shape with the elements
+    /// stored in SYCL* USM and fills it with zeros.
+    ///
+    /// @param q            The SYCL* queue object.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param alloc_kind   The kind of USM to be allocated.
+    ///
+    /// @return A tuple with the created multidimensional array and the SYCL* event object
+    ///         indicating the availability of the resulting array for reading and writing.
     static std::tuple<ndarray, sycl::event> zeros(
         sycl::queue& q,
         const shape_t& shape,
         const sycl::usm::alloc& alloc_kind = sycl::usm::alloc::shared) {
         return full(q, shape, T(0), alloc_kind);
     }
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
+    /// Creates a multidimensional array of the requested shape with the elements
+    /// stored in SYCL* USM and fills it with ones.
+    ///
+    /// @param q            The SYCL* queue object.
+    /// @param shape        The shape of the created multidimensional array.
+    /// @param alloc_kind   The kind of USM to be allocated.
+    ///
+    /// @return A tuple with the created multidimensional array and the SYCL* event object
+    ///         indicating the availability of the resulting array for reading and writing.
     static std::tuple<ndarray, sycl::event> ones(
         sycl::queue& q,
         const shape_t& shape,
@@ -699,21 +1033,40 @@ public:
     }
 #endif
 
+    /// Get ndview sub-object of the ndarray.
+    ///
+    /// @return The ndview sub-object.
     const base& get_view() const {
         return *this;
     }
 
+    /// Get 1d dal::array that shares the ownership on the data block of this ndarray.
+    ///
+    /// @return The 1d dal::array that contains all the data from this multidimentional array.
     array_t flatten() const {
         return array_t{ data_, this->get_count() };
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Get 1d dal::array that shares the ownership on the SYCL* USM data block of this ndarray.
+    ///
+    /// @param q    The SYCL* queue object.
+    /// @param deps The vector of events that the operation depends on.
+    ///
+    /// @return The 1d dal::array that contains all the USM data from this multidimentional array.
     array_t flatten(sycl::queue& q, const event_vector& deps = {}) const {
         ONEDAL_ASSERT(is_known_usm(q, data_.get()));
         return array_t{ q, data_, this->get_count(), deps };
     }
 #endif
 
+    /// Get transposed multidimensional array.
+    /// The shape and strides of the transposed multidimensional array are swapped.
+    ///
+    /// The data is not copied: The transposed ndarray shares the ownership on the data block
+    /// with the original ndarray.
+    ///
+    /// @return The transposed multidimensional array.
     auto t() const {
         using tranposed_ndarray_t = ndarray<T, axis_count, transposed_ndorder_v<order>>;
         const auto& shape = this->get_shape();
@@ -722,6 +1075,16 @@ public:
             this->has_mutable_data());
     }
 
+    /// Get the multidimensional array reshaped to the requested shape.
+    /// The total number of elements in the reshaped array must remain the same.
+    /// The data is not copied: the reshaped ndarray shares the ownership on the data block
+    /// with the original ndarray.
+    ///
+    /// @tparam new_axis_count  The number of dimensions in the reshaped multidimensional array.
+    ///
+    /// @param new_shape        The shape of the reshaped multidimensional array.
+    ///
+    /// @return The reshaped multidimensional array.
     template <std::int64_t new_axis_count>
     auto reshape(const ndshape<new_axis_count>& new_shape) const {
         using reshaped_ndarray_t = ndarray<T, new_axis_count, order>;
@@ -729,6 +1092,9 @@ public:
         return reshaped_ndarray_t{ data_, new_shape }.set_mutability(this->has_mutable_data());
     }
 
+    /// Fill multidimensional array with a scalar value.
+    ///
+    /// @param value The scalar value to fill the array with.
     void fill(T value) {
         T* data_ptr = this->get_mutable_data();
         for (std::int64_t i = 0; i < this->get_count(); i++) {
@@ -737,6 +1103,14 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Fill multidimensional array with a scalar value.
+    ///
+    /// @param q     The SYCL* queue object.
+    /// @param value The scalar value to fill the array with.
+    /// @param deps  The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event fill(sycl::queue& q, T value, const event_vector& deps = {}) {
         auto data_ptr = this->get_mutable_data();
         ONEDAL_ASSERT(is_known_usm(q, data_ptr));
@@ -747,6 +1121,8 @@ public:
     }
 #endif
 
+    /// Fill multidimensional array with the values from a sequence 0, 1, 2, ..., N-1,
+    /// where N is the total number of elements in the array.
     void arange() {
         T* data_ptr = this->get_mutable_data();
         for (std::int64_t i = 0; i < this->get_count(); i++) {
@@ -755,6 +1131,14 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Fill multidimensional array with the values from a sequence 0, 1, 2, ..., N-1,
+    /// where N is the total number of elements in the array.
+    ///
+    /// @param q     The SYCL* queue object.
+    /// @param deps  The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event arange(sycl::queue& q, const event_vector& deps = {}) {
         auto data_ptr = this->get_mutable_data();
         ONEDAL_ASSERT(is_known_usm(q, data_ptr));
@@ -768,6 +1152,10 @@ public:
     }
 #endif
 
+    /// Copy the values from the input pointer to a memory block into multidimensional array.
+    ///
+    /// @param source_ptr    The pointer to a homogeneous data block.
+    /// @param source_count  The number of elements in the input memory block.
     void assign(const T* source_ptr, std::int64_t source_count) {
         ONEDAL_ASSERT(source_ptr != nullptr);
         ONEDAL_ASSERT(source_count > 0);
@@ -776,6 +1164,15 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+    /// Copy the values from the input pointer to SYCL* USM memory block into multidimensional array.
+    ///
+    /// @param q             The SYCL* queue object.
+    /// @param source_ptr    The pointer to a homogeneous data block.
+    /// @param source_count  The number of elements in the input memory block.
+    /// @param deps          The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event assign(sycl::queue& q,
                        const T* source_ptr,
                        std::int64_t source_count,
@@ -786,6 +1183,16 @@ public:
         return dal::backend::copy(q, this->get_mutable_data(), source_ptr, source_count, deps);
     }
 
+    /// Copy the values from the input pointer to a memory block allocated on host
+    /// into multidimensional array.
+    ///
+    /// @param q             The SYCL* queue object.
+    /// @param source_ptr    The pointer to a homogeneous data block allocated in host memory.
+    /// @param source_count  The number of elements in the input memory block.
+    /// @param deps          The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event assign_from_host(sycl::queue& q,
                                  const T* source_ptr,
                                  std::int64_t source_count,
@@ -800,12 +1207,30 @@ public:
                                            deps);
     }
 
+    /// Copy the values from the input multidimensional array
+    /// into this multidimensional array.
+    ///
+    /// @param q    The SYCL* queue object.
+    /// @param src  The multidimensional array to copy data from.
+    /// @param deps The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event assign(sycl::queue& q, const ndarray& src, const event_vector& deps = {}) {
         ONEDAL_ASSERT(src.get_count() > 0);
         ONEDAL_ASSERT(src.get_count() <= this->get_count());
         return this->assign(q, src.get_data(), src.get_count(), deps);
     }
 
+    /// Copy the values from the input multidimensional array containing data allocated on host
+    /// into this multidimensional array.
+    ///
+    /// @param q    The SYCL* queue object.
+    /// @param src  The multidimensional array to copy data from.
+    /// @param deps The vector of events that the operation depends on.
+    ///
+    /// @return The SYCL* event object indicating the availability of the array
+    ///         for reading and writing.
     sycl::event assign_from_host(sycl::queue& q,
                                  const ndarray& src,
                                  const event_vector& deps = {}) {
@@ -815,6 +1240,15 @@ public:
     }
 #endif
 
+    /// Get a slice of the multidimensional array along the specified axis.
+    /// The slice is a view into the original multidimensional array.
+    /// The data is not copied: The sliced ndarray shares the ownership on the data block.
+    ///
+    /// @param offset The offset along the specified axis.
+    /// @param count  The number of elements along the specified axis.
+    /// @param axis   The axis to slice along. Only axis ``0`` is supported.
+    ///
+    /// @return The multidimensional array with a data slice.
     ndarray slice(std::int64_t offset, std::int64_t count, std::int64_t axis = 0) const {
         ONEDAL_ASSERT(order == ndorder::c, "Only C-order is supported");
         ONEDAL_ASSERT(axis == 0, "Non-zero axis is not supported");
@@ -836,6 +1270,15 @@ public:
     }
 
 #ifdef ONEDAL_DATA_PARALLEL
+
+    /// Split a multidimensional array into multiple slices along the specified axis.
+    /// The slices are views into the original multidimensional array.
+    /// The data is not copied: The sliced ndarrays share the ownership on the data block.
+    ///
+    /// @param fold_count The number of slices to split the multidimensional array into.
+    /// @param axis       The axis to split along. Only axis ``0`` is supported.
+    ///
+    /// @return A vector of multidimensional arrays with data slices.
     std::vector<ndarray> split(std::int64_t fold_count, std::int64_t axis = 0) const {
         ONEDAL_ASSERT(order == ndorder::c, "Only C-order is supported");
         ONEDAL_ASSERT(axis == 0, "Non-zero axis is not supported");
@@ -891,6 +1334,7 @@ private:
 };
 
 #ifdef ONEDAL_DATA_PARALLEL
+
 template <typename T, std::int64_t axis_count, ndorder order>
 ndarray<T, axis_count, order> ndview<T, axis_count, order>::to_host(
     sycl::queue& q,
@@ -903,9 +1347,7 @@ ndarray<T, axis_count, order> ndview<T, axis_count, order>::to_host(
         this->get_shape(),
         dal::detail::make_default_delete<T>(dal::detail::default_host_policy{}));
 }
-#endif
 
-#ifdef ONEDAL_DATA_PARALLEL
 template <typename T, std::int64_t axis_count, ndorder order>
 ndarray<T, axis_count, order> ndview<T, axis_count, order>::to_device(
     sycl::queue& q,
@@ -919,9 +1361,6 @@ ndarray<T, axis_count, order> ndview<T, axis_count, order>::to_device(
         .wait_and_throw();
     return dev;
 }
-#endif
-
-#ifdef ONEDAL_DATA_PARALLEL
 
 template <ndorder yorder,
           typename Type,
