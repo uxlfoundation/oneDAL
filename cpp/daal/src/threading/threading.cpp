@@ -427,7 +427,8 @@ DAAL_EXPORT void _daal_parallel_reduce_tls(void * tlsPtr, void * a, daal::tls_re
     size_t n                                    = 0;
     tbb::enumerable_thread_specific<void *> * p = static_cast<tbb::enumerable_thread_specific<void *> *>(tlsPtr);
 
-    for (auto it = p->begin(); it != p->end(); ++it, ++n);
+    for (auto it = p->begin(); it != p->end(); ++it, ++n)
+        ;
     if (n)
     {
         typedef void * mptr;
