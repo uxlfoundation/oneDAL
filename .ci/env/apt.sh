@@ -44,7 +44,7 @@ function install_mkl {
 }
 
 function install_dpl {
-    sudo apt-get install -y intel-oneapi-dpl-2022.7.0
+    sudo apt-get install -y intel-oneapi-dpl
 }
 
 function install_clang-format {
