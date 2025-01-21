@@ -19,6 +19,7 @@
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_engine_collection.hpp"
 
 namespace oneapi::dal::backend::primitives::test {

@@ -22,6 +22,7 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/backend/primitives/blas/gemv.hpp"
 #include "oneapi/dal/backend/primitives/element_wise.hpp"
 

@@ -22,6 +22,7 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
 #include <math.h>
 

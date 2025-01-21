@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 
 #include <stdexcept>

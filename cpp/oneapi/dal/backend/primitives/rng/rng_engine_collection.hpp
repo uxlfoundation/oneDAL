@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include <vector>
 

@@ -24,7 +24,7 @@
 #include "oneapi/dal/backend/memory.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/table/homogen.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 #include "oneapi/dal/detail/threading.hpp"
 
 namespace oneapi::dal::preview::connected_components::backend {

@@ -26,6 +26,7 @@
 #include "oneapi/dal/detail/debug.hpp"
 
 #include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 

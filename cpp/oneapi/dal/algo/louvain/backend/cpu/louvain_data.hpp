@@ -17,7 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/backend/memory.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng.hpp"
+#include "oneapi/dal/backend/primitives/rng/rng_host.hpp"
 
 namespace oneapi::dal::preview::louvain::backend {
 using namespace oneapi::dal::preview::detail;
