@@ -3,12 +3,12 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "headers",
     features = [ "dpc++" ],
-    hdrs = glob(["include/cpu_gpu_dpcpp/oneapi/*.hpp"]) +
-           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/*.hpp"]) +
-           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/*.h"]) +
-           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/*.hpp"]) +
-           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/sycl/*.hpp"]) +
-           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/sycl_l0/*.hpp"]),
+    hdrs = glob(["include/cpu_gpu_dpcpp/oneapi/*.hpp"],allow_empty=True,) +
+           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/*.hpp"],allow_empty=True,) +
+           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/*.h"],allow_empty=True,) +
+           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/*.hpp"],allow_empty=True,) +
+           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/sycl/*.hpp"],allow_empty=True,) +
+           glob(["include/cpu_gpu_dpcpp/oneapi/ccl/native_device_api/sycl_l0/*.hpp"],allow_empty=True,),
     includes = [ "include/cpu_gpu_dpcpp/oneapi" ] + [ "include/cpu_gpu_dpcpp/" ],
 )
 

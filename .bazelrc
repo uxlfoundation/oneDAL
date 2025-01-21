@@ -1,4 +1,6 @@
 # Global options
+
+common  
 build -c opt \
       --incompatible_enable_cc_toolchain_resolution \
       --incompatible_require_linker_input_cc_api
