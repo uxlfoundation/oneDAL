@@ -65,7 +65,7 @@ Parameter::Parameter(const Parameter & other)
  * Assigns a Parameter by copying input objects and parameters of another Parameter
  * \param[in] other An object to be used as the source object to copy from
  */
-Parameter & operator=(const Parameter & other);
+Parameter & Parameter::operator=(const Parameter & other);
 {
     sum_of_functions::Parameter::operator=(other);
     this->interceptFlag = other.interceptFlag;
