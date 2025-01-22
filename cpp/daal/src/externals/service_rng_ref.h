@@ -50,8 +50,8 @@
     #define __DAAL_RNG_METHOD_GAUSSIAN_ICDF       2 //VSL_RNG_METHOD_GAUSSIAN_ICDF
 
     // Errors
-    #define __DAAL_LEAPFROG_METHOD_ERRCODE -1002
-    #define __DAAL_SKIP_AHEAD_METHOD_ERRCODE -1003
+    #define __DAAL_LEAPFROG_METHOD_ERRCODE        -1002
+    #define __DAAL_SKIP_AHEAD_METHOD_ERRCODE      -1003
 
 namespace daal
 {
