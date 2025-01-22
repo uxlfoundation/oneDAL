@@ -73,6 +73,12 @@ Input::Input() : sum_of_functions::Input(lastInputId + 1) {}
 
 Input::Input(const Input & other) : sum_of_functions::Input(other) {}
 
+Input & Input::operator=(const Input & other)
+{
+    sum_of_functions::Input::operator=(other);
+    return *this;
+}
+
 /**
  * Sets one input object for Logistic loss objective function
  * \param[in] id    Identifier of the input object
