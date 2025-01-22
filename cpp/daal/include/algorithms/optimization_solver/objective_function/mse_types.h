@@ -155,6 +155,9 @@ public:
     /** Copy constructor */
     Input(const Input & other);
 
+    /** Assignment operator */
+    Input & operator=(const Input & other);
+
     /** Destructor */
     virtual ~Input() {}
 
