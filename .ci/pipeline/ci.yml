@@ -74,6 +74,9 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: 
+      chmod +x .ci/scripts/install_basekit.sh
+    displayName: 'Make install_basekit.sh executable'
+  - script: 
       .ci/scripts/install_basekit.sh $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
@@ -398,6 +401,9 @@ jobs:
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
+  - script: 
+      chmod +x .ci/scripts/install_basekit.sh
+    displayName: 'Make install_basekit.sh executable'
   - script: 
       .ci/scripts/install_basekit.sh $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
