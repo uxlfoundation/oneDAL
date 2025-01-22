@@ -49,6 +49,15 @@ Parameter::Parameter(const Parameter & other)
       featureId(other.featureId)
 {}
 
+Parameter & Parameter::operator=(const Parameter & other)
+{
+    objective_function::Parameter::operator=(other.resultsToCompute);
+    this->numberOfTerms = other.numberOfTerms;
+    this->batchIndices  = other.batchIndices;
+    this->featureId     = other.featureId;
+    return *this;
+}
+
 /**
  * Checks the correctness of the parameter
  */
