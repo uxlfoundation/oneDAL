@@ -58,12 +58,10 @@ daal_module(
         "@config//:backend_ref": [
                                    ":public_includes",
                                    "@openblas//:headers",
-                                   "@dpl//:headers",
                                  ],
         "//conditions:default": [
                                   ":public_includes",
                                   "@mkl//:headers",
-                                  "@dpl//:headers",
                                 ],
         }),
 )

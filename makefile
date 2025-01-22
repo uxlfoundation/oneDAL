@@ -314,7 +314,6 @@ ifeq ($(REQPROFILE), yes)
     VTUNESDK.LIBS_A := $(if $(OS_is_lnx), $(VTUNESDK.libia)/libittnotify.a,)
 endif
 
-
 #=============================== oneDPL folders ======================================
 
 ONEDPL.include := $(DPL_ROOT)/include

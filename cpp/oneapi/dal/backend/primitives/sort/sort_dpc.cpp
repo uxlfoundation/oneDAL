@@ -25,6 +25,7 @@
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 
 #include <oneapi/dpl/experimental/kernel_templates>
+
 #pragma clang diagnostic pop
 
 namespace oneapi::dal::backend::primitives {

@@ -30,7 +30,7 @@ variables:
   SYSROOT_OS: 'jammy'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
-  DPL_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/de3c613f-829c-4bdc-aa2b-6129eece3bd9/intel-onedpl-2022.7.1.15_offline.sh'
+  LINUX_DPL_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/de3c613f-829c-4bdc-aa2b-6129eece3bd9/intel-onedpl-2022.7.1.15_offline.sh'
 
 resources:
   repositories:
@@ -73,10 +73,7 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: 
-      chmod +x .ci/scripts/install_basekit.sh
-    displayName: 'Make install_basekit.sh executable'
-  - script: 
-      .ci/scripts/install_basekit.sh $(DPL_URL)
+      chmod +x .ci/scripts/install_dpl.sh && .ci/scripts/install_dpl.sh $(LINUX_DPL_URL)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -401,10 +398,7 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: 
-      chmod +x .ci/scripts/install_basekit.sh
-    displayName: 'Make install_basekit.sh executable'
-  - script: 
-      .ci/scripts/install_basekit.sh $(DPL_URL)
+      chmod +x .ci/scripts/install_dpl.sh && .ci/scripts/install_dpl.sh $(LINUX_DPL_URL)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh

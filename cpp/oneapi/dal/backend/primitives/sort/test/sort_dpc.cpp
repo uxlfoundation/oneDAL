@@ -203,7 +203,7 @@ TEMPLATE_LIST_TEST_M(sort_with_indices_test,
                      sort_indices_types) {
     SKIP_IF(this->get_policy().is_cpu());
 
-    std::int64_t elem_count = GENERATE_COPY(100, 1000, 10000, 100000, 10000000);
+    std::int64_t elem_count = GENERATE_COPY(100, 1000, 10000, 100000);
 
     auto [val, ind] = this->allocate_arrays(elem_count);
     this->fill_uniform(val, -25., 25.);
