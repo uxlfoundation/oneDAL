@@ -45,6 +45,11 @@ Parameter::Parameter(const Parameter & other) : resultsToCompute(other.resultsTo
 /** Default constructor */
 Input::Input(size_t n) : daal::algorithms::Input(n) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other)
+{
+    daal::algorithms::Input::operator=(other);
+    return *this;
+}
 
 /**
  * Sets one input object for Objective function
