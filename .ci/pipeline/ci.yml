@@ -74,7 +74,7 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: 
-      .ci/scripts/install_basekit.bat $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
+      .ci/scripts/install_basekit.sh $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -399,7 +399,7 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: 
-      .ci/scripts/install_basekit.bat $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
+      .ci/scripts/install_basekit.sh $(LINUX_BASEKIT_URL) $(LINUX_DPCPP_COMPONENTS)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh
