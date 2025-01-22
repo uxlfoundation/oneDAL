@@ -18,17 +18,20 @@
 URL=$1
 COMPONENTS=$2
 
-curl --output webimage.sh --url "$URL" --retry 5 --retry-delay 5
-chmod +x webimage.sh
-./webimage.sh -x -f webimage_extracted --log extract.log
-rm -rf webimage.sh
-WEBIMAGE_NAME=$(ls -1 webimage_extracted/)
+# Download the installation script
+curl --output installer.sh --url "$URL" --retry 5 --retry-delay 5
+chmod +x installer.sh
+
+# Define default components if none are provided
 if [ -z "$COMPONENTS" ]; then
-  sudo webimage_extracted/"$WEBIMAGE_NAME"/bootstrapper -s --action install --eula=accept --log-dir=.
-  installer_exit_code=$?
-else
-  sudo webimage_extracted/"$WEBIMAGE_NAME"/bootstrapper -s --action install --components="$COMPONENTS" --eula=accept --log-dir=.
-  installer_exit_code=$?
+  COMPONENTS="intel.oneapi.lin.dpl"
 fi
-rm -rf webimage_extracted
+
+# Execute the installation script
+sudo sh installer.sh -a --silent --eula accept --components "$COMPONENTS"
+installer_exit_code=$?
+
+# Clean up
+rm -f installer.sh
+
 exit $installer_exit_code
