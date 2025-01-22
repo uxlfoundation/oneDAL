@@ -73,6 +73,7 @@ services::Status Parameter::check() const
 
 Input::Input() {}
 Input::Input(const Input & other) {}
+Input & Input::operator=(const Input & other) {}
 
 data_management::NumericTablePtr Input::get(OptionalDataId id) const
 {
