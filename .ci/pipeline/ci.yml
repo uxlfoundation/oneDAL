@@ -76,7 +76,7 @@ jobs:
       chmod +x .ci/scripts/install_basekit.sh
     displayName: 'Make install_basekit.sh executable'
   - script: 
-      .ci/scripts/install_basekit.sh $(DPL_URL) $(LINUX_DPCPP_COMPONENTS)
+      .ci/scripts/install_basekit.sh $(DPL_URL)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -404,7 +404,7 @@ jobs:
       chmod +x .ci/scripts/install_basekit.sh
     displayName: 'Make install_basekit.sh executable'
   - script: 
-      .ci/scripts/install_basekit.sh $(DPL_URL) $(LINUX_DPCPP_COMPONENTS)
+      .ci/scripts/install_basekit.sh $(DPL_URL)
     displayName: 'Install oneAPI Base Toolkit'
   - script: |
       source /opt/intel/oneapi/setvars.sh

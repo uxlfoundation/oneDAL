@@ -16,19 +16,15 @@
 #===============================================================================
 
 URL=$1
-COMPONENTS=$2
+
 
 # Download the installation script
 curl --output installer.sh --url "$URL" --retry 5 --retry-delay 5
 chmod +x installer.sh
 
-# Define default components if none are provided
-if [ -z "$COMPONENTS" ]; then
-  COMPONENTS="intel.oneapi.lin.dpl"
-fi
 
 # Execute the installation script
-sudo sh installer.sh -a --silent --eula accept --components "$COMPONENTS"
+sudo sh installer.sh -a --silent --eula accept
 installer_exit_code=$?
 
 # Clean up
