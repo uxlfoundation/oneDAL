@@ -30,7 +30,7 @@ variables:
   SYSROOT_OS: 'jammy'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
-  DPL_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/37b4aa24-9575-4e7e-91fc-56207fd7cc9c/intel-onedpl-2022.7.1.16_offline.exe'
+  DPL_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/de3c613f-829c-4bdc-aa2b-6129eece3bd9/intel-onedpl-2022.7.1.15_offline.sh'
 
 resources:
   repositories:
