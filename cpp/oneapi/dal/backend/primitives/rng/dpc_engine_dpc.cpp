@@ -14,9 +14,9 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <oneapi/mkl.hpp>
 #include "oneapi/dal/backend/primitives/rng/dpc_engine.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include <oneapi/mkl.hpp>
 
 namespace oneapi::dal::backend::primitives {
 
