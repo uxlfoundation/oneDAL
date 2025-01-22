@@ -65,6 +65,12 @@ Input::Input(size_t n) : objective_function::Input(n) {}
 
 Input::Input(const Input & other) : objective_function::Input(other) {}
 
+Input & Input::operator=(const Input & other)
+{
+    objective_function::Input::operator=(other);
+    return *this;
+}
+
 /**
  * Sets one input object for Sum of functions
  * \param[in] id    Identifier of the input object
