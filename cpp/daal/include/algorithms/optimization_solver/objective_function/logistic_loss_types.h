@@ -107,6 +107,7 @@ struct DAAL_EXPORT Parameter : public sum_of_functions::Parameter
      * \param[in] other An object to be used as the source object to copy from
      */
     Parameter & operator=(const Parameter & other);
+
     /**
      * Checks the correctness of the parameter
      *
