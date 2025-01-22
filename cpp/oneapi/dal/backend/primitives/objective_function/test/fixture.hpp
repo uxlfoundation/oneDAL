@@ -25,7 +25,7 @@
 #include "oneapi/dal/table/csr_accessor.hpp"
 #include "oneapi/dal/detail/debug.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 

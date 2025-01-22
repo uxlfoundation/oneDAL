@@ -206,7 +206,7 @@ inline Float move_nodes(const dal::preview::detail::topology<IndexType>& t,
         ld.random_order[index] = index;
     }
     // random shuffle
-    ld.rn_gen.uniform(t._vertex_count, ld.index, ld.eng.get_state(), 0, t._vertex_count);
+    uniform<std::int32_t>(t._vertex_count, ld.index, ld.eng, 0, t._vertex_count);
     for (std::int64_t index = 0; index < t._vertex_count; ++index) {
         std::swap(ld.random_order[index], ld.random_order[ld.index[index]]);
     }

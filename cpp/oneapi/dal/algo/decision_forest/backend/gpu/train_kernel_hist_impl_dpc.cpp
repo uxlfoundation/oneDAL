@@ -396,14 +396,13 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         Index* const node_list_ptr = node_list_host.get_mutable_data();
 
         for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
-            pr::rng<Index> rn_gen;
             Index* gen_row_idx_global_ptr =
                 selected_row_global_ptr + ctx.selected_row_total_count_ * node_idx;
-            rn_gen.uniform(ctx.selected_row_total_count_,
-                           gen_row_idx_global_ptr,
-                           rng_engine_list[engine_offset + node_idx].get_state(),
-                           0,
-                           ctx.row_total_count_);
+            pr::uniform<Index>(ctx.selected_row_total_count_,
+                               gen_row_idx_global_ptr,
+                               rng_engine_list[engine_offset + node_idx],
+                               0,
+                               ctx.row_total_count_);
 
             if (ctx.distr_mode_) {
                 Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
@@ -483,15 +482,14 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
 
     auto node_vs_tree_map_list_host = node_vs_tree_map_list.to_host(queue_);
 
-    pr::rng<Index> rn_gen;
     auto tree_map_ptr = node_vs_tree_map_list_host.get_mutable_data();
     if (ctx.selected_ftr_count_ != ctx.column_count_) {
         for (Index node = 0; node < node_count; ++node) {
-            rn_gen.uniform_without_replacement(
+            pr::uniform_without_replacement<Index>(
                 ctx.selected_ftr_count_,
                 selected_features_host_ptr + node * ctx.selected_ftr_count_,
                 selected_features_host_ptr + (node + 1) * ctx.selected_ftr_count_,
-                rng_engine_list[tree_map_ptr[node]].get_state(),
+                rng_engine_list[tree_map_ptr[node]],
                 0,
                 ctx.column_count_);
         }
@@ -524,7 +522,6 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
 
     auto node_vs_tree_map_list_host = node_vs_tree_map.to_host(queue_);
 
-    pr::rng<Float> rn_gen;
     auto tree_map_ptr = node_vs_tree_map_list_host.get_mutable_data();
 
     // Create arrays for random generated bins
@@ -537,11 +534,11 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
 
     // Generate random bins for selected features
     for (Index node = 0; node < node_count; ++node) {
-        rn_gen.uniform(ctx.selected_ftr_count_,
-                       random_bins_host_ptr + node * ctx.selected_ftr_count_,
-                       rng_engine_list[tree_map_ptr[node]].get_state(),
-                       0.0f,
-                       1.0f);
+        pr::uniform<Float>(ctx.selected_ftr_count_,
+                           random_bins_host_ptr + node * ctx.selected_ftr_count_,
+                           rng_engine_list[tree_map_ptr[node]],
+                           0.0f,
+                           1.0f);
     }
     auto event_rnd_generate =
         random_bins_com.assign_from_host(queue_, random_bins_host_ptr, random_bins_com.get_count());
@@ -1660,12 +1657,10 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_results(
 
             const Float div1 = Float(1) / Float(built_tree_count + tree_idx_in_block + 1);
 
-            pr::rng<Index> rn_gen;
-
             for (Index column_idx = 0; column_idx < ctx.column_count_; ++column_idx) {
-                rn_gen.shuffle(oob_row_count,
-                               permutation_ptr,
-                               engine_arr[built_tree_count + tree_idx_in_block].get_state());
+                pr::shuffle<Index>(oob_row_count,
+                                   permutation_ptr,
+                                   engine_arr[built_tree_count + tree_idx_in_block]);
                 const Float oob_err_perm = compute_oob_error_perm(ctx,
                                                                   model_manager,
                                                                   data_host,

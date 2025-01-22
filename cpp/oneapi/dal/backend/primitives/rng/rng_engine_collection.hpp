@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 
 #include <vector>
 
@@ -33,7 +33,7 @@ public:
               daal_engine_list_(count) {}
 
     template <typename Op>
-    std::vector<engine> operator()(Op&& op) {
+    std::vector<host_engine<engine_method::mt2203>> operator()(Op&& op) {
         daal::services::Status status;
         for (Size i = 0; i < count_; ++i) {
             op(i, params_.nSkip[i]);
@@ -49,7 +49,7 @@ public:
             dal::backend::interop::status_to_exception(status);
         }
 
-        std::vector<engine> engine_list(count_);
+        std::vector<host_engine<engine_method::mt2203>> engine_list(count_);
         for (Size i = 0; i < count_; ++i) {
             engine_list[i] = daal_engine_list_[i];
         }
