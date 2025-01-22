@@ -44,7 +44,7 @@ Parameter::Parameter(const Parameter & other) : resultsToCompute(other.resultsTo
 
 Parameter & Parameter::operator=(const Parameter & other)
 {
-    resultsToCompute::operator=(other.resultsToCompute);
+    this->resultsToCompute = other.resultsToCompute;
     return *this;
 }
 
