@@ -399,7 +399,7 @@ jobs:
     displayName: 'mkl installation'
   - script: 
       chmod +x .ci/scripts/install_dpl.sh && .ci/scripts/install_dpl.sh $(LINUX_DPL_URL)
-    displayName: ''oneDPL installation''
+    displayName: 'oneDPL installation'
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
