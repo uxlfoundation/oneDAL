@@ -21,8 +21,8 @@
 //--
 */
 
-#ifndef __mrg32k3a_BATCH_CONTAINER_H__
-#define __mrg32k3a_BATCH_CONTAINER_H__
+#ifndef __MRG32K3A_BATCH_CONTAINER_H__
+#define __MRG32K3A_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_kernel.h"

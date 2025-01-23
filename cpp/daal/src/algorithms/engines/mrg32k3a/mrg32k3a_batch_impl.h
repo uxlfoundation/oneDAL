@@ -94,7 +94,7 @@ public:
         {
         case engines::internal::family: return false;
         case engines::internal::skipahead: return true;
-        case engines::internal::leapfrog: return true;
+        case engines::internal::leapfrog: return false;
         }
         return false;
     }
