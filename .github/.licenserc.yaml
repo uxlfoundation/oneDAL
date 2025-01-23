@@ -47,7 +47,7 @@ header:
     # Clang-format config
     - '.clang-format'
     # Editorconfig configs
-    - '.ecrc'
+    - '.editorconfig-checker.json'
     - '.editorconfig'
     # Samples READMEs and licenses:
     - 'samples/daal/cpp/mpi/README.md'
