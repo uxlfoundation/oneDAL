@@ -36,7 +36,7 @@ public:
               seed_(seed) {
         engines_.reserve(count_);
         for (Size i = 0; i < count_; ++i) {
-            engines_.push_back(dpc_engine<EngineType>(queue, seed_));
+            engines_.push_back(dpc_engine<EngineType>(queue, seed_ + i));
         }
     }
 

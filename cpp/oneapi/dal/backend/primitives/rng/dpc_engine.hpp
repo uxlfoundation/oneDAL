@@ -69,9 +69,6 @@ struct dpc_engine_type<engine_method::philox4x32x10> {
 ///
 /// @tparam EngineType The RNG engine type to be used. Defaults to `engine_method::mt2203`.
 ///
-/// @param[in] queue The SYCL queue used to manage device operations.
-/// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
-///
 /// The class provides functionality to skip ahead in the RNG sequence, retrieve engine states, and
 /// manage host and device engines independently. Support for `skip_ahead` on GPU is currently limited for
 /// some engine types.
@@ -80,6 +77,8 @@ class dpc_engine {
 public:
     using dpc_engine_t = typename dpc_engine_type<EngineType>::type;
 
+    /// @param[in] queue The SYCL queue used to manage device operations.
+    /// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
     explicit dpc_engine(sycl::queue& queue, std::int64_t seed = 777)
             : q(queue),
               host_engine_(initialize_host_engine(seed)),
@@ -90,6 +89,8 @@ public:
             throw std::domain_error("RNG engine is not supported");
         }
     }
+
+    dpc_engine& operator=(const dpc_engine& other);
 
     virtual ~dpc_engine() = default;
 

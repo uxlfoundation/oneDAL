@@ -69,7 +69,7 @@ template <typename engine_type>
 constexpr auto engine_v = engine_map<engine_type>::value;
 
 template <typename TestType>
-class rng_test : public te::float_algo_fixture<TestType> {
+class rng_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
 public:
     using DataType = std::tuple_element_t<0, TestType>;
     using EngineType = std::tuple_element_t<1, TestType>;
