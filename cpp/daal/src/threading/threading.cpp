@@ -28,7 +28,8 @@
 #define TBB_PREVIEW_GLOBAL_CONTROL 1
 #define TBB_PREVIEW_TASK_ARENA     1
 
-#include <stdlib.h> // malloc and free
+#include <algorithm> // std::min
+#include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
 #include <tbb/scalable_allocator.h>
@@ -263,9 +264,9 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32ptr_int64_simple(const int32_t * 
 
 DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func)
 {
-    if (daal::threader_env()->getNumberOfThreads() > 1)
+    const size_t nthreads = std::min(daal::threader_env()->getNumberOfThreads(), static_cast<size_t>(_daal_threader_get_max_threads()));
+    if (nthreads > 1)
     {
-        const size_t nthreads           = _daal_threader_get_max_threads();
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
 
         tbb::parallel_for(

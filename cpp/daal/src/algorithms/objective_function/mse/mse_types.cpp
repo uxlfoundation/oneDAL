@@ -54,12 +54,25 @@ Parameter::Parameter(size_t numberOfTerms, data_management::NumericTablePtr batc
 {}
 
 /**
- * Constructs an Parameter by copying input objects and parameters of another Parameter
- * \param[in] other An object to be used as the source to initialize object
+ * Constructs a Parameter by copying input objects and parameters of another Parameter
+ * \param[in] other An object to be used as the source object to initialize from
  */
 Parameter::Parameter(const Parameter & other)
     : sum_of_functions::Parameter(other), interceptFlag(other.interceptFlag), penaltyL1(other.penaltyL1), penaltyL2(other.penaltyL2)
 {}
+
+/**
+ * Assigns a Parameter by copying input objects and parameters of another Parameter
+ * \param[in] other An object to be used as the source object to copy from
+ */
+Parameter & Parameter::operator=(const Parameter & other)
+{
+    sum_of_functions::Parameter::operator=(other);
+    this->interceptFlag = other.interceptFlag;
+    this->penaltyL1     = other.penaltyL1;
+    this->penaltyL2     = other.penaltyL2;
+    return *this;
+}
 
 /**
  * Checks the correctness of the parameter
@@ -73,6 +86,12 @@ services::Status Parameter::check() const
 Input::Input() : sum_of_functions::Input(lastInputId + 1) {}
 
 Input::Input(const Input & other) : sum_of_functions::Input(other) {}
+
+Input & Input::operator=(const Input & other)
+{
+    sum_of_functions::Input::operator=(other);
+    return *this;
+}
 
 /**
  * Sets one input object for Mean squared error objective function
