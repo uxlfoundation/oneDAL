@@ -98,14 +98,14 @@ private:
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
-template <typename Type, typename Size, engine_method EngineType>
-void uniform(Size count, Type* dst, host_engine<EngineType>& host_engine, Type a, Type b) {
+template <typename Type, engine_method EngineType>
+void uniform(std::int64_t count, Type* dst, host_engine<EngineType>& host_engine, Type a, Type b) {
     auto state = host_engine.get_host_engine_state();
     uniform_dispatcher::uniform_by_cpu<Type>(count, dst, state, a, b);
 }
 
-template <typename Type, typename Size, engine_method EngineType>
-void uniform_without_replacement(Size count,
+template <typename Type, engine_method EngineType>
+void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
                                  host_engine<EngineType> host_engine,
@@ -116,14 +116,13 @@ void uniform_without_replacement(Size count,
 }
 
 template <typename Type,
-          typename Size,
           engine_method EngineType,
           typename T = Type,
           typename = std::enable_if_t<std::is_integral_v<T>>>
-void shuffle(Size count, Type* dst, host_engine<EngineType> host_engine) {
+void shuffle(std::int64_t count, Type* dst, host_engine<EngineType> host_engine) {
     auto state = host_engine.get_host_engine_state();
     Type idx[2];
-    for (Size i = 0; i < count; ++i) {
+    for (std::int64_t i = 0; i < count; ++i) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }

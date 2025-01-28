@@ -157,8 +157,8 @@ private:
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
-template <typename Type, typename Size, engine_method EngineType>
-void uniform(Size count, Type* dst, dpc_engine<EngineType>& engine_, Type a, Type b) {
+template <typename Type, engine_method EngineType>
+void uniform(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_, Type a, Type b) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
         sycl::usm::alloc::device) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
@@ -168,8 +168,8 @@ void uniform(Size count, Type* dst, dpc_engine<EngineType>& engine_, Type a, Typ
     engine_.skip_ahead_gpu(count);
 }
 
-template <typename Type, typename Size, engine_method EngineType>
-void uniform_without_replacement(Size count,
+template <typename Type, engine_method EngineType>
+void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
                                  dpc_engine<EngineType>& engine_,
@@ -185,36 +185,35 @@ void uniform_without_replacement(Size count,
 }
 
 template <typename Type,
-          typename Size,
           engine_method EngineType,
           typename T = Type,
           typename = std::enable_if_t<std::is_integral_v<T>>>
-void shuffle(Size count, Type* dst, dpc_engine<EngineType>& engine_) {
+void shuffle(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
         sycl::usm::alloc::device) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     Type idx[2];
     void* state = engine_.get_host_engine_state();
-    for (Size i = 0; i < count; ++i) {
+    for (std::int64_t i = 0; i < count; ++i) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
     engine_.skip_ahead_gpu(count);
 }
 
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void uniform(sycl::queue& queue,
-             Size count,
+             std::int64_t count,
              Type* dst,
              dpc_engine<EngineType>& engine_,
              Type a,
              Type b,
              const event_vector& deps = {});
 
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void uniform_without_replacement(sycl::queue& queue,
-                                 Size count,
+                                 std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
                                  dpc_engine<EngineType>& engine_,
@@ -222,9 +221,9 @@ void uniform_without_replacement(sycl::queue& queue,
                                  Type b,
                                  const event_vector& deps = {});
 
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void shuffle(sycl::queue& queue,
-             Size count,
+             std::int64_t count,
              Type* dst,
              dpc_engine<EngineType>& engine_,
              const event_vector& deps = {});

@@ -23,9 +23,9 @@ namespace oneapi::dal::backend::primitives {
 
 namespace bk = oneapi::dal::backend;
 
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void uniform(sycl::queue& queue,
-             Size count,
+             std::int64_t count,
              Type* dst,
              dpc_engine<EngineType>& engine_,
              Type a,
@@ -41,9 +41,9 @@ void uniform(sycl::queue& queue,
 }
 
 //Currently only CPU impl
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void uniform_without_replacement(sycl::queue& queue,
-                                 Size count,
+                                 std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
                                  dpc_engine<EngineType>& engine_,
@@ -60,9 +60,9 @@ void uniform_without_replacement(sycl::queue& queue,
 }
 
 //Currently only CPU impl
-template <typename Type, typename Size, engine_method EngineType>
+template <typename Type, engine_method EngineType>
 void shuffle(sycl::queue& queue,
-             Size count,
+             std::int64_t count,
              Type* dst,
              dpc_engine<EngineType>& engine_,
              const event_vector& deps) {
@@ -74,44 +74,40 @@ void shuffle(sycl::queue& queue,
     void* state = engine_.get_host_engine_state();
     engine_.skip_ahead_gpu(count);
 
-    for (Size i = 0; i < count; ++i) {
+    for (std::int64_t i = 0; i < count; ++i) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
 }
 
-#define INSTANTIATE_UNIFORM(F, Size, EngineType)                         \
+#define INSTANTIATE_UNIFORM(F, EngineType)                               \
     template ONEDAL_EXPORT void uniform(sycl::queue& queue,              \
-                                        Size count_,                     \
+                                        std::int64_t count_,             \
                                         F* dst,                          \
                                         dpc_engine<EngineType>& engine_, \
                                         F a,                             \
                                         F b,                             \
                                         const event_vector& deps);
 
-#define INSTANTIATE_UNIFORM_FLOAT(Size)                                   \
-    INSTANTIATE_UNIFORM(float, Size, engine_method::mt2203)               \
-    INSTANTIATE_UNIFORM(float, Size, engine_method::mcg59)                \
-    INSTANTIATE_UNIFORM(float, Size, engine_method::mrg32k3a)             \
-    INSTANTIATE_UNIFORM(float, Size, engine_method::philox4x32x10)        \
-    INSTANTIATE_UNIFORM(float, Size, engine_method::mt19937)              \
-    INSTANTIATE_UNIFORM(double, Size, engine_method::mt2203)              \
-    INSTANTIATE_UNIFORM(double, Size, engine_method::mcg59)               \
-    INSTANTIATE_UNIFORM(double, Size, engine_method::mrg32k3a)            \
-    INSTANTIATE_UNIFORM(double, Size, engine_method::philox4x32x10)       \
-    INSTANTIATE_UNIFORM(double, Size, engine_method::mt19937)             \
-    INSTANTIATE_UNIFORM(std::int32_t, Size, engine_method::mt2203)        \
-    INSTANTIATE_UNIFORM(std::int32_t, Size, engine_method::mcg59)         \
-    INSTANTIATE_UNIFORM(std::int32_t, Size, engine_method::mrg32k3a)      \
-    INSTANTIATE_UNIFORM(std::int32_t, Size, engine_method::philox4x32x10) \
-    INSTANTIATE_UNIFORM(std::int32_t, Size, engine_method::mt19937)
+INSTANTIATE_UNIFORM(float, engine_method::mt2203)
+INSTANTIATE_UNIFORM(float, engine_method::mcg59)
+INSTANTIATE_UNIFORM(float, engine_method::mrg32k3a)
+INSTANTIATE_UNIFORM(float, engine_method::philox4x32x10)
+INSTANTIATE_UNIFORM(float, engine_method::mt19937)
+INSTANTIATE_UNIFORM(double, engine_method::mt2203)
+INSTANTIATE_UNIFORM(double, engine_method::mcg59)
+INSTANTIATE_UNIFORM(double, engine_method::mrg32k3a)
+INSTANTIATE_UNIFORM(double, engine_method::philox4x32x10)
+INSTANTIATE_UNIFORM(double, engine_method::mt19937)
+INSTANTIATE_UNIFORM(std::int32_t, engine_method::mt2203)
+INSTANTIATE_UNIFORM(std::int32_t, engine_method::mcg59)
+INSTANTIATE_UNIFORM(std::int32_t, engine_method::mrg32k3a)
+INSTANTIATE_UNIFORM(std::int32_t, engine_method::philox4x32x10)
+INSTANTIATE_UNIFORM(std::int32_t, engine_method::mt19937)
 
-INSTANTIATE_UNIFORM_FLOAT(std::int64_t);
-INSTANTIATE_UNIFORM_FLOAT(std::int32_t);
-
-#define INSTANTIATE_UWR(F, Size, EngineType)                                                 \
+#define INSTANTIATE_UWR(F, EngineType)                                                       \
     template ONEDAL_EXPORT void uniform_without_replacement(sycl::queue& queue,              \
-                                                            Size count_,                     \
+                                                            std::int64_t count_,             \
                                                             F* dst,                          \
                                                             F* buff,                         \
                                                             dpc_engine<EngineType>& engine_, \
@@ -119,41 +115,33 @@ INSTANTIATE_UNIFORM_FLOAT(std::int32_t);
                                                             F b,                             \
                                                             const event_vector& deps);
 
-#define INSTANTIATE_UWR_FLOAT(Size)                                   \
-    INSTANTIATE_UWR(float, Size, engine_method::mt2203)               \
-    INSTANTIATE_UWR(float, Size, engine_method::mcg59)                \
-    INSTANTIATE_UWR(float, Size, engine_method::mrg32k3a)             \
-    INSTANTIATE_UWR(float, Size, engine_method::philox4x32x10)        \
-    INSTANTIATE_UWR(float, Size, engine_method::mt19937)              \
-    INSTANTIATE_UWR(double, Size, engine_method::mt2203)              \
-    INSTANTIATE_UWR(double, Size, engine_method::mcg59)               \
-    INSTANTIATE_UWR(double, Size, engine_method::mrg32k3a)            \
-    INSTANTIATE_UWR(double, Size, engine_method::philox4x32x10)       \
-    INSTANTIATE_UWR(double, Size, engine_method::mt19937)             \
-    INSTANTIATE_UWR(std::int32_t, Size, engine_method::mt2203)        \
-    INSTANTIATE_UWR(std::int32_t, Size, engine_method::mcg59)         \
-    INSTANTIATE_UWR(std::int32_t, Size, engine_method::mrg32k3a)      \
-    INSTANTIATE_UWR(std::int32_t, Size, engine_method::philox4x32x10) \
-    INSTANTIATE_UWR(std::int32_t, Size, engine_method::mt19937)
+INSTANTIATE_UWR(float, engine_method::mt2203)
+INSTANTIATE_UWR(float, engine_method::mcg59)
+INSTANTIATE_UWR(float, engine_method::mrg32k3a)
+INSTANTIATE_UWR(float, engine_method::philox4x32x10)
+INSTANTIATE_UWR(float, engine_method::mt19937)
+INSTANTIATE_UWR(double, engine_method::mt2203)
+INSTANTIATE_UWR(double, engine_method::mcg59)
+INSTANTIATE_UWR(double, engine_method::mrg32k3a)
+INSTANTIATE_UWR(double, engine_method::philox4x32x10)
+INSTANTIATE_UWR(double, engine_method::mt19937)
+INSTANTIATE_UWR(std::int32_t, engine_method::mt2203)
+INSTANTIATE_UWR(std::int32_t, engine_method::mcg59)
+INSTANTIATE_UWR(std::int32_t, engine_method::mrg32k3a)
+INSTANTIATE_UWR(std::int32_t, engine_method::philox4x32x10)
+INSTANTIATE_UWR(std::int32_t, engine_method::mt19937)
 
-INSTANTIATE_UWR_FLOAT(std::int64_t);
-INSTANTIATE_UWR_FLOAT(std::int32_t);
-
-#define INSTANTIATE_SHUFFLE(F, Size, EngineType)                         \
+#define INSTANTIATE_SHUFFLE(F, EngineType)                               \
     template ONEDAL_EXPORT void shuffle(sycl::queue& queue,              \
-                                        Size count_,                     \
+                                        std::int64_t count_,             \
                                         F* dst,                          \
                                         dpc_engine<EngineType>& engine_, \
                                         const event_vector& deps);
 
-#define INSTANTIATE_SHUFFLE_FLOAT(Size)                                   \
-    INSTANTIATE_SHUFFLE(std::int32_t, Size, engine_method::mt2203)        \
-    INSTANTIATE_SHUFFLE(std::int32_t, Size, engine_method::mcg59)         \
-    INSTANTIATE_SHUFFLE(std::int32_t, Size, engine_method::mrg32k3a)      \
-    INSTANTIATE_SHUFFLE(std::int32_t, Size, engine_method::philox4x32x10) \
-    INSTANTIATE_SHUFFLE(std::int32_t, Size, engine_method::mt19937)
-
-INSTANTIATE_SHUFFLE_FLOAT(std::int64_t);
-INSTANTIATE_SHUFFLE_FLOAT(std::int32_t);
+INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mt2203)
+INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mcg59)
+INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mrg32k3a)
+INSTANTIATE_SHUFFLE(std::int32_t, engine_method::philox4x32x10)
+INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mt19937)
 
 } // namespace oneapi::dal::backend::primitives

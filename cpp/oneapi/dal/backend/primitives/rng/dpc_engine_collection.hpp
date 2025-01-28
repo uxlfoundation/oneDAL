@@ -28,15 +28,15 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-template <typename Size = std::int64_t, engine_method EngineType = engine_method::mt2203>
+template <engine_method EngineType = engine_method::mt2203>
 class engine_collection_oneapi {
 public:
-    engine_collection_oneapi(sycl::queue& queue, Size count, std::int64_t seed = 777)
+    engine_collection_oneapi(sycl::queue& queue, std::int64_t count, std::int64_t seed = 777)
             : count_(count),
-              seed_(seed) {
+              base_seed_(seed) {
         engines_.reserve(count_);
-        for (Size i = 0; i < count_; ++i) {
-            engines_.push_back(dpc_engine<EngineType>(queue, seed_ + i));
+        for (std::int64_t i = 0; i < count_; ++i) {
+            engines_.push_back(dpc_engine<EngineType>(queue, base_seed_ + i));
         }
     }
 
@@ -45,8 +45,8 @@ public:
     }
 
 private:
-    Size count_;
-    std::int64_t seed_;
+    std::int64_t count_;
+    std::int64_t base_seed_;
     std::vector<dpc_engine<EngineType>> engines_;
 };
 

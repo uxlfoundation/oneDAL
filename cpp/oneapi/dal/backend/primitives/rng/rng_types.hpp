@@ -18,6 +18,17 @@
 
 namespace oneapi::dal::backend::primitives {
 
+/// Enum class representing different random number generation (RNG) engine methods.
+///
+/// This enumeration defines the available RNG engines supported by the library.
+/// Each engine method corresponds to a specific algorithm for generating random numbers
+/// @enum engine_method
+/// Enumeration of RNG engine methods:
+/// - `mt2203`: Mersenne Twister engine with specific optimizations for parallel environments.
+/// - `mcg59`: Multiplicative congruential generator with a modulus of \(2^{59}\).
+/// - `mt19937`: Standard Mersenne Twister engine with a period of \(2^{19937} - 1\).
+/// - `mrg32k3a`: Combined multiple recursive generator with a period of \(2^{191}\).
+/// - `philox4x32x10`: Counter-based RNG engine optimized for parallel computations.
 enum class engine_method { mt2203, mcg59, mt19937, mrg32k3a, philox4x32x10 };
 
-}
+} // namespace oneapi::dal::backend::primitives
