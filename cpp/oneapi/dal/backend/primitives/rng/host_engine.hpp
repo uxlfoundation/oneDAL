@@ -38,11 +38,10 @@ namespace oneapi::dal::backend::primitives {
 /// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
 ///
 /// @note The class only supports host-based RNG and does not require a SYCL queue or device context.
-template <engine_method EngineType = engine_method::mt2203>
 class host_engine {
 public:
-    explicit host_engine(std::int64_t seed = 777)
-            : host_engine_(initialize_host_engine(seed)),
+    explicit host_engine(std::int64_t seed = 777, engine_method method = engine_method::mt2203)
+            : host_engine_(initialize_host_engine(seed, method)),
               impl_(dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(
                   host_engine_.get())) {
         if (!impl_) {
@@ -73,13 +72,10 @@ public:
         return impl_->getState();
     }
 
-    auto& get_host_engine() {
-        return host_engine_;
-    }
-
 private:
-    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed) {
-        switch (EngineType) {
+    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
+                                                                engine_method method) {
+        switch (method) {
             case engine_method::mt2203:
                 return daal::algorithms::engines::mt2203::Batch<>::create(seed);
             case engine_method::mcg59:
@@ -90,7 +86,7 @@ private:
                 return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
             case engine_method::mt19937:
                 return daal::algorithms::engines::mt19937::Batch<>::create(seed);
-            default: throw std::invalid_argument("Unsupported engine type");
+            default: throw std::invalid_argument("Unsupported engine type 0");
         }
     }
 
@@ -98,28 +94,25 @@ private:
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
-template <typename Type, engine_method EngineType>
-void uniform(std::int64_t count, Type* dst, host_engine<EngineType>& host_engine, Type a, Type b) {
+template <typename Type>
+void uniform(std::int64_t count, Type* dst, host_engine& host_engine, Type a, Type b) {
     auto state = host_engine.get_host_engine_state();
     uniform_dispatcher::uniform_by_cpu<Type>(count, dst, state, a, b);
 }
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
-                                 host_engine<EngineType> host_engine,
+                                 host_engine host_engine,
                                  Type a,
                                  Type b) {
     auto state = host_engine.get_host_engine_state();
     uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
 }
 
-template <typename Type,
-          engine_method EngineType,
-          typename T = Type,
-          typename = std::enable_if_t<std::is_integral_v<T>>>
-void shuffle(std::int64_t count, Type* dst, host_engine<EngineType> host_engine) {
+template <typename Type, typename T = Type, typename = std::enable_if_t<std::is_integral_v<T>>>
+void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
     auto state = host_engine.get_host_engine_state();
     Type idx[2];
     for (std::int64_t i = 0; i < count; ++i) {

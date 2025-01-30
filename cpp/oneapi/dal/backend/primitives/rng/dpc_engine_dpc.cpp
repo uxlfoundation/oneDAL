@@ -23,11 +23,11 @@ namespace oneapi::dal::backend::primitives {
 
 namespace bk = oneapi::dal::backend;
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform(sycl::queue& queue,
              std::int64_t count,
              Type* dst,
-             dpc_engine<EngineType>& engine_,
+             dpc_engine& engine_,
              Type a,
              Type b,
              const event_vector& deps) {
@@ -35,18 +35,66 @@ void uniform(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     oneapi::mkl::rng::uniform<Type> distr(a, b);
-    auto event = oneapi::mkl::rng::generate(distr, engine_.get_gpu_engine(), count, dst, { deps });
+    sycl::event event;
+    switch (engine_.get_gpu_engine()->get_engine_method()) {
+        case engine_method::mt2203: {
+            Helper<engine_method::mt2203> helper;
+            event = oneapi::mkl::rng::generate(distr,
+                                               *(helper.getter(engine_.get_gpu_engine().get())),
+                                               count,
+                                               dst,
+                                               { deps });
+            break;
+        }
+        case engine_method::mcg59: {
+            Helper<engine_method::mcg59> helper;
+            event = oneapi::mkl::rng::generate(distr,
+                                               *(helper.getter(engine_.get_gpu_engine().get())),
+                                               count,
+                                               dst,
+                                               { deps });
+            break;
+        }
+        case engine_method::mrg32k3a: {
+            Helper<engine_method::mrg32k3a> helper;
+            event = oneapi::mkl::rng::generate(distr,
+                                               *(helper.getter(engine_.get_gpu_engine().get())),
+                                               count,
+                                               dst,
+                                               { deps });
+            break;
+        }
+        case engine_method::philox4x32x10: {
+            Helper<engine_method::philox4x32x10> helper;
+            event = oneapi::mkl::rng::generate(distr,
+                                               *(helper.getter(engine_.get_gpu_engine().get())),
+                                               count,
+                                               dst,
+                                               { deps });
+            break;
+        }
+        case engine_method::mt19937: {
+            Helper<engine_method::mt19937> helper;
+            event = oneapi::mkl::rng::generate(distr,
+                                               *(helper.getter(engine_.get_gpu_engine().get())),
+                                               count,
+                                               dst,
+                                               { deps });
+            break;
+        }
+        default: throw std::invalid_argument("Unsupported engine type 3");
+    }
     event.wait_and_throw();
     engine_.skip_ahead_cpu(count);
 }
 
 //Currently only CPU impl
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform_without_replacement(sycl::queue& queue,
                                  std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
-                                 dpc_engine<EngineType>& engine_,
+                                 dpc_engine& engine_,
                                  Type a,
                                  Type b,
                                  const event_vector& deps) {
@@ -60,11 +108,11 @@ void uniform_without_replacement(sycl::queue& queue,
 }
 
 //Currently only CPU impl
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void shuffle(sycl::queue& queue,
              std::int64_t count,
              Type* dst,
-             dpc_engine<EngineType>& engine_,
+             dpc_engine& engine_,
              const event_vector& deps) {
     Type idx[2];
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
@@ -80,68 +128,40 @@ void shuffle(sycl::queue& queue,
     }
 }
 
-#define INSTANTIATE_UNIFORM(F, EngineType)                               \
-    template ONEDAL_EXPORT void uniform(sycl::queue& queue,              \
-                                        std::int64_t count_,             \
-                                        F* dst,                          \
-                                        dpc_engine<EngineType>& engine_, \
-                                        F a,                             \
-                                        F b,                             \
+#define INSTANTIATE_UNIFORM(F)                               \
+    template ONEDAL_EXPORT void uniform(sycl::queue& queue,  \
+                                        std::int64_t count_, \
+                                        F* dst,              \
+                                        dpc_engine& engine_, \
+                                        F a,                 \
+                                        F b,                 \
                                         const event_vector& deps);
 
-INSTANTIATE_UNIFORM(float, engine_method::mt2203)
-INSTANTIATE_UNIFORM(float, engine_method::mcg59)
-INSTANTIATE_UNIFORM(float, engine_method::mrg32k3a)
-INSTANTIATE_UNIFORM(float, engine_method::philox4x32x10)
-INSTANTIATE_UNIFORM(float, engine_method::mt19937)
-INSTANTIATE_UNIFORM(double, engine_method::mt2203)
-INSTANTIATE_UNIFORM(double, engine_method::mcg59)
-INSTANTIATE_UNIFORM(double, engine_method::mrg32k3a)
-INSTANTIATE_UNIFORM(double, engine_method::philox4x32x10)
-INSTANTIATE_UNIFORM(double, engine_method::mt19937)
-INSTANTIATE_UNIFORM(std::int32_t, engine_method::mt2203)
-INSTANTIATE_UNIFORM(std::int32_t, engine_method::mcg59)
-INSTANTIATE_UNIFORM(std::int32_t, engine_method::mrg32k3a)
-INSTANTIATE_UNIFORM(std::int32_t, engine_method::philox4x32x10)
-INSTANTIATE_UNIFORM(std::int32_t, engine_method::mt19937)
+INSTANTIATE_UNIFORM(float)
+INSTANTIATE_UNIFORM(double)
+INSTANTIATE_UNIFORM(std::int32_t)
 
-#define INSTANTIATE_UWR(F, EngineType)                                                       \
-    template ONEDAL_EXPORT void uniform_without_replacement(sycl::queue& queue,              \
-                                                            std::int64_t count_,             \
-                                                            F* dst,                          \
-                                                            F* buff,                         \
-                                                            dpc_engine<EngineType>& engine_, \
-                                                            F a,                             \
-                                                            F b,                             \
+#define INSTANTIATE_UWR(F)                                                       \
+    template ONEDAL_EXPORT void uniform_without_replacement(sycl::queue& queue,  \
+                                                            std::int64_t count_, \
+                                                            F* dst,              \
+                                                            F* buff,             \
+                                                            dpc_engine& engine_, \
+                                                            F a,                 \
+                                                            F b,                 \
                                                             const event_vector& deps);
 
-INSTANTIATE_UWR(float, engine_method::mt2203)
-INSTANTIATE_UWR(float, engine_method::mcg59)
-INSTANTIATE_UWR(float, engine_method::mrg32k3a)
-INSTANTIATE_UWR(float, engine_method::philox4x32x10)
-INSTANTIATE_UWR(float, engine_method::mt19937)
-INSTANTIATE_UWR(double, engine_method::mt2203)
-INSTANTIATE_UWR(double, engine_method::mcg59)
-INSTANTIATE_UWR(double, engine_method::mrg32k3a)
-INSTANTIATE_UWR(double, engine_method::philox4x32x10)
-INSTANTIATE_UWR(double, engine_method::mt19937)
-INSTANTIATE_UWR(std::int32_t, engine_method::mt2203)
-INSTANTIATE_UWR(std::int32_t, engine_method::mcg59)
-INSTANTIATE_UWR(std::int32_t, engine_method::mrg32k3a)
-INSTANTIATE_UWR(std::int32_t, engine_method::philox4x32x10)
-INSTANTIATE_UWR(std::int32_t, engine_method::mt19937)
+INSTANTIATE_UWR(float)
+INSTANTIATE_UWR(double)
+INSTANTIATE_UWR(std::int32_t)
 
-#define INSTANTIATE_SHUFFLE(F, EngineType)                               \
-    template ONEDAL_EXPORT void shuffle(sycl::queue& queue,              \
-                                        std::int64_t count_,             \
-                                        F* dst,                          \
-                                        dpc_engine<EngineType>& engine_, \
+#define INSTANTIATE_SHUFFLE(F)                               \
+    template ONEDAL_EXPORT void shuffle(sycl::queue& queue,  \
+                                        std::int64_t count_, \
+                                        F* dst,              \
+                                        dpc_engine& engine_, \
                                         const event_vector& deps);
 
-INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mt2203)
-INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mcg59)
-INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mrg32k3a)
-INSTANTIATE_SHUFFLE(std::int32_t, engine_method::philox4x32x10)
-INSTANTIATE_SHUFFLE(std::int32_t, engine_method::mt19937)
+INSTANTIATE_SHUFFLE(std::int32_t)
 
 } // namespace oneapi::dal::backend::primitives

@@ -32,32 +32,190 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-template <engine_method EngineType>
-struct dpc_engine_type;
+class gen_base {
+public:
+    virtual ~gen_base() = default;
+    virtual engine_method get_engine_method() const = 0;
+    virtual void skip_ahead_gpu(std::int64_t nSkip) = 0;
+};
+
+class gen_mt2203 : public gen_base {
+public:
+    explicit gen_mt2203() = delete;
+    gen_mt2203(sycl::queue queue, std::int64_t seed) : _gen(queue, seed, 0) {}
+
+    engine_method get_engine_method() const override {
+        return engine_method::mt2203;
+    }
+    void skip_ahead_gpu(std::int64_t nSkip) override {
+        //skip;
+    }
+    oneapi::mkl::rng::mt2203* get() {
+        return &_gen;
+    }
+
+protected:
+    oneapi::mkl::rng::mt2203 _gen;
+};
+
+class gen_philox : public gen_base {
+public:
+    explicit gen_philox() = delete;
+    gen_philox(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+    engine_method get_engine_method() const override {
+        return engine_method::philox4x32x10;
+    }
+    void skip_ahead_gpu(std::int64_t nSkip) override {
+        skip_ahead(_gen, nSkip);
+    }
+    oneapi::mkl::rng::philox4x32x10* get() {
+        return &_gen;
+    }
+
+protected:
+    oneapi::mkl::rng::philox4x32x10 _gen;
+};
+
+class gen_mrg32k : public gen_base {
+public:
+    explicit gen_mrg32k() = delete;
+    gen_mrg32k(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+    engine_method get_engine_method() const override {
+        return engine_method::mrg32k3a;
+    }
+    void skip_ahead_gpu(std::int64_t nSkip) override {
+        skip_ahead(_gen, nSkip);
+    }
+    oneapi::mkl::rng::mrg32k3a* get() {
+        return &_gen;
+    }
+
+protected:
+    oneapi::mkl::rng::mrg32k3a _gen;
+};
+
+class gen_mt19937 : public gen_base {
+public:
+    explicit gen_mt19937() = delete;
+    gen_mt19937(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+    engine_method get_engine_method() const override {
+        return engine_method::mt19937;
+    }
+    void skip_ahead_gpu(std::int64_t nSkip) override {
+        skip_ahead(_gen, nSkip);
+    }
+    oneapi::mkl::rng::mt19937* get() {
+        return &_gen;
+    }
+
+protected:
+    oneapi::mkl::rng::mt19937 _gen;
+};
+
+class gen_mcg59 : public gen_base {
+public:
+    explicit gen_mcg59() = delete;
+    gen_mcg59(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
+    engine_method get_engine_method() const override {
+        return engine_method::mcg59;
+    }
+    void skip_ahead_gpu(std::int64_t nSkip) override {
+        skip_ahead(_gen, nSkip);
+    }
+    oneapi::mkl::rng::mcg59* get() {
+        return &_gen;
+    }
+
+protected:
+    oneapi::mkl::rng::mcg59 _gen;
+};
+
+template <engine_method>
+class id_to_mkl_engine {};
 
 template <>
-struct dpc_engine_type<engine_method::mt2203> {
-    using type = oneapi::mkl::rng::mt2203;
+class id_to_mkl_engine<engine_method::mt2203> {
+public:
+    using engine_type = oneapi::mkl::rng::mt2203;
 };
 
 template <>
-struct dpc_engine_type<engine_method::mcg59> {
-    using type = oneapi::mkl::rng::mcg59;
+class id_to_mkl_engine<engine_method::philox4x32x10> {
+public:
+    using engine_type = oneapi::mkl::rng::philox4x32x10;
 };
 
 template <>
-struct dpc_engine_type<engine_method::mt19937> {
-    using type = oneapi::mkl::rng::mt19937;
+class id_to_mkl_engine<engine_method::mcg59> {
+public:
+    using engine_type = oneapi::mkl::rng::mcg59;
 };
 
 template <>
-struct dpc_engine_type<engine_method::mrg32k3a> {
-    using type = oneapi::mkl::rng::mrg32k3a;
+class id_to_mkl_engine<engine_method::mt19937> {
+public:
+    using engine_type = oneapi::mkl::rng::mt19937;
 };
 
 template <>
-struct dpc_engine_type<engine_method::philox4x32x10> {
-    using type = oneapi::mkl::rng::philox4x32x10;
+class id_to_mkl_engine<engine_method::mrg32k3a> {
+public:
+    using engine_type = oneapi::mkl::rng::mrg32k3a;
+};
+
+/// Helper classes that convert DAL base genetator to MKL generator
+
+template <engine_method>
+class Helper {};
+
+template <>
+class Helper<engine_method::mt2203> {
+    using mkl_engine = id_to_mkl_engine<engine_method::mt2203>::engine_type;
+
+public:
+    mkl_engine* getter(gen_base* gen) {
+        return (dynamic_cast<gen_mt2203*>(gen))->get();
+    }
+};
+
+template <>
+class Helper<engine_method::mt19937> {
+    using mkl_engine = id_to_mkl_engine<engine_method::mt19937>::engine_type;
+
+public:
+    mkl_engine* getter(gen_base* gen) {
+        return (dynamic_cast<gen_mt19937*>(gen))->get();
+    }
+};
+
+template <>
+class Helper<engine_method::mcg59> {
+    using mkl_engine = id_to_mkl_engine<engine_method::mcg59>::engine_type;
+
+public:
+    mkl_engine* getter(gen_base* gen) {
+        return (dynamic_cast<gen_mcg59*>(gen))->get();
+    }
+};
+
+template <>
+class Helper<engine_method::mrg32k3a> {
+    using mkl_engine = id_to_mkl_engine<engine_method::mrg32k3a>::engine_type;
+
+public:
+    mkl_engine* getter(gen_base* gen) {
+        return (dynamic_cast<gen_mrg32k*>(gen))->get();
+    }
+};
+
+template <>
+class Helper<engine_method::philox4x32x10> {
+    using mkl_engine = id_to_mkl_engine<engine_method::philox4x32x10>::engine_type;
+
+public:
+    mkl_engine* getter(gen_base* gen) {
+        return (dynamic_cast<gen_philox*>(gen))->get();
+    }
 };
 
 /// A class that provides a unified interface for random number generation on both CPU and GPU devices.
@@ -72,19 +230,18 @@ struct dpc_engine_type<engine_method::philox4x32x10> {
 /// The class provides functionality to skip ahead in the RNG sequence, retrieve engine states, and
 /// manage host and device engines independently. Support for `skip_ahead` on GPU is currently limited for
 /// some engine types.
-template <engine_method EngineType = engine_method::mt2203>
 class dpc_engine {
 public:
-    using dpc_engine_t = typename dpc_engine_type<EngineType>::type;
-
     /// @param[in] queue The SYCL queue used to manage device operations.
     /// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
-    explicit dpc_engine(sycl::queue& queue, std::int64_t seed = 777)
+    explicit dpc_engine(sycl::queue& queue,
+                        std::int64_t seed = 777,
+                        engine_method method = engine_method::mt2203)
             : q(queue),
-              host_engine_(initialize_host_engine(seed)),
-              dpc_engine_(initialize_dpc_engine(queue, seed)),
+              host_engine_(initialize_host_engine(seed, method)),
               impl_(dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(
                   host_engine_.get())) {
+        initialize_dpc_engine(queue, seed, method);
         if (!impl_) {
             throw std::domain_error("RNG engine is not supported");
         }
@@ -98,12 +255,8 @@ public:
         return impl_->getState();
     }
 
-    auto& get_cpu_engine() {
-        return host_engine_;
-    }
-
-    auto& get_gpu_engine() {
-        return dpc_engine_;
+    auto get_gpu_engine() {
+        return engine_;
     }
 
     void skip_ahead_cpu(size_t nSkip) {
@@ -111,12 +264,7 @@ public:
     }
 
     void skip_ahead_gpu(size_t nSkip) {
-        // Will be supported in the next oneMKL release.
-        if constexpr (EngineType == engine_method::mt2203) {
-        }
-        else {
-            skip_ahead(dpc_engine_, nSkip);
-        }
+        engine_->skip_ahead_gpu(nSkip);
     }
 
     sycl::queue& get_queue() {
@@ -124,8 +272,9 @@ public:
     }
 
 private:
-    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed) {
-        switch (EngineType) {
+    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
+                                                                engine_method method) {
+        switch (method) {
             case engine_method::mt2203:
                 return daal::algorithms::engines::mt2203::Batch<>::create(seed);
             case engine_method::mcg59:
@@ -136,29 +285,34 @@ private:
                 return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
             case engine_method::mt19937:
                 return daal::algorithms::engines::mt19937::Batch<>::create(seed);
-            default: throw std::invalid_argument("Unsupported engine type");
+            default: throw std::invalid_argument("Unsupported engine type 2");
         }
     }
 
-    dpc_engine_t initialize_dpc_engine(sycl::queue& queue, std::int64_t seed) {
-        if constexpr (EngineType == engine_method::mt2203) {
-            return dpc_engine_t(
-                queue,
-                seed,
-                0); // Aligns CPU and GPU results for mt2203, impacts the performance.
-        }
-        else {
-            return dpc_engine_t(queue, seed);
+    void initialize_dpc_engine(sycl::queue& queue, std::int64_t seed, engine_method method) {
+        switch (method) {
+            case engine_method::mt2203: engine_ = std::make_shared<gen_mt2203>(queue, seed); break;
+            case engine_method::mcg59: engine_ = std::make_shared<gen_mcg59>(queue, seed); break;
+            case engine_method::mrg32k3a:
+                engine_ = std::make_shared<gen_mrg32k>(queue, seed);
+                break;
+            case engine_method::philox4x32x10:
+                engine_ = std::make_shared<gen_philox>(queue, seed);
+                break;
+            case engine_method::mt19937:
+                engine_ = std::make_shared<gen_mt19937>(queue, seed);
+                break;
+            default: throw std::invalid_argument("Unsupported engine type 1");
         }
     }
     sycl::queue q;
     daal::algorithms::engines::EnginePtr host_engine_;
-    dpc_engine_t dpc_engine_;
+    std::shared_ptr<gen_base> engine_;
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
-template <typename Type, engine_method EngineType>
-void uniform(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_, Type a, Type b) {
+template <typename Type>
+void uniform(std::int64_t count, Type* dst, dpc_engine& engine_, Type a, Type b) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
         sycl::usm::alloc::device) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
@@ -168,11 +322,11 @@ void uniform(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_, Typ
     engine_.skip_ahead_gpu(count);
 }
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
-                                 dpc_engine<EngineType>& engine_,
+                                 dpc_engine& engine_,
                                  Type a,
                                  Type b) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
@@ -184,11 +338,8 @@ void uniform_without_replacement(std::int64_t count,
     engine_.skip_ahead_gpu(count);
 }
 
-template <typename Type,
-          engine_method EngineType,
-          typename T = Type,
-          typename = std::enable_if_t<std::is_integral_v<T>>>
-void shuffle(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_) {
+template <typename Type, typename T = Type, typename = std::enable_if_t<std::is_integral_v<T>>>
+void shuffle(std::int64_t count, Type* dst, dpc_engine& engine_) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
         sycl::usm::alloc::device) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
@@ -202,30 +353,30 @@ void shuffle(std::int64_t count, Type* dst, dpc_engine<EngineType>& engine_) {
     engine_.skip_ahead_gpu(count);
 }
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform(sycl::queue& queue,
              std::int64_t count,
              Type* dst,
-             dpc_engine<EngineType>& engine_,
+             dpc_engine& engine_,
              Type a,
              Type b,
              const event_vector& deps = {});
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void uniform_without_replacement(sycl::queue& queue,
                                  std::int64_t count,
                                  Type* dst,
                                  Type* buffer,
-                                 dpc_engine<EngineType>& engine_,
+                                 dpc_engine& engine_,
                                  Type a,
                                  Type b,
                                  const event_vector& deps = {});
 
-template <typename Type, engine_method EngineType>
+template <typename Type>
 void shuffle(sycl::queue& queue,
              std::int64_t count,
              Type* dst,
-             dpc_engine<EngineType>& engine_,
+             dpc_engine& engine_,
              const event_vector& deps = {});
 
 #endif

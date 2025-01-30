@@ -123,7 +123,7 @@ struct louvain_data {
     // Total link weight in the network
     value_type m;
 
-    host_engine<engine_method::mt2203> eng;
+    host_engine eng;
 
     const std::int64_t vertex_count;
     const std::int64_t edge_count;

@@ -22,18 +22,19 @@
 
 namespace oneapi::dal::backend::primitives {
 
-template <engine_method EngineType = engine_method::mt2203>
 class engine_collection {
 public:
-    explicit engine_collection(std::int64_t count, std::int64_t seed = 777)
+    explicit engine_collection(std::int64_t count,
+                               std::int64_t seed = 777,
+                               engine_method method = engine_method::mt2203)
             : count_(count),
-              engine_(initialize_host_engine(seed)),
+              engine_(initialize_host_engine(seed, method)),
               params_(count),
               technique_(daal::algorithms::engines::internal::family),
               daal_engine_list_(count) {}
 
     template <typename Op>
-    std::vector<host_engine<EngineType>> operator()(Op&& op) {
+    std::vector<host_engine> operator()(Op&& op) {
         daal::services::Status status;
         for (std::int64_t i = 0; i < count_; ++i) {
             op(i, params_.nSkip[i]);
@@ -49,7 +50,7 @@ public:
             dal::backend::interop::status_to_exception(status);
         }
 
-        std::vector<host_engine<EngineType>> engine_list(count_);
+        std::vector<host_engine> engine_list(count_);
         for (std::int64_t i = 0; i < count_; ++i) {
             engine_list[i] = daal_engine_list_[i];
         }
@@ -59,8 +60,9 @@ public:
     }
 
 private:
-    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed) {
-        switch (EngineType) {
+    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
+                                                                engine_method method) {
+        switch (method) {
             case engine_method::mt2203:
                 return daal::algorithms::engines::mt2203::Batch<>::create(seed);
             case engine_method::mcg59:

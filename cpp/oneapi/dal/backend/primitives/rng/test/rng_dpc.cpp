@@ -76,12 +76,12 @@ public:
     static constexpr auto engine_test_type = engine_v<EngineType>;
 
     auto get_host_engine(std::int64_t seed) {
-        auto rng_engine = host_engine<engine_test_type>(seed);
+        auto rng_engine = host_engine(seed, engine_test_type);
         return rng_engine;
     }
 
     auto get_dpc_engine(std::int64_t seed) {
-        auto rng_engine = dpc_engine<engine_test_type>(this->get_queue(), seed);
+        auto rng_engine = dpc_engine(this->get_queue(), seed, engine_test_type);
         return rng_engine;
     }
 
