@@ -23,6 +23,42 @@ namespace oneapi::dal::backend::primitives {
 
 namespace bk = oneapi::dal::backend;
 
+template <typename Distribution, typename Type>
+sycl::event generate_rng(Distribution& distr,
+                         dpc_engine& engine_,
+                         std::int64_t count,
+                         Type* dst,
+                         const event_vector& deps) {
+    switch (engine_.get_device_engine_base_ptr()->get_engine_method()) {
+        case engine_method::mt2203: {
+            auto& dpc_engine =
+                *(dynamic_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
+            return oneapi::mkl::rng::generate(distr, dpc_engine, count, dst, deps);
+        }
+        case engine_method::mcg59: {
+            auto& dpc_engine =
+                *(dynamic_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
+            return oneapi::mkl::rng::generate(distr, dpc_engine, count, dst, deps);
+        }
+        case engine_method::mrg32k3a: {
+            auto& dpc_engine =
+                *(dynamic_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
+            return oneapi::mkl::rng::generate(distr, dpc_engine, count, dst, deps);
+        }
+        case engine_method::philox4x32x10: {
+            auto& dpc_engine =
+                *(dynamic_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
+            return oneapi::mkl::rng::generate(distr, dpc_engine, count, dst, deps);
+        }
+        case engine_method::mt19937: {
+            auto& dpc_engine =
+                *(dynamic_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
+            return oneapi::mkl::rng::generate(distr, dpc_engine, count, dst, deps);
+        }
+        default: throw std::runtime_error("Unsupported engine type in generate_rng");
+    }
+}
+
 template <typename Type>
 void uniform(sycl::queue& queue,
              std::int64_t count,
@@ -35,55 +71,7 @@ void uniform(sycl::queue& queue,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     oneapi::mkl::rng::uniform<Type> distr(a, b);
-    sycl::event event;
-    switch (engine_.get_gpu_engine()->get_engine_method()) {
-        case engine_method::mt2203: {
-            Helper<engine_method::mt2203> helper;
-            event = oneapi::mkl::rng::generate(distr,
-                                               *(helper.getter(engine_.get_gpu_engine().get())),
-                                               count,
-                                               dst,
-                                               { deps });
-            break;
-        }
-        case engine_method::mcg59: {
-            Helper<engine_method::mcg59> helper;
-            event = oneapi::mkl::rng::generate(distr,
-                                               *(helper.getter(engine_.get_gpu_engine().get())),
-                                               count,
-                                               dst,
-                                               { deps });
-            break;
-        }
-        case engine_method::mrg32k3a: {
-            Helper<engine_method::mrg32k3a> helper;
-            event = oneapi::mkl::rng::generate(distr,
-                                               *(helper.getter(engine_.get_gpu_engine().get())),
-                                               count,
-                                               dst,
-                                               { deps });
-            break;
-        }
-        case engine_method::philox4x32x10: {
-            Helper<engine_method::philox4x32x10> helper;
-            event = oneapi::mkl::rng::generate(distr,
-                                               *(helper.getter(engine_.get_gpu_engine().get())),
-                                               count,
-                                               dst,
-                                               { deps });
-            break;
-        }
-        case engine_method::mt19937: {
-            Helper<engine_method::mt19937> helper;
-            event = oneapi::mkl::rng::generate(distr,
-                                               *(helper.getter(engine_.get_gpu_engine().get())),
-                                               count,
-                                               dst,
-                                               { deps });
-            break;
-        }
-        default: throw std::invalid_argument("Unsupported engine type 3");
-    }
+    auto event = generate_rng(distr, engine_, count, dst, deps);
     event.wait_and_throw();
     engine_.skip_ahead_cpu(count);
 }

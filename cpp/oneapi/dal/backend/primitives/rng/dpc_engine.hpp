@@ -130,102 +130,12 @@ protected:
     oneapi::mkl::rng::mcg59 _gen;
 };
 
-template <engine_method>
-class id_to_mkl_engine {};
-
-template <>
-class id_to_mkl_engine<engine_method::mt2203> {
-public:
-    using engine_type = oneapi::mkl::rng::mt2203;
-};
-
-template <>
-class id_to_mkl_engine<engine_method::philox4x32x10> {
-public:
-    using engine_type = oneapi::mkl::rng::philox4x32x10;
-};
-
-template <>
-class id_to_mkl_engine<engine_method::mcg59> {
-public:
-    using engine_type = oneapi::mkl::rng::mcg59;
-};
-
-template <>
-class id_to_mkl_engine<engine_method::mt19937> {
-public:
-    using engine_type = oneapi::mkl::rng::mt19937;
-};
-
-template <>
-class id_to_mkl_engine<engine_method::mrg32k3a> {
-public:
-    using engine_type = oneapi::mkl::rng::mrg32k3a;
-};
-
-/// Helper classes that convert DAL base genetator to MKL generator
-
-template <engine_method>
-class Helper {};
-
-template <>
-class Helper<engine_method::mt2203> {
-    using mkl_engine = id_to_mkl_engine<engine_method::mt2203>::engine_type;
-
-public:
-    mkl_engine* getter(gen_base* gen) {
-        return (dynamic_cast<gen_mt2203*>(gen))->get();
-    }
-};
-
-template <>
-class Helper<engine_method::mt19937> {
-    using mkl_engine = id_to_mkl_engine<engine_method::mt19937>::engine_type;
-
-public:
-    mkl_engine* getter(gen_base* gen) {
-        return (dynamic_cast<gen_mt19937*>(gen))->get();
-    }
-};
-
-template <>
-class Helper<engine_method::mcg59> {
-    using mkl_engine = id_to_mkl_engine<engine_method::mcg59>::engine_type;
-
-public:
-    mkl_engine* getter(gen_base* gen) {
-        return (dynamic_cast<gen_mcg59*>(gen))->get();
-    }
-};
-
-template <>
-class Helper<engine_method::mrg32k3a> {
-    using mkl_engine = id_to_mkl_engine<engine_method::mrg32k3a>::engine_type;
-
-public:
-    mkl_engine* getter(gen_base* gen) {
-        return (dynamic_cast<gen_mrg32k*>(gen))->get();
-    }
-};
-
-template <>
-class Helper<engine_method::philox4x32x10> {
-    using mkl_engine = id_to_mkl_engine<engine_method::philox4x32x10>::engine_type;
-
-public:
-    mkl_engine* getter(gen_base* gen) {
-        return (dynamic_cast<gen_philox*>(gen))->get();
-    }
-};
-
 /// A class that provides a unified interface for random number generation on both CPU and GPU devices.
 ///
 /// This class serves as a wrapper for random number generators (RNGs) that supports different engine types,
 /// enabling efficient random number generation on heterogeneous platforms using SYCL. It integrates a host
 /// (CPU) engine and a device (GPU) engine, allowing operations to be executed seamlessly on the appropriate
 /// device.
-///
-/// @tparam EngineType The RNG engine type to be used. Defaults to `engine_method::mt2203`.
 ///
 /// The class provides functionality to skip ahead in the RNG sequence, retrieve engine states, and
 /// manage host and device engines independently. Support for `skip_ahead` on GPU is currently limited for
@@ -255,7 +165,7 @@ public:
         return impl_->getState();
     }
 
-    auto get_gpu_engine() {
+    auto get_device_engine_base_ptr() {
         return engine_;
     }
 
