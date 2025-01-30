@@ -33,17 +33,34 @@ namespace oneapi::dal::backend::primitives {
 /// types for flexible and efficient random number generation on CPU. It abstracts the underlying engine
 /// implementation and provides an interface to manage and retrieve the engine's state.
 ///
-/// @tparam EngineType The RNG engine type to be used. Defaults to `engine_method::mt2203`.
+/// @tparam EngineType The RNG engine type to be used. Defaults to `engine_type::mt2203`.
 ///
 /// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
 ///
 /// @note The class only supports host-based RNG and does not require a SYCL queue or device context.
 class host_engine {
 public:
-    explicit host_engine(std::int64_t seed = 777, engine_method method = engine_method::mt2203)
-            : host_engine_(initialize_host_engine(seed, method)),
-              impl_(dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(
-                  host_engine_.get())) {
+    explicit host_engine(std::int64_t seed = 777, engine_type method = engine_type::mt2203) {
+        switch (method) {
+            case engine_type::mt2203:
+                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
+                break;
+            case engine_type::mcg59:
+                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
+                break;
+            case engine_type::mrg32k3a:
+                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
+                break;
+            case engine_type::philox4x32x10:
+                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
+                break;
+            case engine_type::mt19937:
+                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
+                break;
+            default: throw std::invalid_argument("Unsupported engine type 1");
+        }
+        impl_ =
+            dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(host_engine_.get());
         if (!impl_) {
             throw std::domain_error("RNG engine is not supported");
         }
@@ -73,23 +90,6 @@ public:
     }
 
 private:
-    daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
-                                                                engine_method method) {
-        switch (method) {
-            case engine_method::mt2203:
-                return daal::algorithms::engines::mt2203::Batch<>::create(seed);
-            case engine_method::mcg59:
-                return daal::algorithms::engines::mcg59::Batch<>::create(seed);
-            case engine_method::mrg32k3a:
-                return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-            case engine_method::philox4x32x10:
-                return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-            case engine_method::mt19937:
-                return daal::algorithms::engines::mt19937::Batch<>::create(seed);
-            default: throw std::invalid_argument("Unsupported engine type 0");
-        }
-    }
-
     daal::algorithms::engines::EnginePtr host_engine_;
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };

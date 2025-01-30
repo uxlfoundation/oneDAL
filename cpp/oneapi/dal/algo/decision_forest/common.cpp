@@ -61,7 +61,6 @@ public:
     error_metric_mode error_metric_mode_value = error_metric_mode::none;
     infer_mode infer_mode_value = infer_mode::class_responses;
 
-    df_engine_types engine_method = df_engine_types::mt2203;
     bool memory_saving_mode = false;
     bool bootstrap = true;
     splitter_mode splitter_mode_value = splitter_mode::best;
@@ -178,11 +177,6 @@ voting_mode descriptor_base<Task>::get_voting_mode_impl() const {
 template <typename Task>
 std::int64_t descriptor_base<Task>::get_seed() const {
     return impl_->seed;
-}
-
-template <typename Task>
-df_engine_types descriptor_base<Task>::get_engine_method() const {
-    return impl_->engine_method;
 }
 
 template <typename Task>
@@ -303,11 +297,6 @@ void descriptor_base<Task>::set_voting_mode_impl(voting_mode value) {
 template <typename Task>
 void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
     impl_->seed = value;
-}
-
-template <typename Task>
-void descriptor_base<Task>::set_engine_method_impl(df_engine_types value) {
-    impl_->engine_method = value;
 }
 
 template class ONEDAL_EXPORT descriptor_base<task::classification>;

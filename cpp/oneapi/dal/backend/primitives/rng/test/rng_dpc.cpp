@@ -18,7 +18,7 @@
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/dpc_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 #include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
@@ -42,27 +42,27 @@ struct engine_map {};
 
 template <>
 struct engine_map<mt2203> {
-    constexpr static auto value = engine_method::mt2203;
+    constexpr static auto value = engine_type::mt2203;
 };
 
 template <>
 struct engine_map<mcg59> {
-    constexpr static auto value = engine_method::mcg59;
+    constexpr static auto value = engine_type::mcg59;
 };
 
 template <>
 struct engine_map<mrg32k3a> {
-    constexpr static auto value = engine_method::mrg32k3a;
+    constexpr static auto value = engine_type::mrg32k3a;
 };
 
 template <>
 struct engine_map<philox4x32x10> {
-    constexpr static auto value = engine_method::philox4x32x10;
+    constexpr static auto value = engine_type::philox4x32x10;
 };
 
 template <>
 struct engine_map<mt19937> {
-    constexpr static auto value = engine_method::mt19937;
+    constexpr static auto value = engine_type::mt19937;
 };
 
 template <typename engine_type>
@@ -80,8 +80,8 @@ public:
         return rng_engine;
     }
 
-    auto get_dpc_engine(std::int64_t seed) {
-        auto rng_engine = dpc_engine(this->get_queue(), seed, engine_test_type);
+    auto get_device_engine(std::int64_t seed) {
+        auto rng_engine = device_engine(this->get_queue(), seed, engine_test_type);
         return rng_engine;
     }
 
@@ -105,7 +105,7 @@ public:
 
         for (std::int64_t el = 0; el < arr_2_host.get_count(); el++) {
             // Due to MKL inside generates floats on GPU and doubles on CPU, it makes sense to add minor eps.
-            REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.1);
+            REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.001);
         }
     }
 };
@@ -125,8 +125,8 @@ TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     auto arr_gpu_ptr = arr_gpu.get_mutable_data();
     auto arr_host_ptr = arr_host.get_mutable_data();
 
-    auto rng_engine = this->get_dpc_engine(seed);
-    auto rng_engine_ = this->get_dpc_engine(seed);
+    auto rng_engine = this->get_device_engine(seed);
+    auto rng_engine_ = this->get_device_engine(seed);
 
     uniform<Float>(elem_count, arr_host_ptr, rng_engine, 0, elem_count);
     uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine_, 0, elem_count);
@@ -156,8 +156,8 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahe
     auto arr_gpu_ptr = arr_gpu.get_mutable_data();
     auto arr_host_ptr = arr_host.get_mutable_data();
 
-    auto rng_engine = this->get_dpc_engine(seed);
-    auto rng_engine_2 = this->get_dpc_engine(seed);
+    auto rng_engine = this->get_device_engine(seed);
+    auto rng_engine_2 = this->get_device_engine(seed);
 
     uniform<Float>(elem_count, arr_host_init_1_ptr, rng_engine, 0, elem_count);
     uniform<Float>(elem_count, arr_host_init_2_ptr, rng_engine_2, 0, elem_count);
@@ -188,8 +188,8 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
     auto arr_gpu_ptr = arr_gpu.get_mutable_data();
     auto arr_host_ptr = arr_host.get_mutable_data();
 
-    auto rng_engine = this->get_dpc_engine(seed);
-    auto rng_engine_2 = this->get_dpc_engine(seed);
+    auto rng_engine = this->get_device_engine(seed);
+    auto rng_engine_2 = this->get_device_engine(seed);
 
     uniform<Float>(this->get_queue(), elem_count, arr_device_init_1_ptr, rng_engine, 0, elem_count);
     uniform<Float>(this->get_queue(),

@@ -47,7 +47,6 @@ void run(sycl::queue& q) {
             .set_features_per_node(x_train.get_column_count())
             .set_min_observations_in_leaf_node(8)
             .set_min_observations_in_split_node(16)
-            .set_engine_method(df::df_engine_types::philox4x32x10)
             .set_min_weight_fraction_in_leaf_node(0.0)
             .set_min_impurity_decrease_in_split_node(0.0)
             .set_error_metric_mode(df::error_metric_mode::out_of_bag_error)

@@ -133,17 +133,6 @@ enum class splitter_mode {
     random
 };
 
-/// Available splitting strategies for building trees
-enum class df_engine_types {
-    /// Threshold for a node is chosen as the best among all bins
-    mt2203,
-    /// Threshold for a node is the best for a set chosen at random
-    mcg59,
-    philox4x32x10,
-    mt19937,
-    mrg32k3a
-};
-
 inline infer_mode operator|(infer_mode value_left, infer_mode value_right) {
     return bitwise_or(value_left, value_right);
 }
@@ -187,7 +176,6 @@ using v1::error_metric_mode;
 using v1::infer_mode;
 using v1::voting_mode;
 using v1::splitter_mode;
-using v1::df_engine_types;
 
 namespace detail {
 namespace v1 {
@@ -261,7 +249,6 @@ public:
         return get_voting_mode_impl();
     }
 
-    df_engine_types get_engine_method() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -290,7 +277,6 @@ protected:
     infer_mode get_infer_mode_impl() const;
     voting_mode get_voting_mode_impl() const;
 
-    void set_engine_method_impl(df_engine_types value);
     void set_seed_impl(std::int64_t value);
 
 private:
@@ -605,15 +591,6 @@ public:
     template <typename T = Task, typename = detail::enable_if_classification_t<T>>
     auto& set_voting_mode(voting_mode value) {
         base_t::set_voting_mode_impl(value);
-        return *this;
-    }
-
-    df_engine_types get_engine_method() const {
-        return base_t::get_engine_method();
-    }
-
-    auto& set_engine_method(df_engine_types value) {
-        base_t::set_engine_method_impl(value);
         return *this;
     }
 

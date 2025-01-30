@@ -22,11 +22,11 @@
 
 namespace oneapi::dal::backend::primitives {
 
-class engine_collection {
+class host_engine_collection {
 public:
-    explicit engine_collection(std::int64_t count,
-                               std::int64_t seed = 777,
-                               engine_method method = engine_method::mt2203)
+    explicit host_engine_collection(std::int64_t count,
+                                    std::int64_t seed = 777,
+                                    engine_type method = engine_type::mt2203)
             : count_(count),
               engine_(initialize_host_engine(seed, method)),
               params_(count),
@@ -40,7 +40,7 @@ public:
             op(i, params_.nSkip[i]);
         }
         select_parallelization_technique(technique_);
-        daal::algorithms::engines::internal::EnginesCollection<daal::sse2> engine_collection(
+        daal::algorithms::engines::internal::EnginesCollection<daal::sse2> host_engine_collection(
             engine_,
             technique_,
             params_,
@@ -61,17 +61,16 @@ public:
 
 private:
     daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
-                                                                engine_method method) {
+                                                                engine_type method) {
         switch (method) {
-            case engine_method::mt2203:
+            case engine_type::mt2203:
                 return daal::algorithms::engines::mt2203::Batch<>::create(seed);
-            case engine_method::mcg59:
-                return daal::algorithms::engines::mcg59::Batch<>::create(seed);
-            case engine_method::mrg32k3a:
+            case engine_type::mcg59: return daal::algorithms::engines::mcg59::Batch<>::create(seed);
+            case engine_type::mrg32k3a:
                 return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-            case engine_method::philox4x32x10:
+            case engine_type::philox4x32x10:
                 return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-            case engine_method::mt19937:
+            case engine_type::mt19937:
                 return daal::algorithms::engines::mt19937::Batch<>::create(seed);
             default: throw std::invalid_argument("Unsupported engine type");
         }
