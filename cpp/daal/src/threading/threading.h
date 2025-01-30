@@ -45,6 +45,7 @@ typedef void (*functype_int32ptr)(const int * i, const void * a);
 typedef void (*functype_static)(size_t i, size_t tid, const void * a);
 typedef void (*functype2)(int i, int n, const void * a);
 typedef void (*functype_blocked_size)(size_t first, size_t last, const void * a);
+typedef void (*functype)(int i, const void * a);
 typedef void * (*tls_functype)(const void * a);
 typedef void (*tls_reduce_functype)(void * p, const void * a);
 typedef void (*functype_break)(int i, bool & needBreak, const void * a);
@@ -65,8 +66,9 @@ extern "C"
     DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
     DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func);
-    DAAL_EXPORT void _daal_threader_for_blocked(int n, int threads_request, const void * a, daal::functype2 func);
+    DAAL_EXPORT void _daal_threader_for_blocked(int n, size_t grainsize, const void * a, daal::functype2 func);
     DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
+    DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
     DAAL_EXPORT void _daal_threader_for_optional(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void * a, daal::functype_break func);
 
@@ -105,6 +107,7 @@ extern "C"
     DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle);
     DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void ** globalControl);
     DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle);
+    DAAL_EXPORT size_t _initArenas();
 
     DAAL_EXPORT void * _daal_threader_env();
 
@@ -167,12 +170,25 @@ inline void threaded_scalable_free(void * ptr)
 class ThreaderEnvironment
 {
 public:
-    ThreaderEnvironment() : _numberOfThreads(_daal_threader_get_max_threads()) {}
+    ThreaderEnvironment();
     size_t getNumberOfThreads() const { return _numberOfThreads; }
     void setNumberOfThreads(size_t value) { _numberOfThreads = value; }
+    size_t getNumberOfNUMANodes() const { return _numberOfNUMANodes; }
+    void * getArena(size_t i) const
+    {
+        if (i >= _numberOfNUMANodes) return nullptr;
+        return _arenas[i];
+    }
+
+    void setArena(size_t i, void * arena)
+    {
+        if (i < _numberOfNUMANodes) _arenas[i] = arena;
+    }
 
 private:
     size_t _numberOfThreads;
+    size_t _numberOfNUMANodes;
+    void * _arenas[DAAL_MAX_NUMA_COUNT];
 };
 
 inline ThreaderEnvironment * threader_env()
@@ -185,9 +201,16 @@ inline size_t threader_get_threads_number()
     return threader_env()->getNumberOfThreads();
 }
 
+inline size_t threader_get_numa_number()
+{
+    return threader_env()->getNumberOfNUMANodes();
+}
+
 inline size_t setSchedulerHandle(void ** schedulerHandle)
 {
-    return _setSchedulerHandle(schedulerHandle);
+    size_t status = _setSchedulerHandle(schedulerHandle);
+    if (!status) return status;
+    return _initArenas();
 }
 
 inline size_t setNumberOfThreads(const size_t numThreads, void ** globalControl)
@@ -211,6 +234,13 @@ inline void static_threader_func(size_t i, size_t tid, const void * a)
 
 template <typename F>
 inline void threader_func_b(int i0, int in, const void * a)
+{
+    const F & func = *static_cast<const F *>(a);
+    func(i0, in);
+}
+
+template <typename F>
+inline void threader_func_b_size_t(size_t i0, size_t in, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i0, in);
@@ -242,6 +272,14 @@ inline void threader_for(int n, int reserved, const F & func)
     const void * a = static_cast<const void *>(&func);
 
     _daal_threader_for(n, reserved, a, threader_func<F>);
+}
+
+template <typename F>
+inline void numa_threader_for(int n, int block, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_threader_for_blocked_numa(n, block, a, threader_func_b_size_t<F>);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.
@@ -353,11 +391,11 @@ inline void static_threader_for(size_t n, const F & func)
 /// @param[in] func     Callable object that processes the block of loop's iterations
 ///                     `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked(int n, int reserved, const F & func)
+inline void threader_for_blocked(int n, size_t grainsize, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_blocked(n, reserved, a, threader_func_b<F>);
+    _daal_threader_for_blocked(n, grainsize, a, threader_func_b<F>);
 }
 
 template <typename F>

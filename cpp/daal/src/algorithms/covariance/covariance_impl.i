@@ -37,6 +37,8 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 
+#include <iostream>
+
 using namespace daal::internal;
 using namespace daal::services::internal;
 
@@ -170,16 +172,10 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
             DAAL_CHECK_STATUS_VAR(status);
         }
-        size_t numBlocks = nVectors / numRowsInBlock;
-        if (numBlocks * numRowsInBlock < nVectors)
-        {
-            numBlocks++;
-        }
-        size_t numRowsInLastBlock = numRowsInBlock + (nVectors - numBlocks * numRowsInBlock);
 
         /* TLS data initialization */
         SafeStatus safeStat;
-        daal::static_tls<tls_data_t<algorithmFPType, cpu> *> tls_data([=, &safeStat]() {
+        daal::tls<tls_data_t<algorithmFPType, cpu> *> tls_data([=, &safeStat]() {
             auto tlsData = tls_data_t<algorithmFPType, cpu>::create(isNormalized, nFeatures);
             if (!tlsData)
             {
@@ -187,11 +183,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             }
             return tlsData;
         });
-        DAAL_CHECK_SAFE_STATUS();
 
         /* Threaded loop with syrk seq calls */
-        daal::static_threader_for(numBlocks, [&](int iBlock, size_t tid) {
-            struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
+        daal::numa_threader_for(nVectors, numRowsInBlock, [&](size_t startRow, size_t endRow) {
+            size_t nRows = endRow - startRow;
+            if (startRow < 0 || endRow < 0 || endRow <= startRow || endRow > nVectors)
+            {
+                return;
+            }
+            struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local();
             if (!tls_data_local)
             {
                 return;
@@ -202,21 +202,23 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             algorithmFPType alpha = 1.0;
             algorithmFPType beta  = 1.0;
 
-            size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
-            size_t startRow = iBlock * numRowsInBlock;
-
-            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, startRow, nRows);
+            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, size_t(startRow), size_t(nRows));
             DAAL_CHECK_BLOCK_STATUS_THR(dataTableBD);
-            algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
+            algorithmFPType * dataBlockLocal = const_cast<algorithmFPType *>(dataTableBD.get());
+            if (!dataBlockLocal)
+            {
+                safeStat.add(services::ErrorMemoryAllocationFailed);
+            }
 
-            DAAL_INT nFeatures_local             = nFeatures;
+            DAAL_INT nFeaturesLocal              = nFeatures;
+            DAAL_INT nRowsLocal                  = nRows;
             algorithmFPType * crossProduct_local = tls_data_local->crossProduct;
             algorithmFPType * sums_local         = tls_data_local->sums;
 
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
-                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
-                                                       (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
+                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeaturesLocal, (DAAL_INT *)&nRowsLocal, &alpha, dataBlockLocal,
+                                                       (DAAL_INT *)&nFeaturesLocal, &beta, crossProduct_local, (DAAL_INT *)&nFeaturesLocal);
             }
 
             if (!isNormalized && (method == defaultDense) && !assumeCentered)
@@ -227,9 +229,9 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 {
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
-                    for (DAAL_INT j = 0; j < nFeatures_local; j++)
+                    for (DAAL_INT j = 0; j < nFeaturesLocal; j++)
                     {
-                        sums_local[j] += dataBlock_local[i * nFeatures_local + j];
+                        sums_local[j] += dataBlockLocal[i * nFeaturesLocal + j];
                     }
                 }
             }

@@ -25,10 +25,11 @@
 #include "services/daal_memory.h"
 #include "src/algorithms/service_qsort.h"
 
-#define TBB_PREVIEW_GLOBAL_CONTROL 1
-#define TBB_PREVIEW_TASK_ARENA     1
+/// #define TBB_PREVIEW_GLOBAL_CONTROL 1
+/// #define TBB_PREVIEW_TASK_ARENA     1
 
 #include <algorithm> // std::min
+#include <vector>    // std::vector
 #include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
@@ -36,6 +37,8 @@
 #include <tbb/global_control.h>
 #include <tbb/task_arena.h>
 #include "services/daal_atomic_int.h"
+
+#include <iostream>
 
 #if defined(TBB_INTERFACE_VERSION) && TBB_INTERFACE_VERSION >= 12002
     #include <tbb/task.h>
@@ -75,6 +78,35 @@ DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle)
     // #endif
 }
 
+DAAL_EXPORT size_t _initArenas()
+{
+#if defined(TARGET_X86_64)
+    size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
+    if (nNUMA > daal::DAAL_MAX_NUMA_COUNT)
+    {
+        return -1;
+    }
+    if (nNUMA > 1)
+    {
+        std::vector<tbb::numa_node_id> numa_indexes = tbb::info::numa_nodes();
+        for (size_t i = 0; i < nNUMA; ++i)
+        {
+            tbb::task_arena * arena = new tbb::task_arena();
+            arena->initialize(tbb::task_arena::constraints(numa_indexes[i]));
+            daal::threader_env()->setArena(i, arena);
+        }
+    }
+    else
+    {
+        tbb::task_arena * arena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
+        arena->initialize();
+        daal::threader_env()->setArena(0, arena);
+    }
+
+#endif
+    return 0;
+}
+
 DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
 {
 #if defined(TARGET_X86_64)
@@ -84,7 +116,7 @@ DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
     *schedulerHandle = reinterpret_cast<void *>(new tbb::task_scheduler_handle(tbb::attach {}));
     #endif
     // It is necessary for initializing tbb in cases where DAAL does not use it.
-    tbb::task_arena {}.initialize();
+    _initArenas();
 #endif
     return 0;
 }
@@ -154,6 +186,38 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
     {
         tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block),
                           [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+    }
+    else
+    {
+        func(0ul, n, a);
+    }
+}
+
+DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const void * a, daal::functype_blocked_size func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
+        if (nNUMA > 1 && n > nNUMA * block * 2)
+        {
+            const size_t nPerNUMA = (n + nNUMA - 1) / nNUMA;
+            for (size_t i = 0; i < nNUMA; ++i)
+            {
+                tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
+                const size_t startIter  = i * nPerNUMA;
+                const size_t endIter    = std::min(startIter + nPerNUMA, n);
+
+                arena->execute([&]() {
+                    tbb::parallel_for(tbb::blocked_range<size_t>(startIter, endIter, block * 2),
+                                      [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+                });
+            }
+        }
+        else
+        {
+            tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block * 2),
+                              [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+        }
     }
     else
     {
@@ -319,11 +383,11 @@ DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<double>, pair_fp64_uint64)
 
 #undef DAAL_PARALLEL_SORT_IMPL
 
-DAAL_EXPORT void _daal_threader_for_blocked(int n, int reserved, const void * a, daal::functype2 func)
+DAAL_EXPORT void _daal_threader_for_blocked(int n, size_t grainsize, const void * a, daal::functype2 func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
+        tbb::parallel_for(tbb::blocked_range<int>(0, n, grainsize * 2), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
     }
     else
     {
@@ -836,4 +900,14 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 }
 
 namespace daal
-{}
+{
+ThreaderEnvironment::ThreaderEnvironment() : _numberOfThreads(_daal_threader_get_max_threads())
+{
+#if defined(TARGET_X86_64)
+    _numberOfNUMANodes = tbb::info::numa_nodes().size();
+#else
+    _numberOfNUMANodes = 1;
+#endif
+}
+
+} // namespace daal
