@@ -193,38 +193,32 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
 
         /* Threaded loop with syrk seq calls */
         daal::static_numa_threader_for(numBlocks, [&](int iBlock, size_t tid) {
-
             struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
             if (!tls_data_local)
             {
                 return;
             }
 
-            size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
-            size_t startRow = iBlock * numRowsInBlock;
-
             char uplo             = 'U';
             char trans            = 'N';
             algorithmFPType alpha = 1.0;
             algorithmFPType beta  = 1.0;
 
-            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, size_t(startRow), size_t(nRows));
-            DAAL_CHECK_BLOCK_STATUS_THR(dataTableBD);
-            algorithmFPType * dataBlockLocal = const_cast<algorithmFPType *>(dataTableBD.get());
-            if (!dataBlockLocal)
-            {
-                safeStat.add(services::ErrorMemoryAllocationFailed);
-            }
+            size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
+            size_t startRow = iBlock * numRowsInBlock;
 
-            DAAL_INT nFeaturesLocal              = nFeatures;
-            DAAL_INT nRowsLocal                  = nRows;
+            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, startRow, nRows);
+            DAAL_CHECK_BLOCK_STATUS_THR(dataTableBD);
+            algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
+
+            DAAL_INT nFeatures_local             = nFeatures;
             algorithmFPType * crossProduct_local = tls_data_local->crossProduct;
             algorithmFPType * sums_local         = tls_data_local->sums;
 
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
-                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeaturesLocal, (DAAL_INT *)&nRowsLocal, &alpha, dataBlockLocal,
-                                                       (DAAL_INT *)&nFeaturesLocal, &beta, crossProduct_local, (DAAL_INT *)&nFeaturesLocal);
+                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
+                                                       (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
             }
 
             if (!isNormalized && (method == defaultDense) && !assumeCentered)
@@ -235,9 +229,9 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 {
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
-                    for (DAAL_INT j = 0; j < nFeaturesLocal; j++)
+                    for (DAAL_INT j = 0; j < nFeatures_local; j++)
                     {
-                        sums_local[j] += dataBlockLocal[i * nFeaturesLocal + j];
+                        sums_local[j] += dataBlock_local[i * nFeatures_local + j];
                     }
                 }
             }
