@@ -201,16 +201,27 @@ DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const v
         if (nNUMA > 1 && n > nNUMA * block * 2)
         {
             const size_t nPerNUMA = (n + nNUMA - 1) / nNUMA;
+
+            tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
+            tbb::task_arena * arenas[daal::DAAL_MAX_NUMA_COUNT];
             for (size_t i = 0; i < nNUMA; ++i)
             {
-                tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
-                const size_t startIter  = i * nPerNUMA;
-                const size_t endIter    = std::min(startIter + nPerNUMA, n);
+                arenas[i] = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
 
-                arena->execute([&]() {
-                    tbb::parallel_for(tbb::blocked_range<size_t>(startIter, endIter, block * 2),
-                                      [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+                arenas[i]->execute([&]() { // Run each arena on a dedicated NUMA node
+                    const size_t startIter  = i * nPerNUMA;
+                    const size_t endIter    = std::min(startIter + nPerNUMA, n);
+                    tg[i].run([&startIter, &endIter, &block, &func, &a]{ // Run in task group
+                        tbb::parallel_for(tbb::blocked_range<size_t>(startIter, endIter, block * 2),
+                                        [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+                    });
                 });
+            }
+
+            for (size_t i = 0; i < nNUMA; ++i)
+            {
+                // Wait for completion of the task group in the all the arenas.
+                arenas[i]->execute([&]{ tg[i].wait(); });
             }
         }
         else
@@ -222,6 +233,75 @@ DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const v
     else
     {
         func(0ul, n, a);
+    }
+}
+
+
+DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, const void * a, daal::functype_static func)
+{
+    const size_t nthreads = std::min(daal::threader_env()->getNumberOfThreads(), static_cast<size_t>(_daal_threader_get_max_threads()));
+    if (nthreads > 1)
+    {
+        const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
+        const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
+        if (nNUMA > 1)
+        {
+            tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
+            tbb::task_arena * arenas[daal::DAAL_MAX_NUMA_COUNT];
+            int startThreadIndex = 0;
+            for (size_t i = 0; i < nNUMA; ++i)
+            {
+                arenas[i] = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
+                const int concurrency = arenas[i]->max_concurrency();
+                arenas[i]->execute([&]() { // Run each arena on a dedicated NUMA node
+                    tg[i].run([&n, &startThreadIndex, &concurrency, &nblocks_per_thread, &func, &a]{ // Run in task group
+                        tbb::parallel_for(
+                            tbb::blocked_range<size_t>(startThreadIndex, startThreadIndex + concurrency, 1),
+                                [&](tbb::blocked_range<size_t> r) {
+                                    const size_t tid   = r.begin();
+                                    const size_t begin = tid * nblocks_per_thread;
+                                    const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                                    for (size_t i = begin; i < end; ++i)
+                                    {
+                                        func(i, tid, a);
+                                    }
+                                },
+                                tbb::static_partitioner());
+                                });
+                });
+                startThreadIndex += concurrency;
+            }
+
+            for (size_t i = 0; i < nNUMA; ++i)
+            {
+                // Wait for completion of the task group in the all the arenas.
+                arenas[i]->execute([&]{ tg[i].wait(); });
+            }
+        }
+        else
+        {
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, nthreads, 1),
+                    [&](tbb::blocked_range<size_t> r) {
+                        const size_t tid   = r.begin();
+                        const size_t begin = tid * nblocks_per_thread;
+                        const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                        for (size_t i = begin; i < end; ++i)
+                        {
+                            func(i, tid, a);
+                        }
+                    },
+                    tbb::static_partitioner());
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < n; i++)
+        {
+            func(i, 0, a);
+        }
     }
 }
 

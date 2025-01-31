@@ -66,6 +66,7 @@ extern "C"
     DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
     DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func);
+    DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, const void * a, daal::functype_static func);
     DAAL_EXPORT void _daal_threader_for_blocked(int n, size_t grainsize, const void * a, daal::functype2 func);
     DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
     DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
@@ -281,6 +282,15 @@ inline void numa_threader_for(int n, int block, const F & func)
 
     _daal_threader_for_blocked_numa(n, block, a, threader_func_b_size_t<F>);
 }
+
+template <typename F>
+inline void static_numa_threader_for(int n, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_static_numa_threader_for(n, a, static_threader_func<F>);
+}
+
 
 /// Pass a function to be executed in a for loop to the threading layer.
 /// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
