@@ -28,15 +28,17 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-template <engine_type EngineType = engine_type::mt2203>
 class device_host_engine_collection {
 public:
-    device_host_engine_collection(sycl::queue& queue, std::int64_t count, std::int64_t seed = 777)
+    device_host_engine_collection(sycl::queue& queue,
+                                  std::int64_t count,
+                                  std::int64_t seed = 777,
+                                  engine_type method = engine_type::mt2203)
             : count_(count),
               base_seed_(seed) {
         engines_.reserve(count_);
         for (std::int64_t i = 0; i < count_; ++i) {
-            engines_.push_back(device_engine<EngineType>(queue, base_seed_ + i));
+            engines_.push_back(device_engine(queue, base_seed_ + i, method));
         }
     }
 
@@ -47,7 +49,7 @@ public:
 private:
     std::int64_t count_;
     std::int64_t base_seed_;
-    std::vector<device_engine<EngineType>> engines_;
+    std::vector<device_engine> engines_;
 };
 
 #endif

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
 #include <daal/include/algorithms/engines/mt19937/mt19937.h>
 
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 
@@ -119,6 +120,36 @@ void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
         uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
         std::swap(dst[idx[0]], dst[idx[1]]);
     }
+}
+
+template <typename Type>
+void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
+                                  std::int64_t top,
+                                  std::int64_t seed,
+                                  engine_type method = engine_type::mt19937) {
+    host_engine eng_ = host_engine(seed, method);
+    const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
+    const std::int64_t count = result_array.get_count();
+    const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
+    ONEDAL_ASSERT(casted_count < casted_top);
+    auto indices_ptr = result_array.get_mutable_data();
+
+    std::int64_t k = 0;
+    std::size_t value = 0;
+    auto state = eng_.get_host_engine_state();
+    for (std::size_t i = 0; i < casted_count; i++) {
+        uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
+        for (std::size_t j = i; j > 0; j--) {
+            if (value == dal::detail::integral_cast<std::size_t>(indices_ptr[j - 1])) {
+                value = j - 1;
+            }
+        }
+        if (value >= casted_top)
+            continue;
+        indices_ptr[i] = dal::detail::integral_cast<Type>(value);
+        k++;
+    }
+    ONEDAL_ASSERT(k == count);
 }
 
 } // namespace oneapi::dal::backend::primitives

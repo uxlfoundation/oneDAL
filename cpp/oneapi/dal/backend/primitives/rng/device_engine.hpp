@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
+
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 
@@ -58,7 +60,8 @@ public:
     /// Constructor that initializes the mt2203 generator for use on the GPU.
     /// @param[in] queue The SYCL queue to manage device operations.
     /// @param[in] seed The initial seed for the generator.
-    gen_mt2203(sycl::queue queue, std::int64_t seed) : _gen(queue, seed, 0) {}
+    gen_mt2203(sycl::queue queue, std::int64_t seed, std::int64_t engine_idx = 0)
+            : _gen(queue, seed, engine_idx) {}
 
     /// Returns the engine method for mt2203.
     /// @return The `mt2203` engine method as an enum value of `engine_type`.
@@ -371,6 +374,13 @@ void shuffle(sycl::queue& queue,
              device_engine& engine_,
              const event_vector& deps = {});
 
+template <typename Type>
+void partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                  ndview<Type, 1>& result_array,
+                                  std::int64_t top,
+                                  std::int64_t seed,
+                                  engine_type method = engine_type::mt19937,
+                                  const event_vector& deps = {});
 #endif
 
 } // namespace oneapi::dal::backend::primitives

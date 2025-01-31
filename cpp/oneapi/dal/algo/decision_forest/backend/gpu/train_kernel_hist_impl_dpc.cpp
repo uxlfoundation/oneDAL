@@ -1853,10 +1853,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
 
-    pr::host_engine_collection collection(
-        ctx.tree_count_,
-        desc.get_seed(),
-        ::oneapi::dal::backend::primitives::engine_type::philox4x32x10);
+    pr::host_engine_collection collection(ctx.tree_count_, desc.get_seed());
     rng_engine_list_t engine_arr = collection([&](std::size_t i, std::size_t& skip) {
         skip = i * skip_num;
     });
