@@ -119,7 +119,7 @@ struct train_context {
 
     Index selected_ftr_count_ = 0;
     Index selected_row_count_ = 0;
-    Index selected_row_total_count_ = 0;
+    std::int64_t selected_row_total_count_ = 0;
     Index min_observations_in_leaf_node_ = 0;
     Index max_tree_depth_ = 0;
 

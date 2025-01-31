@@ -87,7 +87,6 @@ public:
         }
 
         max_tree_size_ = dal::detail::integral_cast<Index>(tree_size_max);
-
         const Index tree_block_size = dal::detail::check_mul_overflow(max_tree_size_, tree_count);
 
         auto fi_list_host = dal::backend::primitives::ndarray<Index, 1>::empty({ tree_block_size });

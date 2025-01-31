@@ -126,6 +126,7 @@ infer_kernel_impl<Float, Index, Task>::predict_by_tree_group_weighted(
     const Float* cls_prb_list_ptr = class_proba_list.get_data();
 
     Index obs_tree_group_response_count = ctx.class_count * ctx.tree_in_group_count;
+
     de::check_mul_overflow(ctx.row_count, obs_tree_group_response_count);
     auto [obs_response_list, zero_obs_response_event] =
         pr::ndarray<Float, 1>::zeros(queue_,
