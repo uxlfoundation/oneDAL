@@ -173,9 +173,16 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             DAAL_CHECK_STATUS_VAR(status);
         }
 
+        size_t numBlocks = nVectors / numRowsInBlock;
+        if (numBlocks * numRowsInBlock < nVectors)
+        {
+            numBlocks++;
+        }
+        size_t numRowsInLastBlock = numRowsInBlock + (nVectors - numBlocks * numRowsInBlock);
+
         /* TLS data initialization */
         SafeStatus safeStat;
-        daal::tls<tls_data_t<algorithmFPType, cpu> *> tls_data([=, &safeStat]() {
+        daal::static_tls<tls_data_t<algorithmFPType, cpu> *> tls_data([=, &safeStat]() {
             auto tlsData = tls_data_t<algorithmFPType, cpu>::create(isNormalized, nFeatures);
             if (!tlsData)
             {
@@ -185,17 +192,16 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         });
 
         /* Threaded loop with syrk seq calls */
-        daal::numa_threader_for(nVectors, numRowsInBlock, [&](size_t startRow, size_t endRow) {
-            size_t nRows = endRow - startRow;
-            if (startRow < 0 || endRow < 0 || endRow <= startRow || endRow > nVectors)
-            {
-                return;
-            }
-            struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local();
+        daal::static_numa_threader_for(numBlocks, [&](int iBlock, size_t tid) {
+
+            struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
             if (!tls_data_local)
             {
                 return;
             }
+
+            size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
+            size_t startRow = iBlock * numRowsInBlock;
 
             char uplo             = 'U';
             char trans            = 'N';
