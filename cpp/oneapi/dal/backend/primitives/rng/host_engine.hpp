@@ -87,7 +87,7 @@ public:
     ~host_engine() = default;
 
     /// Retrieves the state of the host rng engine(DAAL).
-    /// @return Pointer to the host engine state.   
+    /// @return Pointer to the host engine state.
     void* get_host_engine_state() const {
         return impl_->getState();
     }
