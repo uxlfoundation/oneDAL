@@ -234,8 +234,9 @@ protected:
 /// some engine types.
 class device_engine {
 public:
-    /// @param[in] queue The SYCL queue used to manage device operations.
-    /// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
+    /// @param[in] queue   The SYCL queue used to manage device operations.
+    /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
+    /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
     explicit device_engine(sycl::queue& queue,
                            std::int64_t seed = 777,
                            engine_type method = engine_type::mt2203)
@@ -270,31 +271,45 @@ public:
         }
     }
 
+    /// Assignment operator.
     device_engine& operator=(const device_engine& other);
 
+    /// Destructor.
     ~device_engine() = default;
 
+    /// Retrieves the state of the host rng engine(DAAL).
+    /// @return Pointer to the host engine state.    
     void* get_host_engine_state() const {
         return impl_->getState();
     }
 
+    /// Retrieves the base pointer of the device rng engine.
+    /// @return Shared pointer to the device rng engine base.
     auto get_device_engine_base_ptr() {
         return dpc_engine_;
     }
 
+    /// Advances the rng sequence on the CPU by a specified number of steps.
+    /// @param[in] nSkip The number of steps to skip.
     void skip_ahead_cpu(size_t nSkip) {
         host_engine_->skipAhead(nSkip);
     }
 
+    /// Advances the rng sequence on the GPU by a specified number of steps.
+    /// @param[in] nSkip The number of steps to skip.
     void skip_ahead_gpu(size_t nSkip) {
         dpc_engine_->skip_ahead_gpu(nSkip);
     }
 
+    /// Advances the rng sequence on both CPU and GPU by a specified number of steps.
+    /// @param[in] nSkip The number of steps to skip.
     void skip_ahead(size_t nSkip) {
         skip_ahead_cpu(nSkip);
         skip_ahead_gpu(nSkip);
     }
 
+    /// Retrieves the SYCL queue associated with this rng engine.
+    /// @return Reference to the SYCL queue.
     sycl::queue& get_queue() {
         return q;
     }
@@ -306,6 +321,13 @@ private:
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
+/// Generates uniformly distributed random numbers on the CPU.
+/// @tparam Type The data type of the generated numbers.
+/// @param[in] count The number of random numbers to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the uniform distribution.
+/// @param[in] b The upper bound of the uniform distribution.
 template <typename Type>
 void uniform(std::int64_t count, Type* dst, device_engine& engine_, Type a, Type b) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
@@ -317,6 +339,14 @@ void uniform(std::int64_t count, Type* dst, device_engine& engine_, Type a, Type
     engine_.skip_ahead_gpu(count);
 }
 
+/// Generates a random permutation of elements without replacement.
+/// @tparam Type The data type of the elements.
+/// @param[in] count The number of elements to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[out] buffer Temporary buffer used for computations.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the range.
+/// @param[in] b The upper bound of the range.
 template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
@@ -333,6 +363,11 @@ void uniform_without_replacement(std::int64_t count,
     engine_.skip_ahead_gpu(count);
 }
 
+/// Shuffles an array using random swaps.
+/// @tparam Type The data type of the array elements.
+/// @param[in] count The number of elements to shuffle.
+/// @param[in, out] dst Pointer to the array to be shuffled.
+/// @param[in] engine_ Reference to the device engine.
 template <typename Type, typename T = Type, typename = std::enable_if_t<std::is_integral_v<T>>>
 void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
@@ -348,6 +383,15 @@ void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
     engine_.skip_ahead_gpu(count);
 }
 
+/// Generates uniformly distributed random numbers on the GPU.
+/// @tparam Type The data type of the generated numbers.
+/// @param[in] queue The SYCL queue for device execution.
+/// @param[in] count The number of random numbers to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the uniform distribution.
+/// @param[in] b The upper bound of the uniform distribution.
+/// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 void uniform(sycl::queue& queue,
              std::int64_t count,
@@ -357,6 +401,16 @@ void uniform(sycl::queue& queue,
              Type b,
              const event_vector& deps = {});
 
+/// Generates a random permutation of elements without replacement on the GPU.
+/// @tparam Type The data type of the elements.
+/// @param[in] queue The SYCL queue for device execution.
+/// @param[in] count The number of elements to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[out] buffer Temporary buffer used for computations.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the range.
+/// @param[in] b The upper bound of the range.
+/// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 void uniform_without_replacement(sycl::queue& queue,
                                  std::int64_t count,
@@ -367,6 +421,13 @@ void uniform_without_replacement(sycl::queue& queue,
                                  Type b,
                                  const event_vector& deps = {});
 
+/// Shuffles an array using random swaps on the GPU.
+/// @tparam Type The data type of the array elements.
+/// @param[in] queue The SYCL queue for device execution.
+/// @param[in] count The number of elements to shuffle.
+/// @param[in, out] dst Pointer to the array to be shuffled.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 void shuffle(sycl::queue& queue,
              std::int64_t count,
@@ -374,6 +435,14 @@ void shuffle(sycl::queue& queue,
              device_engine& engine_,
              const event_vector& deps = {});
 
+/// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.
+/// @tparam Type The data type of the array elements.
+/// @param[in] queue_ The SYCL queue for device execution.
+/// @param[in, out] result_array The array to be partially shuffled.
+/// @param[in] top The number of elements to shuffle.
+/// @param[in] seed The seed for the engine.
+/// @param[in] method The rng engine type. Defaults to `mt19937`.
+/// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
 void partial_fisher_yates_shuffle(sycl::queue& queue_,
                                   ndview<Type, 1>& result_array,

@@ -76,7 +76,6 @@ void uniform(sycl::queue& queue,
     engine_.skip_ahead_cpu(count);
 }
 
-//Currently only CPU impl
 template <typename Type>
 void uniform_without_replacement(sycl::queue& queue,
                                  std::int64_t count,
@@ -95,7 +94,6 @@ void uniform_without_replacement(sycl::queue& queue,
     uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
 }
 
-//Currently only CPU impl
 template <typename Type>
 void shuffle(sycl::queue& queue,
              std::int64_t count,

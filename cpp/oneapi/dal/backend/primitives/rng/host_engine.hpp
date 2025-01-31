@@ -34,13 +34,11 @@ namespace oneapi::dal::backend::primitives {
 /// types for flexible and efficient random number generation on CPU. It abstracts the underlying engine
 /// implementation and provides an interface to manage and retrieve the engine's state.
 ///
-/// @tparam EngineType The RNG engine type to be used. Defaults to `engine_type::mt2203`.
-///
-/// @param[in] seed  The initial seed for the random number generator. Defaults to `777`.
-///
 /// @note The class only supports host-based RNG and does not require a SYCL queue or device context.
 class host_engine {
 public:
+    /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
+    /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
     explicit host_engine(std::int64_t seed = 777, engine_type method = engine_type::mt2203) {
         switch (method) {
             case engine_type::mt2203:
@@ -74,6 +72,7 @@ public:
         }
     }
 
+    /// Assignment operator.
     host_engine& operator=(const daal::algorithms::engines::EnginePtr& eng) {
         host_engine_ = eng;
         impl_ = dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(eng.get());
@@ -84,8 +83,11 @@ public:
         return *this;
     }
 
-    virtual ~host_engine() = default;
+    /// Destructor.
+    ~host_engine() = default;
 
+    /// Retrieves the state of the host rng engine(DAAL).
+    /// @return Pointer to the host engine state.   
     void* get_host_engine_state() const {
         return impl_->getState();
     }
@@ -95,12 +97,27 @@ private:
     daal::algorithms::engines::internal::BatchBaseImpl* impl_;
 };
 
+/// Generates uniformly distributed random numbers on the CPU.
+/// @tparam Type The data type of the generated numbers.
+/// @param[in] count The number of random numbers to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the uniform distribution.
+/// @param[in] b The upper bound of the uniform distribution.
 template <typename Type>
 void uniform(std::int64_t count, Type* dst, host_engine& host_engine, Type a, Type b) {
     auto state = host_engine.get_host_engine_state();
     uniform_dispatcher::uniform_by_cpu<Type>(count, dst, state, a, b);
 }
 
+/// Generates a random permutation of elements without replacement on the CPU.
+/// @tparam Type The data type of the elements.
+/// @param[in] count The number of elements to generate.
+/// @param[out] dst Pointer to the output buffer.
+/// @param[out] buffer Temporary buffer used for computations.
+/// @param[in] engine_ Reference to the device engine.
+/// @param[in] a The lower bound of the range.
+/// @param[in] b The upper bound of the range.
 template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
@@ -112,6 +129,11 @@ void uniform_without_replacement(std::int64_t count,
     uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
 }
 
+/// Shuffles an array using random swaps on the CPU.
+/// @tparam Type The data type of the array elements.
+/// @param[in] count The number of elements to shuffle.
+/// @param[in, out] dst Pointer to the array to be shuffled.
+/// @param[in] engine_ Reference to the device engine.
 template <typename Type, typename T = Type, typename = std::enable_if_t<std::is_integral_v<T>>>
 void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
     auto state = host_engine.get_host_engine_state();
@@ -122,6 +144,11 @@ void shuffle(std::int64_t count, Type* dst, host_engine host_engine) {
     }
 }
 
+/// Shuffles an array using random swaps on the CPU.
+/// @tparam Type The data type of the array elements.
+/// @param[in] count The number of elements to shuffle.
+/// @param[in, out] dst Pointer to the array to be shuffled.
+/// @param[in] engine_ Reference to the device engine.
 template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
