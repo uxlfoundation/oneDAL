@@ -139,8 +139,8 @@ public:
 	if (count == zero)
             return Float(zero);
 
-	const Float n1_mean = n1_num / count;
-	const Float n2_mean = n2_num / count;
+	const Float n1_mean = n1_sum / count;
+	const Float n2_mean = n2_sum / count;
 
         for (auto it1 = first1, it2 = first2; it1 != last1; ++it1, ++it2) {
             const Float v1 = *it1 - n1_mean;
@@ -148,7 +148,6 @@ public:
             n1_acc += (v1 * v1);
             n2_acc += (v2 * v2);
             ip_acc += (v1 * v2);
-
         }
         const Float rsqn1 = one / std::sqrt(n1_acc);
         const Float rsqn2 = one / std::sqrt(n2_acc);
