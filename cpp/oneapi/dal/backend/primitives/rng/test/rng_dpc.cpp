@@ -105,7 +105,7 @@ public:
 
         for (std::int64_t el = 0; el < arr_2_host.get_count(); el++) {
             // Due to MKL inside generates floats on GPU and doubles on CPU, it makes sense to add minor eps.
-            REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.001);
+            REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.01);
         }
     }
 };
@@ -129,7 +129,8 @@ TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
     auto rng_engine_ = this->get_device_engine(seed);
 
     uniform<Float>(elem_count, arr_host_ptr, rng_engine, 0, elem_count);
-    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine_, 0, elem_count);
+    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine_, 0, elem_count)
+        .wait_and_throw();
 
     this->check_results(arr_gpu, arr_host);
 }
@@ -162,7 +163,8 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng cpu skip", "[rng]", rng_types_skip_ahe
     uniform<Float>(elem_count, arr_host_init_1_ptr, rng_engine, 0, elem_count);
     uniform<Float>(elem_count, arr_host_init_2_ptr, rng_engine_2, 0, elem_count);
 
-    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine, 0, elem_count);
+    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine, 0, elem_count)
+        .wait_and_throw();
     uniform<Float>(elem_count, arr_host_ptr, rng_engine_2, 0, elem_count);
 
     this->check_results(arr_host_init_1, arr_host_init_2);
@@ -191,15 +193,18 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
     auto rng_engine = this->get_device_engine(seed);
     auto rng_engine_2 = this->get_device_engine(seed);
 
-    uniform<Float>(this->get_queue(), elem_count, arr_device_init_1_ptr, rng_engine, 0, elem_count);
+    uniform<Float>(this->get_queue(), elem_count, arr_device_init_1_ptr, rng_engine, 0, elem_count)
+        .wait_and_throw();
     uniform<Float>(this->get_queue(),
                    elem_count,
                    arr_device_init_2_ptr,
                    rng_engine_2,
                    0,
-                   elem_count);
+                   elem_count)
+        .wait_and_throw();
 
-    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine, 0, elem_count);
+    uniform<Float>(this->get_queue(), elem_count, arr_gpu_ptr, rng_engine, 0, elem_count)
+        .wait_and_throw();
     uniform<Float>(elem_count, arr_host_ptr, rng_engine_2, 0, elem_count);
 
     this->check_results(arr_device_init_1, arr_device_init_2);

@@ -271,6 +271,9 @@ public:
         }
     }
 
+    // /// Copy constructor.
+    // explicit device_engine(const device_engine& other);
+
     /// Assignment operator.
     device_engine& operator=(const device_engine& other);
 
@@ -368,7 +371,7 @@ void uniform_without_replacement(std::int64_t count,
 /// @param[in] count The number of elements to shuffle.
 /// @param[in, out] dst Pointer to the array to be shuffled.
 /// @param[in] engine_ Reference to the device engine.
-template <typename Type, typename T = Type, typename = std::enable_if_t<std::is_integral_v<T>>>
+template <typename Type, typename = std::enable_if_t<std::is_integral_v<Type>>>
 void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
     if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
         sycl::usm::alloc::device) {
@@ -393,13 +396,13 @@ void shuffle(std::int64_t count, Type* dst, device_engine& engine_) {
 /// @param[in] b The upper bound of the uniform distribution.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-void uniform(sycl::queue& queue,
-             std::int64_t count,
-             Type* dst,
-             device_engine& engine_,
-             Type a,
-             Type b,
-             const event_vector& deps = {});
+sycl::event uniform(sycl::queue& queue,
+                    std::int64_t count,
+                    Type* dst,
+                    device_engine& engine_,
+                    Type a,
+                    Type b,
+                    const event_vector& deps = {});
 
 /// Generates a random permutation of elements without replacement on the GPU.
 /// @tparam Type The data type of the elements.
@@ -412,14 +415,14 @@ void uniform(sycl::queue& queue,
 /// @param[in] b The upper bound of the range.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-void uniform_without_replacement(sycl::queue& queue,
-                                 std::int64_t count,
-                                 Type* dst,
-                                 Type* buffer,
-                                 device_engine& engine_,
-                                 Type a,
-                                 Type b,
-                                 const event_vector& deps = {});
+sycl::event uniform_without_replacement(sycl::queue& queue,
+                                        std::int64_t count,
+                                        Type* dst,
+                                        Type* buffer,
+                                        device_engine& engine_,
+                                        Type a,
+                                        Type b,
+                                        const event_vector& deps = {});
 
 /// Shuffles an array using random swaps on the GPU.
 /// @tparam Type The data type of the array elements.
@@ -429,11 +432,11 @@ void uniform_without_replacement(sycl::queue& queue,
 /// @param[in] engine_ Reference to the device engine.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-void shuffle(sycl::queue& queue,
-             std::int64_t count,
-             Type* dst,
-             device_engine& engine_,
-             const event_vector& deps = {});
+sycl::event shuffle(sycl::queue& queue,
+                    std::int64_t count,
+                    Type* dst,
+                    device_engine& engine_,
+                    const event_vector& deps = {});
 
 /// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.
 /// @tparam Type The data type of the array elements.
@@ -444,12 +447,12 @@ void shuffle(sycl::queue& queue,
 /// @param[in] method The rng engine type. Defaults to `mt19937`.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-void partial_fisher_yates_shuffle(sycl::queue& queue_,
-                                  ndview<Type, 1>& result_array,
-                                  std::int64_t top,
-                                  std::int64_t seed,
-                                  engine_type method = engine_type::mt19937,
-                                  const event_vector& deps = {});
+sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
+                                         ndview<Type, 1>& result_array,
+                                         std::int64_t top,
+                                         std::int64_t seed,
+                                         engine_type method = engine_type::mt19937,
+                                         const event_vector& deps = {});
 #endif
 
 } // namespace oneapi::dal::backend::primitives
