@@ -28,7 +28,6 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
-#include <memory>
 
 namespace daal
 {
@@ -183,10 +182,10 @@ Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, c
     algorithmFPType one                 = 1;
     algorithmFPType zero                = 0;
     algorithmFPType * mult_current_data = initializeResult ? &zero : &one;
-    std::unique_ptr<algorithmFPType[]> ones;
+    daal::services::internal::TArray<algorithmFPType, cpu> ones;
     if (interceptFlag)
     {
-        ones = std::unique_ptr<algorithmFPType[]>(new algorithmFPType[nRows]);
+        ones = daal::services::internal::TArray<algorithmFPType, cpu>(nRows);
         std::fill(ones.get(), ones.get() + nRows, algorithmFPType(1));
     }
 
