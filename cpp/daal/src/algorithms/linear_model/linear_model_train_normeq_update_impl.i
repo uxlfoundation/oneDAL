@@ -194,7 +194,11 @@ Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, c
     {
         BlasInst<algorithmFPType, cpu>::xgemv("N", &nCols, &nRows, &one, xPtr, &nCols, ones.get(), &one_int, mult_current_data,
                                               xtx + static_cast<size_t>(nBetasIntercept) * static_cast<size_t>(nCols), &one_int);
-        xtx[static_cast<size_t>(nBetasIntercept) * static_cast<size_t>(nBetasIntercept) - 1] = nRows;
+        const size_t idx_last = static_cast<size_t>(nBetasIntercept) * static_cast<size_t>(nBetasIntercept) - 1;
+        if (initializeResult)
+            xtx[idx_last] = nRows;
+        else
+            xtx[idx_last] += nRows;
     }
 
     if (nResponses == 1)
