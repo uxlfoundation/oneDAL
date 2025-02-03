@@ -139,7 +139,7 @@ struct OpenBlas<float, cpu>
     typedef DAAL_INT SizeType;
 
     static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
-                      const DAAL_INT * lda, const const float * beta, float * ata, const DAAL_INT * ldata)
+                      const DAAL_INT * lda, const float * beta, float * ata, const DAAL_INT * ldata)
     {
         ssyrk_(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
