@@ -277,7 +277,7 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
         DAAL_CHECK_BLOCK_STATUS(yBlock);
         const algorithmFPType * xPtr = xBlock.get();
         const algorithmFPType * yPtr = yBlock.get();
-        return computeNonBatchedAggregates<algorithmFPType, cpu>(nRows, nCols, nResponses, true, interceptFlag, xPtr, yPtr, xtx, xty);
+        return computeNonBatchedAggregates<algorithmFPType, cpu>(nRows, nCols, nResponses, initializeResult, interceptFlag, xPtr, yPtr, xtx, xty);
     }
 
     /* Initialize output arrays by zero in case of batch mode */
