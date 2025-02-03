@@ -178,10 +178,11 @@ template <typename algorithmFPType, CpuType cpu>
 Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, const DAAL_INT nResponses, bool initializeResult, bool interceptFlag,
                                    const algorithmFPType * xPtr, const algorithmFPType * yPtr, algorithmFPType * xtx, algorithmFPType * xty)
 {
-    DAAL_INT nBetasIntercept = nCols + static_cast<int>(interceptFlag);
-    DAAL_INT one_int         = 1;
-    algorithmFPType one      = 1;
-    algorithmFPType zero     = 0;
+    DAAL_INT nBetasIntercept            = nCols + static_cast<int>(interceptFlag);
+    DAAL_INT one_int                    = 1;
+    algorithmFPType one                 = 1;
+    algorithmFPType zero                = 0;
+    algorithmFPType * mult_current_data = initializeResult ? &zero : &one;
     std::unique_ptr<algorithmFPType[]> ones;
     if (interceptFlag)
     {
@@ -189,18 +190,17 @@ Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, c
         std::fill(ones.get(), ones.get() + nRows, algorithmFPType(1));
     }
 
-    BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &nCols, &nRows, &one, xPtr, &nCols, &zero, xtx, &nBetasIntercept);
+    BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &nCols, &nRows, &one, xPtr, &nCols, mult_current_data, xtx, &nBetasIntercept);
     if (interceptFlag)
     {
-        BlasInst<algorithmFPType, cpu>::xgemv("N", &nCols, &nRows, &one, xPtr, &nCols, ones.get(), &one_int, initializeResult ? &zero : &one,
+        BlasInst<algorithmFPType, cpu>::xgemv("N", &nCols, &nRows, &one, xPtr, &nCols, ones.get(), &one_int, mult_current_data,
                                               xtx + static_cast<size_t>(nBetasIntercept) * static_cast<size_t>(nCols), &one_int);
         xtx[static_cast<size_t>(nBetasIntercept) * static_cast<size_t>(nBetasIntercept) - 1] = nRows;
     }
 
     if (nResponses == 1)
     {
-        BlasInst<algorithmFPType, cpu>::xgemv("N", &nCols, &nRows, &one, xPtr, &nCols, yPtr, &one_int, initializeResult ? &zero : &one, xty,
-                                              &one_int);
+        BlasInst<algorithmFPType, cpu>::xgemv("N", &nCols, &nRows, &one, xPtr, &nCols, yPtr, &one_int, mult_current_data, xty, &one_int);
         if (interceptFlag)
         {
             const algorithmFPType last_val = BlasInst<algorithmFPType, cpu>::xxdot(&nRows, yPtr, &one_int, ones.get(), &one_int);
@@ -212,12 +212,12 @@ Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, c
     }
     else
     {
-        BlasInst<algorithmFPType, cpu>::xgemm("N", "T", &nCols, &nResponses, &nRows, &one, xPtr, &nCols, yPtr, &nResponses,
-                                              initializeResult ? &zero : &one, xty, &nBetasIntercept);
+        BlasInst<algorithmFPType, cpu>::xgemm("N", "T", &nCols, &nResponses, &nRows, &one, xPtr, &nCols, yPtr, &nResponses, mult_current_data, xty,
+                                              &nBetasIntercept);
         if (interceptFlag)
         {
-            BlasInst<algorithmFPType, cpu>::xgemv("N", &nResponses, &nRows, &one, yPtr, &nResponses, ones.get(), &one_int,
-                                                  initializeResult ? &zero : &one, xty + nCols, &nBetasIntercept);
+            BlasInst<algorithmFPType, cpu>::xgemv("N", &nResponses, &nRows, &one, yPtr, &nResponses, ones.get(), &one_int, mult_current_data,
+                                                  xty + nCols, &nBetasIntercept);
         }
     }
     return Status();
