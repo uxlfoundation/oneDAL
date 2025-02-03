@@ -46,14 +46,14 @@ struct OpenBlas<double, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a, const DAAL_INT * lda, const double * beta, double * ata,
-                      const DAAL_INT * ldata)
+    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
+                      const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
         dsyrk_(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
 
-    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a, const DAAL_INT * lda, const double * beta, double * ata,
-                       const DAAL_INT * ldata)
+    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
+                       const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
         openblas_thread_setter ots(1);
         dsyrk_(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
@@ -138,14 +138,14 @@ struct OpenBlas<float, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a, const DAAL_INT * lda, const const float * beta, float * ata,
-                      const DAAL_INT * ldata)
+    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
+                      const DAAL_INT * lda, const const float * beta, float * ata, const DAAL_INT * ldata)
     {
         ssyrk_(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
 
-    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a, const DAAL_INT * lda, const float * beta, float * ata,
-                       const DAAL_INT * ldata)
+    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
+                       const DAAL_INT * lda, const float * beta, float * ata, const DAAL_INT * ldata)
     {
         openblas_thread_setter ots(1);
         ssyrk_(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
