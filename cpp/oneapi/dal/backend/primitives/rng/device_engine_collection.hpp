@@ -37,8 +37,15 @@ public:
             : count_(count),
               base_seed_(seed) {
         engines_.reserve(count_);
-        for (std::int64_t i = 0; i < count_; ++i) {
-            engines_.push_back(device_engine(queue, base_seed_ + i, method));
+        if (method == engine_type::mt2203) {
+            for (std::int64_t i = 0; i < count_; ++i) {
+                engines_.push_back(device_engine(queue, base_seed_, i, method));
+            }
+        }
+        else {
+            for (std::int64_t i = 0; i < count_; ++i) {
+                engines_.push_back(device_engine(queue, base_seed_ + i, method));
+            }
         }
     }
 

@@ -39,7 +39,7 @@ class host_engine {
 public:
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
     /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
-    explicit host_engine(std::int64_t seed = 777, engine_type method = engine_type::mt2203) {
+    host_engine(std::int64_t seed = 777, engine_type method = engine_type::mt2203) {
         switch (method) {
             case engine_type::mt2203:
                 host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
@@ -82,6 +82,18 @@ public:
 
         return *this;
     }
+
+    // Copy constructor
+    host_engine(const host_engine&) = default;
+
+    // Copy assignment operator
+    host_engine& operator=(const host_engine&) = default;
+
+    // Move constructor
+    host_engine(host_engine&& other) noexcept = default;
+
+    // Move assignment operator
+    host_engine& operator=(host_engine&& other) noexcept = default;
 
     /// Destructor.
     ~host_engine() = default;

@@ -237,14 +237,15 @@ public:
     /// @param[in] queue   The SYCL queue used to manage device operations.
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
     /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
-    explicit device_engine(sycl::queue& queue,
-                           std::int64_t seed = 777,
-                           engine_type method = engine_type::mt2203)
+    device_engine(sycl::queue& queue,
+                  std::int64_t seed = 777,
+                  engine_type method = engine_type::mt2203,
+                  std::int64_t idx = 0)
             : q(queue) {
         switch (method) {
             case engine_type::mt2203:
                 host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
-                dpc_engine_ = std::make_shared<gen_mt2203>(queue, seed);
+                dpc_engine_ = std::make_shared<gen_mt2203>(queue, seed, idx);
                 break;
             case engine_type::mcg59:
                 host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
@@ -271,11 +272,17 @@ public:
         }
     }
 
-    // /// Copy constructor.
-    // explicit device_engine(const device_engine& other);
+    // Copy constructor
+    device_engine(const device_engine&) = default;
 
-    /// Assignment operator.
-    device_engine& operator=(const device_engine& other);
+    // Copy assignment operator
+    device_engine& operator=(const device_engine&) = default;
+
+    // Move constructor
+    device_engine(device_engine&& other) noexcept = default;
+
+    // Move assignment operator
+    device_engine& operator=(device_engine&& other) noexcept = default;
 
     /// Destructor.
     ~device_engine() = default;
