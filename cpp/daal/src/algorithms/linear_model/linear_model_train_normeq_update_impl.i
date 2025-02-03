@@ -259,7 +259,7 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     //                              && (nResponses == 1 || yTable.getDataLayout() == NumericTable::StorageLayout::aos);
     /// For testing purposes, will enable it regardless of input sizes, but this should be changed later.
     bool use_non_batched_route =
-        getDataLayout() == NumericTable::StorageLayout::aos && (nResponses == 1 || yTable.getDataLayout() == NumericTable::StorageLayout::aos);
+        xTable.getDataLayout() == NumericTable::StorageLayout::aos && (nResponses == 1 || yTable.getDataLayout() == NumericTable::StorageLayout::aos);
     if (use_non_batched_route)
     {
         /// Note: this is only implemented for row-major arrays, because there's
