@@ -258,11 +258,9 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     /// being faster.
 
     /// These are the thresholds where the non-batched route should be used.
-    // bool use_non_batched_route = (nBetas >= 4096 || (nRows <= 10000 && nBetas >= 1024)) && getDataLayout() == NumericTable::StorageLayout::aos
-    //                              && (nResponses == 1 || yTable.getDataLayout() == NumericTable::StorageLayout::aos);
+    // bool use_non_batched_route = nBetas >= 4096 || (nRows <= 10000 && nBetas >= 1024);
     /// For testing purposes, will enable it regardless of input sizes, but this should be changed later.
-    bool use_non_batched_route =
-        xTable.getDataLayout() == NumericTable::StorageLayout::aos && (nResponses == 1 || yTable.getDataLayout() == NumericTable::StorageLayout::aos);
+    bool use_non_batched_route = true;
     if (use_non_batched_route)
     {
         /// Note: this is only implemented for row-major arrays, because there's
