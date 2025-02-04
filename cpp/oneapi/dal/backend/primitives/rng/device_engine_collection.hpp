@@ -28,9 +28,9 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-class device_host_engine_collection {
+class device_engine_collection {
 public:
-    device_host_engine_collection(sycl::queue& queue,
+    device_engine_collection(sycl::queue& queue,
                                   std::int64_t count,
                                   std::int64_t seed = 777,
                                   engine_type method = engine_type::mt2203)

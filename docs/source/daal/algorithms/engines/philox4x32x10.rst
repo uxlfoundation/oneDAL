@@ -28,12 +28,12 @@ leapfrog (threadIdx, nThreads)
 Batch Processing
 ****************
 
-philox4x32x10 engine needs the initial condition (``seed``) for state initialization.
+Philox4x32x10 engine needs the initial condition (``seed``) for state initialization.
 The seed can be either an integer scalar or a vector of :math:`p` integer elements, the inputs to the respective engine constructors.
 
 .. rubric:: Algorithm Parameters
 
-philox4x32x10 engine has the following parameters:
+Philox4x32x10 engine has the following parameters:
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.2}|\Y{0.6}|
 

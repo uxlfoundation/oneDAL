@@ -15,7 +15,7 @@
 mrg32k3a
 ========
 
-The engine based on a 32-bit combined multiple recursive generator
+The engine is based on a 32-bit combined multiple recursive generator
 with two components of order 3, optimized for batch processing.
 
 .. rubric:: Subsequence selection methods support
@@ -28,12 +28,12 @@ leapfrog (threadIdx, nThreads)
 Batch Processing
 ****************
 
-mrg32k3a engine needs the initial condition (``seed``) for state initialization.
+MRG32k3a engine needs the initial condition (``seed``) for state initialization.
 The seed can be either an integer scalar or a vector of :math:`p` integer elements, the inputs to the respective engine constructors.
 
 .. rubric:: Algorithm Parameters
 
-mrg32k3a engine has the following parameters:
+MRG32k3a engine has the following parameters:
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.2}|\Y{0.6}|
 
