@@ -109,6 +109,8 @@ These methods are represented with member functions of classes that represent fu
 .. toctree::
     :maxdepth: 1
 
-    mt19937.rst
     mcg59.rst
+    mt19937.rst
     mt2203.rst
+    mrg32k3a.rst
+    philox4x32x10.rst
