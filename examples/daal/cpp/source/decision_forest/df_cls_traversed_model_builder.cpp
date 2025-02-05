@@ -1,6 +1,7 @@
 /* file: df_cls_traversed_model_builder.cpp */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -50,7 +51,7 @@ const size_t minObservationsInLeafNode = 8;
 
 const size_t nClasses = 5; /* Number of classes */
 
-/** Node structure for representing nodes in trees after traversing DAAL model */
+/** Node structure for representing nodes in trees after traversing Intel(R) DAAL model */
 struct Node {
     Node *left;
     Node *right;
@@ -66,7 +67,7 @@ struct Node {
     Node() : left(NULL), right(NULL), classLabel(0), featureIndex(0), featureValue(0) {}
 };
 
-/** Tree structure for representing tree after traversing DAAL model */
+/** Tree structure for representing tree after traversing Intel(R) DAAL model */
 struct Tree {
     Node *root;
     size_t nNodes;
@@ -94,7 +95,7 @@ bool buildTree(size_t treeId,
 int main(int argc, char *argv[]) {
     checkArguments(argc, argv, 1, &trainDatasetFileName);
 
-    /* train DAAL DF Classification model */
+    /* train Intel(R) DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();
     std::cout << "Predict on trained model" << std::endl;
     double trainedAccurcy = testModel(trainingResult->get(classifier::training::model));
