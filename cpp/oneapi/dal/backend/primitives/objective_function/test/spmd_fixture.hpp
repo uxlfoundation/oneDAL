@@ -100,12 +100,12 @@ public:
         std::int64_t num_checks = 5;
 
         std::vector<ndarray<float_t, 1>> vecs_host(num_checks), vecs_gpu(num_checks);
-        rng<float_t> rn_gen;
+
         for (std::int64_t ij = 0; ij < num_checks; ++ij) {
-            engine eng(2007 + dim * num_checks + ij);
+            host_engine eng(2007 + dim * num_checks + ij);
             vecs_host[ij] =
                 (ndarray<float_t, 1>::empty(this->get_queue(), { dim }, sycl::usm::alloc::host));
-            rn_gen.uniform(dim, vecs_host[ij].get_mutable_data(), eng.get_state(), -1.0, 1.0);
+            uniform<float_t>(dim, vecs_host[ij].get_mutable_data(), eng, -1.0, 1.0);
             vecs_gpu[ij] = vecs_host[ij].to_device(this->get_queue());
         }
 
