@@ -87,7 +87,7 @@ a factorization of the precision from the Cholesky of the covariance, such as su
 and used for Mahalanobis distance calculations by adding a new method.
 
 SVD fallback from QR factorization (medium)
-------------------------------------------
+-------------------------------------------
 
 While scikit-learn-intelex uses the normal-equations method for linear regression, oneDAL also offers a QR-based
 algorithm, but this algorithm only works for inputs that have more rows than columns and no linear dependencies nor
