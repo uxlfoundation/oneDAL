@@ -187,7 +187,7 @@ public:
             return (major >= 2021);
         }
 
-        // Return status of Intel(R) MPI Library ze support using pointer to function
+        // Return status of MPI ze support using pointer to function
         typedef int (*MPIX_Query_ze_support_ptr)();
         MPIX_Query_ze_support_ptr query_ze_support_ptr = (MPIX_Query_ze_support_ptr)sym;
 
