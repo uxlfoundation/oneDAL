@@ -24,9 +24,17 @@ namespace v1 {
 
 template <typename Context, typename Float, typename Task, typename Method, typename... Options>
 struct train_ops_dispatcher {
+    using input_t = oneapi::dal::decision_forest::v2::train_input<Task>;
     train_result<Task> operator()(const Context&,
                                   const descriptor_base<Task>&,
-                                  const oneapi::dal::decision_forest::v2::train_input<Task>&) const;
+                                  const train_parameters<Task>&,
+                                  const input_t&) const;
+    train_result<Task> operator()(const Context&,
+                                  const descriptor_base<Task>&,
+                                  const input_t&) const;
+    train_parameters<Task> select_parameters(const Context&,
+                                             const descriptor_base<Task>&,
+                                             const input_t&) const;
 };
 
 template <typename Descriptor>

@@ -17,10 +17,12 @@
 #include <daal/include/services/error_handling.h>
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_model_impl.h>
 #include <daal/src/services/service_algo_utils.h>
+#include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_batch.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_types.h>
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h>
 
+#include "oneapi/dal/algo/decision_forest/train_types.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/cpu/train_kernel.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
@@ -35,6 +37,7 @@ using dal::backend::context_cpu;
 using model_t = model<task::classification>;
 using input_t = train_input<task::classification>;
 using result_t = train_result<task::classification>;
+using param_t = detail::train_parameters<task::classification>;
 using descriptor_t = detail::descriptor_base<task::classification>;
 
 namespace daal_df = daal::algorithms::decision_forest;
@@ -52,6 +55,7 @@ using cls_hist_kernel_t = daal_df_cls_train::internal::
 template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
 static result_t call_daal_kernel(const context_cpu& ctx,
                                  const descriptor_t& desc,
+                                 const param_t& params,
                                  const table& data,
                                  const table& responses,
                                  const table& weights) {
@@ -220,9 +224,10 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
-static result_t train(const context_cpu& ctx, const descriptor_t& desc, const input_t& input) {
+static result_t train(const context_cpu& ctx, const descriptor_t& desc, const param_t& params, const input_t& input) {
     return call_daal_kernel<Float, CpuKernel>(ctx,
                                               desc,
+                                              params,
                                               input.get_data(),
                                               input.get_responses(),
                                               input.get_weights());
@@ -232,8 +237,9 @@ template <typename Float, typename Task>
 struct train_kernel_cpu<Float, method::dense, Task> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
-        return train<Float, cls_dense_kernel_t>(ctx, desc, input);
+        return train<Float, cls_dense_kernel_t>(ctx, desc, params, input);
     }
 };
 
@@ -241,8 +247,9 @@ template <typename Float, typename Task>
 struct train_kernel_cpu<Float, method::hist, Task> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
-        return train<Float, cls_hist_kernel_t>(ctx, desc, input);
+        return train<Float, cls_hist_kernel_t>(ctx, desc, params, input);
     }
 };
 

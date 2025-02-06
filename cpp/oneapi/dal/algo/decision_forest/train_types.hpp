@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/algo/decision_forest/common.hpp"
+#include "oneapi/dal/detail/parameters/system_parameters.hpp"
 
 namespace oneapi::dal::decision_forest {
 
@@ -27,10 +28,22 @@ class train_input_impl;
 
 template <typename Task>
 class train_result_impl;
+
+template <typename Task>
+struct train_parameters_impl;
+
+template <typename Task = task::by_default>
+class train_parameters : public dal::detail::system_parameters {
+public:
+    explicit train_parameters();
+private:
+    dal::detail::pimpl<train_parameters_impl<Task>> impl_;
+};
 } // namespace v1
 
 using v1::train_input_impl;
 using v1::train_result_impl;
+using v1::train_parameters;
 
 } // namespace detail
 
