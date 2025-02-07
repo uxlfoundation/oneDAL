@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "oneapi/dal/algo/decision_forest/parameters/cpu/train_parameters.hpp"
+#include "oneapi/dal/algo/decision_forest/parameters/gpu/train_parameters.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/cpu/train_kernel.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel.hpp"
 #include "oneapi/dal/algo/decision_forest/detail/train_ops.hpp"
