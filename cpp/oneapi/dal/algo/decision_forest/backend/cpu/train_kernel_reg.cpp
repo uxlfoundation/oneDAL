@@ -222,6 +222,7 @@ template <typename Float, typename Task>
 struct train_kernel_cpu<Float, method::dense, Task> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
         return train<Float, reg_dense_kernel_t>(ctx, desc, input);
     }

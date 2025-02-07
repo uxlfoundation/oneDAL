@@ -19,6 +19,23 @@
 
 namespace oneapi::dal::decision_forest {
 
+namespace detail::v1 {
+
+template <typename Task>
+train_parameters<Task>::train_parameters() : impl_(new train_parameters_impl<Task>{}) {}
+
+template <typename Task>
+struct train_parameters_impl : public base {
+    std::int64_t small_classes_threshold = 8l;
+    std::int64_t min_part_coefficient = 4l;
+    std::int64_t min_size_coefficient = 24000l;
+};
+
+template class ONEDAL_EXPORT train_parameters<task::classification>;
+template class ONEDAL_EXPORT train_parameters<task::regression>;
+
+} // namespace detail::v1
+
 template <typename Task>
 class detail::v1::train_input_impl : public base {
 public:
@@ -46,6 +63,8 @@ public:
     table variable_importance;
 };
 
+
+using detail::v1::train_parameters;
 using detail::v1::train_input_impl;
 using detail::v1::train_result_impl;
 
