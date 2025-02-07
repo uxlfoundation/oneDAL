@@ -339,10 +339,6 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
         pr::ndarray<Index, 1>::empty(queue_,
                                      { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
                                      alloc::device);
-    tree_order_lev_buf_ =
-        pr::ndarray<Index, 1>::empty(queue_,
-                                     { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
-                                     alloc::device);
     if (ctx.oob_required_) {
         // oob_per_obs_list contains class_count number of counters for all out of bag observations for all trees
         de::check_mul_overflow(ctx.row_count_, ctx.class_count_);
@@ -2022,7 +2018,6 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
                         full_data_nd_,
                         node_list,
                         tree_order_lev_,
-                        tree_order_lev_buf_,
                         ctx.row_count_,
                         ctx.selected_row_total_count_,
                         ctx.column_count_,
