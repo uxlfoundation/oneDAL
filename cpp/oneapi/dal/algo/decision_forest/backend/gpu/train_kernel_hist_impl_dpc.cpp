@@ -382,74 +382,38 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
     sycl::event last_event;
 
     if (ctx.bootstrap_) {
-        auto selected_row_global =
-            pr::ndarray<Index, 1>::empty(queue_,
-                                         { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
-                                         alloc::device);
-        pr::ndarray<Index, 1> selected_row;
-        if (ctx.distr_mode_) {
-            selected_row =
-                pr::ndarray<Index, 1>::empty(queue_,
-                                             { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
-                                             alloc::device);
-        }
+        auto selected_row_global_host =
+            pr::ndarray<Index, 1>::empty({ ctx.selected_row_total_count_ * ctx.tree_in_block_ });
 
-        Index* const selected_row_global_ptr = selected_row_global.get_mutable_data();
-        Index* const selected_row_ptr = ctx.distr_mode_ ? selected_row.get_mutable_data() : nullptr;
+        Index* const selected_row_global_ptr = selected_row_global_host.get_mutable_data();
+
         Index* const node_list_ptr = node_list_host.get_mutable_data();
 
         for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
             Index* gen_row_idx_global_ptr =
                 selected_row_global_ptr + ctx.selected_row_total_count_ * node_idx;
-            pr::uniform<Index>(queue_,
-                               ctx.selected_row_total_count_,
+            pr::uniform<Index>(ctx.selected_row_total_count_,
                                gen_row_idx_global_ptr,
                                rng_engine_list,
                                0,
-                               ctx.row_total_count_)
-                .wait_and_throw();
+                               ctx.row_total_count_);
 
             if (ctx.distr_mode_) {
                 Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
 
-                Index* const dst = selected_row_ptr + ctx.selected_row_total_count_ * node_idx;
-
-                auto [row_index, row_index_event] =
-                    pr::ndarray<Index, 1>::full(queue_, 1, 0, alloc::device);
-                row_index_event.wait_and_throw();
-                Index* row_idx_ptr = row_index.get_mutable_data();
-                const sycl::nd_range<1> nd_range =
-                    bk::make_multiple_nd_range_1d(ctx.selected_row_total_count_, 1);
-                auto event_ = queue_.submit([&](sycl::handler& cgh) {
-                    cgh.depends_on({ last_event });
-                    cgh.parallel_for(nd_range, [=](sycl::nd_item<1> id) {
-                        auto idx = id.get_global_id(0);
-                        dst[idx] = 0;
-                        if (gen_row_idx_global_ptr[idx] >= ctx.global_row_offset_ &&
-                            gen_row_idx_global_ptr[idx] <
-                                (ctx.global_row_offset_ + ctx.row_count_)) {
-                            sycl::atomic_ref<
-                                Index,
-                                sycl::memory_order::relaxed,
-                                sycl::memory_scope::device,
-                                sycl::access::address_space::ext_intel_global_device_space>
-                                counter_atomic(row_idx_ptr[0]);
-                            auto cur_idx = counter_atomic.fetch_add(1);
-                            dst[cur_idx] = gen_row_idx_global_ptr[idx] - ctx.global_row_offset_;
-                        }
-                    });
-                });
-                auto set_event = queue_.submit([&](sycl::handler& cgh) {
-                    cgh.depends_on(event_);
-                    cgh.parallel_for(sycl::range<1>{ std::size_t(1) }, [=](sycl::id<1> idx) {
-                        node_ptr[impl_const_t::ind_lrc] = row_idx_ptr[0];
-                    });
-                });
-                set_event.wait_and_throw();
+                Index row_idx = 0;
+                for (Index i = 0; i < ctx.selected_row_total_count_; i++) {
+                    if (gen_row_idx_global_ptr[i] >= ctx.global_row_offset_ &&
+                        gen_row_idx_global_ptr[i] < (ctx.global_row_offset_ + ctx.row_count_)) {
+                        gen_row_idx_global_ptr[row_idx++] =
+                            gen_row_idx_global_ptr[i] - ctx.global_row_offset_;
+                    }
+                }
+                node_ptr[impl_const_t::ind_lrc] = row_idx;
             }
         }
 
-        ctx.distr_mode_ ? tree_order_level = selected_row : tree_order_level = selected_row_global;
+        last_event = tree_order_level.assign_from_host(queue_, selected_row_global_host);
     }
     else {
         Index row_count = ctx.selected_row_count_;
@@ -457,8 +421,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         if (ctx.distr_mode_) {
             row_count = 0;
             if (ctx.global_row_offset_ < ctx.selected_row_total_count_) {
-                row_count = std::min(static_cast<std::int32_t>(ctx.selected_row_total_count_ -
-                                                               ctx.global_row_offset_),
+                row_count = std::min(ctx.selected_row_total_count_ - ctx.global_row_offset_,
                                      ctx.row_count_);
             }
             // in case of no bootstrap
@@ -467,22 +430,20 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
 
             Index* node_list_ptr = node_list_host.get_mutable_data();
 
-            auto set_event = queue_.submit([&](sycl::handler& cgh) {
-                cgh.parallel_for(sycl::range<1>{ std::size_t(node_count) }, [=](sycl::id<1> idx) {
-                    Index* node_ptr = node_list_ptr + idx * impl_const_t::node_prop_count_;
-                    node_ptr[impl_const_t::ind_lrc] = row_count;
-                });
-            });
-            set_event.wait_and_throw();
-
-            if (row_count > 0) {
-                last_event = train_service_kernels_.initialize_tree_order(tree_order_level,
-                                                                          node_count,
-                                                                          row_count,
-                                                                          stride);
+            for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
+                Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
+                node_ptr[impl_const_t::ind_lrc] = row_count;
             }
         }
+
+        if (row_count > 0) {
+            last_event = train_service_kernels_.initialize_tree_order(tree_order_level,
+                                                                      node_count,
+                                                                      row_count,
+                                                                      stride);
+        }
     }
+
     return last_event;
 }
 
@@ -498,29 +459,22 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
     ONEDAL_ASSERT(node_vs_tree_map_list.get_count() == node_count);
 
     de::check_mul_overflow((node_count + 1), ctx.selected_ftr_count_);
-    // first part is used for features indices, +1 block - part for generator
-    auto selected_features_host =
-        pr::ndarray<Index, 1>::empty({ (node_count + 1) * ctx.selected_ftr_count_ });
+
     auto selected_features_com =
         pr::ndarray<Index, 1>::empty(queue_,
                                      { node_count * ctx.selected_ftr_count_ },
-                                     alloc::device);
+                                     alloc::shared);
 
-    auto selected_features_host_ptr = selected_features_host.get_mutable_data();
-
-    auto node_vs_tree_map_list_host = node_vs_tree_map_list.to_host(queue_);
+    auto selected_features_host_ptr = selected_features_com.get_mutable_data();
 
     if (ctx.selected_ftr_count_ != ctx.column_count_) {
         for (Index node = 0; node < node_count; ++node) {
             pr::uniform_without_replacement<Index>(
-                queue_,
                 ctx.selected_ftr_count_,
                 selected_features_host_ptr + node * ctx.selected_ftr_count_,
-                selected_features_host_ptr + (node + 1) * ctx.selected_ftr_count_,
                 rng_engine_list,
                 0,
-                ctx.column_count_)
-                .wait_and_throw();
+                ctx.column_count_);
         }
     }
     else {
@@ -531,11 +485,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
         }
     }
 
-    auto event = selected_features_com.assign_from_host(queue_,
-                                                        selected_features_host_ptr,
-                                                        selected_features_com.get_count());
-
-    return std::tuple{ selected_features_com, event };
+    return std::tuple{ selected_features_com, sycl::event() };
 }
 
 template <typename Float, typename Bin, typename Index, typename Task>
@@ -553,21 +503,19 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
 
     auto random_bins_com = pr::ndarray<Float, 1>::empty(queue_,
                                                         { node_count * ctx.selected_ftr_count_ },
-                                                        alloc::device);
-    auto random_bins_ptr = random_bins_com.get_mutable_data();
+                                                        alloc::shared);
+    auto random_bins_host_ptr = random_bins_com.get_mutable_data();
 
     // Generate random bins for selected features
     for (Index node = 0; node < node_count; ++node) {
-        pr::uniform<Float>(queue_,
-                           ctx.selected_ftr_count_,
-                           random_bins_ptr + node * ctx.selected_ftr_count_,
+        pr::uniform<Float>(ctx.selected_ftr_count_,
+                           random_bins_host_ptr + node * ctx.selected_ftr_count_,
                            rng_engine_list,
                            0.0f,
-                           1.0f)
-            .wait_and_throw();
+                           1.0f);
     }
-    sycl::event event_rnd_generate;
-    return std::tuple{ random_bins_com, event_rnd_generate };
+
+    return std::tuple{ random_bins_com, sycl::event() };
 };
 
 template <typename Float, typename Index, typename Task>
@@ -1875,11 +1823,11 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
 
-    // pr::host_engine_collection collection(ctx.tree_count_, desc.get_seed());
     rng_engine_list_t engine_arr = ::oneapi::dal::backend::primitives::device_engine(
         queue_,
         desc.get_seed(),
         ::oneapi::dal::backend::primitives::engine_type::philox4x32x10);
+
     pr::ndarray<Float, 1> node_imp_decrease_list;
 
     sycl::event last_event;

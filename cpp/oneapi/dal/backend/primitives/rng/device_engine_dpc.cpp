@@ -99,7 +99,6 @@ template <typename Type>
 sycl::event uniform_without_replacement(sycl::queue& queue,
                                         std::int64_t count,
                                         Type* dst,
-                                        Type* buffer,
                                         device_engine& engine_,
                                         Type a,
                                         Type b,
@@ -110,7 +109,7 @@ sycl::event uniform_without_replacement(sycl::queue& queue,
     }
     void* state = engine_.get_host_engine_state();
     engine_.skip_ahead_gpu(count);
-    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
+    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, state, a, b);
     auto event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
     });
@@ -209,7 +208,6 @@ INSTANTIATE_UNIFORM(std::int32_t)
     template ONEDAL_EXPORT sycl::event uniform_without_replacement(sycl::queue& queue,     \
                                                                    std::int64_t count_,    \
                                                                    F* dst,                 \
-                                                                   F* buff,                \
                                                                    device_engine& engine_, \
                                                                    F a,                    \
                                                                    F b,                    \
