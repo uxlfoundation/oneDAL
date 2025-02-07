@@ -256,11 +256,25 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     /// both aggregates independently, in separate calls to BLAS functions, while if the number of
     /// columns is reasonably small, will prefer the batched procedure which typically ends up
     /// being faster.
+    DAAL_INT64 maxColsBatched          = 4096;
+    DAAL_INT64 smallRowsThreshold      = 10000;
+    DAAL_INT64 smallRowsMaxColsBatched = 1024;
+    if (hyperparameter != nullptr)
+    {
+        services::Status status = hyperparameter->find(denseUpdateMaxColsBatched, maxColsBatched);
+        DAAL_CHECK(maxColsBatched > 0, services::ErrorIncorrectDataRange);
+        DAAL_CHECK_STATUS_VAR(status);
 
-    /// These are the thresholds where the non-batched route should be used.
-    // bool use_non_batched_route = nBetas >= 4096 || (nRows <= 10000 && nBetas >= 1024);
-    /// For testing purposes, will enable it regardless of input sizes, but this should be changed later.
-    bool use_non_batched_route = true;
+        status = hyperparameter->find(denseSmallRowsThreshold, smallRowsThreshold);
+        DAAL_CHECK(smallRowsThreshold > 0, services::ErrorIncorrectDataRange);
+        DAAL_CHECK_STATUS_VAR(status);
+
+        status = hyperparameter->find(denseSmallRowsMaxColsBatched, smallRowsMaxColsBatched);
+        DAAL_CHECK(smallRowsMaxColsBatched > 0, services::ErrorIncorrectDataRange);
+        DAAL_CHECK_STATUS_VAR(status);
+    }
+
+    const bool use_non_batched_route = nBetas >= maxColsBatched || (nRows >= smallRowsThreshold && nBetas >= smallRowsMaxColsBatched);
     if (use_non_batched_route)
     {
         /// Note: this is only implemented for row-major arrays, because there's
