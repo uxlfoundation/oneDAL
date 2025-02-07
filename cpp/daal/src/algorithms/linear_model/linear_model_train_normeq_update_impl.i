@@ -277,11 +277,6 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     const bool use_non_batched_route = nBetas >= maxColsBatched || (nRows >= smallRowsThreshold && nBetas >= smallRowsMaxColsBatched);
     if (use_non_batched_route)
     {
-        /// Note: this is only implemented for row-major arrays, because there's
-        /// currently to mechanism to know if a NumericTable is backed by a single
-        /// continuous column-major array. But if such a mechanism is added, there
-        /// shouldn't be any issue in creating a column-major version of this procedure
-        /// or extending it to more than one response.
         const DAAL_INT nCols = xTable.getNumberOfColumns();
         ReadRowsType xBlock(const_cast<NumericTable &>(xTable), 0, nRows);
         DAAL_CHECK_BLOCK_STATUS(xBlock);
