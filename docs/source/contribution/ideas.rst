@@ -63,6 +63,8 @@ Extended goal: linear regression is currently implemented through a mechanism wh
 decomposition, and falls back to eigenvalue decomposition when that fails, but for rank-deficient matrices,
 it will be known apriori that Cholesky will fail, so it can be skipped straight to eigendecomposition.
 
+`(Link to github issue for discussion) <https://github.com/uxlfoundation/oneDAL/issues/3066>`__
+
 Cholesky-based precision calculation (medium)
 ---------------------------------------------
 
@@ -87,6 +89,8 @@ a factorization of the precision from the Cholesky of the covariance, such as su
 `this StackExchange answer <https://math.stackexchange.com/a/713011>`__, which could then be stored on the C++ object
 and used for Mahalanobis distance calculations by adding a new method.
 
+`(Link to github issue for discussion) <https://github.com/uxlfoundation/oneDAL/issues/3067>`__
+
 SVD fallback from QR factorization (medium)
 -------------------------------------------
 
@@ -105,3 +109,5 @@ would have.
 The idea would be to implement a fallback mechanism that would first try out QR, and if that fails, then resort to
 SVD instead. Perhaps even the ``GELSD`` routine in LAPACK could be used directly. Note that QR will invariably fail when
 there are more columns than rows, so in such case it should go for SVD-based procedures directly.
+
+`(Link to github issue for discussion) <https://github.com/uxlfoundation/oneDAL/issues/3068>`__
