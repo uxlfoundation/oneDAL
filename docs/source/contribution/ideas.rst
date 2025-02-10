@@ -32,25 +32,26 @@ Partial eigendecompositions for rank-deficient matrices (medium)
 ----------------------------------------------------------------
 
 Some algorithms in oneDAL rely on spectral decompositions which are performed by calling corresponding
-routines from LAPACK for symmetric eigenvalue calculations - particularly function SYEVR. This function
+routines from LAPACK for symmetric eigenvalue calculations - particularly function ``SYEVR``. This function
 is always tasked with obtaining a full eigenvalue decomposition, but being a sequential procedure, it can
-also calculate partial eigencompositions - i.e. up to only the "N" largest eigenvalues.
+also calculate partial eigencompositions - i.e. up to only the :math:`N` largest eigenvalues.
 
 For many use-cases, components with too-small singular values in the resulting spectral decomposition are
-later on discarded, in line with other LAPACK procedures such as GELSD. It cannot be guaranteed without a
+later on discarded, in line with other LAPACK procedures such as ``GELSD``. It cannot be guaranteed without a
 prior decomposition of some kind that a symmetric matrix will have a minimum number of large-enough
-components, but it can be known apriori (before calling SYEVR) in some cases that a minimum number of
-eigenvalues should in theory be zero and thus should get discarded. In particular, a symmetric matrix "A"
-which is the cross-product of another matrix "X" can have a number of non-zero eigenvalues at most equal
-to the number of rows in the matrix "X".
+components, but it can be known apriori (before calling ``SYEVR``) in some cases that a minimum number of
+eigenvalues should in theory be zero and thus should get discarded. In particular, a symmetric matrix
+:math:`\mathbf{A}` which is the cross-product of another matrix :math:`\mathbf{X}` can have a number of
+non-zero eigenvalues at most equal to the number of rows in the matrix :math:`\mathbf{X}`.
 
-Hence, if dealing with a rank-deficient matrix "A" - i.e. a matrix which is the cross-product of a matrix
-"X" which has more columns than rows - then it can be known apriori (before calling the SYEVR function) that
-some eigenvalues should in theory be zero or negative, and the SYEVR function call can be sped up by not
-calculating a full decomposition.
+Hence, if dealing with a rank-deficient matrix :math:`\mathbf{A}` - i.e. a matrix which is the cross-product of
+a matrix :math:`\mathbf{X}` which has more columns than rows - then it can be known apriori (before calling the
+``SYEVR`` function) that some eigenvalues should in theory be zero or negative, and the ``SYEVR`` function call
+can be sped up by not calculating a full decomposition.
 
-This would require keeping track of the number of rows in "X" that generated a given matrix "A" throughout
-the procedures that use it, up until in reaches the SYEVR function call, which should be modified accordingly.
+This would require keeping track of the number of rows in :math:`\mathbf{X}` that generated a given matrix
+:math:`\mathbf{A}` throughout the procedures that use it, up until in reaches the ``SYEVR`` function call,
+which should be modified accordingly.
 
 Algorithms that might perform eigendecompositions on rank-deficient matrices include:
     
@@ -98,8 +99,9 @@ In theory, the QR algorithm's result could be post-processed to discard columns 
 with a solution where some coefficients are undefined (e.g. as done by the R software), but in order to match the
 behavior of the normal-equations method (i.e. produce the minimum-norm solution, rather than the minimum-rank solution),
 a better alternative could be to fall back to spectral decomposition done through singular value decomposition on the
-original matrix "X" instead, in order to retain the enhanced numerical accuracy that the QR method would have.
+original matrix :math:`\mathbf{X}` instead, in order to retain the enhanced numerical accuracy that the QR method
+would have.
 
 The idea would be to implement a fallback mechanism that would first try out QR, and if that fails, then resort to
-SVD instead. Perhaps even the GELSD routine in LAPACK could be used directly. Note that QR will invariably fail when
+SVD instead. Perhaps even the ``GELSD`` routine in LAPACK could be used directly. Note that QR will invariably fail when
 there are more columns than rows, so in such case it should go for SVD-based procedures directly.
