@@ -265,8 +265,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
 
     const Bin* data_ptr = data.get_data();
     const Index* node_list_ptr = node_list.get_data();
-    Index* node_aux_list_ptr = node_aux_list.get_mutable_data();
     Index* tree_order_ptr = tree_order.get_mutable_data();
+    Index* node_aux_list_ptr = node_aux_list.get_mutable_data();
 
     bool distr_mode = ctx.distr_mode_;
 
@@ -277,6 +277,11 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
 
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
+
+        // Local memory for storing temporary results
+        sycl::local_accessor<Index, 1> local_new_indices(krn_local_size, cgh);
+        sycl::local_accessor<Index, 1> local_flags(krn_local_size, cgh);
+
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
             auto sbg = item.get_sub_group();
             const Index sub_group_size = sbg.get_local_range()[0];
@@ -348,7 +353,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
                         group_right_boundary = sycl::group_broadcast(sbg, group_right_boundary, 0);
                     }
 
-                    Index group_row_to_right_count = 0;
+                    // Compute new indices in local memory first
                     for (Index i = ind_start + sub_group_local_id; i < ind_end;
                          i += sub_group_size) {
                         const Index id = tree_order_ptr[offset + i];
@@ -356,15 +361,21 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
                             Index(static_cast<Index>(data_ptr[id * data_column_count + feat_id]) >
                                   feat_bin);
                         const Index boundary =
-                            group_row_to_right_count +
-                            sycl::exclusive_scan_over_group(sbg, to_right, plus<Index>());
+                            sycl::exclusive_scan_over_group(sbg, to_right, sycl::plus<Index>());
                         const Index pos_new =
                             (to_right ? left_ch_row_count + group_right_boundary + boundary
                                       : group_left_boundary + i - ind_start - boundary);
-                        oneapi::dpl::swap(tree_order_ptr[offset + i],
-                                          tree_order_ptr[offset + pos_new]);
-                        group_row_to_right_count +=
-                            sycl::reduce_over_group(sbg, to_right, plus<Index>());
+
+                        // Store the updated index in local memory
+                        local_new_indices[work_group_local_id] = id;
+                        local_flags[work_group_local_id] = pos_new;
+                    }
+
+                    // Swap final results in a synchronized step
+                    for (Index i = ind_start + sub_group_local_id; i < ind_end;
+                         i += sub_group_size) {
+                        tree_order_ptr[offset + local_flags[work_group_local_id]] =
+                            local_new_indices[work_group_local_id];
                     }
                 }
             }

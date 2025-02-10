@@ -339,6 +339,12 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
         pr::ndarray<Index, 1>::empty(queue_,
                                      { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
                                      alloc::device);
+
+    tree_order_lev_buf_ =
+        pr::ndarray<Index, 1>::empty(queue_,
+                                     { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
+                                     alloc::device);
+
     if (ctx.oob_required_) {
         // oob_per_obs_list contains class_count number of counters for all out of bag observations for all trees
         de::check_mul_overflow(ctx.row_count_, ctx.class_count_);
@@ -378,38 +384,74 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
     sycl::event last_event;
 
     if (ctx.bootstrap_) {
-        auto selected_row_global_host =
-            pr::ndarray<Index, 1>::empty({ ctx.selected_row_total_count_ * ctx.tree_in_block_ });
+        auto selected_row_global_device =
+            pr::ndarray<Index, 1>::empty(queue_,
+                                         { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
+                                         alloc::device);
 
-        Index* const selected_row_global_ptr = selected_row_global_host.get_mutable_data();
+        Index* const selected_row_global_ptr = selected_row_global_device.get_mutable_data();
 
         Index* const node_list_ptr = node_list_host.get_mutable_data();
 
         for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
             Index* gen_row_idx_global_ptr =
                 selected_row_global_ptr + ctx.selected_row_total_count_ * node_idx;
-            pr::uniform<Index>(ctx.selected_row_total_count_,
+            pr::uniform<Index>(queue_,
+                               ctx.selected_row_total_count_,
                                gen_row_idx_global_ptr,
                                rng_engine_list,
                                0,
-                               ctx.row_total_count_);
+                               ctx.row_total_count_)
+                .wait_and_throw();
 
             if (ctx.distr_mode_) {
                 Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
+                std::int64_t sum_result = 0;
+                sycl::buffer<std::int64_t, 1> num_buf{
+                    &sum_result,
+                    sycl::range<1>(1)
+                }; // Create buffer with a single element
 
-                Index row_idx = 0;
-                for (Index i = 0; i < ctx.selected_row_total_count_; i++) {
-                    if (gen_row_idx_global_ptr[i] >= ctx.global_row_offset_ &&
-                        gen_row_idx_global_ptr[i] < (ctx.global_row_offset_ + ctx.row_count_)) {
-                        gen_row_idx_global_ptr[row_idx++] =
-                            gen_row_idx_global_ptr[i] - ctx.global_row_offset_;
-                    }
-                }
-                node_ptr[impl_const_t::ind_lrc] = row_idx;
+                const sycl::nd_range<1> nd_range =
+                    bk::make_multiple_nd_range_1d(ctx.selected_row_total_count_, 1);
+
+                queue_
+                    .submit([&](sycl::handler& h) {
+                        // Create an accessor for the buffer
+                        sycl::accessor<std::int64_t,
+                                       1,
+                                       sycl::access::mode::read_write,
+                                       sycl::access::target::device>
+                            acc(num_buf, h);
+
+                        h.single_task([=]() {
+                            std::int64_t num_elems = 0;
+
+                            // Ensure `gen_row_idx_global_ptr` is accessed correctly (assuming it's already on the device)
+                            for (int64_t row_id = 0; row_id < ctx.selected_row_total_count_;
+                                 row_id++) {
+                                Index global_idx = gen_row_idx_global_ptr
+                                    [row_id]; // Assuming this pointer is also on device
+                                if (global_idx >= ctx.global_row_offset_ &&
+                                    global_idx < (ctx.global_row_offset_ + ctx.row_count_)) {
+                                    gen_row_idx_global_ptr[num_elems++] =
+                                        global_idx - ctx.global_row_offset_;
+                                }
+                            }
+
+                            // Write the result back to the buffer
+                            acc[0] = num_elems;
+                        });
+                    })
+                    .wait_and_throw(); // Wait for completion
+
+                node_ptr[impl_const_t::ind_lrc] =
+                    num_buf.get_host_access()[0]; // Store the result in host memory
             }
         }
 
-        last_event = tree_order_level.assign_from_host(queue_, selected_row_global_host);
+        tree_order_level.assign(queue_, selected_row_global_device).wait_and_throw();
+        return last_event;
     }
     else {
         Index row_count = ctx.selected_row_count_;
