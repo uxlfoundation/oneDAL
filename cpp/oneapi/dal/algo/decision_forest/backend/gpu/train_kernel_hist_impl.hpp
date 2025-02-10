@@ -624,7 +624,6 @@ private:
     pr::ndarray<Index, 1> selected_row_host_;
     pr::ndarray<Index, 1> selected_row_global_host_;
     pr::ndarray<Index, 1> tree_order_lev_;
-    pr::ndarray<Index, 1> tree_order_lev_buf_;
 
     pr::ndarray<Float, 1> node_imp_decr_list_;
 

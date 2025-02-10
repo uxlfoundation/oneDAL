@@ -278,7 +278,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
 
-        // Local memory for storing temporary results
+        // Local memory for temporary storage
         sycl::local_accessor<Index, 1> local_new_indices(krn_local_size, cgh);
         sycl::local_accessor<Index, 1> local_flags(krn_local_size, cgh);
 
@@ -295,85 +295,126 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
                 item.get_group().get_group_id(0) * sub_groups_in_work_group_num +
                 work_group_local_id / sub_group_size;
             const Index sub_groups_num = item.get_group_range(0) * sub_groups_in_work_group_num;
+            item.barrier(sycl::access::fence_space::local_space);
 
             for (Index block_ind_glob = sub_group_id; block_ind_glob < total_block_count;
                  block_ind_glob += sub_groups_num) {
                 const Index node_id = block_ind_glob / max_block_count;
                 const Index block_ind = block_ind_glob % max_block_count;
 
+                // Check node_id validity
+                if (node_id >= node_count) {
+                    return;
+                }
+
                 const Index* node = node_list_ptr + node_id * node_prop_count;
                 const Index offset = node[impl_const_t::ind_ofs];
                 const Index row_count =
                     distr_mode ? node[impl_const_t::ind_lrc] : node[impl_const_t::ind_grc];
-                const Index feat_id = node[impl_const_t::ind_fid];
-                const Index feat_bin = node[impl_const_t::ind_bin];
-                const Index left_ch_row_count =
-                    distr_mode ? node[impl_const_t::ind_lch_lrc] : node[impl_const_t::ind_lch_grc];
 
+                // Check block_ind validity
                 Index node_block_count =
                     row_count / min_block_size
                         ? sycl::min(row_count / min_block_size, max_block_count)
                         : 1;
 
-                if (feat_id != leaf_mark && block_ind < node_block_count) {
-                    Index* node_aux = node_aux_list_ptr + node_id * aux_node_buffer_prop_count;
+                if (block_ind >= node_block_count) {
+                    return;
+                }
 
-                    const Index block_size =
-                        node_block_count > 1
-                            ? row_count / node_block_count + bool(row_count % node_block_count)
-                            : row_count;
+                const Index feat_id = node[impl_const_t::ind_fid];
+                const Index feat_bin = node[impl_const_t::ind_bin];
+                const Index left_ch_row_count =
+                    distr_mode ? node[impl_const_t::ind_lch_lrc] : node[impl_const_t::ind_lch_grc];
 
-                    const Index ind_end = sycl::min((block_ind + 1) * block_size, row_count);
-                    const Index ind_start = sycl::min(block_ind * block_size, ind_end);
-                    const Index group_row_count = ind_end - ind_start;
+                if (feat_id == leaf_mark) {
+                    return;
+                }
 
-                    Index group_left_boundary = 0;
-                    Index group_right_boundary = 0;
+                Index* node_aux = node_aux_list_ptr + node_id * aux_node_buffer_prop_count;
 
-                    if (node_block_count > 1 && group_row_count > 0) {
-                        Index group_row_to_right_count = 0;
-                        for (Index i = ind_start + sub_group_local_id; i < ind_end;
-                             i += sub_group_size) {
-                            const Index id = tree_order_ptr[offset + i];
-                            const Index to_right =
-                                Index(static_cast<Index>(
-                                          data_ptr[id * data_column_count + feat_id]) > feat_bin);
-                            group_row_to_right_count +=
-                                sycl::reduce_over_group(sbg, to_right, plus<Index>());
-                        }
+                const Index block_size =
+                    node_block_count > 1
+                        ? row_count / node_block_count + bool(row_count % node_block_count)
+                        : row_count;
 
-                        if (0 == sub_group_local_id) {
-                            group_left_boundary =
-                                bk::atomic_global_add(node_aux + 0,
-                                                      group_row_count - group_row_to_right_count);
-                            group_right_boundary =
-                                bk::atomic_global_add(node_aux + 1, group_row_to_right_count);
-                        }
-                        group_left_boundary = sycl::group_broadcast(sbg, group_left_boundary, 0);
-                        group_right_boundary = sycl::group_broadcast(sbg, group_right_boundary, 0);
-                    }
+                const Index ind_end = sycl::min((block_ind + 1) * block_size, row_count);
+                const Index ind_start = sycl::min(block_ind * block_size, ind_end);
+                const Index group_row_count = ind_end - ind_start;
 
-                    // Compute new indices in local memory first
+                // Check valid range
+                if (ind_start >= ind_end) {
+                    return;
+                }
+
+                Index group_left_boundary = 0;
+                Index group_right_boundary = 0;
+
+                if (node_block_count > 1 && group_row_count > 0) {
+                    Index group_row_to_right_count = 0;
                     for (Index i = ind_start + sub_group_local_id; i < ind_end;
                          i += sub_group_size) {
                         const Index id = tree_order_ptr[offset + i];
+
+                        // Check valid data index
+                        if (id >= data_row_count) {
+                            return;
+                        }
+
                         const Index to_right =
                             Index(static_cast<Index>(data_ptr[id * data_column_count + feat_id]) >
                                   feat_bin);
-                        const Index boundary =
-                            sycl::exclusive_scan_over_group(sbg, to_right, sycl::plus<Index>());
-                        const Index pos_new =
-                            (to_right ? left_ch_row_count + group_right_boundary + boundary
-                                      : group_left_boundary + i - ind_start - boundary);
+                        group_row_to_right_count +=
+                            sycl::reduce_over_group(sbg, to_right, plus<Index>());
+                    }
 
-                        // Store the updated index in local memory
+                    if (0 == sub_group_local_id) {
+                        group_left_boundary =
+                            bk::atomic_global_add(node_aux + 0,
+                                                  group_row_count - group_row_to_right_count);
+                        group_right_boundary =
+                            bk::atomic_global_add(node_aux + 1, group_row_to_right_count);
+                    }
+                    group_left_boundary = sycl::group_broadcast(sbg, group_left_boundary, 0);
+                    group_right_boundary = sycl::group_broadcast(sbg, group_right_boundary, 0);
+                }
+
+                Index group_row_to_right_count = 0;
+
+                // Compute new indices in local memory
+                for (Index i = ind_start + sub_group_local_id; i < ind_end; i += sub_group_size) {
+                    const Index id = tree_order_ptr[offset + i];
+
+                    // Check valid data index
+                    if (id >= data_row_count) {
+                        return;
+                    }
+
+                    const Index to_right = Index(
+                        static_cast<Index>(data_ptr[id * data_column_count + feat_id]) > feat_bin);
+                    const Index boundary =
+                        group_row_to_right_count +
+                        sycl::exclusive_scan_over_group(sbg, to_right, plus<Index>());
+                    const Index pos_new =
+                        (to_right ? left_ch_row_count + group_right_boundary + boundary
+                                  : group_left_boundary + i - ind_start - boundary);
+
+                    group_row_to_right_count +=
+                        sycl::reduce_over_group(sbg, to_right, plus<Index>());
+
+                    // Store in local memory
+                    if (work_group_local_id < krn_local_size) {
                         local_new_indices[work_group_local_id] = id;
                         local_flags[work_group_local_id] = pos_new;
                     }
+                }
 
-                    // Swap final results in a synchronized step
-                    for (Index i = ind_start + sub_group_local_id; i < ind_end;
-                         i += sub_group_size) {
+                // Ensure all threads reach this point before writing results
+                sycl::group_barrier(sbg);
+
+                // Write results back to global memory
+                for (Index i = ind_start + sub_group_local_id; i < ind_end; i += sub_group_size) {
+                    if (work_group_local_id < krn_local_size) {
                         tree_order_ptr[offset + local_flags[work_group_local_id]] =
                             local_new_indices[work_group_local_id];
                     }
