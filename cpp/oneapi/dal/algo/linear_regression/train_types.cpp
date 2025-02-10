@@ -25,7 +25,7 @@ namespace detail::v1 {
 template <typename Task>
 class train_input_impl : public base {
 public:
-    train_input_impl() : data(table()) {};
+    train_input_impl() : data(table()){};
     train_input_impl(const table& data, const table& responses = table{})
             : data(data),
               responses(responses) {}
