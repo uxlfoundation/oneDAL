@@ -62,6 +62,7 @@ public:
                                              const pr::ndarray<Bin, 2>& data,
                                              const pr::ndarray<Index, 1>& node_list,
                                              pr::ndarray<Index, 1>& tree_order,
+                                             pr::ndarray<Index, 1>& tree_order_buf,
                                              Index data_row_count,
                                              Index data_selected_row_count,
                                              Index data_column_count,

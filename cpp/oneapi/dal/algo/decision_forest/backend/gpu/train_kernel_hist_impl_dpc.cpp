@@ -19,7 +19,6 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
-#include <iostream>
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -147,38 +146,13 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.row_total_count_ = get_row_total_count(ctx.distr_mode_, ctx.row_count_);
 
     ctx.column_count_ = de::integral_cast<Index>(data.get_column_count());
-    // define number of trees which can be built in parallel
-    const std::uint64_t device_global_mem_size =
-        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
-    const std::uint64_t device_max_mem_alloc_size =
-        queue_.get_device().get_info<sycl::info::device::max_mem_alloc_size>();
 
-    const std::int64_t sizeof_int64_t = sizeof(std::int64_t);
-    const std::int64_t memory_per_row =
-        4 * ctx.column_count_ * sizeof_int64_t; //to do add desctiption
-
-    // Calculate the maximum number of rows that can fit into the available memory
-    const std::int64_t max_rows_by_global_mem = device_global_mem_size / memory_per_row;
-    const std::int64_t max_rows_by_alloc_size = device_max_mem_alloc_size / memory_per_row;
-
-    // Use the smaller of the two values to ensure we don't exceed either limit
-    const std::int64_t max_rows = std::min(max_rows_by_global_mem, max_rows_by_alloc_size);
-
-    const std::int64_t current_rows = std::min(ctx.row_count_, de::integral_cast<Index>(max_rows));
-    // Compute the fraction of rows that can be processed
-    double observations_per_tree_fraction = static_cast<double>(current_rows) / ctx.row_count_;
-
-    observations_per_tree_fraction =
-        std::min(observations_per_tree_fraction, desc.get_observations_per_tree_fraction());
-    if (observations_per_tree_fraction != desc.get_observations_per_tree_fraction()) {
-        std::cout << "the actual desc.get_observations_per_tree_fraction()="
-                  << observations_per_tree_fraction << std::endl;
-    }
-    // Use the computed fraction in your logic
-    ctx.selected_row_count_ =
-        ctx.distr_mode_ ? impl_const_t::bad_val_ : observations_per_tree_fraction * ctx.row_count_;
-    ctx.selected_row_total_count_ = observations_per_tree_fraction * ctx.row_total_count_;
-    // // in case of distributed mode selected_row_count is defined during initial gen of tree order
+    // in case of distributed mode selected_row_count is defined during initial gen of tree order
+    ctx.selected_row_count_ = ctx.distr_mode_
+                                  ? impl_const_t::bad_val_
+                                  : desc.get_observations_per_tree_fraction() * ctx.row_count_;
+    ctx.selected_row_total_count_ =
+        desc.get_observations_per_tree_fraction() * ctx.row_total_count_;
 
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
 
@@ -257,11 +231,11 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.float_min_ = de::limits<Float>::min();
     ctx.index_max_ = de::limits<Index>::max();
 
-    // // define number of trees which can be built in parallel
-    // const std::uint64_t device_global_mem_size =
-    //     queue_.get_device().get_info<sycl::info::device::global_mem_size>();
-    // const std::uint64_t device_max_mem_alloc_size =
-    //     queue_.get_device().get_info<sycl::info::device::max_mem_alloc_size>();
+    // define number of trees which can be built in parallel
+    const std::uint64_t device_global_mem_size =
+        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
+    const std::uint64_t device_max_mem_alloc_size =
+        queue_.get_device().get_info<sycl::info::device::max_mem_alloc_size>();
 
     Index hist_prop_count = 0;
     if constexpr (std::is_same_v<task::classification, Task>) {
@@ -366,6 +340,10 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
                                      { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
                                      alloc::device);
 
+    tree_order_lev_buf_ =
+        pr::ndarray<Index, 1>::empty(queue_,
+                                     { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
+                                     alloc::device);
     if (ctx.oob_required_) {
         // oob_per_obs_list contains class_count number of counters for all out of bag observations for all trees
         de::check_mul_overflow(ctx.row_count_, ctx.class_count_);
@@ -2081,6 +2059,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
                         full_data_nd_,
                         node_list,
                         tree_order_lev_,
+                        tree_order_lev_buf_,
                         ctx.row_count_,
                         ctx.selected_row_total_count_,
                         ctx.column_count_,
