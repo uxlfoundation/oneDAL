@@ -31,6 +31,8 @@ daaldep.math_backend.seq := $(OPENBLASDIR.libia)/libopenblas.$a
 daaldep.math_backend.incdir := $(OPENBLASDIR.include)
 daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
 
+MATH_LIBS_TO_EXCLUDE := libopenblas.$a 
+
 ifeq ($(RNG_OPENRNG), yes)
 	OPENRNGDIR:= $(if $(wildcard $(DIR)/__deps/openrng/*),$(DIR)/__deps/openrng,                            \
 					$(if $(wildcard $(OPENRNGROOT)/include/*),$(subst \,/,$(OPENRNGROOT)),                              \
@@ -41,8 +43,11 @@ ifeq ($(RNG_OPENRNG), yes)
 	daaldep.rng_backend.incdir := $(OPENRNGDIR.include)
 	daaldep.rng_backend.lib := $(OPENRNGDIR.libia)/libopenrng.$a
 
+	MATH_LIBS_TO_EXCLUDE += libopenrng.$a
+
 	daaldep.math_backend.incdir += $(daaldep.rng_backend.incdir)
 endif
+
 
 daaldep.math_backend.ext := $(daaldep.math_backend.thr)
 daaldep.math_backend.sycl := $(daaldep.math_backend.thr)
