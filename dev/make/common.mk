@@ -100,8 +100,6 @@ write.prereqs.args = $(or $1,$(^.no-mkdeps))
 write.prereqs.impl = $(call xargs,write.prereqs.dump,$1,$2)
 write.prereqs.dump = $(call exec,printf -- "$(subst $(space),$2,$1)$(if $6,$2)" >> $@)
 
-EXCLUDE_MATH_SYMBOLS = $(foreach lib,$(MATH_LIBS_TO_EXCLUDE),-Wl$(comma)--exclude-libs=$(lib))
-
 # Link static lib
 LINK.STATIC = $(mkdir)$(call rm,$@)$(link.static.cmd)
 link.static.cmd = $(call link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
@@ -118,7 +116,7 @@ link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
 link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
 link.dynamic.lnx = $(if $(link.dynamic.lnx.$(COMPILER)),$(link.dynamic.lnx.$(COMPILER)),$(error link.dynamic.lnx.$(COMPILER) must be defined)) \
-                   $(EXCLUDE_MATH_SYMBOLS) -Wl,-soname,$(@F).$(MAJORBINARY) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
+                   -Wl$(comma)--exclude-libs=ALL -Wl,-soname,$(@F).$(MAJORBINARY) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
 link.dynamic.win = link $(link.dynamic.win.$(COMPILER)) -WX -nologo -map -dll $(-DEBL) \
                    $(patsubst %_link.txt,@%_link.txt,$(patsubst %.def,-DEF:%.def,$1)) -out:$@
 link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COMPILER)),$(error link.dynamic.mac.$(COMPILER) must be defined)) \
@@ -130,7 +128,7 @@ link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COM
 # Link dynamic DPC++ lib
 DPC.LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(dpc.link.dynamic.cmd)
 dpc.link.dynamic.cmd = $(call dpc.link.dynamic.$(_OS),$(or $1,$(^.no-mkdeps)) $(LOPT))
-dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) $(EXCLUDE_MATH_SYMBOLS) -Wl,-soname,$(@F).$(MAJORBINARY) \
+dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) -Wl$(comma)--exclude-libs=ALL -Wl,-soname,$(@F).$(MAJORBINARY) \
                        $(secure.opts.link.lnx) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
 dpc.link.dynamic.win = $(if $(link.dynamic.win.dpcpp),$(link.dynamic.win.dpcpp),$(error link.dynamic.win.dpcpp must be defined)) \
                        -LD $(patsubst %_link.txt,@%_link.txt,$(filter %_link.txt,$1)) $(filter-out -IMPLIB:%,$(filter %.lib,$1)) -o$@ \
