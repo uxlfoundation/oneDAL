@@ -193,57 +193,28 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
     }
 }
 
-DAAL_EXPORT void _daal_threader_for_blocked_numa(size_t n, size_t block, const void * a, daal::functype_blocked_size func)
+DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t maxConcurrency, const void * a, daal::functype_static func)
 {
-    if (daal::threader_env()->getNumberOfThreads() > 1)
+    const size_t nthreadsInEnv = daal::threader_env()->getNumberOfThreads();
+    const size_t nthreads = std::min(nthreadsInEnv, maxConcurrency);
+    if (nthreads > 1)
     {
-        const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
-        if (nNUMA > 1 && n > nNUMA * block * 2)
+        size_t nNUMA = 0;
+        if (maxConcurrency < nthreadsInEnv)
         {
-            const size_t nPerNUMA = (n + nNUMA - 1) / nNUMA;
-
-            tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
-            tbb::task_arena * arenas[daal::DAAL_MAX_NUMA_COUNT];
-            for (size_t i = 0; i < nNUMA; ++i)
+            nNUMA = 1;
+            size_t nthreadsInNUMA = daal::threader_env()->getArenaConcurrency(0);
+            while (nthreadsInNUMA < nthreads)
             {
-                arenas[i] = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
-
-                arenas[i]->execute([&]() { // Run each arena on a dedicated NUMA node
-                    const size_t startIter  = i * nPerNUMA;
-                    const size_t endIter    = std::min(startIter + nPerNUMA, n);
-                    tg[i].run([&startIter, &endIter, &block, &func, &a]{ // Run in task group
-                        tbb::parallel_for(tbb::blocked_range<size_t>(startIter, endIter, block * 2),
-                                        [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
-                    });
-                });
-            }
-
-            for (size_t i = 0; i < nNUMA; ++i)
-            {
-                // Wait for completion of the task group in the all the arenas.
-                arenas[i]->execute([&]{ tg[i].wait(); });
+                nthreadsInNUMA += daal::threader_env()->getArenaConcurrency(nNUMA);
+                nNUMA++;
             }
         }
         else
         {
-            tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block * 2),
-                              [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+            nNUMA = daal::threader_env()->getNumberOfNUMANodes();
         }
-    }
-    else
-    {
-        func(0ul, n, a);
-    }
-}
-
-
-DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, const void * a, daal::functype_static func)
-{
-    const size_t nthreads = std::min(daal::threader_env()->getNumberOfThreads(), static_cast<size_t>(_daal_threader_get_max_threads()));
-    if (nthreads > 1)
-    {
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
-        const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
         if (nNUMA > 1)
         {
             tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
@@ -252,7 +223,7 @@ DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, const void * a, daal::
             for (size_t i = 0; i < nNUMA; ++i)
             {
                 arenas[i] = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
-                const int concurrency = arenas[i]->max_concurrency();
+                const int concurrency = std::min(arenas[i]->max_concurrency(), int(maxConcurrency) - startThreadIndex);
                 arenas[i]->execute([&]() { // Run each arena on a dedicated NUMA node
                     tg[i].run([&n, &startThreadIndex, &concurrency, &nblocks_per_thread, &func, &a]{ // Run in task group
                         tbb::parallel_for(
@@ -409,6 +380,36 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32ptr_int64_simple(const int32_t * 
 DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func)
 {
     const size_t nthreads = std::min(daal::threader_env()->getNumberOfThreads(), static_cast<size_t>(_daal_threader_get_max_threads()));
+    if (nthreads > 1)
+    {
+        const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
+
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, nthreads, 1),
+            [&](tbb::blocked_range<size_t> r) {
+                const size_t tid   = r.begin();
+                const size_t begin = tid * nblocks_per_thread;
+                const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                for (size_t i = begin; i < end; ++i)
+                {
+                    func(i, tid, a);
+                }
+            },
+            tbb::static_partitioner());
+    }
+    else
+    {
+        for (size_t i = 0; i < n; i++)
+        {
+            func(i, 0, a);
+        }
+    }
+}
+
+DAAL_EXPORT void _daal_static_limited_threader_for(size_t n, size_t max_threads, const void * a, daal::functype_static func)
+{
+    const size_t nthreads = std::min(daal::threader_env()->getNumberOfThreads(), max_threads);
     if (nthreads > 1)
     {
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
@@ -990,4 +991,17 @@ ThreaderEnvironment::ThreaderEnvironment() : _numberOfThreads(_daal_threader_get
 #endif
 }
 
+int ThreaderEnvironment::getArenaConcurrency(size_t i) const
+{
+#if defined(TARGET_X86_64)
+    if (i < _numberOfNUMANodes)
+    {
+        tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(_arenas[i]);
+        return arena->max_concurrency();
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
 } // namespace daal

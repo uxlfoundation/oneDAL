@@ -36,7 +36,8 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
-
+#include "src/services/service_environment.h" // getL2CacheSize()
+#include <algorithm>
 #include <iostream>
 
 using namespace daal::internal;
@@ -164,7 +165,6 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     {
         /* Inverse number of rows (for normalization) */
         algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
-
         /* Split rows by blocks */
         DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
         if (hyperparameter)
@@ -172,6 +172,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
             DAAL_CHECK_STATUS_VAR(status);
         }
+
+        /// TODO: make a hyperparameter
+        constexpr double cacheCoeff = 0.8;
+
+        const size_t l2Size = std::max(getL2CacheSize(), 256ul * 1024ul);
+        const size_t nValuesPerThread = l2Size * cacheCoeff / sizeof(algorithmFPType);
+        const size_t nValues = nVectors * nFeatures;
+
+        const size_t maxNThreads = (nValues > nValuesPerThread ? nValues / nValuesPerThread : 1);
 
         size_t numBlocks = nVectors / numRowsInBlock;
         if (numBlocks * numRowsInBlock < nVectors)
@@ -192,7 +201,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         });
 
         /* Threaded loop with syrk seq calls */
-        daal::static_numa_threader_for(numBlocks, [&](int iBlock, size_t tid) {
+        daal::static_numa_threader_for(numBlocks, maxNThreads, [&](int iBlock, size_t tid) {
             struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
             if (!tls_data_local)
             {
