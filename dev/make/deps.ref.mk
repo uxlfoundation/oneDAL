@@ -31,6 +31,9 @@ daaldep.math_backend.seq := $(OPENBLASDIR.libia)/libopenblas.$a
 daaldep.math_backend.incdir := $(OPENBLASDIR.include)
 daaldep.math_backend_oneapi.incdir := $(OPENBLASDIR.include)
 
+# List of OpenBLAS libraries to exclude from linking.
+# This list is used to generate the `--exclude-libs` linker options.
+# If you need to exclude additional libraries, extend this list by appending the library names.
 MATH_LIBS_TO_EXCLUDE := libopenblas.$a 
 
 ifeq ($(RNG_OPENRNG), yes)
@@ -43,11 +46,11 @@ ifeq ($(RNG_OPENRNG), yes)
 	daaldep.rng_backend.incdir := $(OPENRNGDIR.include)
 	daaldep.rng_backend.lib := $(OPENRNGDIR.libia)/libopenrng.$a
 
+# Add libopenrng.$a to the exclusion list because RNG_OPENRNG is enabled
 	MATH_LIBS_TO_EXCLUDE += libopenrng.$a
 
 	daaldep.math_backend.incdir += $(daaldep.rng_backend.incdir)
 endif
-
 
 daaldep.math_backend.ext := $(daaldep.math_backend.thr)
 daaldep.math_backend.sycl := $(daaldep.math_backend.thr)
