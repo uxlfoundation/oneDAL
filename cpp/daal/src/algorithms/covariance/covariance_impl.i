@@ -37,8 +37,6 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 #include "src/services/service_environment.h" // getL2CacheSize()
-#include <algorithm>
-#include <iostream>
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -164,7 +162,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
         /* Inverse number of rows (for normalization) */
-        algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
+        const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
         /* Split rows by blocks */
         DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
         if (hyperparameter)
@@ -173,13 +171,14 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             DAAL_CHECK_STATUS_VAR(status);
         }
 
-        /// TODO: make a hyperparameter
+        /* TODO: make a hyperparameter */
         constexpr double cacheCoeff = 0.8;
 
-        const size_t l2Size = std::max(getL2CacheSize(), 256ul * 1024ul);
+        const size_t l2Size           = (getL2CacheSize() > 256 * 1024 ? getL2CacheSize() : 256 * 1024);
         const size_t nValuesPerThread = l2Size * cacheCoeff / sizeof(algorithmFPType);
-        const size_t nValues = nVectors * nFeatures;
+        const size_t nValues          = nVectors * nFeatures;
 
+        /* Maximal number of threads to use in parallel region */
         const size_t maxNThreads = (nValues > nValuesPerThread ? nValues / nValuesPerThread : 1);
 
         size_t numBlocks = nVectors / numRowsInBlock;
