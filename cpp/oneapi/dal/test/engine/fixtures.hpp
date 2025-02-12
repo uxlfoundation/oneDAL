@@ -81,6 +81,14 @@ public:
         return oneapi::dal::test::engine::partial_train(get_policy(), std::forward<Args>(args)...);
     }
 
+    template <class Descriptor, class Parameters, typename... Args>
+    auto partial_train_with_parameters(Parameters params, Descriptor descriptor, Args&&... args) {
+        return oneapi::dal::test::engine::partial_train(get_policy(),
+                                                        descriptor,
+                                                        params,
+                                                        std::forward<Args>(args)...);
+    }
+
     template <typename... Args>
     auto finalize_train(Args&&... args) {
         return oneapi::dal::test::engine::finalize_train(get_policy(), std::forward<Args>(args)...);
