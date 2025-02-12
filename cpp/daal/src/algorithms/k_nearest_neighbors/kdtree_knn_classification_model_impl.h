@@ -26,6 +26,7 @@
 
 #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_model.h"
 #include "src/services/service_data_utils.h"
+#include <iostream>
 
 namespace daal
 {
@@ -139,10 +140,12 @@ public:
         int result = 0;
         if (!copy)
         {
+            std::cout<<"setData !copy"<<std::endl;
             _data = value;
         }
         else
         {
+            std::cout<<"setData else"<<std::endl;
             data_management::SOANumericTablePtr tbl(
                 new data_management::SOANumericTable(value->getNumberOfColumns(), value->getNumberOfRows(), data_management::DictionaryIface::equal));
             DAAL_CHECK_MALLOC(tbl.get())
@@ -186,10 +189,12 @@ public:
         int result = 0;
         if (!copy)
         {
+            std::cout<<"setLabels !copy"<<std::endl;
             _labels = value;
         }
         else
         {
+            std::cout<<"setData else"<<std::endl;
             data_management::SOANumericTablePtr tbl(new data_management::SOANumericTable(value->getNumberOfColumns(), value->getNumberOfRows()));
             DAAL_CHECK_MALLOC(tbl.get())
             tbl->setArray(static_cast<algorithmFPType *>(0), 0);                    // Just to create the dictionary.

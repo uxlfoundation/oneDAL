@@ -21,6 +21,7 @@
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_model.h"
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
+#include <iostream>
 
 namespace daal
 {
@@ -73,10 +74,12 @@ protected:
     {
         if (!copy)
         {
+            std::cout<<"setData !copy"<<std::endl;
             dest = value;
         }
         else
         {
+            std::cout<<"setData else"<<std::endl;
             services::Status status;
             dest = data_management::HomogenNumericTable<algorithmFPType>::create(value->getNumberOfColumns(), value->getNumberOfRows(),
                                                                                  data_management::NumericTable::doAllocate, &status);

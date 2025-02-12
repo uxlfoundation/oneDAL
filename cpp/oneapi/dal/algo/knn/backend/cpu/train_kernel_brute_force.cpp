@@ -61,12 +61,12 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
     const auto model_ptr = daal_knn::ModelPtr(new daal_knn::Model(column_count));
 
     const auto daal_data = interop::convert_to_daal_table<Float>(data);
-    model_ptr->impl()->setData<Float>(daal_data, false);
+    model_ptr->impl()->setData<Float>(daal_data, true);
 
     auto daal_responses = daal::data_management::NumericTablePtr();
     if (desc.get_result_options().test(result_options::responses)) {
         daal_responses = interop::convert_to_daal_table<Float>(responses);
-        model_ptr->impl()->setLabels<Float>(daal_responses, false);
+        model_ptr->impl()->setLabels<Float>(daal_responses, true);
     }
 
     interop::status_to_exception(

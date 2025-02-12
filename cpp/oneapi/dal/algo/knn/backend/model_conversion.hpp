@@ -45,8 +45,8 @@ inline auto create_daal_model_for_bf_knn(
     const auto model_ptr = daal_bf_knn::ModelPtr(new daal_bf_knn::Model(column_count));
 
     // Data or responses should not be copied
-    model_ptr->impl()->setData<Float>(daal_train_data, false);
-    model_ptr->impl()->setLabels<Float>(daal_train_responses, false);
+    model_ptr->impl()->setData<Float>(daal_train_data, true);
+    model_ptr->impl()->setLabels<Float>(daal_train_responses, true);
 
     return model_ptr;
 }

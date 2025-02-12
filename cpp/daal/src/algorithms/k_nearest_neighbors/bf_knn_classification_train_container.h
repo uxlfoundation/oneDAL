@@ -25,7 +25,7 @@
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_model_impl.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_train_kernel.h"
-
+#include <iostream>
 namespace daal
 {
 namespace algorithms
@@ -62,7 +62,8 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
 
     daal::services::Environment::env & env = *_env;
 
-    const bool copy = (par->dataUseInModel == doNotUse);
+    const bool copy = true;
+    std::cout<<"copy ="<<copy<<std::endl;
     status |= r->impl()->setData<algorithmFpType>(x, copy);
     if ((par->resultsToEvaluate & daal::algorithms::classifier::computeClassLabels) != 0)
     {
