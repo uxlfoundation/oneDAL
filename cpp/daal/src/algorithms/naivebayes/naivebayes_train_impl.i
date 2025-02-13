@@ -174,7 +174,7 @@ Status collectCounters(const Parameter * nbPar, NumericTable * ntData, NumericTa
     daal::tls<algorithmFPType *> tls_n_ci([=]() -> algorithmFPType * { return _CALLOC_<algorithmFPType, cpu>(p * c); });
 
     SafeStatus safeStat;
-    daal::threader_for_blocked(n, n, [=, &tls_n_ci, &safeStat](algorithmFPType j0, algorithmFPType jn) {
+    daal::threader_for_blocked(n, 1, [=, &tls_n_ci, &safeStat](algorithmFPType j0, algorithmFPType jn) {
         algorithmFPType * local_n_ci = tls_n_ci.local();
         DAAL_CHECK_THR(local_n_ci, ErrorMemoryAllocationFailed);
 
