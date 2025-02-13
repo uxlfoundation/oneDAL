@@ -45,7 +45,6 @@ typedef void (*functype_int32ptr)(const int * i, const void * a);
 typedef void (*functype_static)(size_t i, size_t tid, const void * a);
 typedef void (*functype2)(int i, int n, const void * a);
 typedef void (*functype_blocked_size)(size_t first, size_t last, const void * a);
-typedef void (*functype)(int i, const void * a);
 typedef void * (*tls_functype)(const void * a);
 typedef void (*tls_reduce_functype)(void * p, const void * a);
 typedef void (*functype_break)(int i, bool & needBreak, const void * a);
@@ -192,11 +191,15 @@ public:
 
     int getArenaConcurrency(size_t i) const;
 
+    bool isInitialized() const { return _isInitialized; }
+    void setInitialized(bool value) { _isInitialized = value; }
+
 private:
     size_t _numberOfThreads;
     size_t _numberOfNUMANodes;
     void * _arenas[daal::DAAL_MAX_NUMA_COUNT]; // NUMA-aware arenas
     void * _safeArena;                         // default arena
+    bool _isInitialized;
 };
 
 inline ThreaderEnvironment * threader_env()
@@ -207,11 +210,6 @@ inline ThreaderEnvironment * threader_env()
 inline size_t threader_get_threads_number()
 {
     return threader_env()->getNumberOfThreads();
-}
-
-inline size_t threader_get_numa_number()
-{
-    return threader_env()->getNumberOfNUMANodes();
 }
 
 inline size_t setSchedulerHandle(void ** schedulerHandle)
@@ -248,13 +246,6 @@ inline void threader_func_b(int i0, int in, const void * a)
 }
 
 template <typename F>
-inline void threader_func_b_size_t(size_t i0, size_t in, const void * a)
-{
-    const F & func = *static_cast<const F *>(a);
-    func(i0, in);
-}
-
-template <typename F>
 inline void threader_func_break(int i, bool & needBreak, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
@@ -280,14 +271,6 @@ inline void threader_for(int n, int reserved, const F & func)
     const void * a = static_cast<const void *>(&func);
 
     _daal_threader_for(n, reserved, a, threader_func<F>);
-}
-
-template <typename F>
-inline void numa_threader_for(int n, int block, const F & func)
-{
-    const void * a = static_cast<const void *>(&func);
-
-    _daal_threader_for_blocked_numa(n, block, a, threader_func_b_size_t<F>);
 }
 
 template <typename F>
@@ -402,9 +385,9 @@ inline void static_threader_for(size_t n, const F & func)
 ///                 `endRange`   is the index after the end of the loop's iterations block to be
 ///                                processed by a thread, `beginRange < endRange <= n`;
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] reserved Parameter reserved for the future. Currently unused.
-/// @param[in] func     Callable object that processes the block of loop's iterations
+/// @param[in] n         Number of iterations in the for loop.
+/// @param[in] grainsize Size of the block of consequent loop's iterations to be processed by a thread.
+/// @param[in] func      Callable object that processes the block of loop's iterations
 ///                     `[beginRange, endRange)`.
 template <typename F>
 inline void threader_for_blocked(int n, size_t grainsize, const F & func)

@@ -28,11 +28,7 @@
 #include "src/services/service_topo.h"
 #include "src/threading/service_thread_pinner.h"
 
-/// #define TBB_PREVIEW_GLOBAL_CONTROL 1
-/// #define TBB_PREVIEW_TASK_ARENA     1
-
 #include <algorithm> // std::min
-#include <vector>    // std::vector
 #include <stdlib.h>  // malloc and free
 #include <tbb/tbb.h>
 #include <tbb/spin_mutex.h>
@@ -40,8 +36,6 @@
 #include <tbb/global_control.h>
 #include <tbb/task_arena.h>
 #include "services/daal_atomic_int.h"
-
-#include <iostream>
 
 #if defined(TBB_INTERFACE_VERSION) && TBB_INTERFACE_VERSION >= 12002
     #include <tbb/task.h>
@@ -102,6 +96,18 @@ size_t _initArenas()
             arena->initialize(tbb::task_arena::constraints(numa_indexes[i]));
             daal::threader_env()->setArena(i, arena);
         }
+    }
+    daal::threader_env()->setInitialized(true);
+    return 0;
+}
+
+size_t _initArenasThreadsafe()
+{
+    if (!daal::threader_env()->isInitialized())
+    {
+        static tbb::spin_mutex mt;
+        tbb::spin_mutex::scoped_lock lock(mt);
+        return _initArenas();
     }
     return 0;
 }
@@ -171,6 +177,7 @@ DAAL_EXPORT void _daal_threader_for(int n, int reserved, const void * a, daal::f
         else
 #endif
         {
+            _initArenasThreadsafe();
             // Run the task in the default arena
             tbb::task_group tg;
             tbb::task_arena * safeArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
@@ -218,6 +225,7 @@ DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::funct
         else
 #endif
         {
+            _initArenasThreadsafe();
             // Run the task in the default arena
             tbb::task_group tg;
             tbb::task_arena * safeArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
@@ -259,6 +267,7 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * safeArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             safeArena->execute([&]() {
@@ -319,6 +328,7 @@ DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t max_threads, co
         else
 #endif
         {
+            _initArenasThreadsafe();
             if (nNUMA > 1)
             {
                 tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
@@ -410,6 +420,7 @@ DAAL_EXPORT void _daal_threader_for_simple(int n, int reserved, const void * a, 
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             arena->execute([&]() { // Run parallel task in arena
@@ -458,6 +469,7 @@ DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end,
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             arena->execute([&]() { // Run parallel task in arena
@@ -501,6 +513,7 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64(int32_t n, int64_t init, c
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             return arena->execute([&]() -> int64_t { // Run parallel task in arena
                 return tbb::parallel_reduce(
@@ -536,6 +549,7 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64_simple(int32_t n, int64_t 
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             return arena->execute([&]() { // Run parallel task in arena
                 return tbb::parallel_reduce(
@@ -574,6 +588,7 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32ptr_int64_simple(const int32_t * 
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             return arena->execute([&]() { // Run parallel task in arena
                 return tbb::parallel_reduce(
@@ -620,6 +635,7 @@ DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::funct
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             arena->execute([&]() { // Run parallel task in arena
@@ -665,6 +681,7 @@ DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             arena->execute([&]() { // Run parallel task in arena
@@ -753,6 +770,7 @@ DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void
         else
 #endif
         {
+            _initArenasThreadsafe();
             tbb::task_group tg;
             tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getSafeArena());
             arena->execute([&]() { // Run parallel task in arena
@@ -1239,7 +1257,7 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 
 namespace daal
 {
-ThreaderEnvironment::ThreaderEnvironment() : _numberOfThreads(_daal_threader_get_max_threads())
+ThreaderEnvironment::ThreaderEnvironment() : _numberOfThreads(_daal_threader_get_max_threads()), _isInitialized(false)
 {
 #if defined(TARGET_X86_64)
     _numberOfNUMANodes = tbb::info::numa_nodes().size();
