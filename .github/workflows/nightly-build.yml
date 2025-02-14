@@ -53,6 +53,8 @@ jobs:
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Python
+        uses: actions/setup-python@v5
       - name: Install DPC++
         run: .ci/env/apt.sh dpcpp
       - name: Install MKL
@@ -60,7 +62,6 @@ jobs:
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
-          echo "python=python3" >> "$GITHUB_ENV"
           .ci/scripts/describe_system.sh
       - name: Make daal
         run: |
