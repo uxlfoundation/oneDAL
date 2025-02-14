@@ -47,7 +47,7 @@ jobs:
   build_lnx:
     name: oneDAL Linux nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: ubuntu-22.04
+    runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
 
     steps:
