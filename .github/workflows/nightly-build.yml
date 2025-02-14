@@ -60,7 +60,7 @@ jobs:
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
-          echo "python=python3" >> "$GITHUB_ENV"; fi
+          echo "python=python3" >> "$GITHUB_ENV"
           .ci/scripts/describe_system.sh
       - name: Make daal
         run: |
