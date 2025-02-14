@@ -125,6 +125,21 @@ Index train_kernel_hist_impl<Float, Bin, Index, Task>::get_global_row_offset(boo
     return global_row_offset;
 }
 
+pr::engine_type convert_engine_method(df_engine_types method) {
+    switch (method) {
+        case df_engine_types::mt2203:
+            return ::oneapi::dal::backend::primitives::engine_type::mt2203;
+        case df_engine_types::mcg59: return ::oneapi::dal::backend::primitives::engine_type::mcg59;
+        case df_engine_types::mrg32k3a:
+            return ::oneapi::dal::backend::primitives::engine_type::mrg32k3a;
+        case df_engine_types::philox4x32x10:
+            return ::oneapi::dal::backend::primitives::engine_type::philox4x32x10;
+        case df_engine_types::mt19937:
+            return ::oneapi::dal::backend::primitives::engine_type::mt19937;
+        default: throw std::invalid_argument("Unsupported engine type 2");
+    }
+}
+
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_t& ctx,
                                                                   const descriptor_t& desc,
@@ -1860,10 +1875,9 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
 
-    rng_engine_list_t engine_arr = ::oneapi::dal::backend::primitives::device_engine(
-        queue_,
-        desc.get_seed(),
-        ::oneapi::dal::backend::primitives::engine_type::philox4x32x10);
+    auto engine_method = convert_engine_method(desc.get_engine_method());
+    rng_engine_list_t engine_arr =
+        ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_method);
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
 
