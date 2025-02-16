@@ -117,7 +117,7 @@ template <typename DataType>
 DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
 {
     DataType score = DataType(0);
-#define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<cpuId>(__VA_ARGS__);
+#define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<DataType, cpuId>(__VA_ARGS__);
 
     DAAL_DISPATCH_FUNCTION_BY_CPU_SAFE(DAAL_ROC_AUC_SCORE, truePrediction, testPrediction, score);
 
