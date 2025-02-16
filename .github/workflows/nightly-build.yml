@@ -63,6 +63,7 @@ jobs:
         run: .ci/env/apt.sh mkl
       - name: System Info
         run: |
+          echo $CONDA
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
