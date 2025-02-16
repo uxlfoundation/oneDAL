@@ -113,7 +113,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     return s;
 }
 
-template <typename DataType>
+template <typename DataType = double>
 DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
 {
     DataType score = DataType(0);
@@ -125,7 +125,7 @@ DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const N
     return score;
 }
 
-DAAL_EXPORT float rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+DAAL_EXPORT float rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 
 } // namespace internal
