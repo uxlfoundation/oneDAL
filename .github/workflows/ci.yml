@@ -88,6 +88,7 @@ jobs:
         with:
           environment-file: .ci/env/environment.yml
           miniforge-version: latest
+          conda-remove-defaults: "true"
         # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: daal/cpp/mpi examples
         run: |
