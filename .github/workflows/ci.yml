@@ -83,6 +83,11 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+      - name: Setup miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+        # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
