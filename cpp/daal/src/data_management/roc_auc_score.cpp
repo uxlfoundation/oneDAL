@@ -113,7 +113,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     return s;
 }
 
-template <typename DataType = double>
+template <typename DataType>
 DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
 {
     DataType score = DataType(0);
