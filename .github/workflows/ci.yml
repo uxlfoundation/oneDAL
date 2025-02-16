@@ -93,4 +93,4 @@ jobs:
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env test --build-system cmake
