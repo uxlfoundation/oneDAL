@@ -74,11 +74,11 @@ jobs:
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler clang --interface daal/cpp --build-system cmake
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
       - name: oneapi/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler clang --interface oneapi/cpp --build-system cmake
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
