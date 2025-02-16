@@ -126,7 +126,7 @@ DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const N
 }
 
 template DAAL_EXPORT float rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
-DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+template DAAL_EXPORT double rocAucScore<double>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 
 } // namespace internal
 } // namespace data_management
