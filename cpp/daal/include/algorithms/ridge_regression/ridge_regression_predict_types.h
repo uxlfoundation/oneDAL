@@ -106,6 +106,9 @@ public:
     /** Copy constructor */
     Input(const Input & other);
 
+    /** Assign operator */
+    Input & operator=(const Input & other);
+
     /**
      * Returns an input object for making ridge regression model-based prediction
      * \param[in] id    Identifier of the input object

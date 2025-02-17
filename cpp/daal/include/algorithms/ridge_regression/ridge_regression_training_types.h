@@ -136,7 +136,12 @@ class DAAL_EXPORT Input : public linear_model::training::Input, public InputIfac
 public:
     /** Default constructor */
     Input();
+
+    /** Copy constructor */
     Input(const Input & other);
+
+    /** Assignment operator */
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 
@@ -283,6 +288,7 @@ class DAAL_EXPORT DistributedInput<step2Master> : public daal::algorithms::Input
 public:
     DistributedInput();
     DistributedInput(const DistributedInput & other);
+    DistributedInput operator=(const DistributedInput & other);
 
     /**
      * Gets an input object for ridge regression model-based training in the second step of the distributed processing mode
