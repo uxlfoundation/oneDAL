@@ -109,7 +109,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         }
     }
     const DataType nNeg = static_cast<DataType>(nElements) - nPos;
-    score             = (filteredRankSum - (nPos * (nPos + DataType(1.0)) * DataType(0.5))) / (nPos * nNeg);
+    score               = (filteredRankSum - (nPos * (nPos + DataType(1.0)) * DataType(0.5))) / (nPos * nNeg);
     return s;
 }
 
