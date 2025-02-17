@@ -1772,7 +1772,7 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::compute(
     HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m,
-    Result & res, const decision_forest::classification::training::Parameter & par)
+    Result & res, const decision_forest::classification::training::Parameter & par, const HyperparameterType * hyperparameter)
 {
     services::Status s;
     if (par.splitter == decision_forest::training::SplitterMode::best)
