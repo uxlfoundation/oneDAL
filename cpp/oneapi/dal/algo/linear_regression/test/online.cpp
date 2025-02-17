@@ -39,6 +39,9 @@ public:
         this->f_count_ = GENERATE(2, 17);
         this->r_count_ = GENERATE(2, 15);
         this->intercept_ = GENERATE(0, 1);
+        if (this->get_policy().is_cpu()) {
+            this->use_non_batched_route = GENERATE(false, true);
+        }
     }
 };
 

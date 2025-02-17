@@ -45,8 +45,11 @@ typedef linear_model::internal::Hyperparameter LinearModelHyperparameter;
  */
 enum HyperparameterId
 {
-    denseUpdateStepBlockSize = 0,
-    hyperparameterIdCount    = denseUpdateStepBlockSize + 1
+    denseUpdateStepBlockSize     = 0,
+    denseUpdateMaxColsBatched    = 1,
+    denseSmallRowsThreshold      = 2,
+    denseSmallRowsMaxColsBatched = 3,
+    hyperparameterIdCount        = 4
 };
 
 enum DoubleHyperparameterId
