@@ -53,11 +53,6 @@ jobs:
         run: .ci/env/apt.sh miniforge
       - name: System Info
         run: |
-          source /usr/share/miniconda/etc/profile.d/conda.sh
-          conda env list
-          conda list -n ci-env
-          conda activate ci-env
-          env
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
