@@ -44,12 +44,12 @@ struct train_parameters_gpu<Float, method::hist, Task> {
 };
 
 template struct ONEDAL_EXPORT train_parameters_gpu<float, method::dense, classification>;
-template struct ONEDAL_EXPORT train_parameters_gpu<double, method::dense, classification>;
 template struct ONEDAL_EXPORT train_parameters_gpu<float, method::dense, regression>;
-template struct ONEDAL_EXPORT train_parameters_gpu<double, method::dense, regression>;
 template struct ONEDAL_EXPORT train_parameters_gpu<float, method::hist, classification>;
-template struct ONEDAL_EXPORT train_parameters_gpu<double, method::hist, classification>;
 template struct ONEDAL_EXPORT train_parameters_gpu<float, method::hist, regression>;
+template struct ONEDAL_EXPORT train_parameters_gpu<double, method::dense, classification>;
+template struct ONEDAL_EXPORT train_parameters_gpu<double, method::dense, regression>;
+template struct ONEDAL_EXPORT train_parameters_gpu<double, method::hist, classification>;
 template struct ONEDAL_EXPORT train_parameters_gpu<double, method::hist, regression>;
 
 } // namespace oneapi::dal::decision_forest::parameters

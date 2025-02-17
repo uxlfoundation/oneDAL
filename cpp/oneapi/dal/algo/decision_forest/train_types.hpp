@@ -32,12 +32,47 @@ class train_result_impl;
 template <typename Task>
 struct train_parameters_impl;
 
-template <typename Task = task::by_default>
-class train_parameters : public dal::detail::system_parameters {
+template <typename Task = task::classification>
+class train_parameters {};
+
+template <>
+ONEDAL_EXPORT class train_parameters<task::regression> : public dal::detail::system_parameters {
 public:
     explicit train_parameters();
 private:
-    dal::detail::pimpl<train_parameters_impl<Task>> impl_;
+    dal::detail::pimpl<train_parameters_impl<task::regression>> impl_;
+};
+
+template <>
+ONEDAL_EXPORT class train_parameters<task::classification> : public dal::detail::system_parameters {
+public:
+    explicit train_parameters();
+
+    /// The threshold value to determine if the number of classes is small enough to switch
+    /// to the implementation that is optimized for small number of classes.
+    /// @remark The maximum value is 8.
+    std::int64_t get_small_classes_threshold() const;
+    auto& set_small_classes_threshold(std::int64_t val) {
+        set_small_classes_threshold_impl(val);
+        return *this;
+    }
+
+    std::int64_t get_min_part_coefficient() const;
+    auto& set_min_part_coefficient(std::int64_t val) {
+        set_min_part_coefficient_impl(val);
+        return *this;
+    }
+
+    std::int64_t get_min_size_coefficient() const;
+    auto& set_min_size_coefficient(std::int64_t val) {
+        set_min_size_coefficient_impl(val);
+        return *this;
+    }
+private:
+    void set_small_classes_threshold_impl(std::int64_t val);
+    void set_min_part_coefficient_impl(std::int64_t val);
+    void set_min_size_coefficient_impl(std::int64_t val);
+    dal::detail::pimpl<train_parameters_impl<task::classification>> impl_;
 };
 } // namespace v1
 

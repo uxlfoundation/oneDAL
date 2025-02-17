@@ -44,6 +44,8 @@ namespace daal_df = daal::algorithms::decision_forest;
 namespace daal_df_cls_train = daal_df::classification::training;
 namespace interop = dal::backend::interop;
 
+using daal_hyperparameters_t = daal_df_cls_train::internal::Hyperparameter;
+
 template <typename Float, daal::CpuType Cpu>
 using cls_dense_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::defaultDense, Cpu>;
@@ -51,6 +53,24 @@ using cls_dense_kernel_t = daal_df_cls_train::internal::
 template <typename Float, daal::CpuType Cpu>
 using cls_hist_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::hist, Cpu>;
+
+static daal_hyperparameters_t convert_parameters(const param_t& params) {
+    using daal_df_cls_train::internal::HyperparameterId;
+
+    const std::int64_t small_classes_threshold = params.get_small_classes_threshold();
+    const std::int64_t min_part_coeff = params.get_min_part_coefficient();
+    const std::int64_t min_size_coeff = params.get_min_size_coefficient();
+
+    daal_hyperparameters_t daal_hyperparameter;
+
+    auto status = daal_hyperparameter.set(HyperparameterId::smallNClassesThreshold, small_classes_threshold);
+    status |= daal_hyperparameter.set(HyperparameterId::minPartCoefficient, min_part_coeff);
+    status |= daal_hyperparameter.set(HyperparameterId::minSizeCoefficient, min_size_coeff);
+
+    interop::status_to_exception(status);
+
+    return daal_hyperparameter;
+}
 
 template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
 static result_t call_daal_kernel(const context_cpu& ctx,
@@ -172,6 +192,8 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_df::classification::ModelPtr mptr = daal_df::classification::ModelPtr(
         new daal_df::classification::internal::ModelImpl(column_count));
 
+    const daal_hyperparameters_t & hyperparameters = convert_parameters(params);
+
     interop::status_to_exception(
         interop::call_daal_kernel<Float, CpuKernel>(ctx,
                                                     daal::services::internal::hostApp(daal_input),
@@ -180,7 +202,8 @@ static result_t call_daal_kernel(const context_cpu& ctx,
                                                     daal_weights.get(),
                                                     *mptr,
                                                     daal_result,
-                                                    daal_parameter));
+                                                    daal_parameter,
+                                                    &hyperparameters));
 
     /* extract results from daal objects */
     if (check_mask_flag(desc.get_error_metric_mode(), error_metric_mode::out_of_bag_error)) {
