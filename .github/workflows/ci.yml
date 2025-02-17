@@ -49,8 +49,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
+      - name: Setup miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: .ci/env/environment.yml
+          miniforge-version: latest
+          conda-remove-defaults: "true"
       - name: System Info
         run: |
+          conda env list
+          conda list -n test
+          conda activate test
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
@@ -83,12 +92,6 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
-      - name: Setup miniforge
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: .ci/env/environment.yml
-          miniforge-version: latest
-          conda-remove-defaults: "true"
         # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: daal/cpp/mpi examples
         run: |
