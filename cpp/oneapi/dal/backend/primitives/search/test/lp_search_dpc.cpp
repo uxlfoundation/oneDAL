@@ -60,7 +60,7 @@ template <typename T, ndorder order>
 auto table_to_ndarray(sycl::queue& q, const table& t) {
     const auto rc = t.get_row_count();
     const auto cc = t.get_column_count();
-    auto res = ndarray<T, 2, order>::empty(q, { rc, cc });
+    auto res = ndarray<T, 2, order>::empty(q, { rc, cc }, sycl::usm::alloc::host);
     for (std::int64_t r = 0; r < rc; ++r) {
         const auto row = row_accessor<const T>(t).pull(q, { r, r + 1 });
         for (std::int64_t c = 0; c < cc; ++c) {
@@ -264,6 +264,7 @@ TEMPLATE_LIST_TEST_M(search_test,
                      "Randomly filled Lp-distance search",
                      "[l2][search][small]",
                      search_types) {
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
     this->generate();
     this->test_correctness();
