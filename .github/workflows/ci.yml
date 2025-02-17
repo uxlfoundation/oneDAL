@@ -51,7 +51,7 @@ jobs:
           python-version: 3.9
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: Install Miniforge
-        run: .ci/env/apt.sh miniforge
+        run: .ci/env/apt.sh dev-base
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
