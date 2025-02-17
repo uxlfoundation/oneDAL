@@ -28,6 +28,13 @@
       "matchStrings": ["VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "editorconfig-checker/editorconfig-checker",
       "datasourceTemplate": "github-releases"
-    }
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$"],
+      "matchStrings": ["VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "bazelbuild/bazelisk",
+      "datasourceTemplate": "github-releases"
+    },
   ]
 }
