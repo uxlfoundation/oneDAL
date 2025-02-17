@@ -57,6 +57,7 @@ jobs:
           conda-remove-defaults: "true"
       - name: System Info
         run: |
+          echo $CONDA_PREFIX
           conda env list
           conda list -n test
           conda activate test
