@@ -50,16 +50,12 @@ jobs:
         with:
           python-version: 3.9
       - name: Setup miniforge
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: .ci/env/environment.yml
-          miniforge-version: latest
-          conda-remove-defaults: "true"
-          activate-environment: test
+        run: |
+          wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+          bash Miniforge3.sh -b -p "${HOME}/miniconda"
       - name: System Info
         run: |
-          source ~/.bashrc
-          echo prefix:$CONDA_PREFIX
+          source "${HOME}/miniconda/etc/profile.d/conda.sh"
           conda env list
           conda list -n test
           conda activate test
