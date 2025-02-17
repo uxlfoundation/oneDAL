@@ -58,6 +58,7 @@ jobs:
           activate-environment: test
       - name: System Info
         run: |
+          source ~/.bashrc
           echo prefix:$CONDA_PREFIX
           conda env list
           conda list -n test
