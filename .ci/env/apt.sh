@@ -99,6 +99,12 @@ function build_sysroot {
     popd || exit
 }
 
+function install_miniforge {
+    wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+    sudo bash Miniforge3.sh -b -p /usr/share/miniconda
+    source /usr/share/miniconda/etc/profile.d/conda.sh
+}
+
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
@@ -132,8 +138,13 @@ elif [ "${component}" == "llvm-version" ] ; then
 elif [ "${component}" == "build-sysroot" ] ; then
     update
     build_sysroot "$2" "$3" "$4" "$5"
+elif [ "${component}" == "miniforge" ] ; then
+    if [ ! -f /usr/share/miniconda/etc/profile.d/conda.sh ] ; then
+        install_miniforge
+    fi
+    install_dev-base-conda
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
     exit 1
 fi
