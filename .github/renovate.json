@@ -33,7 +33,7 @@
       "customType": "regex",
       "fileMatch": ["^\\.ci\\/env\\/tbb.+$"],
       "matchStrings": [
-        "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
         "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
