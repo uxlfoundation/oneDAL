@@ -57,10 +57,13 @@ jobs:
           conda-remove-defaults: "true"
       - name: System Info
         run: |
-          echo $CONDA_PREFIX
+          echo prefix:$CONDA_PREFIX
           conda env list
           conda list -n test
+          ls /home/runner/miniconda3/etc/
+          . /home/runner/miniconda3/etc/profile.d/conda.sh
           conda activate test
+          env
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
