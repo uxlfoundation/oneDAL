@@ -17,7 +17,7 @@
 #include "oneapi/dal/algo/logistic_regression/train_types.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/exceptions.hpp"
-
+#include <iostream>
 namespace oneapi::dal::logistic_regression {
 
 namespace detail::v1 {
@@ -62,6 +62,7 @@ std::int64_t train_parameters<Task>::get_cpu_macro_block() const {
 
 template <typename Task>
 void train_parameters<Task>::set_cpu_macro_block_impl(std::int64_t val) {
+    std::cout << "macro block value=" << val << std::endl;
     impl_->cpu_macro_block = val;
 }
 
