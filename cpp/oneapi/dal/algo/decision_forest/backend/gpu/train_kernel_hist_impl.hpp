@@ -21,7 +21,7 @@
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/host_engine_collection.hpp"
+#include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_misc_structs.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_impurity_data.hpp"
@@ -50,8 +50,7 @@ class train_kernel_hist_impl {
     using model_manager_t = train_model_manager<Float, Index, Task>;
     using train_context_t = train_context<Float, Index, Task>;
     using imp_data_t = impurity_data<Float, Index, Task>;
-    using rng_engine_t = pr::host_engine;
-    using rng_engine_list_t = std::vector<rng_engine_t>;
+    using rng_engine_list_t = ::oneapi::dal::backend::primitives::device_engine;
     using msg = dal::detail::error_messages;
     using comm_t = bk::communicator<spmd::device_memory_access::usm>;
     using node_t = node<Index>;
@@ -575,7 +574,7 @@ private:
                                 pr::ndarray<hist_type_t, 1>& oob_per_obs_list,
                                 pr::ndarray<Float, 1>& var_imp,
                                 pr::ndarray<Float, 1>& var_imp_variance,
-                                const rng_engine_list_t& rng_engine_arr,
+                                rng_engine_list_t& rng_engine_arr,
                                 Index tree_idx,
                                 Index tree_in_block,
                                 Index built_tree_count,
