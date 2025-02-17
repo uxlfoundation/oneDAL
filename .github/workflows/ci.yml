@@ -49,6 +49,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
+      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
       - name: System Info
@@ -85,7 +86,6 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
-        # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
