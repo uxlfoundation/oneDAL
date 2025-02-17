@@ -54,13 +54,13 @@ jobs:
           wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
           bash Miniforge3.sh -b -p "${HOME}/miniconda"
           source "${HOME}/miniconda/etc/profile.d/conda.sh"
-          .ci/env/apt.sh install_dev-base-conda
+          conda env create -f .ci/env/environment.yml
       - name: System Info
         run: |
           source "${HOME}/miniconda/etc/profile.d/conda.sh"
           conda env list
-          conda list -n test
-          conda activate test
+          conda list -n ci-env
+          conda activate ci-env
           env
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
@@ -98,4 +98,4 @@ jobs:
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env test --build-system cmake
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
