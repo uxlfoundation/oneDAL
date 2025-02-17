@@ -55,13 +55,12 @@ jobs:
           environment-file: .ci/env/environment.yml
           miniforge-version: latest
           conda-remove-defaults: "true"
+          activate-environment: test
       - name: System Info
         run: |
           echo prefix:$CONDA_PREFIX
           conda env list
           conda list -n test
-          ls /home/runner/miniconda3/etc/
-          . /home/runner/miniconda3/etc/profile.d/conda.sh
           conda activate test
           env
           source /opt/intel/oneapi/setvars.sh
