@@ -111,6 +111,8 @@ backend=${backend:-mkl}
 if [ "${OS}" == "lnx" ]; then
     if [ -f /usr/share/miniconda/etc/profile.d/conda.sh ] ; then
         source /usr/share/miniconda/etc/profile.d/conda.sh
+    elif [ -x "$(command -v conda)" ]
+        conda init
     fi
     if [ "${conda_env}" != "" ]; then
         conda activate "${conda_env}"
