@@ -22,7 +22,7 @@
 namespace oneapi::dal::decision_forest::detail {
 namespace v1 {
 
-template <typename Context, typename Float, typename Method, typename Task, typename... Options>
+template <typename Context, typename Float, typename Task, typename Method, typename... Options>
 struct train_ops_dispatcher {
     using input_t = oneapi::dal::decision_forest::v2::train_input<Task>;
     train_result<Task> operator()(const Context&,
@@ -97,7 +97,7 @@ struct train_ops {
     template <typename Context>
     auto select_parameters(const Context& ctx, const Descriptor& desc, const input_t& input) const {
         check_preconditions(desc, input);
-        return train_ops_dispatcher<Context, float_t, method_t, task_t>{}.select_parameters(ctx,
+        return train_ops_dispatcher<Context, float_t, task_t, method_t>{}.select_parameters(ctx,
                                                                                             desc,
                                                                                             input);
     }
@@ -109,7 +109,7 @@ struct train_ops {
                     const input_t& input) const {
         check_parameters_ranges(params, input);
         const auto result =
-            train_ops_dispatcher<Context, float_t, method_t, task_t>{}(ctx, dynamic_cast<const descriptor_base_t &>(desc), params, input);
+            train_ops_dispatcher<Context, float_t, task_t, method_t>{}(ctx, dynamic_cast<const descriptor_base_t &>(desc), params, input);
         check_postconditions(desc, input, result);
         return result;
     }
