@@ -52,6 +52,12 @@ jobs:
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
+      - name: Set Environment Variables
+        run: |
+          echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
+          echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
+          echo "DisableScratchPages=0" >> "$GITHUB_ENV"
+          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
