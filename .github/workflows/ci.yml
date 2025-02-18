@@ -52,12 +52,6 @@ jobs:
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
-      - name: Set Environment Variables
-        run: |
-          echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
-          echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
-          echo "DisableScratchPages=0" >> "$GITHUB_ENV"
-          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
@@ -65,29 +59,21 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal --debug
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
       - name: Make onedal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal --debug
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
-        if: github.event_name == 'push'
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        if: github.event_name == 'push'
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: oneDAL_env
           path: .ci/env
-      - name: Cache build
-        if: github.event_name == 'pull_request'
-        uses: actions/cache/save@v4
-        with:
-          key: __release_lnx_${{ github.event.pull_request.number }}
-          path: ./__release_lnx
       - name: Strip oneDAL debug symbols
         run: |
           # The size must be reduced in order to complete example testing on github actions runners
@@ -145,8 +131,8 @@ jobs:
           repository: uxlfoundation/oneDAL
           run-id: ${{ steps.get-run-id.outputs.run-id }}
           path: ./__release_lnx_main
-      - name: Restore oneDAL build cache
-        uses: actions/cache/restore@v4
+      - name: Restore oneDAL build artifact
+        uses: actions/download-artifact@v4
         with:
+          name: __release_lnx
           path: ./__release_lnx
-          key: __release_lnx_${{ github.event.pull_request.number }}
