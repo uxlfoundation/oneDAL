@@ -79,7 +79,7 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --debug)
         use_debug="yes"
-        shift;;
+        ;;
         --help)
         show_help
         exit 0
