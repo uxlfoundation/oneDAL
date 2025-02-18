@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/table/detail/table_utils.hpp"
 #include "oneapi/dal/table/detail/table_builder.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal {
 namespace v1 {
@@ -88,6 +89,7 @@ public:
     dal::array<data_t> pull(sycl::queue& queue,
                             const range& row_range = { 0, -1 },
                             const sycl::usm::alloc& alloc = sycl::usm::alloc::shared) const {
+        ONEDAL_PROFILER_TASK(pull_1, queue);
         dal::array<data_t> block;
         pull(queue, block, row_range, alloc);
         return block;
@@ -136,6 +138,7 @@ public:
             dal::array<data_t>& block,
             const range& row_range = { 0, -1 },
             const sycl::usm::alloc& alloc = sycl::usm::alloc::shared) const {
+        ONEDAL_PROFILER_TASK(pull_4args, queue);
         pull_iface_->pull_rows(detail::data_parallel_policy{ queue }, block, row_range, alloc);
         return get_block_data(block);
     }
