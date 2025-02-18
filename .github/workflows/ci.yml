@@ -87,7 +87,7 @@ jobs:
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake --jobs 8         
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
