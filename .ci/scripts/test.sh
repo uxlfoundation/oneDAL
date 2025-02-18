@@ -139,7 +139,7 @@ fi
 
 if [[ -n "${jobs}" ]]; then
     make_op="-j${jobs}"
-elif "$(uname)" == "Linux" ]; then
+elif [ "$(uname)" == "Linux" ]; then
     make_op="-j$(nproc --all)"
 else
     make_op="-j$(sysctl -n hw.physicalcpu)"
