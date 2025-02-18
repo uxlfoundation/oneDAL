@@ -103,7 +103,7 @@ jobs:
       !(github.event.action == 'labeled' &&
       contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     needs: LinuxMakeDPCPP
-    runs-on: uxl-xlarge
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
