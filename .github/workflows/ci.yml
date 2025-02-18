@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: Linux Make DPCPP with Debug
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -59,17 +59,19 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal --debug
       - name: Make onedal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal --debug
       - name: Archive build
+        if: github.event_name == "push"
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
+        if: github.event_name == "push"
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: oneDAL_env
@@ -90,3 +92,48 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+      - name: Cache build
+        # Placed at the end to minimize time necessary in cache, debug build is ~1GB in size, total cache available is 10GB
+        if: github.event_name == "pull_request"
+        uses: actions/cache/save@v4
+        with:
+          key: __release_lnx
+          path: ./__release_lnx
+
+  LinuxABICheck:
+    name: ABI Conformance
+    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == "pull_request" }}
+    needs: LinuxMakeDPCPP
+    runs-on: uxl-xlarge
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v4
+      - name: install ABI checking tools
+        run: |
+          sudo apt-get install abigail-tools
+      - name: Get run ID of "CI" workflow
+        id: get-run-id
+        run: |
+          OTHER_REPO="uxlfoundation/oneDAL"
+          WF_NAME="CI"
+          JQ_QUERY='map(select(.event == "push")) | .[0].databaseId'
+          RUN_ID=`gh run --repo ${OTHER_REPO} list --workflow "${WF_NAME}" --json databaseId,event --status success --jq "${JQ_QUERY}"`
+          echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
+          echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download oneDAL main build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: __release_lnx
+          github-token: ${{ github.token }}
+          repository: uxlfoundation/oneDAL
+          run-id: ${{ steps.get-run-id.outputs.run-id }}
+          path: ./__release_lnx_main
+      - name: Restore oneDAL build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./__release_lnx
+          key: __release_lnx
