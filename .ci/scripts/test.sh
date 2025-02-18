@@ -74,6 +74,10 @@ while [[ $# -gt 0 ]]; do
         --cross-compile)
         cross_compile="yes"
         ;;
+        --jobs)
+        jobs="$2"
+        shift
+        ;;
         --help)
         show_help_text
         exit 0
@@ -133,7 +137,9 @@ else
     exit 1
 fi
 
-if [ "$(uname)" == "Linux" ]; then
+if [[ -n "${jobs}" ]]; then
+    make_op="-j${jobs}"
+elif "$(uname)" == "Linux" ]; then
     make_op="-j$(nproc --all)"
 else
     make_op="-j$(sysctl -n hw.physicalcpu)"
