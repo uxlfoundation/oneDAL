@@ -102,7 +102,11 @@ jobs:
 
   LinuxABICheck:
     name: ABI Conformance
-    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == "pull_request" }}
+    if: |
+      ${{ github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      !(github.event.action == 'labeled' &&
+      contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     needs: LinuxMakeDPCPP
     runs-on: uxl-xlarge
     timeout-minutes: 20
