@@ -16,6 +16,9 @@ build --flag_alias=device=@config//:device
 build --flag_alias=cpu=@config//:cpu
 build --flag_alias=enable_assert=@config//:enable_assert
 
+#Build oneDAL via bazel
+build --release_dpc
+
 # Always pass this env variable to test rules, because SYCL
 # OpenCL backend uses it to determine available devices
 test --test_env=OCL_ICD_FILENAMES \
