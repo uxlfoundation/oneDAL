@@ -26,7 +26,9 @@ namespace data_management
 {
 namespace internal
 {
-DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+// Default template to double for backwards compatability in daal4py (<2025.5)
+template <typename DataType = double>
+DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 } // namespace internal
 } // namespace data_management
 } // namespace daal
