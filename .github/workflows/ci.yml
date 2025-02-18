@@ -65,13 +65,13 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal --debug
       - name: Archive build
-        if: github.event_name == "push"
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        if: github.event_name == "push"
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: oneDAL_env
@@ -94,7 +94,7 @@ jobs:
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
       - name: Cache build
         # Placed at the end to minimize time necessary in cache, debug build is ~1GB in size, total cache available is 10GB
-        if: github.event_name == "pull_request"
+        if: github.event_name == 'pull_request'
         uses: actions/cache/save@v4
         with:
           key: __release_lnx
