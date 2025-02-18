@@ -57,7 +57,7 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "DisableScratchPages=0" >> "$GITHUB_ENV"
-          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV
+          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
       - name: System Info
         run: |
           source /opt/intel/oneapi/setvars.sh
