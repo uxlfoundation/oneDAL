@@ -38,7 +38,11 @@ namespace interface1
 {
 Input::Input() : linear_model::training::Input(lastInputId + 1) {}
 Input::Input(const Input & other) : linear_model::training::Input(other) {}
-Input & Input::operator=(const Input & other) = default;
+Input & Input::operator=(const Input & other) 
+{
+    linear_model::training::Input::operator=(other);
+    return *this;
+}
 
 /**
  * Returns an input object for ridge regression model-based training

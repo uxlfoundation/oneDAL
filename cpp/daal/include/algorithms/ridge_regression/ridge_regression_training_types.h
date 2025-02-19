@@ -290,6 +290,8 @@ public:
     DistributedInput(const DistributedInput & other);
     DistributedInput operator=(const DistributedInput & other);
 
+    virtual ~DistributedInput() {}
+
     /**
      * Gets an input object for ridge regression model-based training in the second step of the distributed processing mode
      * \param[in] id    Identifier of the input object
