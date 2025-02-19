@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: Linux Make Debug DPCPP
+    name: LinuxMakeDPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -85,17 +85,12 @@ jobs:
     needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    env:
-      release: __release_lnx
-      release_main: __release_lnx_main
-      lib_dir: /daal/latest/lib/intel64
 
     steps:
       - name: Checkout oneDAL
         uses: actions/checkout@v4
       - name: install ABI checking tools
-        run: |
-          sudo apt-get install abigail-tools
+        run: .ci/env/apt.sh abigail
       - name: Get run ID of "CI" workflow
         id: get-run-id
         run: |
@@ -115,21 +110,10 @@ jobs:
           repository: icfaust/oneDAL
           run-id: ${{ steps.get-run-id.outputs.run-id }}
           path: ./__release_lnx_main
-      - name: Restore oneDAL build artifact
+      - name: Download oneDAL build artifact
         uses: actions/download-artifact@v4
         with:
           name: __release_lnx
           path: ./__release_lnx
-      - name: abidiff libonedal_dpc
-        run: |
-          ls -lh
-          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so __release_lnx_main/daal/latest/lib/intel64/libonedal_dpc.so
-      - name: abidiff libonedal
-        run: |
-          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal.so __release_lnx_main/daal/latest/lib/intel64/libonedal.so
-      - name: abidiff libonedal_core
-        run: |
-          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_core.so __release_lnx_main/daal/latest/lib/intel64/libonedal_core.so
-      - name: abidiff libonedal_parameters
-        run: |
-          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_thread.so __release_lnx_main/daal/latest/lib/intel64/libonedal_thread.so
+      - name: Check ABI conformance
+        run: .ci/scripts/abi_check.sh __release_lnx/daal/latest/lib/intel64/ __release_lnx_main/daal/latest/lib/intel64/
