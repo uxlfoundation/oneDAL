@@ -519,13 +519,19 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
             const auto range = make_range_1d(p_);
             const std::int64_t st_id = fit_intercept_;
             auto sum_reduction = sycl::reduction(loss_ptr, sycl::plus<>());
-            cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
-                const Float param = w_ptr[st_id + idx];
-                if (need_grad) {
+            if (need_grad) {
+                cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
+                    const Float param = w_ptr[st_id + idx];
                     grad_ptr[st_id + idx] += regularization_factor * param;
-                }
-                sum_v0 += regularization_factor * param * param / 2;
-            });
+                    sum_v0 += regularization_factor * param * param / 2;
+                });
+            }
+            else {
+                cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
+                    const Float param = w_ptr[st_id + idx];
+                    sum_v0 += regularization_factor * param * param / 2;
+                });
+            }
         });
 
         value_ += loss_batch.at_device(q_, 0, { regularization_e });
