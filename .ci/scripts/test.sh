@@ -219,8 +219,7 @@ for link_mode in "${link_modes[@]}"; do
             -S .
             -G "Unix Makefiles"
             -DONEDAL_LINK="${link_mode}"
-            -DREF_BACKEND="${ref_backend}"
-	    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON)
+            -DREF_BACKEND="${ref_backend}")
 
         if [ "${cross_compile}" == "yes" ] ; then
             # Set the cmake toolchain file to set up the cross-compilation
