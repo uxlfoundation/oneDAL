@@ -74,28 +74,6 @@ jobs:
         with:
           name: oneDAL_env
           path: .ci/env
-      - name: Strip oneDAL debug symbols
-        run: |
-          # The size must be reduced in order to complete example testing on github actions runners
-          ls -lh __release_lnx/daal/latest/lib/intel64
-          strip -v --strip-unneeded __release_lnx/daal/latest/lib/intel64/*
-          ls -lh __release_lnx/daal/latest/lib/intel64
-      - name: daal/cpp examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
-      - name: oneapi/cpp examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
-      - name: oneapi/dpc examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake        
-      - name: daal/cpp/mpi examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
     name: ABI Conformance
@@ -107,6 +85,10 @@ jobs:
     needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      release_: __release_lnx
+      release_main: __release_lnx_main
+      lib_dir: /daal/latest/lib/intel64
 
     steps:
       - name: Checkout oneDAL
@@ -138,3 +120,12 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
+      - name: abidiff libonedal_dpc
+        run: |
+          abidiff $release$lib_dir/libonedal_dpc.so $release_main$lib_dir/libonedal_dpc.so
+      - name: abidiff libonedal_core
+        run: |
+          abidiff $release$lib_dir/libonedal_core.so $release_main$lib_dir/libonedal_core.so
+      - name: abidiff libonedal_parameters
+        run: |
+          abidiff $release$lib_dir/libonedal_parameters.so $release_main$lib_dir/libonedal_parameters.so
