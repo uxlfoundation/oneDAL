@@ -134,7 +134,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -Zl_DPCPP   := $(-Zl.dpcpp)
 # if REQDBG set to 'symbols', it will disable assert checking
 # This greatly reduces compiling with the static library when only symbols are desired
--DEBC       := $(if $(REQDBG),$(-DEBC.$(COMPILER)) $(if $(filter symbols,$(REQDBG)),,-DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
+-DEBC       := $(if $(REQDBG),$(-DEBC.$(COMPILER)) $(if $(filter symbols,$(REQDBG)),,-DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE))
 -DEBC_DPCPP := $(if $(REQDBG),$(-DEBC.dpcpp) $(if $(filter symbols,$(REQDBG)),,-DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
