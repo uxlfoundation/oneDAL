@@ -100,8 +100,8 @@ jobs:
         id: get-run-id
         run: |
           OTHER_REPO="icfaust/oneDAL"
-          WF_NAME="CI"
-          JQ_QUERY='map(select(.event == "workflow_run")) | .[0].databaseId'
+          WF_NAME="Nightly-build"
+          JQ_QUERY='map(select(.event == "scheduled")) | .[0].databaseId'
           RUN_ID=`gh run --repo ${OTHER_REPO} list --workflow "${WF_NAME}" --json databaseId,event --status success --jq "${JQ_QUERY}"`
           echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
           echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
