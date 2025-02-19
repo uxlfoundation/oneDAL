@@ -46,7 +46,7 @@ jobs:
       - name: Install MKL
         run: .ci/env/apt.sh mkl
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: 3.9
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
@@ -85,7 +85,7 @@ jobs:
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
