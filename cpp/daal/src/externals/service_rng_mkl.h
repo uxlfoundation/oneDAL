@@ -291,8 +291,9 @@ public:
                 _seed[i] = other._seed[i];
             }
             int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)_brngId, (const MKL_INT)_seedSize, _seed), errcode);
-            if (!errcode) __DAAL_VSLFN_CALL_NR(vslCopyStreamState, (_stream, other._stream), errcode);
+            __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
+            //__DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)_brngId, (const MKL_INT)_seedSize, _seed), errcode);
+            //if (!errcode) __DAAL_VSLFN_CALL_NR(vslCopyStreamState, (_stream, other._stream), errcode);
         }
     }
 
