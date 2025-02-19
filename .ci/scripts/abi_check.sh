@@ -1,6 +1,6 @@
 #! /bin/bash
 #===============================================================================
-# Copyright Contibutors to the oneDAL project
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
