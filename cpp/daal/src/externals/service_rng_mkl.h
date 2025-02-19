@@ -283,6 +283,7 @@ public:
 
     BaseRNG(const BaseRNG<cpu> & other) : _stream(0), _seed(nullptr), _seedSize(other._seedSize), _brngId(other._brngId)
     {
+        int errcode = 0;
         __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
     }
 
