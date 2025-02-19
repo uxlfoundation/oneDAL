@@ -122,10 +122,13 @@ jobs:
           path: ./__release_lnx
       - name: abidiff libonedal_dpc
         run: |
-          abidiff --verbose $release$lib_dir/libonedal_dpc.so $release_main$lib_dir/libonedal_dpc.so
+          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so __release_lnx_main/daal/latest/lib/intel64/libonedal_dpc.so
+      - name: abidiff libonedal
+        run: |
+          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal.so __release_lnx_main/daal/latest/lib/intel64/libonedal.so
       - name: abidiff libonedal_core
         run: |
-          abidiff --verbose $release$lib_dir/libonedal_core.so $release_main$lib_dir/libonedal_core.so
+          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_core.so __release_lnx_main/daal/latest/lib/intel64/libonedal_core.so
       - name: abidiff libonedal_parameters
         run: |
-          abidiff --verbose $release$lib_dir/libonedal_parameters.so $release_main$lib_dir/libonedal_parameters.so
+          abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_thread.so __release_lnx_main/daal/latest/lib/intel64/libonedal_thread.so
