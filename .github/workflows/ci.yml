@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      release_: __release_lnx
+      release: __release_lnx
       release_main: __release_lnx_main
       lib_dir: /daal/latest/lib/intel64
 
