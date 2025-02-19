@@ -99,9 +99,9 @@ jobs:
       - name: Get run ID of "CI" workflow
         id: get-run-id
         run: |
-          OTHER_REPO="uxlfoundation/oneDAL"
+          OTHER_REPO="icfaust/oneDAL"
           WF_NAME="CI"
-          JQ_QUERY='map(select(.event == "push")) | .[0].databaseId'
+          JQ_QUERY='map(select(.event == "workflow_run")) | .[0].databaseId'
           RUN_ID=`gh run --repo ${OTHER_REPO} list --workflow "${WF_NAME}" --json databaseId,event --status success --jq "${JQ_QUERY}"`
           echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
           echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
@@ -112,7 +112,7 @@ jobs:
         with:
           name: __release_lnx
           github-token: ${{ github.token }}
-          repository: uxlfoundation/oneDAL
+          repository: icfaust/oneDAL
           run-id: ${{ steps.get-run-id.outputs.run-id }}
           path: ./__release_lnx_main
       - name: Restore oneDAL build artifact
@@ -122,6 +122,7 @@ jobs:
           path: ./__release_lnx
       - name: abidiff libonedal_dpc
         run: |
+          ls -lh
           abidiff --verbose __release_lnx/daal/latest/lib/intel64/libonedal_dpc.so __release_lnx_main/daal/latest/lib/intel64/libonedal_dpc.so
       - name: abidiff libonedal
         run: |
