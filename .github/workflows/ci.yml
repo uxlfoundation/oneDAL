@@ -59,11 +59,11 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal --debug symbols
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
       - name: Make onedal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal --debug symbols
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -122,10 +122,10 @@ jobs:
           path: ./__release_lnx
       - name: abidiff libonedal_dpc
         run: |
-          abidiff $release$lib_dir/libonedal_dpc.so $release_main$lib_dir/libonedal_dpc.so
+          abidiff --verbose $release$lib_dir/libonedal_dpc.so $release_main$lib_dir/libonedal_dpc.so
       - name: abidiff libonedal_core
         run: |
-          abidiff $release$lib_dir/libonedal_core.so $release_main$lib_dir/libonedal_core.so
+          abidiff --verbose $release$lib_dir/libonedal_core.so $release_main$lib_dir/libonedal_core.so
       - name: abidiff libonedal_parameters
         run: |
-          abidiff $release$lib_dir/libonedal_parameters.so $release_main$lib_dir/libonedal_parameters.so
+          abidiff --verbose $release$lib_dir/libonedal_parameters.so $release_main$lib_dir/libonedal_parameters.so
