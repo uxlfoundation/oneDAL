@@ -165,7 +165,7 @@ public:
         for (std::int32_t test_num = 0; test_num < 5; ++test_num) {
             uniform<float_t>(n_, x_host.get_mutable_data(), eng, -1.0, 1.0);
             auto x_gpu = x_host.to_device(this->get_queue());
-            auto compute_event_vec = func_->update_x(x_gpu, true, {});
+            auto compute_event_vec = func_->update_x(x_gpu, true, true, {});
             wait_or_pass(compute_event_vec).wait_and_throw();
 
             float_t val = func_->get_value();

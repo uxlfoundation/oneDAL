@@ -622,7 +622,7 @@ public:
                                                  L2 * 2,
                                                  fit_intercept,
                                                  bsz);
-        auto set_point_event = functor.update_x(params_gpu, true, {});
+        auto set_point_event = functor.update_x(params_gpu, true, true, {});
         wait_or_pass(set_point_event).wait_and_throw();
 
         IS_CLOSE(float_t, gth_logloss, functor.get_value(), rtol, atol);

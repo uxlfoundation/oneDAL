@@ -110,7 +110,7 @@ public:
         }
 
         const auto results = comm.map([&](std::int64_t rank) {
-            sycl::event::wait_and_throw(funcs[rank].update_x(params_gpu, true, {}));
+            sycl::event::wait_and_throw(funcs[rank].update_x(params_gpu, true, true, {}));
             base_matrix_operator<float_t>& hessp = funcs[rank].get_hessian_product();
             std::vector<ndarray<float_t, 1>> out_vecs(num_checks);
             for (std::int64_t ij = 0; ij < num_checks; ++ij) {

@@ -35,7 +35,7 @@ Float backtracking(sycl::queue queue,
     using dal::backend::operator+;
     event_vector precompute = {};
     if (!x0_initialized) {
-        precompute = f.update_x(x, false, deps);
+        precompute = f.update_x(x, true, false, deps);
     }
     Float f0 = f.get_value();
     auto grad_f0 = f.get_gradient();
@@ -58,7 +58,7 @@ Float backtracking(sycl::queue queue,
         };
 
         auto update_x_event = element_wise(queue, update_x_kernel, x, direction, result, {});
-        auto func_event_vec = f.update_x(result, false, { update_x_event });
+        auto func_event_vec = f.update_x(result, false, false, { update_x_event });
         wait_or_pass(func_event_vec).wait_and_throw();
         cur_val = f.get_value();
     }
