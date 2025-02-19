@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: Linux Make DPCPP with Debug
+    name: Linux Make Debug DPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -59,11 +59,11 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal --debug symbols
       - name: Make onedal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal --debug symbols
       - name: Archive build
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -77,7 +77,9 @@ jobs:
       - name: Strip oneDAL debug symbols
         run: |
           # The size must be reduced in order to complete example testing on github actions runners
+          ls -lh __release_lnx/daal/latest/lib/intel64
           strip -v --strip-unneeded __release_lnx/daal/latest/lib/intel64/*
+          ls -lh __release_lnx/daal/latest/lib/intel64
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
