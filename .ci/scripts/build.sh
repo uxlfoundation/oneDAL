@@ -78,8 +78,8 @@ while [[ $# -gt 0 ]]; do
         use_openrng="$2"
         shift;;
         --debug)
-        use_debug="yes"
-        ;;
+        use_debug="$2"
+        shift;;
         --help)
         show_help
         exit 0
@@ -251,8 +251,8 @@ if [ "${use_openrng}" == "yes" ]; then
     make_options+=(RNG_BACKEND=openrng)
 fi
 
-if [ "${use_debug}" == "yes" ]; then
-    make_options+=(REQDBG=yes)
+if [ -n "${use_debug}" ]; then
+    make_options+=(REQDBG="${use_debug}")
 fi
 
 echo "Calling make"
