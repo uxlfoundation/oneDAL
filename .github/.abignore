@@ -19,23 +19,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect daal::internal namespace
 [suppress_type]
-  name_regexp = daal::internal.*
+  name_regexp = daal::internal::.*
 
 [suppress_variable]
-  name_regexp = daal::internal.*
+  name_regexp = daal::internal::.*
 
 [suppress_function]
-  name_regexp = daal::internal.*
+  name_regexp = daal::internal::.*
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect oneapi::dal::backend namespace
+; deselect oneapi::dal backend namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::backend.*
+  name_regexp = oneapi::dal::.*backend::.*
 
 [suppress_variable]
-  name_regexp = oneapi::dal::backend.*
+  name_regexp = oneapi::dal::.*backend::.*
 
 [suppress_function]
-  name_regexp = oneapi::dal::backend.*
+  name_regexp = oneapi::dal::.*backend::.*
