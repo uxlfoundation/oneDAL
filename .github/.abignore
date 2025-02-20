@@ -39,3 +39,13 @@
 
 [suppress_function]
   name_regexp = oneapi::dal::.*backend::.*
+
+; deselect oneapi::dal detail namespaces
+[suppress_type]
+  name_regexp = oneapi::dal::.*detail::.*
+
+[suppress_variable]
+  name_regexp = oneapi::dal::.*detail::.*
+
+[suppress_function]
+  name_regexp = oneapi::dal::.*detail::.*
