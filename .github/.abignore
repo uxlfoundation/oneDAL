@@ -30,7 +30,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect oneap::dal::backend namespace
+; deselect oneapi::dal::backend namespace
 [suppress_type]
   name_regexp = oneapi::dal::backend.*
 

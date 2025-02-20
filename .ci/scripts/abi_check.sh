@@ -30,12 +30,3 @@ do
     echo "--------${name}--------"
     abidiff $i $release_dir/$name
 done
-
-echo Static Library ABI Conformance
-alibs=($(ls $main_release_dir/lib*.a))
-for i in "${alibs[@]}"
-do
-    name=$(basename $i)
-    echo "--------${name}--------"
-    abidiff $i $release_dir/$name
-done

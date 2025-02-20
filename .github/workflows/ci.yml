@@ -84,6 +84,8 @@ jobs:
       contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
+    env:
+      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }/.github/.abignore
     timeout-minutes: 20
 
     steps:
@@ -116,4 +118,4 @@ jobs:
           name: __release_lnx
           path: ./__release_lnx
       - name: Check ABI conformance
-        run: .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+        run: .ci/scripts/abi_check.sh __release_lnx/daal/latest/lib/intel64/ __release_lnx_main/daal/latest/lib/intel64/
