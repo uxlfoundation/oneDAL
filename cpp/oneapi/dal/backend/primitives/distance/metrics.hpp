@@ -17,8 +17,13 @@
 #pragma once
 
 #include <cmath>
+#include <array>
+#include <sycl/sycl.hpp>
 
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/reduction.hpp"
+#include "oneapi/dal/backend/primitives/cov.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -116,6 +121,7 @@ public:
     }
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
 template <typename Float>
 struct correlation_metric : public metric_base<Float> {
 public:
@@ -165,8 +171,8 @@ public:
         auto v_sum = ndarray<Float, 1>::empty({ 1 });
         auto u_mean = ndarray<Float, 1>::empty({ 1 });
         auto v_mean = ndarray<Float, 1>::empty({ 1 });
-        sycl::event evt1 = reduce_by_columns(q, u, u_sum, {}, {}, deps, true);
-        sycl::event evt2 = reduce_by_columns(q, v, v_sum, {}, {}, { evt1 }, true);
+        sycl::event evt1 = reduce_by_rows(q, u, u_sum, {}, {}, deps, true);
+        sycl::event evt2 = reduce_by_rows(q, v, v_sum, {}, {}, { evt1 }, true);
         sycl::event evt3 = means(q, n, u_sum, u_mean, { evt2 });
         sycl::event evt4 = means(q, n, v_sum, v_mean, { evt3 });
         auto temp = ndarray<Float, 1>::empty({ 3 });
@@ -214,5 +220,6 @@ public:
         return evt5;
     }
 };
+#endif
 
 } // namespace oneapi::dal::backend::primitives
