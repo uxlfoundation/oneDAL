@@ -32,6 +32,7 @@
 #include "src/algorithms/service_heap.h"
 #include "src/services/service_defines.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
+#include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::internal;
@@ -46,6 +47,7 @@ namespace training
 {
 namespace internal
 {
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Service class, it uses to keep information about nodes
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -372,10 +374,10 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
     return services::Status();
 }
 
-template <typename algorithmFPType, typename BinIndexType, CpuType cpu, typename ModelType, typename TaskType>
+template <typename algorithmFPType, typename BinIndexType, CpuType cpu, typename ModelType, typename TaskType, typename HyperparameterType>
 services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w, ModelType & md,
                              ResultData & res, const Parameter & par, size_t nClasses, const dtrees::internal::FeatureTypes & featTypes,
-                             const dtrees::internal::IndexedFeatures * indexedFeatures)
+                             const dtrees::internal::IndexedFeatures * indexedFeatures, const HyperparameterType * hyperparameter = nullptr)
 {
     services::Status s;
     DAAL_CHECK(md.resize(par.nTrees), ErrorMemoryAllocationFailed);
@@ -439,7 +441,7 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
         numElems[i]                    = 0;
         auto engineImpl                = dynamic_cast<engines::internal::BatchBaseImpl *>(engines[i].get());
         DAAL_CHECK_THR(engineImpl, ErrorEngineNotSupported);
-        services::Status s = task->run(engineImpl, pTree, numElems[i]);
+        services::Status s = task->run(engineImpl, pTree, numElems[i], hyperparameter);
         DAAL_CHECK_STATUS_THR(s);
         if (pTree)
         {
@@ -505,7 +507,10 @@ class TrainBatchTaskBase
 {
 public:
     typedef TreeThreadCtxBase<algorithmFPType, cpu> ThreadCtxType;
-    services::Status run(engines::internal::BatchBaseImpl * engineImpl, dtrees::internal::Tree *& pTree, size_t & numElems);
+
+    template <typename HyperparameterType>
+    services::Status run(engines::internal::BatchBaseImpl * engineImpl, dtrees::internal::Tree *& pTree, size_t & numElems,
+                         const HyperparameterType * hyperparameter);
 
 protected:
     typedef dtrees::internal::TVector<algorithmFPType, cpu> algorithmFPTypeArray;
@@ -632,11 +637,55 @@ protected:
     algorithmFPType computeOOBErrorPerm(const dtrees::internal::Tree & t, size_t n, const IndexType * aInd, const IndexType * aPerm,
                                         size_t iPermutedFeature);
 
-    void setupHostApp()
+    template <typename HyperparameterType>
+    Status setupHostApp(const HyperparameterType * hyperparameter)
     {
-        const size_t minPart = 4 * _helper.size();        //corresponds to the 4 topmost levels
-        const size_t minSize = 24000 / _nFeaturesPerNode; //at least that many, corresponds to the tree 1000 obs/10 features/8 levels
+        const size_t minPart = 4 * _helper.size();
+        const size_t minSize = 24000 / _nFeaturesPerNode;
         _hostApp.setup(minPart < minSize ? minSize : minPart);
+        return Status{};
+    }
+
+    template <>
+    Status setupHostApp(const classification::training::internal::Hyperparameter * hyperparameter)
+    {
+        Status st;
+        DAAL_INT64 minPartCoeff = 0l;
+        DAAL_INT64 minSizeCoeff = 0l;
+        if (hyperparameter != nullptr)
+        {
+            st = hyperparameter->find(classification::training::internal::minPartCoefficient, minPartCoeff);
+            if (!st) return st;
+            DAAL_CHECK(0l < minPartCoeff, services::ErrorHyperparameterBadValue);
+            st = hyperparameter->find(classification::training::internal::minSizeCoefficient, minSizeCoeff);
+            if (!st) return st;
+            DAAL_CHECK(0l < minSizeCoeff, services::ErrorHyperparameterBadValue);
+        }
+        const size_t minPart = minPartCoeff * _helper.size();
+        const size_t minSize = minSizeCoeff / _nFeaturesPerNode;
+        _hostApp.setup(minPart < minSize ? minSize : minPart);
+        return st;
+    }
+
+    template <>
+    Status setupHostApp(const regression::training::internal::Hyperparameter * hyperparameter)
+    {
+        Status st;
+        DAAL_INT64 minPartCoeff = 0l;
+        DAAL_INT64 minSizeCoeff = 0l;
+        if (hyperparameter != nullptr)
+        {
+            st = hyperparameter->find(regression::training::internal::minPartCoefficient, minPartCoeff);
+            if (!st) return st;
+            DAAL_CHECK(0l < minPartCoeff, services::ErrorHyperparameterBadValue);
+            st = hyperparameter->find(regression::training::internal::minSizeCoefficient, minSizeCoeff);
+            if (!st) return st;
+            DAAL_CHECK(0l < minSizeCoeff, services::ErrorHyperparameterBadValue);
+        }
+        const size_t minPart = minPartCoeff * _helper.size();
+        const size_t minSize = minSizeCoeff / _nFeaturesPerNode;
+        _hostApp.setup(minPart < minSize ? minSize : minPart);
+        return st;
     }
 
 protected:
@@ -674,8 +723,10 @@ protected:
 };
 
 template <typename algorithmFPType, typename BinIndexType, typename DataHelper, CpuType cpu>
+template <typename HyperparameterType>
 services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, cpu>::run(engines::internal::BatchBaseImpl * engineImpl,
-                                                                                         dtrees::internal::Tree *& pTree, size_t & numElems)
+                                                                                         dtrees::internal::Tree *& pTree, size_t & numElems,
+                                                                                         const HyperparameterType * hyperparameters)
 {
     const size_t maxFeatures = nFeatures();
     _nConstFeature           = 0;
@@ -735,7 +786,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, c
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < _aSample.size(); ++i) _aSample[i] = i;
 
-    setupHostApp();
+    setupHostApp(hyperparameters);
 
     double totalWeights = double(0);
     typename DataHelper::ImpurityData initialImpurity;

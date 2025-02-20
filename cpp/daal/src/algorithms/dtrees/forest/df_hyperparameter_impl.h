@@ -100,6 +100,72 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
 } // namespace training
 } // namespace classification
 
+namespace regression
+{
+namespace training
+{
+namespace internal
+{
+
+/**
+ * Available identifiers of integer hyperparameters of the decision forest training algorithm
+ */
+enum HyperparameterId
+{
+    minPartCoefficient = 4,
+    minSizeCoefficient = 24000,
+    hyperparameterIdCount = minSizeCoefficient + 1
+};
+
+enum DoubleHyperparameterId
+{
+    doubleHyperparameterIdCount       = 0
+};
+
+/**
+ * \brief Hyperparameters of the decision forest training algorithm
+ */
+struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
+{
+    using algorithms::Hyperparameter::set;
+    using algorithms::Hyperparameter::find;
+
+    /** Default constructor */
+    Hyperparameter();
+
+    /**
+     * Sets integer hyperparameter of the decision forest algorithm
+     * \param[in] id        Identifier of the hyperparameter
+     * \param[in] value     The value of the hyperparameter
+     */
+    services::Status set(HyperparameterId id, DAAL_INT64 value);
+
+    /**
+     * Sets double precision hyperparameter of the decision forest algorithm
+     * \param[in] id        Identifier of the hyperparameter
+     * \param[in] value     Value of the hyperparameter
+     */
+    services::Status set(DoubleHyperparameterId id, double value);
+
+    /**
+     * Finds integer hyperparameter of the decision forest algorithm by its identifier
+     * \param[in]  id       Identifier of the hyperparameter
+     * \param[out] value    Value of the found hyperparameter
+     */
+    services::Status find(HyperparameterId id, DAAL_INT64 & value) const;
+
+    /**
+     * Finds double precision hyperparameter of the decision forest algorithm by its identifier
+     * \param[in]  id       Identifier of the hyperparameter
+     * \param[out] value    Value of the found hyperparameter
+     */
+    services::Status find(DoubleHyperparameterId id, double & value) const;
+};
+
+} // namespace internal
+} // namespace training
+} // namespace regression
+
 namespace prediction
 {
 namespace internal
