@@ -36,11 +36,6 @@ jobs:
     name: LinuxMakeDPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
-    env:
-      TEST1: ${{ github.repository }}
-      TEST2: ${{ github.event_name }}
-      TEST3: ${{ github.event.action }}
-      TEST4: ${{ toJson(github.event.pull_request.labels.*.name) }}
     timeout-minutes: 120
 
     steps:
@@ -85,8 +80,7 @@ jobs:
     if: |
       ${{ github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
-      !(github.event.action == 'labeled' &&
-      contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
     env:
