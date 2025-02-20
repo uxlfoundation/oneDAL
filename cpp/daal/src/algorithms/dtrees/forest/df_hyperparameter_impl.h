@@ -45,9 +45,9 @@ namespace internal
  */
 enum HyperparameterId
 {
-    smallNClassesThreshold = 8,
-    minPartCoefficient = 4,
-    minSizeCoefficient = 24000,
+    smallNClassesThreshold = 0,
+    minPartCoefficient,
+    minSizeCoefficient,
     hyperparameterIdCount = minSizeCoefficient + 1
 };
 
@@ -112,8 +112,8 @@ namespace internal
  */
 enum HyperparameterId
 {
-    minPartCoefficient = 4,
-    minSizeCoefficient = 24000,
+    minPartCoefficient = 0,
+    minSizeCoefficient,
     hyperparameterIdCount = minSizeCoefficient + 1
 };
 
