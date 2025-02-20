@@ -85,7 +85,7 @@ jobs:
     needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
     env:
-      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }/.github/.abignore
+      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
     timeout-minutes: 20
 
     steps:
