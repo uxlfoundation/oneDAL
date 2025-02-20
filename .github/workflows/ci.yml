@@ -90,20 +90,12 @@ jobs:
   LinuxABICheck:
     name: ABI Conformance
     needs: LinuxMakeDPCPP
-    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'pull_request' && !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+    if: >
+      ${{ github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     runs-on: ubuntu-24.04
     env:
-      TEST1: ${{ github.repository == 'uxlfoundation/oneDAL' }}
-      TEST2: ${{ github.event_name == 'pull_request' }}
-      TEST3: ${{ !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
-      TEST4: |
-        ${{ github.repository == 'uxlfoundation/oneDAL' &&
-        github.event_name == 'pull_request' &&
-        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
-      TEST5: |
-        ${{ github.event_name == 'pull_request' &&
-        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
-      TEST6: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'pull_request' && !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
     timeout-minutes: 20
 
