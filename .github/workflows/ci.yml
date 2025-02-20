@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     env:
@@ -71,11 +71,11 @@ jobs:
       - name: Make daal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal
       - name: Make onedal
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
       - name: Archive build
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
@@ -89,13 +89,24 @@ jobs:
 
   LinuxABICheck:
     name: ABI Conformance
+    needs: LinuxMakeDPCPP
     if: |
       ${{ github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
       !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
-    needs: LinuxMakeDPCPP
     runs-on: ubuntu-24.04
     env:
+      TEST1: ${{ github.repository == 'uxlfoundation/oneDAL' }}
+      TEST2: ${{ github.event_name == 'pull_request' }}
+      TEST3: ${{ !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST4: |
+        ${{ github.repository == 'uxlfoundation/oneDAL' &&
+        github.event_name == 'pull_request' &&
+        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST5: |
+        ${{ github.event_name == 'pull_request' &&
+        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST6: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'pull_request' && !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
     timeout-minutes: 20
 
