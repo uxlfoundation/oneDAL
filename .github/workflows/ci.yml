@@ -36,6 +36,11 @@ jobs:
     name: LinuxMakeDPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
+    env:
+      TEST1: ${{ github.repository }}
+      TEST2: ${{ github.event_name }}
+      TEST3: ${{ github.event.action }}
+      TEST4: ${{ toJson(github.event.pull_request.labels.*.name) }}
     timeout-minutes: 120
 
     steps:
