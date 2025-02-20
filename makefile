@@ -129,6 +129,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -Q          := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
 -cxx17      := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
 -fPIC       := $(if $(OS_is_win),,-fPIC)
+-visibility := $(if $(OS_is_win),,-fvisibility=hidden)
 -DMKL_ILP64 := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -Zl         := $(-Zl.$(COMPILER))
 -Zl_DPCPP   := $(-Zl.dpcpp)
@@ -507,7 +508,7 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.ext) $(VTUNES
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-visibility)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -516,7 +517,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-visibility)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
