@@ -705,7 +705,7 @@ $(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DMKL_ILP64) $(-DEBC) $(-E
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                           $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG) \
-                          -D__ONEDAL_ENABLE_DLL_EXPORT__ \
+                          -D__ONEDAL_ENABLE_EXPORT__ \
                           -D__TBB_NO_IMPLICIT_LINKAGE \
                           -DTBB_USE_ASSERT=0 \
                           @$(ONEAPI.tmpdir_y)/inc_y_folders.txt
@@ -722,7 +722,7 @@ $(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-DMKL_ILP64) $(-
                               -DONEDAL_DATA_PARALLEL \
                               -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                               $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG) \
-                              -D__ONEDAL_ENABLE_DLL_EXPORT__ \
+                              -D__ONEDAL_ENABLE_EXPORT__ \
                               -D__TBB_NO_IMPLICIT_LINKAGE \
                               -DTBB_USE_ASSERT=0 \
                               @$(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
