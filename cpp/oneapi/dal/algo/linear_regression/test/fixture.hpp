@@ -57,6 +57,35 @@ public:
     using partial_input_t = partial_train_input<>;
     using partial_result_t = partial_train_result<>;
 
+    bool use_non_batched_route = false;
+
+    template <typename... Args>
+    auto train(Args&&... args) {
+        if (!this->use_non_batched_route || !this->get_policy().is_cpu())
+            return te::crtp_algo_fixture<TestType, Derived>::train(std::forward<Args>(args)...);
+        else {
+            detail::train_parameters parameters{};
+            parameters.set_cpu_max_cols_batched(1);
+            return te::crtp_algo_fixture<TestType, Derived>::train_with_parameters(
+                parameters,
+                std::forward<Args>(args)...);
+        }
+    }
+
+    template <typename... Args>
+    auto partial_train(Args&&... args) {
+        if (!this->use_non_batched_route || !this->get_policy().is_cpu())
+            return te::crtp_algo_fixture<TestType, Derived>::partial_train(
+                std::forward<Args>(args)...);
+        else {
+            detail::train_parameters parameters{};
+            parameters.set_cpu_max_cols_batched(1);
+            return te::crtp_algo_fixture<TestType, Derived>::partial_train_with_parameters(
+                parameters,
+                std::forward<Args>(args)...);
+        }
+    }
+
     te::table_id get_homogen_table_id() const {
         return te::table_id::homogen<float_t>();
     }
