@@ -118,4 +118,4 @@ jobs:
           name: __release_lnx
           path: ./__release_lnx
       - name: Check ABI conformance
-        run: .ci/scripts/abi_check.sh __release_lnx/daal/latest/lib/intel64/ __release_lnx_main/daal/latest/lib/intel64/
+        run: .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
