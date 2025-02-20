@@ -1,0 +1,92 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  LinuxMakeDPCPP:
+    name: LinuxMakeDPCPP
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: uxl-gpu-4xlarge
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
+      - name: Install Miniforge
+        run: .ci/env/apt.sh miniforge
+      - name: System Info
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/describe_system.sh
+      - name: Make daal
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
+      - name: Make onedal
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+      - name: Archive build
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Archive oneDAL environment
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: oneDAL_env
+          path: .ci/env
+      - name: daal/cpp examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
+      - name: oneapi/cpp examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
+      - name: oneapi/dpc examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+      - name: daal/cpp/mpi examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake

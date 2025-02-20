@@ -42,6 +42,7 @@ __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_RIDGE_REGRESSION_PREDI
 /** Default constructor */
 Input::Input() : linear_model::prediction::Input(lastModelInputId + 1) {}
 Input::Input(const Input & other) : linear_model::prediction::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for making ridge regression model-based prediction

@@ -564,7 +564,7 @@ public:
     typedef typename super::ResultType ResultType;
     typedef typename super::PartialResultType PartialResultType;
 
-    Distributed<step1Local, algorithmFPType, method>() : Online<algorithmFPType, method>() {}
+    Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
