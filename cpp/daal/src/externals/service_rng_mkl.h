@@ -330,9 +330,6 @@ protected:
 
 private:
     void * _stream;
-    //unsigned int * _seed;
-    //size_t _seedSize;
-    //const int _brngId;
 };
 
 /*
