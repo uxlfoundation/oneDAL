@@ -40,6 +40,14 @@ jobs:
       TEST1: ${{ github.repository == 'uxlfoundation/oneDAL' }}
       TEST2: ${{ github.event_name == 'pull_request' }}
       TEST3: ${{ !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST4: |
+        ${{ github.repository == 'uxlfoundation/oneDAL' &&
+        github.event_name == 'pull_request' &&
+        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST5: |
+        ${{ github.event_name == 'pull_request' &&
+        !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      TEST6: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'pull_request' && !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
     timeout-minutes: 120
 
     steps:
