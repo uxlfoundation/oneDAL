@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP(AVX512)
+    name: LinuxMakeDPCPP(AVX2)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     env:
@@ -90,10 +90,10 @@ jobs:
   LinuxABICheck:
     name: ABI Conformance
     needs: LinuxMakeDPCPP
-    if: >
-      ${{ success() && github.repository == 'uxlfoundation/oneDAL' &&
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
-      !(contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')) }}
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     env:
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
