@@ -19,23 +19,23 @@ ci_dir=$(dirname $(dirname $(dirname "${BASH_SOURCE[0]}")))
 cd $ci_dir
 
 # relative paths must be made from the oneDAL repo root
-release_dir=$1
-main_release_dir=$2
+main_release_dir=$1
+release_dir=$2
 
 echo Shared Library ABI Conformance
-solibs=($(ls $release_dir/lib*.so))
+solibs=($(ls $main_release_dir/lib*.so))
 for i in "${solibs[@]}"
 do
     name=$(basename $i)
     echo "--------${name}--------"
-    abidiff $i $main_release_dir/$name
+    abidiff $i $release_dir/$name
 done
 
 echo Static Library ABI Conformance
-alibs=($(ls $release_dir/lib*.a))
+alibs=($(ls $main_release_dir/lib*.a))
 for i in "${alibs[@]}"
 do
     name=$(basename $i)
     echo "--------${name}--------"
-    abidiff $i $main_release_dir/$name
+    abidiff $i $release_dir/$name
 done
