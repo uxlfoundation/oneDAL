@@ -246,23 +246,15 @@ class BaseRNG : public BaseRNGIface<cpu>
 public:
     BaseRNG(const unsigned int seed, const int brngId) : _stream(0)
     {
-        services::Status s = allocSeeds(1);
-        if (s)
-        {
-            int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
-        }
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
+        
     }
 
     BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937) : _stream(0)
     {
-        services::Status s = allocSeeds(n);
-        if (s)
-        {
-            int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
-        }
-            
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
     }
 
     BaseRNG(const BaseRNG<cpu> & other) : _stream(0)
