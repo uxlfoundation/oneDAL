@@ -29,34 +29,36 @@ sycl::event generate_rng(Distribution& distr,
                          std::int64_t count,
                          Type* dst,
                          const event_vector& deps) {
-    switch (engine_.get_device_engine_base_ptr()->get_engine_type()) {
-        case engine_type::mt2203: {
-            auto& device_engine =
-                *(dynamic_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
-            return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
-        }
-        case engine_type::mcg59: {
-            auto& device_engine =
-                *(dynamic_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
-            return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
-        }
-        case engine_type::mrg32k3a: {
-            auto& device_engine =
-                *(dynamic_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
-            return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
-        }
-        case engine_type::philox4x32x10: {
-            auto& device_engine =
-                *(dynamic_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
-            return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
-        }
-        case engine_type::mt19937: {
-            auto& device_engine =
-                *(dynamic_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
-            return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
-        }
-        default: throw std::runtime_error("Unsupported engine type in generate_rng");
+    auto engine_type = engine_.get_device_engine_base_ptr()->get_engine_type();
+
+    if (engine_type == engine_type::philox4x32x10) {
+        auto& device_engine =
+            *(static_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
+    else if (engine_type == engine_type::mt19937) {
+        auto& device_engine =
+            *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+    }
+    else if (engine_type == engine_type::mrg32k3a) {
+        auto& device_engine =
+            *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+    }
+    else if (engine_type == engine_type::mcg59) {
+        auto& device_engine =
+            *(static_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+    }
+    else {
+        auto& device_engine =
+            *(static_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
+        return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
+    }
+
+    // default: throw std::runtime_error("Unsupported engine type in generate_rng");
+    //}
 }
 
 /// Generates uniformly distributed random numbers on the GPU.

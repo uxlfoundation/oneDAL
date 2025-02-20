@@ -61,7 +61,7 @@ public:
     error_metric_mode error_metric_mode_value = error_metric_mode::none;
     infer_mode infer_mode_value = infer_mode::class_responses;
 
-    df_engine_types engine_method = df_engine_types::mt2203;
+    df_engine_types engine_method = df_engine_types::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
     splitter_mode splitter_mode_value = splitter_mode::best;
