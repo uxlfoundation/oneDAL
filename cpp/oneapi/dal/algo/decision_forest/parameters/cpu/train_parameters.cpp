@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,19 +14,17 @@
 * limitations under the License.
 *******************************************************************************/
 
-#pragma once
-
-#include "oneapi/dal/algo/decision_forest/train_types.hpp"
+#include "oneapi/dal/algo/decision_forest/parameters/cpu/train_parameters.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
 
-namespace oneapi::dal::decision_forest::backend {
+namespace oneapi::dal::decision_forest::parameters {
 
-template <typename Float, typename Method, typename Task>
-struct train_kernel_gpu {
-    train_result<Task> operator()(const dal::backend::context_gpu& ctx,
-                                  const detail::descriptor_base<Task>& desc,
-                                  const detail::train_parameters<Task>& params,
-                                  const train_input<Task>& input) const;
-};
+using method::by_default;
+using task::classification;
 
-} // namespace oneapi::dal::decision_forest::backend
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::hist, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::dense, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, task::classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, task::classification>;
+
+} // namespace oneapi::dal::decision_forest::parameters

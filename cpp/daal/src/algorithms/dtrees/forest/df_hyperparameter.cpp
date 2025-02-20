@@ -30,6 +30,70 @@ namespace algorithms
 {
 namespace decision_forest
 {
+namespace classification
+{
+namespace training
+{
+namespace internal
+{
+Hyperparameter::Hyperparameter() : algorithms::Hyperparameter(hyperparameterIdCount, doubleHyperparameterIdCount) {}
+
+services::Status Hyperparameter::set(HyperparameterId id, DAAL_INT64 value)
+{
+    return this->algorithms::Hyperparameter::set(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::set(DoubleHyperparameterId id, double value)
+{
+    return this->algorithms::Hyperparameter::set(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::find(HyperparameterId id, DAAL_INT64 & value) const
+{
+    return this->algorithms::Hyperparameter::find(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::find(DoubleHyperparameterId id, double & value) const
+{
+    return this->algorithms::Hyperparameter::find(uint32_t(id), value);
+}
+} // namespace internal
+} // namespace training
+} // namespace classification
+
+namespace regression
+{
+namespace training
+{
+namespace internal
+{
+Hyperparameter::Hyperparameter() : algorithms::Hyperparameter(hyperparameterIdCount, doubleHyperparameterIdCount) {}
+
+services::Status Hyperparameter::set(HyperparameterId id, DAAL_INT64 value)
+{
+    return this->algorithms::Hyperparameter::set(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::set(DoubleHyperparameterId id, double value)
+{
+    return this->algorithms::Hyperparameter::set(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::find(HyperparameterId id, DAAL_INT64 & value) const
+{
+    return this->algorithms::Hyperparameter::find(uint32_t(id), value);
+}
+
+services::Status Hyperparameter::find(DoubleHyperparameterId id, double & value) const
+{
+    return this->algorithms::Hyperparameter::find(uint32_t(id), value);
+}
+} // namespace internal
+} // namespace training
+} // namespace regression
+
+namespace prediction
+{
 namespace internal
 {
 
@@ -56,6 +120,7 @@ services::Status Hyperparameter::find(DoubleHyperparameterId id, double & value)
 }
 
 } // namespace internal
+} // namespace prediction
 } // namespace decision_forest
 } // namespace algorithms
 } // namespace daal
