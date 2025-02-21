@@ -15,7 +15,7 @@
 *******************************************************************************/
 /*
  * Contains SVE optimizations for sumWithSIMD algorithm.
-*/
+ */
 
 #include <arm_sve.h>
 
