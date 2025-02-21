@@ -2,7 +2,8 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "opencl_binary",
-    srcs = [
+    srcs = glob([
         "libOpenCL.so.1.2",
-    ],
+        "libOpenCL.so.1.0",
+    ]),
 )
