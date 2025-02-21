@@ -51,7 +51,8 @@ class RegressionTrainBatchKernel : public daal::algorithms::Kernel
 public:
     typedef daal::algorithms::decision_forest::regression::training::internal::Hyperparameter HyperparameterType;
     services::Status compute(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
-                             decision_forest::regression::Model & m, Result & res, const Parameter & par, const HyperparameterType * hyperparameter = nullptr);
+                             decision_forest::regression::Model & m, Result & res, const Parameter & par,
+                             const HyperparameterType * hyperparameter = nullptr);
 };
 
 } // namespace internal

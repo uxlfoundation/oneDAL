@@ -28,7 +28,8 @@ struct train_parameters_impl<task::classification> : public base {
     std::int64_t min_size_coefficient = 24000l;
 };
 
-train_parameters<task::classification>::train_parameters() : impl_(new train_parameters_impl<task::classification>{}) {}
+train_parameters<task::classification>::train_parameters()
+        : impl_(new train_parameters_impl<task::classification>{}) {}
 
 std::int64_t train_parameters<task::classification>::get_small_classes_threshold() const {
     return impl_->small_classes_threshold;
@@ -60,7 +61,8 @@ struct train_parameters_impl<task::regression> : public base {
     std::int64_t min_size_coefficient = 24000l;
 };
 
-train_parameters<task::regression>::train_parameters() : impl_(new train_parameters_impl<task::regression>{}) {}
+train_parameters<task::regression>::train_parameters()
+        : impl_(new train_parameters_impl<task::regression>{}) {}
 
 std::int64_t train_parameters<task::regression>::get_min_part_coefficient() const {
     return impl_->min_part_coefficient;
@@ -106,7 +108,6 @@ public:
     table oob_err_prediction;
     table variable_importance;
 };
-
 
 using detail::v1::train_parameters;
 using detail::v1::train_input_impl;

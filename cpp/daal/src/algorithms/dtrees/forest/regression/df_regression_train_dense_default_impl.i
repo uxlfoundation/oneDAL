@@ -112,7 +112,9 @@ public:
 
 public:
     OrderedRespHelperBest(const dtrees::internal::IndexedFeatures * indexedFeatures, size_t dummy,
-                          const regression::training::internal::Hyperparameter * hp = nullptr) : super(indexedFeatures) {}
+                          const regression::training::internal::Hyperparameter * hp = nullptr)
+        : super(indexedFeatures)
+    {}
 
     template <bool noWeights>
     void calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalweights) const;
@@ -1298,7 +1300,8 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////
 // TrainBatchTask for regression
 //////////////////////////////////////////////////////////////////////////////////////////
-template <typename algorithmFPType, typename BinIndexType, decision_forest::regression::training::Method method, typename Helper, typename HyperparameterType, CpuType cpu>
+template <typename algorithmFPType, typename BinIndexType, decision_forest::regression::training::Method method, typename Helper,
+          typename HyperparameterType, CpuType cpu>
 class TrainBatchTask : public TrainBatchTaskBase<algorithmFPType, BinIndexType, Helper, HyperparameterType, cpu>
 {
     typedef TrainBatchTaskBase<algorithmFPType, BinIndexType, Helper, HyperparameterType, cpu> super;
@@ -1354,9 +1357,10 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
                     pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::regression::internal::ModelImpl *>(&m), rd, par, 0, featTypes,
                     &indexedFeatures, hyperparameter);
             else
-                s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                                daal::algorithms::decision_forest::regression::internal::ModelImpl,
-                                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
+                s = computeImpl<
+                    algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                    daal::algorithms::decision_forest::regression::internal::ModelImpl,
+                    TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
                     pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::regression::internal::ModelImpl *>(&m), rd, par, 0, featTypes,
                     &indexedFeatures, hyperparameter);
         }
@@ -1373,16 +1377,18 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
         {
             s = indexedFeatures.init<algorithmFPType, cpu>(*x, &featTypes);
             DAAL_CHECK_STATUS_VAR(s);
-            s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                            daal::algorithms::decision_forest::regression::internal::ModelImpl,
-                            TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
+            s = computeImpl<
+                algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                daal::algorithms::decision_forest::regression::internal::ModelImpl,
+                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
                 pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::regression::internal::ModelImpl *>(&m), rd, par, 0, featTypes,
                 &indexedFeatures, hyperparameter);
         }
         else
-            s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                            daal::algorithms::decision_forest::regression::internal::ModelImpl,
-                            TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
+            s = computeImpl<
+                algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                daal::algorithms::decision_forest::regression::internal::ModelImpl,
+                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
                 pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::regression::internal::ModelImpl *>(&m), rd, par, 0, featTypes,
                 nullptr, hyperparameter);
     }
@@ -1390,8 +1396,6 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
     if (s.ok()) res.impl()->setEngine(rd.updatedEngine);
     return s;
 }
-
-
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compute(HostAppIface * pHostApp, const NumericTable * x,
@@ -1409,8 +1413,8 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {
         s = computeForSpecificHelper<algorithmFPType, method, cpu,
-                                     RespHelperBase<algorithmFPType, cpu, OrderedRespHelperBest<algorithmFPType, cpu> > >(pHostApp, x, y, w, m, res,
-                                                                                                                          par, par.memorySavingMode, hp);
+                                     RespHelperBase<algorithmFPType, cpu, OrderedRespHelperBest<algorithmFPType, cpu> > >(
+            pHostApp, x, y, w, m, res, par, par.memorySavingMode, hp);
     }
     else if (par.splitter == decision_forest::training::SplitterMode::random)
     {

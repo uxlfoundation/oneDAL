@@ -85,7 +85,7 @@ struct train_ops {
                               const result_t& result) const {}
 
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
-    template<typename ParameterType>
+    template <typename ParameterType>
     void check_parameters_ranges(const ParameterType& params, const input_t& input) const {
         if constexpr (std::is_same_v<task_t, task::classification>) {
             ONEDAL_ASSERT(params.get_small_classes_threshold() > 0);
@@ -111,8 +111,11 @@ struct train_ops {
                     const param_t& params,
                     const input_t& input) const {
         check_parameters_ranges(params, input);
-        const auto result =
-            train_ops_dispatcher<Context, float_t, task_t, method_t>{}(ctx, dynamic_cast<const descriptor_base_t &>(desc), params, input);
+        const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
+            ctx,
+            dynamic_cast<const descriptor_base_t&>(desc),
+            params,
+            input);
         check_postconditions(desc, input, result);
         return result;
     }

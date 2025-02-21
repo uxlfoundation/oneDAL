@@ -40,13 +40,13 @@ struct train_ops_dispatcher<Policy, Float, Task, Method> {
         return kernel_dispatcher_t{}(ctx, desc, input);
     }
 
-    train_result<Task> operator()(
-        const Policy& ctx,
-        const descriptor_base<Task>& desc,
-        const input_t& input) const {
+    train_result<Task> operator()(const Policy& ctx,
+                                  const descriptor_base<Task>& desc,
+                                  const input_t& input) const {
         const auto params = select_parameters(ctx, desc, input);
         return implementation(ctx, desc, params, input);
     }
+
 private:
     inline auto implementation(const Policy& ctx,
                                const descriptor_base<Task>& desc,

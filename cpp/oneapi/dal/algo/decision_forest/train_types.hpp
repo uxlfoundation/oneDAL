@@ -37,7 +37,7 @@ class train_parameters {};
 
 template <>
 ONEDAL_EXPORT class train_parameters<task::regression> : public dal::detail::system_parameters {
-    public:
+public:
     explicit train_parameters();
 
     /// Multiplier that defines the minimum work size for a thread to be assigned a separate task.
@@ -57,6 +57,7 @@ ONEDAL_EXPORT class train_parameters<task::regression> : public dal::detail::sys
         set_min_size_coefficient_impl(val);
         return *this;
     }
+
 private:
     void set_min_part_coefficient_impl(std::int64_t val);
     void set_min_size_coefficient_impl(std::int64_t val);
@@ -88,6 +89,7 @@ public:
         set_min_size_coefficient_impl(val);
         return *this;
     }
+
 private:
     void set_small_classes_threshold_impl(std::int64_t val);
     void set_min_part_coefficient_impl(std::int64_t val);

@@ -1687,7 +1687,8 @@ Status TreeThreadCtx<algorithmFPType, cpu>::finalizeOOBError(const NumericTable 
 //////////////////////////////////////////////////////////////////////////////////////////
 // TrainBatchTask for classification
 //////////////////////////////////////////////////////////////////////////////////////////
-template <typename algorithmFPType, typename BinIndexType, decision_forest::classification::training::Method method, typename helper, typename HyperparameterType, CpuType cpu>
+template <typename algorithmFPType, typename BinIndexType, decision_forest::classification::training::Method method, typename helper,
+          typename HyperparameterType, CpuType cpu>
 class TrainBatchTask : public TrainBatchTaskBase<algorithmFPType, BinIndexType, helper, HyperparameterType, cpu>
 {
     typedef TrainBatchTaskBase<algorithmFPType, BinIndexType, helper, HyperparameterType, cpu> super;
@@ -1744,9 +1745,10 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
                     pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par,
                     par.nClasses, featTypes, &indexedFeatures, hyperparameter);
             else
-                s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                                daal::algorithms::decision_forest::classification::internal::ModelImpl,
-                                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
+                s = computeImpl<
+                    algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                    daal::algorithms::decision_forest::classification::internal::ModelImpl,
+                    TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
                     pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par,
                     par.nClasses, featTypes, &indexedFeatures, hyperparameter);
         }
@@ -1763,16 +1765,18 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
         {
             s = indexedFeatures.init<algorithmFPType, cpu>(*x, &featTypes);
             DAAL_CHECK_STATUS_VAR(s);
-            s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                            daal::algorithms::decision_forest::classification::internal::ModelImpl,
-                            TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
+            s = computeImpl<
+                algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                daal::algorithms::decision_forest::classification::internal::ModelImpl,
+                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
                 pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
                 featTypes, &indexedFeatures, hyperparameter);
         }
         else
-            s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
-                            daal::algorithms::decision_forest::classification::internal::ModelImpl,
-                            TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
+            s = computeImpl<
+                algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
+                daal::algorithms::decision_forest::classification::internal::ModelImpl,
+                TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
                 pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
                 featTypes, nullptr, hyperparameter);
     }

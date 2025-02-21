@@ -123,7 +123,6 @@ TEMPLATE_LIST_TEST_M(df_train_params_test,
     this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
 }
 
-
 using df_reg_types = _TE_COMBINE_TYPES_3((float, double),
                                          (df::method::hist),
                                          (df::task::regression));

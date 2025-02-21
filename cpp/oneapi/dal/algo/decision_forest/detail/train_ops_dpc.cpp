@@ -41,13 +41,13 @@ struct train_ops_dispatcher<Policy, Float, Task, Method> {
             KERNEL_UNIVERSAL_SPMD_GPU(parameters::train_parameters_gpu<Float, Method, Task>)>;
         return kernel_dispatcher_t{}(policy, desc, input);
     }
-    train_result<Task> operator()(
-        const Policy& policy,
-        const descriptor_base<Task>& desc,
-        const input_t& input) const {
+    train_result<Task> operator()(const Policy& policy,
+                                  const descriptor_base<Task>& desc,
+                                  const input_t& input) const {
         const auto params = select_parameters(policy, desc, input);
         return implementation(policy, desc, params, input);
     }
+
 private:
     inline auto implementation(const Policy& policy,
                                const descriptor_base<Task>& desc,

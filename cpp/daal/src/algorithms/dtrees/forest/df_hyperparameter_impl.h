@@ -53,7 +53,7 @@ enum HyperparameterId
 
 enum DoubleHyperparameterId
 {
-    doubleHyperparameterIdCount       = 0
+    doubleHyperparameterIdCount = 0
 };
 
 /**
@@ -101,15 +101,14 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
     void check(services::Status & s) const
     {
         DAAL_INT64 smallNClassesValue = 0l;
-        DAAL_INT64 minPartCoeffValue = 0l;
-        DAAL_INT64 minSizeCoeffValue = 0l;
+        DAAL_INT64 minPartCoeffValue  = 0l;
+        DAAL_INT64 minSizeCoeffValue  = 0l;
         s |= find(smallNClassesThreshold, smallNClassesValue);
         s |= find(minPartCoefficient, minPartCoeffValue);
         s |= find(minSizeCoefficient, minSizeCoeffValue);
         if (!s) return;
 
-        if (smallNClassesValue < 1 || 8l < smallNClassesValue ||
-            minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        if (smallNClassesValue < 1 || 8l < smallNClassesValue || minPartCoeffValue < 1 || minSizeCoeffValue < 1)
         {
             s.add(services::Error::create(services::ErrorHyperparameterBadValue));
         }
@@ -139,7 +138,7 @@ enum HyperparameterId
 
 enum DoubleHyperparameterId
 {
-    doubleHyperparameterIdCount       = 0
+    doubleHyperparameterIdCount = 0
 };
 
 /**

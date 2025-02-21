@@ -63,7 +63,8 @@ static daal_hyperparameters_t convert_parameters(const param_t& params) {
 
     daal_hyperparameters_t daal_hyperparameter;
 
-    auto status = daal_hyperparameter.set(HyperparameterId::smallNClassesThreshold, small_classes_threshold);
+    auto status =
+        daal_hyperparameter.set(HyperparameterId::smallNClassesThreshold, small_classes_threshold);
     status |= daal_hyperparameter.set(HyperparameterId::minPartCoefficient, min_part_coeff);
     status |= daal_hyperparameter.set(HyperparameterId::minSizeCoefficient, min_size_coeff);
 
@@ -192,7 +193,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_df::classification::ModelPtr mptr = daal_df::classification::ModelPtr(
         new daal_df::classification::internal::ModelImpl(column_count));
 
-    const daal_hyperparameters_t & hyperparameters = convert_parameters(params);
+    const daal_hyperparameters_t& hyperparameters = convert_parameters(params);
 
     interop::status_to_exception(
         interop::call_daal_kernel<Float, CpuKernel>(ctx,
@@ -247,7 +248,10 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
-static result_t train(const context_cpu& ctx, const descriptor_t& desc, const param_t& params, const input_t& input) {
+static result_t train(const context_cpu& ctx,
+                      const descriptor_t& desc,
+                      const param_t& params,
+                      const input_t& input) {
     return call_daal_kernel<Float, CpuKernel>(ctx,
                                               desc,
                                               params,
