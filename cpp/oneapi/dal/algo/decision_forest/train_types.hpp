@@ -36,7 +36,7 @@ template <typename Task = task::classification>
 class train_parameters {};
 
 template <>
-ONEDAL_EXPORT class train_parameters<task::regression> : public dal::detail::system_parameters {
+class ONEDAL_EXPORT train_parameters<task::regression> : public dal::detail::system_parameters {
 public:
     explicit train_parameters();
 
@@ -65,7 +65,7 @@ private:
 };
 
 template <>
-ONEDAL_EXPORT class train_parameters<task::classification> : public dal::detail::system_parameters {
+class ONEDAL_EXPORT train_parameters<task::classification> : public dal::detail::system_parameters {
 public:
     explicit train_parameters();
 
