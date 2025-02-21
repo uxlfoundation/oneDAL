@@ -54,11 +54,11 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::trainin
 
 #define INSTANTIATE_CONSTRUCTORS(algorithmFPType, method)   \
     template Batch<algorithmFPType, method>::Batch(size_t); \
-    template Batch<algorithmFPType, method>::Batch(const Batch &)
-template Batch<algorithmFPType, method>::Batch(const Batch &);
+    template Batch<algorithmFPType, method>::Batch(const Batch &);
 
 INSTANTIATE_CONSTRUCTORS(DAAL_FPTYPE, adaboost::training::defaultDense);
 INSTANTIATE_CONSTRUCTORS(DAAL_FPTYPE, adaboost::training::sammeR);
+
 } // namespace interface2
 } // namespace training
 } // namespace adaboost
