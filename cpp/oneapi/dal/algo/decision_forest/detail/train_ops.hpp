@@ -85,9 +85,12 @@ struct train_ops {
                               const result_t& result) const {}
 
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
-    void check_parameters_ranges(const param_t& params, const input_t& input) const {
-        ONEDAL_ASSERT(params.get_small_classes_threshold() > 0);
-        ONEDAL_ASSERT(params.get_small_classes_threshold() <= 8);
+    template<typename ParameterType>
+    void check_parameters_ranges(const ParameterType& params, const input_t& input) const {
+        if constexpr (std::is_same_v<task_t, task::classification>) {
+            ONEDAL_ASSERT(params.get_small_classes_threshold() > 0);
+            ONEDAL_ASSERT(params.get_small_classes_threshold() <= 8);
+        }
         ONEDAL_ASSERT(params.get_min_part_coefficient() > 0);
         ONEDAL_ASSERT(params.get_min_part_coefficient() <= 256);
         ONEDAL_ASSERT(params.get_min_size_coefficient() > 0);

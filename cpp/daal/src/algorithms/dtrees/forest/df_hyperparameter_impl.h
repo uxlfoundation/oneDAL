@@ -94,6 +94,26 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
      * \param[out] value    Value of the found hyperparameter
      */
     services::Status find(DoubleHyperparameterId id, double & value) const;
+
+    /**
+     * Checks that all IDs are valid and the hyperparameter values are correct
+     */
+    void check(services::Status & s) const
+    {
+        DAAL_INT64 smallNClassesValue = 0l;
+        DAAL_INT64 minPartCoeffValue = 0l;
+        DAAL_INT64 minSizeCoeffValue = 0l;
+        s |= find(smallNClassesThreshold, smallNClassesValue);
+        s |= find(minPartCoefficient, minPartCoeffValue);
+        s |= find(minSizeCoefficient, minSizeCoeffValue);
+        if (!s) return;
+
+        if (smallNClassesValue < 1 || 8l < smallNClassesValue ||
+            minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        {
+            s.add(services::Error::create(services::ErrorHyperparameterBadValue));
+        }
+    }
 };
 
 } // namespace internal
@@ -160,6 +180,23 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
      * \param[out] value    Value of the found hyperparameter
      */
     services::Status find(DoubleHyperparameterId id, double & value) const;
+
+    /**
+     * Checks that all IDs are valid and the hyperparameter values are correct
+     */
+    void check(services::Status & s) const
+    {
+        DAAL_INT64 minPartCoeffValue = 0l;
+        DAAL_INT64 minSizeCoeffValue = 0l;
+        s |= find(minPartCoefficient, minPartCoeffValue);
+        s |= find(minSizeCoefficient, minSizeCoeffValue);
+        if (!s) return;
+
+        if (minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        {
+            s.add(services::Error::create(services::ErrorHyperparameterBadValue));
+        }
+    }
 };
 
 } // namespace internal

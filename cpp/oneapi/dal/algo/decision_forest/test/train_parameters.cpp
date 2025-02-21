@@ -38,7 +38,9 @@ public:
     using model_t = typename base_t::model_t;
 
     void generate_parameters() {
-        this->small_classes_threshold_ = GENERATE(4, 8);
+        if constexpr (std::is_same_v<task_t, task::classification>) {
+            this->small_classes_threshold_ = GENERATE(4, 8);
+        }
         this->min_part_coefficient_ = GENERATE(4, 6);
         this->min_size_coefficient_ = GENERATE(24000, 32000);
         this->pack_as_struct_ = GENERATE(0, 1);
@@ -46,7 +48,9 @@ public:
 
     auto get_current_parameters() const {
         detail::train_parameters<task_t> res{};
-        res.set_small_classes_threshold(this->small_classes_threshold_);
+        if constexpr (std::is_same_v<task_t, task::classification>) {
+            res.set_small_classes_threshold(this->small_classes_threshold_);
+        }
         res.set_min_part_coefficient(this->min_part_coefficient_);
         res.set_min_size_coefficient(this->min_size_coefficient_);
 
@@ -55,8 +59,10 @@ public:
 
     template <typename Desc, typename... Args>
     train_result_t train_override(Desc&& desc, Args&&... args) {
-        REQUIRE(0 < this->small_classes_threshold_);
-        REQUIRE(this->small_classes_threshold_ <= 8);
+        if constexpr (std::is_same_v<task_t, task::classification>) {
+            REQUIRE(0 < this->small_classes_threshold_);
+            REQUIRE(this->small_classes_threshold_ <= 8);
+        }
         REQUIRE(0 < this->min_part_coefficient_);
         REQUIRE(0 < this->min_size_coefficient_);
         const auto params = this->get_current_parameters();
@@ -108,6 +114,34 @@ TEMPLATE_LIST_TEST_M(df_train_params_test,
     desc.set_variable_importance_mode(variable_importance_mode_val);
     desc.set_voting_mode(df::voting_mode::unweighted);
     desc.set_class_count(class_count);
+
+    this->generate_parameters();
+
+    const auto train_result = this->train_base_checks(desc, data, this->get_homogen_table_id());
+    const auto model = train_result.get_model();
+
+    this->infer_base_checks(desc, data_test, this->get_homogen_table_id(), model, checker_list);
+}
+
+
+using df_reg_types = _TE_COMBINE_TYPES_3((float, double),
+                                         (df::method::hist),
+                                         (df::task::regression));
+
+TEMPLATE_LIST_TEST_M(df_train_params_test,
+                     "DF regression train params",
+                     "[df][reg][train][params]",
+                     df_reg_types) {
+    SKIP_IF(this->is_gpu());
+    SKIP_IF(this->not_available_on_device());
+
+    const auto [data, data_test, checker_list] = this->get_reg_dataframe_base();
+
+    const std::int64_t tree_count_val = GENERATE_COPY(10, 50);
+
+    auto desc = this->get_default_descriptor();
+
+    desc.set_tree_count(tree_count_val);
 
     this->generate_parameters();
 

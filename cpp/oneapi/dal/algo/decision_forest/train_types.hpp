@@ -37,9 +37,29 @@ class train_parameters {};
 
 template <>
 ONEDAL_EXPORT class train_parameters<task::regression> : public dal::detail::system_parameters {
-public:
+    public:
     explicit train_parameters();
+
+    /// Multiplier that defines the minimum work size for a thread to be assigned a separate task.
+    /// For example, the value 4 means that a thread will be assigned a separate task
+    /// that processes at least 4 topmost levels of a tree.
+    std::int64_t get_min_part_coefficient() const;
+    auto& set_min_part_coefficient(std::int64_t val) {
+        set_min_part_coefficient_impl(val);
+        return *this;
+    }
+
+    /// Multiplier that defines the minimum work size for a thread to be assigned a separate task.
+    /// For example, the value 24000 means that a thread will be assigned a separate task
+    /// that processes a 8-level tree built on at least 1000 observations and 10 features.
+    std::int64_t get_min_size_coefficient() const;
+    auto& set_min_size_coefficient(std::int64_t val) {
+        set_min_size_coefficient_impl(val);
+        return *this;
+    }
 private:
+    void set_min_part_coefficient_impl(std::int64_t val);
+    void set_min_size_coefficient_impl(std::int64_t val);
     dal::detail::pimpl<train_parameters_impl<task::regression>> impl_;
 };
 
@@ -74,6 +94,7 @@ private:
     void set_min_size_coefficient_impl(std::int64_t val);
     dal::detail::pimpl<train_parameters_impl<task::classification>> impl_;
 };
+
 } // namespace v1
 
 using v1::train_input_impl;

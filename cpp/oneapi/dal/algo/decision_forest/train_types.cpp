@@ -55,12 +55,28 @@ void train_parameters<task::classification>::set_min_size_coefficient_impl(std::
 }
 
 template <>
-struct train_parameters_impl<task::regression> : public base {};
+struct train_parameters_impl<task::regression> : public base {
+    std::int64_t min_part_coefficient = 4l;
+    std::int64_t min_size_coefficient = 24000l;
+};
 
 train_parameters<task::regression>::train_parameters() : impl_(new train_parameters_impl<task::regression>{}) {}
 
-// template class ONEDAL_EXPORT train_parameters<task::classification>;
-// template class ONEDAL_EXPORT train_parameters<task::regression>;
+std::int64_t train_parameters<task::regression>::get_min_part_coefficient() const {
+    return impl_->min_part_coefficient;
+}
+
+void train_parameters<task::regression>::set_min_part_coefficient_impl(std::int64_t val) {
+    impl_->min_part_coefficient = val;
+}
+
+std::int64_t train_parameters<task::regression>::get_min_size_coefficient() const {
+    return impl_->min_size_coefficient;
+}
+
+void train_parameters<task::regression>::set_min_size_coefficient_impl(std::int64_t val) {
+    impl_->min_size_coefficient = val;
+}
 
 } // namespace detail::v1
 
