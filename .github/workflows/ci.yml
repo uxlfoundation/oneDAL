@@ -95,9 +95,9 @@ jobs:
       - name: Get run ID of "CI" workflow
         id: get-run-id
         run: |
-          OTHER_REPO="icfaust/oneDAL"
-          WF_NAME="Nightly-build"
-          JQ_QUERY='map(select(.event == "schedule")) | .[0].databaseId'
+          OTHER_REPO="uxlfoundation/oneDAL"
+          WF_NAME="CI"
+          JQ_QUERY='map(select(.event == "push")) | .[0].databaseId'
           RUN_ID=`gh run --repo ${OTHER_REPO} list --workflow "${WF_NAME}" --json databaseId,event --status success --jq "${JQ_QUERY}"`
           echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
           echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
@@ -108,7 +108,7 @@ jobs:
         with:
           name: __release_lnx
           github-token: ${{ github.token }}
-          repository: icfaust/oneDAL
+          repository: uxlfoundation/oneDAL
           run-id: ${{ steps.get-run-id.outputs.run-id }}
           path: ./__release_lnx_main
       - name: Download oneDAL build artifact
