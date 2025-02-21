@@ -19,7 +19,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
-
+#include <iostream>
 #ifdef ONEDAL_DATA_PARALLEL
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel_hist_impl.hpp"
@@ -193,7 +193,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     Float recommended_fraction = compute_safe_fraction(ctx, device_global_mem_size, base_mem_usage);
 
     Float final_fraction = std::min(recommended_fraction, user_fraction);
-
+    std::cout << "fraction dispatcher uses:" << final_fraction << std::endl;
     // Apply the final fraction
     ctx.selected_row_count_ = ctx.distr_mode_ ? impl_const_t::bad_val_
                                               : static_cast<Index>(final_fraction * ctx.row_count_);
