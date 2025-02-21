@@ -28,5 +28,8 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::BatchContainer, batch, DAAL_FPTYPE, covariance::defaultDense)
+
+template class Batch<DAAL_FPTYPE, covariance::defaultDense);
+
 }
 } // namespace daal

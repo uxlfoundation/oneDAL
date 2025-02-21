@@ -28,5 +28,8 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::OnlineContainer, online, DAAL_FPTYPE, covariance::singlePassDense)
+
+template class Online<DAAL_FPTYPE, covariance::singlePassDense>;
+
 }
 } // namespace daal

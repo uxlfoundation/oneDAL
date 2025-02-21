@@ -29,5 +29,8 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(association_rules::BatchContainer, batch, DAAL_FPTYPE, association_rules::apriori)
+
+template class Batch<DAAL_FPTYPE, association_rules::apriori>;
+
 } // namespace algorithms
 } // namespace daal
