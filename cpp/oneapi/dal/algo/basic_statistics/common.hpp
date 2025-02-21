@@ -126,7 +126,7 @@ template <typename Task>
 constexpr bool is_valid_task_v = dal::detail::is_one_of_v<Task, task::compute>;
 
 template <typename Task = task::by_default>
-class descriptor_base : public base {
+class ONEDAL_EXPORT descriptor_base : public base {
     static_assert(is_valid_task_v<Task>);
 
 public:

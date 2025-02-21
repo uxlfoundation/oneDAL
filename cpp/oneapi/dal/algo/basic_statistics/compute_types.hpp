@@ -43,7 +43,7 @@ namespace v1 {
 /// @tparam Task Tag-type that specifies the type of the problem to solve. Can
 ///              be :expr:`task::compute`.
 template <typename Task = task::by_default>
-class ONEDAL_EXPORT compute_input : public base {
+class compute_input : public base {
     static_assert(detail::is_valid_task_v<Task>);
 
 public:
@@ -82,7 +82,7 @@ private:
 /// @tparam Task Tag-type that specifies the type of the problem to solve. Can
 ///              be :expr:`task::compute`.
 template <typename Task = task::by_default>
-class ONEDAL_EXPORT compute_result : public base {
+class compute_result : public base {
     static_assert(detail::is_valid_task_v<Task>);
 
 public:
@@ -218,7 +218,7 @@ private:
 };
 
 template <typename Task = task::by_default>
-class ONEDAL_EXPORT partial_compute_result : public base {
+class partial_compute_result : public base {
     static_assert(detail::is_valid_task_v<Task>);
 
 public:
@@ -293,9 +293,8 @@ private:
 };
 
 template <typename Task = task::by_default>
-class ONEDAL_EXPORT partial_compute_input : protected compute_input<Task> {
+class partial_compute_input : protected compute_input<Task> {
 public:
-    using task_t = Task;
 
     partial_compute_input();
 

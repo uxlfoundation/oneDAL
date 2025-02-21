@@ -92,7 +92,7 @@ void descriptor_base<Task>::set_result_options_impl(const result_option_id& valu
     impl_->result_options = value;
 }
 
-template class ONEDAL_EXPORT descriptor_base<task::compute>;
+template class descriptor_base<task::compute>;
 
 } // namespace v1
 } // namespace oneapi::dal::basic_statistics::detail
