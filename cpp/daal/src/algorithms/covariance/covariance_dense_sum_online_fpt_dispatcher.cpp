@@ -29,7 +29,12 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::OnlineContainer, online, DAAL_FPTYPE, covariance::sumDense)
 
+namespace covariance
+{
+namespace interface1
+{
 template class Online<DAAL_FPTYPE, covariance::sumDense>;
-
-}
+} // namespace interface1
+} // namespace covariance
+} // namespace algorithms
 } // namespace daal

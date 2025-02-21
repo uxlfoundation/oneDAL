@@ -28,8 +28,12 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::BatchContainer, batch, DAAL_FPTYPE, covariance::singlePassCSR)
-
+namespace covariance
+{
+namespace interface1
+{
 template class Batch<DAAL_FPTYPE, covariance::singlePassCSR>;
-
-}
+} // namespace interface1
+} // namespace covariance
+} // namespace algorithms
 } // namespace daal
