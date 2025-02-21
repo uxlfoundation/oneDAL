@@ -35,13 +35,13 @@ namespace training
 {
 namespace interface2
 {
-template class DAAL_EXPORT BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-template class DAAL_EXPORT BatchContainer<DAAL_FPTYPE, sammeR, DAAL_CPU>;
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+template class BatchContainer<DAAL_FPTYPE, sammeR, DAAL_CPU>;
 } // namespace interface2
 namespace internal
 {
-template class AdaBoostTrainKernel<defaultDense, DAAL_FPTYPE, DAAL_CPU>;
-template class AdaBoostTrainKernel<sammeR, DAAL_FPTYPE, DAAL_CPU>;
+template class DAAL_EXPORT AdaBoostTrainKernel<defaultDense, DAAL_FPTYPE, DAAL_CPU>;
+template class DAAL_EXPORT AdaBoostTrainKernel<sammeR, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace training
 } // namespace adaboost
