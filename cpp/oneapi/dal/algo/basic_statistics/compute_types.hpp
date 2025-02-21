@@ -295,6 +295,7 @@ private:
 template <typename Task = task::by_default>
 class partial_compute_input : protected compute_input<Task> {
 public:
+    using task_t = Task;
 
     partial_compute_input();
 
