@@ -210,8 +210,6 @@ double leaf_node_info<task::regression>::get_response() const {
     return de::cast_impl<impl_t>(*this).response;
 }
 
-template class ONEDAL_EXPORT node_info<task::classification>;
-template class ONEDAL_EXPORT node_info<task::regression>;
 template class ONEDAL_EXPORT split_node_info<task::classification>;
 template class ONEDAL_EXPORT split_node_info<task::regression>;
 
