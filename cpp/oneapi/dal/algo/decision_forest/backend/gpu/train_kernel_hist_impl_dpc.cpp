@@ -438,17 +438,15 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
             ctx.distr_mode_ ? selected_row_host.get_mutable_data() : nullptr;
         Index* const node_list_ptr = node_list_host.get_mutable_data();
 
-        for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
-            Index* gen_row_idx_global_ptr =
-                selected_row_global_ptr + ctx.selected_row_total_count_ * node_idx;
-            pr::uniform<Index>(queue_,
-                               ctx.selected_row_total_count_,
-                               gen_row_idx_global_ptr,
-                               rng_engine_list,
-                               0,
-                               ctx.row_total_count_)
-                .wait_and_throw();
-        }
+        Index* gen_row_idx_global_ptr = selected_row_global_ptr;
+        pr::uniform<Index>(queue_,
+                           ctx.selected_row_total_count_ * node_count,
+                           gen_row_idx_global_ptr,
+                           rng_engine_list,
+                           0,
+                           ctx.row_total_count_)
+            .wait_and_throw();
+
         auto arr = selected_row_global_device.to_host(queue_);
         if (ctx.distr_mode_) {
             Index* const selected_row_global_ptr_2 = arr.get_mutable_data();
@@ -567,13 +565,11 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
     auto random_bins_host_ptr = random_bins_com.get_mutable_data();
 
     // Generate random bins for selected features
-    for (Index node = 0; node < node_count; ++node) {
-        pr::uniform<Float>(ctx.selected_ftr_count_,
-                           random_bins_host_ptr + node * ctx.selected_ftr_count_,
-                           rng_engine_list,
-                           0.0f,
-                           1.0f);
-    }
+    pr::uniform<Float>(ctx.selected_ftr_count_ * node_count,
+                       random_bins_host_ptr,
+                       rng_engine_list,
+                       0.0f,
+                       1.0f);
 
     return std::tuple{ random_bins_com, sycl::event() };
 };
