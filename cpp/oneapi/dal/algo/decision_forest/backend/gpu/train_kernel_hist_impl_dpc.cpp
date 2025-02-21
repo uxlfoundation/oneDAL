@@ -140,6 +140,28 @@ pr::engine_type convert_engine_method(df_engine_types method) {
     }
 }
 
+// Helper function to compute a safe fraction
+template <typename Float, typename Bin, typename Index, typename Task>
+Float train_kernel_hist_impl<Float, Bin, Index, Task>::compute_safe_fraction(
+    const train_context_t& ctx,
+    std::uint64_t total_mem,
+    std::uint64_t base_mem) {
+    constexpr Float min_fraction = 0.01f;
+    constexpr Float max_fraction = 1.0f;
+
+    std::uint64_t available_mem = (total_mem > base_mem) ? total_mem - base_mem : 0;
+    std::uint64_t mem_per_row = sizeof(Index) * 2; // Two buffers for indices
+
+    if (available_mem == 0 || ctx.row_total_count_ == 0) {
+        return max_fraction; // Default fallback
+    }
+
+    Float target_rows = static_cast<Float>(available_mem) / mem_per_row;
+    Float fraction = target_rows / ctx.row_total_count_;
+
+    return std::max(min_fraction, std::min(max_fraction, fraction));
+}
+
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_t& ctx,
                                                                   const descriptor_t& desc,
@@ -147,9 +169,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
                                                                   const table& responses,
                                                                   const table& weights) {
     ctx.distr_mode_ = (comm_.get_rank_count() > 1);
-
     ctx.use_private_mem_buf_ = true;
-
     ctx.is_weighted_ = (weights.get_row_count() == data.get_row_count());
 
     if constexpr (std::is_same_v<Task, task::classification>) {
@@ -159,23 +179,30 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
     ctx.row_count_ = de::integral_cast<Index>(data.get_row_count());
     ctx.row_total_count_ = get_row_total_count(ctx.distr_mode_, ctx.row_count_);
-
     ctx.column_count_ = de::integral_cast<Index>(data.get_column_count());
 
-    // in case of distributed mode selected_row_count is defined during initial gen of tree order
-    ctx.selected_row_count_ = ctx.distr_mode_
-                                  ? impl_const_t::bad_val_
-                                  : desc.get_observations_per_tree_fraction() * ctx.row_count_;
-    ctx.selected_row_total_count_ =
-        desc.get_observations_per_tree_fraction() * ctx.row_total_count_;
+    // Handle observations_per_tree_fraction with memory check
+    Float user_fraction = desc.get_observations_per_tree_fraction();
+
+    // Calculate memory requirements and adjust fraction if needed
+    const std::uint64_t device_global_mem_size =
+        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
+    std::uint64_t base_mem_usage =
+        sizeof(Float) * ctx.row_total_count_ * (ctx.column_count_ + 1); // data + responses
+
+    Float recommended_fraction = compute_safe_fraction(ctx, device_global_mem_size, base_mem_usage);
+
+    Float final_fraction = std::min(recommended_fraction, user_fraction);
+
+    // Apply the final fraction
+    ctx.selected_row_count_ = ctx.distr_mode_ ? impl_const_t::bad_val_
+                                              : static_cast<Index>(final_fraction * ctx.row_count_);
+    ctx.selected_row_total_count_ = final_fraction * ctx.row_total_count_;
 
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
-
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
-
     ctx.bootstrap_ = desc.get_bootstrap();
     ctx.max_tree_depth_ = desc.get_max_tree_depth();
-
     ctx.splitter_mode_value_ = desc.get_splitter_mode();
     ctx.seed_ = desc.get_seed();
 
@@ -188,6 +215,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
                                   : ctx.column_count_ / 3      ? ctx.column_count_ / 3
                                                                : 1;
     }
+
     ctx.min_observations_in_leaf_node_ = desc.get_min_observations_in_leaf_node();
     ctx.impurity_threshold_ = desc.get_impurity_threshold();
 
@@ -247,8 +275,6 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.index_max_ = de::limits<Index>::max();
 
     // define number of trees which can be built in parallel
-    const std::uint64_t device_global_mem_size =
-        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
     const std::uint64_t device_max_mem_alloc_size =
         queue_.get_device().get_info<sycl::info::device::max_mem_alloc_size>();
 
