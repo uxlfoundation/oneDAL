@@ -27,6 +27,7 @@
 
 #include "services/daal_memory.h"
 #include "services/internal/daal_kernel_defines.h"
+#include "services/daal_defines.h
 
 namespace daal
 {
@@ -154,14 +155,14 @@ protected:
 #if defined(TARGET_X86_64)
 template <typename sse2Container DAAL_KERNEL_SSE42_ONLY(typename sse42Container) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
               DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
-class AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_SSE42_ONLY(sse42Container) DAAL_KERNEL_AVX2_ONLY(avx2Container)
+class DAAL_EXPORT AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_SSE42_ONLY(sse42Container) DAAL_KERNEL_AVX2_ONLY(avx2Container)
                                             DAAL_KERNEL_AVX512_ONLY(avx512Container)> : public AlgorithmContainerImpl<batch>
 #elif defined(TARGET_ARM)
 template <typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>
-class AlgorithmDispatchContainer<batch, SVEContainer DAAL_KERNEL_SVE_ONLY(sveContainer)> : public AlgorithmContainerImpl<batch>
+class DAAL_EXPORT AlgorithmDispatchContainer<batch, SVEContainer DAAL_KERNEL_SVE_ONLY(sveContainer)> : public AlgorithmContainerImpl<batch>
 #elif defined(TARGET_RISCV64)
 template <typename RV64Container DAAL_KERNEL_RV64_ONLY(typename rv64Container)>
-class AlgorithmDispatchContainer<batch, RV64Container DAAL_KERNEL_RV64_ONLY(rv64Container)> : public AlgorithmContainerImpl<batch>
+class DAAL_EXPORT AlgorithmDispatchContainer<batch, RV64Container DAAL_KERNEL_RV64_ONLY(rv64Container)> : public AlgorithmContainerImpl<batch>
 #endif
 {
 public:
