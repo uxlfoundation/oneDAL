@@ -26,5 +26,15 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mt2203::BatchContainer, batch, DAAL_FPTYPE, engines::mt2203::defaultDense)
+namespace engines
+{
+namespace mt2203
+{
+namespace interface1
+{
+template class Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>;
+} // namespace interface1
+} // namespace mt2203
+} // namespace engines
 } // namespace algorithms
 } // namespace daal
