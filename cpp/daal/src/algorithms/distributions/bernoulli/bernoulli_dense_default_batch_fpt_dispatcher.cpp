@@ -26,5 +26,16 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::bernoulli::BatchContainer, batch, DAAL_FPTYPE, distributions::bernoulli::defaultDense)
+}
+namespace distributions
+{
+namespace bernoulli
+{
+namespace interface1
+{
+template class Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
+} // namespace interface1
+} // namespace bernoulli
+} // namespace distributions
 } // namespace algorithms
 } // namespace daal
