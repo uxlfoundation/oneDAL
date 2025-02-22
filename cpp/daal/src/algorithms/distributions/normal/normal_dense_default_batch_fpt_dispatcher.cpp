@@ -26,5 +26,15 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::normal::BatchContainer, batch, DAAL_FPTYPE, distributions::normal::defaultDense)
+namespace distributions
+{
+namespace normal
+{
+namespace interface1
+{
+template class Batch<DAAL_FPTYPE, distributions::normal::defaultDense>;
+} // namespace interface1
+} // namespace uniform
+} // namespace distributions
 } // namespace algorithms
 } // namespace daal
