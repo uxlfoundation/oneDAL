@@ -58,7 +58,7 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
     std::int64_t inner_iter_sum = 0;
     while (cur_iter_id < maxiter) {
         cur_iter_id++;
-        auto update_event_vec = f.update_x(x, true, last_iter_deps);
+        auto update_event_vec = f.update_x(x, true, true, last_iter_deps);
         auto gradient = f.get_gradient();
 
         Float grad_norm = 0, grad_max_abs = 0;

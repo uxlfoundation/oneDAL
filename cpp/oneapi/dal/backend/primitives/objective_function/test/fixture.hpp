@@ -25,7 +25,7 @@
 #include "oneapi/dal/table/csr_accessor.hpp"
 #include "oneapi/dal/detail/debug.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 
@@ -572,13 +572,12 @@ public:
         const std::int64_t p = hessian_host.get_dimension(0) - 1;
         const std::int64_t dim = fit_intercept ? p + 1 : p;
 
-        primitives::rng<float_t> rn_gen;
         auto vec_host =
             ndarray<float_t, 1>::empty(this->get_queue(), { dim }, sycl::usm::alloc::host);
 
         for (std::int32_t ij = 0; ij < num_checks; ++ij) {
-            primitives::engine eng(2007 + dim * num_checks + ij);
-            rn_gen.uniform(dim, vec_host.get_mutable_data(), eng.get_state(), -1.0, 1.0);
+            primitives::host_engine eng(2007 + dim * num_checks + ij);
+            primitives::uniform<float_t>(dim, vec_host.get_mutable_data(), eng, -1.0, 1.0);
             auto vec_gpu = vec_host.to_device(this->get_queue());
             auto out_vector =
                 ndarray<float_t, 1>::empty(this->get_queue(), { dim }, sycl::usm::alloc::device);
@@ -623,7 +622,7 @@ public:
                                                  L2 * 2,
                                                  fit_intercept,
                                                  bsz);
-        auto set_point_event = functor.update_x(params_gpu, true, {});
+        auto set_point_event = functor.update_x(params_gpu, true, true, {});
         wait_or_pass(set_point_event).wait_and_throw();
 
         IS_CLOSE(float_t, gth_logloss, functor.get_value(), rtol, atol);
