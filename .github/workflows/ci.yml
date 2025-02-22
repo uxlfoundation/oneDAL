@@ -74,7 +74,23 @@ jobs:
         with:
           name: oneDAL_env
           path: .ci/env
-
+      - name: daal/cpp examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
+      - name: oneapi/cpp examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
+      - name: oneapi/dpc examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+      - name: daal/cpp/mpi examples
+        run: |
+            source /opt/intel/oneapi/setvars.sh
+            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+      
   LinuxABICheck:
     name: ABI Conformance
     needs: LinuxMakeDPCPP
