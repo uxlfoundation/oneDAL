@@ -260,7 +260,6 @@ public:
 
     BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937) : _stream(0)
     {
-        
         int errcode = 0;
         __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
     }
@@ -316,10 +315,7 @@ public:
     void * getState() { return _stream; }
 
 protected:
-    services::Status allocSeeds(const size_t n)
-    {
-        return services::Status();
-    }
+    services::Status allocSeeds(const size_t n) { return services::Status(); }
 
 private:
     void * _stream;
