@@ -28,6 +28,16 @@
       "matchStrings": ["VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "editorconfig-checker/editorconfig-checker",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/tbb.+$"],
+      "matchStrings": [
+        "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "uxlfoundation/oneTBB",
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
