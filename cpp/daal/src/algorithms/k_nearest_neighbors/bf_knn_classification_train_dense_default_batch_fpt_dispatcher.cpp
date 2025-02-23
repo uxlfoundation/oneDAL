@@ -30,21 +30,21 @@ namespace training
 namespace interface1
 {
 template <typename algorithmFPType, bf_knn_classification::training::Method method>
-Batch<algorithmFPType, method>::Batch() : classifier::training::Batch()
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch() : classifier::training::Batch()
 {
     _par = new ParameterType();
     initialize();
 }
 
 template <typename algorithmFPType, bf_knn_classification::training::Method method>
-Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
 
 template <typename algorithmFPType, bf_knn_classification::training::Method method>
-Batch<algorithmFPType, method>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
