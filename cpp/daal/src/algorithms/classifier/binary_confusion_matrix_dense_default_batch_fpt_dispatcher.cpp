@@ -37,11 +37,17 @@ namespace binary_confusion_matrix
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch() { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
 
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
 
 template class Batch<DAAL_FPTYPE, classifier::quality_metric::binary_confusion_matrix::defaultDense>;
 } // namespace interface1
@@ -50,4 +56,3 @@ template class Batch<DAAL_FPTYPE, classifier::quality_metric::binary_confusion_m
 } // namespace classifier
 } // namespace algorithms
 } // namespace daal
-

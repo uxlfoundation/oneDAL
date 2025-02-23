@@ -31,11 +31,17 @@ namespace cholesky
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch() { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
 
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input) { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input)
+{
+    initialize();
+}
 
 template class Batch<DAAL_FPTYPE, cholesky::defaultDense>;
 } // namespace interface1

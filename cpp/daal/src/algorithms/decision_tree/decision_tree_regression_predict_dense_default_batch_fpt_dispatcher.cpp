@@ -38,16 +38,19 @@ namespace prediction
 {
 namespace interface2
 {
-    template <typename algorithmFPType, Method method> 
-    DAAL_EXPORT Batch<algorithmFPType, method>::Batch() { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
 
-    template <typename algorithmFPType, Method method> 
-    DAAL_EXPORT Batch<algorithmFPType, method>:: Batch(const Batch<algorithmFPType, method> & other)
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
     : algorithms::regression::prediction::Batch(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
-    template class Batch<DAAL_FPTYPE, decision_tree::regression::prediction::defaultDense>;
+template class Batch<DAAL_FPTYPE, decision_tree::regression::prediction::defaultDense>;
 
 } // namespace interface2
 } // namespace prediction

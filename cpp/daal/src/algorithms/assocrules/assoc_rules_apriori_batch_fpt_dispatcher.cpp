@@ -34,11 +34,17 @@ namespace association_rules
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch() { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
 
-template <typename algorithmFPType, Method method> 
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
 
 template class Batch<DAAL_FPTYPE, association_rules::apriori>;
 } // namespace interface1

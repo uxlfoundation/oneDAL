@@ -99,7 +99,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other); 
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm
@@ -142,7 +142,13 @@ protected:
         return s;
     }
 
-    void initialize();
+    void initialize()
+    {
+        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
+        _in  = &input;
+        _par = &parameter;
+        _result.reset(new ResultType());
+    }
 
 public:
     InputType input;         /*!< %Input data structure */

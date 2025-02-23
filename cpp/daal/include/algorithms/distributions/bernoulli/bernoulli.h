@@ -106,6 +106,7 @@ public:
      * \param[in] other Bernoulli distribution
      */
     Batch(const Batch<algorithmFPType, method> & other);
+
     /**
      * Returns method of the distribution
      * \return Method of the distribution
