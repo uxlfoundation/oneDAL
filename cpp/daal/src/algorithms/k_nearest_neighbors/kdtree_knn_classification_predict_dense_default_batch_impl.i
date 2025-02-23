@@ -145,11 +145,11 @@ Status KNNClassificationPredictKernel<algorithmFpType, defaultDense, cpu>::compu
 
     if (par3 == NULL) return Status(ErrorNullParameterNotSupported);
 
-    const Model * const model    = static_cast<const Model *>(m);
-    const auto & kdTreeTable     = *(model->impl()->getKDTreeTable());
-    const auto rootTreeNodeIndex = model->impl()->getRootNodeIndex();
-    const NumericTable & data    = *(model->impl()->getData());
-    const NumericTable * labels  = nullptr;
+    const Model * const model       = static_cast<const Model *>(m);
+    const KDTreeTable & kdTreeTable = *(model->impl()->getKDTreeTable());
+    const auto rootTreeNodeIndex    = model->impl()->getRootNodeIndex();
+    const NumericTable & data       = *(model->impl()->getData());
+    const NumericTable * labels     = nullptr;
     if (resultsToEvaluate != 0)
     {
         labels = model->impl()->getLabels().get();
