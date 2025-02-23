@@ -30,5 +30,31 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::BatchContainer, batch, DAAL_FPTYPE,
                                       implicit_als::prediction::ratings::defaultDense)
+
+namespace implicit_als
+{
+namespace prediction
+{
+namespace ratings
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
+} // namespace interface1
+} // namespace ratings
+} // namespace prediction
+} // namespace implicit_als
+} // namespace algorithms
 } // namespace daal

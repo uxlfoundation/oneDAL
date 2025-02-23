@@ -32,6 +32,18 @@ namespace mcg59
 {
 namespace interface1
 {
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t seed)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : super(other)
+{
+    initialize();
+}
+
 template class Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>;
 } // namespace interface1
 } // namespace mcg59
