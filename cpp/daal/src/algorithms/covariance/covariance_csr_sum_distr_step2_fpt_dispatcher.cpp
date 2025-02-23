@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, covariance::sumCSR)
+namespace covariance
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Distributed<step2Master, algorithmFPType, method>::Distributed()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
+    : DistributedIface<step2Master>(other)
+{
+    initialize();
+}
+
+template class Distributed<step2Master, DAAL_FPTYPE, covariance::sumCSR>;
+} // namespace interface1
+} // namespace covariance
+} // namespace algorithms
 } // namespace daal

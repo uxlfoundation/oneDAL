@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Instantiation of batch covariance calculation algorithm container.
+//  Instantiation of online covariance calculation algorithm container.
 //--
 */
 
@@ -32,6 +32,18 @@ namespace covariance
 {
 namespace interface1
 {
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other) : OnlineImpl(other)
+{
+    initialize();
+}
+
 template class Online<DAAL_FPTYPE, covariance::fastCSR>;
 } // namespace interface1
 } // namespace covariance
