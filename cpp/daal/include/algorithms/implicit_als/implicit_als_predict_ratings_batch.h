@@ -83,7 +83,7 @@ public:
  *      - \ref Method Implicit ALS prediction methods
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public daal::algorithms::Prediction
+class DAAL_EXPORT Batch : public daal::algorithms::Prediction
 {
 public:
     typedef algorithms::implicit_als::prediction::ratings::Input InputType;
