@@ -554,7 +554,7 @@ class Distributed : public DistributedIface<step>
  *      - Result class
  */
 template <typename algorithmFPType, Method method>
-class Distributed<step1Local, algorithmFPType, method> : public Online<algorithmFPType, method>
+class DAAL_EXPORT Distributed<step1Local, algorithmFPType, method> : public Online<algorithmFPType, method>
 {
 public:
     typedef Online<algorithmFPType, method> super;
@@ -615,7 +615,7 @@ protected:
  *      - Result class
  */
 template <typename algorithmFPType, Method method>
-class Distributed<step2Master, algorithmFPType, method> : public DistributedIface<step2Master>
+class DAAL_EXPORT Distributed<step2Master, algorithmFPType, method> : public DistributedIface<step2Master>
 {
 public:
     typedef DistributedIface<step2Master> super;
