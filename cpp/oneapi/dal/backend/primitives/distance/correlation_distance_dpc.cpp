@@ -44,28 +44,19 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
 
 template <typename Float>
 template <ndorder order1, ndorder order2>
-sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<Float, 2, order1>& inp1,
-                                                              const ndview<Float, 2, order2>& inp2,
-                                                              ndview<Float, 2>& out,
-                                                              const event_vector& deps) const {
+sycl::event distance<Float, correlation_metric<Float>>::operator()(
+    const ndview<Float, 2, order1>& inp1,
+    const ndview<Float, 2, order2>& inp2,
+    ndview<Float, 2>& out,
+    const event_vector& deps) const {
     const std::int64_t n = inp1.get_dimension(0);
     const std::int64_t p = inp1.get_dimension(1);
     auto inp1_sum = ndarray<Float, 1>::empty(q_, { n });
     auto inp2_sum = ndarray<Float, 1>::empty(q_, { n });
     auto inp1_mean = ndarray<Float, 1>::empty(q_, { n });
     auto inp2_mean = ndarray<Float, 1>::empty(q_, { n });
-    sycl::event evt1 = reduce_by_rows(q_,
-                                      inp1,
-                                      inp1_sum,
-                                      reduction::plus<Float>{},
-                                      reduction::identity<Float>{},
-                                      deps);
-    sycl::event evt2 = reduce_by_rows(q_,
-                                      inp2,
-                                      inp2_sum,
-                                      reduction::plus<Float>{},
-                                      reduction::identity<Float>{},
-                                      { evt1 });
+    sycl::event evt1 = reduce_by_rows(q_, inp1, inp1_sum, {}, {}, deps);
+    sycl::event evt2 = reduce_by_rows(q_, inp2, inp2_sum, {}, {}, { evt1 });
     sycl::event evt3 = means(q_, p, inp1_sum, inp1_mean, { evt2 });
     sycl::event evt4 = means(q_, p, inp2_sum, inp2_mean, { evt3 });
     auto centered_inp1 = ndarray<Float, 2>::empty(q_, { n, p });
