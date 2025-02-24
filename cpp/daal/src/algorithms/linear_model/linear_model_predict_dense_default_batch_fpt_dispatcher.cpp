@@ -30,5 +30,15 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_model::prediction::BatchContainer, batch, DAAL_FPTYPE, linear_model::prediction::defaultDense)
-}
+namespace linear_model
+{
+namespace prediction
+{
+namespace interface1
+{
+template class Batch<DAAL_FPTYPE, linear_model::prediction::defaultDense>;
+} // namespace interface1
+} // namespace prediction
+} // namespace linear_model
+} // namespace algorithms
 } // namespace daal

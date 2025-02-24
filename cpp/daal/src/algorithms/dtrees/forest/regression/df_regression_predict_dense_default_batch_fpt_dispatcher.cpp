@@ -31,5 +31,30 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_forest::regression::prediction::BatchContainer, batch, DAAL_FPTYPE,
                                       decision_forest::regression::prediction::defaultDense)
+namespace decision_forest
+{
+namespace regression
+{
+namespace prediction
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, decision_forest::regression::prediction::defaultDense>;
+} // namespace interface1
+} // namespace prediction
+} // namespace regression
+} // namespace decision_forest
+} // namespace algorithms
 } // namespace daal
