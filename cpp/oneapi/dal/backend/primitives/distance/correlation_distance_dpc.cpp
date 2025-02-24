@@ -23,7 +23,7 @@
 #include "oneapi/dal/backend/primitives/stat/cov.hpp"
 
 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 
 namespace oneapi::dal::backend::primitives {
 
