@@ -20,6 +20,8 @@
 #include "oneapi/dal/backend/primitives/blas.hpp"
 #include "oneapi/dal/backend/primitives/reduction.hpp"
 
+#include <CL/sycl.hpp>
+
 namespace oneapi::dal::backend::primitives {
 
 template <typename Float>
