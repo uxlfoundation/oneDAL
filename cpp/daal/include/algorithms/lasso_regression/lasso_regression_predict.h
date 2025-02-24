@@ -116,10 +116,8 @@ protected:
 
     void initialize()
     {
-        this->_ac  = new __DAAL_ALGORITHM_CONTAINER(batch, linear_model::prediction::BatchContainer, algorithmFPType,
-                                                    linear_model::prediction::defaultDense)(&(this->_env));
-        this->_in  = &input;
-        this->_par = NULL;
+        super::initialize();
+        this->_in = &input;
         this->_result.reset(new ResultType());
     }
 

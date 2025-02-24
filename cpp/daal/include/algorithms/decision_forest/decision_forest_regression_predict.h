@@ -83,7 +83,7 @@ public:
  *      - \ref training::interface2::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public algorithms::regression::prediction::Batch
+class DAAL_EXPORT Batch : public algorithms::regression::prediction::Batch
 {
 public:
     typedef algorithms::regression::prediction::Batch super;
