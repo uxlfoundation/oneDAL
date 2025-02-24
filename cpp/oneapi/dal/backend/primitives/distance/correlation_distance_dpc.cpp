@@ -68,12 +68,12 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
     auto centered_inp2 = ndarray<Float, 2>::empty(q_, { n, p });
     sycl::event evt5 = q_.submit([&](sycl::handler& h) {
         h.depends_on({ evt4 });
-        auto inp1_acc = inp1.get_access<sycl::access::mode::read>(h);
-        auto inp2_acc = inp2.get_access<sycl::access::mode::read>(h);
-        auto inp1_mean_acc = inp1_mean.get_access<sycl::access::mode::read>(h);
-        auto inp2_mean_acc = inp2_mean.get_access<sycl::access::mode::read>(h);
-        auto centered1_acc = centered_inp1.get_access<sycl::access::mode::write>(h);
-        auto centered2_acc = centered_inp2.get_access<sycl::access::mode::write>(h);
+        auto inp1_acc = inp1.get_data();
+        auto inp2_acc = inp2.get_data();
+        auto inp1_mean_acc = inp1_mean.get_data();
+        auto inp2_mean_acc = inp2_mean.get_data();
+        auto centered1_acc = centered_inp1.get_mutable_data();
+        auto centered2_acc = centered_inp2.get_mutable_data();
 
         h.parallel_for(sycl::range<2>(n, p), [=](sycl::id<2> idx) {
             const std::int64_t row = idx[0];
