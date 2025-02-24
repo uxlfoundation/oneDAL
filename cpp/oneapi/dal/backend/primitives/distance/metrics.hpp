@@ -128,7 +128,7 @@ public:
         Float n1_acc = zero;
         Float n2_acc = zero;
         Float n1_sum = zero;
-        Float n1_sum = zero;
+        Float n2_sum = zero;
         Float count = zero;
 	for (auto it1 = first1, it2 = first2; it1 != last1; ++it1, it2++) {
             n1_sum += *it1;
