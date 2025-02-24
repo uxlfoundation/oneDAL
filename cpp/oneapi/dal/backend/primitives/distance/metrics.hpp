@@ -17,13 +17,8 @@
 #pragma once
 
 #include <cmath>
-#include <array>
-#include <sycl/sycl.hpp>
 
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
-#include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include "oneapi/dal/backend/primitives/reduction.hpp"
-#include "oneapi/dal/backend/primitives/cov.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
