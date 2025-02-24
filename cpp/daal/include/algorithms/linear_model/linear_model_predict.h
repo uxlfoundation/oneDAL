@@ -98,6 +98,9 @@ public:
      * \return Structure that contains the result of the regression model-based prediction
      */
     ResultPtr getResult() { return ResultType::cast(_result); }
+
+protected:
+    void initialize();
 };
 /** @} */
 } // namespace interface1

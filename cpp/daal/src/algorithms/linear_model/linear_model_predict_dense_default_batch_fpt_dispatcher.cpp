@@ -36,6 +36,13 @@ namespace prediction
 {
 namespace interface1
 {
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT void Batch<algorithmFPType, method>::initialize()
+{
+    this->_ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, defaultDense)(&(this->_env));
+    this->_par = NULL;
+}
+
 template class Batch<DAAL_FPTYPE, linear_model::prediction::defaultDense>;
 } // namespace interface1
 } // namespace prediction
