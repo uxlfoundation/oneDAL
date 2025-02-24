@@ -58,6 +58,5 @@ template class Batch<DAAL_FPTYPE, stump::regression::training::defaultDense>;
 } // namespace training
 } // namespace regression
 } // namespace stump
-
 } // namespace algorithms
 } // namespace daal

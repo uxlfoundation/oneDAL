@@ -29,5 +29,29 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::DistributedContainer, distributed, step2Master, DAAL_FPTYPE,
                                       ridge_regression::training::normEqDense)
+namespace ridge_regression
+{
+namespace training
+{
+namespace interface1
+{
+
+template <typename algorithmFPType, Method method>
+Distributed<step2Master, algorithmFPType, method>::Distributed()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
+    : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Distributed<step2Master, DAAL_FPTYPE, ridge_regression::training::normEqDense>;
+} // namespace interface1
+} // namespace training
+} // namespace ridge_regression
 } // namespace algorithms
 } // namespace daal

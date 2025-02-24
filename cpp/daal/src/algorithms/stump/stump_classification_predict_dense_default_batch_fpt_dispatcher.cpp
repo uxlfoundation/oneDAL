@@ -53,13 +53,11 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::predict
     initialize();
 }
 
-template Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>::Batch(size_t);
-template Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>::Batch(const Batch &);
+template class Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>;
 
 } // namespace interface1
 } // namespace prediction
 } // namespace classification
 } // namespace stump
-
 } // namespace algorithms
 } // namespace daal
