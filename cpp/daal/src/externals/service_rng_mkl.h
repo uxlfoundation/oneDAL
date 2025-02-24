@@ -252,36 +252,19 @@ template <CpuType cpu>
 class BaseRNG : public BaseRNGIface<cpu>
 {
 public:
-    BaseRNG(const unsigned int seed, const int brngId) : _stream(0), _seed(nullptr), _seedSize(0), _brngId(brngId)
+    BaseRNG(const unsigned int seed, const int brngId) : _stream(0)
     {
-        services::Status s = allocSeeds(1);
-        if (s)
-        {
-            _seed[0]    = seed;
-            int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
-        }
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
     }
 
-    BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937)
-        : _stream(0), _seed(nullptr), _seedSize(0), _brngId(brngId)
+    BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937) : _stream(0)
     {
-        services::Status s = allocSeeds(n);
-        if (s)
-        {
-            if (seed)
-            {
-                for (size_t i = 0; i < n; i++)
-                {
-                    _seed[i] = seed[i];
-                }
-            }
-            int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
-        }
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
     }
 
-    BaseRNG(const BaseRNG<cpu> & other) : _stream(0), _seed(nullptr), _seedSize(other._seedSize), _brngId(other._brngId)
+    BaseRNG(const BaseRNG<cpu> & other) : _stream(0)
     {
         int errcode = 0;
         __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
@@ -289,7 +272,6 @@ public:
 
     ~BaseRNG()
     {
-        daal::services::daal_free((void *)_seed);
         int errcode = 0;
         __DAAL_VSLFN_CALL_NR(vslDeleteStream, (&_stream), errcode);
     }
@@ -333,19 +315,10 @@ public:
     void * getState() { return _stream; }
 
 protected:
-    services::Status allocSeeds(const size_t n)
-    {
-        _seedSize = n;
-        _seed     = (unsigned int *)daal::services::daal_malloc(sizeof(unsigned int) * n);
-        DAAL_CHECK_MALLOC(_seed);
-        return services::Status();
-    }
+    services::Status allocSeeds(const size_t n) { return services::Status(); }
 
 private:
     void * _stream;
-    unsigned int * _seed;
-    size_t _seedSize;
-    const int _brngId;
 };
 
 /*
