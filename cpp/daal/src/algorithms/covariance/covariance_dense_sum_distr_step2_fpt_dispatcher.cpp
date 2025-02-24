@@ -33,13 +33,13 @@ namespace covariance
 namespace interface1
 {
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Distributed<step2Master, algorithmFPType, method>::Distributed()
+Distributed<step2Master, algorithmFPType, method>::Distributed()
 {
     initialize();
 }
 
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
+Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
     : DistributedIface<step2Master>(other)
 {
     initialize();
