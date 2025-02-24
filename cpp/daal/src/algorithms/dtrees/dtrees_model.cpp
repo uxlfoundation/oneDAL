@@ -101,12 +101,13 @@ bool ModelImpl::reserve(const size_t nTrees)
     _nNodeSampleTables.reset(new DataCollection());
     _probTbl.reset(new DataCollection());
 
-    if (!(_serializationData->resize(nTrees) && _impurityTables->resize(nTrees) && _nNodeSampleTables->resize(nTrees) && _probTbl->resize(nTrees)))
+    // check for all pointers being non-null and successful resizing
+    if (!(isValid() && _serializationData->resize(nTrees) && _impurityTables->resize(nTrees) && _nNodeSampleTables->resize(nTrees)
+          && _probTbl->resize(nTrees)))
     {
         return false;
     }
-
-    return isValid();
+    return true;
 }
 
 bool ModelImpl::resize(const size_t nTrees)
