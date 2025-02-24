@@ -283,17 +283,8 @@ public:
 
     BaseRNG(const BaseRNG<cpu> & other) : _stream(0), _seed(nullptr), _seedSize(other._seedSize), _brngId(other._brngId)
     {
-        services::Status s = allocSeeds(_seedSize);
-        if (s)
-        {
-            for (size_t i = 0; i < _seedSize; i++)
-            {
-                _seed[i] = other._seed[i];
-            }
-            int errcode = 0;
-            __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)_brngId, (const MKL_INT)_seedSize, _seed), errcode);
-            if (!errcode) __DAAL_VSLFN_CALL_NR(vslCopyStreamState, (_stream, other._stream), errcode);
-        }
+        int errcode = 0;
+        __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
     }
 
     ~BaseRNG()
