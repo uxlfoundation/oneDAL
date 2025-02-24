@@ -97,16 +97,14 @@ bool ModelImpl::reserve(const size_t nTrees)
     if (_serializationData.get()) return false;
     _nTree.set(0);
     _serializationData.reset(new DataCollection());
-    _serializationData->resize(nTrees);
-
     _impurityTables.reset(new DataCollection());
-    _impurityTables->resize(nTrees);
-
     _nNodeSampleTables.reset(new DataCollection());
-    _nNodeSampleTables->resize(nTrees);
-
     _probTbl.reset(new DataCollection());
-    _probTbl->resize(nTrees);
+
+    if (!(_serializationData->resize(nTrees) && _impurityTables->resize(nTrees) && _nNodeSampleTables->resize(nTrees) && _probTbl->resize(nTrees)))
+    {
+        return false;
+    }
 
     return isValid();
 }
