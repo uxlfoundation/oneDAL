@@ -50,27 +50,27 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
                                                               const event_vector& deps) const {
     const std::int64_t n = inp1.get_dimension(0);
     const std::int64_t p = inp1.get_dimension(1);
-    auto inp1_sum = ndarray<Float, 1>::empty(q, { n });
-    auto inp2_sum = ndarray<Float, 1>::empty(q, { n });
-    auto inp1_mean = ndarray<Float, 1>::empty(q, { n });
-    auto inp2_mean = ndarray<Float, 1>::empty(q, { n });
-    sycl::event evt1 = reduce_by_rows(q,
+    auto inp1_sum = ndarray<Float, 1>::empty(q_, { n });
+    auto inp2_sum = ndarray<Float, 1>::empty(q_, { n });
+    auto inp1_mean = ndarray<Float, 1>::empty(q_, { n });
+    auto inp2_mean = ndarray<Float, 1>::empty(q_, { n });
+    sycl::event evt1 = reduce_by_rows(q_,
                                       inp1,
                                       inp1_sum,
                                       reduction::plus<Float>{},
                                       reduction::identity<Float>{},
                                       deps);
-    sycl::event evt2 = reduce_by_rows(q,
+    sycl::event evt2 = reduce_by_rows(q_,
                                       inp2,
                                       inp2_sum,
                                       reduction::plus<Float>{},
                                       reduction::identity<Float>{},
                                       { evt1 });
-    sycl::event evt3 = means(q, p, inp1_sum, inp1_mean, { evt2 });
-    sycl::event evt4 = means(q, p, inp2_sum, inp2_mean, { evt3 });
-    auto centered_inp1 = ndarray<Float, 2>::empty(q, { n, p });
-    auto centered_inp2 = ndarray<Float, 2>::empty(q, { n, p });
-    sycl::event evt5 = q.submit([&](sycl::handler& h) {
+    sycl::event evt3 = means(q_, p, inp1_sum, inp1_mean, { evt2 });
+    sycl::event evt4 = means(q_, p, inp2_sum, inp2_mean, { evt3 });
+    auto centered_inp1 = ndarray<Float, 2>::empty(q_, { n, p });
+    auto centered_inp2 = ndarray<Float, 2>::empty(q_, { n, p });
+    sycl::event evt5 = q_.submit([&](sycl::handler& h) {
         h.depends_on({ evt4 });
         auto inp1_acc = inp1.get_access<sycl::access::mode::read>(h);
         auto inp2_acc = inp2.get_access<sycl::access::mode::read>(h);
