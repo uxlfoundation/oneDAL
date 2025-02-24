@@ -166,39 +166,109 @@ inline void threaded_scalable_free(void * ptr)
     _threaded_scalable_free(ptr);
 }
 
+/// Global oneDAL parallel execution environment
 class ThreaderEnvironment
 {
 public:
     ThreaderEnvironment();
+
+    /// Total number of oneTBB thread slots available to oneDAL
     size_t getNumberOfThreads() const { return _numberOfThreads; }
     void setNumberOfThreads(size_t value) { _numberOfThreads = value; }
+
+    /// Get number of oneTBB thread slots used by oneDAL
+    size_t getNumberOfThreadsUsed() const { return _numberOfThreadsUsed; }
+
+    /// Increase the number of oneTBB thread slots used by oneDAL
+    /// @param[in] value The number of thread slots to increase
+    void increaseNumberOfThreadsUsed(size_t value) {
+        size_t newValue = _numberOfThreadsUsed + value;
+        _numberOfThreadsUsed = newValue > _numberOfThreads ? _numberOfThreads : newValue;
+    }
+
+    /// Total number of NUMA nodes available to oneDAL
     size_t getNumberOfNUMANodes() const { return _numberOfNUMANodes; }
     void setNumberOfNUMANodes(size_t value) { _numberOfNUMANodes = value; }
+
+    /// Default oneTBB arena used by oneDAL for parallel computations
+    void * getDefaultArena() const { return _defaultArena; }
+    void setDefaultArena(void * arena) { _defaultArena = arena; }
+
+    /// Get the arena that is attached to the specified NUMA node
+    ///
+    /// @param i Index of the NUMA node
+    /// @return  The arena attached to the NUMA node
     void * getArena(size_t i) const
     {
         if (i >= _numberOfNUMANodes) return nullptr;
         return _arenas[i];
     }
 
-    void * getSafeArena() const { return _safeArena; }
-
+    /// Set the arena that is attached to the specified NUMA node
+    /// @param i     Index of the NUMA node
+    /// @param arena The arena that is attached to i-th NUMA node
     void setArena(size_t i, void * arena)
     {
         if (i < _numberOfNUMANodes) _arenas[i] = arena;
     }
 
-    void setSafeArena(void * arena) { _safeArena = arena; }
+    /// Get the maximal concurrency of the arena that is attached to the specified NUMA node
+    ///
+    /// @param i     Index of the NUMA node
+    /// @return The maximal concurrency of the arena attached to the NUMA node
+    /// @remark The actual number of thread slots in the the arena may be less than the maximal concurrency
+    size_t getMaxConcurrency(size_t i) const
+    {
+        if (i < _numberOfNUMANodes) return _maxConcurrency[i];
+        return 0;
+    }
 
+    /// Set the maximal concurrency of the arena that is attached to the specified NUMA node
+    ///
+    /// @param i     Index of the NUMA node
+    /// @param value The maximal concurrency of the arena attached to the NUMA node
+    /// @remark The actual number of thread slots in the the arena may be less than the maximal concurrency
+    void setMaxConcurrency(size_t i, size_t value)
+    {
+        if (i < _numberOfNUMANodes) _maxConcurrency[i] = value;
+    }
+
+    /// Get the number of thread slots in the arena attached to the specified NUMA node
+    ///
+    /// @param i Index of the NUMA node
+    /// @return The number of thread slots in the arena attached to the NUMA node
     int getArenaConcurrency(size_t i) const;
 
+    /// Check if the oneDAL threading layer is initialized
     bool isInitialized() const { return _isInitialized; }
+
+    /// Set the initialization status of the oneDAL threading layer
     void setInitialized(bool value) { _isInitialized = value; }
 
+    /// Reset the number of initialized NUMA-aware arenas
+    void resetNumberOfNUMAArenas() { _numberOfNUMAArenas = 0; }
+
+    /// Increment the number of initialized NUMA-aware arenas
+    void incrementNumberOfNUMAArenas()
+    {
+        _numberOfNUMAArenas++;
+        if (_numberOfNUMAArenas > _numberOfNUMANodes) _numberOfNUMAArenas = _numberOfNUMANodes;
+    }
+
+    /// Get the number of initialized NUMA-aware arenas
+    size_t getNumberOfNUMAArenas() const { return _numberOfNUMAArenas; }
+
 private:
-    size_t _numberOfThreads;
-    size_t _numberOfNUMANodes;
-    void * _arenas[daal::DAAL_MAX_NUMA_COUNT]; // NUMA-aware arenas
-    void * _safeArena;                         // default arena
+    size_t _numberOfThreads;                   // maximal number of threads available
+    size_t _numberOfThreadsUsed;               // number of threads currenlly used
+                                               // Equal to the sum of maximal concurrencies ao all the initialized arenas
+
+    size_t _numberOfNUMANodes;                 // number of NUMA nodes available
+    size_t _numberOfNUMAArenas;                // number of initialized NUMA-aware arenas
+
+    void * _defaultArena;                               // default arena
+    void * _arenas[daal::DAAL_MAX_NUMA_COUNT];          // NUMA-aware arenas
+    size_t _maxConcurrency[daal::DAAL_MAX_NUMA_COUNT];  // maximal concurrency of each arena
     bool _isInitialized;
 };
 
