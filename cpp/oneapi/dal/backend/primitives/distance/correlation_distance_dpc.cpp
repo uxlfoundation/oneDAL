@@ -18,7 +18,7 @@
 #include "oneapi/dal/backend/primitives/distance/correlation_distance_misc.hpp"
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
-#include "oneapi/dal/backend/primitives/reduction.hpp"
+#include "oneapi/dal/backend/primitives/reduction/reduction.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/stat/cov.hpp"
 
