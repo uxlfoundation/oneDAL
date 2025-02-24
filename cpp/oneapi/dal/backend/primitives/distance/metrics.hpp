@@ -121,7 +121,6 @@ public:
     }
 };
 
-#ifdef ONEDAL_DATA_PARALLEL
 template <typename Float>
 struct correlation_metric : public metric_base<Float> {
 public:
@@ -159,67 +158,6 @@ public:
         const Float rsqn2 = one / std::sqrt(n2_acc);
         return one - ip_acc * rsqn1 * rsqn2;
     }
-
-    template <ndorder order>
-    sycl::event operator()(sycl::queue& q,
-                           const ndview<Float, 2, order>& u,
-                           const ndview<Float, 2, order>& v,
-                           ndview<Float, 2>& out,
-                           const event_vector& deps = {}) const {
-        const std::int64_t n = u.get_dimension(0);
-        auto u_sum = ndarray<Float, 1>::empty({ 1 });
-        auto v_sum = ndarray<Float, 1>::empty({ 1 });
-        auto u_mean = ndarray<Float, 1>::empty({ 1 });
-        auto v_mean = ndarray<Float, 1>::empty({ 1 });
-        sycl::event evt1 = reduce_by_rows(q, u, u_sum, {}, {}, deps, true);
-        sycl::event evt2 = reduce_by_rows(q, v, v_sum, {}, {}, { evt1 }, true);
-        sycl::event evt3 = means(q, n, u_sum, u_mean, { evt2 });
-        sycl::event evt4 = means(q, n, v_sum, v_mean, { evt3 });
-        auto temp = ndarray<Float, 1>::empty({ 3 });
-        q.fill(temp, Float(0)).wait();
-        sycl::event evt5 = q.submit([&](sycl::handler& h) {
-            h.depends_on({ evt4 });
-            h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
-                const std::int64_t i = idx[0];
-                const Float x = u.at(i, 0);
-                const Float y = v.at(i, 0);
-                const Float mu_x = u_mean.at(0);
-                const Float mu_y = v_mean.at(0);
-                const Float d1 = x - mu_x;
-                const Float d2 = y - mu_y;
-                sycl::atomic_ref<Float,
-                                 sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device,
-                                 sycl::access::address_space::global_space>
-                    atomic_dot(temp.get_mutable_data()[0]);
-                sycl::atomic_ref<Float,
-                                 sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device,
-                                 sycl::access::address_space::global_space>
-                    atomic_norm1(temp.get_mutable_data()[1]);
-                sycl::atomic_ref<Float,
-                                 sycl::memory_order::relaxed,
-                                 sycl::memory_scope::device,
-                                 sycl::access::address_space::global_space>
-                    atomic_norm2(temp.get_mutable_data()[2]);
-                atomic_dot.fetch_add(d1 * d2);
-                atomic_norm1.fetch_add(d1 * d1);
-                atomic_norm2.fetch_add(d2 * d2);
-            });
-        });
-        evt5.wait_and_throw();
-        std::array<Float, 3> host_temp;
-        q.memcpy(host_temp.data(), temp.get_mutable_data(), 3 * sizeof(Float)).wait();
-        const Float dot = host_temp[0];
-        const Float norm1 = host_temp[1];
-        const Float norm2 = host_temp[2];
-        const Float corr =
-            (norm1 > 0 && norm2 > 0) ? dot / (std::sqrt(norm1) * std::sqrt(norm2)) : Float(0);
-        const Float distance = 1 - corr;
-        out.get_mutable_data()[0] = distance;
-        return evt5;
-    }
 };
-#endif
 
 } // namespace oneapi::dal::backend::primitives
