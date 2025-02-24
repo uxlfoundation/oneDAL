@@ -11,7 +11,7 @@ dal_module(
         "@onedal//cpp/oneapi/dal/backend/primitives:blas",
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
         "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
-        "@onedal//cpp/oneapi/dal/backend/primitives:cov",
+        "@onedal//cpp/oneapi/dal/backend/primitives/stat:cov",
     ],
 )
 
