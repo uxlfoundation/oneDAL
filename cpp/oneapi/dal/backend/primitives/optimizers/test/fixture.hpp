@@ -57,6 +57,7 @@ public:
     }
 
     event_vector update_x(const ndview<Float, 1>& x,
+                          bool need_grad = true,
                           bool need_hessp = false,
                           const event_vector& deps = {}) final {
         constexpr Float zero(0), one(1);
@@ -75,12 +76,19 @@ public:
         const auto kernel_minus = [=](const Float a, const Float b) -> Float {
             return a - b;
         };
-        auto bias_event = element_wise(q_, kernel_minus, gradient_, b_, gradient_, { xtax_event });
+        sycl::event bias_event;
+        if (need_grad) {
+            bias_event = element_wise(q_, kernel_minus, gradient_, b_, gradient_, { xtax_event });
+        }
 
         btx_event.wait_and_throw();
         value_ = -value_ + tmp_host / 2; // 1/2 x^t A x - b^t x
-
-        return { bias_event };
+        if (need_grad) {
+            return { bias_event };
+        }
+        else {
+            return {};
+        }
     }
 
 private:
