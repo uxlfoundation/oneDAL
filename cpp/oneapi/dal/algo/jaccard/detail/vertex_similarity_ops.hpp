@@ -35,7 +35,7 @@ struct vertex_similarity_ops_dispatcher {
         vertex_similarity_input<Graph, task_t> &input) const {
         const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(input.get_graph());
 
-        static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+        auto impl = get_backend<Policy, Descriptor>(descriptor, t);
         return (*impl)(policy, descriptor, t, input.get_caching_builder());
     }
 };
