@@ -60,8 +60,8 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
     auto inp2_sum = ndarray<Float, 1>::empty(q_, { n });
     auto inp1_mean = ndarray<Float, 1>::empty(q_, { n });
     auto inp2_mean = ndarray<Float, 1>::empty(q_, { n });
-    sycl::event evt1 = reduce_by_rows(q_, inp1, inp1_sum, {}, {}, deps);
-    sycl::event evt2 = reduce_by_rows(q_, inp2, inp2_sum, {}, {}, { evt1 });
+    sycl::event evt1 = reduce_by_rows(q_, inp1, inp1_sum,  sum<Float>{}, identity<Float>{}, deps);
+    sycl::event evt2 = reduce_by_rows(q_, inp2, inp2_sum, sum<Float>{}, identity<Float>{}, { evt1 });
     sycl::event evt3 = means(q_, p, inp1_sum, inp1_mean, { evt2 });
     sycl::event evt4 = means(q_, p, inp2_sum, inp2_mean, { evt3 });
     auto centered_inp1 = ndarray<Float, 2>::empty(q_, { n, p });
