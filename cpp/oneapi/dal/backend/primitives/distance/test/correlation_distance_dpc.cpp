@@ -76,7 +76,7 @@ public:
                 mean1 /= c_count_;
                 mean2 /= c_count_;
 
-                Float numerator = 0.0, denom1 = 0.0, denom2 = 0.0;
+                Float ip = 0.0, qn = 0.0, tn = 0.0;
                 for (std::int64_t k = 0; k < c_count_; ++k) {
                     const Float q = inp_row1[k] - mean1;
                     const Float t = inp_row2[k] - mean2;
