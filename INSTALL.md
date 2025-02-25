@@ -114,7 +114,7 @@ is available as an alternative to the manual setup.
 
             ./dev/download_tbb.sh
 
-6. Set up Intel(R) Threading Building Blocks (Intel(R) TBB):
+6.  Set up Intel(R) oneDPL
 
     _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
 

@@ -38,9 +38,14 @@ function install_tbb {
     sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
 }
 
+function install_dpl {
+    sudo apt-get install -y intel-oneapi-libdpstd-devel
+}
+
 function install_mkl {
     sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
     install_tbb
+    install_dpl
 }
 
 function install_clang-format {
@@ -114,6 +119,9 @@ elif [ "${component}" == "tbb" ]; then
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"

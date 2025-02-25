@@ -133,14 +133,17 @@ enum class splitter_mode {
     random
 };
 
-/// Available splitting strategies for building trees
+/// Available engine methods for building trees
 enum class df_engine_types {
-    /// Threshold for a node is chosen as the best among all bins
+    /// mt2203 engine
     mt2203,
-    /// Threshold for a node is the best for a set chosen at random
+    /// mcg59 engine
     mcg59,
+    /// philox4x32x10 engine
     philox4x32x10,
+    /// mt19937 engine
     mt19937,
+    /// mrg32k3a engine
     mrg32k3a
 };
 
@@ -608,6 +611,7 @@ public:
         return *this;
     }
 
+    /// Engine method for the random numbers generator used by the algorithm
     df_engine_types get_engine_method() const {
         return base_t::get_engine_method();
     }
