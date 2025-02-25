@@ -16,7 +16,7 @@
 
 #include "oneapi/dal/detail/profiler.hpp"
 
-#include "oneapi/dal/backend/primitives/distance/cosine_distance_misc.hpp"
+#include "oneapi/dal/backend/primitives/distance/correlation_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
@@ -66,12 +66,12 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_inversed_l2_norms(
 }
 
 template <typename Float>
-sycl::event finalize_cosine(sycl::queue& q,
+sycl::event finalize_correlation(sycl::queue& q,
                             const ndview<Float, 1>& inp1,
                             const ndview<Float, 1>& inp2,
                             ndview<Float, 2>& out,
                             const event_vector& deps) {
-    ONEDAL_PROFILER_TASK(distance.finalize_cosine, q);
+    ONEDAL_PROFILER_TASK(distance.finalize_correlation, q);
 
     ONEDAL_ASSERT(inp1.has_data());
     ONEDAL_ASSERT(inp2.has_data());
@@ -96,7 +96,7 @@ sycl::event finalize_cosine(sycl::queue& q,
 }
 
 template <typename Float, ndorder order1, ndorder order2>
-sycl::event compute_cosine_inner_product(sycl::queue& q,
+sycl::event compute_correlation_inner_product(sycl::queue& q,
                                          const ndview<Float, 2, order1>& inp1,
                                          const ndview<Float, 2, order2>& inp2,
                                          ndview<Float, 2>& out,
@@ -109,7 +109,7 @@ sycl::event compute_cosine_inner_product(sycl::queue& q,
 }
 
 #define INSTANTIATE(F, A, B)                                                           \
-    template sycl::event compute_cosine_inner_product<F, A, B>(sycl::queue&,           \
+    template sycl::event compute_correlation_inner_product<F, A, B>(sycl::queue&,           \
                                                                const ndview<F, 2, A>&, \
                                                                const ndview<F, 2, B>&, \
                                                                ndview<F, 2>&,          \
@@ -131,7 +131,7 @@ sycl::event compute_cosine_inner_product(sycl::queue& q,
 #define INSTANTIATE_F(F)                                         \
     INSTANTIATE_A(F, ndorder::c)                                 \
     INSTANTIATE_A(F, ndorder::f)                                 \
-    template sycl::event finalize_cosine<F>(sycl::queue & q,     \
+    template sycl::event finalize_correlation<F>(sycl::queue & q,     \
                                             const ndview<F, 1>&, \
                                             const ndview<F, 1>&, \
                                             ndview<F, 2>&,       \
