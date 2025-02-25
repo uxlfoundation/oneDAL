@@ -78,8 +78,8 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
         h.parallel_for(sycl::range<2>(n, p), [=](sycl::id<2> idx) {
             const std::int64_t row = idx[0];
             const std::int64_t col = idx[1];
-            centered1_acc(row, col) = inp1_acc(row, col) - inp1_mean_acc[row];
-            centered2_acc(row, col) = inp2_acc(row, col) - inp2_mean_acc[row];
+            centered1_acc[row * p + col] = inp1_acc[row * p + col] - inp1_mean_acc[row];
+            centered2_acc[row * p + col] = inp2_acc[row * p + col] - inp2_mean_acc[row];
         });
     });
     evt5.wait();
