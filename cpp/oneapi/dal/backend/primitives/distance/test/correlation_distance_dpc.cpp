@@ -68,15 +68,27 @@ public:
                 const auto inp_row2 =
                     row_accessor<const Float>{ input_table2_ }.pull(this->get_queue(),
                                                                     { j, j + 1 });
-                Float ip = 0.0, qn = 0.0, tn = 0.0;
+                Float mean1 = 0.0, mean2 = 0.0;
                 for (std::int64_t k = 0; k < c_count_; ++k) {
-                    const auto q = inp_row1[k];
-                    const auto t = inp_row2[k];
+                    mean1 += inp_row1[k];
+                    mean2 += inp_row2[k];
+                }
+                mean1 /= c_count_;
+                mean2 /= c_count_;
+
+                Float numerator = 0.0, denom1 = 0.0, denom2 = 0.0;
+                for (std::int64_t k = 0; k < c_count_; ++k) {
+                    const Float q = inp_row1[k] - mean1;
+                    const Float t = inp_row2[k] - mean2;
                     qn += q * q;
                     tn += t * t;
                     ip += q * t;
                 }
-                const auto gtv = Float(1.0) - ip / (std::sqrt(qn) * std::sqrt(tn));
+
+                Float gtv = 1.0;
+                if (qn > 0 && tn > 0) {
+                    gtv -= ip / (std::sqrt(qn) * std::sqrt(tn));
+                }
 
                 const auto val = *(out.get_data() + out.get_leading_stride() * i + j);
                 const auto diff = gtv - val;
