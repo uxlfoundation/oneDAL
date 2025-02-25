@@ -82,7 +82,7 @@ public:
                             const classification::training::internal::Hyperparameter * hp = nullptr)
         : super(indexedFeatures), _nClasses(nClasses), _histLeft(nClasses), _impLeft(nClasses), _impRight(nClasses)
     {
-        DAAL_INT64 nClassesThreshold = 8l;
+        DAAL_INT64 nClassesThreshold = classification::training::internal::MAX_SMALL_N_CLASSES;
         if (hp != nullptr)
         {
             hp->find(classification::training::internal::smallNClassesThreshold, nClassesThreshold);

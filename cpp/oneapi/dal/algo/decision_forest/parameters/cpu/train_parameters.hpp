@@ -24,16 +24,24 @@ namespace oneapi::dal::decision_forest::parameters {
 
 using dal::backend::context_cpu;
 
-constexpr std::int64_t propose_small_classes_threshold() {
-    return 8l;
+/// Logic defining the values of the hyperparameters for the decision forest training
+/// algorithm to go here.
+/// The logic should be based on the context, descriptor, and input data.
+/// For now the dummy implementation is provided.
+
+template<typename Task>
+std::int64_t propose_small_classes_threshold() {
+    return detail::train_parameters<Task>{}.get_small_classes_threshold();
 }
 
-constexpr std::int64_t propose_min_part_coefficient() {
-    return 4l;
+template<typename Task>
+std::int64_t propose_min_part_coefficient() {
+    return detail::train_parameters<Task>{}.get_min_part_coefficient();
 }
 
-constexpr std::int64_t propose_min_size_coefficient() {
-    return 24000l;
+template<typename Task>
+std::int64_t propose_min_size_coefficient() {
+    return detail::train_parameters<Task>{}.get_min_size_coefficient();
 }
 
 template <typename Float, typename Method, typename Task>
@@ -42,13 +50,7 @@ struct train_parameters_cpu {
     params_t operator()(const context_cpu& ctx,
                         const detail::descriptor_base<Task>& desc,
                         const train_input<Task>& input) const {
-        const auto small_cls_thr = propose_small_classes_threshold();
-        const auto min_part_coeff = propose_min_part_coefficient();
-        const auto min_size_coeff = propose_min_size_coefficient();
-        return params_t{}
-            .set_small_classes_threshold(small_cls_thr)
-            .set_min_part_coefficient(min_part_coeff)
-            .set_min_size_coefficient(min_size_coeff);
+        return params_t{};
     }
 };
 
@@ -59,7 +61,11 @@ struct train_parameters_cpu<Float, Method, task::regression> {
     params_t operator()(const context_cpu& ctx,
                         const detail::descriptor_base<task_t>& desc,
                         const train_input<task_t>& input) const {
-        return params_t{};
+        const auto min_part_coeff = propose_min_part_coefficient<task_t>();
+        const auto min_size_coeff = propose_min_size_coefficient<task_t>();
+        return params_t{}
+            .set_min_part_coefficient(min_part_coeff)
+            .set_min_size_coefficient(min_size_coeff);
     }
 };
 
@@ -70,9 +76,9 @@ struct train_parameters_cpu<Float, Method, task::classification> {
     params_t operator()(const context_cpu& ctx,
                         const detail::descriptor_base<task_t>& desc,
                         const train_input<task_t>& input) const {
-        const auto small_cls_thr = propose_small_classes_threshold();
-        const auto min_part_coeff = propose_min_part_coefficient();
-        const auto min_size_coeff = propose_min_size_coefficient();
+        const auto small_cls_thr = propose_small_classes_threshold<task_t>();
+        const auto min_part_coeff = propose_min_part_coefficient<task_t>();
+        const auto min_size_coeff = propose_min_size_coefficient<task_t>();
         return params_t{}
             .set_small_classes_threshold(small_cls_thr)
             .set_min_part_coefficient(min_part_coeff)

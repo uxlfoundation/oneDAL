@@ -40,15 +40,19 @@ namespace training
 namespace internal
 {
 
+// The maximal value of the number of classes supported by the implementation that is optimized
+// for small number of classes
+constexpr DAAL_INT64 MAX_SMALL_N_CLASSES = 8l;
+
 /**
  * Available identifiers of integer hyperparameters of the decision forest training algorithm
  */
 enum HyperparameterId
 {
     smallNClassesThreshold = 0,
-    minPartCoefficient,
-    minSizeCoefficient,
-    hyperparameterIdCount = minSizeCoefficient + 1
+    minPartCoefficient     = 1,
+    minSizeCoefficient     = 2,
+    hyperparameterIdCount  = 3
 };
 
 enum DoubleHyperparameterId
@@ -108,7 +112,7 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
         s |= find(minSizeCoefficient, minSizeCoeffValue);
         if (!s) return;
 
-        if (smallNClassesValue < 1 || 8l < smallNClassesValue || minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        if (smallNClassesValue < 1 || MAX_SMALL_N_CLASSES < smallNClassesValue || minPartCoeffValue < 1 || minSizeCoeffValue < 1)
         {
             s.add(services::Error::create(services::ErrorHyperparameterBadValue));
         }
@@ -131,9 +135,9 @@ namespace internal
  */
 enum HyperparameterId
 {
-    minPartCoefficient = 0,
-    minSizeCoefficient,
-    hyperparameterIdCount = minSizeCoefficient + 1
+    minPartCoefficient    = 0,
+    minSizeCoefficient    = 1,
+    hyperparameterIdCount = 2
 };
 
 enum DoubleHyperparameterId
@@ -212,18 +216,17 @@ namespace internal
  */
 enum HyperparameterId
 {
-    blockSizeMultiplier = 0,
-    blockSize,
-    minTreesForThreading,
-    minNumberOfRowsForVectSeqCompute,
-    hyperparameterIdCount = minNumberOfRowsForVectSeqCompute + 1
+    blockSizeMultiplier              = 0,
+    blockSize                        = 1,
+    minTreesForThreading             = 2,
+    minNumberOfRowsForVectSeqCompute = 3,
+    hyperparameterIdCount            = 4
 };
 
 enum DoubleHyperparameterId
 {
-
     scaleFactorForVectParallelCompute = 0,
-    doubleHyperparameterIdCount       = scaleFactorForVectParallelCompute + 1
+    doubleHyperparameterIdCount       = 1
 };
 
 /**

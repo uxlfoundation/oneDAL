@@ -19,12 +19,16 @@
 
 namespace oneapi::dal::decision_forest::parameters {
 
-using method::by_default;
 using task::classification;
+using task::regression;
 
 template struct ONEDAL_EXPORT train_parameters_cpu<float, method::hist, classification>;
 template struct ONEDAL_EXPORT train_parameters_cpu<float, method::dense, classification>;
-template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, task::classification>;
-template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, task::classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::hist, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::dense, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, regression>;
 
 } // namespace oneapi::dal::decision_forest::parameters

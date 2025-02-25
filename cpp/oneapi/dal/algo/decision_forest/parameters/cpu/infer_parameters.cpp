@@ -42,6 +42,6 @@ using method::by_default;
 using task::classification;
 
 template struct ONEDAL_EXPORT infer_parameters_cpu<float, by_default, classification>;
-template struct ONEDAL_EXPORT infer_parameters_cpu<double, by_default, task::classification>;
+template struct ONEDAL_EXPORT infer_parameters_cpu<double, by_default, classification>;
 
 } // namespace oneapi::dal::decision_forest::parameters
