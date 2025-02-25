@@ -29,17 +29,17 @@ using dal::backend::context_cpu;
 /// The logic should be based on the context, descriptor, and input data.
 /// For now the dummy implementation is provided.
 
-template<typename Task>
+template <typename Task>
 std::int64_t propose_small_classes_threshold() {
     return detail::train_parameters<Task>{}.get_small_classes_threshold();
 }
 
-template<typename Task>
+template <typename Task>
 std::int64_t propose_min_part_coefficient() {
     return detail::train_parameters<Task>{}.get_min_part_coefficient();
 }
 
-template<typename Task>
+template <typename Task>
 std::int64_t propose_min_size_coefficient() {
     return detail::train_parameters<Task>{}.get_min_size_coefficient();
 }
