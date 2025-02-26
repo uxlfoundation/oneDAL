@@ -30,5 +30,27 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::rbf::BatchContainer, batch, DAAL_FPTYPE, kernel_function::rbf::defaultDense)
+namespace kernel_function
+{
+namespace rbf
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
+    : KernelIface(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+template class Batch<DAAL_FPTYPE, kernel_function::rbf::defaultDense>;
+} // namespace interface1
+} // namespace rbf
+} // namespace kernel_function
 } // namespace algorithms
 } // namespace daal
