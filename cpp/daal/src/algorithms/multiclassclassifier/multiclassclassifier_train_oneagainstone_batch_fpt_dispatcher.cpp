@@ -30,5 +30,35 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multi_class_classifier::training::BatchContainer, batch, DAAL_FPTYPE,
                                       multi_class_classifier::training::oneAgainstOne)
+namespace multi_class_classifier
+{
+namespace training
+{
+namespace interface2
+{
+
+template <typename algorithmFPType, Method method>
+DAAL_DEPRECATED Batch<algorithmFPType, method>::Batch() : parameter(0)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
+    : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, training::oneAgainstOne>;
+} // namespace interface2
+} // namespace training
+} // namespace multi_class_classifier
 } // namespace algorithms
 } // namespace daal

@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(qr::DistributedContainer, distributed, step3Local, DAAL_FPTYPE, qr::defaultDense)
+namespace qr
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+Distributed<step3Local, algorithmFPType, method>::Distributed()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+Distributed<step3Local, algorithmFPType, method>::Distributed(const Distributed<step3Local, algorithmFPType, method> & other)
+    : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Distributed<step3Local, DAAL_FPTYPE, qr::defaultDense>;
+} // namespace interface1
+} // namespace qr
+} // namespace algorithms
 } // namespace daal
