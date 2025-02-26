@@ -100,8 +100,23 @@ function build_sysroot {
 }
 
 function install_miniforge {
-    wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-    sudo bash Miniforge3.sh -b -p /usr/share/miniconda
+    local platform
+    local version
+    local installer
+
+    platform="$(uname)-$(uname -m)"
+    version=$(curl -s https://api.github.com/repos/conda-forge/miniforge/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+    installer=Miniforge3-${version}-${platform}.sh
+
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}"
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}.sha256"
+
+    if ! sha256sum -c "${installer}.sha256"; then
+        echo "Error: SHA256 checksum verification failed."
+        exit 1
+    fi
+
+    sudo bash "${installer}" -b -p /usr/share/miniconda
     source /usr/share/miniconda/etc/profile.d/conda.sh
 }
 
