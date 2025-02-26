@@ -41,11 +41,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define DAAL_BASE_CPU daal::rv64
 #endif
 
-#if defined(TARGET_X86_64)
-    #define DAAL_CHECK_CPU_ENVIRONMENT 1
-#else
-    #define DAAL_CHECK_CPU_ENVIRONMENT 0
-#endif
+#define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
 
 #if defined(__INTEL_COMPILER)
     #define PRAGMA_IVDEP            _Pragma("ivdep")
