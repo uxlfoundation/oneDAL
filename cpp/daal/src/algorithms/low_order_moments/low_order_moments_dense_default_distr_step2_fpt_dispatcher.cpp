@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, low_order_moments::defaultDense)
+namespace low_order_moments
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+Distributed<step2Master, algorithmFPType, method>::Distributed()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
+    : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Distributed<step2Master, DAAL_FPTYPE, low_order_moments::defaultDense>;
+} // namespace interface1
+} // namespace low_order_moments
+} // namespace algorithms
 } // namespace daal

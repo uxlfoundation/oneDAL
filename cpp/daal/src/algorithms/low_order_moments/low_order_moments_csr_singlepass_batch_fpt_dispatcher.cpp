@@ -28,5 +28,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::BatchContainer, batch, DAAL_FPTYPE, low_order_moments::singlePassCSR)
+namespace low_order_moments
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : BatchImpl(other)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, low_order_moments::singlePassCSR>;
+} // namespace interface1
+} // namespace low_order_moments
+} // namespace algorithms
 } // namespace daal

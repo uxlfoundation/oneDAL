@@ -28,5 +28,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::OnlineContainer, online, DAAL_FPTYPE, low_order_moments::sumDense)
+namespace low_order_moments
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Online<DAAL_FPTYPE, low_order_moments::sumDense>;
+} // namespace interface1
+} // namespace low_order_moments
+} // namespace algorithms
 } // namespace daal
