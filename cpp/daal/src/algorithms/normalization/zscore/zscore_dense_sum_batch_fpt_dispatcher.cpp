@@ -53,10 +53,7 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : BatchImpl(other)
     _par = new ParameterType(other.parameter());
     initialize();
 }
-template Batch<DAAL_FPTYPE, normalization::zscore::sumDense>::Batch();
-template Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch();
-template Batch<DAAL_FPTYPE, normalization::zscore::sumDense>::Batch(const Batch &);
-template Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch(const Batch &);
+template class Batch<DAAL_FPTYPE, normalization::zscore::sumDense>;
 } // namespace interface3
 } // namespace zscore
 } // namespace normalization

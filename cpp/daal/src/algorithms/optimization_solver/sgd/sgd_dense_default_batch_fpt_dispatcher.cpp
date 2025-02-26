@@ -33,6 +33,19 @@ namespace sgd
 {
 namespace interface2
 {
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const sum_of_functions::BatchPtr & objectiveFunction) : parameter(objectiveFunction)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
+    : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>;
 
 template <>

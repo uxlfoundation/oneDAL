@@ -106,10 +106,7 @@ public:
      * Constructs the SGD algorithm with the input objective function
      * \param[in] objectiveFunction Objective function that can be represented as a sum of functions
      */
-    Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr()) : input(), parameter(objectiveFunction)
-    {
-        initialize();
-    }
+    Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
      * Constructs a Stochastic gradient descent algorithm by copying input objects
@@ -117,10 +114,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns method of the algorithm
