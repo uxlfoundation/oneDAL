@@ -30,5 +30,28 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::DistributedContainer, distributed, step1Local, DAAL_FPTYPE,
                                       implicit_als::training::fastCSR)
+namespace implicit_als
+{
+namespace training
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+Distributed<step1Local, algorithmFPType, method>::Distributed()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+Distributed<step1Local, algorithmFPType, method>::Distributed(const Distributed<step1Local, algorithmFPType, method> & other)
+    : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Distributed<step1Local, DAAL_FPTYPE, implicit_als::training::fastCSR>;
+} // namespace interface1
+} // namespace training
+} // namespace implicit_als
+} // namespace algorithms
 } // namespace daal
