@@ -28,5 +28,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::OnlineContainer, online, DAAL_FPTYPE, linear_regression::training::qrDense)
+namespace linear_regression
+{
+namespace training
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online()
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other)
+    : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Online<DAAL_FPTYPE, linear_regression::training::qrDense>;
+} // namespace interface1
+} // namespace training
+} // namespace linear_regression
+} // namespace algorithms
 } // namespace daal
