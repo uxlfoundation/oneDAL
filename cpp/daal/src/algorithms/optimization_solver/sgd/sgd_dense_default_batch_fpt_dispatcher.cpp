@@ -34,7 +34,7 @@ namespace sgd
 namespace interface2
 {
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const sum_of_functions::BatchPtr & objectiveFunction) : parameter(objectiveFunction)
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const sum_of_functions::BatchPtr & objectiveFunction) : input(), parameter(objectiveFunction)
 {
     initialize();
 }
