@@ -30,5 +30,28 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multinomial_naive_bayes::training::BatchContainer, batch, DAAL_FPTYPE,
                                       multinomial_naive_bayes::training::defaultDense)
+namespace multinomial_naive_bayes
+{
+namespace training
+{
+namespace interface2
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
+    : classifier::training::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, multinomial_naive_bayes::training::defaultDense>;
+} // namespace interface2
+} // namespace training
+} // namespace multinomial_naive_bayes
 } // namespace algorithms
 } // namespace daal

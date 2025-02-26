@@ -56,6 +56,5 @@ Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(const BatchType 
 } // namespace interface2
 } // namespace prediction
 } // namespace logitboost
-
 } // namespace algorithms
 } // namespace daal

@@ -50,9 +50,7 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::trainin
     initialize();
 }
 
-template Batch<DAAL_FPTYPE, logitboost::training::friedman>::Batch(size_t);
-template Batch<DAAL_FPTYPE, logitboost::training::friedman>::Batch(const Batch &);
-
+template class Batch<DAAL_FPTYPE, logitboost::training::friedman>;
 } // namespace interface2
 } // namespace training
 } // namespace logitboost
