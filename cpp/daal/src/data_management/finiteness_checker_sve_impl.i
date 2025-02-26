@@ -17,10 +17,10 @@
  * Contains SVE optimizations for sumWithSIMD algorithm.
  */
 
-#include <arm_sve.h>
-
 #ifndef __FINITENESS_CHECKER_SVE_IMPL_I__
 #define __FINITENESS_CHECKER_SVE_IMPL_I__
+
+#include <arm_sve.h>
 
 /*
 // Computes sum of the elements of input array of type `float` with sve instructions.
