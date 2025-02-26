@@ -46,7 +46,7 @@ jobs:
       - name: Install MKL
         run: .ci/env/apt.sh mkl
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: 3.9
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
@@ -65,12 +65,12 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: oneDAL_env
           path: .ci/env
@@ -85,7 +85,7 @@ jobs:
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake            
+            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi examples
         run: |
             source /opt/intel/oneapi/setvars.sh
