@@ -33,6 +33,17 @@ namespace algorithms
 {
 namespace decision_forest
 {
+namespace internal
+{
+
+// The maximal value of the minPartCoefficient hyperparameter
+constexpr DAAL_INT64 MAX_PART_COEFFICIENT = 256l;
+
+// The maximal value of the minSizeCoefficient hyperparameter
+constexpr DAAL_INT64 MAX_SIZE_COEFFICIENT = 0x100000l;
+
+} // namespace internal
+
 namespace classification
 {
 namespace training
@@ -112,7 +123,9 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
         s |= find(minSizeCoefficient, minSizeCoeffValue);
         if (!s) return;
 
-        if (smallNClassesValue < 1 || MAX_SMALL_N_CLASSES < smallNClassesValue || minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        if (smallNClassesValue < 1 || MAX_SMALL_N_CLASSES < smallNClassesValue || minPartCoeffValue < 1
+            || minPartCoeffValue > decision_forest::internal::MAX_PART_COEFFICIENT || minSizeCoeffValue < 1
+            || minSizeCoeffValue > decision_forest::internal::MAX_SIZE_COEFFICIENT)
         {
             s.add(services::Error::create(services::ErrorHyperparameterBadValue));
         }
@@ -195,7 +208,8 @@ struct DAAL_EXPORT Hyperparameter : public daal::algorithms::Hyperparameter
         s |= find(minSizeCoefficient, minSizeCoeffValue);
         if (!s) return;
 
-        if (minPartCoeffValue < 1 || minSizeCoeffValue < 1)
+        if (minPartCoeffValue < 1 || minPartCoeffValue > decision_forest::internal::MAX_PART_COEFFICIENT || minSizeCoeffValue < 1
+            || minSizeCoeffValue > decision_forest::internal::MAX_SIZE_COEFFICIENT)
         {
             s.add(services::Error::create(services::ErrorHyperparameterBadValue));
         }

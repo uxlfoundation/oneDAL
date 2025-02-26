@@ -638,8 +638,6 @@ protected:
 
     void setupHostApp()
     {
-        /// const size_t minPart = 4 * _helper.size();         //corresponds to the 4 topmost levels
-        /// const size_t minSize = 24000 / _nFeaturesPerNode;  //at least that many, corresponds to the tree 1000 obs/10 features/8 levels
         DAAL_INT64 minPartCoeff = 4l;
         DAAL_INT64 minSizeCoeff = 24000l;
         if (this->_hyperparameter != nullptr)
@@ -655,8 +653,9 @@ protected:
                 this->_hyperparameter->find(regression::training::internal::minSizeCoefficient, minSizeCoeff);
             }
         }
-        const size_t minPart = minPartCoeff * _helper.size();
-        const size_t minSize = minSizeCoeff / _nFeaturesPerNode;
+        const size_t minPart = minPartCoeff * _helper.size();    // corresponds to the 4 topmost levels, if minPartCoeff == 4
+        const size_t minSize = minSizeCoeff / _nFeaturesPerNode; // at least that many, corresponds to the tree 1000 obs/10 features/8 levels,
+                                                                 // if minSizeCoeff == 24000
         _hostApp.setup(minPart < minSize ? minSize : minPart);
     }
 

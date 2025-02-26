@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
+
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
@@ -86,15 +88,19 @@ struct train_ops {
 
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
     template <typename ParameterType>
-    void check_parameters_ranges(const ParameterType& params, const input_t& input) const {
+    ONEDAL_EXPORT void check_parameters_ranges(const ParameterType& params,
+                                               const input_t& input) const {
+        namespace daal_df = daal::algorithms::decision_forest;
         if constexpr (std::is_same_v<task_t, task::classification>) {
+            namespace daal_df_cls_train = daal_df::classification::training;
             ONEDAL_ASSERT(params.get_small_classes_threshold() > 0);
-            ONEDAL_ASSERT(params.get_small_classes_threshold() <= 8);
+            ONEDAL_ASSERT(params.get_small_classes_threshold() <=
+                          daal_df_cls_train::internal::MAX_SMALL_N_CLASSES);
         }
         ONEDAL_ASSERT(params.get_min_part_coefficient() > 0);
-        ONEDAL_ASSERT(params.get_min_part_coefficient() <= 256);
+        ONEDAL_ASSERT(params.get_min_part_coefficient() <= daal_df::internal::MAX_PART_COEFFICIENT);
         ONEDAL_ASSERT(params.get_min_size_coefficient() > 0);
-        ONEDAL_ASSERT(params.get_min_size_coefficient() <= 0x100000l);
+        ONEDAL_ASSERT(params.get_min_size_coefficient() <= daal_df::internal::MAX_SIZE_COEFFICIENT);
     }
 
     template <typename Context>
