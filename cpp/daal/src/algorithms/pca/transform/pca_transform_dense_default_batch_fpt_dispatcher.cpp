@@ -30,5 +30,27 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::transform::BatchContainer, batch, DAAL_FPTYPE, pca::transform::defaultDense)
+namespace pca
+{
+namespace transform
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nComponents) : parameter(nComponents)
+{
+    initialize();
 }
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, pca::transform::defaultDense>;
+} // namespace interface1
+} // namespace transform
+} // namespace pca
+} // namespace algorithms
 } // namespace daal

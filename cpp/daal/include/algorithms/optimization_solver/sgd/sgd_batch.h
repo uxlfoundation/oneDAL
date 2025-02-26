@@ -109,11 +109,11 @@ public:
     Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
-     * Constructs a Stochastic gradient descent algorithm by copying input objects
-     * of another Stochastic gradient descent algorithm
-     * \param[in] other An algorithm to be used as the source to initialize the input objects
-     *                  and parameters of the algorithm
-     */
+      * Constructs a Stochastic gradient descent algorithm by copying input objects
+      * of another Stochastic gradient descent algorithm
+      * \param[in] other An algorithm to be used as the source to initialize the input objects
+      *                  and parameters of the algorithm
+      */
     Batch(const Batch<algorithmFPType, method> & other);
 
     /**
