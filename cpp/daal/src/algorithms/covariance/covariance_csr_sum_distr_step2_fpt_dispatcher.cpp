@@ -32,20 +32,21 @@ namespace covariance
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed()
+template <>
+DAAL_EXPORT Distributed<step2Master, DAAL_FPTYPE, covariance::sumCSR>::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, covariance::sumCSR>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
     : DistributedIface<step2Master>(other)
 {
     initialize();
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, covariance::sumCSR>;
 } // namespace interface1
 } // namespace covariance
 } // namespace algorithms
