@@ -76,6 +76,19 @@ dal_example_suite(
     ],
 )
 
+dal_example_suite(
+    name = "spectral_clustering",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/spectral_clustering/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/oneapi/dal/algo:kmeans",
+        "@onedal//cpp/oneapi/dal/algo:kmeans_init",
+        "@onedal//cpp/oneapi/dal/algo:spectral_embedding",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS,
+)
+
 dal_algo_example_suite(
     algos = [
         "basic_statistics",
