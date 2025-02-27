@@ -37,19 +37,19 @@ namespace multiclass_confusion_matrix
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : parameter(nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, classifier::quality_metric::multiclass_confusion_matrix::defaultDense>::Batch(size_t nClasses) : parameter(nClasses)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, classifier::quality_metric::multiclass_confusion_matrix::defaultDense>;
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, classifier::quality_metric::multiclass_confusion_matrix::defaultDense>;
 } // namespace interface1
 } // namespace multiclass_confusion_matrix
 } // namespace quality_metric

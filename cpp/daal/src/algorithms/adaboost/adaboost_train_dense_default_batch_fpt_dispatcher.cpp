@@ -39,21 +39,23 @@ namespace training
 namespace interface2
 {
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses)
+Batch<algorithmFPType, method>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
 }
 
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
+Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, adaboost::training::defaultDense>;
-template class Batch<DAAL_FPTYPE, adaboost::training::sammeR>;
+template DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::training::defaultDense>::Batch(size_t nClasses);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::training::defaultDense>::Batch(const Batch & other);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::training::sammeR>::Batch(size_t nClasses);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::training::sammeR>::Batch(const Batch & other);
 
 } // namespace interface2
 } // namespace training

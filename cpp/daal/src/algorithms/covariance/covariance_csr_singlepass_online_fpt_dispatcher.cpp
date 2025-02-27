@@ -32,19 +32,20 @@ namespace covariance
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, covariance::singlePassCSR>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other) : OnlineImpl(other)
+using OnlineType = Online<DAAL_FPTYPE, covariance::singlePassCSR>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : OnlineImpl(other)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, covariance::singlePassCSR>;
 } // namespace interface1
 } // namespace covariance
 } // namespace algorithms

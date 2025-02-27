@@ -53,7 +53,8 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::predict
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>;
+template DAAL_EXPORT Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>::Batch(size_t nClasses);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, stump::classification::prediction::defaultDense>::Batch(const Batch & other);
 
 } // namespace interface1
 } // namespace prediction

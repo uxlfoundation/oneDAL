@@ -35,22 +35,22 @@ namespace training
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-Batch<algorithmFPType, method>::Batch(size_t nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, logitboost::training::friedman>::Batch(size_t nClasses)
 {
     _par = new ParameterType();
     initialize();
     parameter().nClasses = nClasses;
 }
 
-template <typename algorithmFPType, Method method>
-Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
+using BatchType = Batch<DAAL_FPTYPE, logitboost::training::friedman>;
+template <>
+DAAL_EXPORT BatchType::Batch(const Batch & other) : classifier::training::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, logitboost::training::friedman>;
 } // namespace interface2
 } // namespace training
 } // namespace logitboost

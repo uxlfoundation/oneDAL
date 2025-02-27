@@ -33,19 +33,20 @@ namespace covariance
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, covariance::sumDense>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other) : OnlineImpl(other)
+using OnlineType = Online<DAAL_FPTYPE, covariance::sumDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : OnlineImpl(other)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, covariance::sumDense>;
 } // namespace interface1
 } // namespace covariance
 } // namespace algorithms
