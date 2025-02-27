@@ -32,19 +32,20 @@ namespace philox4x32x10
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t seed)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::Batch(size_t seed)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : super(other)
+using BatchType = Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>;
 } // namespace interface1
 } // namespace philox4x32x10
 } // namespace engines
