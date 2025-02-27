@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "oneapi/dal/algo/decision_forest/parameters/cpu/train_parameters.hpp"
+#include "oneapi/dal/algo/decision_forest/parameters/gpu/train_parameters.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/cpu/train_kernel.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel.hpp"
 #include "oneapi/dal/algo/decision_forest/detail/train_ops.hpp"
@@ -24,14 +26,37 @@ namespace v1 {
 
 template <typename Policy, typename Float, typename Task, typename Method>
 struct train_ops_dispatcher<Policy, Float, Task, Method> {
-    train_result<Task> operator()(
-        const Policy& policy,
-        const descriptor_base<Task>& desc,
-        const oneapi::dal::decision_forest::v2::train_input<Task>& input) const {
+    using input_t = oneapi::dal::decision_forest::v2::train_input<Task>;
+    train_result<Task> operator()(const Policy& policy,
+                                  const descriptor_base<Task>& desc,
+                                  const train_parameters<Task>& params,
+                                  const input_t& input) const {
+        return implementation(policy, desc, params, input);
+    }
+    train_parameters<Task> select_parameters(const Policy& policy,
+                                             const descriptor_base<Task>& desc,
+                                             const input_t& input) const {
+        using kernel_dispatcher_t = dal::backend::kernel_dispatcher<
+            KERNEL_SINGLE_NODE_CPU(parameters::train_parameters_cpu<Float, Method, Task>),
+            KERNEL_UNIVERSAL_SPMD_GPU(parameters::train_parameters_gpu<Float, Method, Task>)>;
+        return kernel_dispatcher_t{}(policy, desc, input);
+    }
+    train_result<Task> operator()(const Policy& policy,
+                                  const descriptor_base<Task>& desc,
+                                  const input_t& input) const {
+        const auto params = select_parameters(policy, desc, input);
+        return implementation(policy, desc, params, input);
+    }
+
+private:
+    inline auto implementation(const Policy& policy,
+                               const descriptor_base<Task>& desc,
+                               const train_parameters<Task>& params,
+                               const input_t& input) const {
         using kernel_dispatcher_t = dal::backend::kernel_dispatcher<
             KERNEL_SINGLE_NODE_CPU(backend::train_kernel_cpu<Float, Method, Task>),
             KERNEL_UNIVERSAL_SPMD_GPU(backend::train_kernel_gpu<Float, Method, Task>)>;
-        return kernel_dispatcher_t{}(policy, desc, input);
+        return kernel_dispatcher_t{}(policy, desc, params, input);
     }
 };
 

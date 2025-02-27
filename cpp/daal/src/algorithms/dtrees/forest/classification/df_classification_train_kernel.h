@@ -28,6 +28,7 @@
 #include "data_management/data/numeric_table.h"
 #include "algorithms/algorithm_base_common.h"
 #include "algorithms/decision_forest/decision_forest_training_parameter.h"
+#include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -48,9 +49,10 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class ClassificationTrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
+    typedef daal::algorithms::decision_forest::classification::training::internal::Hyperparameter HyperparameterType;
     services::Status compute(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
                              decision_forest::classification::Model & m, Result & res,
-                             const decision_forest::classification::training::Parameter & par);
+                             const decision_forest::classification::training::Parameter & par, const HyperparameterType * hyperparameter = nullptr);
 };
 
 } // namespace internal

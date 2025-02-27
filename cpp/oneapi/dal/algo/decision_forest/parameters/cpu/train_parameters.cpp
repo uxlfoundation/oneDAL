@@ -14,34 +14,21 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/algo/decision_forest/parameters/cpu/infer_parameters.hpp"
+#include "oneapi/dal/algo/decision_forest/parameters/cpu/train_parameters.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
-
-#if defined(TARGET_X86_64)
-#define CPU_EXTENSION dal::detail::cpu_extension::avx512
-#elif defined(TARGET_ARM)
-#define CPU_EXTENSION dal::detail::cpu_extension::sve
-#elif defined(TARGET_RISCV64)
-#define CPU_EXTENSION dal::detail::cpu_extension::rv64
-#endif
 
 namespace oneapi::dal::decision_forest::parameters {
 
-using dal::backend::context_cpu;
-
-std::int64_t propose_block_size(const context_cpu& ctx) {
-    std::int64_t block_size = 22l;
-    if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
-        /// Here if AVX512 extensions are available on CPU
-        block_size = 32l;
-    }
-    return block_size;
-}
-
-using method::by_default;
 using task::classification;
+using task::regression;
 
-template struct ONEDAL_EXPORT infer_parameters_cpu<float, by_default, classification>;
-template struct ONEDAL_EXPORT infer_parameters_cpu<double, by_default, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::hist, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::dense, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, classification>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::hist, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::dense, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::hist, regression>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::dense, regression>;
 
 } // namespace oneapi::dal::decision_forest::parameters

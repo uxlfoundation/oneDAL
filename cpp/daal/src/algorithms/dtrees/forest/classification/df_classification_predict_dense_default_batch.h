@@ -52,7 +52,7 @@ template <typename algorithmFpType, prediction::Method method, CpuType cpu>
 class PredictKernel : public daal::algorithms::Kernel
 {
 public:
-    typedef decision_forest::internal::Hyperparameter HyperparameterType;
+    typedef daal::algorithms::decision_forest::prediction::internal::Hyperparameter HyperparameterType;
 
     PredictKernel() : _task(nullptr) {};
     ~PredictKernel();
