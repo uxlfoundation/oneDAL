@@ -35,27 +35,25 @@ namespace training
 {
 namespace interface3
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(const Batch<DAAL_FPTYPE, defaultDense> & other)
     : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nClasses)
 {
     parameter.nClasses = nClasses;
     initialize();
 }
-
-template class Batch<DAAL_FPTYPE, kdtree_knn_classification::training::defaultDense>;
 
 } // namespace interface3
 } // namespace training

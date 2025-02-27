@@ -38,20 +38,21 @@ namespace init
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step2Local, algorithmFPType, method>::Distributed()
+using DistributedType = Distributed<step2Local, DAAL_FPTYPE, implicit_als::training::init::fastCSR>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Local, algorithmFPType, method>::Distributed(const Distributed<step2Local, algorithmFPType, method> & other)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
 {
     initialize();
     input.set(inputOfStep2FromStep1, other.input.get(inputOfStep2FromStep1));
 }
 
-template class Distributed<step2Local, DAAL_FPTYPE, implicit_als::training::init::fastCSR>;
 } // namespace interface1
 } // namespace init
 } // namespace training

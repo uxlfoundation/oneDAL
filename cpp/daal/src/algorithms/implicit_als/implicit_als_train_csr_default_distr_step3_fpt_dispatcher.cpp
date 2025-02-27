@@ -36,20 +36,20 @@ namespace training
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step3Local, algorithmFPType, method>::Distributed()
+using DistributedType = Distributed<step3Local, DAAL_FPTYPE, implicit_als::training::fastCSR>;
+
+template <>
+DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step3Local, algorithmFPType, method>::Distributed(const Distributed<step3Local, algorithmFPType, method> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step3Local, DAAL_FPTYPE, implicit_als::training::fastCSR>;
 } // namespace interface1
 } // namespace training
 } // namespace implicit_als

@@ -31,20 +31,19 @@ namespace polynomial
 {
 namespace internal
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::fastCSR>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : KernelIface(other), parameter(other.parameter), input(other.input)
+using BatchType = Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }
-template class Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::fastCSR>;
-
 } // namespace internal
 } // namespace polynomial
 } // namespace kernel_function

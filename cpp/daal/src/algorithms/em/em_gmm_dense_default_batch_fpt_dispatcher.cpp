@@ -33,13 +33,14 @@ namespace em_gmm
 namespace interface1
 {
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, em_gmm::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, em_gmm::defaultDense>;
 } // namespace interface1
 } // namespace em_gmm
 } // namespace algorithms

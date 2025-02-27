@@ -38,20 +38,21 @@ namespace ratings
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step1Local, algorithmFPType, method>::Distributed()
+
+using DistributedType = Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step1Local, algorithmFPType, method>::Distributed(const Distributed<step1Local, algorithmFPType, method> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
 } // namespace interface1
 } // namespace ratings
 } // namespace prediction
