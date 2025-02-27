@@ -54,7 +54,7 @@ services::SharedPtr<BatchType> BatchType::create()
     return services::SharedPtr<BatchType>(new BatchType());
 }
 
-template class DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::lbfgs::defaultDense>;
+template class Batch<DAAL_FPTYPE, optimization_solver::lbfgs::defaultDense>;
 } // namespace interface2
 } // namespace lbfgs
 } // namespace optimization_solver
