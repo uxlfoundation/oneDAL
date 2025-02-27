@@ -140,7 +140,13 @@ protected:
         return s;
     }
 
-    void initialize();
+    void initialize()
+    {
+        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
+        _in                  = &input;
+        _par                 = &parameter;
+        _result              = ResultPtr(new Result());
+    }
 
 public:
     InputType input;         /*!< %Input data structure */

@@ -34,19 +34,20 @@ namespace init
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const size_t nComponents) : parameter(nComponents)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, em_gmm::init::defaultDense>::Batch(const size_t nComponents) : parameter(nComponents)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, em_gmm::init::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, em_gmm::init::defaultDense>;
 } // namespace interface1
 } // namespace init
 } // namespace em_gmm

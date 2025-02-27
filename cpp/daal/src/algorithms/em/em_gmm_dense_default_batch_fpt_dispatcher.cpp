@@ -33,6 +33,14 @@ namespace em_gmm
 namespace interface1
 {
 
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, em_gmm::defaultDense>::Batch(const size_t nComponents)
+    : parameter(nComponents, services::SharedPtr<covariance::Batch<DAAL_FPTYPE, covariance::defaultDense> >(
+                                 new covariance::Batch<DAAL_FPTYPE, covariance::defaultDense>()))
+{
+    initialize();
+}
+
 using BatchType = Batch<DAAL_FPTYPE, em_gmm::defaultDense>;
 
 template <>

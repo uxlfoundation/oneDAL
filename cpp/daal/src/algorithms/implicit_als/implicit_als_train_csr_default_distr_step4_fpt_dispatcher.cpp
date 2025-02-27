@@ -39,13 +39,13 @@ namespace interface1
 using DistributedType = Distributed<step4Local, DAAL_FPTYPE, implicit_als::training::fastCSR>;
 
 template <>
-DistributedType::Distributed()
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
