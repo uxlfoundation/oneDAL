@@ -36,27 +36,26 @@ namespace training
 {
 namespace interface2
 {
+using BatchType = Batch<DAAL_FPTYPE, training::oneAgainstOne>;
 
-template <typename algorithmFPType, Method method>
-DAAL_DEPRECATED Batch<algorithmFPType, method>::Batch() : parameter(0)
+template <>
+DAAL_DEPRECATED BatchType::Batch() : parameter(0)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : parameter(nClasses)
+template <>
+DAAL_EXPORT BatchType::Batch(size_t nClasses) : parameter(nClasses)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, training::oneAgainstOne>;
 } // namespace interface2
 } // namespace training
 } // namespace multi_class_classifier

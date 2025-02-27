@@ -36,20 +36,20 @@ namespace training
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : parameter(nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, fastCSR>::Batch(size_t nClasses) : parameter(nClasses)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : classifier::training::Batch(other), input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, multinomial_naive_bayes::training::fastCSR>;
 } // namespace interface2
 } // namespace training
 } // namespace multinomial_naive_bayes
