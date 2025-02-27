@@ -38,7 +38,7 @@ struct vertex_similarity_ops_dispatcher {
         const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(input.get_graph());
 
         // Assume get_backend returns a std::shared_ptr or std::unique_ptr
-        auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+        static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
 
         // Ensure impl is valid
         if (!impl) {
