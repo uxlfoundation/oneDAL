@@ -32,19 +32,20 @@ namespace uniform
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(algorithmFPType a, algorithmFPType b) : parameter(a, b)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
 } // namespace interface1
 } // namespace uniform
 } // namespace distributions

@@ -33,19 +33,20 @@ namespace bernoulli
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(algorithmFPType p) : parameter(p)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::Batch(DAAL_FPTYPE p) : parameter(p)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
 } // namespace interface1
 } // namespace bernoulli
 } // namespace distributions

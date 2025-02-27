@@ -41,8 +41,7 @@ DAAL_EXPORT Distributed<step2Master, DAAL_FPTYPE, covariance::fastCSR>::Distribu
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, covariance::fastCSR>;
 
 template <>
-DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
-    : DistributedIface<step2Master>(other)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : DistributedIface<step2Master>(other)
 {
     initialize();
 }

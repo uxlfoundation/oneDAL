@@ -37,19 +37,19 @@ namespace training
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_tree::regression::training::defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : algorithms::regression::training::Batch(other), input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, decision_tree::regression::training::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : algorithms::regression::training::Batch(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
-template class Batch<DAAL_FPTYPE, decision_tree::regression::training::defaultDense>;
 
 } // namespace interface2
 } // namespace training

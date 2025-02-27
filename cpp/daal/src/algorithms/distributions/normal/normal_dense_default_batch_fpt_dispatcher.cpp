@@ -32,19 +32,20 @@ namespace normal
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(algorithmFPType a, algorithmFPType sigma) : parameter(a, sigma)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE sigma) : parameter(a, sigma)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, distributions::normal::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, distributions::normal::defaultDense>;
 } // namespace interface1
 } // namespace normal
 } // namespace distributions

@@ -38,19 +38,21 @@ namespace prediction
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses) : classifier::prediction::Batch(), input(), parameter(nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_tree::classification::prediction::defaultDense>::Batch(size_t nClasses)
+    : classifier::prediction::Batch(), input(), parameter(nClasses)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, decision_tree::classification::prediction::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
-template class Batch<DAAL_FPTYPE, decision_tree::classification::prediction::defaultDense>;
+
 } // namespace interface2
 } // namespace prediction
 } // namespace classification
