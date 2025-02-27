@@ -428,9 +428,13 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
                                          { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
                                          alloc::device);
         pr::ndarray<Index, 1> selected_row_host;
+        pr::ndarray<Index, 1> counter_device;
         if (ctx.distr_mode_) {
-            selected_row_host = pr::ndarray<Index, 1>::empty(
-                { ctx.selected_row_total_count_ * ctx.tree_in_block_ });
+            selected_row_host =
+                pr::ndarray<Index, 1>::empty(queue_,
+                                             { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
+                                             alloc::device);
+            counter_device = pr::ndarray<Index, 1>::empty(queue_, { node_count }, alloc::device);
         }
 
         Index* const selected_row_global_ptr = selected_row_global_device.get_mutable_data();
@@ -439,39 +443,45 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         Index* const node_list_ptr = node_list_host.get_mutable_data();
 
         Index* gen_row_idx_global_ptr = selected_row_global_ptr;
-        pr::uniform<Index>(queue_,
-                           ctx.selected_row_total_count_ * node_count,
-                           gen_row_idx_global_ptr,
-                           rng_engine_list,
-                           0,
-                           ctx.row_total_count_)
-            .wait_and_throw();
+        auto generation_event = pr::uniform<Index>(queue_,
+                                                   ctx.selected_row_total_count_ * node_count,
+                                                   gen_row_idx_global_ptr,
+                                                   rng_engine_list,
+                                                   0,
+                                                   ctx.row_total_count_);
 
-        auto arr = selected_row_global_device.to_host(queue_);
         if (ctx.distr_mode_) {
-            Index* const selected_row_global_ptr_2 = arr.get_mutable_data();
+            Index* counter_ptr = counter_device.get_mutable_data();
+            // Submit parallel_for kernel
+            last_event = queue_.submit([&](sycl::handler& cgh) {
+                cgh.depends_on(generation_event);
+                cgh.parallel_for(sycl::range<1>(node_count), [=](sycl::id<1> node_idx) {
+                    Index* src = gen_row_idx_global_ptr;
+
+                    Index* dst = selected_row_ptr + ctx.selected_row_total_count_ * node_idx;
+
+                    Index row_idx = 0;
+                    for (Index i = 0; i < ctx.selected_row_total_count_; i++) {
+                        dst[i] = 0;
+                        if (src[i] >= ctx.global_row_offset_ &&
+                            src[i] < (ctx.global_row_offset_ + ctx.row_count_)) {
+                            dst[row_idx++] = src[i] - ctx.global_row_offset_;
+                        }
+                    }
+                    counter_ptr[node_idx] = row_idx;
+                });
+            });
+            auto counter_host = counter_device.to_host(queue_, { last_event });
+            auto counter_host_ptr = counter_host.get_data();
             for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
                 Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
-                Index* gen_row_idx_global_ptr =
-                    selected_row_global_ptr_2 + ctx.selected_row_total_count_ * node_idx;
-                Index* src = gen_row_idx_global_ptr;
-
-                Index* const dst = selected_row_ptr + ctx.selected_row_total_count_ * node_idx;
-
-                Index row_idx = 0;
-                for (Index i = 0; i < ctx.selected_row_total_count_; ++i) {
-                    dst[i] = 0;
-                    if (src[i] >= ctx.global_row_offset_ &&
-                        src[i] < (ctx.global_row_offset_ + ctx.row_count_)) {
-                        dst[row_idx++] = src[i] - ctx.global_row_offset_;
-                    }
-                }
-                node_ptr[impl_const_t::ind_lrc] = row_idx;
+                node_ptr[impl_const_t::ind_lrc] = counter_host_ptr[node_idx];
             }
         }
-
-        last_event = ctx.distr_mode_ ? tree_order_level.assign_from_host(queue_, selected_row_host)
-                                     : tree_order_level.assign_from_host(queue_, arr);
+        last_event =
+            ctx.distr_mode_
+                ? tree_order_level.assign(queue_, selected_row_host)
+                : tree_order_level.assign(queue_, selected_row_global_device, { generation_event });
     }
     else {
         Index row_count = ctx.selected_row_count_;
