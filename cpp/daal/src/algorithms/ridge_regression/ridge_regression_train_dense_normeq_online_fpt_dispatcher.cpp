@@ -28,5 +28,27 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::OnlineContainer, online, DAAL_FPTYPE, ridge_regression::training::normEqDense)
+namespace ridge_regression
+{
+namespace training
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other)
+    : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+template class Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>;
+} // namespace interface1
+} // namespace training
+} // namespace ridge_regression
 } // namespace algorithms
 } // namespace daal

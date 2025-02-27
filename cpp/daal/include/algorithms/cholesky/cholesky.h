@@ -89,7 +89,7 @@ public:
     typedef algorithms::cholesky::Result ResultType;
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a Cholesky decomposition algorithm by copying input objects
@@ -97,7 +97,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /** Destructor */
     virtual ~Batch() {}

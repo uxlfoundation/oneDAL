@@ -28,5 +28,27 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(em_gmm::init::BatchContainer, batch, DAAL_FPTYPE, em_gmm::init::defaultDense)
+namespace em_gmm
+{
+namespace init
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const size_t nComponents) : parameter(nComponents)
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, em_gmm::init::defaultDense>;
+} // namespace interface1
+} // namespace init
+} // namespace em_gmm
 } // namespace algorithms
 } // namespace daal

@@ -38,7 +38,7 @@ namespace training
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
@@ -46,15 +46,14 @@ Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::Batch(size_t nC
 
 using BatchType = Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::Batch(const BatchType & other)
-    : classifier::training::Batch(other), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
 
 template <>
-DAAL_EXPORT services::Status Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::checkComputeParams()
+DAAL_EXPORT services::Status BatchType::checkComputeParams()
 {
     services::Status s = classifier::training::Batch::checkComputeParams();
     if (!s) return s;

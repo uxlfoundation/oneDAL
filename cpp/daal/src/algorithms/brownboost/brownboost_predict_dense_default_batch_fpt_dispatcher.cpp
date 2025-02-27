@@ -38,7 +38,7 @@ namespace prediction
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>::Batch()
+DAAL_EXPORT Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>::Batch()
 {
     _par = new ParameterType();
     initialize();
@@ -46,7 +46,8 @@ Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>::Batch()
 
 using BatchType = Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input)
+DAAL_EXPORT Batch<DAAL_FPTYPE, brownboost::prediction::defaultDense>::Batch(const BatchType & other)
+    : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();

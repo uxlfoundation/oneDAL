@@ -113,13 +113,13 @@ public:
      * Default constructor
      * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch() : parameter(0) { initialize(); }
+    DAAL_DEPRECATED Batch();
 
     /**
      * Default constructor
      * \param[in] nClasses                         Number of classes
      */
-    Batch(size_t nClasses) : parameter(nClasses) { initialize(); }
+    Batch(size_t nClasses);
 
     /**
      * Constructs multi-class classifier training algorithm by copying input objects and parameters
@@ -127,10 +127,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     ~Batch() {}
 

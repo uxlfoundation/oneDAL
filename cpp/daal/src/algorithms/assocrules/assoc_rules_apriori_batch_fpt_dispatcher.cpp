@@ -29,5 +29,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(association_rules::BatchContainer, batch, DAAL_FPTYPE, association_rules::apriori)
+
+namespace association_rules
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, association_rules::apriori>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, association_rules::apriori>;
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+} // namespace interface1
+} // namespace association_rules
 } // namespace algorithms
 } // namespace daal

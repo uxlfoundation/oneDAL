@@ -30,5 +30,26 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, pca::correlationDense)
+namespace pca
+{
+namespace interface1
+{
+template <typename algorithmFPType>
+Distributed<step2Master, algorithmFPType, pca::correlationDense>::Distributed()
+{
+    initialize();
 }
+
+template <typename algorithmFPType>
+Distributed<step2Master, algorithmFPType, pca::correlationDense>::Distributed(
+    const Distributed<step2Master, algorithmFPType, pca::correlationDense> & other)
+    : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>;
+} // namespace interface1
+} // namespace pca
+} // namespace algorithms
 } // namespace daal

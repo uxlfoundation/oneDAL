@@ -31,28 +31,27 @@ namespace prediction
 {
 namespace interface1
 {
-template <typename algorithmFPType, bf_knn_classification::prediction::Method method>
-Batch<algorithmFPType, method>::Batch() : classifier::prediction::Batch()
+
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch() : classifier::prediction::Batch()
 {
     _par = new ParameterType();
     initialize();
 }
 
-template <typename algorithmFPType, bf_knn_classification::prediction::Method method>
-Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::prediction::Batch(other), input(other.input)
-{
-    _par = new ParameterType(other.parameter());
-    initialize();
-}
-
-template <typename algorithmFPType, bf_knn_classification::prediction::Method method>
-Batch<algorithmFPType, method>::Batch(size_t nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, defaultDense>;
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(const Batch & other) : classifier::prediction::Batch(other), input(other.input)
+{
+    _par = new ParameterType(other.parameter());
+    initialize();
+}
 
 } // namespace interface1
 } // namespace prediction

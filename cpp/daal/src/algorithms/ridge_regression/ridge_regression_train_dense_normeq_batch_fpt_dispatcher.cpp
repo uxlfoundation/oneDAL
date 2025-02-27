@@ -28,5 +28,26 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::BatchContainer, batch, DAAL_FPTYPE, ridge_regression::training::normEqDense)
+namespace ridge_regression
+{
+namespace training
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+template class Batch<DAAL_FPTYPE, ridge_regression::training::normEqDense>;
+} // namespace interface1
+} // namespace training
+} // namespace ridge_regression
 } // namespace algorithms
 } // namespace daal

@@ -52,13 +52,11 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : algorithms::regress
     initialize();
 }
 
-template Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>::Batch();
-template Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>::Batch(const Batch &);
+template class Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>;
 
 } // namespace interface1
 } // namespace prediction
 } // namespace regression
 } // namespace stump
-
 } // namespace algorithms
 } // namespace daal

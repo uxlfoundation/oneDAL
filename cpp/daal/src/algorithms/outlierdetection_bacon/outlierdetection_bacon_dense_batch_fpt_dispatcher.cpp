@@ -28,5 +28,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(bacon_outlier_detection::BatchContainer, batch, DAAL_FPTYPE, bacon_outlier_detection::defaultDense)
+namespace bacon_outlier_detection
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template class Batch<DAAL_FPTYPE, bacon_outlier_detection::defaultDense>;
+} // namespace interface1
+} // namespace bacon_outlier_detection
 } // namespace algorithms
 } // namespace daal
