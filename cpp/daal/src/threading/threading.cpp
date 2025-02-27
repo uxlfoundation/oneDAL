@@ -21,6 +21,9 @@
 //--
 */
 
+// #include <iostream>
+// #define DO_PRINT
+
 #include "src/threading/threading.h"
 #include "services/daal_memory.h"
 #include "src/algorithms/service_qsort.h"
@@ -75,10 +78,22 @@ DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle)
     // #endif
 }
 
+/// Initialize task arenas in threader environment.
+///
+/// If the  information about NUMA nodes is available, the default arena is created on the first NUMA node
+/// and the maximal concurrency is limited to the default minimal number of threads used by oneDAL.
+///
+/// If the information about NUMA nodes is not available, the default arena is created on the whole system
+/// and the maximal concurrency is aligned with the maximal oneTBB concurrency
+///
+/// \return 0 if success, -1 if failed
 size_t _initArenas()
 {
     size_t nNUMA = 1;
     DAAL_SAFE_CPU_CALL((nNUMA = daal::threader_env()->getNumberOfNUMANodes()), (nNUMA = 1));
+#ifdef DO_PRINT
+    std::cout << std::endl << "_initArenas: nNUMA = " << nNUMA << std::endl;
+#endif
     if (nNUMA > daal::DAAL_MAX_NUMA_COUNT)
     {
         return -1;
@@ -96,22 +111,15 @@ size_t _initArenas()
         });
         arena->terminate();
         arena->initialize(tbb::task_arena::constraints(numa_indexes[0], daal::threader_env()->getNumberOfThreadsUsed()));
+
+        #ifdef DO_PRINT
+        std::cout << "_initArenas: NUMA 0 max_concurrency = " << daal::threader_env()->getMaxConcurrency(0) << std::endl;
+        std::cout << "_initArenas: NUMA 0 number of threads used = " << daal::threader_env()->getNumberOfThreadsUsed() << std::endl;
+        #endif
         daal::threader_env()->setArena(0, arena);
 
         daal::threader_env()->setDefaultArena(arena);
 
-        // Get maximal concurrency for each arena (other NUMA nodes except the first one)
-        for (size_t i = 1; i < nNUMA; ++i)
-        {
-            tbb::task_arena * arena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
-            arena->initialize(tbb::task_arena::constraints(numa_indexes[i]));
-            arena->execute([&i]{
-                daal::threader_env()->setMaxConcurrency(i, tbb::this_task_arena::max_concurrency());
-            });
-            arena->terminate();
-            delete arena;
-            daal::threader_env()->setArena(i, nullptr);
-        }
     }
     else
     {
@@ -123,46 +131,80 @@ size_t _initArenas()
     return 0;
 }
 
+/// Update the number of threads in the task arenas in threader environment to reach the requested
+/// number of threads if possible.
+///
+/// The function updates the number of threads in the already created arenas by re-initializing the arenas
+/// to reach the requested number of threads.
+/// If the number of threads requested is greater than the number of threads available in already created arenas,
+/// the function creates new arenas attached to the next NUMA nodes and initializes them with the number of threads
+/// necessary to reach the requested number of threads.
+///
+/// @param nThreadsRequested  The number of threads requested by a threading primitive.
 void _updateArenas(size_t nThreadsRequested)
 {
+#ifdef DO_PRINT
+    std::cout << std::endl << "_updateArenas: nThreadsRequested = " << nThreadsRequested << std::endl;
+#endif
     size_t nThreadsUsed = daal::threader_env()->getNumberOfThreadsUsed();
-    if (nThreadsRequested <= nThreadsUsed)
-        return;
     const size_t nThreads = daal::threader_env()->getNumberOfThreads();
+    if (nThreadsRequested <= nThreadsUsed || nThreads <= nThreadsUsed)
+        // Do nothing if the number of threads requested is less than the number of threads already used by oneDAL
+        // or if the number of threads used by oneDAL has already reached the total number of available threads.
+        return;
     if (nThreadsRequested >= nThreads)
+        // If the number of threads requested is greater than the total number of threads available to oneDAL,
+        // limit the number of requested threads with the total number of threads.
         nThreadsRequested = nThreads;
-
     std::vector<tbb::numa_node_id> numa_indexes = tbb::info::numa_nodes();
     const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
-    size_t NUMAIndex = 0;
-    size_t totalMaxConcurrency = 0;
-    while (totalMaxConcurrency < nThreadsRequested && NUMAIndex < nNUMA)
+#ifdef DO_PRINT
+    std::cout << "_updateArenas: nNUMA = " << nNUMA << std::endl;
+#endif
+
+    size_t iArena = 0;                  // Index of the arena to be re-initialized
+    size_t totalMaxConcurrency = 0;     // Total number of threads available in arenas visited so far
+    size_t prevMaxConcurrency = 0;      // Total number of threads available in arenas visited before the current one
+    while (totalMaxConcurrency < nThreadsRequested && iArena < nNUMA)
     {
-        totalMaxConcurrency += daal::threader_env()->getMaxConcurrency(NUMAIndex);
+        /// Update the number of threads available in arenas until the requested number of threads is reached
+        prevMaxConcurrency = totalMaxConcurrency;
+        totalMaxConcurrency += daal::threader_env()->getMaxConcurrency(iArena);
         if (nThreadsRequested <= totalMaxConcurrency)
         {
-            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[NUMAIndex]));
+            // If the requested number of threads can be reached using the current arena (iArena),
+            // re-initialize the current arena with the requested number of threads
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[iArena]));
             arena->terminate();
-            arena->initialize(tbb::task_arena::constraints(numa_indexes[NUMAIndex], nThreadsRequested));
+            arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena], nThreadsRequested - prevMaxConcurrency));
+        #ifdef DO_PRINT
+            std::cout << "_updateArenas: Arena " << iArena << " reinitiaslized with " << nThreadsRequested - prevMaxConcurrency << " threads" << std::endl;
+        #endif
             break;
         }
         else
         {
-            if (totalMaxConcurrency < nThreadsRequested)
+            // If the requested number of threads cannot be reached using the current arena (iArena),
+            // re-initialize the current arena with the maximal number of threads available in the arena
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[iArena]));
+            arena->terminate();
+            arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena], daal::threader_env()->getMaxConcurrency(iArena)));
+        #ifdef DO_PRINT
+            std::cout << "_updateArenas: Arena " << iArena << " reinitiaslized with max concurrency: " <<  daal::threader_env()->getMaxConcurrency(iArena) << " threads" << std::endl;
+        #endif
+            // Move to the next arena
+            iArena++;
+            if (iArena < nNUMA && daal::threader_env()->getArena(numa_indexes[iArena]) == nullptr)
             {
-                tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[NUMAIndex]));
-                arena->terminate();
-                arena->initialize(tbb::task_arena::constraints(numa_indexes[NUMAIndex], daal::threader_env()->getMaxConcurrency(NUMAIndex)));
-            }
-            NUMAIndex++;
-            if (daal::threader_env()->getArena(numa_indexes[NUMAIndex]) == nullptr)
-            {
+                // If the next arena does not exist, create a new arena attached to the next NUMA node
                 tbb::task_arena * arena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
-                arena->initialize(tbb::task_arena::constraints(
-                    numa_indexes[NUMAIndex],
-                    std::min(nThreadsRequested - totalMaxConcurrency, daal::threader_env()->getMaxConcurrency(NUMAIndex)))
-                );
-                daal::threader_env()->setArena(NUMAIndex, arena);
+                arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena]));
+                // Get the maximal concurrency for the new arena
+                arena->execute([&iArena] {
+                    daal::threader_env()->setMaxConcurrency(iArena, tbb::this_task_arena::max_concurrency());
+                });
+
+                daal::threader_env()->setArena(iArena, arena);
                 daal::threader_env()->incrementNumberOfNUMAArenas();
             }
         }
@@ -184,21 +226,19 @@ size_t _initArenasThreadsafe()
 
 void _releaseArenas()
 {
+    static tbb::spin_mutex mt;
+    tbb::spin_mutex::scoped_lock lock(mt);
+    tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+    delete defaultArena;
+    daal::threader_env()->setDefaultArena(nullptr);
     size_t nArenas = 0;
     DAAL_SAFE_CPU_CALL((nArenas = daal::threader_env()->getNumberOfNUMAArenas()), (nArenas = 0));
-    if (nArenas)
+
+    for (size_t i = 1; i < nArenas; ++i)
     {
-        std::vector<tbb::numa_node_id> numa_indexes = tbb::info::numa_nodes();
-        for (size_t i = 0; i < nArenas; ++i)
-        {
-            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
-            delete arena;
-        }
-    }
-    if (daal::threader_env()->getNumberOfNUMANodes() == 1)
-    {
-        tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
-        delete defaultArena;
+        tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
+        delete arena;
+        daal::threader_env()->setArena(i, nullptr);
     }
     daal::threader_env()->resetNumberOfNUMAArenas();
 }
@@ -370,7 +410,7 @@ DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t max_threads, co
     const size_t nthreads      = std::min(nthreadsInEnv, max_threads);
     if (nthreads > 1)
     {
-        _updateArenas(max_threads);
+        _updateArenas(nthreads);
         const size_t nArenas = daal::threader_env()->getNumberOfNUMAArenas();
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
 #if !(defined DAAL_THREAD_PINNING_DISABLED)
@@ -402,7 +442,7 @@ DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t max_threads, co
                 for (size_t i = 0; i < nArenas; ++i)
                 {
                     arenas[i]             = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
-                    const int concurrency = std::min(arenas[i]->max_concurrency(), int(max_threads) - startThreadIndex);
+                    const int concurrency = std::min(arenas[i]->max_concurrency(), int(nthreads) - startThreadIndex);
                     arenas[i]->execute([&]() {                                                            // Run each arena on a dedicated NUMA node
                         tg[i].run([&n, &startThreadIndex, &concurrency, &nblocks_per_thread, &func, &a] { // Run in task group
                             tbb::parallel_for(
@@ -1328,11 +1368,16 @@ ThreaderEnvironment::ThreaderEnvironment() :
     _isInitialized(false)
 {
 #if defined(TARGET_X86_64)
-    _numberOfNUMANodes = tbb::info::numa_nodes().size();
-    _numberOfThreadsUsed = std::min(_numberOfThreads, 16ul);
+    DAAL_SAFE_CPU_CALL((_numberOfNUMANodes = tbb::info::numa_nodes().size()), (_numberOfNUMANodes = 1));
+    DAAL_SAFE_CPU_CALL((_numberOfThreadsUsed = 16ul), (_numberOfThreadsUsed = _numberOfThreads));
+    _numberOfThreadsUsed = std::min(_numberOfThreadsUsed, _numberOfThreads);
 #else
     _numberOfNUMANodes = 1;
     _numberOfThreadsUsed = _numberOfThreads;
+#endif
+#ifdef DO_PRINT
+    std::cout << std::endl << "ThreaderEnvironment(): Number of threads: " << _numberOfThreads << std::endl;
+    std::cout << std::endl << "ThreaderEnvironment(): Number of threads used: " << _numberOfThreadsUsed << std::endl;
 #endif
 }
 
