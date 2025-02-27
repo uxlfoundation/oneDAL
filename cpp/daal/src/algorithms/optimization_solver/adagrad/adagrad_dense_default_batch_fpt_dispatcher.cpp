@@ -33,15 +33,9 @@ namespace adagrad
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(sum_of_functions::BatchPtr objectiveFunction) : parameter(objectiveFunction)
-{
-    initialize();
-}
-
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::adagrad::defaultDense>::Batch(sum_of_functions::BatchPtr objectiveFunction)
+    : parameter(objectiveFunction)
 {
     initialize();
 }
@@ -49,12 +43,17 @@ DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, m
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::adagrad::defaultDense>;
 
 template <>
-services::SharedPtr<BatchType> BatchType::create()
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template <>
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
 
-template class Batch<DAAL_FPTYPE, optimization_solver::adagrad::defaultDense>;
 } // namespace interface2
 } // namespace adagrad
 } // namespace optimization_solver

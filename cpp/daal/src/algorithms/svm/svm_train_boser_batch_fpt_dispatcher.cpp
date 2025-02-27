@@ -34,27 +34,27 @@ namespace training
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::boser>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nClasses)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::boser>::Batch(size_t nClasses)
 {
     parameter.nClasses = nClasses;
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
+using BatchType = Batch<DAAL_FPTYPE, svm::training::boser>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, svm::training::boser>;
 } // namespace interface2
 } // namespace training
 } // namespace svm

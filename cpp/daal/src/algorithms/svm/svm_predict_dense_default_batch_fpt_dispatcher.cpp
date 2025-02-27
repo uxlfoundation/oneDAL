@@ -34,20 +34,20 @@ namespace prediction
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::prediction::defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, svm::prediction::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, svm::prediction::defaultDense>;
 } // namespace interface2
 } // namespace prediction
 } // namespace svm

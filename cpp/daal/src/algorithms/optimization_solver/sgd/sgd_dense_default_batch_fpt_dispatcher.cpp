@@ -33,15 +33,9 @@ namespace sgd
 {
 namespace interface2
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const sum_of_functions::BatchPtr & objectiveFunction) : input(), parameter(objectiveFunction)
-{
-    initialize();
-}
-
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other)
-    : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
+    : input(), parameter(objectiveFunction)
 {
     initialize();
 }
@@ -49,7 +43,13 @@ DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, m
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>;
 
 template <>
-services::SharedPtr<BatchType> BatchType::create()
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template <>
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }

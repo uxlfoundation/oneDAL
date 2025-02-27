@@ -37,26 +37,25 @@ namespace interface1
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>;
 
 template <>
-BatchType::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
+DAAL_EXPORT BatchType::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
 {
     _par = new algorithms::optimization_solver::coordinate_descent::Parameter(objectiveFunction);
     initialize();
 }
 
 template <>
-BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input)
 {
     _par = new algorithms::optimization_solver::coordinate_descent::Parameter(other.parameter());
     initialize();
 }
 
 template <>
-services::SharedPtr<BatchType> BatchType::create()
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
 
-template class Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>;
 } // namespace interface1
 } // namespace coordinate_descent
 } // namespace optimization_solver
