@@ -55,6 +55,8 @@ services::SharedPtr<BatchType> BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
+
+template class DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>;
 } // namespace interface1
 } // namespace coordinate_descent
 } // namespace optimization_solver

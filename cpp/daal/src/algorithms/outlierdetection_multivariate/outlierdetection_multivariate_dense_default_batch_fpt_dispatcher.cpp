@@ -50,6 +50,7 @@ DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, m
 }
 
 template class Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>;
+template class Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>;
 } // namespace interface1
 } // namespace multivariate_outlier_detection
 } // namespace algorithms

@@ -53,6 +53,8 @@ services::SharedPtr<BatchType> BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
+
+template class Batch<DAAL_FPTYPE, optimization_solver::adagrad::defaultDense>;
 } // namespace interface2
 } // namespace adagrad
 } // namespace optimization_solver
