@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
-
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 
@@ -86,23 +84,6 @@ struct train_ops {
                               const input_t& input,
                               const result_t& result) const {}
 
-    /// Check that the hyperparameters of the algorithm belong to the expected ranges
-    template <typename ParameterType>
-    ONEDAL_EXPORT void check_parameters_ranges(const ParameterType& params,
-                                               const input_t& input) const {
-        namespace daal_df = daal::algorithms::decision_forest;
-        if constexpr (std::is_same_v<task_t, task::classification>) {
-            namespace daal_df_cls_train = daal_df::classification::training;
-            ONEDAL_ASSERT(params.get_small_classes_threshold() > 0);
-            ONEDAL_ASSERT(params.get_small_classes_threshold() <=
-                          daal_df_cls_train::internal::MAX_SMALL_N_CLASSES);
-        }
-        ONEDAL_ASSERT(params.get_min_part_coefficient() > 0);
-        ONEDAL_ASSERT(params.get_min_part_coefficient() <= daal_df::internal::MAX_PART_COEFFICIENT);
-        ONEDAL_ASSERT(params.get_min_size_coefficient() > 0);
-        ONEDAL_ASSERT(params.get_min_size_coefficient() <= daal_df::internal::MAX_SIZE_COEFFICIENT);
-    }
-
     template <typename Context>
     auto select_parameters(const Context& ctx, const Descriptor& desc, const input_t& input) const {
         check_preconditions(desc, input);
@@ -116,7 +97,8 @@ struct train_ops {
                     const Descriptor& desc,
                     const param_t& params,
                     const input_t& input) const {
-        check_parameters_ranges(params, input);
+        /// Check that the hyperparameters of the algorithm belong to the expected ranges
+        params.check();
         const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
             ctx,
             dynamic_cast<const descriptor_base_t&>(desc),

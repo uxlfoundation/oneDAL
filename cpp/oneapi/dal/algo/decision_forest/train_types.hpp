@@ -58,6 +58,9 @@ public:
         return *this;
     }
 
+    /// Check that the hyperparameters of the algorithm belong to the expected ranges
+    void check() const;
+
 private:
     void set_min_part_coefficient_impl(std::int64_t val);
     void set_min_size_coefficient_impl(std::int64_t val);
@@ -89,6 +92,9 @@ public:
         set_min_size_coefficient_impl(val);
         return *this;
     }
+
+    /// Check that the hyperparameters of the algorithm belong to the expected ranges
+    void check() const;
 
 private:
     void set_small_classes_threshold_impl(std::int64_t val);
