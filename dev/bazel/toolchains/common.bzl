@@ -19,7 +19,7 @@ load(
     "get_default_flags",
     "get_cpu_flags",
 )
-load("@bazel_tools//tools/cpp:lib_cc_configure.bzl",
+load("@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "get_starlark_list",
 )
 
