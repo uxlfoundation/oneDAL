@@ -32,20 +32,20 @@ namespace low_order_moments
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed()
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, low_order_moments::sumCSR>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, low_order_moments::singlePassCSR>;
 } // namespace interface1
 } // namespace low_order_moments
 } // namespace algorithms

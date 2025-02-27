@@ -32,19 +32,20 @@ namespace low_order_moments
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, low_order_moments::defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : BatchImpl(other)
+using BatchType = Batch<DAAL_FPTYPE, low_order_moments::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : BatchImpl(other)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, low_order_moments::defaultDense>;
 } // namespace interface1
 } // namespace low_order_moments
 } // namespace algorithms

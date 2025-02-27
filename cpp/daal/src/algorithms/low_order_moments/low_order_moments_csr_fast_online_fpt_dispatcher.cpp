@@ -32,19 +32,20 @@ namespace low_order_moments
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, low_order_moments::fastCSR>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+using OnlineType = Online<DAAL_FPTYPE, low_order_moments::fastCSR>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, low_order_moments::fastCSR>;
 } // namespace interface1
 } // namespace low_order_moments
 } // namespace algorithms
