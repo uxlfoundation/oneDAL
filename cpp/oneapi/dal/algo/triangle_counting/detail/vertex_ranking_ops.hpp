@@ -35,6 +35,11 @@ struct vertex_ranking_ops_dispatcher {
         const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(input.get_graph());
 
         static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+
+         if (!impl) {
+            throw std::runtime_error("Failed to get backend implementation");
+        }
+
         return (*impl)(policy, descriptor, t);
     }
 };
