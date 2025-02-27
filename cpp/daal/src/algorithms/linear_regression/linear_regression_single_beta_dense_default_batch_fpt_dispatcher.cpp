@@ -37,14 +37,16 @@ namespace single_beta
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : parameter(other.parameter)
 {
     initialize();
     input.set(expectedResponses, other.input.get(expectedResponses));
@@ -52,7 +54,6 @@ DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, m
     input.set(model, other.input.get(model));
 }
 
-template class Batch<DAAL_FPTYPE, linear_regression::quality_metric::single_beta::defaultDense>;
 } // namespace interface1
 } // namespace single_beta
 } // namespace quality_metric

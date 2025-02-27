@@ -34,20 +34,20 @@ namespace training
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, qrDense>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other)
-    : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
+using OnlineType = Online<DAAL_FPTYPE, qrDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, linear_regression::training::qrDense>;
 } // namespace interface1
 } // namespace training
 } // namespace linear_regression

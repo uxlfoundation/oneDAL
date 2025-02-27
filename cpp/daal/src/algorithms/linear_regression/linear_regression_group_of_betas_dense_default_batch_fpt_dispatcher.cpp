@@ -37,21 +37,22 @@ namespace group_of_betas
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nBeta, size_t nBetaReducedModel) : parameter(nBeta, nBetaReducedModel)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nBeta, size_t nBetaReducedModel) : parameter(nBeta, nBetaReducedModel)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : parameter(other.parameter)
 {
     initialize();
     input.set(expectedResponses, other.input.get(expectedResponses));
     input.set(predictedResponses, other.input.get(predictedResponses));
     input.set(predictedReducedModelResponses, other.input.get(predictedReducedModelResponses));
 }
-template class Batch<DAAL_FPTYPE, linear_regression::quality_metric::group_of_betas::defaultDense>;
 } // namespace interface1
 } // namespace group_of_betas
 } // namespace quality_metric

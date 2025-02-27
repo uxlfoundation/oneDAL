@@ -35,21 +35,21 @@ namespace training
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed()
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::qrDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
-    : parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : parameter(other.parameter)
 {
     initialize();
     input.set(partialModels, other.input.get(partialModels));
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::qrDense>;
 } // namespace interface1
 } // namespace training
 } // namespace linear_regression
