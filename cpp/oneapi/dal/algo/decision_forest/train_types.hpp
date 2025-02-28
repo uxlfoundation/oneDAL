@@ -59,7 +59,7 @@ public:
     }
 
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
-    void check() const;
+    void check_ranges() const;
 
 private:
     void set_min_part_coefficient_impl(std::int64_t val);
@@ -94,7 +94,7 @@ public:
     }
 
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
-    void check() const;
+    void check_ranges() const;
 
 private:
     void set_small_classes_threshold_impl(std::int64_t val);

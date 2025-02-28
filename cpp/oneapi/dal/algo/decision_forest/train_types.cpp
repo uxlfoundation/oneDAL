@@ -60,7 +60,7 @@ void train_parameters<task::classification>::set_min_size_coefficient_impl(std::
     impl_->min_size_coefficient = val;
 }
 
-void train_parameters<task::classification>::check() const {
+void train_parameters<task::classification>::check_ranges() const {
     ONEDAL_ASSERT(impl_->small_classes_threshold > 0);
     ONEDAL_ASSERT(impl_->small_classes_threshold <=
                   daal_df_cls_train::internal::MAX_SMALL_N_CLASSES);
@@ -95,7 +95,7 @@ void train_parameters<task::regression>::set_min_size_coefficient_impl(std::int6
     impl_->min_size_coefficient = val;
 }
 
-void train_parameters<task::regression>::check() const {
+void train_parameters<task::regression>::check_ranges() const {
     ONEDAL_ASSERT(impl_->min_part_coefficient > 0);
     ONEDAL_ASSERT(impl_->min_part_coefficient <= daal_df::internal::MAX_PART_COEFFICIENT);
     ONEDAL_ASSERT(impl_->min_size_coefficient > 0);

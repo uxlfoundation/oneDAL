@@ -98,7 +98,7 @@ struct train_ops {
                     const param_t& params,
                     const input_t& input) const {
         /// Check that the hyperparameters of the algorithm belong to the expected ranges
-        params.check();
+        params.check_ranges();
         const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
             ctx,
             dynamic_cast<const descriptor_base_t&>(desc),
