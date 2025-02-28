@@ -134,6 +134,7 @@ protected:
     template <ndorder order>
     comp_dev_res_t get_deviation(const ndview<Float, 2, order>& inp,
                                  const event_vector& deps = {}) const;
+
 private:
     sycl::queue& q_;
 };
