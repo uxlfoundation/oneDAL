@@ -68,10 +68,10 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_inversed_l2_norms(
 
 template <typename Float>
 sycl::event finalize_correlation(sycl::queue& q,
-                            const ndview<Float, 1>& inp1,
-                            const ndview<Float, 1>& inp2,
-                            ndview<Float, 2>& out,
-                            const event_vector& deps) {
+                                 const ndview<Float, 1>& inp1,
+                                 const ndview<Float, 1>& inp2,
+                                 ndview<Float, 2>& out,
+                                 const event_vector& deps) {
     ONEDAL_PROFILER_TASK(distance.finalize_correlation, q);
 
     ONEDAL_ASSERT(inp1.has_data());
@@ -98,10 +98,10 @@ sycl::event finalize_correlation(sycl::queue& q,
 
 template <typename Float, ndorder order1, ndorder order2>
 sycl::event compute_correlation_inner_product(sycl::queue& q,
-                                         const ndview<Float, 2, order1>& inp1,
-                                         const ndview<Float, 2, order2>& inp2,
-                                         ndview<Float, 2>& out,
-                                         const event_vector& deps) {
+                                              const ndview<Float, 2, order1>& inp1,
+                                              const ndview<Float, 2, order2>& inp2,
+                                              ndview<Float, 2>& out,
+                                              const event_vector& deps) {
     check_inputs(inp1, inp2, out);
     auto event = gemm(q, inp1, inp2.t(), out, Float(+1.0), Float(0.0), deps);
     // Workaround for abort in async mode. Should be removed later.
@@ -111,9 +111,9 @@ sycl::event compute_correlation_inner_product(sycl::queue& q,
 
 template <typename Float, ndorder order>
 sycl::event compute_deviation(sycl::queue& q,
-                                      const ndview<Float, 2, order>& inp,
-                                      ndview<Float, 2>& out,
-                                      const event_vector& deps) {
+                              const ndview<Float, 2, order>& inp,
+                              ndview<Float, 2>& out,
+                              const event_vector& deps) {
     ONEDAL_ASSERT(inp.has_data());
     ONEDAL_ASSERT(out.has_mutable_data());
     const auto n = out.get_dimension(0);
