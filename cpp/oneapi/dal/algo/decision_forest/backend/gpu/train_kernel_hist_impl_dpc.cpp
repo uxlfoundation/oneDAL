@@ -140,28 +140,6 @@ pr::engine_type convert_engine_method(df_engine_types method) {
     }
 }
 
-// Helper function to compute a safe fraction
-template <typename Float, typename Bin, typename Index, typename Task>
-Float train_kernel_hist_impl<Float, Bin, Index, Task>::compute_safe_fraction(
-    const train_context_t& ctx,
-    std::uint64_t total_mem,
-    std::uint64_t base_mem) {
-    constexpr Float min_fraction = 0.01f;
-    constexpr Float max_fraction = 1.0f;
-
-    std::uint64_t available_mem = (total_mem > base_mem) ? total_mem - base_mem : 0;
-    std::uint64_t mem_per_row = sizeof(Index) * 2; // Two buffers for indices
-
-    if (available_mem == 0 || ctx.row_total_count_ == 0) {
-        return max_fraction; // Default fallback
-    }
-
-    Float target_rows = static_cast<Float>(available_mem) / mem_per_row;
-    Float fraction = target_rows / ctx.row_total_count_;
-
-    return std::max(min_fraction, std::min(max_fraction, fraction));
-}
-
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_t& ctx,
                                                                   const descriptor_t& desc,
@@ -181,22 +159,12 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.row_total_count_ = get_row_total_count(ctx.distr_mode_, ctx.row_count_);
     ctx.column_count_ = de::integral_cast<Index>(data.get_column_count());
 
-    // Handle observations_per_tree_fraction with memory check
-    Float user_fraction = desc.get_observations_per_tree_fraction();
-
-    // Calculate memory requirements and adjust fraction if needed
-    const std::uint64_t device_global_mem_size =
-        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
-    std::uint64_t base_mem_usage = sizeof(Float) * ctx.row_total_count_ * (ctx.column_count_ + 1);
-    base_mem_usage += sizeof(Index) * ctx.row_total_count_ * (5);
-    Float recommended_fraction = compute_safe_fraction(ctx, device_global_mem_size, base_mem_usage);
-
-    Float final_fraction = std::min(recommended_fraction, user_fraction);
-    std::cout << "fraction dispatcher uses:" << final_fraction << std::endl;
-    // Apply the final fraction
-    ctx.selected_row_count_ = ctx.distr_mode_ ? impl_const_t::bad_val_
-                                              : static_cast<Index>(final_fraction * ctx.row_count_);
-    ctx.selected_row_total_count_ = final_fraction * ctx.row_total_count_;
+    // in case of distributed mode selected_row_count is defined during initial gen of tree order
+    ctx.selected_row_count_ = ctx.distr_mode_
+                                  ? impl_const_t::bad_val_
+                                  : desc.get_observations_per_tree_fraction() * ctx.row_count_;
+    ctx.selected_row_total_count_ =
+        desc.get_observations_per_tree_fraction() * ctx.row_total_count_;
 
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
@@ -272,6 +240,10 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
     ctx.float_min_ = de::limits<Float>::min();
     ctx.index_max_ = de::limits<Index>::max();
+
+    // Calculate memory requirements and adjust fraction if needed
+    const std::uint64_t device_global_mem_size =
+        queue_.get_device().get_info<sycl::info::device::global_mem_size>();
 
     // define number of trees which can be built in parallel
     const std::uint64_t device_max_mem_alloc_size =
@@ -421,83 +393,58 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
                   ctx.tree_in_block_ * ctx.selected_row_total_count_);
 
     sycl::event last_event;
+    Index* const node_list_ptr = node_list_host.get_mutable_data();
+    Index* const tree_order_ptr = tree_order_level.get_mutable_data();
 
     if (ctx.bootstrap_) {
-        auto selected_row_global_device =
-            pr::ndarray<Index, 1>::empty(queue_,
-                                         { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
-                                         alloc::device);
-        pr::ndarray<Index, 1> selected_row_host;
-        pr::ndarray<Index, 1> counter_device;
-        if (ctx.distr_mode_) {
-            selected_row_host =
-                pr::ndarray<Index, 1>::empty(queue_,
-                                             { ctx.selected_row_total_count_ * ctx.tree_in_block_ },
-                                             alloc::device);
-            counter_device = pr::ndarray<Index, 1>::empty(queue_, { node_count }, alloc::device);
-        }
-
-        Index* const selected_row_global_ptr = selected_row_global_device.get_mutable_data();
-        Index* const selected_row_ptr =
-            ctx.distr_mode_ ? selected_row_host.get_mutable_data() : nullptr;
-        Index* const node_list_ptr = node_list_host.get_mutable_data();
-
-        Index* gen_row_idx_global_ptr = selected_row_global_ptr;
+        // Generate random indices directly into tree_order_ptr
         auto generation_event = pr::uniform<Index>(queue_,
                                                    ctx.selected_row_total_count_ * node_count,
-                                                   gen_row_idx_global_ptr,
+                                                   tree_order_ptr,
                                                    rng_engine_list,
                                                    0,
                                                    ctx.row_total_count_);
 
         if (ctx.distr_mode_) {
-            Index* counter_ptr = counter_device.get_mutable_data();
-            // Submit parallel_for kernel
             last_event = queue_.submit([&](sycl::handler& cgh) {
                 cgh.depends_on(generation_event);
                 cgh.parallel_for(sycl::range<1>(node_count), [=](sycl::id<1> node_idx) {
-                    Index* src = gen_row_idx_global_ptr;
-
-                    Index* dst = selected_row_ptr + ctx.selected_row_total_count_ * node_idx;
+                    // Use tree_order_ptr directly for both source and destination
+                    Index* ptr = tree_order_ptr + ctx.selected_row_total_count_ * node_idx;
 
                     Index row_idx = 0;
                     for (Index i = 0; i < ctx.selected_row_total_count_; i++) {
-                        dst[i] = 0;
-                        if (src[i] >= ctx.global_row_offset_ &&
-                            src[i] < (ctx.global_row_offset_ + ctx.row_count_)) {
-                            dst[row_idx++] = src[i] - ctx.global_row_offset_;
+                        Index val = ptr[i];
+                        if (val >= ctx.global_row_offset_ &&
+                            val < (ctx.global_row_offset_ + ctx.row_count_)) {
+                            ptr[row_idx++] = val - ctx.global_row_offset_;
                         }
                     }
-                    counter_ptr[node_idx] = row_idx;
+                    // Store count directly in node_list_host
+                    Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
+                    node_ptr[impl_const_t::ind_lrc] = row_idx;
+
+                    // Zero out remaining elements
+                    for (Index i = row_idx; i < ctx.selected_row_total_count_; i++) {
+                        ptr[i] = 0;
+                    }
                 });
             });
-            auto counter_host = counter_device.to_host(queue_, { last_event });
-            auto counter_host_ptr = counter_host.get_data();
-            for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
-                Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
-                node_ptr[impl_const_t::ind_lrc] = counter_host_ptr[node_idx];
-            }
         }
-        last_event =
-            ctx.distr_mode_
-                ? tree_order_level.assign(queue_, selected_row_host)
-                : tree_order_level.assign(queue_, selected_row_global_device, { generation_event });
+        else {
+            last_event = generation_event; // Direct assignment is complete
+        }
     }
     else {
         Index row_count = ctx.selected_row_count_;
-        Index stride = ctx.selected_row_total_count_;
         if (ctx.distr_mode_) {
             row_count = 0;
             if (ctx.global_row_offset_ < ctx.selected_row_total_count_) {
                 row_count = std::min(ctx.selected_row_total_count_ - ctx.global_row_offset_,
                                      ctx.row_count_);
             }
-            // in case of no bootstrap
-            // it is valid case if this worker's rows set wasn't taken for tree build
-            // i.e. row_count can be eq 0
 
-            Index* node_list_ptr = node_list_host.get_mutable_data();
-
+            // Store counts directly in node_list_host
             for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
                 Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
                 node_ptr[impl_const_t::ind_lrc] = row_count;
@@ -505,10 +452,11 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         }
 
         if (row_count > 0) {
-            last_event = train_service_kernels_.initialize_tree_order(tree_order_level,
-                                                                      node_count,
-                                                                      row_count,
-                                                                      stride);
+            last_event =
+                train_service_kernels_.initialize_tree_order(tree_order_level,
+                                                             node_count,
+                                                             row_count,
+                                                             ctx.selected_row_total_count_);
         }
     }
 
@@ -1937,16 +1885,16 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
                 0; // for distr_mode it will be updated during tree_order_gen
             node_ptr[impl_const_t::ind_fid] = impl_const_t::bad_val_;
         }
-
+        auto level_node_list_init_gpu = level_node_list_init_host.to_device(queue_);
         last_event = gen_initial_tree_order(ctx,
                                             engine_arr,
-                                            level_node_list_init_host,
+                                            level_node_list_init_gpu,
                                             tree_order_lev_,
                                             iter,
                                             node_count);
 
         auto node_vs_tree_map_list = node_vs_tree_map_list_host.to_device(queue_);
-        level_node_lists.push_back(level_node_list_init_host.to_device(queue_));
+        level_node_lists.push_back(level_node_list_init_gpu);
 
         last_event = compute_initial_histogram(ctx,
                                                response_nd_,

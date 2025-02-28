@@ -103,10 +103,6 @@ private:
                      const table& labels,
                      const table& weights);
 
-    Float compute_safe_fraction(const train_context_t& ctx,
-                                std::uint64_t total_mem,
-                                std::uint64_t base_mem);
-
     /// Allocates all buffers that are used for training.
     /// @param[in] ctx  a training context structure for a GPU backend
     void allocate_buffers(const train_context_t& ctx);
