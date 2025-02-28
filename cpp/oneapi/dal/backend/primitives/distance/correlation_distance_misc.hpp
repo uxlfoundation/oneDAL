@@ -40,23 +40,23 @@ std::tuple<ndarray<Float, 1>, sycl::event> compute_inversed_l2_norms(
 
 template <typename Float, ndorder order1, ndorder order2>
 sycl::event compute_correlation_inner_product(sycl::queue& q,
-                                         const ndview<Float, 2, order1>& inp1,
-                                         const ndview<Float, 2, order2>& inp2,
-                                         ndview<Float, 2>& out,
-                                         const event_vector& deps = {});
+                                              const ndview<Float, 2, order1>& inp1,
+                                              const ndview<Float, 2, order2>& inp2,
+                                              ndview<Float, 2>& out,
+                                              const event_vector& deps = {});
 
 template <typename Float>
 sycl::event finalize_correlation(sycl::queue& q,
-                            const ndview<Float, 1>& inp1,
-                            const ndview<Float, 1>& inp2,
-                            ndview<Float, 2>& out,
-                            const event_vector& deps = {});
+                                 const ndview<Float, 1>& inp1,
+                                 const ndview<Float, 1>& inp2,
+                                 ndview<Float, 2>& out,
+                                 const event_vector& deps = {});
 
 template <typename Float, ndorder order>
 sycl::event compute_deviation(sycl::queue& q,
-                                      const ndview<Float, 2, order>& inp,
-                                      ndview<Float, 2>& out,
-                                      const event_vector& deps = {});
+                              const ndview<Float, 2, order>& inp,
+                              ndview<Float, 2>& out,
+                              const event_vector& deps = {});
 
 template <typename Float, ndorder order>
 std::tuple<ndarray<Float, 2>, sycl::event> compute_deviation(
