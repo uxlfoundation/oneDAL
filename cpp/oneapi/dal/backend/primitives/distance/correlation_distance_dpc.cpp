@@ -19,11 +19,6 @@
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
 #include "oneapi/dal/backend/primitives/reduction/reduction.hpp"
-#include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include "oneapi/dal/backend/primitives/stat/cov.hpp"
-
-
-#include <sycl/sycl.hpp>
 
 namespace oneapi::dal::backend::primitives {
 
@@ -33,6 +28,14 @@ auto distance<Float, correlation_metric<Float>>::get_inversed_norms(const ndview
                                                                const event_vector& deps) const
     -> inv_norms_res_t {
     return compute_inversed_l2_norms(q_, inp, deps);
+}
+
+template <typename Float>
+template <ndorder order>
+auto distance<Float, correlation_metric<Float>>::get_deviation(const ndview<Float, 2, order>& inp,
+                                                               const event_vector& deps) const 
+    -> comp_dev_res_t {
+    return compute_deviation(q_, inp, deps);
 }
 
 template <typename Float>
@@ -49,45 +52,17 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
 
 template <typename Float>
 template <ndorder order1, ndorder order2>
-sycl::event distance<Float, correlation_metric<Float>>::operator()(
-    const ndview<Float, 2, order1>& inp1,
-    const ndview<Float, 2, order2>& inp2,
-    ndview<Float, 2>& out,
-    const event_vector& deps) const {
-    const std::int64_t n = inp1.get_dimension(0);
-    const std::int64_t p = inp1.get_dimension(1);
-    auto inp1_sum = ndarray<Float, 1>::empty(q_, { n });
-    auto inp2_sum = ndarray<Float, 1>::empty(q_, { n });
-    auto inp1_mean = ndarray<Float, 1>::empty(q_, { n });
-    auto inp2_mean = ndarray<Float, 1>::empty(q_, { n });
-    sycl::event evt1 = reduce_by_rows(q_, inp1, inp1_sum,  sum<Float>{}, identity<Float>{}, deps);
-    sycl::event evt2 = reduce_by_rows(q_, inp2, inp2_sum, sum<Float>{}, identity<Float>{}, { evt1 });
-    sycl::event evt3 = means(q_, p, inp1_sum, inp1_mean, { evt2 });
-    sycl::event evt4 = means(q_, p, inp2_sum, inp2_mean, { evt3 });
-    auto centered_inp1 = ndarray<Float, 2>::empty(q_, { n, p });
-    auto centered_inp2 = ndarray<Float, 2>::empty(q_, { n, p });
-    sycl::event evt5 = q_.submit([&](sycl::handler& h) {
-        h.depends_on({ evt4 });
-        auto inp1_acc = inp1.get_data();
-        auto inp2_acc = inp2.get_data();
-        auto inp1_mean_acc = inp1_mean.get_data();
-        auto inp2_mean_acc = inp2_mean.get_data();
-        auto centered1_acc = centered_inp1.get_mutable_data();
-        auto centered2_acc = centered_inp2.get_mutable_data();
+sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<Float, 2, order1>& inp1,
+                                                              const ndview<Float, 2, order2>& inp2,
+                                                              ndview<Float, 2>& out,
+                                                              const event_vector& deps) const {
+    auto [centered_inp1, comp_dev1_event] = get_deviation(inp1, deps);
+    auto [centered_inp2, comp_dev2_event] = get_deviation(inp2, deps);
 
-        h.parallel_for(sycl::range<2>(n, p), [=](sycl::id<2> idx) {
-            const std::int64_t row = idx[0];
-            const std::int64_t col = idx[1];
-            centered1_acc[row * p + col] = inp1_acc[row * p + col] - inp1_mean_acc[row];
-            centered2_acc[row * p + col] = inp2_acc[row * p + col] - inp2_mean_acc[row];
-        });
-    });
-    evt5.wait();
-
-    auto [inv_norms1_array, inv_norms1_event] = get_inversed_norms(centered_inp1, { evt5 });
-    auto [inv_norms2_array, inv_norms2_event] = get_inversed_norms(centered_inp2, { evt5 });
-    return this->operator()(inp1,
-                            inp2,
+    auto [inv_norms1_array, inv_norms1_event] = get_inversed_norms(centered_inp1, { comp_dev1_event });
+    auto [inv_norms2_array, inv_norms2_event] = get_inversed_norms(centered_inp2, { comp_dev2_event });
+    return this->operator()(centered_inp1,
+                            centered_inp2,
                             out,
                             inv_norms1_array,
                             inv_norms2_array,
@@ -95,22 +70,25 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
 }
 
 #define INSTANTIATE(F, A, B)                                                                   \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,\
                                                                    const ndview<F, 2, B>&,     \
                                                                    ndview<F, 2>&,              \
                                                                    const ndview<F, 1>&,        \
                                                                    const ndview<F, 1>&,        \
                                                                    const event_vector&) const; \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,\
                                                                    const ndview<F, 2, B>&,     \
                                                                    ndview<F, 2>&,              \
                                                                    const event_vector&) const;
 
-#define INSTANTIATE_B(F, A)                                                       \
-    INSTANTIATE(F, A, ndorder::c)                                                 \
-    INSTANTIATE(F, A, ndorder::f)                                                 \
-    template std::tuple<ndarray<F, 1>, sycl::event>                               \
+#define INSTANTIATE_B(F, A)                                                            \
+    INSTANTIATE(F, A, ndorder::c)                                                      \
+    INSTANTIATE(F, A, ndorder::f)                                                      \
+    template std::tuple<ndarray<F, 1>, sycl::event>                                    \
     distance<F, correlation_metric<F>>::get_inversed_norms(const ndview<F, 2, A>& inp, \
+                                                      const event_vector& deps) const; \
+    template std::tuple<ndarray<F, 2>, sycl::event>                                    \
+    distance<F, correlation_metric<F>>::get_deviation(const ndview<F, 2, A>& inp,      \
                                                       const event_vector& deps) const;
 
 #define INSTANTIATE_F(F)         \

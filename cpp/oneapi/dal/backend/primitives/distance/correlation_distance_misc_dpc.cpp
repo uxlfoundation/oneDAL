@@ -21,6 +21,7 @@
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
 #include "oneapi/dal/backend/primitives/reduction.hpp"
+#include "oneapi/dal/backend/primitives/stat/cov.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
@@ -108,8 +109,50 @@ sycl::event compute_correlation_inner_product(sycl::queue& q,
     return event;
 }
 
+template <typename Float, ndorder order>
+sycl::event compute_deviation(sycl::queue& q,
+                                      const ndview<Float, 2, order>& inp,
+                                      ndview<Float, 2>& out,
+                                      const event_vector& deps) {
+    ONEDAL_ASSERT(inp.has_data());
+    ONEDAL_ASSERT(out.has_mutable_data());
+    const auto n = out.get_dimension(0);
+    const auto p = out.get_dimension(1);
+    ONEDAL_ASSERT(n == inp.get_dimension(0));
+    ONEDAL_ASSERT(p == inp.get_dimension(1));
+    auto* const inp_ptr = inp.get_mutable_data();
+    const auto out_stride = out.get_leading_stride();
+    auto* const out_ptr = out.get_mutable_data();
+    auto out_range = make_range_2d(n, p);
+    auto inp_sum = ndarray<Float, 1>::empty(q, { n });
+    auto inp_mean = ndarray<Float, 1>::empty(q, { n });
+    auto sum_event = reduce_by_rows(q, inp, inp_sum,  sum<Float>{}, identity<Float>{}, deps);
+    auto mean_event =  means(q, p, inp_sum, inp_mean, { sum_event });
+    return q.submit([&](sycl::handler& h) {
+        h.depends_on({ mean_event });
+        auto const inp_mean_acc = inp_mean.get_data();
+        h.parallel_for(out_range, [=](sycl::id<2> idx) {
+            const auto offset = idx[0] * out_stride + idx[1];
+            out_ptr[offset] = inp_ptr[offset] - inp_mean_acc[idx[0]];
+        });
+
+    });
+}
+
+template <typename Float, ndorder order>
+std::tuple<ndarray<Float, 2>, sycl::event> compute_deviation(
+    sycl::queue& q,
+    const ndview<Float, 2, order>& inp,
+    const event_vector& deps,
+    const sycl::usm::alloc& alloc) {
+    const auto n = inp.get_dimension(0);
+    const auto p = inp.get_dimension(1);
+    auto res_array = ndarray<Float, 2>::empty(q, { n, p }, alloc);
+    return { res_array, compute_deviation(q, inp, res_array, deps) };
+}
+
 #define INSTANTIATE(F, A, B)                                                           \
-    template sycl::event compute_correlation_inner_product<F, A, B>(sycl::queue&,           \
+    template sycl::event compute_correlation_inner_product<F, A, B>(sycl::queue&,      \
                                                                const ndview<F, 2, A>&, \
                                                                const ndview<F, 2, B>&, \
                                                                ndview<F, 2>&,          \
@@ -126,12 +169,21 @@ sycl::event compute_correlation_inner_product(sycl::queue& q,
         sycl::queue&,                                                                \
         const ndview<F, 2, B>&,                                                      \
         const event_vector&,                                                         \
+        const sycl::usm::alloc&);                                                    \
+    template sycl::event compute_deviation<F, B>(sycl::queue&,                       \
+                                                         const ndview<F, 2, B>&,     \
+                                                         ndview<F, 2>&,              \
+                                                         const event_vector&);       \
+    template std::tuple<ndarray<F, 2>, sycl::event> compute_deviation<F, B>(         \
+        sycl::queue&,                                                                \
+        const ndview<F, 2, B>&,                                                      \
+        const event_vector&,                                                         \
         const sycl::usm::alloc&);
 
 #define INSTANTIATE_F(F)                                         \
     INSTANTIATE_A(F, ndorder::c)                                 \
     INSTANTIATE_A(F, ndorder::f)                                 \
-    template sycl::event finalize_correlation<F>(sycl::queue & q,     \
+    template sycl::event finalize_correlation<F>(sycl::queue & q,\
                                             const ndview<F, 1>&, \
                                             const ndview<F, 1>&, \
                                             ndview<F, 2>&,       \

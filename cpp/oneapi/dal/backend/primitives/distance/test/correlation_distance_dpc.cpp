@@ -17,6 +17,7 @@
 #include <array>
 #include <cmath>
 #include <type_traits>
+#include <iostream>
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
@@ -73,6 +74,7 @@ public:
                     mean1 += inp_row1[k];
                     mean2 += inp_row2[k];
                 }
+
                 mean1 /= c_count_;
                 mean2 /= c_count_;
 
@@ -84,11 +86,7 @@ public:
                     tn += t * t;
                     ip += q * t;
                 }
-
-                Float gtv = 1.0;
-                if (qn > 0 && tn > 0) {
-                    gtv -= ip / (std::sqrt(qn) * std::sqrt(tn));
-                }
+		const auto gtv = Float(1.0) - ip / (std::sqrt(qn) * std::sqrt(tn));
 
                 const auto val = *(out.get_data() + out.get_leading_stride() * i + j);
                 const auto diff = gtv - val;

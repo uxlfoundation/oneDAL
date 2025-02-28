@@ -129,6 +129,11 @@ protected:
     inv_norms_res_t get_inversed_norms(const ndview<Float, 2, order>& inp,
                                        const event_vector& deps = {}) const;
 
+    using comp_dev_res_t = std::tuple<ndarray<Float, 2>, sycl::event>;
+
+    template <ndorder order>
+    comp_dev_res_t get_deviation(const ndview<Float, 2, order>& inp,
+                                       const event_vector& deps = {}) const;
 private:
     sycl::queue& q_;
 };
