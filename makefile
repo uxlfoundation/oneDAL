@@ -1003,7 +1003,7 @@ endif
 endif
 
 _release_c: ./deploy/pkg-config/pkg-config.tpl
-	python3 ./deploy/pkg-config/generate_pkgconfig.py --output_dir $(RELEASEDIR.pkgconfig) --template_name ./deploy/pkg-config/pkg-config.tpl
+	python ./deploy/pkg-config/generate_pkgconfig.py --output_dir $(RELEASEDIR.pkgconfig) --template_name ./deploy/pkg-config/pkg-config.tpl
 
 #----- releasing examples
 define .release.x
