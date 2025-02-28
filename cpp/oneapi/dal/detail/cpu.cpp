@@ -38,7 +38,7 @@ ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
     return cpu_extension::none;
 }
 
-cpu_extension detect_top_cpu_extension() {
+ONEDAL_EXPORT cpu_extension detect_top_cpu_extension() {
     if (!__daal_serv_cpu_extensions_available()) {
 #if defined(TARGET_X86_64)
         return detail::cpu_extension::sse2;
