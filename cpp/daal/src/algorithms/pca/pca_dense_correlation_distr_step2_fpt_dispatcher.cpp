@@ -34,21 +34,20 @@ namespace pca
 {
 namespace interface1
 {
-template <typename algorithmFPType>
-Distributed<step2Master, algorithmFPType, pca::correlationDense>::Distributed()
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType>
-Distributed<step2Master, algorithmFPType, pca::correlationDense>::Distributed(
-    const Distributed<step2Master, algorithmFPType, pca::correlationDense> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>;
 } // namespace interface1
 } // namespace pca
 } // namespace algorithms

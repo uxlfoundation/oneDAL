@@ -32,18 +32,19 @@ namespace quantiles
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, quantiles::defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, quantiles::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
-template class Batch<DAAL_FPTYPE, quantiles::defaultDense>;
 } // namespace interface1
 } // namespace quantiles
 } // namespace algorithms

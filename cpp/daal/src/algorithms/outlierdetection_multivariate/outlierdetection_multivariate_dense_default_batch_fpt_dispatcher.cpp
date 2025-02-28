@@ -38,19 +38,24 @@ namespace multivariate_outlier_detection
 namespace interface1
 {
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+Batch<algorithmFPType, method>::Batch()
 {
     initialize();
 }
 
 template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input)
+Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input)
 {
     initialize();
 }
 
-template class Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>;
-template class Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>;
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>::Batch();
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>::Batch();
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>::Batch(
+    const Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense> & other);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>::Batch(
+    const Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense> & other);
+
 } // namespace interface1
 } // namespace multivariate_outlier_detection
 } // namespace algorithms

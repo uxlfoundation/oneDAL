@@ -35,20 +35,20 @@ namespace pca
 namespace interface1
 {
 
-template <typename algorithmFPType>
-DAAL_EXPORT Online<algorithmFPType, pca::correlationDense>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, pca::correlationDense>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType>
-DAAL_EXPORT Online<algorithmFPType, pca::correlationDense>::Online(const Online<algorithmFPType, pca::correlationDense> & other)
-    : input(other.input), parameter(other.parameter)
+using OnlineType = Online<DAAL_FPTYPE, pca::correlationDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, pca::correlationDense>;
 } // namespace interface1
 } // namespace pca
 } // namespace algorithms

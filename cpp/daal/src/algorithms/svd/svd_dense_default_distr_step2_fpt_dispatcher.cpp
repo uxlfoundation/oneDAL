@@ -32,20 +32,20 @@ namespace svd
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed()
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, svd::defaultDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, svd::defaultDense>;
 } // namespace interface1
 } // namespace svd
 } // namespace algorithms

@@ -32,20 +32,20 @@ namespace pca
 {
 namespace interface1
 {
-template <typename algorithmFPType>
-DAAL_EXPORT Online<algorithmFPType, pca::svdDense>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, pca::svdDense>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType>
-DAAL_EXPORT Online<algorithmFPType, pca::svdDense>::Online(const Online<algorithmFPType, pca::svdDense> & other)
-    : input(other.input), parameter(other.parameter)
+using OnlineType = Online<DAAL_FPTYPE, pca::svdDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Online<DAAL_FPTYPE, pca::svdDense>;
 } // namespace interface1
 } // namespace pca
 } // namespace algorithms

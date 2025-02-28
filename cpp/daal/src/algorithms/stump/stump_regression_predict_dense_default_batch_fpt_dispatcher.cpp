@@ -38,21 +38,21 @@ namespace prediction
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>::Batch()
 {
     _par = new ParameterType();
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Batch<algorithmFPType, method>::Batch(const Batch & other) : algorithms::regression::prediction::Batch(other), input(other.input)
+using BatchType = Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const Batch & other) : algorithms::regression::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
-
-template class Batch<DAAL_FPTYPE, stump::regression::prediction::defaultDense>;
 
 } // namespace interface1
 } // namespace prediction

@@ -34,19 +34,20 @@ namespace training
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online()
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>::Online()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Online<algorithmFPType, method>::Online(const Online<algorithmFPType, method> & other)
-    : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
+using OnlineType = Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
 {
     initialize();
 }
-template class Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>;
+
 } // namespace interface1
 } // namespace training
 } // namespace ridge_regression

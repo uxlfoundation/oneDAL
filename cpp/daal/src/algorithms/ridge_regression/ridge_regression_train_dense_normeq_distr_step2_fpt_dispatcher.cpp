@@ -35,21 +35,20 @@ namespace training
 {
 namespace interface1
 {
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, ridge_regression::training::normEqDense>;
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed()
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-Distributed<step2Master, algorithmFPType, method>::Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
-    : input(other.input), parameter(other.parameter)
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
 {
     initialize();
 }
 
-template class Distributed<step2Master, DAAL_FPTYPE, ridge_regression::training::normEqDense>;
 } // namespace interface1
 } // namespace training
 } // namespace ridge_regression

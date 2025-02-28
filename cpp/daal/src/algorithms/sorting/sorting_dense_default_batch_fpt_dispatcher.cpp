@@ -32,18 +32,20 @@ namespace sorting
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, sorting::defaultDense>::Batch()
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input)
+using BatchType = Batch<DAAL_FPTYPE, sorting::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
 {
     initialize();
 }
-template class Batch<DAAL_FPTYPE, sorting::defaultDense>;
+
 } // namespace interface1
 } // namespace sorting
 } // namespace algorithms

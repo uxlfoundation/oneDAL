@@ -37,20 +37,21 @@ namespace explained_variance
 {
 namespace interface1
 {
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(size_t nFeatures, size_t nComponents) : parameter(nFeatures, nComponents)
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nFeatures, size_t nComponents) : parameter(nFeatures, nComponents)
 {
     initialize();
 }
 
-template <typename algorithmFPType, Method method>
-DAAL_EXPORT Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : parameter(other.parameter)
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : parameter(other.parameter)
 {
     initialize();
     input.set(eigenvalues, other.input.get(eigenvalues));
 }
 
-template class Batch<DAAL_FPTYPE, pca::quality_metric::explained_variance::defaultDense>;
 } // namespace interface1
 } // namespace explained_variance
 } // namespace quality_metric
