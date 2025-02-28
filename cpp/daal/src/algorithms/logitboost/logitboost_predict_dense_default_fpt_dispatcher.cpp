@@ -39,7 +39,7 @@ namespace prediction
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(size_t nClasses)
 {
     _par                 = new ParameterType();
     parameter().nClasses = nClasses;
@@ -48,7 +48,7 @@ Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(size_t nClasses)
 
 using BatchType = Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
@@ -56,6 +56,5 @@ Batch<DAAL_FPTYPE, logitboost::prediction::defaultDense>::Batch(const BatchType 
 } // namespace interface2
 } // namespace prediction
 } // namespace logitboost
-
 } // namespace algorithms
 } // namespace daal

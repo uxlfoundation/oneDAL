@@ -30,5 +30,28 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multinomial_naive_bayes::prediction::BatchContainer, batch, DAAL_FPTYPE,
                                       multinomial_naive_bayes::prediction::fastCSR)
+namespace multinomial_naive_bayes
+{
+namespace prediction
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, multinomial_naive_bayes::prediction::fastCSR>::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, multinomial_naive_bayes::prediction::fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace prediction
+} // namespace multinomial_naive_bayes
 } // namespace algorithms
 } // namespace daal

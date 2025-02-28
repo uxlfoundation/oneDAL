@@ -99,13 +99,13 @@ public:
      * Constructs bernoulli distribution
      *  \param[in] p     Success probability of a trial, value from [0.0; 1.0]
      */
-    Batch(algorithmFPType p) : parameter(p) { initialize(); }
+    Batch(algorithmFPType p);
 
     /**
      * Constructs bernoulli distribution by copying input objects and parameters of another bernoulli distribution
      * \param[in] other Bernoulli distribution
      */
-    Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns method of the distribution

@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::interface3::BatchContainer, batch, DAAL_FPTYPE, pca::svdDense)
+namespace pca
+{
+namespace interface3
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, pca::svdDense>::Batch()
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, pca::svdDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface3
+} // namespace pca
+} // namespace algorithms
 } // namespace daal

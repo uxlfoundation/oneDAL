@@ -258,8 +258,8 @@ void partial_train_result<Task>::set_auxiliary_table_impl(const table& value) {
 
 template class ONEDAL_EXPORT train_input<task::dim_reduction>;
 template class ONEDAL_EXPORT train_result<task::dim_reduction>;
-template class ONEDAL_EXPORT partial_train_input<task::dim_reduction>;
 template class ONEDAL_EXPORT partial_train_result<task::dim_reduction>;
+template class ONEDAL_EXPORT partial_train_input<task::dim_reduction>;
 
 } // namespace v1
 } // namespace oneapi::dal::pca

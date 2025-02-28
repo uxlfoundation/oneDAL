@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(svd::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, svd::defaultDense)
+namespace svd
+{
+namespace interface1
+{
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, svd::defaultDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
+{
+    initialize();
 }
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace svd
+} // namespace algorithms
 } // namespace daal

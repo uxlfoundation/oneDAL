@@ -29,5 +29,27 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::linear::BatchContainer, batch, DAAL_FPTYPE, kernel_function::linear::defaultDense)
+namespace kernel_function
+{
+namespace linear
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+} // namespace interface1
+} // namespace linear
+} // namespace kernel_function
 } // namespace algorithms
 } // namespace daal

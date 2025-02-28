@@ -109,7 +109,7 @@ public:
  *      - Result class
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Distributed
+class DAAL_EXPORT Distributed
 {};
 
 /**
@@ -197,7 +197,7 @@ public:
     ParameterType parameter;             /*!< %Parameters structure */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an algorithm that computes moments of low order by copying input objects
@@ -205,7 +205,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

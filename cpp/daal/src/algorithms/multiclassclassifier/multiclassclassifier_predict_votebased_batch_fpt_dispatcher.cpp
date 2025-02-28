@@ -30,5 +30,34 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multi_class_classifier::prediction::BatchContainer, batch, DAAL_FPTYPE,
                                       multi_class_classifier::prediction::voteBased, multi_class_classifier::training::oneAgainstOne)
+namespace multi_class_classifier
+{
+namespace prediction
+{
+namespace interface2
+{
+using BatchType = Batch<DAAL_FPTYPE, voteBased, training::oneAgainstOne>;
+
+template <>
+DAAL_DEPRECATED BatchType::Batch() : parameter(0)
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT BatchType::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace prediction
+} // namespace multi_class_classifier
 } // namespace algorithms
 } // namespace daal

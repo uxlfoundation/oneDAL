@@ -133,14 +133,14 @@ public:
     typedef algorithms::pca::PartialResult<correlationDense> PartialResultType;
 
     /** Default constructor */
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, correlationDense> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Online(const Online<algorithmFPType, correlationDense> & other);
 
     ~Online() {}
 
@@ -250,7 +250,7 @@ private:
  * \tparam algorithmFPType  Data type to use in intermediate computations of the PCA algorithm, double or float
  */
 template <typename algorithmFPType>
-class Online<algorithmFPType, svdDense> : public Analysis<online>
+class DAAL_EXPORT Online<algorithmFPType, svdDense> : public Analysis<online>
 {
 public:
     typedef algorithms::pca::Input InputType;
@@ -259,14 +259,14 @@ public:
     typedef algorithms::pca::PartialResult<svdDense> PartialResultType;
 
     /** Default constructor */
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, svdDense> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Online(const Online<algorithmFPType, svdDense> & other);
 
     ~Online() {}
 
