@@ -25,7 +25,7 @@ namespace oneapi::dal::backend::primitives {
 template <typename Float>
 template <ndorder order>
 auto distance<Float, correlation_metric<Float>>::get_inversed_norms(const ndview<Float, 2, order>& inp,
-                                                               const event_vector& deps) const
+                                                                    const event_vector& deps) const
     -> inv_norms_res_t {
     return compute_inversed_l2_norms(q_, inp, deps);
 }
@@ -41,11 +41,11 @@ auto distance<Float, correlation_metric<Float>>::get_deviation(const ndview<Floa
 template <typename Float>
 template <ndorder order1, ndorder order2>
 sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<Float, 2, order1>& inp1,
-                                                              const ndview<Float, 2, order2>& inp2,
-                                                              ndview<Float, 2>& out,
-                                                              const ndview<Float, 1>& inp1_norms,
-                                                              const ndview<Float, 1>& inp2_norms,
-                                                              const event_vector& deps) const {
+                                                                   const ndview<Float, 2, order2>& inp2,
+                                                                   ndview<Float, 2>& out,
+                                                                   const ndview<Float, 1>& inp1_norms,
+                                                                   const ndview<Float, 1>& inp2_norms,
+                                                                   const event_vector& deps) const {
     auto ip_event = compute_correlation_inner_product(q_, inp1, inp2, out, deps);
     return finalize_correlation(q_, inp1_norms, inp2_norms, out, { ip_event });
 }
@@ -53,9 +53,9 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
 template <typename Float>
 template <ndorder order1, ndorder order2>
 sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<Float, 2, order1>& inp1,
-                                                              const ndview<Float, 2, order2>& inp2,
-                                                              ndview<Float, 2>& out,
-                                                              const event_vector& deps) const {
+                                                                   const ndview<Float, 2, order2>& inp2,
+                                                                   ndview<Float, 2>& out,
+                                                                   const event_vector& deps) const {
     auto [centered_inp1, comp_dev1_event] = get_deviation(inp1, deps);
     auto [centered_inp2, comp_dev2_event] = get_deviation(inp2, deps);
 
@@ -69,16 +69,16 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
                             { inv_norms1_event, inv_norms2_event });
 }
 
-#define INSTANTIATE(F, A, B)                                                                   \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,\
-                                                                   const ndview<F, 2, B>&,     \
-                                                                   ndview<F, 2>&,              \
-                                                                   const ndview<F, 1>&,        \
-                                                                   const ndview<F, 1>&,        \
-                                                                   const event_vector&) const; \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,\
-                                                                   const ndview<F, 2, B>&,     \
-                                                                   ndview<F, 2>&,              \
+#define INSTANTIATE(F, A, B)                                                                        \
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
+                                                                        const ndview<F, 2, B>&,     \
+                                                                        ndview<F, 2>&,              \
+                                                                        const ndview<F, 1>&,        \
+                                                                        const ndview<F, 1>&,        \
+                                                                        const event_vector&) const; \
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
+                                                                   const ndview<F, 2, B>&,          \
+                                                                   ndview<F, 2>&,                   \
                                                                    const event_vector&) const;
 
 #define INSTANTIATE_B(F, A)                                                            \
