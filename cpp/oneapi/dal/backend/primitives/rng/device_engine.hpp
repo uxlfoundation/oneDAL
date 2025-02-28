@@ -360,7 +360,6 @@ void uniform(std::int64_t count, Type* dst, device_engine& engine_, Type a, Type
 template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
-                                 Type* buffer,
                                  device_engine& engine_,
                                  Type a,
                                  Type b) {
@@ -369,7 +368,7 @@ void uniform_without_replacement(std::int64_t count,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     void* state = engine_.get_host_engine_state();
-    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
+    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, state, a, b);
     engine_.skip_ahead_gpu(count);
 }
 
@@ -425,7 +424,6 @@ template <typename Type>
 sycl::event uniform_without_replacement(sycl::queue& queue,
                                         std::int64_t count,
                                         Type* dst,
-                                        Type* buffer,
                                         device_engine& engine_,
                                         Type a,
                                         Type b,
