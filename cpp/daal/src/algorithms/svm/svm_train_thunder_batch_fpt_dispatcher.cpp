@@ -57,6 +57,33 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Ba
 }
 
 } // namespace interface2
+
+// This is different from all other algorithms due to PR #1779, for a NuSVC Multiclass fix
+namespace internal
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch()
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch(size_t nClasses)
+{
+    parameter.nClasses = nClasses;
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, svm::training::thunder>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+
+} // namespace internal
+
 } // namespace training
 } // namespace svm
 } // namespace algorithms
