@@ -70,7 +70,7 @@ namespace v1 {
 
 /// Class containing base node info in decision tree
 template <typename Task = task::by_default>
-class node_info : public base {
+class ONEDAL_EXPORT node_info : public base {
     static_assert(detail::is_valid_task_v<Task>);
     friend dal::detail::pimpl_accessor;
 
@@ -84,11 +84,11 @@ public:
     node_info<task_t>& operator=(node_info<task_t>&&);
 
     /// Number of connections between the node and the root
-    std::int64_t ONEDAL_EXPORT get_level() const;
+    std::int64_t get_level() const;
     /// Measure of the homogeneity of the response variable at the node (i.e., the value of the criterion)
-    double ONEDAL_EXPORT get_impurity() const;
+    double get_impurity() const;
     /// Number of samples at the node
-    std::int64_t ONEDAL_EXPORT get_sample_count() const;
+    std::int64_t get_sample_count() const;
 
 protected:
     using impl_t = detail::node_info_impl<task_t>;
