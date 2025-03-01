@@ -98,8 +98,8 @@ protected:
     impl_t* impl_;
 };
 
-template class ONEDAL_EXPORT node_info<task::classification>;
-template class ONEDAL_EXPORT node_info<task::regression>;
+// template class ONEDAL_EXPORT node_info<task::classification>;
+// template class ONEDAL_EXPORT node_info<task::regression>;
 
 /// Class containing description of split node in decision tree
 template <typename Task = task::by_default>
