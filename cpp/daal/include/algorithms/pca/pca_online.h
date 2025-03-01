@@ -250,7 +250,7 @@ private:
  * \tparam algorithmFPType  Data type to use in intermediate computations of the PCA algorithm, double or float
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Online<algorithmFPType, svdDense> : public Analysis<online>
+class Online<algorithmFPType, svdDense> : public Analysis<online>
 {
 public:
     typedef algorithms::pca::Input InputType;
