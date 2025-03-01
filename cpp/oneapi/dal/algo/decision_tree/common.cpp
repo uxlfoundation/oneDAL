@@ -70,9 +70,8 @@ ONEDAL_EXPORT node_info<task::regression>::node_info(node_info<task::regression>
     orig.impl_ = nullptr;
 }
 
-template <>
-node_info<task::classification>& ONEDAL_EXPORT
-node_info<task::classification>::operator=(const node_info<task_t>& orig) {
+template <typename Task>
+node_info<Task>& node_info<Task>::operator=(const node_info<task_t>& orig) {
     if (&orig == this)
         return *this;
 
@@ -82,35 +81,8 @@ node_info<task::classification>::operator=(const node_info<task_t>& orig) {
     return *this;
 }
 
-template <>
-node_info<task::regression>& ONEDAL_EXPORT
-node_info<task::regression>::operator=(const node_info<task_t>& orig) {
-    if (&orig == this)
-        return *this;
-
-    delete impl_;
-
-    impl_ = new impl_t(*orig.impl_);
-    return *this;
-}
-
-template <>
-node_info<task::classification>& ONEDAL_EXPORT
-node_info<task::classification>::operator=(node_info<task::classification>&& orig) {
-    if (&orig == this)
-        return *this;
-
-    delete impl_;
-
-    impl_ = orig.impl_;
-    orig.impl_ = nullptr;
-
-    return *this;
-}
-
-template <>
-node_info<task::regression>& ONEDAL_EXPORT
-node_info<task::regression>::operator=(node_info<task::regression>&& orig) {
+template <typename Task>
+node_info<Task>& node_info<Task>::operator=(node_info<task_t>&& orig) {
     if (&orig == this)
         return *this;
 
