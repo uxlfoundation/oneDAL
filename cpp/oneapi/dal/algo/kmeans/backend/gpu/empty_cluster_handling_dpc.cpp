@@ -56,8 +56,8 @@ static auto fill_candidate_indices_and_distances(sycl::queue& queue,
         });
     });
 
-    auto sort_event =
-        pr::radix_sort_indices_inplace<Float, std::int32_t>(queue, values, indices, { fill_event });
+    pr::radix_sort_indices_inplace<Float, std::int32_t> radix_sort{ queue };
+    auto sort_event = radix_sort(values, indices, { fill_event });
 
     auto copy_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(sort_event);

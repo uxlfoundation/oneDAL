@@ -32,9 +32,9 @@ large_k_uniform_voting<ClassType>::large_k_uniform_voting(sycl::queue& q,
         : base_t{ q },
           swp_(
               ndarray<ClassType, 2>::empty(q, { max_block, k_response }, sycl::usm::alloc::device)),
-          out_(ndarray<ClassType, 2>::empty(q,
-                                            { max_block, k_response },
-                                            sycl::usm::alloc::device)) {}
+          out_(
+              ndarray<ClassType, 2>::empty(q, { max_block, k_response }, sycl::usm::alloc::device)),
+          sorting_{ q } {}
 
 template <typename ClassType>
 sycl::event large_k_uniform_voting<ClassType>::select_winner(ndview<ClassType, 1>& results,
@@ -85,7 +85,7 @@ sycl::event large_k_uniform_voting<ClassType>::operator()(const ndview<ClassType
     auto swp_slice = swp_.get_row_slice(0, n);
     auto out_slice = out_.get_row_slice(0, n);
     auto cpy_event = copy(this->get_queue(), swp_slice, responses, deps);
-    auto srt_event = radix_sort(this->get_queue(), swp_slice, out_slice, { cpy_event });
+    auto srt_event = sorting_(swp_slice, out_slice, { cpy_event });
     return select_winner(results, { srt_event });
 }
 
