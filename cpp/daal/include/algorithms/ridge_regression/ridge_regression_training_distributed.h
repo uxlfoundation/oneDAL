@@ -138,7 +138,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed<step1Local, algorithmFPType, method>() : Online<algorithmFPType, method>() {}
+    Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs a ridge regression training algorithm in the first step of the distributed processing mode by copying input objects and parameters
