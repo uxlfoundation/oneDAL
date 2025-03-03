@@ -102,6 +102,18 @@ splitter_mode::random
    and selects the best feature in terms of impurity
    computed for that random split from the feature subsets.
 
+`df_engine_types`
+~~~~~~~~~~~~~~~
+
+df_engine_types::mt2203
+   The best splitting strategy chooses the best threshold for each feature while building trees
+   in terms of impurity among all histogram bins and feature subsets.
+
+df_engine_types::philox
+   The random splitting strategy chooses a random threshold for each feature while building trees
+   and selects the best feature in terms of impurity
+   computed for that random split from the feature subsets.
+
 Descriptor
 ++++++++++
 .. onedal_class:: oneapi::dal::decision_forest::descriptor
