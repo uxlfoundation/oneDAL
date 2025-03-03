@@ -612,6 +612,7 @@ public:
     }
 
     /// Engine method for the random numbers generator used by the algorithm
+    /// @remark default = df_engine_method::philox
     df_engine_types get_engine_method() const {
         return base_t::get_engine_method();
     }
