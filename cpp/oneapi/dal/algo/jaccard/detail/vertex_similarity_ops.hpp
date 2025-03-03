@@ -34,7 +34,6 @@ struct vertex_similarity_ops_dispatcher {
         const Policy &policy,
         const Descriptor &descriptor,
         vertex_similarity_input<Graph, task_t> &input) const {
-        
         auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
         const auto &t = topology_builder(input.get_graph());
 
