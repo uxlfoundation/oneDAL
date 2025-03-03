@@ -145,7 +145,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed<step1Local, algorithmFPType, method>() {}
+    Distributed() {}
 
     /**
      * Constructs a linear regression training algorithm in the first step of the distributed processing mode

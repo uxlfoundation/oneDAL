@@ -35,6 +35,7 @@ using dal::backend::context_cpu;
 using model_t = model<task::regression>;
 using input_t = train_input<task::regression>;
 using result_t = train_result<task::regression>;
+using param_t = detail::train_parameters<task::regression>;
 using descriptor_t = detail::descriptor_base<task::regression>;
 
 namespace daal_df = daal::algorithms::decision_forest;
@@ -221,6 +222,7 @@ template <typename Float, typename Task>
 struct train_kernel_cpu<Float, method::dense, Task> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
         return train<Float, reg_dense_kernel_t>(ctx, desc, input);
     }
@@ -230,6 +232,7 @@ template <typename Float, typename Task>
 struct train_kernel_cpu<Float, method::hist, Task> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
         return train<Float, reg_hist_kernel_t>(ctx, desc, input);
     }
