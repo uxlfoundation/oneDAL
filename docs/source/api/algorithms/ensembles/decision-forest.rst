@@ -69,25 +69,6 @@ variable_importance_mode::mda_scaled
    Mean Decrease Accuracy (permutation importance).
    This is MDA_Raw value scaled by its standard deviation.
 
-`df_engine_types`
-~~~~~~~~~~~~~~~~~
-
-df_engine_types::mt2203
-   The engine method is mt2203 - Mersenne Twister engine with specific optimizations for 
-   parallel environments.
-
-df_engine_types::mcg59
-   The engine method is mcg59 - Multiplicative congruential generator with a modulus of \(2^{59}\).
-
-df_engine_types::mt19937
-   The engine method is mt19937 - Standard Mersenne Twister engine with a period of \(2^{19937} - 1\).
-
-df_engine_types::mrg32k3a
-   The engine method is mrg32k3a - Combined multiple recursive generator with a period of \(2^{191}\).
-
-df_engine_types::philox4x32x10
-   The engine method is philox4x32x10 - Counter-based RNG engine optimized for parallel computations.
-
 `infer_mode`
 ~~~~~~~~~~~~
 
@@ -120,6 +101,25 @@ splitter_mode::random
    The random splitting strategy chooses a random threshold for each feature while building trees
    and selects the best feature in terms of impurity
    computed for that random split from the feature subsets.
+
+`df_engine_types`
+~~~~~~~~~~~~~~~~~
+
+df_engine_types::mt2203
+   The engine method is mt2203 - Mersenne Twister engine with specific optimizations for 
+   parallel environments.
+
+df_engine_types::mcg59
+   The engine method is mcg59 - Multiplicative congruential generator with a modulus of \(2^{59}\).
+
+df_engine_types::mt19937
+   The engine method is mt19937 - Standard Mersenne Twister engine with a period of \(2^{19937} - 1\).
+
+df_engine_types::mrg32k3a
+   The engine method is mrg32k3a - Combined multiple recursive generator with a period of \(2^{191}\).
+
+df_engine_types::philox4x32x10
+   The engine method is philox4x32x10 - Counter-based RNG engine optimized for parallel computations.
 
 Descriptor
 ++++++++++
