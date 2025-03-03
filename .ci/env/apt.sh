@@ -99,6 +99,27 @@ function build_sysroot {
     popd || exit
 }
 
+function install_miniforge {
+    local platform
+    local version
+    local installer
+
+    platform="$(uname)-$(uname -m)"
+    version=$(curl -s https://api.github.com/repos/conda-forge/miniforge/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+    installer=Miniforge3-${version}-${platform}.sh
+
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}"
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}.sha256"
+
+    if ! sha256sum -c "${installer}.sha256"; then
+        echo "Error: SHA256 checksum verification failed."
+        exit 1
+    fi
+
+    sudo bash "${installer}" -b -p /usr/share/miniconda
+    source /usr/share/miniconda/etc/profile.d/conda.sh
+}
+
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
@@ -132,8 +153,13 @@ elif [ "${component}" == "llvm-version" ] ; then
 elif [ "${component}" == "build-sysroot" ] ; then
     update
     build_sysroot "$2" "$3" "$4" "$5"
+elif [ "${component}" == "miniforge" ] ; then
+    if [ ! -f /usr/share/miniconda/etc/profile.d/conda.sh ] ; then
+        install_miniforge
+    fi
+    install_dev-base-conda
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
     exit 1
 fi

@@ -284,7 +284,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step2Master> : public daal::algorithms::Input, public InputIface
 {
 public:
-    DistributedInput<step2Master>();
+    DistributedInput();
     /**
      * Gets an input object for linear regression model-based training
      * in the second step of the distributed processing mode

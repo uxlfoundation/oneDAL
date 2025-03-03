@@ -71,6 +71,24 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
     #endif
 }
 
+uint32_t __daal_internal_get_max_extension_support()
+{
+    // Running cpuid with a value other than eax=0 and 0x8000000 is an extension
+    // To check that a particular eax value is supported we need to check
+    // maximum extension that is supported by checking the value returned by
+    // cpuid when eax=0x80000000 is given.
+    uint32_t abcd[4];
+    run_cpuid(0x80000000, 0, abcd);
+    return abcd[0];
+}
+
+uint32_t daal_get_max_extension_support()
+{
+    // We cache the result in a static variable here.
+    static const uint32_t result = __daal_internal_get_max_extension_support();
+    return result;
+}
+
 bool __daal_internal_is_intel_cpu()
 {
     const uint32_t genu = 0x756e6547, inei = 0x49656e69, ntel = 0x6c65746e;
@@ -87,6 +105,11 @@ DAAL_EXPORT bool daal_check_is_intel_cpu()
 
 static int check_cpuid(uint32_t eax, uint32_t ecx, int abcd_index, uint32_t mask)
 {
+    if (daal_get_max_extension_support() < eax)
+    {
+        // need to check that the eax we run here is supported.
+        return 0;
+    }
     uint32_t abcd[4];
 
     run_cpuid(eax, ecx, abcd);
@@ -191,11 +214,6 @@ static int check_sse42_features()
     return 1;
 }
 
-DAAL_EXPORT bool __daal_serv_cpu_extensions_available()
-{
-    return daal_check_is_intel_cpu();
-}
-
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
     #if defined(__APPLE__)
@@ -226,11 +244,6 @@ static bool check_sve_features()
     return (hwcap & HWCAP_SVE) != 0;
 }
 
-DAAL_EXPORT bool __daal_serv_cpu_extensions_available()
-{
-    return 0;
-}
-
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
     if (check_sve_features())
@@ -250,11 +263,6 @@ bool daal_check_is_intel_cpu()
     return false;
 }
 #elif defined(TARGET_RISCV64)
-DAAL_EXPORT bool __daal_serv_cpu_extensions_available()
-{
-    return 0;
-}
-
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
     return daal::rv64;
