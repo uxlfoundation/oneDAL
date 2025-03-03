@@ -37,8 +37,8 @@ const spmd::communicator<MemoryAccessKind>& spmd_policy_base<MemoryAccessKind>::
     return impl_->comm;
 }
 
-template class spmd_policy_base<spmd::device_memory_access::usm>;
-template class spmd_policy_base<spmd::device_memory_access::none>;
+template class ONEDAL_EXPORT spmd_policy_base<spmd::device_memory_access::usm>;
+template class ONEDAL_EXPORT spmd_policy_base<spmd::device_memory_access::none>;
 
 } // namespace v1
 } // namespace oneapi::dal::detail
