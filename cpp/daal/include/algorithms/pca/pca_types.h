@@ -474,7 +474,7 @@ class DAAL_EXPORT OnlineParameter : public BaseParameter<algorithmFPType, method
     * \brief Class that specifies the parameters of the PCA Correlation algorithm in the online computing mode
     */
 template <typename algorithmFPType>
-class OnlineParameter<algorithmFPType, correlationDense> : public BaseParameter<algorithmFPType, correlationDense>
+class DAAL_EXPORT OnlineParameter<algorithmFPType, correlationDense> : public BaseParameter<algorithmFPType, correlationDense>
 {
 public:
     /** Constructs PCA parameters */
@@ -496,7 +496,7 @@ public:
     * \brief Class that specifies the parameters of the PCA SVD algorithm in the online computing mode
     */
 template <typename algorithmFPType>
-class OnlineParameter<algorithmFPType, svdDense> : public BaseParameter<algorithmFPType, svdDense>
+class DAAL_EXPORT OnlineParameter<algorithmFPType, svdDense> : public BaseParameter<algorithmFPType, svdDense>
 {
 public:
     /** Constructs PCA parameters */
