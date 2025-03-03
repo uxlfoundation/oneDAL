@@ -381,7 +381,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
 template <typename Float, typename Bin, typename Index, typename Task>
 sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_order(
     train_context_t& ctx,
-    rng_engine_list_t& rng_engine_list,
+    rng_engine_t& rng_engine,
     pr::ndarray<Index, 1>& node_list_host,
     pr::ndarray<Index, 1>& tree_order_level,
     Index engine_offset,
@@ -401,7 +401,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
         auto generation_event = pr::uniform<Index>(queue_,
                                                    ctx.selected_row_total_count_ * node_count,
                                                    tree_order_ptr,
-                                                   rng_engine_list,
+                                                   rng_engine,
                                                    0,
                                                    ctx.row_total_count_);
 
@@ -469,7 +469,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
     const train_context_t& ctx,
     Index node_count,
     const pr::ndarray<Index, 1>& node_vs_tree_map_list,
-    rng_engine_list_t& rng_engine_list) {
+    rng_engine_t& rng_engine) {
     ONEDAL_PROFILER_TASK(gen_feature_list, queue_);
 
     ONEDAL_ASSERT(node_vs_tree_map_list.get_count() == node_count);
@@ -488,7 +488,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
             pr::uniform_without_replacement<Index>(
                 ctx.selected_ftr_count_,
                 selected_features_host_ptr + node * ctx.selected_ftr_count_,
-                rng_engine_list,
+                rng_engine,
                 0,
                 ctx.column_count_);
         }
@@ -510,7 +510,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
     const train_context_t& ctx,
     Index node_count,
     const pr::ndarray<Index, 1>& node_vs_tree_map,
-    rng_engine_list_t& rng_engine_list) {
+    rng_engine_t& rng_engine) {
     ONEDAL_PROFILER_TASK(gen_random_thresholds, queue_);
 
     ONEDAL_ASSERT(node_vs_tree_map.get_count() == node_count);
@@ -525,7 +525,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_random_thresholds(
     // Generate random bins for selected features
     pr::uniform<Float>(ctx.selected_ftr_count_ * node_count,
                        random_bins_host_ptr,
-                       rng_engine_list,
+                       rng_engine,
                        0.0f,
                        1.0f);
 
@@ -1596,7 +1596,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_results(
     pr::ndarray<hist_type_t, 1>& oob_per_obs_list,
     pr::ndarray<Float, 1>& var_imp,
     pr::ndarray<Float, 1>& var_imp_variance,
-    rng_engine_list_t& engine_arr,
+    rng_engine_t& engine_gpu,
     Index tree_idx_in_block,
     Index tree_in_block_count,
     Index built_tree_count,
@@ -1644,7 +1644,7 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_results(
             const Float div1 = Float(1) / Float(built_tree_count + tree_idx_in_block + 1);
 
             for (Index column_idx = 0; column_idx < ctx.column_count_; ++column_idx) {
-                pr::shuffle<Index>(oob_row_count, permutation_ptr, engine_arr);
+                pr::shuffle<Index>(oob_row_count, permutation_ptr, engine_gpu);
                 const Float oob_err_perm = compute_oob_error_perm(ctx,
                                                                   model_manager,
                                                                   data_host,
@@ -1838,7 +1838,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
     de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
 
     auto engine_method = convert_engine_method(desc.get_engine_method());
-    rng_engine_list_t engine_arr =
+    rng_engine_t engine_gpu =
         ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_method);
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
@@ -1887,7 +1887,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
         }
         auto level_node_list_init_gpu = level_node_list_init_host.to_device(queue_);
         last_event = gen_initial_tree_order(ctx,
-                                            engine_arr,
+                                            engine_gpu,
                                             level_node_list_init_gpu,
                                             tree_order_lev_,
                                             iter,
@@ -1922,11 +1922,11 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             imp_data_t left_child_imp_data(queue_, ctx, node_count);
 
             auto [selected_features_com, event] =
-                gen_feature_list(ctx, node_count, node_vs_tree_map_list, engine_arr);
+                gen_feature_list(ctx, node_count, node_vs_tree_map_list, engine_gpu);
             event.wait_and_throw();
 
             auto [random_bins_com, gen_bins_event] =
-                gen_random_thresholds(ctx, node_count, node_vs_tree_map_list, engine_arr);
+                gen_random_thresholds(ctx, node_count, node_vs_tree_map_list, engine_gpu);
             gen_bins_event.wait_and_throw();
 
             if (ctx.mdi_required_) {
@@ -2062,7 +2062,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
                             oob_per_obs_list_,
                             res_var_imp_,
                             var_imp_variance_host_,
-                            engine_arr,
+                            engine_gpu,
                             tree_idx,
                             iter_tree_count,
                             iter,
