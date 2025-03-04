@@ -47,7 +47,7 @@ header:
     # Clang-format config
     - '.clang-format'
     # Editorconfig configs
-    - '.ecrc'
+    - '.editorconfig-checker.json'
     - '.editorconfig'
     # Samples READMEs and licenses:
     - 'samples/daal/cpp/mpi/README.md'
@@ -72,6 +72,7 @@ header:
     - '.github/workflows/*.yml'
     - '.github/.mergify.yml'
     - '.github/CODEOWNERS'
+    - '.github/pull_request_template.md'
     - '.github/renovate.json'
     # Specific files
     - 'LICENSE'

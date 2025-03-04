@@ -66,6 +66,16 @@ Parameter::Parameter(const Parameter & other)
       nClasses(other.nClasses)
 {}
 
+Parameter & Parameter::operator=(const Parameter & other)
+{
+    sum_of_functions::Parameter::operator=(other);
+    this->interceptFlag = other.interceptFlag;
+    this->penaltyL1     = other.penaltyL1;
+    this->penaltyL2     = other.penaltyL2;
+    this->nClasses      = other.nClasses;
+    return *this;
+}
+
 /**
  * Checks the correctness of the parameter
  */
@@ -81,6 +91,12 @@ services::Status Parameter::check() const
 Input::Input() : sum_of_functions::Input(lastInputId + 1) {}
 
 Input::Input(const Input & other) : sum_of_functions::Input(other) {}
+
+Input & Input::operator=(const Input & other)
+{
+    sum_of_functions::Input::operator=(other);
+    return *this;
+}
 
 /**
  * Sets one input object for Logistic loss objective function

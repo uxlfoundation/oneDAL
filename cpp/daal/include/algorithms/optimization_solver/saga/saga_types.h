@@ -135,6 +135,7 @@ private:
 public:
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     using super::set;
     using super::get;

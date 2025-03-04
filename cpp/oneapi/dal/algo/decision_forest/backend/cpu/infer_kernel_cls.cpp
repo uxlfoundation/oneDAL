@@ -39,7 +39,7 @@ using descriptor_t = detail::descriptor_base<task::classification>;
 
 namespace daal_df = daal::algorithms::decision_forest;
 
-using daal_hyperparameters_t = daal_df::internal::Hyperparameter;
+using daal_hyperparameters_t = daal_df::prediction::internal::Hyperparameter;
 
 namespace daal_df = daal::algorithms::decision_forest;
 namespace daal_df_cls_pred = daal_df::classification::prediction;
@@ -59,8 +59,8 @@ static daal_df::classification::ModelPtr get_daal_model(const model_t& trained_m
 }
 
 static daal_hyperparameters_t convert_parameters(const param_t& params) {
-    using daal_df::internal::HyperparameterId;
-    using daal_df::internal::DoubleHyperparameterId;
+    using daal_df::prediction::internal::HyperparameterId;
+    using daal_df::prediction::internal::DoubleHyperparameterId;
 
     const std::int64_t block = params.get_block_size();
     const std::int64_t minTrees = params.get_min_trees_for_threading();

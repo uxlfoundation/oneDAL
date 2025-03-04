@@ -14,10 +14,95 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
+
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
 namespace oneapi::dal::decision_forest {
+
+namespace detail::v1 {
+
+namespace daal_df = daal::algorithms::decision_forest;
+namespace daal_df_cls_train = daal_df::classification::training;
+
+template <>
+struct train_parameters_impl<task::classification> : public base {
+    std::int64_t small_classes_threshold = 8l;
+    std::int64_t min_part_coefficient = 4l;
+    std::int64_t min_size_coefficient = 24000l;
+};
+
+train_parameters<task::classification>::train_parameters()
+        : impl_(new train_parameters_impl<task::classification>{}) {}
+
+std::int64_t train_parameters<task::classification>::get_small_classes_threshold() const {
+    return impl_->small_classes_threshold;
+}
+
+void train_parameters<task::classification>::set_small_classes_threshold_impl(std::int64_t val) {
+    impl_->small_classes_threshold = val;
+}
+
+std::int64_t train_parameters<task::classification>::get_min_part_coefficient() const {
+    return impl_->min_part_coefficient;
+}
+
+void train_parameters<task::classification>::set_min_part_coefficient_impl(std::int64_t val) {
+    impl_->min_part_coefficient = val;
+}
+
+std::int64_t train_parameters<task::classification>::get_min_size_coefficient() const {
+    return impl_->min_size_coefficient;
+}
+
+void train_parameters<task::classification>::set_min_size_coefficient_impl(std::int64_t val) {
+    impl_->min_size_coefficient = val;
+}
+
+void train_parameters<task::classification>::check_ranges() const {
+    ONEDAL_ASSERT(impl_->small_classes_threshold > 0);
+    ONEDAL_ASSERT(impl_->small_classes_threshold <=
+                  daal_df_cls_train::internal::MAX_SMALL_N_CLASSES);
+    ONEDAL_ASSERT(impl_->min_part_coefficient > 0);
+    ONEDAL_ASSERT(impl_->min_part_coefficient <= daal_df::internal::MAX_PART_COEFFICIENT);
+    ONEDAL_ASSERT(impl_->min_size_coefficient > 0);
+    ONEDAL_ASSERT(impl_->min_size_coefficient <= daal_df::internal::MAX_SIZE_COEFFICIENT);
+}
+
+template <>
+struct train_parameters_impl<task::regression> : public base {
+    std::int64_t min_part_coefficient = 4l;
+    std::int64_t min_size_coefficient = 24000l;
+};
+
+train_parameters<task::regression>::train_parameters()
+        : impl_(new train_parameters_impl<task::regression>{}) {}
+
+std::int64_t train_parameters<task::regression>::get_min_part_coefficient() const {
+    return impl_->min_part_coefficient;
+}
+
+void train_parameters<task::regression>::set_min_part_coefficient_impl(std::int64_t val) {
+    impl_->min_part_coefficient = val;
+}
+
+std::int64_t train_parameters<task::regression>::get_min_size_coefficient() const {
+    return impl_->min_size_coefficient;
+}
+
+void train_parameters<task::regression>::set_min_size_coefficient_impl(std::int64_t val) {
+    impl_->min_size_coefficient = val;
+}
+
+void train_parameters<task::regression>::check_ranges() const {
+    ONEDAL_ASSERT(impl_->min_part_coefficient > 0);
+    ONEDAL_ASSERT(impl_->min_part_coefficient <= daal_df::internal::MAX_PART_COEFFICIENT);
+    ONEDAL_ASSERT(impl_->min_size_coefficient > 0);
+    ONEDAL_ASSERT(impl_->min_size_coefficient <= daal_df::internal::MAX_SIZE_COEFFICIENT);
+}
+
+} // namespace detail::v1
 
 template <typename Task>
 class detail::v1::train_input_impl : public base {
@@ -46,6 +131,7 @@ public:
     table variable_importance;
 };
 
+using detail::v1::train_parameters;
 using detail::v1::train_input_impl;
 using detail::v1::train_result_impl;
 
