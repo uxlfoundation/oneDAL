@@ -27,6 +27,7 @@ using model_t = model<task::regression>;
 using input_t = train_input<task::regression>;
 using result_t = train_result<task::regression>;
 using descriptor_t = detail::descriptor_base<task::regression>;
+using param_t = const detail::train_parameters<task::regression>;
 
 template <typename Float>
 static result_t call_train_kernel(const context_gpu& ctx,
@@ -52,6 +53,7 @@ template <typename Float, typename Task>
 struct train_kernel_gpu<Float, method::hist, Task> {
     result_t operator()(const context_gpu& ctx,
                         const descriptor_t& desc,
+                        const param_t& params,
                         const input_t& input) const {
         return train<Float>(ctx, desc, input);
     }
