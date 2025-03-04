@@ -22,6 +22,8 @@
 
 #include <arm_sve.h>
 
+#ifndef ONEDAL_XSIMD_ENABLED
+
 /*
 // Computes sum of the elements of input array of type `float` with sve instructions.
 */
@@ -79,6 +81,8 @@ double sumWithSIMD<double, sve>(size_t n, const double * dataPtr)
 
     return sum;
 }
+
+#endif // ONEDAL_XSIMD_ENABLED
 
 template <>
 float computeSum<float, sve>(size_t nDataPtrs, size_t nElementsPerPtr, const float ** dataPtrs)

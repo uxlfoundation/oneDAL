@@ -18,6 +18,8 @@
 #ifndef __FINITENESS_CHECKER_AVX512_IMPL_I__
 #define __FINITENESS_CHECKER_AVX512_IMPL_I__
 
+#ifndef ONEDAL_XSIMD_ENABLED
+
 /*
 // Computes sum of the elements of input array of type `float` with AVX512 instructions.
 */
@@ -59,6 +61,8 @@ double sumWithSIMD<double, avx512>(size_t n, const double * dataPtr)
 
     return sum;
 }
+
+#endif // ONEDAL_XSIMD_ENABLED
 
 template <>
 float computeSum<float, avx512>(size_t nDataPtrs, size_t nElementsPerPtr, const float ** dataPtrs)

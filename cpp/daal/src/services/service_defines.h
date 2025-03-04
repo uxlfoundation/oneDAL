@@ -28,6 +28,13 @@
 #include <stdint.h>
 #include "services/env_detect.h"
 
+
+#ifdef ONEDAL_XSIMD_ENABLED
+
+#include "xsimd/xsimd.hpp"
+
+#endif
+
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
@@ -154,6 +161,37 @@ enum DataFormat
 #define __GLUE__(a, b)   a##b
 #define __CPUID__(cpu)   __GLUE__(CPU_, cpu)
 #define __FPTYPE__(type) __GLUE__(FPTYPE_, type)
+
+
+#ifdef ONEDAL_XSIMD_ENABLED
+
+#if (__CPUID__(DAAL_CPU) == __avx512__)
+
+    #define ONEDAL_XSIMD_ARCH xsimd::avx512bw
+
+#elif (__CPUID__(DAAL_CPU) == __avx2__)
+
+    #define ONEDAL_XSIMD_ARCH xsimd::fma3<xsimd::avx2>
+
+#elif (__CPUID__(DAAL_CPU) == __sse42__)
+
+    #define ONEDAL_XSIMD_ARCH xsimd::sse4_2
+
+#elif (__CPUID__(DAAL_CPU) == __sse2__)
+
+    #define ONEDAL_XSIMD_ARCH xsimd::sse2
+
+#elif (__CPUID__(DAAL_CPU) == __sve__)
+
+    #if (__FPTYPE__(DAAL_DATA_TYPE) == __float__)
+        #define ONEDAL_XSIMD_ARCH xsimd::sve<16>
+    #else
+        #define ONEDAL_XSIMD_ARCH xsimd::sve<8>
+    #endif
+
+#endif // __CPUID__(DAAL_CPU)
+
+#endif
 
 /*
 //  Set of macro definitions

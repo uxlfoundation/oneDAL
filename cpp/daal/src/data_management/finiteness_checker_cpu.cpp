@@ -27,6 +27,12 @@
 
 #include "finiteness_checker_impl.i"
 
+#ifdef ONEDAL_XSIMD_ENABLED
+
+namespace xs = xsimd;
+
+#endif
+
 namespace daal
 {
 namespace data_management
@@ -57,6 +63,57 @@ DataType getInf()
 
 template <typename DataType, daal::CpuType cpu>
 DataType sumWithSIMD(size_t n, const DataType * dataPtr);
+
+#ifdef ONEDAL_XSIMD_ENABLED
+
+/*
+// Computes sum of the elements of input array using XSIMD.
+//
+// @tparam DataType  Data type of the input array
+// @tparam XSIMDArch XSIMD CPU architecture
+//
+// @param[in] n       Number of elements in the input array
+// @param[in] dataPtr Pointer to the input array
+//
+// @return Sum of the elements of the input array
+*/
+template <typename DataType, typename XSIMDArch>
+DataType sumWithXSIMD(size_t n, const DataType * dataPtr)
+{
+    constexpr size_t nPerInstr = xs::batch<DataType, XSIMDArch>::size;
+    DataType sum;
+
+    xs::batch<DataType, XSIMDArch> xs_sums(0.0);
+    const DataType * curDataPtr = dataPtr;
+    const size_t iEnd = n / nPerInstr;
+    for (size_t i = 0; i < iEnd; i++, curDataPtr += nPerInstr)
+    {
+        xs::batch<DataType, XSIMDArch> xs_data = xs::load_unaligned(curDataPtr);
+        xs_sums += xs_data;
+    }
+    sum = xs::reduce_add(xs_sums);
+
+    for (size_t i = iEnd * nPerInstr; i < n; ++i) sum += dataPtr[i];
+
+    return sum;
+}
+
+
+#if (__CPUID__(DAAL_CPU) != __sse2__)
+
+template <>
+float sumWithSIMD<float, DAAL_CPU>(size_t n, const float * dataPtr) {
+    return sumWithXSIMD<float, ONEDAL_XSIMD_ARCH>(n, dataPtr);
+}
+
+template <>
+double sumWithSIMD<double, DAAL_CPU>(size_t n, const double * dataPtr) {
+    return sumWithXSIMD<double, ONEDAL_XSIMD_ARCH>(n, dataPtr);
+}
+
+#endif
+
+#endif
 
 /*
 // Computes multi-threaded sum of a numeric table via summation using SIMD calls
@@ -266,6 +323,7 @@ bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Statu
 
     return valuesAreFinite;
 }
+
     #if (__CPUID__(DAAL_CPU) == __avx512__)
 
         #include "finiteness_checker_avx512_impl.i"
