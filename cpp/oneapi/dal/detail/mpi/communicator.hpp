@@ -328,6 +328,8 @@ public:
         ONEDAL_ASSERT(destination_rank >= 0);
         ONEDAL_ASSERT(source_rank >= 0);
 
+        barrier();
+
         if (count == 0) {
             return nullptr;
         }
