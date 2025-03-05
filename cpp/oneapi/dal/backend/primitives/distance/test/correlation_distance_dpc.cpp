@@ -17,7 +17,6 @@
 #include <array>
 #include <cmath>
 #include <type_traits>
-#include <iostream>
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"

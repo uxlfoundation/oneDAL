@@ -36,23 +36,23 @@ sycl::event compute_deviation(sycl::queue& q,
     const auto p = out.get_dimension(1);
     ONEDAL_ASSERT(n == inp.get_dimension(0));
     ONEDAL_ASSERT(p == inp.get_dimension(1));
-    auto* const inp_ptr = inp.get_mutable_data();
-    const auto out_stride = out.get_leading_stride();
-    auto* const out_ptr = out.get_mutable_data();
+    auto* inp_ptr = inp.get_data();
+    auto* out_ptr = out.get_mutable_data();
+    auto out_stride = out.get_leading_stride();
     auto out_range = make_range_2d(n, p);
     auto inp_sum = ndarray<Float, 1>::empty(q, { n });
     auto inp_mean = ndarray<Float, 1>::empty(q, { n });
 
     // Collect sums of each row of input matrix
-    auto sum_event = reduce_by_rows(q, inp, inp_sum, sum<Float>{}, identity<Float>{}, deps);
+    auto sums_event = reduce_by_rows(q, inp, inp_sum, sum<Float>{}, identity<Float>{}, deps);
 
     // Compute mean of each row of input matrix using sum event
-    auto mean_event = means(q, p, inp_sum, inp_mean, { sum_event });
+    auto means_event = means(q, p, inp_sum, inp_mean, { sums_event });
+    auto inp_mean_ptr = inp_mean.get_data();
 
     // Return event that updates output matrix with centered values (input(x) - input_mean(x))
     return q.submit([&](sycl::handler& h) {
-        h.depends_on({ mean_event });
-        auto const inp_mean_acc = inp_mean.get_data();
+        h.depends_on({ means_event });
         h.parallel_for(out_range, [=](sycl::id<2> idx) {
             const auto offset = idx[0] * out_stride + idx[1];
             out_ptr[offset] = inp_ptr[offset] - inp_mean_acc[idx[0]];
