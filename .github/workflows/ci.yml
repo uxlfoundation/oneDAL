@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP(AVX2)
+    name: LinuxMakeDPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -56,24 +56,37 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
-      - name: Make daal
+      - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
-      - name: Make onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols
+           cp -r __work __work_daal
+      - name: Make onedal debug
+        id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
+          cp -r __release_lnx __release_lnx_main
+          echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache build
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.onedal-dbg.outputs.key }}
+          path: ./__release_lnx_main
       - name: Archive build
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
-          path: ./__release_lnx
-      - name: Archive oneDAL environment
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: oneDAL_env
-          path: .ci/env
+          path: ./__release_lnx_debug
+      - name: Make onedal
+        run: |
+          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
+          source /opt/intel/oneapi/setvars.sh
+          rm -rf __work
+          mv __work_daal __work
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -108,25 +121,19 @@ jobs:
         uses: actions/checkout@v4
       - name: install ABI checking tools
         run: .ci/env/apt.sh abigail
-      - name: Get run ID of "CI" workflow
-        id: get-run-id
+      - name: Check Cache
+        id: get-cache-key
         run: |
-          OTHER_REPO="uxlfoundation/oneDAL"
-          WF_NAME="CI"
-          JQ_QUERY='map(select(.event == "push")) | .[0].databaseId'
-          RUN_ID=`gh run --repo ${OTHER_REPO} list --workflow "${WF_NAME}" --json databaseId,event --status success --jq "${JQ_QUERY}"`
-          echo "Detected latest run id of ${RUN_ID} for workflow ${WF_NAME}"
-          echo "run-id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo $CACHE_KEY
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Download oneDAL main build artifact
-        uses: actions/download-artifact@v4
+      - name: Download oneDAL main build
+        uses: actions/cache/restore@v4
         with:
-          name: __release_lnx
-          github-token: ${{ github.token }}
-          repository: uxlfoundation/oneDAL
-          run-id: ${{ steps.get-run-id.outputs.run-id }}
           path: ./__release_lnx_main
+          key: ${{ steps.get-cache-key.outputs.key }}
       - name: Download oneDAL build artifact
         uses: actions/download-artifact@v4
         with:
