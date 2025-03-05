@@ -60,16 +60,16 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols
+           cp -r __work __work_daal
       - name: Make onedal debug
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          cp -r __work __work_daal
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
           cp -r __release_lnx __release_lnx_debug
-          mv __work_daal __work
           echo "key=__release_lnx-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
+        if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
@@ -92,6 +92,7 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
+          mv -T __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
       - name: daal/cpp examples
         run: |
