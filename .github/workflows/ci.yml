@@ -61,34 +61,38 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols
       - name: Make onedal debug
+        id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
           cp -r __work __work_daal
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
           cp -r __release_lnx __release_lnx_debug
           mv __work_daal __work
-      - name: Make onedal
-        run: |
-          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
-      - name: Prepare Cache
-        run: |
-          gh extensions install actions/gh-actions-cache
-          gh actions-cache delete __release_lnx_main --confirm
-        env:
-          GH_TOKEN: ${{ github.token }}
+          echo "key=__release_lnx-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
         uses: actions/cache/save@v4
         with:
-          key: __release_lnx_main
+          key: ${{ steps.onedal-dbg.outputs.key }}
           path: ./__release_lnx_debug
+      - name: Check Cache
+        id: get-cache-key
+        run: |
+          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo $CACHE_KEY
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Archive build
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
           path: ./__release_lnx_debug
+      - name: Make onedal
+        run: |
+          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
