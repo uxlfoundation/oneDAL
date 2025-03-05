@@ -316,7 +316,8 @@ endif
 
 #=============================== oneDPL folders ======================================
 
-ONEDPL.include := $(DPL_ROOT)/include
+ONEDPLDIR := $(subst \,/,$(DPL_ROOT))
+ONEDPL.include := $(ONEDPLDIR)/include
 
 #===============================================================================
 # Release library names
