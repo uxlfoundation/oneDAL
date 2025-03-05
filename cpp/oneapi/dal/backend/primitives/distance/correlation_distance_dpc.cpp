@@ -74,17 +74,17 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
                             { inv_norms1_event, inv_norms2_event });
 }
 
-#define INSTANTIATE(F, A, B)                                                                        \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
-                                                                        const ndview<F, 2, B>&,     \
-                                                                        ndview<F, 2>&,              \
-                                                                        const ndview<F, 1>&,        \
-                                                                        const ndview<F, 1>&,        \
-                                                                        const event_vector&) const; \
-    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
-                                                                        const ndview<F, 2, B>&,     \
-                                                                        ndview<F, 2>&,              \
-                                                                        const event_vector&) const;
+#define INSTANTIATE(F, A, B)                                                                       \
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,    \
+                                                                        const ndview<F, 2, B>&,    \
+                                                                        ndview<F, 2>&,             \
+                                                                        const ndview<F, 1>&,       \
+                                                                        const ndview<F, 1>&,       \
+                                                                        const event_vector&) const;\
+    template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,    \
+                                                                        const ndview<F, 2, B>&,    \
+                                                                        ndview<F, 2>&,             \
+                                                                        const event_vector&) const;\
 
 #define INSTANTIATE_B(F, A)                                                                 \
     INSTANTIATE(F, A, ndorder::c)                                                           \

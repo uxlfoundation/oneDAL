@@ -55,7 +55,7 @@ sycl::event compute_deviation(sycl::queue& q,
         h.depends_on({ means_event });
         h.parallel_for(out_range, [=](sycl::id<2> idx) {
             const auto offset = idx[0] * out_stride + idx[1];
-            out_ptr[offset] = inp_ptr[offset] - inp_mean_acc[idx[0]];
+            out_ptr[offset] = inp_ptr[offset] - inp_mean_ptr[idx[0]];
         });
     });
 }
