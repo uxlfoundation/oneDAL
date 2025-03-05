@@ -103,24 +103,24 @@ void communicator<MemoryAccessKind>::reset_error_flag() const {
 }
 
 #define INSTANTIATE(M, D)                                                                        \
-    template request communicator<M>::bcast<D>(const array<D>& ary, std::int64_t root) const;    \
-    template request communicator<M>::allgather<D>(const array<D>& send, const array<D>& recv)   \
+    template request ONEDAL_EXPORT communicator<M>::bcast<D>(const array<D>& ary, std::int64_t root) const;    \
+    template request ONEDAL_EXPORT communicator<M>::allgather<D>(const array<D>& send, const array<D>& recv)   \
         const;                                                                                   \
-    template request communicator<M>::allgather<D>(const D& scalar, const array<D>& recv) const; \
-    template request communicator<M>::allgatherv<D>(const array<D>& send,                        \
+    template request ONEDAL_EXPORT communicator<M>::allgather<D>(const D& scalar, const array<D>& recv) const; \
+    template request ONEDAL_EXPORT communicator<M>::allgatherv<D>(const array<D>& send,                        \
                                                     const array<D>& recv,                        \
                                                     const std::int64_t* recv_counts,             \
                                                     const std::int64_t* displs) const;           \
-    template request communicator<M>::allreduce<D>(const array<D>& ary, const reduce_op& op)     \
+    template request ONEDAL_EXPORT communicator<M>::allreduce<D>(const array<D>& ary, const reduce_op& op)     \
         const;                                                                                   \
-    template request communicator<M>::sendrecv_replace<D>(const array<D>& ary,                   \
+    template request ONEDAL_EXPORT communicator<M>::sendrecv_replace<D>(const array<D>& ary,                   \
                                                           std::int64_t destination_rank,         \
                                                           std::int64_t) const;
 
 #define INSTANTIATE_MEMORY_ACCESS(M)                                                             \
-    template void communicator<M>::set_active_exception(const std::exception_ptr& ex_ptr) const; \
-    template void communicator<M>::wait_for_exception_handling() const;                          \
-    template void communicator<M>::reset_error_flag() const;                                     \
+    template void ONEDAL_EXPORT communicator<M>::set_active_exception(const std::exception_ptr& ex_ptr) const; \
+    template void ONEDAL_EXPORT communicator<M>::wait_for_exception_handling() const;                          \
+    template void ONEDAL_EXPORT communicator<M>::reset_error_flag() const;                                     \
     INSTANTIATE(M, float)                                                                        \
     INSTANTIATE(M, double)                                                                       \
     INSTANTIATE(M, std::int8_t)                                                                  \
