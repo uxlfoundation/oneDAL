@@ -157,7 +157,7 @@ These files contain the definitions of one or several template classes that defi
 do the actual computations. Here is a variant of the ``Abc`` training algorithm kernel definition in the file
 `abc_classification_train_kernel.h`:
 
-.. include:: ../includes/cpu_features/abc-classification-train-kernel.rst
+.. include:: ../includes/cpu-features/abc-classification-train-kernel.rst
 
 Typical template parameters are:
 
@@ -176,7 +176,7 @@ These files contain the implementations of the computational functions defined i
 Here is a variant of ``method1`` implementation for ``Abc`` training algorithm that does not contain any
 instruction set specific code. The implementation is located in the file `abc_classification_train_method1_impl.i`:
 
-.. include:: ../includes/cpu_features/abc-classification-train-method1-impl.rst
+.. include:: ../includes/cpu-features/abc-classification-train-method1-impl.rst
 
 Although the implementation of the ``method1`` does not contain any instruction set specific code, it is
 expected that the developers leverage SIMD related macros available in |short_name|.
@@ -193,7 +193,7 @@ For example, the AVX-512 specific code should be gated on the value ``__CPUID__(
 
 Then the implementation of the ``method2`` in the file `abc_classification_train_method2_impl.i` will look like:
 
-.. include:: ../includes/cpu_features/abc-classification-train-method2-impl.rst
+.. include:: ../includes/cpu-features/abc-classification-train-method2-impl.rst
 
 \*_fpt_cpu.cpp
 --------------
@@ -203,7 +203,7 @@ These files contain the instantiations of the template classes defined in the fi
 The instantiation of the ``Abc`` training algorithm kernel for ``method1`` is located in the file
 `abc_classification_train_method1_batch_fpt_cpu.cpp`:
 
-.. include:: ../includes/cpu_features/abc-classification-train-method1-fpt-cpu.rst
+.. include:: ../includes/cpu-features/abc-classification-train-method1-fpt-cpu.rst
 
 `_fpt_cpu.cpp` files are not compiled directly into object files. First, multiple copies of those files
 are made replacing the ``fpt``, which stands for 'floating point type', and ``cpu`` parts of the file name

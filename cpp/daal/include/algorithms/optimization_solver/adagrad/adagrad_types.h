@@ -137,6 +137,7 @@ public:
     typedef optimization_solver::iterative_solver::Input super;
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     using super::set;
     using super::get;

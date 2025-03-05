@@ -108,15 +108,15 @@ onedal_repo(
 
 http_archive(
     name = "catch2",
-    url = "https://github.com/catchorg/Catch2/archive/v3.7.1.tar.gz",
-    sha256 = "c991b247a1a0d7bb9c39aa35faf0fe9e19764213f28ffba3109388e62ee0269c",
-    strip_prefix = "Catch2-3.7.1",
+    url = "https://github.com/catchorg/Catch2/archive/v3.8.0.tar.gz",
+    sha256 = "1ab2de20460d4641553addfdfe6acd4109d871d5531f8f519a52ea4926303087",
+    strip_prefix = "Catch2-3.8.0",
 )
 
 http_archive(
     name = "fmt",
-    url = "https://github.com/fmtlib/fmt/archive/11.0.2.tar.gz",
-    sha256 = "6cb1e6d37bdcb756dbbe59be438790db409cdb4868c66e888d5df9f13f7c027f",
-    strip_prefix = "fmt-11.0.2",
+    url = "https://github.com/fmtlib/fmt/archive/11.1.4.tar.gz",
+    sha256 = "ac366b7b4c2e9f0dde63a59b3feb5ee59b67974b14ee5dc9ea8ad78aa2c1ee1e",
+    strip_prefix = "fmt-11.1.4",
     build_file = "@onedal//dev/bazel/deps:fmt.tpl.BUILD",
 )
