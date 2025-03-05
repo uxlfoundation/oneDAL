@@ -76,6 +76,8 @@ jobs:
         run: |
           gh extensions install actions/gh-actions-cache
           gh actions-cache delete __release_lnx_main --confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Cache build
         uses: actions/cache/save@v4
         with:
