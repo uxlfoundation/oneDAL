@@ -63,9 +63,9 @@ jobs:
       - name: Make onedal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          cp __work __work_daal
+          cp -r __work __work_daal
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
-          cp __release_lnx __release_lnx_debug
+          cp -r __release_lnx __release_lnx_debug
           mv __work_daal __work
       - name: Make onedal
         run: |
