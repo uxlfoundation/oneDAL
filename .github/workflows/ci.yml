@@ -56,24 +56,37 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
-      - name: Make daal
+      - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols
+      - name: Make onedal debug
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          cp __work __work_daal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
+          cp __release_lnx __release_lnx_debug
+          mv __work_daal __work
       - name: Make onedal
         run: |
+          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
+      - name: Prepare Cache
+        run: |
+          gh extensions install actions/gh-actions-cache
+          gh actions-cache delete __release_lnx_main --confirm
+      - name: Cache build
+        uses: actions/cache/save@v4
+        with:
+          key: __release_lnx_main
+          path: ./__release_lnx_debug
       - name: Archive build
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
-          path: ./__release_lnx
-      - name: Archive oneDAL environment
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: oneDAL_env
-          path: .ci/env
+          path: ./__release_lnx_debug
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
