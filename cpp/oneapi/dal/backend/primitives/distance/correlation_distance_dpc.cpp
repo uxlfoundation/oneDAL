@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/backend/primitives/distance/distance.hpp"
+#include "oneapi/dal/backend/primitives/distance/cosine_distance_misc.hpp"
 #include "oneapi/dal/backend/primitives/distance/correlation_distance_misc.hpp"
 
 #include "oneapi/dal/backend/primitives/blas.hpp"
@@ -46,8 +47,8 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
                                                                    const ndview<Float, 1>& inp1_norms,
                                                                    const ndview<Float, 1>& inp2_norms,
                                                                    const event_vector& deps) const {
-    auto ip_event = compute_correlation_inner_product(q_, inp1, inp2, out, deps);
-    return finalize_correlation(q_, inp1_norms, inp2_norms, out, { ip_event });
+    auto ip_event = compute_cosine_inner_product(q_, inp1, inp2, out, deps);
+    return finalize_cosine(q_, inp1_norms, inp2_norms, out, { ip_event });
 }
 
 template <typename Float>
@@ -77,24 +78,24 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(const ndview<
                                                                         const ndview<F, 1>&,        \
                                                                         const event_vector&) const; \
     template sycl::event distance<F, correlation_metric<F>>::operator()(const ndview<F, 2, A>&,     \
-                                                                   const ndview<F, 2, B>&,          \
-                                                                   ndview<F, 2>&,                   \
-                                                                   const event_vector&) const;
+                                                                        const ndview<F, 2, B>&,     \
+                                                                        ndview<F, 2>&,              \
+                                                                        const event_vector&) const;
 
-#define INSTANTIATE_B(F, A)                                                            \
-    INSTANTIATE(F, A, ndorder::c)                                                      \
-    INSTANTIATE(F, A, ndorder::f)                                                      \
-    template std::tuple<ndarray<F, 1>, sycl::event>                                    \
-    distance<F, correlation_metric<F>>::get_inversed_norms(const ndview<F, 2, A>& inp, \
-                                                      const event_vector& deps) const; \
-    template std::tuple<ndarray<F, 2>, sycl::event>                                    \
-    distance<F, correlation_metric<F>>::get_deviation(const ndview<F, 2, A>& inp,      \
+#define INSTANTIATE_B(F, A)                                                                 \
+    INSTANTIATE(F, A, ndorder::c)                                                           \
+    INSTANTIATE(F, A, ndorder::f)                                                           \
+    template std::tuple<ndarray<F, 1>, sycl::event>                                         \
+    distance<F, correlation_metric<F>>::get_inversed_norms(const ndview<F, 2, A>& inp,      \
+                                                           const event_vector& deps) const; \
+    template std::tuple<ndarray<F, 2>, sycl::event>                                         \
+    distance<F, correlation_metric<F>>::get_deviation(const ndview<F, 2, A>& inp,           \
                                                       const event_vector& deps) const;
 
 #define INSTANTIATE_F(F)         \
     INSTANTIATE_B(F, ndorder::c) \
     INSTANTIATE_B(F, ndorder::f) \
-    template class distance<F, squared_l2_metric<F>>;
+    template class distance<F, cosine_metric<F>>;
 
 INSTANTIATE_F(float);
 INSTANTIATE_F(double);

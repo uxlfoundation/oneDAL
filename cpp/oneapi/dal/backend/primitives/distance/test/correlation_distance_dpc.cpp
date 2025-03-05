@@ -37,6 +37,7 @@ using distance_types = std::tuple<float, double>;
 template <typename Float>
 class correlation_distance_test_random : public te::float_algo_fixture<Float> {
 public:
+    // Generate data for input matricies
     void generate() {
         r_count1_ = GENERATE(17, 31);
         r_count2_ = GENERATE(7, 29);
@@ -48,6 +49,7 @@ public:
         return te::table_id::homogen<float_t>();
     }
 
+    // Return empty matrix for output values
     auto output() {
         return ndarray<Float, 2>::zeros(this->get_queue(), { r_count1_, r_count2_ });
     }
@@ -62,6 +64,7 @@ public:
     }
 
     void groundtruth_check(const ndview<Float, 2>& out, const Float atol = 1.e-3) {
+	// Step through each value of input matricies to calculate the sum and mean of each row
         for (std::int64_t i = 0; i < r_count1_; ++i) {
             const auto inp_row1 =
                 row_accessor<const Float>{ input_table1_ }.pull(this->get_queue(), { i, i + 1 });
@@ -69,15 +72,18 @@ public:
                 const auto inp_row2 =
                     row_accessor<const Float>{ input_table2_ }.pull(this->get_queue(),
                                                                     { j, j + 1 });
+		// Calculate sum of current row
                 Float mean1 = 0.0, mean2 = 0.0;
                 for (std::int64_t k = 0; k < c_count_; ++k) {
                     mean1 += inp_row1[k];
                     mean2 += inp_row2[k];
                 }
 
+		// Calculate mean
                 mean1 /= c_count_;
                 mean2 /= c_count_;
 
+		// Compute dot product and squared norms for centered values
                 Float ip = 0.0, qn = 0.0, tn = 0.0;
                 for (std::int64_t k = 0; k < c_count_; ++k) {
                     const Float q = inp_row1[k] - mean1;
@@ -86,8 +92,11 @@ public:
                     tn += t * t;
                     ip += q * t;
                 }
+
+		// Calculate correlation distance
 		const auto gtv = Float(1.0) - ip / (std::sqrt(qn) * std::sqrt(tn));
 
+		// Validate test data against distance function computations on the device
                 const auto val = *(out.get_data() + out.get_leading_stride() * i + j);
                 const auto diff = gtv - val;
                 CAPTURE(gtv, val, i, j, r_count1_, r_count2_, c_count_);
@@ -99,11 +108,14 @@ public:
     }
 
     void test_distance() {
+	// Store input/output matricies, convert to ndview matrix, and designate device queue
         auto input1_arr = row_accessor<const Float>{ input_table1_ }.pull(this->get_queue());
         auto input2_arr = row_accessor<const Float>{ input_table2_ }.pull(this->get_queue());
         auto input1 = ndview<Float, 2>::wrap(input1_arr.get_data(), { r_count1_, c_count_ });
         auto input2 = ndview<Float, 2>::wrap(input2_arr.get_data(), { r_count2_, c_count_ });
         auto [output, output_event] = this->output();
+
+	// Designate queue, invoke computation of correlation distance, and validate results
         correlation_distance<Float> distance(this->get_queue());
         auto distance_event = distance(input1, input2, output, { output_event });
         distance_event.wait_and_throw();
