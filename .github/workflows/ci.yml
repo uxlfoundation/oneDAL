@@ -92,7 +92,8 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          mv -T __work_daal __work
+          rm -rf __work
+          mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
       - name: daal/cpp examples
         run: |
