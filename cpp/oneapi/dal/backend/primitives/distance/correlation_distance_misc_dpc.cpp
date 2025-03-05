@@ -44,10 +44,10 @@ sycl::event compute_deviation(sycl::queue& q,
     auto inp_mean = ndarray<Float, 1>::empty(q, { n });
 
     // Collect sums of each row of input matrix
-    auto sum_event = reduce_by_rows(q, inp, inp_sum,  sum<Float>{}, identity<Float>{}, deps);
+    auto sum_event = reduce_by_rows(q, inp, inp_sum, sum<Float>{}, identity<Float>{}, deps);
 
     // Compute mean of each row of input matrix using sum event
-    auto mean_event =  means(q, p, inp_sum, inp_mean, { sum_event });
+    auto mean_event = means(q, p, inp_sum, inp_mean, { sum_event });
 
     // Return event that updates output matrix with centered values (input(x) - input_mean(x))
     return q.submit([&](sycl::handler& h) {
@@ -73,15 +73,16 @@ std::tuple<ndarray<Float, 2>, sycl::event> compute_deviation(sycl::queue& q,
     return { res_array, compute_deviation(q, inp, res_array, deps) };
 }
 
-#define INSTANTIATE(F, B)                                                                           \
-    template sycl::event compute_deviation<F, B>(sycl::queue&,                                      \
-                                                 const ndview<F, 2, B>&,                            \
-                                                 ndview<F, 2>&,                                     \
-                                                 const event_vector&);                              \
-    template std::tuple<ndarray<F, 2>, sycl::event> compute_deviation<F, B>(sycl::queue&,           \
-                                                                            const ndview<F, 2, B>&, \
-                                                                            const event_vector&,    \
-                                                                            const sycl::usm::alloc&);
+#define INSTANTIATE(F, B)                                                    \
+    template sycl::event compute_deviation<F, B>(sycl::queue&,               \
+                                                 const ndview<F, 2, B>&,     \
+                                                 ndview<F, 2>&,              \
+                                                 const event_vector&);       \
+    template std::tuple<ndarray<F, 2>, sycl::event> compute_deviation<F, B>( \
+        sycl::queue&,                                                        \
+        const ndview<F, 2, B>&,                                              \
+        const event_vector&,                                                 \
+        const sycl::usm::alloc&);
 #define INSTANTIATE_F(F)       \
     INSTANTIATE(F, ndorder::c) \
     INSTANTIATE(F, ndorder::f)

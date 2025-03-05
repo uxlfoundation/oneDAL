@@ -119,7 +119,7 @@ public:
 template <typename Float>
 struct correlation_metric : public metric_base<Float> {
 public:
-    correlation_metric(){}
+    correlation_metric() {}
     template <typename InputIt1, typename InputIt2>
     Float operator()(InputIt1 first1, InputIt1 last1, InputIt2 first2) const {
         constexpr Float zero = 0;
@@ -130,23 +130,23 @@ public:
         Float n1_sum = zero;
         Float n2_sum = zero;
         Float count = zero;
-	
-	// Calculate sum for input values
-	for (auto it1 = first1, it2 = first2; it1 != last1; ++it1, it2++) {
+
+        // Calculate sum for input values
+        for (auto it1 = first1, it2 = first2; it1 != last1; ++it1, it2++) {
             n1_sum += *it1;
             n2_sum += *it2;
-	    ++count;
-	}
+            ++count;
+        }
 
-	// Ensure count for sum updates, otherwise return zero value
-	if (count == zero)
+        // Ensure count for sum updates, otherwise return zero value
+        if (count == zero)
             return Float(zero);
 
-	// Calculate mean for input values
-	const Float n1_mean = n1_sum / count;
-	const Float n2_mean = n2_sum / count;
+        // Calculate mean for input values
+        const Float n1_mean = n1_sum / count;
+        const Float n2_mean = n2_sum / count;
 
-	// Compute dot product and squared norms for centered values
+        // Compute dot product and squared norms for centered values
         for (auto it1 = first1, it2 = first2; it1 != last1; ++it1, ++it2) {
             const Float v1 = *it1 - n1_mean;
             const Float v2 = *it2 - n2_mean;
@@ -155,7 +155,7 @@ public:
             ip_acc += (v1 * v2);
         }
 
-	// Calculate correlation distance and return result
+        // Calculate correlation distance and return result
         const Float rsqn1 = one / std::sqrt(n1_acc);
         const Float rsqn2 = one / std::sqrt(n2_acc);
         return one - ip_acc * rsqn1 * rsqn2;

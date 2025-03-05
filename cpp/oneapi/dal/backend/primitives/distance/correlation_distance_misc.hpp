@@ -32,10 +32,11 @@ sycl::event compute_deviation(sycl::queue& q,
                               const event_vector& deps = {});
 
 template <typename Float, ndorder order>
-std::tuple<ndarray<Float, 2>, sycl::event> compute_deviation(sycl::queue& q,
-                                                             const ndview<Float, 2, order>& inp,
-                                                             const event_vector& deps = {},
-                                                             const sycl::usm::alloc& alloc = sycl::usm::alloc::device);
+std::tuple<ndarray<Float, 2>, sycl::event> compute_deviation(
+    sycl::queue& q,
+    const ndview<Float, 2, order>& inp,
+    const event_vector& deps = {},
+    const sycl::usm::alloc& alloc = sycl::usm::alloc::device);
 
 #endif
 
