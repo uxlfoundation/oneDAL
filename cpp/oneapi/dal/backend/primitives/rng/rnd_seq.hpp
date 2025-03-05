@@ -17,6 +17,7 @@
 #pragma once
 
 #include <limits>
+#include <iostream>
 
 #include <daal/src/externals/service_rng.h>
 #include <daal/include/algorithms/engines/mcg59/mcg59.h>
@@ -57,6 +58,7 @@ private:
 
         auto* values = this->seq_.get_mutable_data();
         auto count = this->seq_.get_count();
+        std::cerr << "count: " << count << std::endl;
         const auto count_as_size_t = dal::detail::integral_cast<std::size_t>(count);
 
         auto number_array = array<std::size_t>::empty(queue, count);

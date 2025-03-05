@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <iostream>
+
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 
@@ -443,6 +445,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                             pr::ndview<RespT, 2>& part_responses,
                             pr::ndview<RespT, 2>& intermediate_responses,
                             const bk::event_vector& deps = {}) {
+    std::cerr << "bf_kernel_distr ";
     using res_t = response_t<Task, Float>;
     constexpr auto torder = pr::ndorder::c;
 
@@ -574,6 +577,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     auto relative_block_offset = std::distance(nodes.begin(), it);
     ONEDAL_ASSERT(it != nodes.end());
 
+    std::cerr << "580 ";
     for (std::int64_t relative_block_idx = 0; relative_block_idx < block_count;
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
@@ -601,6 +605,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         if (relative_block_idx == block_count - 1) {
             callback.set_last_iteration(true);
         }
+        std::cerr << "608 ";
         if (is_cosine_distance) {
             using dst_t = pr::cosine_distance<Float>;
             using search_t = pr::search_engine<Float, dst_t, torder>;
@@ -639,6 +644,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
             next_event = search(query, callback, qbcount, curr_k, { next_event });
         }
 
+        std::cerr << "647 ";
         if (relative_block_idx < block_count - 1) {
             ONEDAL_PROFILER_TASK(distributed_loop.sendrecv_replace, queue);
             auto send_count = current_block.get_count();

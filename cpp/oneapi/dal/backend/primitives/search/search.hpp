@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/primitives/common.hpp"
@@ -144,6 +146,7 @@ public:
             const auto query_slice =
                 query_data.get_row_slice(query_blocking.get_block_start_index(qb_id),
                                          query_blocking.get_block_end_index(qb_id));
+            std::cerr << "do_search ";
             auto search_event = impl_ptr->do_search(query_slice,
                                                     k_neighbors,
                                                     temporary_obj,
@@ -153,6 +156,7 @@ public:
                 get_indices(temporary_obj).get_row_slice(0, query_blocking.get_block_length(qb_id));
             auto out_distances = get_distances(temporary_obj)
                                      .get_row_slice(0, query_blocking.get_block_length(qb_id));
+            std::cerr << "callback ";
             *last_event = callback(qb_id, out_indices, out_distances, { search_event });
         }
         return *last_event;

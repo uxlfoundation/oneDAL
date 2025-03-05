@@ -340,6 +340,7 @@ public:
 
         if (recv_buf) {
             // MPICH-specific workaround for GPU performance
+            std::cerr << "sendrecv" << std::endl;
             mpi_call(MPI_Sendrecv(buf,
                                   integral_cast<int>(count),
                                   make_mpi_data_type(dtype),
@@ -355,6 +356,7 @@ public:
         }
         else {
             // Standard call to sendrecv_replace of designated MPI backend
+            std::cerr << "sendrecvreplace" << std::endl;
             mpi_call(MPI_Sendrecv_replace(buf,
                                           integral_cast<int>(count),
                                           make_mpi_data_type(dtype),
