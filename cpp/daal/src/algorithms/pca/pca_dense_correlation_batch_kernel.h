@@ -52,18 +52,19 @@ public:
     using PCADenseBase<algorithmFPType, cpu>::computeExplainedVariancesRatio;
 
     services::Status compute(bool isCorrelation, const data_management::NumericTable & dataTable, covariance::BatchImpl * covarianceAlg,
-                             data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues);
+                             data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues,
+                             algorithmFPType & noiseVariance);
 
     services::Status compute(bool isCorrelation, bool isDeterministic, const data_management::NumericTable & dataTable,
                              covariance::BatchImpl * covarianceAlg, DAAL_UINT64 resultsToCompute, data_management::NumericTable & eigenvectors,
                              data_management::NumericTable & eigenvalues, data_management::NumericTable & means,
-                             data_management::NumericTable & variances, bool doScale = true);
+                             data_management::NumericTable & variances, algorithmFPType & noiseVariance, bool doScale = true);
 
     services::Status compute(const data_management::NumericTable & dataTable, covariance::BatchImpl * covarianceAlg,
                              data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues,
                              data_management::NumericTable & means, data_management::NumericTable & variances,
                              data_management::NumericTable * singular_values, data_management::NumericTable * explained_variances_ratio,
-                             const BaseBatchParameter * parameter);
+                             algorithmFPType & noiseVariance, const BaseBatchParameter * parameter);
 };
 
 } // namespace internal

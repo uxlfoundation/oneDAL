@@ -125,15 +125,21 @@ result_t train_kernel_cov_impl<Float>::operator()(const descriptor_t& desc, cons
     auto [eigvals, syevd_event] =
         syevd_computation(q_, eigenvectors, { cov_event, corr_event, vars_event });
 
-    auto flipped_eigvals_host = flip_eigenvalues(q_, eigvals, component_count, { syevd_event });
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto eigvals_host_tmp = eigvals.to_host(q_);
+        auto range = std::min(row_count, column_count) - component_count;
+        auto noise_variance =
+            compute_noise_variance_on_host(q_, eigvals_host_tmp, range, { syevd_event });
+        result.set_noise_variance(noise_variance);
+    }
+
+    auto [flipped_eigvals_host, flipped_eigenvectors_host] =
+        flip_eigen_data(q_, eigvals, eigenvectors, component_count, { syevd_event });
 
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
             homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));
     }
-
-    auto flipped_eigenvectors_host =
-        flip_eigenvectors(q_, eigenvectors, component_count, { syevd_event });
 
     if (desc.get_result_options().test(result_options::singular_values)) {
         auto singular_values = compute_singular_values_on_host(q_,

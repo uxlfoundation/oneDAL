@@ -48,22 +48,23 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(bool isCorrelation, const data_management::NumericTable & dataTable,
                                                                             covariance::BatchImpl * covarianceAlg,
                                                                             data_management::NumericTable & eigenvectors,
-                                                                            data_management::NumericTable & eigenvalues)
+                                                                            data_management::NumericTable & eigenvalues,
+                                                                            algorithmFPType & noiseVariance)
 {
-    if (isCorrelation) return this->computeCorrelationEigenvalues(dataTable, eigenvectors, eigenvalues);
+    if (isCorrelation) return this->computeCorrelationEigenvalues(dataTable, eigenvectors, eigenvalues, noiseVariance);
     DAAL_CHECK(covarianceAlg, services::ErrorNullPtr);
     services::Status status;
     covarianceAlg->parameter.outputMatrixType = covariance::correlationMatrix;
 
     DAAL_CHECK_STATUS(status, covarianceAlg->computeNoThrow());
-    return this->computeCorrelationEigenvalues(*covarianceAlg->getResult()->get(covariance::covariance), eigenvectors, eigenvalues);
+    return this->computeCorrelationEigenvalues(*covarianceAlg->getResult()->get(covariance::covariance), eigenvectors, eigenvalues, noiseVariance);
 }
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
     bool isCorrelation, bool isDeterministic, const data_management::NumericTable & dataTable, covariance::BatchImpl * covarianceAlg,
     DAAL_UINT64 resultsToCompute, data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues,
-    data_management::NumericTable & means, data_management::NumericTable & variances, bool doScale)
+    data_management::NumericTable & means, data_management::NumericTable & variances, algorithmFPType & noiseVariance, bool doScale)
 {
     DAAL_ITTNOTIFY_SCOPED_TASK(compute);
 
@@ -83,7 +84,7 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
 
         {
             DAAL_ITTNOTIFY_SCOPED_TASK(compute.correlation.computeEigenvalues);
-            DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(dataTable, eigenvectors, eigenvalues));
+            DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(dataTable, eigenvectors, eigenvalues, noiseVariance));
         }
     }
     else
@@ -117,7 +118,7 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
 
         {
             DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.computeEigenvalues);
-            DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(covarianceTable, eigenvectors, eigenvalues));
+            DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(covarianceTable, eigenvectors, eigenvalues, noiseVariance));
         }
     }
 
@@ -134,13 +135,14 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
     const data_management::NumericTable & dataTable, covariance::BatchImpl * covarianceAlg, data_management::NumericTable & eigenvectors,
     data_management::NumericTable & eigenvalues, data_management::NumericTable & means, data_management::NumericTable & variances,
-    data_management::NumericTable * singular_values, data_management::NumericTable * explained_variances_ratio, const BaseBatchParameter * parameter)
+    data_management::NumericTable * singular_values, data_management::NumericTable * explained_variances_ratio, algorithmFPType & noiseVariance,
+    const BaseBatchParameter * parameter)
 {
     DAAL_ITTNOTIFY_SCOPED_TASK(compute);
 
     services::Status status;
     this->compute(parameter->isCorrelation, parameter->isDeterministic, dataTable, covarianceAlg, parameter->resultsToCompute, eigenvectors,
-                  eigenvalues, means, variances, parameter->doScale);
+                  eigenvalues, means, variances, noiseVariance, parameter->doScale);
 
     if (singular_values != nullptr)
     {

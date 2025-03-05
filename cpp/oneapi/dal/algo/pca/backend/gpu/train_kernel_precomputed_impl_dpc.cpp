@@ -67,10 +67,9 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
                                        result_options::eigenvalues)) {
         auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, {});
 
-        auto flipped_eigvals_host = flip_eigenvalues(q_, eigvals, component_count, { syevd_event });
+        auto [flipped_eigvals_host, flipped_eigenvectors_host] =
+            flip_eigen_data(q_, eigvals, data_nd, component_count, { syevd_event });
 
-        auto flipped_eigenvectors_host =
-            flip_eigenvectors(q_, data_nd, component_count, { syevd_event });
         if (desc.get_result_options().test(result_options::eigenvalues)) {
             result.set_eigenvalues(
                 homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));

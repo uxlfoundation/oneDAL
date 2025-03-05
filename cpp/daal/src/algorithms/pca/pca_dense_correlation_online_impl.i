@@ -56,13 +56,14 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationKernel<online, algorithmFPType, cpu>::finalize(PartialResult<correlationDense> * partialResult,
                                                                               const OnlineParameter<algorithmFPType, correlationDense> * parameter,
                                                                               data_management::NumericTable & eigenvectors,
-                                                                              data_management::NumericTable & eigenvalues)
+                                                                              data_management::NumericTable & eigenvalues,
+                                                                              algorithmFPType & noiseVariance)
 {
     services::Status s = parameter->covariance->finalizeCompute();
     if (!s) return s;
 
     data_management::NumericTablePtr correlation = parameter->covariance->getResult()->get(covariance::covariance);
-    return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues);
+    return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues, noiseVariance);
 }
 
 template <typename algorithmFPType, CpuType cpu>

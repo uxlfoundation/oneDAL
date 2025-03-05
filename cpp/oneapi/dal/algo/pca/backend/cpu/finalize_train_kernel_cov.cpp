@@ -125,11 +125,15 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
             &daal_parameter,
             &daal_hyperparameter));
 
+    Float noiseVariance = 0.0;
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return daal_pca_cor_kernel_t<
                    Float,
                    dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
-            .computeCorrelationEigenvalues(*daal_cor_matrix, *daal_eigenvectors, *daal_eigenvalues);
+            .computeCorrelationEigenvalues(*daal_cor_matrix,
+                                           *daal_eigenvectors,
+                                           *daal_eigenvalues,
+                                           noiseVariance);
     }));
 
     if (desc.get_deterministic()) {
@@ -178,6 +182,10 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
 
     if (desc.get_result_options().test(result_options::vars)) {
         result.set_variances(homogen_table::wrap(arr_vars, 1, column_count));
+    }
+
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        result.set_noise_variance(noiseVariance);
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {

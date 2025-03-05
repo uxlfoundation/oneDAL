@@ -41,8 +41,12 @@ result_option_id get_singular_values_id() {
     return result_option_id{ result_option_id::make_by_index(4) };
 }
 
-result_option_id get_explained_variances_ratio_id() {
+result_option_id get_noise_variance_id() {
     return result_option_id{ result_option_id::make_by_index(5) };
+}
+
+result_option_id get_explained_variances_ratio_id() {
+    return result_option_id{ result_option_id::make_by_index(6) };
 }
 
 template <typename Task>
@@ -53,7 +57,7 @@ result_option_id get_default_result_options() {
 template <>
 result_option_id get_default_result_options<task::dim_reduction>() {
     return get_eigenvectors_id() | get_eigenvalues_id() | get_variances_id() | get_means_id() |
-           get_singular_values_id() | get_explained_variances_ratio_id();
+           get_singular_values_id() | get_noise_variance_id() | get_explained_variances_ratio_id();
 }
 
 namespace v1 {

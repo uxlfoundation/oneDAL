@@ -158,7 +158,8 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeSingularValues
 template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEigenvalues(const data_management::NumericTable & correlation,
                                                                                          data_management::NumericTable & eigenvectors,
-                                                                                         data_management::NumericTable & eigenvalues)
+                                                                                         data_management::NumericTable & eigenvalues,
+                                                                                         algorithmFPType & noiseVariance)
 {
     using data_management::BlockDescriptor;
 
@@ -184,7 +185,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
 
     services::Status s = computeEigenvectorsInplace(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
     DAAL_CHECK_STATUS_VAR(s);
-
+    //noise_variance should be here
     s = sortEigenvectorsDescending(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
     DAAL_CHECK_STATUS_VAR(s);
 
