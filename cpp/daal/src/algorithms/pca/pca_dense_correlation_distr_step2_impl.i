@@ -64,8 +64,8 @@ services::Status PCACorrelationKernel<distributed, algorithmFPType, cpu>::finali
     if (!s) return s;
 
     data_management::NumericTablePtr correlation = parameter->covariance->getResult()->get(covariance::covariance);
-    algorithmFPType noiseVariance                = 0.0;
-    return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues, noiseVariance);
+
+    return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues);
 }
 
 } // namespace internal

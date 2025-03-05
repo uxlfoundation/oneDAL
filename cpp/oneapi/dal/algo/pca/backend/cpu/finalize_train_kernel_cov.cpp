@@ -125,15 +125,11 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
             &daal_parameter,
             &daal_hyperparameter));
 
-    Float noiseVariance = 0.0;
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return daal_pca_cor_kernel_t<
                    Float,
                    dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
-            .computeCorrelationEigenvalues(*daal_cor_matrix,
-                                           *daal_eigenvectors,
-                                           *daal_eigenvalues,
-                                           noiseVariance);
+            .computeCorrelationEigenvalues(*daal_cor_matrix, *daal_eigenvectors, *daal_eigenvalues);
     }));
 
     if (desc.get_deterministic()) {
@@ -185,6 +181,17 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
     }
 
     if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto eigvals = arr_eigval.get_data();
+        auto total_variance = arr_vars.get_data();
+
+        double noiseVariance = 0.0;
+        for (int64_t i = 0; i < column_count; i++) {
+            noiseVariance += total_variance[i];
+        }
+        for (int64_t i = 0; i < component_count; i++) {
+            noiseVariance -= eigvals[i];
+        }
+        noiseVariance = noiseVariance / column_count;
         result.set_noise_variance(noiseVariance);
     }
 

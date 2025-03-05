@@ -77,7 +77,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         static_cast<DAAL_UINT64>(std::uint64_t(daal_pca::eigenvalue));
 
     daal_pca_parameter.isCorrelation = true;
-    Float noiseVariance = 0.0;
+
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_pca_cor_kernel_t>(ctx,
                                                                 *daal_data,
@@ -88,7 +88,6 @@ static result_t call_daal_kernel(const context_cpu& ctx,
                                                                 *daal_variances,
                                                                 nullptr,
                                                                 nullptr,
-                                                                noiseVariance,
                                                                 &daal_pca_parameter));
 
     if (desc.get_result_options().test(result_options::vars)) {
@@ -96,6 +95,21 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     }
     if (desc.get_result_options().test(result_options::eigenvectors)) {
         result.set_eigenvectors(homogen_table::wrap(arr_eigvec, component_count, column_count));
+    }
+
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto eigvals = arr_eigval.get_data();
+        auto total_variance = arr_vars.get_data();
+
+        double noiseVariance = 0.0;
+        for (int64_t i = 0; i < column_count; i++) {
+            noiseVariance += total_variance[i];
+        }
+        for (int64_t i = 0; i < component_count; i++) {
+            noiseVariance -= eigvals[i];
+        }
+        noiseVariance = noiseVariance / (column_count - component_count);
+        result.set_noise_variance(noiseVariance);
     }
 
     if (desc.get_result_options().test(result_options::eigenvalues)) {

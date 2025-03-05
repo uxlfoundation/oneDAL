@@ -57,8 +57,7 @@ public:
                              const OnlineParameter<algorithmFPType, correlationDense> * parameter);
 
     services::Status finalize(PartialResult<correlationDense> * partialResult, const OnlineParameter<algorithmFPType, correlationDense> * parameter,
-                              data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues,
-                              algorithmFPType & noiseVariance);
+                              data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues);
 
 private:
     services::Status copyIfNeeded(data_management::NumericTable * src, data_management::NumericTable * dst);

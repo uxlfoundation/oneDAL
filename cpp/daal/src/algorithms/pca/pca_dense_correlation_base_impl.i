@@ -158,8 +158,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeSingularValues
 template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEigenvalues(const data_management::NumericTable & correlation,
                                                                                          data_management::NumericTable & eigenvectors,
-                                                                                         data_management::NumericTable & eigenvalues,
-                                                                                         algorithmFPType & noiseVariance)
+                                                                                         data_management::NumericTable & eigenvalues)
 {
     using data_management::BlockDescriptor;
 

@@ -117,7 +117,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     if (desc.get_normalization_mode() == normalization::mean_center) {
         daal_pca_parameter.doScale = false;
     }
-    Float noise_variance;
+
     interop::status_to_exception(interop::call_daal_kernel<Float, daal_pca_cor_kernel_t>(
         ctx,
         *daal_data,
@@ -128,7 +128,6 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         *daal_variances,
         daal_singular_values.get(),
         daal_explained_variances_ratio.get(),
-        noise_variance,
         &daal_pca_parameter));
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
@@ -144,7 +143,18 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     }
 
     if (desc.get_result_options().test(result_options::noise_variance)) {
-        result.set_noise_variance(noise_variance);
+        auto eigvals = arr_eigval.get_data();
+        auto total_variance = arr_vars.get_data();
+
+        double noiseVariance = 0.0;
+        for (int64_t i = 0; i < column_count; i++) {
+            noiseVariance += total_variance[i];
+        }
+        for (int64_t i = 0; i < component_count; i++) {
+            noiseVariance -= eigvals[i];
+        }
+        noiseVariance = noiseVariance / (column_count - component_count);
+        result.set_noise_variance(noiseVariance);
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {

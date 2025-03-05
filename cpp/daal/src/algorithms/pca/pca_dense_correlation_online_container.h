@@ -70,9 +70,9 @@ services::Status OnlineContainer<algorithmFPType, correlationDense, cpu>::finali
 
     data_management::NumericTablePtr eigenvalues  = result->get(pca::eigenvalues);
     data_management::NumericTablePtr eigenvectors = result->get(pca::eigenvectors);
-    algorithmFPType noiseVariance                 = 0.0;
+
     __DAAL_CALL_KERNEL(env, internal::PCACorrelationKernel, __DAAL_KERNEL_ARGUMENTS(online, algorithmFPType), finalize, partialResult, parameter,
-                       *eigenvectors, *eigenvalues, noiseVariance);
+                       *eigenvectors, *eigenvalues);
 }
 
 } // namespace pca
