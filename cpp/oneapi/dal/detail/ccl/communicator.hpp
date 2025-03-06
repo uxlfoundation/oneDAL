@@ -341,6 +341,11 @@ public:
         ccl::barrier(host_comm_->get_ref()).wait();
     }
 
+    // void is_init(int * flag) override {
+    //     flag = 0;
+    //     ccl::barrier(host_comm_->get_ref()).wait();
+    // }
+
     spmd::request_iface* bcast(byte_t* send_buf,
                                std::int64_t count,
                                const data_type& dtype,
