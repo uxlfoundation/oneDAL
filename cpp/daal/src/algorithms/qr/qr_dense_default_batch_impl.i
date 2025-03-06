@@ -282,7 +282,9 @@ Status QRBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na,
                 {
                     RT_buff[k * cols_local + i * cols_local * blocks + j] = RT_local[i * cols_local + j];
                 }
+#if defined(DAAL_INTEL_CPP_COMPILER)
                 PRAGMA_IVDEP
+#endif
                 for (; j < cols_local; j++)
                 {
                     RT_buff[k * cols_local + i * cols_local * blocks + j] = 0.0;
