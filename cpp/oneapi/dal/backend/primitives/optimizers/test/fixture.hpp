@@ -21,7 +21,7 @@
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/backend/primitives/blas/gemv.hpp"
 #include "oneapi/dal/backend/primitives/element_wise.hpp"
 
@@ -57,6 +57,7 @@ public:
     }
 
     event_vector update_x(const ndview<Float, 1>& x,
+                          bool need_grad = true,
                           bool need_hessp = false,
                           const event_vector& deps = {}) final {
         constexpr Float zero(0), one(1);
@@ -75,12 +76,19 @@ public:
         const auto kernel_minus = [=](const Float a, const Float b) -> Float {
             return a - b;
         };
-        auto bias_event = element_wise(q_, kernel_minus, gradient_, b_, gradient_, { xtax_event });
+        sycl::event bias_event;
+        if (need_grad) {
+            bias_event = element_wise(q_, kernel_minus, gradient_, b_, gradient_, { xtax_event });
+        }
 
         btx_event.wait_and_throw();
         value_ = -value_ + tmp_host / 2; // 1/2 x^t A x - b^t x
-
-        return { bias_event };
+        if (need_grad) {
+            return { bias_event };
+        }
+        else {
+            return {};
+        }
     }
 
 private:
@@ -133,11 +141,10 @@ void create_stable_matrix(sycl::queue& queue,
     ONEDAL_ASSERT(A.get_dimension(1) == n);
     auto J = ndarray<Float, 2>::empty(queue, { n, n }, sycl::usm::alloc::host);
     auto eigen_values = ndarray<Float, 1>::empty(queue, { n }, sycl::usm::alloc::host);
-    primitives::rng<Float> rn_gen;
-    primitives::engine eng(2007 + n);
+    primitives::host_engine eng(2007 + n);
 
-    rn_gen.uniform(n * n, J.get_mutable_data(), eng.get_state(), -1.0, 1.0);
-    rn_gen.uniform(n, eigen_values.get_mutable_data(), eng.get_state(), bottom_eig, top_eig);
+    primitives::uniform<Float>(n * n, J.get_mutable_data(), eng, -1.0, 1.0);
+    primitives::uniform<Float>(n, eigen_values.get_mutable_data(), eng, bottom_eig, top_eig);
 
     // orthogonalize matrix J
     gram_schmidt(J);

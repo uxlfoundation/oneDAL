@@ -166,6 +166,7 @@ class DAAL_EXPORT Input : public daal::algorithms::Input
 public:
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     ~Input() DAAL_C11_OVERRIDE {}
 

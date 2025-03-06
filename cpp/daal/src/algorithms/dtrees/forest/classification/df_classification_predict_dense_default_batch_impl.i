@@ -58,7 +58,7 @@ namespace prediction
 namespace internal
 {
 
-using namespace decision_forest::internal;
+using namespace decision_forest::prediction::internal;
 typedef int32_t leftOrClassType; /* tree size and number of classes are fit in to 2^31 */
 typedef int32_t featureIndexType;
 

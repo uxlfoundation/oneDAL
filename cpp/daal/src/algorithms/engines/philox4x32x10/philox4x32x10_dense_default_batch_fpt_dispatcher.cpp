@@ -1,5 +1,6 @@
+/* file: philox4x32x10_dense_default_batch_fpt_dispatcher.cpp */
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,15 +15,16 @@
 * limitations under the License.
 *******************************************************************************/
 
-#pragma once
+//++
+//  Implementation of philox4x32x10 calculation algorithm dispatcher.
+//--
 
-#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10_batch_container.h"
 
-namespace oneapi::dal::backend::primitives {
-
-void partial_fisher_yates_shuffle(ndview<std::int64_t, 1>& result_array,
-                                  std::int64_t top,
-                                  std::int64_t seed);
-void partial_fisher_yates_shuffle(ndview<std::int64_t, 1>& result_array, std::int64_t top);
-
-} // namespace oneapi::dal::backend::primitives
+namespace daal
+{
+namespace algorithms
+{
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::philox4x32x10::BatchContainer, batch, DAAL_FPTYPE, engines::philox4x32x10::defaultDense)
+} // namespace algorithms
+} // namespace daal

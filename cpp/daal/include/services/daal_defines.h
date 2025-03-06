@@ -66,7 +66,7 @@
     #define DAAL_C11_OVERRIDE
 #endif
 
-/* Intel(R) oneDAL 64-bit integer types */
+/* oneDAL 64-bit integer types */
 #if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER)
     #define DAAL_INT64  __int64
     #define DAAL_UINT64 unsigned __int64

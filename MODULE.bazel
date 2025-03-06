@@ -1,5 +1,5 @@
-#===============================================================================
-# Copyright 2025 Intel Corporation
+#
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#===============================================================================
+#
 
 module(name = "onedal")
 
@@ -128,8 +128,8 @@ http_archive(
 
 http_archive(
     name = "fmt",
-    url = "https://github.com/fmtlib/fmt/archive/11.1.2.tar.gz",
-    sha256 = "d8773cf062cc806d4dd4df658111f15ba7a2c9c65db5084d2491696828b1eb97",
-    strip_prefix = "fmt-11.1.2",
+    url = "https://github.com/fmtlib/fmt/archive/11.1.4.tar.gz",
+    sha256 = "ac366b7b4c2e9f0dde63a59b3feb5ee59b67974b14ee5dc9ea8ad78aa2c1ee1e",
+    strip_prefix = "fmt-11.1.4",
     build_file = "@onedal//dev/bazel/deps:fmt.tpl.BUILD",
 )

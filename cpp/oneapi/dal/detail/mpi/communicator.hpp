@@ -1,5 +1,6 @@
 /*******************************************************************************
 * Copyright 2021 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +17,7 @@
 
 #pragma once
 
-// IMPORTANT! This file should not be included to any other non-mpi header,
+// IMPORTANT! This file should not be included to any other non-MPI header,
 // otherwise it creates dependeny on MPI at the user's application compile time
 // TODO: In the future this can be solved via __has_include C++17 feature
 
@@ -165,8 +166,8 @@ public:
         if (sym == nullptr) {
             dlclose(handle);
 
-            // Check if Intel MPI without MPIX_Query_ze_support
-            // Intel MPI 2021.1 and greater supports but not all have symbol
+            // Check if Intel(R) MPI Library without MPIX_Query_ze_support
+            // Intel(R) MPI Library 2021.1 and greater supports but not all have symbol
             char version[MPI_MAX_LIBRARY_VERSION_STRING];
             int len = 0;
             MPI_Get_library_version(version, &len);
@@ -292,7 +293,7 @@ public:
         ONEDAL_ASSERT(send_buf);
         ONEDAL_ASSERT(recv_buf);
 
-        // Intel(R) MPI requires buffers to be not aliased
+        // MPI requires buffers to be not aliased
         // However, communicator interface allows aliased buffers
         // TODO: Implement correct aliasing check
         if (send_buf != recv_buf) {
@@ -353,7 +354,7 @@ public:
                                   &status));
         }
         else {
-            // Standard call to sendrecv_replace of designated mpi backend
+            // Standard call to sendrecv_replace of designated MPI backend
             mpi_call(MPI_Sendrecv_replace(buf,
                                           integral_cast<int>(count),
                                           make_mpi_data_type(dtype),
