@@ -29,8 +29,12 @@
 #define PRAGMA_IVDEP         _Pragma("ivdep")
 #define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
 #else
-#define PRAGMA_IVDEP
-#define PRAGMA_VECTOR_ALWAYS
+    #if defined(TARGET_ARM)
+        #define PRAGMA_IVDEP            _Pragma("omp simd")
+    #else
+        #define PRAGMA_IVDEP
+    #endif
+#define PRAGMA_VECTOR_ALWAYS 
 #endif
 
 namespace oneapi::dal::backend {

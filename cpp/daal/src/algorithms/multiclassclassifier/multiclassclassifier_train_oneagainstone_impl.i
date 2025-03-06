@@ -364,8 +364,10 @@ Status SubTaskCSR<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures, 
         DAAL_CHECK_BLOCK_STATUS(_mtX);
         const size_t nNonZeroValuesInRow = _mtX.rows()[1] - _mtX.rows()[0];
         const size_t * colIndices        = _mtX.cols();
+#if defined(DAAL_INTEL_CPP_COMPILER)
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
+#endif
         for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx, ++dataIndex)
         {
             this->_subsetX.get()[dataIndex] = _mtX.values()[jx];
