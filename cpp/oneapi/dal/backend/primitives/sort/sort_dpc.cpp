@@ -19,7 +19,6 @@
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include <sycl/ext/oneapi/experimental/builtins.hpp>
-#include <sycl/ext/oneapi/experimental/builtins.hpp>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"

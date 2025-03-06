@@ -136,7 +136,7 @@ pr::engine_type convert_engine_method(df_engine_types method) {
             return ::oneapi::dal::backend::primitives::engine_type::philox4x32x10;
         case df_engine_types::mt19937:
             return ::oneapi::dal::backend::primitives::engine_type::mt19937;
-        default: throw std::invalid_argument("Unsupported engine type 2");
+        default: throw std::runtime_error("Unsupported engine type in generate_rng");
     }
 }
 

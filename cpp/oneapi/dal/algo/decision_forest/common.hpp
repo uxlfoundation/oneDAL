@@ -134,18 +134,7 @@ enum class splitter_mode {
 };
 
 /// Available engine methods for building trees
-enum class df_engine_types {
-    /// mt2203 engine
-    mt2203,
-    /// mcg59 engine
-    mcg59,
-    /// philox4x32x10 engine
-    philox4x32x10,
-    /// mt19937 engine
-    mt19937,
-    /// mrg32k3a engine
-    mrg32k3a
-};
+enum class df_engine_types { mt2203, mcg59, philox4x32x10, mt19937, mrg32k3a };
 
 inline infer_mode operator|(infer_mode value_left, infer_mode value_right) {
     return bitwise_or(value_left, value_right);
@@ -612,7 +601,7 @@ public:
     }
 
     /// Engine method for the random numbers generator used by the algorithm
-    /// @remark default = df_engine_method::philox
+    /// @remark default = df_engine_method::mt2203
     df_engine_types get_engine_method() const {
         return base_t::get_engine_method();
     }

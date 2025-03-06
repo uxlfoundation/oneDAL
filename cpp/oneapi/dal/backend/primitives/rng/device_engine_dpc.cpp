@@ -51,14 +51,14 @@ sycl::event generate_rng(Distribution& distr,
             *(static_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else {
+    else if (engine_type == engine_type::mt2203) {
         auto& device_engine =
             *(static_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-
-    // default: throw std::runtime_error("Unsupported engine type in generate_rng");
-    //}
+    else {
+        throw std::runtime_error("Unsupported engine type in generate_rng");
+    }
 }
 
 /// Generates uniformly distributed random numbers on the GPU.
