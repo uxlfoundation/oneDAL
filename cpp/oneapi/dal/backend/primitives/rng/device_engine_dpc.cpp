@@ -43,7 +43,7 @@ sycl::event generate_rng(Distribution& distr,
     }
     else if (engine_type == engine_type::mrg32k3a) {
         auto& device_engine =
-            *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
+            *(static_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
     else if (engine_type == engine_type::mcg59) {
