@@ -19,7 +19,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
-#include <iostream>
+
 #ifdef ONEDAL_DATA_PARALLEL
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel_hist_impl.hpp"
