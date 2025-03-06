@@ -1618,9 +1618,13 @@ public:
         {
             OOBClassificationData * dst       = (OOBClassificationData *)other.oobBuf;
             const OOBClassificationData * src = (const OOBClassificationData *)this->oobBuf;
+            size_t n = _nClasses * nSamples;
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0, n = _nClasses * nSamples; i < n; ++i) dst[i] += src[i];
+            for (size_t i = 0; i < n; ++i)
+            {
+                dst[i] += src[i];
+            }
         }
     }
     Status finalizeOOBError(const NumericTable * resp, algorithmFPType * res, algorithmFPType * resPerObs, algorithmFPType * resAccuracy,

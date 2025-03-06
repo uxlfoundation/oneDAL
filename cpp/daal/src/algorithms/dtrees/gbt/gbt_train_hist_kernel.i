@@ -237,7 +237,9 @@ struct ComputeGHSumByRows
         const size_t nCacheLinesToPrefetchOneRow = nFeatures / elementsInCacheLine + !!(nFeatures % elementsInCacheLine);
 
         RowIndexType i = iStart;
+#if defined(DAAL_INTEL_CPP_COMPILER)
         PRAGMA_IVDEP
+#endif
         for (; i < iEndWithPrefetch; ++i)
         {
             DAAL_PREFETCH_READ_T0(pgh + 2 * aIdx[i + prefetchOffset]);
@@ -256,7 +258,9 @@ struct ComputeGHSumByRows
             }
         }
 
+#if defined(DAAL_INTEL_CPP_COMPILER)
         PRAGMA_IVDEP
+#endif
         for (; i < iEnd; ++i)
         {
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
