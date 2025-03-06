@@ -122,7 +122,7 @@ public:
     train_result_t train_spmd_weighted_base_checks(const descriptor_t& desc,
                                                    const te::dataframe& data,
                                                    const te::table_id& data_table_id) {
-        const auto x = data.get_table(data_table_id, range(0, -1));
+        const auto x = data.get_table(data_table_id, range(0, -2));
         const auto y =
             data.get_table(data_table_id,
                            range(data.get_column_count() - 2, data.get_column_count() - 1));
