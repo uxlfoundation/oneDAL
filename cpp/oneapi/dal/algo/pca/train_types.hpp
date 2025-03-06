@@ -140,9 +140,7 @@ public:
         set_singular_values_impl(value);
         return *this;
     }
-    /// A $1 \\times r$ table that contains the explained variances values for the first :literal:`r`
-    /// features.
-    /// @remark default = table{}
+    /// A value that contains the noise variance.
     double get_noise_variance() const;
 
     auto& set_noise_variance(const double value) {

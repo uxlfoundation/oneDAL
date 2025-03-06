@@ -184,7 +184,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
 
     services::Status s = computeEigenvectorsInplace(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
     DAAL_CHECK_STATUS_VAR(s);
-    //noise_variance should be here
+
     s = sortEigenvectorsDescending(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
     DAAL_CHECK_STATUS_VAR(s);
 

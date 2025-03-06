@@ -35,11 +35,11 @@ public:
 template <typename Task>
 class detail::v1::train_result_impl : public base {
 public:
-    model<Task> trained_model;
-    table singular_values;
     double noise_variance;
-    table explained_variances_ratio;
     result_option_id result_options;
+    table singular_values;
+    table explained_variances_ratio;
+    model<Task> trained_model;
 };
 
 template <typename Task>

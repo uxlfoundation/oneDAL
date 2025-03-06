@@ -59,13 +59,15 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
 
     auto data_nd = pr::table2ndarray<Float>(q_, data, alloc::device);
 
+    sycl::event last_event;
     if (desc.get_result_options().test(result_options::vars)) {
-        auto [vars, vars_event] = compute_variances(q_, data_nd);
+        pr::ndarray<Float, 1> vars;
+        std::tie(vars, last_event) = compute_variances(q_, data_nd);
         result.set_variances(homogen_table::wrap(vars.flatten(q_), 1, column_count));
     }
     if (desc.get_result_options().test(result_options::eigenvectors |
                                        result_options::eigenvalues)) {
-        auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, {});
+        auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, { last_event });
 
         auto [flipped_eigvals_host, flipped_eigenvectors_host] =
             flip_eigen_data(q_, eigvals, data_nd, component_count, { syevd_event });

@@ -167,6 +167,98 @@ auto flip_eigen_data(sycl::queue& queue,
     return std::make_tuple(flipped_eigval_host, flipped_eigvec_host);
 }
 
+template <typename Float>
+auto flip_eigen_data_gpu(sycl::queue& queue,
+                         pr::ndview<Float, 1>& eigenvalues,
+                         pr::ndview<Float, 2>& eigenvectors,
+                         std::int64_t component_count,
+                         const bk::event_vector& deps = {}) {
+    // Get dimensions
+    const std::int64_t eigval_count = eigenvalues.get_dimension(0);
+    const std::int64_t row_count = eigenvectors.get_dimension(0);
+    const std::int64_t column_count = eigenvectors.get_dimension(1);
+
+    // Input pointers
+    auto eigval_ptr = eigenvalues.get_data();
+    auto eigvec_ptr = eigenvectors.get_data();
+
+    // Create output arrays
+    auto flipped_eigenvalues =
+        pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
+    auto flipped_eigenvectors =
+        pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
+
+    // Output pointers
+    auto flipped_eigval_ptr = flipped_eigenvalues.get_mutable_data();
+    auto flipped_eigvec_ptr = flipped_eigenvectors.get_mutable_data();
+
+    auto flip_event = queue.submit([&](sycl::handler& h) {
+        // Use 2D range to handle both arrays
+        const auto range = bk::make_range_2d(component_count, column_count + 1);
+        h.depends_on(deps);
+
+        h.parallel_for(range, [=](sycl::id<2> id) {
+            const std::int64_t row = id[0];
+            const std::int64_t col = id[1];
+
+            // Process eigenvalues in column 0
+            if (col == 0 && row < component_count) {
+                flipped_eigval_ptr[row] = eigval_ptr[(eigval_count - 1) - row];
+            }
+            // Process eigenvectors in columns 1 to column_count
+            if (col > 0 && col <= column_count) {
+                flipped_eigvec_ptr[row * column_count + (col - 1)] =
+                    eigvec_ptr[(row_count - 1 - row) * column_count + (col - 1)];
+            }
+        });
+    });
+
+    flip_event.wait_and_throw();
+
+    return std::make_tuple(flipped_eigenvalues, flipped_eigenvectors);
+}
+
+template <typename Float>
+void sign_flip(sycl::queue& queue,
+               pr::ndview<Float, 2>& eigvecs,
+               const bk::event_vector& deps = {}) {
+    ONEDAL_ASSERT(eigvecs.get_dimension(0) > 0);
+    ONEDAL_ASSERT(eigvecs.get_dimension(1) > 0);
+
+    const std::int64_t row_count = eigvecs.get_dimension(0);
+    const std::int64_t column_count = eigvecs.get_dimension(1);
+    Float* eigvecs_ptr = eigvecs.get_mutable_data();
+
+    auto flip_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        const auto range = sycl::range<1>(row_count);
+
+        h.parallel_for(range, [=](sycl::id<1> id) {
+            const std::int64_t row = id[0];
+            Float* row_ptr = eigvecs_ptr + row * column_count;
+
+            Float max_val = row_ptr[0];
+            Float max_abs = sycl::fabs(row_ptr[0]);
+
+            for (std::int64_t j = 1; j < column_count; j++) {
+                Float abs_val = sycl::fabs(row_ptr[j]);
+                if (abs_val > max_abs) {
+                    max_abs = abs_val;
+                    max_val = row_ptr[j];
+                }
+            }
+
+            if (max_val < Float(0)) {
+                for (std::int64_t j = 0; j < column_count; j++) {
+                    row_ptr[j] = -row_ptr[j];
+                }
+            }
+        });
+    });
+
+    flip_event.wait_and_throw();
+}
+
 ///  A wrapper that computes 1d array of means of the columns from precomputed sums
 ///
 /// @tparam Float Floating-point type used to perform computations
@@ -211,7 +303,7 @@ double compute_noise_variance_on_host(sycl::queue& queue,
                                       pr::ndarray<Float, 1> eigenvalues,
                                       std::int64_t range,
                                       const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_explained_variances_on_host);
+    ONEDAL_PROFILER_TASK(compute_noise_variance_on_host);
     ONEDAL_ASSERT(eigenvalues.has_mutable_data());
 
     auto eigvals_ptr = eigenvalues.get_data();
@@ -261,6 +353,43 @@ auto compute_explained_variances_on_host(sycl::queue& queue,
     for (std::int64_t i = 0; i < component_count; ++i) {
         explained_variances_ratio_ptr[i] = eigvals_ptr[i] * inverse_sum;
     }
+    return explained_variances_ratio;
+}
+
+template <typename Float>
+auto compute_explained_variances_on_gpu(sycl::queue& queue,
+                                        pr::ndarray<Float, 1> eigenvalues,
+                                        pr::ndarray<Float, 1> vars,
+                                        const dal::backend::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(compute_explained_variances_on_gpu);
+    ONEDAL_ASSERT(eigenvalues.has_mutable_data());
+
+    const std::int64_t component_count = eigenvalues.get_dimension(0);
+    const std::int64_t column_count = vars.get_dimension(0);
+    auto explained_variances_ratio =
+        pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
+
+    auto eigvals_ptr = eigenvalues.get_data();
+    auto vars_host = vars.to_host(queue);
+    auto vars_ptr = vars_host.get_data();
+    auto explained_variances_ratio_ptr = explained_variances_ratio.get_mutable_data();
+
+    Float sum = 0;
+    for (std::int64_t i = 0; i < column_count; ++i) {
+        sum += vars_ptr[i];
+    }
+
+    ONEDAL_ASSERT(sum > 0);
+    const Float inverse_sum = 1.0 / sum;
+
+    auto compute_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(component_count), [=](sycl::id<1> i) {
+            explained_variances_ratio_ptr[i] = eigvals_ptr[i] * inverse_sum;
+        });
+    });
+
+    compute_event.wait_and_throw();
     return explained_variances_ratio;
 }
 
@@ -493,6 +622,32 @@ auto compute_singular_values_on_host(sycl::queue& queue,
     return singular_values;
 }
 
+template <typename Float>
+auto compute_singular_values_on_gpu(sycl::queue& queue,
+                                    pr::ndarray<Float, 1> eigenvalues,
+                                    std::int64_t row_count,
+                                    const dal::backend::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(compute_singular_values_on_gpu);
+    ONEDAL_ASSERT(eigenvalues.has_mutable_data());
+
+    const std::int64_t component_count = eigenvalues.get_dimension(0);
+    auto singular_values = pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
+
+    auto eigvals_ptr = eigenvalues.get_data();
+    auto singular_values_ptr = singular_values.get_mutable_data();
+
+    const Float factor = row_count - 1;
+
+    auto compute_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.parallel_for(sycl::range<1>(component_count), [=](sycl::id<1> i) {
+            singular_values_ptr[i] = sycl::sqrt(factor * eigvals_ptr[i]);
+        });
+    });
+
+    compute_event.wait_and_throw();
+    return singular_values;
+}
 ///  A wrapper that sliced 2d array of eigenvectors with necessary dimensions
 ///
 /// @tparam Float Floating-point type used to perform computations
