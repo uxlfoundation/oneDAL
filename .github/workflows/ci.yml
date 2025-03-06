@@ -79,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
-          path: ./__release_lnx_debug
+          path: ./__release_lnx_main
       - name: Make onedal
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
