@@ -350,7 +350,9 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                     size_t i = first;
                     b.upper  = dx[indexes[i]];
                     b.lower  = dx[indexes[i]];
+#if defined(DAAL_INTEL_CPP_COMPILER)
                     PRAGMA_IVDEP
+#endif
                     for (++i; i < last; ++i)
                     {
                         if (b.lower > dx[indexes[i]])
@@ -734,8 +736,10 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         size_t left  = first;
         size_t right = last - 1;
 
+#if defined(DAAL_INTEL_CPP_COMPILER) 
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
+#endif
         for (;;)
         {
             while ((left <= right) && (dx[indexes[left]] < median))
