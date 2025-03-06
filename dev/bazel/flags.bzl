@@ -60,8 +60,6 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
             flags = flags + ["-Wno-unused-command-line-argument"]
         if compiler_id == "gcc" or compiler_id == "icpx":
             flags = flags + ["-Wno-gnu-zero-variadic-macro-arguments"]
-        if compiler_id == "gcc":
-            flags = flags + ["-Wno-dangling-reference"]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
         return flags
