@@ -443,12 +443,13 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
                 row_count = std::min(ctx.selected_row_total_count_ - ctx.global_row_offset_,
                                      ctx.row_count_);
             }
-
-            // Store counts directly in node_list_host
-            for (Index node_idx = 0; node_idx < node_count; ++node_idx) {
-                Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
-                node_ptr[impl_const_t::ind_lrc] = row_count;
-            }
+            last_event = queue_.submit([&](sycl::handler& cgh) {
+                cgh.parallel_for(sycl::range<1>(node_count), [=](sycl::id<1> node_idx) {
+                    // Store count directly in node_list_host
+                    Index* node_ptr = node_list_ptr + node_idx * impl_const_t::node_prop_count_;
+                    node_ptr[impl_const_t::ind_lrc] = row_count;
+                });
+            });
         }
 
         if (row_count > 0) {
@@ -1830,13 +1831,6 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     model_manager_t model_manager(ctx, ctx.tree_count_, ctx.column_count_);
 
-    /*init engines*/
-    auto skip_num =
-        de::check_mul_overflow<std::size_t>(ctx.row_total_count_, (ctx.selected_ftr_count_ + 1));
-    skip_num = de::check_mul_overflow<std::size_t>(ctx.tree_count_, skip_num);
-
-    de::check_mul_overflow<std::size_t>((ctx.tree_count_ - 1), skip_num);
-
     auto engine_method = convert_engine_method(desc.get_engine_method());
     rng_engine_t engine_gpu =
         ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_method);
@@ -2030,18 +2024,14 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
                     node_vs_tree_map_list = node_vs_tree_map_list_new;
 
-                    last_event = train_service_kernels_.do_level_partition_by_groups(
-                        ctx,
-                        full_data_nd_,
-                        node_list,
-                        tree_order_lev_,
-                        tree_order_lev_buf_,
-                        ctx.row_count_,
-                        ctx.selected_row_total_count_,
-                        ctx.column_count_,
-                        node_count,
-                        ctx.tree_in_block_,
-                        { last_event });
+                    last_event =
+                        train_service_kernels_.do_level_partition_by_groups(ctx,
+                                                                            full_data_nd_,
+                                                                            node_list,
+                                                                            tree_order_lev_,
+                                                                            tree_order_lev_buf_,
+                                                                            node_count,
+                                                                            { last_event });
                 }
             }
             last_event.wait_and_throw();
