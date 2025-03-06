@@ -30,5 +30,28 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multinomial_naive_bayes::training::OnlineContainer, online, DAAL_FPTYPE,
                                       multinomial_naive_bayes::training::fastCSR)
+namespace multinomial_naive_bayes
+{
+namespace training
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, fastCSR>::Online(size_t nClasses) : input(), parameter(nClasses)
+{
+    initialize();
+}
+
+using OnlineType = Online<DAAL_FPTYPE, fastCSR>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : classifier::training::Online(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace training
+} // namespace multinomial_naive_bayes
 } // namespace algorithms
 } // namespace daal

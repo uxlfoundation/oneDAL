@@ -29,7 +29,7 @@ namespace oneapi::dal::decision_forest::parameters {
 
 using dal::backend::context_cpu;
 
-std::int64_t propose_block_size(const context_cpu& ctx) {
+std::int64_t ONEDAL_EXPORT propose_block_size(const context_cpu& ctx) {
     std::int64_t block_size = 22l;
     if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
         /// Here if AVX512 extensions are available on CPU

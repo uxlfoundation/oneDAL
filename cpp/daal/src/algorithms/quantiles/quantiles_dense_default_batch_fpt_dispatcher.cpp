@@ -28,5 +28,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(quantiles::BatchContainer, batch, DAAL_FPTYPE, quantiles::defaultDense)
+namespace quantiles
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, quantiles::defaultDense>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, quantiles::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+} // namespace interface1
+} // namespace quantiles
 } // namespace algorithms
 } // namespace daal

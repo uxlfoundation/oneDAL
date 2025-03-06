@@ -27,5 +27,30 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(normalization::zscore::interface3::BatchContainer, batch, DAAL_FPTYPE, normalization::zscore::defaultDense)
+namespace normalization
+{
+namespace zscore
+{
+namespace interface3
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch()
+{
+    _par = new ParameterType();
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const Batch & other) : BatchImpl(other)
+{
+    _par = new ParameterType(other.parameter());
+    initialize();
+}
+
+} // namespace interface3
+} // namespace zscore
+} // namespace normalization
+} // namespace algorithms
 } // namespace daal

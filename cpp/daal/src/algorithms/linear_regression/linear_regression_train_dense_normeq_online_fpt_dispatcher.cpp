@@ -28,5 +28,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::OnlineContainer, online, DAAL_FPTYPE, linear_regression::training::normEqDense)
+namespace linear_regression
+{
+namespace training
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, normEqDense>::Online()
+{
+    initialize();
+}
+
+using OnlineType = Online<DAAL_FPTYPE, normEqDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace training
+} // namespace linear_regression
 } // namespace algorithms
 } // namespace daal

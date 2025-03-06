@@ -25,8 +25,8 @@ namespace oneapi::dal::preview::spmd {
 namespace device_memory_access {
 namespace v1 {
 
-struct usm {};
-struct none {};
+struct ONEDAL_EXPORT usm {};
+struct ONEDAL_EXPORT none {};
 } // namespace v1
 
 using v1::usm;

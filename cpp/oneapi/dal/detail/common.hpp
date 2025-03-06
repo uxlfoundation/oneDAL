@@ -474,7 +474,7 @@ static constexpr void deallocate(Alloc& alloc,
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
-void check_if_pointer_matches_queue(const sycl::queue& q, const void* ptr);
+void ONEDAL_EXPORT check_if_pointer_matches_queue(const sycl::queue& q, const void* ptr);
 #endif
 
 } // namespace oneapi::dal::preview::detail

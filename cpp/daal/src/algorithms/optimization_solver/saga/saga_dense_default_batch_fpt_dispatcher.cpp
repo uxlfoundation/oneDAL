@@ -36,24 +36,25 @@ namespace interface2
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::saga::defaultDense>;
 
 template <>
-BatchType::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
+DAAL_EXPORT BatchType::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
 {
     _par = new algorithms::optimization_solver::saga::Parameter(objectiveFunction);
     initialize();
 }
 
 template <>
-BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input)
 {
     _par = new algorithms::optimization_solver::saga::Parameter(other.parameter());
     initialize();
 }
 
 template <>
-services::SharedPtr<BatchType> BatchType::create()
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
+
 } // namespace interface2
 } // namespace saga
 } // namespace optimization_solver
