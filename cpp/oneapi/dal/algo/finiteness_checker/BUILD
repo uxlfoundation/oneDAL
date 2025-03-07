@@ -17,30 +17,6 @@ dal_module(
 )
 
 dal_test_suite(
-    name = "cpu_tests",
-    private = True,
-    compile_as = [ "c++" ],
-    srcs = glob([
-        "backend/cpu/test/*.cpp",
-    ]),
-    dal_deps = [
-        ":finiteness_checker",
-    ],
-)
-
-dal_test_suite(
-    name = "gpu_tests",
-    private = True,
-    compile_as = [ "dpc++" ],
-    srcs = glob([
-        "backend/gpu/test/*.cpp",
-    ]),
-    dal_deps = [
-        ":finiteness_checker",
-    ],
-)
-
-dal_test_suite(
     name = "interface_tests",
     framework = "catch2",
     srcs = glob([
@@ -54,8 +30,6 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
-        ":cpu_tests",
-        ":gpu_tests",
         ":interface_tests",
     ],
 )
