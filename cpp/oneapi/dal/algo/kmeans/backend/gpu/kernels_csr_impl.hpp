@@ -151,7 +151,7 @@ sycl::event assign_clusters(sycl::queue& q,
 
     sycl::event transpose_event = transpose(q, centroids, centroids_transposed, deps);
 
-    // Workaround to sparse K-means crash on PVC.
+    // Workaround to sparse K-means abort on PVC.
     transpose_event.wait();
 
     // Compute dot products of each data point and each cluster centroid:
@@ -165,7 +165,7 @@ sycl::event assign_clusters(sycl::queue& q,
                                Float(0),
                                { transpose_event });
 
-    // Workaround to sparse K-means crash on PVC.
+    // Workaround to sparse K-means abort on PVC.
     dist_event.wait();
 
     // Select min_j (D_ij) and idxmin_j (D_ij),
