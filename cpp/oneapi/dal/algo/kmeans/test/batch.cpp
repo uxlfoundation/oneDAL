@@ -318,11 +318,10 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     }
 }
 
-
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
-    "KMmeans sparse cases on large number of rows",
-    "[kmeans][batch]",
-    kmeans_types) {
+                     "KMmeans sparse cases on large number of rows",
+                     "[kmeans][batch]",
+                     kmeans_types) {
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
