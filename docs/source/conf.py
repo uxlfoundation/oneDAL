@@ -96,7 +96,7 @@ extlinks = {
 html_static_path = ['_static']
 
 html_theme = 'sphinx_book_theme'
-html_logo = 'uxl-foundation-logo-horizontal-color.png'
+html_logo = '_static/uxl-foundation-logo-horizontal-color.png'
 html_favicon = '_static/favicons.png'
 
 # Theme options
