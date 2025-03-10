@@ -20,6 +20,8 @@
 #include "oneapi/dal/table/backend/common_kernels.hpp"
 #include "oneapi/dal/table/backend/homogen_kernels.hpp"
 #include "oneapi/dal/backend/serialization.hpp"
+#include <iostream>
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::backend {
 
@@ -106,6 +108,7 @@ public:
                             array<T>& block,
                             const range& rows,
                             sycl::usm::alloc alloc) const {
+        ONEDAL_PROFILER_TASK(pull_rows_template, policy.get_queue());
         homogen_pull_rows(policy, get_info(), data_, block, rows, alloc_kind_from_sycl(alloc));
     }
 #endif
