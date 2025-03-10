@@ -16,8 +16,9 @@
 #===============================================================================
 
 # Download Bazelisk
+VERSION=v1.18.0
 export SHA256="ce52caa51ef9e509fb6b7e5ad892e5cf10feb0794b0aed4d2f36adb00a1a2779  bazelisk-linux-amd64"
-wget https://github.com/bazelbuild/bazelisk/releases/download/v1.18.0/bazelisk-linux-amd64
+wget https://github.com/bazelbuild/bazelisk/releases/download/$VERSION/bazelisk-linux-amd64
 echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
 chmod +x bazelisk-linux-amd64
