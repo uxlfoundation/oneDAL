@@ -318,4 +318,22 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     }
 }
 
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMmeans sparse cases on large number of rows",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Check that algorithm does not crash on big number of rows
+    constexpr std::int64_t cluster_count = 5;
+    auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count, 100000000, 20);
+
+    auto desc = this->get_descriptor(cluster_count, 10, 0.01);
+    const table initial_centroids = input.get_initial_centroids();
+    const table data = input.get_data(this->get_policy());
+    const auto train_result = this->train(desc, data, initial_centroids);
+}
+
 } // namespace oneapi::dal::kmeans::test

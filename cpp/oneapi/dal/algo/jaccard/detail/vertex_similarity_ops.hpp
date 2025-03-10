@@ -29,13 +29,17 @@ namespace oneapi::dal::preview::jaccard::detail {
 template <typename Policy, typename Descriptor, typename Graph>
 struct vertex_similarity_ops_dispatcher {
     using task_t = typename Descriptor::task_t;
+
     vertex_similarity_result<task_t> operator()(
         const Policy &policy,
         const Descriptor &descriptor,
         vertex_similarity_input<Graph, task_t> &input) const {
-        const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(input.get_graph());
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+        const auto &t = topology_builder(input.get_graph());
 
+        // Assume get_backend returns a std::shared_ptr or std::unique_ptr
         static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+
         return (*impl)(policy, descriptor, t, input.get_caching_builder());
     }
 };
