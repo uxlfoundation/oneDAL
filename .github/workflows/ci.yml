@@ -35,7 +35,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -105,3 +105,41 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+
+  LinuxABICheck:
+    name: ABI Conformance
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: uxl-xlarge
+    env:
+      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v4
+      - name: install ABI checking tools
+        run: .ci/env/apt.sh abigail
+      - name: Check Cache
+        id: get-cache-key
+        run: |
+          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo $CACHE_KEY
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download oneDAL main build
+        uses: actions/cache/restore@v4
+        with:
+          path: ./__release_lnx_main
+          key: ${{ steps.get-cache-key.outputs.key }}
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Check ABI conformance
+        run: .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
