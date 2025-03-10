@@ -36,6 +36,7 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
+#include "src/services/service_environment.h" // getL2CacheSize()
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -161,8 +162,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
         /* Inverse number of rows (for normalization) */
-        algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
-
+        const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
         /* Split rows by blocks */
         DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
         if (hyperparameter)
@@ -170,6 +170,17 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
             DAAL_CHECK_STATUS_VAR(status);
         }
+
+        /* TODO: make a hyperparameter */
+        constexpr double cacheCoeff = 0.8;
+
+        const size_t l2Size           = (getL2CacheSize() > 256 * 1024 ? getL2CacheSize() : 256 * 1024);
+        const size_t nValuesPerThread = l2Size * cacheCoeff / sizeof(algorithmFPType);
+        const size_t nValues          = nVectors * nFeatures;
+
+        /* Maximal number of threads to use in parallel region */
+        const size_t maxNThreads = (nValues > nValuesPerThread ? nValues / nValuesPerThread : 1);
+
         size_t numBlocks = nVectors / numRowsInBlock;
         if (numBlocks * numRowsInBlock < nVectors)
         {
@@ -187,10 +198,9 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             }
             return tlsData;
         });
-        DAAL_CHECK_SAFE_STATUS();
 
         /* Threaded loop with syrk seq calls */
-        daal::static_threader_for(numBlocks, [&](int iBlock, size_t tid) {
+        daal::static_numa_threader_for(numBlocks, maxNThreads, [&](int iBlock, size_t tid) {
             struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
             if (!tls_data_local)
             {
