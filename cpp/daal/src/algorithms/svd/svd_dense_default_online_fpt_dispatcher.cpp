@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(svd::OnlineContainer, online, DAAL_FPTYPE, svd::defaultDense)
+namespace svd
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Online<DAAL_FPTYPE, svd::defaultDense>::Online()
+{
+    initialize();
 }
+
+using OnlineType = Online<DAAL_FPTYPE, svd::defaultDense>;
+
+template <>
+DAAL_EXPORT OnlineType::Online(const OnlineType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace svd
+} // namespace algorithms
 } // namespace daal

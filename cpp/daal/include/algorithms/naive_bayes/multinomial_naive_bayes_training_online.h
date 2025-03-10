@@ -109,7 +109,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Online(size_t nClasses) : input(), parameter(nClasses) { initialize(); }
+    Online(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters
@@ -117,7 +117,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : super(other), input(other.input), parameter(other.parameter) { initialize(); }
+    Online(const Online<algorithmFPType, method> & other);
 
     virtual ~Online() {}
 

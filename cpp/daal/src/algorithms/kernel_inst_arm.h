@@ -20,27 +20,29 @@
 //  The defines used for kernel allocation, deallocation, and calling kernel methods
 //--
 */
+#include "services/daal_defines.h"
+//useage of DAAL_EXPORT is only to not break ABI. It can be removed in the next major release (2026.0)
 
 #ifndef __KERNEL_INST_ARM_H__
-#define __KERNEL_INST_ARM_H__
+    #define __KERNEL_INST_ARM_H__
 
-#define __DAAL_INSTANTIATE_DISPATCH_IMPL(ContainerTemplate, Mode, ClassName, BaseClassName, GetCpuid, ...)                         \
-    DAAL_KERNEL_SVE_CONTAINER1(ContainerTemplate, __VA_ARGS__)                                                                     \
-    namespace interface1                                                                                                           \
-    {                                                                                                                              \
-    template <>                                                                                                                    \
-    ClassName<Mode, ContainerTemplate<__VA_ARGS__, sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName(     \
-        daal::services::Environment::env * daalEnv)                                                                                \
-        : BaseClassName(daalEnv), _cntr(nullptr)                                                                                   \
-    {                                                                                                                              \
-        GetCpuid switch (__DAAL_KERNEL_MIN(DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID, cpuid))                                       \
-        {                                                                                                                          \
-            DAAL_KERNEL_SVE_CONTAINER_CASE(ContainerTemplate, __VA_ARGS__)                                                         \
-        default: _cntr = (new ContainerTemplate<__VA_ARGS__, sve>(daalEnv)); break;                                                \
-        }                                                                                                                          \
-    }                                                                                                                              \
-                                                                                                                                   \
-    template class ClassName<Mode, ContainerTemplate<__VA_ARGS__, sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, __VA_ARGS__)>; \
-    }
+    #define __DAAL_INSTANTIATE_DISPATCH_IMPL(ContainerTemplate, Mode, ClassName, BaseClassName, GetCpuid, ...)                                 \
+        DAAL_KERNEL_SVE_CONTAINER1(ContainerTemplate, __VA_ARGS__)                                                                             \
+        namespace interface1                                                                                                                   \
+        {                                                                                                                                      \
+        template <>                                                                                                                            \
+        DAAL_EXPORT ClassName<Mode, ContainerTemplate<__VA_ARGS__, sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName( \
+            daal::services::Environment::env * daalEnv)                                                                                        \
+            : BaseClassName(daalEnv), _cntr(nullptr)                                                                                           \
+        {                                                                                                                                      \
+            GetCpuid switch (__DAAL_KERNEL_MIN(DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID, cpuid))                                               \
+            {                                                                                                                                  \
+                DAAL_KERNEL_SVE_CONTAINER_CASE(ContainerTemplate, __VA_ARGS__)                                                                 \
+            default: _cntr = (new ContainerTemplate<__VA_ARGS__, sve>(daalEnv)); break;                                                        \
+            }                                                                                                                                  \
+        }                                                                                                                                      \
+                                                                                                                                               \
+        template class ClassName<Mode, ContainerTemplate<__VA_ARGS__, sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, __VA_ARGS__)>;         \
+        }
 
 #endif

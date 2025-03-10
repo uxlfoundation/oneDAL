@@ -28,5 +28,31 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::init::BatchContainer, batch, DAAL_FPTYPE, implicit_als::training::init::fastCSR)
+namespace implicit_als
+{
+namespace training
+{
+namespace init
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, implicit_als::training::init::fastCSR>::Batch()
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, implicit_als::training::init::fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace init
+} // namespace training
+} // namespace implicit_als
+} // namespace algorithms
 } // namespace daal

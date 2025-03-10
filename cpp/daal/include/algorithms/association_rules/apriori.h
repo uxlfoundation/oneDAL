@@ -90,7 +90,8 @@ public:
     typedef algorithms::association_rules::Result ResultType;
 
     /** Default constructor */
-    Batch() { initialize(); }
+    // defined elsewhere in order to prevent implicit instantation of AlgorithmBatchContainer
+    Batch();
 
     /**
      * Constructs an association rules algorithm by copying input objects and parameters
@@ -98,7 +99,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm
@@ -143,9 +144,9 @@ protected:
 
     void initialize()
     {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
+        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
+        _in  = &input;
+        _par = &parameter;
         _result.reset(new ResultType());
     }
 

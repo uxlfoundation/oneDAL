@@ -167,9 +167,9 @@ namespace v1 {
 ///                be :expr:`method::dense`.
 /// @tparam Task   Tag-type that specifies the type of the problem to solve. Can
 ///                be :expr:`task::compute`.
-template <typename Float = detail::descriptor_base<>::float_t,
-          typename Method = detail::descriptor_base<>::method_t,
-          typename Task = detail::descriptor_base<>::task_t>
+template <typename Float = float,
+          typename Method = method::by_default,
+          typename Task = task::by_default>
 class descriptor : public detail::descriptor_base<Task> {
     static_assert(detail::is_valid_float_v<Float>);
     static_assert(detail::is_valid_method_v<Method>);

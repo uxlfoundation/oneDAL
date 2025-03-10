@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstdint>
+#include "oneapi/dal/common.hpp"
 
 // TODO: Clean up this redefinition and import the defines globally.
 #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
@@ -50,8 +51,8 @@ enum class cpu_extension : uint64_t {
 #endif
 };
 
-cpu_extension from_daal_cpu_type(int);
-cpu_extension detect_top_cpu_extension();
+ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int);
+ONEDAL_EXPORT cpu_extension detect_top_cpu_extension();
 
 } // namespace v1
 using v1::cpu_vendor;

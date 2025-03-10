@@ -102,7 +102,7 @@ public:
     InputType input;         /*!< %Input data structure */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs linear kernel function algorithm by copying input objects and parameters
@@ -110,7 +110,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : KernelIface(other), parameter(other.parameter), input(other.input) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns the method of the algorithm

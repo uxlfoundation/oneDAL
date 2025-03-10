@@ -28,7 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(sorting::BatchContainer, batch, DAAL_FPTYPE, sorting::defaultDense)
+namespace sorting
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, sorting::defaultDense>::Batch()
+{
+    initialize();
+}
 
+using BatchType = Batch<DAAL_FPTYPE, sorting::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace sorting
 } // namespace algorithms
-
 } // namespace daal

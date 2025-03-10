@@ -58,18 +58,11 @@ public:
     ParameterType parameter;
     InputType input;
 
-    Batch() { initialize(); };
+    Batch();
 
-    Batch(size_t nClasses)
-    {
-        parameter.nClasses = nClasses;
-        initialize();
-    }
+    Batch(size_t nClasses);
 
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 

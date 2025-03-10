@@ -29,6 +29,31 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_tree::regression::training::BatchContainer, batch, DAAL_FPTYPE,
                                       decision_tree::regression::training::defaultDense)
+namespace decision_tree
+{
+namespace regression
+{
+namespace training
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_tree::regression::training::defaultDense>::Batch()
+{
+    initialize();
+}
 
+using BatchType = Batch<DAAL_FPTYPE, decision_tree::regression::training::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : algorithms::regression::training::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace training
+} // namespace regression
+} // namespace decision_tree
 } // namespace algorithms
 } // namespace daal

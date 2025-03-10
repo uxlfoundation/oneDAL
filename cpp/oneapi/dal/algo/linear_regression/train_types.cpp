@@ -285,8 +285,8 @@ void partial_train_result<Task>::set_partial_xty_impl(const table& value) {
 
 template class ONEDAL_EXPORT train_result<task::regression>;
 template class ONEDAL_EXPORT train_input<task::regression>;
-template class ONEDAL_EXPORT partial_train_input<task::regression>;
 template class ONEDAL_EXPORT partial_train_result<task::regression>;
+template class ONEDAL_EXPORT partial_train_input<task::regression>;
 
 } // namespace v1
 } // namespace oneapi::dal::linear_regression

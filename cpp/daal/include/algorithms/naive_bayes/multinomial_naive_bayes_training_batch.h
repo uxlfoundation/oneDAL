@@ -105,7 +105,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Batch(size_t nClasses) : parameter(nClasses) { initialize(); }
+    Batch(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters
@@ -113,10 +113,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 

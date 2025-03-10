@@ -36,7 +36,7 @@ namespace init
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(size_t nClasses)
     : BatchBase(new ParameterType(nClasses)), parameter(*static_cast<ParameterType *>(_par))
 {
     initialize();
@@ -44,7 +44,7 @@ Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(size_t nClasses)
 
 using BatchType = Batch<DAAL_FPTYPE, kmeans::init::randomDense>;
 template <>
-Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(const BatchType & other)
+DAAL_EXPORT Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(const BatchType & other)
     : BatchBase(new ParameterType(other.parameter)), parameter(*static_cast<ParameterType *>(_par)), input(other.input)
 {
     initialize();
