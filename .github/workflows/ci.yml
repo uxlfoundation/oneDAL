@@ -69,6 +69,7 @@ jobs:
           cp -r __release_lnx __release_lnx_main
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
+        if: github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
