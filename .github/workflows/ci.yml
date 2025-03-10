@@ -23,6 +23,8 @@ on:
   push:
     branches:
       - main
+  # use workflow dispatch to regenerate cache
+  workflow_dispatch:
 
 permissions:
   contents: read
