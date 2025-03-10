@@ -142,7 +142,7 @@ deserialize_result_t deserialize_array(const Policy& policy,
 }
 
 #define INSTANTIATE(Policy)                                                               \
-    template void OENDAL_EXPORT serialize_array(const Policy& policy,                     \
+    template void ONEDAL_EXPORT serialize_array(const Policy& policy,                     \
                                                 output_archive& archive,                  \
                                                 const byte_t* data,                       \
                                                 std::int64_t size_in_bytes,               \
