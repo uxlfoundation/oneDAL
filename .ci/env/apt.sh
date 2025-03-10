@@ -120,10 +120,6 @@ function install_miniforge {
     source /usr/share/miniconda/etc/profile.d/conda.sh
 }
 
-function install_abigail {
-    sudo apt-get install -y abigail-tools
-}
-
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
@@ -162,9 +158,6 @@ elif [ "${component}" == "miniforge" ] ; then
         install_miniforge
     fi
     install_dev-base-conda
-elif [ "${component}" == "abigail" ] ; then
-    update
-    install_abigail
 else
     echo "Usage:"
     echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
