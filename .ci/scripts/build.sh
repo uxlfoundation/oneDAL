@@ -36,7 +36,6 @@ show_help() {
 --tbb-dir:The TBB installation directory to use to build oneDAL with in the case that the backend is given as `ref`. If the installation directory does not exist, attempts to build this from source
 --use-openrng:Set this to yes if openrng is to be used as RNG backend. Use this only with the `ref` backend.
 --sysroot:The sysroot to use, in the case that clang is used as the cross-compiler
---debug:Set build debug mode flag
 '
 }
 
@@ -76,9 +75,6 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --use-openrng)
         use_openrng="$2"
-        shift;;
-        --debug)
-        use_debug="$2"
         shift;;
         --help)
         show_help
@@ -249,10 +245,6 @@ fi
 
 if [ "${use_openrng}" == "yes" ]; then
     make_options+=(RNG_BACKEND=openrng)
-fi
-
-if [ -n "${use_debug}" ]; then
-    make_options+=(REQDBG="${use_debug}")
 fi
 
 echo "Calling make"

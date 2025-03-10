@@ -155,13 +155,9 @@ It is possible to build oneDAL libraries with selected set of algorithms and/or 
 
 On **Linux\*** it is possible to build debug version of oneDAL or the version that allows to do kernel profiling using <ittnotify.h>.
 
-- To build debug version of oneDAL (including debug symbols), run:
+- To build debug version of oneDAL, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=yes
-
-- To build oneDAL to include only symbols, run:
-
-            make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
 
 - To build oneDAL with kernel profiling information, run:
 
