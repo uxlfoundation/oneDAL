@@ -21,12 +21,15 @@ cd $ci_dir
 # relative paths must be made from the oneDAL repo root
 main_release_dir=$1
 release_dir=$2
+RETURN_CODE=0
 
 echo Shared Library ABI Conformance
 solibs=($(ls $main_release_dir/lib*.so))
 for i in "${solibs[@]}"
 do
     name=$(basename $i)
-    echo "========${name}========"
+    echo "======== ${name} ========"
     abidiff $i $release_dir/$name
+    RETURN_CODE=$(($RETURN_CODE+$?))
 done
+exit ${RETURN_CODE}
