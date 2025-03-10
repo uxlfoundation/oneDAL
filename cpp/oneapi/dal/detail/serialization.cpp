@@ -18,7 +18,7 @@
 
 namespace oneapi::dal::detail {
 
-serializable_registry& serializable_registry::instance() {
+serializable_registry& ONEDAL_EXPORT serializable_registry::instance() {
     static serializable_registry factory;
     return factory;
 }
