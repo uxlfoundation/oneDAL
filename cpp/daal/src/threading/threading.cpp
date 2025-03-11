@@ -21,12 +21,15 @@
 //--
 */
 
+// #include <iostream>
+// #define DO_PRINT
+
 #include "src/threading/threading.h"
 #include "services/daal_memory.h"
 #include "src/algorithms/service_qsort.h"
-
-#define TBB_PREVIEW_GLOBAL_CONTROL 1
-#define TBB_PREVIEW_TASK_ARENA     1
+#include "src/services/service_defines.h"
+#include "src/services/service_topo.h"
+#include "src/threading/service_thread_pinner.h"
 
 #include <algorithm> // std::min
 #include <stdlib.h>  // malloc and free
@@ -75,6 +78,171 @@ DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle)
     // #endif
 }
 
+/// Initialize task arenas in threader environment.
+///
+/// If the  information about NUMA nodes is available, the default arena is created on the first NUMA node
+/// and the maximal concurrency is limited to the default minimal number of threads used by oneDAL.
+///
+/// If the information about NUMA nodes is not available, the default arena is created on the whole system
+/// and the maximal concurrency is aligned with the maximal oneTBB concurrency
+///
+/// \return 0 if success, -1 if failed
+size_t _initArenas()
+{
+    size_t nNUMA = 1;
+    DAAL_SAFE_CPU_CALL((nNUMA = daal::threader_env()->getNumberOfNUMANodes()), (nNUMA = 1));
+#ifdef DO_PRINT
+    std::cout << std::endl << "_initArenas: nNUMA = " << nNUMA << std::endl;
+#endif
+    if (nNUMA > daal::DAAL_MAX_NUMA_COUNT)
+    {
+        return -1;
+    }
+    if (nNUMA > 1)
+    {
+        std::vector<tbb::numa_node_id> numa_indexes = tbb::info::numa_nodes();
+
+        tbb::task_arena * arena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
+
+        // Get maximal concurrency for the default arena (first NUMA node)
+        arena->initialize(tbb::task_arena::constraints(numa_indexes[0]));
+        arena->execute([]{
+            daal::threader_env()->setMaxConcurrency(0, tbb::this_task_arena::max_concurrency());
+        });
+        arena->terminate();
+        arena->initialize(tbb::task_arena::constraints(numa_indexes[0], daal::threader_env()->getNumberOfThreadsUsed()));
+
+        #ifdef DO_PRINT
+        std::cout << "_initArenas: NUMA 0 max_concurrency = " << daal::threader_env()->getMaxConcurrency(0) << std::endl;
+        std::cout << "_initArenas: NUMA 0 number of threads used = " << daal::threader_env()->getNumberOfThreadsUsed() << std::endl;
+        #endif
+        daal::threader_env()->setArena(0, arena);
+
+        daal::threader_env()->setDefaultArena(arena);
+
+    }
+    else
+    {
+        tbb::task_arena * defaultArena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
+        defaultArena->initialize();
+        daal::threader_env()->setDefaultArena(defaultArena);
+    }
+    daal::threader_env()->setInitialized(true);
+    return 0;
+}
+
+/// Update the number of threads in the task arenas in threader environment to reach the requested
+/// number of threads if possible.
+///
+/// The function updates the number of threads in the already created arenas by re-initializing the arenas
+/// to reach the requested number of threads.
+/// If the number of threads requested is greater than the number of threads available in already created arenas,
+/// the function creates new arenas attached to the next NUMA nodes and initializes them with the number of threads
+/// necessary to reach the requested number of threads.
+///
+/// @param nThreadsRequested  The number of threads requested by a threading primitive.
+void _updateArenas(size_t nThreadsRequested)
+{
+#ifdef DO_PRINT
+    std::cout << std::endl << "_updateArenas: nThreadsRequested = " << nThreadsRequested << std::endl;
+#endif
+    size_t nThreadsUsed = daal::threader_env()->getNumberOfThreadsUsed();
+    const size_t nThreads = daal::threader_env()->getNumberOfThreads();
+    if (nThreadsRequested <= nThreadsUsed || nThreads <= nThreadsUsed)
+        // Do nothing if the number of threads requested is less than the number of threads already used by oneDAL
+        // or if the number of threads used by oneDAL has already reached the total number of available threads.
+        return;
+    if (nThreadsRequested >= nThreads)
+        // If the number of threads requested is greater than the total number of threads available to oneDAL,
+        // limit the number of requested threads with the total number of threads.
+        nThreadsRequested = nThreads;
+    std::vector<tbb::numa_node_id> numa_indexes = tbb::info::numa_nodes();
+    const size_t nNUMA = daal::threader_env()->getNumberOfNUMANodes();
+#ifdef DO_PRINT
+    std::cout << "_updateArenas: nNUMA = " << nNUMA << std::endl;
+#endif
+
+    size_t iArena = 0;                  // Index of the arena to be re-initialized
+    size_t totalMaxConcurrency = 0;     // Total number of threads available in arenas visited so far
+    size_t prevMaxConcurrency = 0;      // Total number of threads available in arenas visited before the current one
+    while (totalMaxConcurrency < nThreadsRequested && iArena < nNUMA)
+    {
+        /// Update the number of threads available in arenas until the requested number of threads is reached
+        prevMaxConcurrency = totalMaxConcurrency;
+        totalMaxConcurrency += daal::threader_env()->getMaxConcurrency(iArena);
+        if (nThreadsRequested <= totalMaxConcurrency)
+        {
+            // If the requested number of threads can be reached using the current arena (iArena),
+            // re-initialize the current arena with the requested number of threads
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[iArena]));
+            arena->terminate();
+            arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena], nThreadsRequested - prevMaxConcurrency));
+        #ifdef DO_PRINT
+            std::cout << "_updateArenas: Arena " << iArena << " reinitiaslized with " << nThreadsRequested - prevMaxConcurrency << " threads" << std::endl;
+        #endif
+            break;
+        }
+        else
+        {
+            // If the requested number of threads cannot be reached using the current arena (iArena),
+            // re-initialize the current arena with the maximal number of threads available in the arena
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(numa_indexes[iArena]));
+            arena->terminate();
+            arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena], daal::threader_env()->getMaxConcurrency(iArena)));
+        #ifdef DO_PRINT
+            std::cout << "_updateArenas: Arena " << iArena << " reinitiaslized with max concurrency: " <<  daal::threader_env()->getMaxConcurrency(iArena) << " threads" << std::endl;
+        #endif
+            // Move to the next arena
+            iArena++;
+            if (iArena < nNUMA && daal::threader_env()->getArena(numa_indexes[iArena]) == nullptr)
+            {
+                // If the next arena does not exist, create a new arena attached to the next NUMA node
+                tbb::task_arena * arena = new tbb::task_arena(tbb::task_arena::constraints {}.set_max_threads_per_core(1));
+                arena->initialize(tbb::task_arena::constraints(numa_indexes[iArena]));
+                // Get the maximal concurrency for the new arena
+                arena->execute([&iArena] {
+                    daal::threader_env()->setMaxConcurrency(iArena, tbb::this_task_arena::max_concurrency());
+                });
+
+                daal::threader_env()->setArena(iArena, arena);
+                daal::threader_env()->incrementNumberOfNUMAArenas();
+            }
+        }
+    }
+    daal::threader_env()->increaseNumberOfThreadsUsed(nThreadsRequested - nThreadsUsed);
+}
+
+
+size_t _initArenasThreadsafe()
+{
+    if (!daal::threader_env()->isInitialized())
+    {
+        static tbb::spin_mutex mt;
+        tbb::spin_mutex::scoped_lock lock(mt);
+        return _initArenas();
+    }
+    return 0;
+}
+
+void _releaseArenas()
+{
+    static tbb::spin_mutex mt;
+    tbb::spin_mutex::scoped_lock lock(mt);
+    tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+    delete defaultArena;
+    daal::threader_env()->setDefaultArena(nullptr);
+    size_t nArenas = 0;
+    DAAL_SAFE_CPU_CALL((nArenas = daal::threader_env()->getNumberOfNUMAArenas()), (nArenas = 0));
+
+    for (size_t i = 1; i < nArenas; ++i)
+    {
+        tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
+        delete arena;
+        daal::threader_env()->setArena(i, nullptr);
+    }
+    daal::threader_env()->resetNumberOfNUMAArenas();
+}
+
 DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
 {
 #if defined(TARGET_X86_64)
@@ -84,7 +252,7 @@ DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
     *schedulerHandle = reinterpret_cast<void *>(new tbb::task_scheduler_handle(tbb::attach {}));
     #endif
     // It is necessary for initializing tbb in cases where DAAL does not use it.
-    tbb::task_arena {}.initialize();
+    _initArenas();
 #endif
     return 0;
 }
@@ -93,11 +261,15 @@ DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void ** globalCo
 {
     static tbb::spin_mutex mt;
     tbb::spin_mutex::scoped_lock lock(mt);
+
+    _releaseArenas();
     if (numThreads != 0)
     {
         _daal_tbb_task_scheduler_free(*globalControl);
         *globalControl = reinterpret_cast<void *>(new tbb::global_control(tbb::global_control::max_allowed_parallelism, numThreads));
         daal::threader_env()->setNumberOfThreads(numThreads);
+        daal::threader_env()->setNumberOfNUMANodes(tbb::info::numa_nodes().size());
+        _initArenas();
         return numThreads;
     }
     daal::threader_env()->setNumberOfThreads(1);
@@ -108,13 +280,40 @@ DAAL_EXPORT void _daal_threader_for(int n, int reserved, const void * a, daal::f
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) {
-            int i;
-            for (i = r.begin(); i < r.end(); i++)
-            {
-                func(i, a);
-            }
-        });
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            // The task is already runnig in thread pinner arena
+            tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) {
+                int i;
+                for (i = r.begin(); i < r.end(); i++)
+                {
+                    func(i, a);
+                }
+            });
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            // Run the task in the default arena
+            tbb::task_group tg;
+            tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            defaultArena->execute([&]() {
+                tg.run([&n, &a, &func] {
+                    tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) {
+                        int i;
+                        for (i = r.begin(); i < r.end(); i++)
+                        {
+                            func(i, a);
+                        }
+                    });
+                });
+            });
+
+            defaultArena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -130,13 +329,38 @@ DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::funct
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, 1), [&](tbb::blocked_range<int64_t> r) {
-            int64_t i;
-            for (i = r.begin(); i < r.end(); i++)
-            {
-                func(i, a);
-            }
-        });
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, 1), [&](tbb::blocked_range<int64_t> r) {
+                int64_t i;
+                for (i = r.begin(); i < r.end(); i++)
+                {
+                    func(i, a);
+                }
+            });
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            // Run the task in the default arena
+            tbb::task_group tg;
+            tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            defaultArena->execute([&]() {
+                tg.run([&n, &a, &func] {
+                    tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, 1), [&](tbb::blocked_range<int64_t> r) {
+                        int64_t i;
+                        for (i = r.begin(); i < r.end(); i++)
+                        {
+                            func(i, a);
+                        }
+                    });
+                });
+            });
+            defaultArena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -152,8 +376,27 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block),
-                          [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block),
+                              [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * defaultArena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            defaultArena->execute([&]() {
+                tg.run([&n, &block, &a, &func] {
+                    tbb::parallel_for(tbb::blocked_range<size_t>(0ul, n, block),
+                                      [=](tbb::blocked_range<size_t> r) -> void { return func(r.begin(), r.end(), a); });
+                });
+            });
+            defaultArena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -161,20 +404,146 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
     }
 }
 
+DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t max_threads, const void * a, daal::functype_static func)
+{
+    const size_t nthreadsInEnv = daal::threader_env()->getNumberOfThreads();
+    const size_t nthreads      = std::min(nthreadsInEnv, max_threads);
+    if (nthreads > 1)
+    {
+        _updateArenas(nthreads);
+        const size_t nArenas = daal::threader_env()->getNumberOfNUMAArenas();
+        const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, nthreads, 1),
+                [&](tbb::blocked_range<size_t> r) {
+                    const size_t tid   = r.begin();
+                    const size_t begin = tid * nblocks_per_thread;
+                    const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                    for (size_t i = begin; i < end; ++i)
+                    {
+                        func(i, tid, a);
+                    }
+                },
+                tbb::static_partitioner());
+        }
+        else
+#endif
+        {
+            if (nArenas > 1)
+            {
+                tbb::task_group tg[daal::DAAL_MAX_NUMA_COUNT];
+                tbb::task_arena * arenas[daal::DAAL_MAX_NUMA_COUNT];
+                int startThreadIndex = 0;
+                for (size_t i = 0; i < nArenas; ++i)
+                {
+                    arenas[i]             = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getArena(i));
+                    const int concurrency = std::min(arenas[i]->max_concurrency(), int(nthreads) - startThreadIndex);
+                    arenas[i]->execute([&]() {                                                            // Run each arena on a dedicated NUMA node
+                        tg[i].run([&n, &startThreadIndex, &concurrency, &nblocks_per_thread, &func, &a] { // Run in task group
+                            tbb::parallel_for(
+                                tbb::blocked_range<size_t>(startThreadIndex, startThreadIndex + concurrency, 1),
+                                [&](tbb::blocked_range<size_t> r) {
+                                    const size_t tid   = r.begin();
+                                    const size_t begin = tid * nblocks_per_thread;
+                                    const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                                    for (size_t i = begin; i < end; ++i)
+                                    {
+                                        func(i, tid, a);
+                                    }
+                                },
+                                tbb::static_partitioner());
+                        });
+                    });
+                    startThreadIndex += concurrency;
+                }
+
+                for (size_t i = 0; i < nArenas; ++i)
+                {
+                    // Wait for completion of the task group in the all the arenas.
+                    arenas[i]->execute([&] { tg[i].wait(); });
+                }
+            }
+            else
+            {
+                tbb::task_group tg;
+                tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+                arena->execute([&]() { // Run parallel task in arena
+                    tg.run([&n, &nthreads, &nblocks_per_thread, &func, &a] {
+                        tbb::parallel_for(
+                            tbb::blocked_range<size_t>(0, nthreads, 1),
+                            [&](tbb::blocked_range<size_t> r) {
+                                const size_t tid   = r.begin();
+                                const size_t begin = tid * nblocks_per_thread;
+                                const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                                for (size_t i = begin; i < end; ++i)
+                                {
+                                    func(i, tid, a);
+                                }
+                            },
+                            tbb::static_partitioner());
+                    });
+                });
+                arena->execute([&] { tg.wait(); });
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < n; i++)
+        {
+            func(i, 0, a);
+        }
+    }
+}
+
 DAAL_EXPORT void _daal_threader_for_simple(int n, int reserved, const void * a, daal::functype func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(
-            tbb::blocked_range<int>(0, n, 1),
-            [&](tbb::blocked_range<int> r) {
-                int i;
-                for (i = r.begin(); i < r.end(); i++)
-                {
-                    func(i, a);
-                }
-            },
-            tbb::simple_partitioner {});
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(
+                tbb::blocked_range<int>(0, n, 1),
+                [&](tbb::blocked_range<int> r) {
+                    int i;
+                    for (i = r.begin(); i < r.end(); i++)
+                    {
+                        func(i, a);
+                    }
+                },
+                tbb::simple_partitioner {});
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            arena->execute([&]() { // Run parallel task in arena
+                tg.run([&n, &func, &a] {
+                    tbb::parallel_for(
+                        tbb::blocked_range<int>(0, n, 1),
+                        [&](tbb::blocked_range<int> r) {
+                            int i;
+                            for (i = r.begin(); i < r.end(); i++)
+                            {
+                                func(i, a);
+                            }
+                        },
+                        tbb::simple_partitioner {});
+                });
+            });
+            arena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -190,13 +559,37 @@ DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end,
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<const int *>(begin, end, 1), [&](tbb::blocked_range<const int *> r) {
-            const int * i;
-            for (i = r.begin(); i != r.end(); i++)
-            {
-                func(i, a);
-            }
-        });
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(tbb::blocked_range<const int *>(begin, end, 1), [&](tbb::blocked_range<const int *> r) {
+                const int * i;
+                for (i = r.begin(); i != r.end(); i++)
+                {
+                    func(i, a);
+                }
+            });
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            arena->execute([&]() { // Run parallel task in arena
+                tg.run([&begin, &end, &func, &a] {
+                    tbb::parallel_for(tbb::blocked_range<const int *>(begin, end, 1), [&](tbb::blocked_range<const int *> r) {
+                        const int * i;
+                        for (i = r.begin(); i != r.end(); i++)
+                        {
+                            func(i, a);
+                        }
+                    });
+                });
+            });
+            arena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -213,10 +606,29 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64(int32_t n, int64_t init, c
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        return tbb::parallel_reduce(
-            tbb::blocked_range<int32_t>(0, n), init,
-            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
-            [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::auto_partitioner {});
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            return tbb::parallel_reduce(
+                tbb::blocked_range<int32_t>(0, n), init,
+                [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
+                [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::auto_partitioner {});
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            return arena->execute([&]() -> int64_t { // Run parallel task in arena
+                return tbb::parallel_reduce(
+                    tbb::blocked_range<int32_t>(0, n), init,
+                    [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) {
+                        return loop_func(r.begin(), r.end(), value_for_reduce, a);
+                    },
+                    [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::auto_partitioner {});
+            });
+        }
     }
     else
     {
@@ -230,10 +642,29 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64_simple(int32_t n, int64_t 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        return tbb::parallel_reduce(
-            tbb::blocked_range<int32_t>(0, n), init,
-            [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
-            [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            return tbb::parallel_reduce(
+                tbb::blocked_range<int32_t>(0, n), init,
+                [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) { return loop_func(r.begin(), r.end(), value_for_reduce, a); },
+                [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            return arena->execute([&]() { // Run parallel task in arena
+                return tbb::parallel_reduce(
+                    tbb::blocked_range<int32_t>(0, n), init,
+                    [&](const tbb::blocked_range<int32_t> & r, int64_t value_for_reduce) {
+                        return loop_func(r.begin(), r.end(), value_for_reduce, a);
+                    },
+                    [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+            });
+        }
     }
     else
     {
@@ -248,12 +679,31 @@ DAAL_EXPORT int64_t _daal_parallel_reduce_int32ptr_int64_simple(const int32_t * 
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        return tbb::parallel_reduce(
-            tbb::blocked_range<const int32_t *>(begin, end), init,
-            [&](const tbb::blocked_range<const int32_t *> & r, int64_t value_for_reduce) {
-                return loop_func(r.begin(), r.end(), value_for_reduce, a);
-            },
-            [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            return tbb::parallel_reduce(
+                tbb::blocked_range<const int32_t *>(begin, end), init,
+                [&](const tbb::blocked_range<const int32_t *> & r, int64_t value_for_reduce) {
+                    return loop_func(r.begin(), r.end(), value_for_reduce, a);
+                },
+                [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            return arena->execute([&]() { // Run parallel task in arena
+                return tbb::parallel_reduce(
+                    tbb::blocked_range<const int32_t *>(begin, end), init,
+                    [&](const tbb::blocked_range<const int32_t *> & r, int64_t value_for_reduce) {
+                        return loop_func(r.begin(), r.end(), value_for_reduce, a);
+                    },
+                    [&](int64_t x, int64_t y) { return reduction_func(x, y, b); }, tbb::simple_partitioner {});
+            });
+        }
     }
     else
     {
@@ -269,19 +719,49 @@ DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::funct
     {
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
 
-        tbb::parallel_for(
-            tbb::blocked_range<size_t>(0, nthreads, 1),
-            [&](tbb::blocked_range<size_t> r) {
-                const size_t tid   = r.begin();
-                const size_t begin = tid * nblocks_per_thread;
-                const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, nthreads, 1),
+                [&](tbb::blocked_range<size_t> r) {
+                    const size_t tid   = r.begin();
+                    const size_t begin = tid * nblocks_per_thread;
+                    const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
 
-                for (size_t i = begin; i < end; ++i)
-                {
-                    func(i, tid, a);
-                }
-            },
-            tbb::static_partitioner());
+                    for (size_t i = begin; i < end; ++i)
+                    {
+                        func(i, tid, a);
+                    }
+                },
+                tbb::static_partitioner());
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            arena->execute([&]() { // Run parallel task in arena
+                tg.run([&n, &nthreads, &nblocks_per_thread, &func, &a] {
+                    tbb::parallel_for(
+                        tbb::blocked_range<size_t>(0, nthreads, 1),
+                        [&](tbb::blocked_range<size_t> r) {
+                            const size_t tid   = r.begin();
+                            const size_t begin = tid * nblocks_per_thread;
+                            const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+
+                            for (size_t i = begin; i < end; ++i)
+                            {
+                                func(i, tid, a);
+                            }
+                        },
+                        tbb::static_partitioner());
+                });
+            });
+            arena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -297,7 +777,23 @@ DAAL_EXPORT void _daal_parallel_sort_template(F * begin_p, F * end_p)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_sort(begin_p, end_p);
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_sort(begin_p, end_p);
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            arena->execute([&]() { // Run parallel task in arena
+                tg.run([&begin_p, &end_p] { tbb::parallel_sort(begin_p, end_p); });
+            });
+            arena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -319,11 +815,11 @@ DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<double>, pair_fp64_uint64)
 
 #undef DAAL_PARALLEL_SORT_IMPL
 
-DAAL_EXPORT void _daal_threader_for_blocked(int n, int reserved, const void * a, daal::functype2 func)
+DAAL_EXPORT void _daal_threader_for_blocked(int n, size_t grainsize, const void * a, daal::functype2 func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
+        tbb::parallel_for(tbb::blocked_range<int>(0, n, grainsize * 2), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
     }
     else
     {
@@ -359,18 +855,47 @@ DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::task_group_context context;
-        tbb::parallel_for(
-            tbb::blocked_range<int>(0, n, 1),
-            [&](tbb::blocked_range<int> r) {
-                int i;
-                for (i = r.begin(); i < r.end(); ++i)
-                {
-                    bool needBreak = false;
-                    func(i, needBreak, a);
-                    if (needBreak) context.cancel_group_execution();
-                }
-            },
-            context);
+#if !(defined DAAL_THREAD_PINNING_DISABLED)
+        daal::services::internal::thread_pinner_t * pinner = daal::services::internal::getThreadPinner(false, read_topology, delete_topology);
+        if (pinner != NULL && pinner->get_pinning())
+        {
+            tbb::parallel_for(
+                tbb::blocked_range<int>(0, n, 1),
+                [&](tbb::blocked_range<int> r) {
+                    int i;
+                    for (i = r.begin(); i < r.end(); ++i)
+                    {
+                        bool needBreak = false;
+                        func(i, needBreak, a);
+                        if (needBreak) context.cancel_group_execution();
+                    }
+                },
+                context);
+        }
+        else
+#endif
+        {
+            _initArenasThreadsafe();
+            tbb::task_group tg;
+            tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(daal::threader_env()->getDefaultArena());
+            arena->execute([&]() { // Run parallel task in arena
+                tg.run([&n, &threads_request, &a, &func, &context] {
+                    tbb::parallel_for(
+                        tbb::blocked_range<int>(0, n, 1),
+                        [&](tbb::blocked_range<int> r) {
+                            int i;
+                            for (i = r.begin(); i < r.end(); ++i)
+                            {
+                                bool needBreak = false;
+                                func(i, needBreak, a);
+                                if (needBreak) context.cancel_group_execution();
+                            }
+                        },
+                        context);
+                });
+            });
+            arena->execute([&] { tg.wait(); });
+        }
     }
     else
     {
@@ -509,18 +1034,18 @@ public:
 };
 
 template <class T, class Allocator>
-class Collection
+class StorageCollection
 {
 public:
     /**
     *  Default constructor. Sets the size and capacity to 0.
     */
-    Collection() : _array(NULL), _size(0), _capacity(0) {}
+    StorageCollection() : _array(NULL), _size(0), _capacity(0) {}
 
     /**
     *  Destructor
     */
-    virtual ~Collection()
+    virtual ~StorageCollection()
     {
         for (size_t i = 0; i < _capacity; i++) _array[i].~T();
         Allocator::free(_array);
@@ -755,8 +1280,8 @@ private:
 private:
     void * _a;
     daal::tls_functype _func;
-    Collection<Pair, SimpleAllocator> _free; //sorted by tid
-    Collection<Pair, SimpleAllocator> _used; //sorted by value
+    StorageCollection<Pair, SimpleAllocator> _free; //sorted by tid
+    StorageCollection<Pair, SimpleAllocator> _used; //sorted by value
     tbb::spin_mutex _mt;
 };
 
@@ -836,4 +1361,37 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 }
 
 namespace daal
-{}
+{
+ThreaderEnvironment::ThreaderEnvironment() :
+    _numberOfThreads(_daal_threader_get_max_threads()),
+    _numberOfNUMAArenas(0),
+    _isInitialized(false)
+{
+#if defined(TARGET_X86_64)
+    DAAL_SAFE_CPU_CALL((_numberOfNUMANodes = tbb::info::numa_nodes().size()), (_numberOfNUMANodes = 1));
+    DAAL_SAFE_CPU_CALL((_numberOfThreadsUsed = 16ul), (_numberOfThreadsUsed = _numberOfThreads));
+    _numberOfThreadsUsed = std::min(_numberOfThreadsUsed, _numberOfThreads);
+#else
+    _numberOfNUMANodes = 1;
+    _numberOfThreadsUsed = _numberOfThreads;
+#endif
+#ifdef DO_PRINT
+    std::cout << std::endl << "ThreaderEnvironment(): Number of threads: " << _numberOfThreads << std::endl;
+    std::cout << std::endl << "ThreaderEnvironment(): Number of threads used: " << _numberOfThreadsUsed << std::endl;
+#endif
+}
+
+int ThreaderEnvironment::getArenaConcurrency(size_t i) const
+{
+#if defined(TARGET_X86_64)
+    if (i < _numberOfNUMANodes)
+    {
+        tbb::task_arena * arena = reinterpret_cast<tbb::task_arena *>(_arenas[i]);
+        return arena->max_concurrency();
+    }
+    return 0;
+#else
+    return 0;
+#endif
+}
+} // namespace daal

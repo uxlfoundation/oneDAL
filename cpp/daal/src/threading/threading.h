@@ -65,7 +65,8 @@ extern "C"
     DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
     DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func);
-    DAAL_EXPORT void _daal_threader_for_blocked(int n, int threads_request, const void * a, daal::functype2 func);
+    DAAL_EXPORT void _daal_static_numa_threader_for(size_t n, size_t max_threads, const void * a, daal::functype_static func);
+    DAAL_EXPORT void _daal_threader_for_blocked(int n, size_t grainsize, const void * a, daal::functype2 func);
     DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
     DAAL_EXPORT void _daal_threader_for_optional(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void * a, daal::functype_break func);
@@ -105,6 +106,7 @@ extern "C"
     DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle);
     DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void ** globalControl);
     DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle);
+    DAAL_EXPORT size_t _initArenas();
 
     DAAL_EXPORT void * _daal_threader_env();
 
@@ -164,15 +166,110 @@ inline void threaded_scalable_free(void * ptr)
     _threaded_scalable_free(ptr);
 }
 
+/// Global oneDAL parallel execution environment
 class ThreaderEnvironment
 {
 public:
-    ThreaderEnvironment() : _numberOfThreads(_daal_threader_get_max_threads()) {}
+    ThreaderEnvironment();
+
+    /// Total number of oneTBB thread slots available to oneDAL
     size_t getNumberOfThreads() const { return _numberOfThreads; }
     void setNumberOfThreads(size_t value) { _numberOfThreads = value; }
 
+    /// Get number of oneTBB thread slots used by oneDAL
+    size_t getNumberOfThreadsUsed() const { return _numberOfThreadsUsed; }
+
+    /// Increase the number of oneTBB thread slots used by oneDAL
+    /// @param[in] value The number of thread slots to increase
+    void increaseNumberOfThreadsUsed(size_t value) {
+        size_t newValue = _numberOfThreadsUsed + value;
+        _numberOfThreadsUsed = newValue > _numberOfThreads ? _numberOfThreads : newValue;
+    }
+
+    /// Total number of NUMA nodes available to oneDAL
+    size_t getNumberOfNUMANodes() const { return _numberOfNUMANodes; }
+    void setNumberOfNUMANodes(size_t value) { _numberOfNUMANodes = value; }
+
+    /// Default oneTBB arena used by oneDAL for parallel computations
+    void * getDefaultArena() const { return _defaultArena; }
+    void setDefaultArena(void * arena) { _defaultArena = arena; }
+
+    /// Get the arena that is attached to the specified NUMA node
+    ///
+    /// @param i Index of the NUMA node
+    /// @return  The arena attached to the NUMA node
+    void * getArena(size_t i) const
+    {
+        if (i >= _numberOfNUMANodes) return nullptr;
+        return _arenas[i];
+    }
+
+    /// Set the arena that is attached to the specified NUMA node
+    /// @param i     Index of the NUMA node
+    /// @param arena The arena that is attached to i-th NUMA node
+    void setArena(size_t i, void * arena)
+    {
+        if (i < _numberOfNUMANodes) _arenas[i] = arena;
+    }
+
+    /// Get the maximal concurrency of the arena that is attached to the specified NUMA node
+    ///
+    /// @param i     Index of the NUMA node
+    /// @return The maximal concurrency of the arena attached to the NUMA node
+    /// @remark The actual number of thread slots in the the arena may be less than the maximal concurrency
+    size_t getMaxConcurrency(size_t i) const
+    {
+        if (i < _numberOfNUMANodes) return _maxConcurrency[i];
+        return 0;
+    }
+
+    /// Set the maximal concurrency of the arena that is attached to the specified NUMA node
+    ///
+    /// @param i     Index of the NUMA node
+    /// @param value The maximal concurrency of the arena attached to the NUMA node
+    /// @remark The actual number of thread slots in the the arena may be less than the maximal concurrency
+    void setMaxConcurrency(size_t i, size_t value)
+    {
+        if (i < _numberOfNUMANodes) _maxConcurrency[i] = value;
+    }
+
+    /// Get the number of thread slots in the arena attached to the specified NUMA node
+    ///
+    /// @param i Index of the NUMA node
+    /// @return The number of thread slots in the arena attached to the NUMA node
+    int getArenaConcurrency(size_t i) const;
+
+    /// Check if the oneDAL threading layer is initialized
+    bool isInitialized() const { return _isInitialized; }
+
+    /// Set the initialization status of the oneDAL threading layer
+    void setInitialized(bool value) { _isInitialized = value; }
+
+    /// Reset the number of initialized NUMA-aware arenas
+    void resetNumberOfNUMAArenas() { _numberOfNUMAArenas = 0; }
+
+    /// Increment the number of initialized NUMA-aware arenas
+    void incrementNumberOfNUMAArenas()
+    {
+        _numberOfNUMAArenas++;
+        if (_numberOfNUMAArenas > _numberOfNUMANodes) _numberOfNUMAArenas = _numberOfNUMANodes;
+    }
+
+    /// Get the number of initialized NUMA-aware arenas
+    size_t getNumberOfNUMAArenas() const { return _numberOfNUMAArenas; }
+
 private:
-    size_t _numberOfThreads;
+    size_t _numberOfThreads;                   // maximal number of threads available
+    size_t _numberOfThreadsUsed;               // number of threads currenlly used
+                                               // Equal to the sum of maximal concurrencies ao all the initialized arenas
+
+    size_t _numberOfNUMANodes;                 // number of NUMA nodes available
+    size_t _numberOfNUMAArenas;                // number of initialized NUMA-aware arenas
+
+    void * _defaultArena;                               // default arena
+    void * _arenas[daal::DAAL_MAX_NUMA_COUNT];          // NUMA-aware arenas
+    size_t _maxConcurrency[daal::DAAL_MAX_NUMA_COUNT];  // maximal concurrency of each arena
+    bool _isInitialized;
 };
 
 inline ThreaderEnvironment * threader_env()
@@ -187,7 +284,9 @@ inline size_t threader_get_threads_number()
 
 inline size_t setSchedulerHandle(void ** schedulerHandle)
 {
-    return _setSchedulerHandle(schedulerHandle);
+    size_t status = _setSchedulerHandle(schedulerHandle);
+    if (!status) return status;
+    return _initArenas();
 }
 
 inline size_t setNumberOfThreads(const size_t numThreads, void ** globalControl)
@@ -242,6 +341,14 @@ inline void threader_for(int n, int reserved, const F & func)
     const void * a = static_cast<const void *>(&func);
 
     _daal_threader_for(n, reserved, a, threader_func<F>);
+}
+
+template <typename F>
+inline void static_numa_threader_for(int n, size_t max_threads, const F & func)
+{
+    const void * a = static_cast<const void *>(&func);
+
+    _daal_static_numa_threader_for(n, max_threads, a, static_threader_func<F>);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.
@@ -348,16 +455,16 @@ inline void static_threader_for(size_t n, const F & func)
 ///                 `endRange`   is the index after the end of the loop's iterations block to be
 ///                                processed by a thread, `beginRange < endRange <= n`;
 ///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] reserved Parameter reserved for the future. Currently unused.
-/// @param[in] func     Callable object that processes the block of loop's iterations
+/// @param[in] n         Number of iterations in the for loop.
+/// @param[in] grainsize Size of the block of consequent loop's iterations to be processed by a thread.
+/// @param[in] func      Callable object that processes the block of loop's iterations
 ///                     `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked(int n, int reserved, const F & func)
+inline void threader_for_blocked(int n, size_t grainsize, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_blocked(n, reserved, a, threader_func_b<F>);
+    _daal_threader_for_blocked(n, grainsize, a, threader_func_b<F>);
 }
 
 template <typename F>
