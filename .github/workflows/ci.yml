@@ -35,7 +35,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
