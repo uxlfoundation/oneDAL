@@ -52,9 +52,9 @@ def dal_module(name, hdrs=[], srcs=[], dal_deps=[], extra_deps=[],
         test_filt = ["**/*_test*", "**/test/**"] + auto_exclude
         hdrs_all = native.glob(hpp_filt, exclude=test_filt)
         dpc_auto_hdrs = hdrs_all
-        dpc_auto_srcs = native.glob(cpp_filt, exclude=test_filt)
+        dpc_auto_srcs = native.glob(cpp_filt, exclude=test_filt, allow_empty=True,)
         host_auto_hdrs = hdrs_all
-        host_auto_srcs = native.glob(cpp_filt, exclude=test_filt + dpc_filt)
+        host_auto_srcs = native.glob(cpp_filt, exclude=test_filt + dpc_filt, allow_empty=True,)
     else:
         host_auto_hdrs = []
         host_auto_srcs = []
@@ -93,7 +93,7 @@ def dal_collect_modules(name, root, modules, dal_deps=[], **kwargs):
         module_label = "{0}/{1}".format(root, module_path)
         dal_module(
             name = module_name,
-            hdrs = native.glob(["{}*.hpp".format(module_path)]),
+            hdrs = native.glob(["{}*.hpp".format(module_path)],allow_empty=True,),
             dal_deps = [ module_label ],
         )
         module_deps.append(":" + module_name)
