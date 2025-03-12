@@ -20,7 +20,8 @@
 #include "oneapi/dal/backend/dispatcher.hpp"
 #include "oneapi/dal/backend/transfer.hpp"
 #include "oneapi/dal/backend/interop/data_conversion.hpp"
-
+#include <iostream>
+#include "oneapi/dal/detail/profiler.hpp"
 namespace oneapi::dal::backend {
 
 static void convert_vector(const void* src,
