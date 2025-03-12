@@ -148,7 +148,7 @@ version_info = rule(
 )
 
 def _dump_config_info_impl(ctx):
-     config_file = ctx.actions.declare_file("config.json")
+    config_file = ctx.actions.declare_file("config.json")
     flags_json = []
     for target in ctx.attr.flags:
         json = "      {}: {},".format(target.label.name, target[ConfigFlagInfo].to_json())
@@ -210,7 +210,7 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":         auto_cpu,
             "%{version_major}":    "2025",
-            "%{version_minor}":    "5",
+            "%{version_minor}":    "2",
             "%{version_update}":   "0",
             "%{version_build}":    utils.datestamp(repo_ctx),
             "%{version_buildrev}": "work",
