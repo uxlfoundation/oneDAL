@@ -1,6 +1,9 @@
 # Global options
 
 common  
+# Enable Bzlmod for every Bazel command
+common --enable_bzlmod
+
 build -c opt \
       --incompatible_enable_cc_toolchain_resolution \
       --incompatible_require_linker_input_cc_api \
