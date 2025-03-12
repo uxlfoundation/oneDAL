@@ -151,11 +151,11 @@ def _dump_config_info_impl(ctx):
     config_file = ctx.actions.declare_file("config.json")
     flags_json = []
     for target in ctx.attr.flags:
-        target_json = "      {}: {},".format(target.label.name, json.encode(target[ConfigFlagInfo]))
-        flags_json.append(target_json)
+        json = "      {}: {},".format(target.label.name, target[ConfigFlagInfo].to_json())
+        flags_json.append(json)
     content = ("{\n" +
-    "   cpu: {},\n".format(json.encode(ctx.attr.cpu_info[CpuInfo])) +
-    "   version: {},\n".format(json.encode(ctx.attr.version_info[VersionInfo])) +
+    "   cpu: {},\n".format(ctx.attr.cpu_info[CpuInfo].to_json()) +
+    "   version: {},\n".format(ctx.attr.version_info[VersionInfo].to_json()) +
     "   flags: {\n" +
         "\n".join(flags_json) + "\n" +
     "   }\n" +

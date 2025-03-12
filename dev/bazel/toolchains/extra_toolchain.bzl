@@ -51,3 +51,7 @@ onedal_extra_toolchain = repository_rule(
     implementation = _onedal_extra_toolchain_impl,
 )
 
+def declare_onedal_extra_toolchain(name):
+    onedal_extra_toolchain(name = name)
+    native.register_toolchains("@{}//:all".format(name))
+

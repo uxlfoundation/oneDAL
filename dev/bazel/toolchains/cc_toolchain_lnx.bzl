@@ -15,7 +15,7 @@
 #===============================================================================
 
 load(
-    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
+    "@bazel_tools//tools/cpp:lib_cc_configure.bzl",
     "auto_configure_fail",
     "get_starlark_list",
     "write_builtin_include_directory_paths",
