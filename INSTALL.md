@@ -159,7 +159,15 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=yes
 
-- To build oneDAL with kernel profiling information, run:
+- To build oneDAL with kernel profiling information:
+
+    - Download and install [Intel(R) VTune(TM) Profiler](https://www.intel.com/content/www/us/en/docs/vtune-profiler/installation-guide/2025-0/overview.html).
+
+    - Set the environment variables for for Intel(R) VTune(TM) Profiler. For example:
+
+            source /opt/intel/oneapi/vtune/latest/vtune-vars.sh
+
+    - Run `make` to build oneDAL:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQPROFILE=yes
 
