@@ -161,7 +161,7 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
-    _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, those stepe will not be necessary as Intel(R) VTune(TM) Profiler will already have been set up._
+    _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, those steps will not be necessary as Intel(R) VTune(TM) Profiler will already have been set up._
 
     - Download and install [Intel(R) VTune(TM) Profiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler-download.html).
 
