@@ -322,13 +322,20 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse cases on large number of rows",
                      "[kmeans][batch]",
                      kmeans_types) {
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
     // Check that algorithm does not crash on big number of rows
     constexpr std::int64_t cluster_count = 5;
-    auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count, 100000000, 20);
+    std::int64_t rows_count = 1000 * 1000;
+    auto device = this->get_queue().get_device();
+    std::string device_name = device.template get_info<sycl::info::device::name>();
+    if (device_name.find("Data Center GPU Max") != std::string::npos) {
+        rows_count = 100 * 1000 * 1000;
+    }
+    auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count, rows_count, 20);
 
     auto desc = this->get_descriptor(cluster_count, 10, 0.01);
     const table initial_centroids = input.get_initial_centroids();
