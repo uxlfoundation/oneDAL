@@ -165,7 +165,7 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
     - Download and install [Intel(R) VTune(TM) Profiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler-download.html).
 
-    - Set the environment variables for for Intel(R) VTune(TM) Profiler. For example:
+    - Set the environment variables for Intel(R) VTune(TM) Profiler. For example:
 
             source /opt/intel/oneapi/vtune/latest/vtune-vars.sh
 
