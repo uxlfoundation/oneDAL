@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Intel(R) oneAPI Data Analytics Library (oneDAL) version information.
+//  oneAPI Data Analytics Library (oneDAL) version information.
 //--
 */
 
@@ -53,13 +53,13 @@ namespace interface1
 {
 /**
  * @defgroup library_version_info Extracting Version Information
- * \brief Provides information about the version of Intel(R) oneAPI Data Analytics Library.
+ * \brief Provides information about the version of oneAPI Data Analytics Library.
  * @ingroup services
  * @{
  */
 /**
  * <a name="DAAL-CLASS-SERVICES__LIBRARYVERSIONINFO"></a>
- * \brief Provides information about the version of Intel(R) oneAPI Data Analytics Library.
+ * \brief Provides information about the version of oneAPI Data Analytics Library.
  * <!-- \n<a href="DAAL-REF-LIBRARYVERSIONINFO-STRUCTURE">LibraryVersionInfo structure details and Optimization Notice</a> -->
  */
 class DAAL_EXPORT LibraryVersionInfo : public Base
