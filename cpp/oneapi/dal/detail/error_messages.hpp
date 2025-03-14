@@ -51,7 +51,7 @@ namespace v1 {
 // - If a new mathematical operator introduced, stick to LaTeX
 //   conventions as well.
 //
-// - For Intel(R) oneAPI Data Analytics Library (oneDAL) specific terms use the following shortening:
+// - For oneAPI Data Analytics Library (oneDAL) specific terms use the following shortening:
 //
 //   row count      rc
 //   column count   cc

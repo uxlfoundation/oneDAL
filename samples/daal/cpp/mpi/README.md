@@ -1,6 +1,6 @@
-# Intel(R) oneAPI Data Analytics Library Message-Passing Interface Samples
+# oneAPI Data Analytics Library Message-Passing Interface Samples
 
-Message-passing interface (MPI) samples for the Intel(R) oneAPI Data Analytics Library (oneDAL) are designed to show how to use this library with the Intel(R) MPI library in a C++ application.
+Message-passing interface (MPI) samples for the oneAPI Data Analytics Library (oneDAL) are designed to show how to use this library with the Intel(R) MPI library in a C++ application.
 
 Unzip the archive with oneDAL samples to your working directory (`<sample_dir>`).
 

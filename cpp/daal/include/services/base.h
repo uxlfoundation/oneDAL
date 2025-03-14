@@ -36,7 +36,7 @@ namespace daal
  */
 /**
  * <a name="DAAL-CLASS-__BASE"></a>
- * \brief %Base class for Intel(R) oneAPI Data Analytics Library objects
+ * \brief %Base class for oneAPI Data Analytics Library objects
  */
 class DAAL_EXPORT Base
 {

@@ -18,7 +18,7 @@
 /*
 !  Content:
 !    Interface and implementation of user-defined algorithm for computation of
-!    logistic loss function in Intel(R) DAAL style
+!    logistic loss function in DAAL style
 !
 !******************************************************************************/
 

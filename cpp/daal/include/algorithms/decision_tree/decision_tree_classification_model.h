@@ -63,7 +63,7 @@ enum SplitCriterion
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -165,7 +165,7 @@ using interface1::ModelPtr;
 using interface1::ModelConstPtr;
 
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {

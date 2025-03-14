@@ -16,7 +16,7 @@ rem limitations under the License.
 rem ============================================================================
 
 ::  Content:
-::     Intel(R) oneAPI Data Analytics Library samples creation and run
+::     oneAPI Data Analytics Library samples creation and run
 ::******************************************************************************
 
 setlocal enabledelayedexpansion enableextensions

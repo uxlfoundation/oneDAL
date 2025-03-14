@@ -47,7 +47,7 @@ namespace decision_forest
 namespace regression
 {
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
