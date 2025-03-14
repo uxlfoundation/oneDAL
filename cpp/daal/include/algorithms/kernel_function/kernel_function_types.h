@@ -106,7 +106,6 @@ public:
     Input();
     Input(const Input & other);
 
-
     Input & operator=(const Input & other)
     {
         if (this != &other) // Check for self-assignment
@@ -116,7 +115,6 @@ public:
         }
         return *this;
     }
-
 
     virtual ~Input() {}
 

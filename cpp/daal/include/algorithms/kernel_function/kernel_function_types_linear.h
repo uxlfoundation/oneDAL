@@ -93,7 +93,6 @@ public:
         {
             // Call the base class assignment operator if necessary
             kernel_function::Input::operator=(other);
-
         }
         return *this;
     }
