@@ -88,7 +88,7 @@ def _find_tools(repo_ctx, reqs):
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
     if dpcpp_found:
-        ar_path, _ = _find_tool(repo_ctx, "llvm-ar", mandatory = True)
+        ar_path, _ = _find_tool(repo_ctx, "llvm-ar", dpcc_path, mandatory = True)
     
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
     
