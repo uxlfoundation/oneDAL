@@ -106,6 +106,21 @@ public:
     Input();
     Input(const Input & other);
 
+
+    Input & operator=(const Input & other)
+    {
+        if (this != &other) // Check for self-assignment
+        {
+            // Call the base class assignment operator if necessary
+            daal::algorithms::Input::operator=(other);
+        }
+        return *this;
+    }
+
+
+
+
+
     virtual ~Input() {}
 
     /**
