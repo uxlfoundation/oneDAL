@@ -86,6 +86,18 @@ public:
     Input();
     Input(const Input & other);
 
+    // Copy assignment operator
+    Input & operator=(const Input & other)
+    {
+        if (this != &other) // Check for self-assignment
+        {
+            // Call the base class assignment operator if necessary
+            kernel_function::Input::operator=(other);
+
+        }
+        return *this;
+    }
+
     virtual ~Input() {}
 
     /**
