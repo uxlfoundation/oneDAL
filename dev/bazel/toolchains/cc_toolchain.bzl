@@ -70,3 +70,6 @@ onedal_cc_toolchain = repository_rule(
     ],
 )
 
+def declare_onedal_cc_toolchain(name):
+    onedal_cc_toolchain(name = name)
+    native.register_toolchains("@{}//:all".format(name))
