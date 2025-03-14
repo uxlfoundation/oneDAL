@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(qr::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, qr::defaultDense)
+namespace qr
+{
+namespace interface1
+{
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, qr::defaultDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
+{
+    initialize();
 }
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace qr
+} // namespace algorithms
 } // namespace daal

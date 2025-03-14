@@ -22,7 +22,7 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-std::string to_string(cpu_vendor vendor) {
+std::string ONEDAL_EXPORT to_string(cpu_vendor vendor) {
     std::string vendor_str;
     switch (vendor) {
         case cpu_vendor::unknown: vendor_str = std::string("Unknown"); break;
@@ -34,7 +34,7 @@ std::string to_string(cpu_vendor vendor) {
     return vendor_str;
 }
 
-std::string to_string(cpu_extension extension) {
+std::string ONEDAL_EXPORT to_string(cpu_extension extension) {
     std::string extension_str;
     switch (extension) {
         case cpu_extension::none: extension_str = std::string("none"); break;

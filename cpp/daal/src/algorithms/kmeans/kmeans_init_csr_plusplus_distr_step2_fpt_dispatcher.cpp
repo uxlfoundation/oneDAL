@@ -38,14 +38,14 @@ namespace interface2
 using DistributedType = Distributed<step2Local, DAAL_FPTYPE, kmeans::init::plusPlusCSR>;
 
 template <>
-DistributedType::Distributed(size_t nClusters, bool bFirstIteration)
+DAAL_EXPORT DistributedType::Distributed(size_t nClusters, bool bFirstIteration)
     : DistributedStep2LocalPlusPlusBase(new ParameterType(nClusters, bFirstIteration)), parameter(*static_cast<ParameterType *>(_par))
 {
     initialize();
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
     : DistributedStep2LocalPlusPlusBase(new ParameterType(other.parameter)), parameter(*static_cast<ParameterType *>(_par)), input(other.input)
 {
     initialize();

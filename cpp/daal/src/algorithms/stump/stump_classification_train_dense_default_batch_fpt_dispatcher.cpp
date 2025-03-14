@@ -53,13 +53,11 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::trainin
     initialize();
 }
 
-template Batch<DAAL_FPTYPE, stump::classification::training::defaultDense>::Batch(size_t);
-template Batch<DAAL_FPTYPE, stump::classification::training::defaultDense>::Batch(const Batch &);
-
+template DAAL_EXPORT Batch<DAAL_FPTYPE, stump::classification::training::defaultDense>::Batch(size_t nClasses);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, stump::classification::training::defaultDense>::Batch(const Batch & other);
 } // namespace interface1
 } // namespace training
 } // namespace classification
 } // namespace stump
-
 } // namespace algorithms
 } // namespace daal
