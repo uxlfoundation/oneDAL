@@ -14,8 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
+
+
 load(
-    "@bazel_tools//tools/cpp:lib_cc_configure.bzl",
+    "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "auto_configure_fail",
     "get_starlark_list",
     "write_builtin_include_directory_paths",
@@ -79,6 +81,23 @@ def _create_dynamic_link_wrapper(repo_ctx, prefix, cc_path):
     wrapper_path = repo_ctx.path(wrapper_name)
     return str(wrapper_path)
 
+def go_up_directories(path,number):
+    # Split the path into components
+    components = path.split("/")
+    
+    # Remove the last three components
+    if len(components) > 3:
+        components = components[:-3]
+
+    else:
+        # If there are not enough components, return an empty string or root
+        return "/"
+
+    # Join the components back into a path
+    return "/".join(components)
+
+
+
 def _find_tools(repo_ctx, reqs):
     # TODO: Use full compiler path from reqs
     ar_path, _ = _find_tool(repo_ctx, "ar", mandatory = True)
@@ -87,7 +106,11 @@ def _find_tools(repo_ctx, reqs):
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
+    if dpcpp_found:
+        ar_path = cc_path[:-3] + "compiler/llvm-ar"
+    
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
+    
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
