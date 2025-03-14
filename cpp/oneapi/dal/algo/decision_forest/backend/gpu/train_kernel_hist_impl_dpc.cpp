@@ -1836,6 +1836,9 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
         ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_method);
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
+    if (ctx.distr_mode_) {
+        engine_gpu.skip_ahead(comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_);
+    }
 
     sycl::event last_event;
 
