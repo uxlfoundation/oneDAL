@@ -233,6 +233,7 @@ public:
     std::int64_t get_max_bins() const;
     std::int64_t get_min_bin_size() const;
     bool get_memory_saving_mode() const;
+    bool get_parallel_build() const;
     bool get_bootstrap() const;
     splitter_mode get_splitter_mode() const;
     error_metric_mode get_error_metric_mode() const;
@@ -270,6 +271,7 @@ protected:
     void set_max_bins_impl(std::int64_t value);
     void set_min_bin_size_impl(std::int64_t value);
     void set_memory_saving_mode_impl(bool value);
+    void set_parallel_build_impl(bool value);
     void set_bootstrap_impl(bool value);
     void set_splitter_mode_impl(splitter_mode value);
     void set_error_metric_mode_impl(error_metric_mode value);
@@ -502,6 +504,17 @@ public:
 
     auto& set_min_bin_size(std::int64_t value) {
         base_t::set_min_bin_size_impl(value);
+        return *this;
+    }
+
+    /// The memory saving mode.
+    /// @remark default = false
+    bool get_parallel_build() const {
+        return base_t::get_parallel_build();
+    }
+
+    auto& set_parallel_build(bool value) {
+        base_t::set_parallel_build_impl(value);
         return *this;
     }
 

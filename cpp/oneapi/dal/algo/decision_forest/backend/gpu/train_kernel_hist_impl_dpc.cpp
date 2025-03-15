@@ -18,8 +18,10 @@
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/detail/archives.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
-
+#include "oneapi/dal/backend/serialization.hpp"
+#include <iostream>
 #ifdef ONEDAL_DATA_PARALLEL
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_kernel_hist_impl.hpp"
@@ -146,7 +148,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
                                                                   const table& data,
                                                                   const table& responses,
                                                                   const table& weights) {
-    ctx.distr_mode_ = (comm_.get_rank_count() > 1);
+    ctx.distr_mode_ = (comm_.get_rank_count() > 1) && !desc.get_parallel_build();
     ctx.use_private_mem_buf_ = true;
     ctx.is_weighted_ = (weights.get_row_count() == data.get_row_count());
 
@@ -168,6 +170,9 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
+    if (comm_.get_rank_count() > 1 && desc.get_parallel_build()) {
+        ctx.tree_count_ = ctx.tree_count_ / comm_.get_rank_count();
+    }
     ctx.bootstrap_ = desc.get_bootstrap();
     ctx.max_tree_depth_ = desc.get_max_tree_depth();
     ctx.splitter_mode_value_ = desc.get_splitter_mode();
@@ -2090,8 +2095,54 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
         res.set_var_importance(
             homogen_table::wrap(res_var_imp_host.flatten(), 1, ctx.column_count_));
     }
+    if (!desc.get_parallel_build()) {
+        res.set_model(model_manager.get_model());
+        return res;
+    }
+    else {
+        auto onedal_model = model_manager.get_model();
+        std::cout<<"local tree count = "<<onedal_model.get_tree_count()<<std::endl;
+        ::oneapi::dal::detail::binary_output_archive output_archive;
+        ::oneapi::dal::detail::serialize(onedal_model, output_archive);
 
-    return res.set_model(model_manager.get_model());
+        auto data_array = output_archive.to_array();
+        std::int64_t send_size = output_archive.get_size();
+        std::cout<<"local arr size="<<send_size<<std::endl;
+
+        std::int64_t total_row_count = send_size;
+        comm_.allreduce(total_row_count).wait();
+        std::cout<<"total_row count arr size="<<total_row_count<<std::endl;
+        auto rank_count = comm_.get_rank_count();
+        auto rank = comm_.get_rank();
+        auto recv_counts = dal::array<std::int64_t>::zeros(rank_count);
+        recv_counts.get_mutable_data()[rank] = send_size;
+        comm_.allreduce(recv_counts, spmd::reduce_op::sum).wait();
+        auto displs = array<std::int64_t>::zeros(rank_count);
+        auto displs_ptr = displs.get_mutable_data();
+        std::int64_t total_count = 0;
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            displs_ptr[i] = total_count;
+            total_count += recv_counts.get_data()[i];
+        }
+        std::cout<<"toatl count in loop ="<<total_count<<std::endl;
+        std::cout<<"toatl no in  in loop ="<<total_row_count<<std::endl;
+        auto arr_total = oneapi::dal::array<byte_t>::empty(total_row_count);
+        {
+            ONEDAL_PROFILER_TASK(allgather_model_data);
+            comm_
+                .allgatherv(data_array,
+                            arr_total,
+                            recv_counts.get_data(), displs.get_data()).wait();
+        }
+
+        auto onedal_model_des = model<Task>();
+        ::oneapi::dal::detail::binary_input_archive input_archive{
+            arr_total
+        };
+        ::oneapi::dal::detail::deserialize(onedal_model_des, input_archive);
+        std::cout<<"global tree count = "<<onedal_model_des.get_tree_count()<<std::endl;
+        return res.set_model(onedal_model_des);
+    }
 }
 
 #define INSTANTIATE(F, B, I, T) template class train_kernel_hist_impl<F, B, I, T>;
