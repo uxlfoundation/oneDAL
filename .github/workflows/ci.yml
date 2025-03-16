@@ -61,13 +61,13 @@ jobs:
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols --jobs 20
            cp -r __work __work_daal
       - name: Make onedal debug
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols --jobs 20
           cp -r __release_lnx __release_lnx_main
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
@@ -88,7 +88,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           rm -rf __work
           mv __work_daal __work
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
