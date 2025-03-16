@@ -64,7 +64,8 @@ struct vertex_partitioning_kernel_cpu<method::afforest,
         const Allocator& alloc,
         const Graph& g) const {
         using topology_type = typename graph_traits<Graph>::impl_type::topology_type;
-        const auto& t = dal::preview::detail::csr_topology_builder<Graph>()(g);
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+        const auto& t = topology_builder(g);
         alloc_connector<Allocator> alloc_con(alloc);
         const auto vertex_count = t.get_vertex_count();
         if (vertex_count == 0) {
