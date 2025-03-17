@@ -63,8 +63,20 @@ public:
         return _data;
     }
 
-    DynamicArray(const DynamicArray &)             = delete;
-    DynamicArray & operator=(const DynamicArray &) = delete;
+    DynamicArray(const DynamicArray & other) {
+        allocate(other.size());
+        if (!_data) return;
+        for (size_t i = 0; i < _size; i++) {
+            _data[i] = other.get()[i];
+        }
+    }
+
+    DynamicArray & operator=(DynamicArray other) {
+        swap(*this, other);
+        other._data = nullptr;
+        other._size = 0;
+        return *this;
+    }
 
 private:
     void allocate(size_t size)
@@ -98,6 +110,15 @@ private:
 
         other._data = nullptr;
         other._size = 0;
+    }
+
+    friend void swap(DynamicArray & first, DynamicArray & second)
+    {
+        if (&first == &second)
+            return;
+
+        swap<cpu, T*>(first._data, second._data);
+        swap<cpu, size_t>(first._size, second._size);
     }
 
 private:

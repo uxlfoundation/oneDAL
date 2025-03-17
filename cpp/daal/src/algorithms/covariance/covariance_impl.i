@@ -37,6 +37,9 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 
+#include "oneapi/tbb/blocked_range.h"
+#include "oneapi/tbb/parallel_reduce.h"
+
 using namespace daal::internal;
 using namespace daal::services::internal;
 
@@ -89,6 +92,7 @@ struct tls_data_t
 {
     algorithmFPType * sums;
     algorithmFPType * crossProduct;
+    bool computeOk;
 
     static tls_data_t<algorithmFPType, cpu> * create(bool isNormalized, size_t nFeatures)
     {
@@ -122,6 +126,7 @@ struct tls_data_t
 
         sums         = sumsArray.get();
         crossProduct = crossProductArray.get();
+        computeOk = true;
     }
 
 private:
@@ -157,6 +162,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
     DAAL_ITTNOTIFY_SCOPED_TASK(compute.updateDenseCrossProductAndSums);
+
     bool assumeCentered = parameter->assumeCentered;
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
@@ -177,95 +183,98 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         }
         size_t numRowsInLastBlock = numRowsInBlock + (nVectors - numBlocks * numRowsInBlock);
 
-        /* TLS data initialization */
-        SafeStatus safeStat;
-        daal::static_tls<tls_data_t<algorithmFPType, cpu> *> tls_data([=, &safeStat]() {
-            auto tlsData = tls_data_t<algorithmFPType, cpu>::create(isNormalized, nFeatures);
-            if (!tlsData)
-            {
-                safeStat.add(services::ErrorMemoryAllocationFailed);
-            }
-            return tlsData;
-        });
-        DAAL_CHECK_SAFE_STATUS();
+        tls_data_t<algorithmFPType, cpu> identity(isNormalized, nFeatures);
+        if (!identity.crossProduct || !identity.sums)
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
 
         /* Threaded loop with syrk seq calls */
-        daal::static_threader_for(numBlocks, [&](int iBlock, size_t tid) {
-            struct tls_data_t<algorithmFPType, cpu> * tls_data_local = tls_data.local(tid);
-            if (!tls_data_local)
-            {
-                return;
-            }
+        tls_data_t<algorithmFPType, cpu> result = tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(size_t{0}, numBlocks),
+            identity,
+            [&](const tbb::blocked_range<size_t> & r, tls_data_t<algorithmFPType, cpu> local)->tls_data_t<algorithmFPType, cpu> {
 
-            char uplo             = 'U';
-            char trans            = 'N';
-            algorithmFPType alpha = 1.0;
-            algorithmFPType beta  = 1.0;
+                if (!local.computeOk || !local.crossProduct || !local.sums)
+                    return local;
 
-            size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
-            size_t startRow = iBlock * numRowsInBlock;
+                char uplo             = 'U';
+                char trans            = 'N';
+                algorithmFPType alpha = 1.0;
+                algorithmFPType beta  = 1.0;
+                DAAL_INT nFeatures_local = nFeatures;
 
-            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, startRow, nRows);
-            DAAL_CHECK_BLOCK_STATUS_THR(dataTableBD);
-            algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
-
-            DAAL_INT nFeatures_local             = nFeatures;
-            algorithmFPType * crossProduct_local = tls_data_local->crossProduct;
-            algorithmFPType * sums_local         = tls_data_local->sums;
-
-            {
-                DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
-                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
-                                                       (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
-            }
-
-            if (!isNormalized && (method == defaultDense) && !assumeCentered)
-            {
-                DAAL_ITTNOTIFY_SCOPED_TASK(cumputeSums.local);
-                /* Sum input array elements in case of non-normalized data */
-                for (DAAL_INT i = 0; i < nRows; i++)
+                for (size_t iBlock = r.begin(); iBlock < r.end(); ++iBlock)
                 {
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (DAAL_INT j = 0; j < nFeatures_local; j++)
+                    size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
+                    size_t startRow = iBlock * numRowsInBlock;
+
+                    ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, startRow, nRows);
+                    if (!dataTableBD.get())
                     {
-                        sums_local[j] += dataBlock_local[i * nFeatures_local + j];
+                        local.computeOk = false;
+                        return local;
+                    }
+                    algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
+
+                    algorithmFPType * crossProduct_local = local.crossProduct;
+                    algorithmFPType * sums_local         = local.sums;
+
+                    {
+                        DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
+                        BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
+                                                            (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
+                    }
+
+                    if (!isNormalized && (method == defaultDense) && !assumeCentered)
+                    {
+                        DAAL_ITTNOTIFY_SCOPED_TASK(cumputeSums.local);
+                        /* Sum input array elements in case of non-normalized data */
+                        for (DAAL_INT i = 0; i < nRows; i++)
+                        {
+                            PRAGMA_IVDEP
+                            PRAGMA_VECTOR_ALWAYS
+                            for (DAAL_INT j = 0; j < nFeatures_local; j++)
+                            {
+                                sums_local[j] += dataBlock_local[i * nFeatures_local + j];
+                            }
+                        }
                     }
                 }
-            }
-        });
-        DAAL_CHECK_SAFE_STATUS();
-
-        /* TLS reduction: sum all partial cross products and sums */
-        tls_data.reduce([=](tls_data_t<algorithmFPType, cpu> * tls_data_local) {
-            DAAL_ITTNOTIFY_SCOPED_TASK(computeSums.reduce);
-            /* Sum all cross products */
-            if (tls_data_local->crossProduct)
-            {
+                return local;
+            },
+            [&](const tls_data_t<algorithmFPType, cpu> & left, tls_data_t<algorithmFPType, cpu> right)->tls_data_t<algorithmFPType, cpu> {
+                if (!left.computeOk || !left.crossProduct || !left.sums
+                    || !right.computeOk || !right.crossProduct || !right.sums)
+                {
+                    return right;
+                }
                 PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < (nFeatures * nFeatures); i++)
                 {
-                    crossProduct[i] += tls_data_local->crossProduct[i];
+                    right.crossProduct[i] += left.crossProduct[i];
                 }
-            }
-
-            /* Update sums vector in case of non-normalized data */
-            if (!isNormalized && (method == defaultDense) && !assumeCentered)
-            {
-                if (tls_data_local->sums)
+                if (!isNormalized && (method == defaultDense) && !assumeCentered)
                 {
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < nFeatures; i++)
                     {
-                        sums[i] += tls_data_local->sums[i];
+                        right.sums[i] += left.sums[i];
                     }
                 }
+                return right;
             }
-
-            delete tls_data_local;
-        });
+        );
+        if (result.computeOk == false)
+        {
+            return services::Status(services::ErrorCovarianceInternal);
+        }
+        for (size_t i = 0; i < nFeatures; i++)
+        {
+            sums[i] = result.sums[i];
+        }
 
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
         if (!isNormalized && !assumeCentered)
@@ -277,8 +286,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
-                    crossProduct[i * nFeatures + j] -= (nVectorsInv * sums[i] * sums[j]);
+                    crossProduct[i * nFeatures + j] = result.crossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
                 }
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < nFeatures * nFeatures; i++)
+            {
+                crossProduct[i] = result.crossProduct[i];
             }
         }
     }
