@@ -73,8 +73,6 @@ public:
 
     DynamicArray & operator=(DynamicArray other) {
         swap(*this, other);
-        other._data = nullptr;
-        other._size = 0;
         return *this;
     }
 
