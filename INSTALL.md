@@ -242,7 +242,7 @@ conda install -y \
 conda install -y^
     -c https://software.repos.intel.com/python/conda/^
     -c conda-forge^
-    make dos2unix "python>=3.9"^
+    make "python>=3.9"^
     dpcpp-cpp-rt dpcpp_win-64 intel-sycl-rt^
     tbb tbb-devel^
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp^
