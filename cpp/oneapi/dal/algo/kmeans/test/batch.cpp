@@ -318,8 +318,6 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     }
 }
 
-#ifdef ONEDAL_DATA_PARALLEL
-
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse cases on large number of rows",
                      "[kmeans][batch]",
@@ -344,7 +342,5 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     const table data = input.get_data(this->get_policy());
     const auto train_result = this->train(desc, data, initial_centroids);
 }
-
-#endif
 
 } // namespace oneapi::dal::kmeans::test
