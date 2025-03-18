@@ -20,7 +20,7 @@ set -eo pipefail
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 SCRIPT_DIR=$(dirname "${SCRIPT_PATH}")
 ONEDAL_DIR=$(readlink -f "${SCRIPT_DIR}/../..")
-TBB_DEFAULT_VERSION="v2021.10.0"
+TBB_DEFAULT_VERSION=v2021.10.0
 
 # Function to display help
 show_help() {
