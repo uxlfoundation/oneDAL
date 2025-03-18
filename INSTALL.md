@@ -23,6 +23,7 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * Python version 3.9 or higher
 * TBB library (repository contains script to download it)
+* oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
@@ -113,9 +114,25 @@ is available as an alternative to the manual setup.
 
             ./dev/download_tbb.sh
 
-6. Download and install Python (version 3.9 or higher).
+6.  Set up Intel(R) oneDPL
 
-7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+    _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
+
+    Download and install [Intel(R) oneDPL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html).
+    Set the environment variables for for Intel(R) oneDPL. For example:
+
+    - oneDPL (Windows\*):
+
+            call "C:\Program Files (x86)\Intel\oneAPI\dpl\latest\env\vars.bat" intel64
+
+    - oneDPL (Linux\*):
+
+            source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
+
+
+7. Download and install Python (version 3.9 or higher).
+
+8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -237,6 +254,7 @@ conda install -y \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
+    dpl onedpl-devel `# required DPL packages` \
     cmake `# required to build the examples only`
 ```
 
@@ -250,6 +268,7 @@ conda install -y^
     dpcpp-cpp-rt dpcpp_win-64 intel-sycl-rt^
     tbb tbb-devel^
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp^
+    dpl onedpl-devel^
     cmake
 ```
 
@@ -260,6 +279,7 @@ Then modify the relevant environment variables to point to the conda-installed l
 ```shell
 export MKLROOT=${CONDA_PREFIX}
 export TBBROOT=${CONDA_PREFIX}
+export DPL_ROOT=${CONDA_PREFIX}
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
 export CPATH="${CONDA_PREFIX}/include:${CPATH}"
@@ -273,6 +293,7 @@ export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```bat
 set MKLROOT=%CONDA_PREFIX%\Library
 set TBBROOT=%CONDA_PREFIX%\Library
+set DPL_ROOT=%CONDA_PREFIX%\Library
 set "LD_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LD_LIBRARY_PATH%"
 set "LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LIBRARY_PATH%"
 set "CPATH=%CONDA_PREFIX%\Library\include;%CPATH%"

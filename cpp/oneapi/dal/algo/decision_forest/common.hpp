@@ -133,6 +133,9 @@ enum class splitter_mode {
     random
 };
 
+/// Available engine methods for building trees
+enum class df_engine_types { mt2203, mcg59, philox4x32x10, mt19937, mrg32k3a };
+
 inline infer_mode operator|(infer_mode value_left, infer_mode value_right) {
     return bitwise_or(value_left, value_right);
 }
@@ -176,6 +179,7 @@ using v1::error_metric_mode;
 using v1::infer_mode;
 using v1::voting_mode;
 using v1::splitter_mode;
+using v1::df_engine_types;
 
 namespace detail {
 namespace v1 {
@@ -229,6 +233,7 @@ public:
     std::int64_t get_max_bins() const;
     std::int64_t get_min_bin_size() const;
     bool get_memory_saving_mode() const;
+    bool get_parallel_build() const;
     bool get_bootstrap() const;
     splitter_mode get_splitter_mode() const;
     error_metric_mode get_error_metric_mode() const;
@@ -249,6 +254,7 @@ public:
         return get_voting_mode_impl();
     }
 
+    df_engine_types get_engine_method() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -265,6 +271,7 @@ protected:
     void set_max_bins_impl(std::int64_t value);
     void set_min_bin_size_impl(std::int64_t value);
     void set_memory_saving_mode_impl(bool value);
+    void set_parallel_build_impl(bool value);
     void set_bootstrap_impl(bool value);
     void set_splitter_mode_impl(splitter_mode value);
     void set_error_metric_mode_impl(error_metric_mode value);
@@ -277,6 +284,7 @@ protected:
     infer_mode get_infer_mode_impl() const;
     voting_mode get_voting_mode_impl() const;
 
+    void set_engine_method_impl(df_engine_types value);
     void set_seed_impl(std::int64_t value);
 
 private:
@@ -501,6 +509,17 @@ public:
 
     /// The memory saving mode.
     /// @remark default = false
+    bool get_parallel_build() const {
+        return base_t::get_parallel_build();
+    }
+
+    auto& set_parallel_build(bool value) {
+        base_t::set_parallel_build_impl(value);
+        return *this;
+    }
+
+    /// The memory saving mode.
+    /// @remark default = false
     bool get_memory_saving_mode() const {
         return base_t::get_memory_saving_mode();
     }
@@ -591,6 +610,17 @@ public:
     template <typename T = Task, typename = detail::enable_if_classification_t<T>>
     auto& set_voting_mode(voting_mode value) {
         base_t::set_voting_mode_impl(value);
+        return *this;
+    }
+
+    /// Engine method for the random numbers generator used by the algorithm
+    /// @remark default = df_engine_method::mt2203
+    df_engine_types get_engine_method() const {
+        return base_t::get_engine_method();
+    }
+
+    auto& set_engine_method(df_engine_types value) {
+        base_t::set_engine_method_impl(value);
         return *this;
     }
 
