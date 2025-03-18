@@ -22,7 +22,9 @@ dal_test_module(
         "@onedal//cpp/oneapi/dal/test/engine/metrics",
     ],
     extra_deps = [
+        "@boost//:boost",
         "@catch2//:catch2",
+        "@eigen//:eigen",
         "@fmt//:fmt",
     ],
 )

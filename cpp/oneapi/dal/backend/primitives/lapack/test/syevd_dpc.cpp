@@ -128,6 +128,46 @@ public:
         }
     }
 
+    void check_eigvals_with_eigen(const la::matrix<Float>& s,
+                                  const la::matrix<Float>& eigvecs,
+                                  const la::matrix<Float>& eigvals) const {
+        INFO("convert results to float64");
+        const auto s_f64 = la::astype<double>(s);
+        const auto eigvals_f64 = la::astype<double>(eigvals);
+        const auto eigvecs_f64 = la::astype<double>(eigvecs);
+        std::int64_t row_count = s.get_row_count();
+        std::int64_t column_count = s.get_column_count();
+        const Float* data = s.get_data();
+
+        Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic> eigen_matrix(row_count, column_count);
+        for (int i = 0; i < eigen_matrix.rows(); ++i) {
+            for (int j = 0; j < eigen_matrix.cols(); ++j) {
+                eigen_matrix(i, j) = data[i * column_count + j];
+            }
+        }
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic>> es(
+            eigen_matrix);
+
+        auto eigenvalues = es.eigenvalues().real();
+        INFO("oneDAL eigvals vs Eigen eigvals");
+        la::enumerate_linear(eigvals_f64, [&](std::int64_t i, Float x) {
+            REQUIRE(abs(eigvals_f64.get(i) - eigenvalues(i)) < 0.1);
+        });
+
+        INFO("oneDAL eigvectors vs Eigen eigvectors");
+        auto eigenvectors = es.eigenvectors().real();
+
+        const double* eigenvec_ptr = eigvecs_f64.get_data();
+        //TODO: investigate Eigen classes and align checking between oneDAL and Eigen classes.
+        for (int j = 0; j < eigvecs.get_column_count(); ++j) {
+            auto column_eigen = eigenvectors.col(j);
+            for (int i = 0; i < eigvecs.get_row_count(); ++i) {
+                REQUIRE((abs(eigenvec_ptr[j * row_count + i]) - abs(column_eigen(i))) < 0.1);
+            }
+        }
+    }
+
     void check_eigvals_are_ascending(const la::matrix<Float>& eigvals) const {
         INFO("check eigenvalues order is ascending");
         la::enumerate_linear(eigvals, [&](std::int64_t i, Float x) {
@@ -158,6 +198,7 @@ TEMPLATE_LIST_TEST_M(syevd_test, "test syevd with pos def matrix", "[sym_eigvals
 
     this->check_eigvals_definition(s, eigenvectors, eigenvalues);
     this->check_eigvals_are_ascending(eigenvalues);
+    this->check_eigvals_with_eigen(s, eigenvectors, eigenvalues);
 }
 
 TEMPLATE_LIST_TEST_M(syevd_test, "test syevd with pos def matrix 2", "[sym_eigvals]", eigen_types) {
