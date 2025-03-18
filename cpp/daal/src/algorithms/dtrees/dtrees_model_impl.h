@@ -495,6 +495,23 @@ public:
 
     const data_management::DataCollection * serializationData() const { return _serializationData.get(); }
 
+    void copy_model(const ModelImpl & other, size_t idx)
+    {
+        const size_t nTree = other._nTree.get();
+        resize(nTree + idx); // sets _nTree = 0
+        _nTree.set(nTree + idx);
+        // copy data if source and target pointers are valid
+        if (isValid() && other.isValid())
+        {
+            for (size_t i = 0; i < nTree; ++i)
+            {
+                (*_serializationData)[idx + i] = (*other._serializationData)[i];
+                (*_impurityTables)[idx + i]    = (*other._impurityTables)[i];
+                (*_nNodeSampleTables)[idx + i] = (*other._nNodeSampleTables)[i];
+                (*_probTbl)[idx + i]           = (*other._probTbl)[i];
+            }
+        }
+    }
     const DecisionTreeTable * at(const size_t i) const { return (const DecisionTreeTable *)(*_serializationData)[i].get(); }
 
     const double * getImpVals(size_t i) const

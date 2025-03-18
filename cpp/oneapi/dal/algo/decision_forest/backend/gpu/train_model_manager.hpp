@@ -35,6 +35,7 @@ struct daal_types_map;
 
 template <>
 struct daal_types_map<task::classification> {
+    using daal_model_interop_t = backend::model_interop_cls;
     using daal_tree_impl_t = daal::algorithms::dtrees::internal::TreeImpClassification<>;
     using daal_model_impl_t =
         daal::algorithms::decision_forest::classification::internal::ModelImpl;
@@ -43,6 +44,7 @@ struct daal_types_map<task::classification> {
 
 template <>
 struct daal_types_map<task::regression> {
+    using daal_model_interop_t = backend::model_interop_reg;
     using daal_tree_impl_t = daal::algorithms::dtrees::internal::TreeImpRegression<>;
     using daal_model_impl_t = daal::algorithms::decision_forest::regression::internal::ModelImpl;
     using daal_model_ptr_t = daal::algorithms::decision_forest::regression::ModelPtr;
@@ -144,6 +146,7 @@ class train_model_manager {
     using model_interop_impl_t =
         model_interop_impl<typename daal_types_map<Task>::daal_model_ptr_t>;
     using daal_model_impl_t = typename daal_types_map<Task>::daal_model_impl_t;
+    using daal_model_interop_t = typename daal_types_map<Task>::daal_model_interop_t;
     using daal_model_ptr_t = typename daal_types_map<Task>::daal_model_ptr_t;
     using TreeType = typename daal_types_map<Task>::daal_tree_impl_t;
     using NodeType = typename TreeType::NodeType;
@@ -159,6 +162,21 @@ public:
     }
 
     ~train_model_manager() = default;
+
+    void copy_trees(model_t model_) {
+        auto daal_model =
+            static_cast<const daal_model_interop_t*>(dal::detail::get_impl(model_).get_interop())
+                ->get_model();
+
+        auto daal_model_ptr_local = static_cast<const daal_model_impl_t*>(daal_model.get());
+
+        if (!daal_model_ptr_local) {
+            throw std::runtime_error("Failed to cast to daal_model_impl_t");
+        }
+
+        daal_model_ptr_->copy_model(*daal_model_ptr_local, last_tree_pos_);
+        last_tree_pos_ += daal_model_ptr_local->getNumberOfTrees();
+    }
 
     void add_tree_block(std::vector<tree_level_record<Float, Index, Task>>& tree_level_list,
                         std::vector<dal::backend::primitives::ndarray<Float, 1>>& bin_value_list,

@@ -2101,17 +2101,19 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
     }
     else {
         auto onedal_model = model_manager.get_model();
-        std::cout<<"local tree count = "<<onedal_model.get_tree_count()<<std::endl;
+
+        std::int64_t local_tree_count = onedal_model.get_tree_count();
+        std::int64_t total_tree_count = local_tree_count;
+        comm_.allreduce(total_tree_count).wait();
+
         ::oneapi::dal::detail::binary_output_archive output_archive;
         ::oneapi::dal::detail::serialize(onedal_model, output_archive);
 
         auto data_array = output_archive.to_array();
         std::int64_t send_size = output_archive.get_size();
-        std::cout<<"local arr size="<<send_size<<std::endl;
 
-        std::int64_t total_row_count = send_size;
-        comm_.allreduce(total_row_count).wait();
-        std::cout<<"total_row count arr size="<<total_row_count<<std::endl;
+        std::int64_t total_send_size = send_size;
+        comm_.allreduce(total_send_size).wait();
         auto rank_count = comm_.get_rank_count();
         auto rank = comm_.get_rank();
         auto recv_counts = dal::array<std::int64_t>::zeros(rank_count);
@@ -2124,24 +2126,33 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             displs_ptr[i] = total_count;
             total_count += recv_counts.get_data()[i];
         }
-        std::cout<<"toatl count in loop ="<<total_count<<std::endl;
-        std::cout<<"toatl no in  in loop ="<<total_row_count<<std::endl;
-        auto arr_total = oneapi::dal::array<byte_t>::empty(total_row_count);
+
+        auto arr_total = oneapi::dal::array<byte_t>::empty(total_send_size);
         {
             ONEDAL_PROFILER_TASK(allgather_model_data);
-            comm_
-                .allgatherv(data_array,
-                            arr_total,
-                            recv_counts.get_data(), displs.get_data()).wait();
+            comm_.allgatherv(data_array, arr_total, recv_counts.get_data(), displs.get_data())
+                .wait();
         }
 
-        auto onedal_model_des = model<Task>();
-        ::oneapi::dal::detail::binary_input_archive input_archive{
-            arr_total
-        };
-        ::oneapi::dal::detail::deserialize(onedal_model_des, input_archive);
-        std::cout<<"global tree count = "<<onedal_model_des.get_tree_count()<<std::endl;
-        return res.set_model(onedal_model_des);
+        std::vector<model<Task>> onedal_models(rank_count);
+
+        std::int64_t offset = 0;
+
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            onedal_models[i] = model<Task>();
+            auto sub_array = arr_total.get_slice(offset, offset + recv_counts.get_data()[i]);
+            ::oneapi::dal::detail::binary_input_archive sub_archive(sub_array);
+            ::oneapi::dal::detail::deserialize(onedal_models[i], sub_archive);
+            offset += recv_counts.get_data()[i];
+        }
+
+        model_manager_t model_manager_global(ctx, total_tree_count, ctx.column_count_);
+
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            model_manager_global.copy_trees(onedal_models[i]);
+        }
+
+        return res.set_model(model_manager_global.get_model());
     }
 }
 
