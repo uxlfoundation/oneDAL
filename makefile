@@ -1117,8 +1117,9 @@ Flags:
       possible values: $(CORE.ALGORITHMS.CUSTOM.AVAILABLE)
   REQCPU - list of CPU optimizations to be included into library
       possible values: $(CPUs)
-  REQDBG - flag that enables build in debug mode. Debug mode turns on oneDAL
-      assertions and adds debug symbols. For only debug symbols set flag to
+  REQDBG - flag that enables build in debug mode. Debug mode enables oneDAL
+      assertions and adds debug symbols. Any value will enable debug mode, 
+      except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
 endef
