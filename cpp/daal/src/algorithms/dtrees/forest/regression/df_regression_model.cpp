@@ -151,14 +151,33 @@ void ModelImpl::traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisito
 
 services::Status ModelImpl::serializeImpl(data_management::InputDataArchive * arch)
 {
-    auto s = RegressionImplType::serialImpl<data_management::InputDataArchive, false>(arch);
-    return s.add(ImplType::serialImpl<data_management::InputDataArchive, false>(arch));
+    auto s = daal::algorithms::regression::Model::serialImpl<data_management::InputDataArchive, false>(arch);
+    s.add(ImplType::serialImpl<data_management::InputDataArchive, false>(arch));
+    arch->set(daal::algorithms::regression::internal::ModelInternal::_nFeatures);
+
+    if ((INTEL_DAAL_VERSION > COMPUTE_DAAL_VERSION(2020, 0, 0)))
+    {
+        arch->setSharedPtrObj(_probTbl);
+    }
+
+    return s;
 }
 
 services::Status ModelImpl::deserializeImpl(const data_management::OutputDataArchive * arch)
 {
-    auto s = RegressionImplType::serialImpl<const data_management::OutputDataArchive, true>(arch);
-    return s.add(ImplType::serialImpl<const data_management::OutputDataArchive, true>(arch));
+    auto s                = daal::algorithms::regression::Model::serialImpl<const data_management::OutputDataArchive, true>(arch);
+    const int daalVersion = COMPUTE_DAAL_VERSION(arch->getMajorVersion(), arch->getMinorVersion(), arch->getUpdateVersion());
+    s.add(ImplType::serialImpl<const data_management::OutputDataArchive, true>(arch, daalVersion));
+    if ((daalVersion >= COMPUTE_DAAL_VERSION(2020, 0, 1)))
+    {
+        arch->set(daal::algorithms::regression::internal::ModelInternal::_nFeatures);
+    }
+    if ((daalVersion > COMPUTE_DAAL_VERSION(2020, 0, 0)))
+    {
+        arch->setSharedPtrObj(_probTbl);
+    }
+
+    return s;
 }
 
 bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
