@@ -23,8 +23,14 @@ main_release_dir=$1
 release_dir=$2
 RETURN_CODE=0
 
-echo Shared Library ABI Conformance
+echo "Shared Library ABI Conformance"
 solibs=($(ls $main_release_dir/lib*.so))
+# if no .so files found to compare against, throw error
+if [ ${#solibs[@]} -eq 0 ]; then
+    echo "::error:: No shared objects found"
+    exit 1
+fi
+
 for i in "${solibs[@]}"
 do
     name=$(basename $i)
