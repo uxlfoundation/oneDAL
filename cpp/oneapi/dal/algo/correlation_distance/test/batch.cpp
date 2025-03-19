@@ -25,7 +25,8 @@ namespace te = dal::test::engine;
 namespace la = te::linalg;
 
 template <typename TestType>
-class correlation_distance_batch_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
+class correlation_distance_batch_test
+        : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
 public:
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
@@ -110,7 +111,8 @@ public:
     }
 };
 
-using correlation_distance_types = COMBINE_TYPES((float, double), (correlation_distance::method::dense));
+using correlation_distance_types = COMBINE_TYPES((float, double),
+                                                 (correlation_distance::method::dense));
 
 TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
                      "correlation_distance common flow",
