@@ -14,13 +14,14 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "oneapi/dal/common.hpp"
 #include "oneapi/dal/detail/cpu.hpp"
 #include <daal/src/services/service_defines.h>
 
 namespace oneapi::dal::detail {
 namespace v1 {
 
-cpu_extension from_daal_cpu_type(int cpu_type) {
+ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
     daal::CpuType cpu = static_cast<daal::CpuType>(cpu_type);
     switch (cpu) {
 #if defined(TARGET_X86_64)
@@ -37,7 +38,7 @@ cpu_extension from_daal_cpu_type(int cpu_type) {
     return cpu_extension::none;
 }
 
-cpu_extension detect_top_cpu_extension() {
+ONEDAL_EXPORT cpu_extension detect_top_cpu_extension() {
 #if defined(TARGET_ARM)
     return detail::cpu_extension::sve;
 #elif defined(TARGET_RISCV64)

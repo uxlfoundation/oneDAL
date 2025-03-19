@@ -38,7 +38,7 @@ namespace training
 namespace interface1
 {
 template <>
-Batch<DAAL_FPTYPE, gbt::regression::training::defaultDense>::Batch()
+DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::regression::training::defaultDense>::Batch()
 {
     _par = new ParameterType();
     initialize();
@@ -46,7 +46,7 @@ Batch<DAAL_FPTYPE, gbt::regression::training::defaultDense>::Batch()
 
 using BatchType = Batch<DAAL_FPTYPE, gbt::regression::training::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, gbt::regression::training::defaultDense>::Batch(const BatchType & other) : input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();

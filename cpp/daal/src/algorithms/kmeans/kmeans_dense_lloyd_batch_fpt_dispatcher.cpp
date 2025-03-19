@@ -37,14 +37,14 @@ namespace interface2
 using BatchType = Batch<DAAL_FPTYPE, kmeans::lloydDense>;
 
 template <>
-BatchType::Batch(size_t nClusters, size_t nIterations)
+DAAL_EXPORT BatchType::Batch(size_t nClusters, size_t nIterations)
 {
     _par = new ParameterType(nClusters, nIterations);
     initialize();
 }
 
 template <>
-BatchType::Batch(const BatchType & other)
+DAAL_EXPORT BatchType::Batch(const BatchType & other)
 {
     _par = new ParameterType(other.parameter());
     initialize();

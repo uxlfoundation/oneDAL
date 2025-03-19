@@ -123,7 +123,7 @@ public:
  *      - \ref Method  Initialization methods of the implicit ALS algorithm in the distributed processing mode
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = fastCSR>
-class Distributed
+class DAAL_EXPORT Distributed
 {};
 
 /**
@@ -150,7 +150,7 @@ public:
     ParameterType parameter;            /*!< Parameters of the implicit ALS initialization algorithm */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an algorithm for initializing the implicit ALS model by copying input objects and parameters
@@ -158,7 +158,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step1Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step1Local, algorithmFPType, method> & other);
 
     /**
      * Returns the method of the algorithm
@@ -247,7 +247,7 @@ public:
     DistributedInput<step2Local> input; /*!< %Input data structure */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an algorithm for initializing the implicit ALS model by copying input objects
@@ -255,11 +255,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  of the algorithm
      */
-    Distributed(const Distributed<step2Local, algorithmFPType, method> & other)
-    {
-        initialize();
-        input.set(inputOfStep2FromStep1, other.input.get(inputOfStep2FromStep1));
-    }
+    Distributed(const Distributed<step2Local, algorithmFPType, method> & other);
 
     /**
      * Returns the method of the algorithm
