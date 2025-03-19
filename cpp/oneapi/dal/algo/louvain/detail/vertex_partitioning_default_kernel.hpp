@@ -75,7 +75,8 @@ struct vertex_partitioning_kernel_cpu<Float,
         const table &init_partition) const {
         using topology_type = typename graph_traits<Graph>::impl_type::topology_type;
         using value_type = edge_user_value_type<Graph>;
-        const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(g);
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+        const auto &t = topology_builder(g);
         auto init_partition_arr =
             oneapi::dal::row_accessor<const std::int32_t>(init_partition).pull();
         const auto init_partition_data = init_partition_arr.get_data();
