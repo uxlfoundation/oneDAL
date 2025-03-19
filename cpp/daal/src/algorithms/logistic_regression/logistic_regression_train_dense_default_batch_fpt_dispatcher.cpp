@@ -37,7 +37,7 @@ namespace training
 namespace interface3
 {
 template <>
-Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>::Batch(size_t nClasses, const SolverPtr & solver)
+DAAL_EXPORT Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>::Batch(size_t nClasses, const SolverPtr & solver)
 {
     _par = new ParameterType(nClasses, solver);
     initialize();
@@ -45,7 +45,7 @@ Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>::Batch(size_t nC
 
 using BatchType = Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>::Batch(const BatchType & other)
+DAAL_EXPORT Batch<DAAL_FPTYPE, logistic_regression::training::defaultDense>::Batch(const BatchType & other)
     : classifier::training::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());

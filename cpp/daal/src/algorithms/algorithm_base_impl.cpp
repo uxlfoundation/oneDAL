@@ -232,7 +232,7 @@ void AlgorithmImpl<mode>::setHostApp(const services::HostAppIfacePtr & pHost)
 /**
  * Computes final results of the algorithm in the %batch mode without possibility of throwing an exception.
  */
-services::Status AlgorithmImpl<batch>::computeNoThrow()
+services::Status DAAL_EXPORT AlgorithmImpl<batch>::computeNoThrow()
 {
     this->setParameter();
 
@@ -277,17 +277,17 @@ services::Status AlgorithmImpl<batch>::computeNoThrow()
     return s;
 }
 
-services::HostAppIfacePtr AlgorithmImpl<batch>::hostApp()
+services::HostAppIfacePtr DAAL_EXPORT AlgorithmImpl<batch>::hostApp()
 {
     return this->_in ? services::internal::getHostApp(*this->_in) : services::HostAppIfacePtr();
 }
 
-void AlgorithmImpl<batch>::setHostApp(const services::HostAppIfacePtr & pHost)
+void DAAL_EXPORT AlgorithmImpl<batch>::setHostApp(const services::HostAppIfacePtr & pHost)
 {
     if (this->_in) services::internal::setHostApp(pHost, *this->_in);
 }
 
-template class interface1::AlgorithmImpl<online>;
-template class interface1::AlgorithmImpl<distributed>;
+template class DAAL_EXPORT interface1::AlgorithmImpl<online>;
+template class DAAL_EXPORT interface1::AlgorithmImpl<distributed>;
 } // namespace algorithms
 } // namespace daal

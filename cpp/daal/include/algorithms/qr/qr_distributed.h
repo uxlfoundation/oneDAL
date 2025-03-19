@@ -134,7 +134,7 @@ public:
  *      - \ref Method   Computation methods for the QR decomposition algorithm
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Distributed : public daal::algorithms::Analysis<distributed>
+class DAAL_EXPORT Distributed : public daal::algorithms::Analysis<distributed>
 {};
 
 /**
@@ -214,15 +214,14 @@ public:
     InputType input;         /*!< Input data structure */
     ParameterType parameter; /*!< QR parameters structure */
 
-    Distributed() { initialize(); }
-
+    Distributed();
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
      * of another QR decomposition algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm
@@ -342,7 +341,7 @@ public:
     ParameterType parameter; /*!< QR parameters */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -350,7 +349,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step3Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step3Local, algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

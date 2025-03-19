@@ -99,17 +99,14 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the algorithm */
 
     /** Default constructor */
-    Batch(size_t nClasses) : parameter(nClasses) { initialize(); }
+    Batch(size_t nClasses);
 
     /**
      * Constructs a Decision tree training algorithm by copying input objects
      * and parameters of another Decision tree training algorithm in the batch processing mode
      * \param[in] other Algorithm to use as the source to initialize the input objects and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::training::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Get input objects for the Decision tree training algorithm

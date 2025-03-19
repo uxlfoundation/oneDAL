@@ -229,7 +229,7 @@ public:
     InputType input;         /*!< %DistributedStep2Input data structure */
     ParameterType parameter; /*!< SVD parameters structure */
 
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -237,8 +237,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
-
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
     /**
     * Returns method of the algorithm
     * \return Method of the algorithm
@@ -346,7 +345,7 @@ public:
     InputType input;         /*!< %DistributedStep3Input data structure */
     ParameterType parameter; /*!< SVD parameters structure */
 
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an SVD algorithm by copying input objects and parameters
@@ -354,7 +353,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step3Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step3Local, algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

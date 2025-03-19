@@ -43,8 +43,8 @@ services::Status BatchParameter<algorithmFPType, correlationDense>::check() cons
     return services::Status();
 }
 
-template BatchParameter<DAAL_FPTYPE, correlationDense>::BatchParameter(const services::SharedPtr<covariance::BatchImpl> & covariance);
-template services::Status BatchParameter<DAAL_FPTYPE, correlationDense>::check() const;
+template DAAL_EXPORT BatchParameter<DAAL_FPTYPE, correlationDense>::BatchParameter(const services::SharedPtr<covariance::BatchImpl> & covariance);
+template DAAL_EXPORT services::Status BatchParameter<DAAL_FPTYPE, correlationDense>::check() const;
 } // namespace interface3
 } // namespace pca
 } // namespace algorithms

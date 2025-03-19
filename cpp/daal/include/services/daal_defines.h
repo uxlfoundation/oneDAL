@@ -50,11 +50,11 @@
     #define __int64 long long int
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
-    #ifdef __DAAL_IMPLEMENTATION
+#ifdef __DAAL_IMPLEMENTATION
+    #if defined(_WIN32) || defined(_WIN64)
         #define DAAL_EXPORT __declspec(dllexport)
     #else
-        #define DAAL_EXPORT
+        #define DAAL_EXPORT __attribute__((visibility("default")))
     #endif
 #else
     #define DAAL_EXPORT
