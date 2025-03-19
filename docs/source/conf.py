@@ -287,7 +287,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'error_metric_mode::none'),
     ('cpp:identifier', 'error_metric_mode::out_of_bag_error'),
     ('cpp:identifier', 'error_metric_mode::out_of_bag_error_per_observation'),
-    ('cpp:identifier', 'df_engine_method'),
+    ('cpp:identifier', 'engine_type'),
     # covariance
     ('cpp:identifier', 'covariance'),
     ('cpp:identifier', 'covariance::descriptor'),
