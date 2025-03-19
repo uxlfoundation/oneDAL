@@ -58,7 +58,7 @@ namespace interface1
  *      - \ref training::interface1::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
+class DAAL_EXPORT Batch : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
 {
 public:
     typedef linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense> super;
@@ -116,10 +116,8 @@ protected:
 
     void initialize()
     {
-        this->_ac  = new __DAAL_ALGORITHM_CONTAINER(batch, linear_model::prediction::BatchContainer, algorithmFPType,
-                                                    linear_model::prediction::defaultDense)(&(this->_env));
-        this->_in  = &input;
-        this->_par = NULL;
+        super::initialize();
+        this->_in = &input;
         this->_result.reset(new ResultType());
     }
 

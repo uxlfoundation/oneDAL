@@ -491,25 +491,25 @@ void chunked_array_base::serialize_impl(detail::output_archive& archive) const {
     }
 }
 
-template array_impl<byte_t> chunked_array_base::flatten_impl(const default_host_policy&,
-                                                             const host_allocator<byte_t>&) const;
-template array_impl<const byte_t*> chunked_array_base::get_data_impl(
-    const default_host_policy&,
-    const host_allocator<const byte_t*>&) const;
-template array_impl<byte_t*> chunked_array_base::get_mutable_data_impl(
-    const default_host_policy&,
-    const host_allocator<byte_t*>&) const;
+template array_impl<byte_t> ONEDAL_EXPORT
+chunked_array_base::flatten_impl(const default_host_policy&, const host_allocator<byte_t>&) const;
+template array_impl<const byte_t*> ONEDAL_EXPORT
+chunked_array_base::get_data_impl(const default_host_policy&,
+                                  const host_allocator<const byte_t*>&) const;
+template array_impl<byte_t*> ONEDAL_EXPORT
+chunked_array_base::get_mutable_data_impl(const default_host_policy&,
+                                          const host_allocator<byte_t*>&) const;
 
 #ifdef ONEDAL_DATA_PARALLEL
-template array_impl<byte_t> chunked_array_base::flatten_impl(
-    const data_parallel_policy&,
-    const data_parallel_allocator<byte_t>&) const;
-template array_impl<const byte_t*> chunked_array_base::get_data_impl(
-    const data_parallel_policy&,
-    const data_parallel_allocator<const byte_t*>&) const;
-template array_impl<byte_t*> chunked_array_base::get_mutable_data_impl(
-    const data_parallel_policy&,
-    const data_parallel_allocator<byte_t*>&) const;
+template array_impl<byte_t> ONEDAL_EXPORT
+chunked_array_base::flatten_impl(const data_parallel_policy&,
+                                 const data_parallel_allocator<byte_t>&) const;
+template array_impl<const byte_t*> ONEDAL_EXPORT
+chunked_array_base::get_data_impl(const data_parallel_policy&,
+                                  const data_parallel_allocator<const byte_t*>&) const;
+template array_impl<byte_t*> ONEDAL_EXPORT
+chunked_array_base::get_mutable_data_impl(const data_parallel_policy&,
+                                          const data_parallel_allocator<byte_t*>&) const;
 #endif // ONEDAL_DATA_PARALLEL
 
 } // namespace oneapi::dal::detail::v2

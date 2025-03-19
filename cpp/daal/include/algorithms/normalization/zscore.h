@@ -183,7 +183,7 @@ public:
     typedef algorithms::normalization::zscore::Parameter<algorithmFPType, method> ParameterType;
     typedef typename super::ResultType ResultType;
 
-    /** Default constructor     */
+    /** Default constructor */
     Batch();
 
     /**

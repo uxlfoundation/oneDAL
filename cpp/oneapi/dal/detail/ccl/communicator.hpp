@@ -107,7 +107,7 @@ private:
 /// Implementation of the low-level SPMD communicator interface via ccl
 /// TODO: Currently message sizes are limited via `int` type.
 ///       Large message sizes should be handled on the communicator side in the future.
-class ccl_device_communicator_impl : public spmd::communicator_iface {
+class ONEDAL_EXPORT ccl_device_communicator_impl : public spmd::communicator_iface {
 public:
     // Explicitly declare all virtual functions with overloads to workaround Clang warning
     // https://stackoverflow.com/questions/18515183/c-overloaded-virtual-function-warning-by-clang

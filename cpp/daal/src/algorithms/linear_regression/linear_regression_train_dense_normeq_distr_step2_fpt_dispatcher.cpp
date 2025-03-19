@@ -29,5 +29,29 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::DistributedContainer, distributed, step2Master, DAAL_FPTYPE,
                                       linear_regression::training::normEqDense)
+namespace linear_regression
+{
+namespace training
+{
+namespace interface1
+{
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::normEqDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
+{
+    initialize();
 }
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : parameter(other.parameter)
+{
+    initialize();
+    input.set(partialModels, other.input.get(partialModels));
+}
+
+} // namespace interface1
+} // namespace training
+} // namespace linear_regression
+} // namespace algorithms
 } // namespace daal
