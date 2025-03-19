@@ -39,7 +39,7 @@ namespace prediction
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>::Batch(size_t nClasses)
 {
     _par                 = new ParameterType(nClasses);
     parameter().nClasses = nClasses;
@@ -48,14 +48,14 @@ Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>::Batch(size_t nClasses)
 
 using BatchTypeDefault = Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>::Batch(const BatchTypeDefault & other)
+DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::prediction::defaultDense>::Batch(const BatchTypeDefault & other)
     : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
 template <>
-Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>::Batch(size_t nClasses)
 {
     _par                 = new ParameterType(nClasses);
     parameter().nClasses = nClasses;
@@ -64,11 +64,13 @@ Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>::Batch(size_t nClasses)
 
 using BatchTypeSammeR = Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>;
 template <>
-Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>::Batch(const BatchTypeSammeR & other) : classifier::prediction::Batch(other), input(other.input)
+DAAL_EXPORT Batch<DAAL_FPTYPE, adaboost::prediction::sammeR>::Batch(const BatchTypeSammeR & other)
+    : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
+
 } // namespace interface2
 } // namespace prediction
 } // namespace adaboost

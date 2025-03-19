@@ -85,7 +85,8 @@ class Batch
  *      - \ref training::interface1::Distributed "training::Distributed" class
  */
 template <typename algorithmFPType>
-class Batch<algorithmFPType, defaultDense> : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
+class DAAL_EXPORT Batch<algorithmFPType, defaultDense>
+    : public linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>
 {
 public:
     typedef algorithms::linear_regression::prediction::Input InputType;
@@ -141,10 +142,8 @@ protected:
 
     void initialize()
     {
-        this->_ac  = new __DAAL_ALGORITHM_CONTAINER(batch, linear_model::prediction::BatchContainer, algorithmFPType,
-                                                    linear_model::prediction::defaultDense)(&(this->_env));
-        this->_in  = &input;
-        this->_par = NULL;
+        linear_model::prediction::Batch<algorithmFPType, linear_model::prediction::defaultDense>::initialize();
+        this->_in = &input;
         this->_result.reset(new ResultType());
     }
 

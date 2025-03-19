@@ -37,13 +37,13 @@ namespace interface1
 using DistributedType = Distributed<step9Master, DAAL_FPTYPE, defaultDense>;
 
 template <>
-DistributedType::Distributed()
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other) : input(other.input)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input)
 {
     initialize();
 }

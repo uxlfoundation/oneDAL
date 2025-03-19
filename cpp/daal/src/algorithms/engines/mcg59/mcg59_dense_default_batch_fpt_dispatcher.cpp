@@ -26,5 +26,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mcg59::BatchContainer, batch, DAAL_FPTYPE, engines::mcg59::defaultDense)
+namespace engines
+{
+namespace mcg59
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>::Batch(size_t seed)
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace mcg59
+} // namespace engines
 } // namespace algorithms
 } // namespace daal

@@ -100,13 +100,13 @@ public:
      *  \param[in] a     Mean
      *  \param[in] sigma standard deviation
      */
-    Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0) : parameter(a, sigma) { initialize(); }
+    Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
 
     /**
      * Constructs normal distribution by copying input objects and parameters of another normal distribution
      * \param[in] other Normal distribution
      */
-    Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns method of the distribution

@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(correlation_distance::BatchContainer, batch, DAAL_FPTYPE, correlation_distance::defaultDense)
+namespace correlation_distance
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, correlation_distance::defaultDense>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, correlation_distance::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace correlation_distance
 } // namespace algorithms
 } // namespace daal

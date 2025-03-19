@@ -100,7 +100,7 @@ public:
  *
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Distributed
+class DAAL_EXPORT Distributed
 {};
 
 /**
@@ -190,7 +190,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Distributed(size_t nClasses) : parameter(nClasses) { initialize(); }
+    Distributed(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters
@@ -198,12 +198,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other)
-        : Training<distributed>(other), parameter(other.parameter), input(other.input)
-    {
-        initialize();
-    }
-
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
     virtual ~Distributed() {}
 
     /**

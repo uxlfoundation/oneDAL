@@ -94,7 +94,7 @@ public:
     ParameterType parameter; /*!< Quantiles parameters structure */
 
     /** Default constructor     */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs algorithm that computes quantiles by copying input objects and parameters
@@ -102,7 +102,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 
