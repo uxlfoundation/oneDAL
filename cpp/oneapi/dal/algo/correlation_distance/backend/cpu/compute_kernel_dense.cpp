@@ -55,13 +55,13 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     const auto daal_y = interop::convert_to_daal_table<Float>(y);
     const auto daal_values =
         interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_y);
-    
+
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_correlation_distance_t>(ctx,
-                                                            daal_x.get(),
-                                                            daal_y.get(),
-                                                            daal_values.get(),
-                                                            &kernel_parameter));
+                                                                      daal_x.get(),
+                                                                      daal_y.get(),
+                                                                      daal_values.get(),
+                                                                      &kernel_parameter));
 
     return result_t().set_values(
         dal::detail::homogen_table_builder{}.reset(arr_values, row_count_x, row_count_y).build());

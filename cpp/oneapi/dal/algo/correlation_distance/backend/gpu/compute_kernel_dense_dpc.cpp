@@ -33,10 +33,10 @@ namespace pr = dal::backend::primitives;
 
 template <typename Float>
 void compute_coefficient(sycl::queue& queue,
-                       const pr::ndview<Float, 1>& inv_norm_x_nd,
-                       const pr::ndview<Float, 1>& inv_norm_y_nd,
-                       pr::ndview<Float, 2>& res_nd,
-                       const dal::backend::event_vector& deps = {}) {
+                         const pr::ndview<Float, 1>& inv_norm_x_nd,
+                         const pr::ndview<Float, 1>& inv_norm_y_nd,
+                         pr::ndview<Float, 2>& res_nd,
+                         const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(correlation_distance.compute_coefficient, queue);
     const std::int64_t x_row_count = inv_norm_x_nd.get_dimension(0);
     const std::int64_t y_row_count = inv_norm_y_nd.get_dimension(0);
@@ -61,10 +61,10 @@ void compute_coefficient(sycl::queue& queue,
 
 template <typename Float>
 void compute_correlation_distance(sycl::queue& queue,
-                 const pr::ndview<Float, 2>& x_nd,
-                 const pr::ndview<Float, 2>& y_nd,
-                 pr::ndview<Float, 2>& res_nd,
-                 const dal::backend::event_vector& deps = {}) {
+                                  const pr::ndview<Float, 2>& x_nd,
+                                  const pr::ndview<Float, 2>& y_nd,
+                                  pr::ndview<Float, 2>& res_nd,
+                                  const dal::backend::event_vector& deps = {}) {
     ONEDAL_ASSERT(x_nd.get_dimension(0) == res_nd.get_dimension(0));
     ONEDAL_ASSERT(y_nd.get_dimension(0) == res_nd.get_dimension(1));
     ONEDAL_ASSERT(x_nd.get_dimension(1) == y_nd.get_dimension(1));
@@ -72,13 +72,17 @@ void compute_correlation_distance(sycl::queue& queue,
     /*const auto x_row_count = x_nd.get_dimension(0);
     const auto y_row_count = y_nd.get_dimension(0);*/
 
-    auto [dev_x_nd, dev_x_nd_event] = pr::distance<Float, correlation_metric<Float>>::get_deviation(x_nd, deps);
-    auto [dev_y_nd, dev_y_nd_event] = pr::distance<Float, correlation_metric<Float>>::get_deviation(y_nd, deps);
+    auto [dev_x_nd, dev_x_nd_event] =
+        pr::distance<Float, correlation_metric<Float>>::get_deviation(x_nd, deps);
+    auto [dev_y_nd, dev_y_nd_event] =
+        pr::distance<Float, correlation_metric<Float>>::get_deviation(y_nd, deps);
 
     auto [inv_norm_x_nd, inv_norm_x_nd_event] =
-        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_x_nd, { dev_x_nd_event });
+        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_x_nd,
+                                                                           { dev_x_nd_event });
     auto [inv_norm_y_nd, inv_norm_y_nd_event] =
-        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_y_nd, { dev_y_nd_event });
+        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_y_nd,
+                                                                           { dev_y_nd_event });
 
     constexpr Float alpha = 1.0;
     constexpr Float beta = 0.0;
@@ -86,14 +90,15 @@ void compute_correlation_distance(sycl::queue& queue,
     {
         ONEDAL_PROFILER_TASK(correlation_distance.gemm, queue);
 
-        gemm_event =
-            pr::gemm(queue, dev_x_nd, dev_y_nd.t(), res_nd, alpha, beta, { dev_x_nd_event, dev_y_nd_event });
+        gemm_event = pr::gemm(queue,
+                              dev_x_nd,
+                              dev_y_nd.t(),
+                              res_nd,
+                              alpha,
+                              beta,
+                              { dev_x_nd_event, dev_y_nd_event });
     }
-    compute_coefficient(queue,
-                      inv_norm_x_nd,
-                      inv_norm_y_nd,
-                      res_nd,
-                      { gemm_event });
+    compute_coefficient(queue, inv_norm_x_nd, inv_norm_y_nd, res_nd, { gemm_event });
 }
 
 template <typename Float>
