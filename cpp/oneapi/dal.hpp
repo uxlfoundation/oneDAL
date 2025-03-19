@@ -29,6 +29,7 @@
 #include "oneapi/dal/finalize_compute.hpp"
 #include "oneapi/dal/partial_train.hpp"
 #include "oneapi/dal/finalize_train.hpp"
+#include "oneapi/dal/rng.hpp"
 
 /* Tables */
 #include "oneapi/dal/table/common.hpp"

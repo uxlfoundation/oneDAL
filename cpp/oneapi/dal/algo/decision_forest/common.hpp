@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "oneapi/dal/rng.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/util/common.hpp"
@@ -133,9 +134,6 @@ enum class splitter_mode {
     random
 };
 
-/// Available engine methods for building trees
-enum class df_engine_method { mt2203, mcg59, philox4x32x10, mt19937, mrg32k3a };
-
 inline infer_mode operator|(infer_mode value_left, infer_mode value_right) {
     return bitwise_or(value_left, value_right);
 }
@@ -179,7 +177,6 @@ using v1::error_metric_mode;
 using v1::infer_mode;
 using v1::voting_mode;
 using v1::splitter_mode;
-using v1::df_engine_method;
 
 namespace detail {
 namespace v1 {
@@ -253,7 +250,7 @@ public:
         return get_voting_mode_impl();
     }
 
-    df_engine_method get_engine_method() const;
+    engine_type get_engine_method() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -282,7 +279,7 @@ protected:
     infer_mode get_infer_mode_impl() const;
     voting_mode get_voting_mode_impl() const;
 
-    void set_engine_method_impl(df_engine_method value);
+    void set_engine_method_impl(engine_type value);
     void set_seed_impl(std::int64_t value);
 
 private:
@@ -601,12 +598,12 @@ public:
     }
 
     /// Engine method for the random numbers generator used by the algorithm
-    /// @remark default = df_engine_method::mt2203
-    df_engine_method get_engine_method() const {
+    /// @remark default = engine_method::mt2203
+    engine_type get_engine_method() const {
         return base_t::get_engine_method();
     }
 
-    auto& set_engine_method(df_engine_method value) {
+    auto& set_engine_method(engine_type value) {
         base_t::set_engine_method_impl(value);
         return *this;
     }

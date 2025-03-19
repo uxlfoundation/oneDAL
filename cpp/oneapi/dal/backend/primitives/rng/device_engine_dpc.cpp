@@ -29,29 +29,29 @@ sycl::event generate_rng(Distribution& distr,
                          std::int64_t count,
                          Type* dst,
                          const event_vector& deps) {
-    auto engine_type = engine_.get_device_engine_base_ptr()->get_engine_type();
+    auto engine_type_internal = engine_.get_device_engine_base_ptr()->get_engine_type_internal();
 
-    if (engine_type == engine_type::philox4x32x10) {
+    if (engine_type_internal == engine_type_internal::philox4x32x10) {
         auto& device_engine =
             *(static_cast<gen_philox*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else if (engine_type == engine_type::mt19937) {
+    else if (engine_type_internal == engine_type_internal::mt19937) {
         auto& device_engine =
             *(static_cast<gen_mt19937*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else if (engine_type == engine_type::mrg32k3a) {
+    else if (engine_type_internal == engine_type_internal::mrg32k3a) {
         auto& device_engine =
             *(static_cast<gen_mrg32k*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else if (engine_type == engine_type::mcg59) {
+    else if (engine_type_internal == engine_type_internal::mcg59) {
         auto& device_engine =
             *(static_cast<gen_mcg59*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
     }
-    else if (engine_type == engine_type::mt2203) {
+    else if (engine_type_internal == engine_type_internal::mt2203) {
         auto& device_engine =
             *(static_cast<gen_mt2203*>(engine_.get_device_engine_base_ptr().get()))->get();
         return oneapi::mkl::rng::generate(distr, device_engine, count, dst, deps);
@@ -162,7 +162,7 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          ndview<Type, 1>& result_array,
                                          std::int64_t top,
                                          std::int64_t seed,
-                                         engine_type method,
+                                         engine_type_internal method,
                                          const event_vector& deps) {
     device_engine eng_ = device_engine(queue_, seed, method);
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
@@ -228,12 +228,12 @@ INSTANTIATE_UWR(std::int32_t)
 
 INSTANTIATE_SHUFFLE(std::int32_t)
 
-#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                  \
-    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue, \
-                                                                    ndview<F, 1>& a,    \
-                                                                    std::int64_t top,   \
-                                                                    std::int64_t seed,  \
-                                                                    engine_type method, \
+#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                           \
+    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue,          \
+                                                                    ndview<F, 1>& a,             \
+                                                                    std::int64_t top,            \
+                                                                    std::int64_t seed,           \
+                                                                    engine_type_internal method, \
                                                                     const event_vector& deps);
 
 INSTANTIATE_PARTIAL_SHUFFLE(std::int32_t)

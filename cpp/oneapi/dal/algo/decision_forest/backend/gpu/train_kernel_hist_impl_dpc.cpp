@@ -125,21 +125,6 @@ Index train_kernel_hist_impl<Float, Bin, Index, Task>::get_global_row_offset(boo
     return global_row_offset;
 }
 
-pr::engine_type convert_engine_method(df_engine_method method) {
-    switch (method) {
-        case df_engine_method::mt2203:
-            return ::oneapi::dal::backend::primitives::engine_type::mt2203;
-        case df_engine_method::mcg59: return ::oneapi::dal::backend::primitives::engine_type::mcg59;
-        case df_engine_method::mrg32k3a:
-            return ::oneapi::dal::backend::primitives::engine_type::mrg32k3a;
-        case df_engine_method::philox4x32x10:
-            return ::oneapi::dal::backend::primitives::engine_type::philox4x32x10;
-        case df_engine_method::mt19937:
-            return ::oneapi::dal::backend::primitives::engine_type::mt19937;
-        default: throw std::runtime_error("Unsupported engine type in generate_rng");
-    }
-}
-
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_t& ctx,
                                                                   const descriptor_t& desc,
@@ -1836,9 +1821,9 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     model_manager_t model_manager(ctx, ctx.tree_count_, ctx.column_count_);
 
-    auto engine_method = convert_engine_method(desc.get_engine_method());
+    auto engine_type = pr::convert_engine_method(desc.get_engine_method());
     rng_engine_t engine_gpu =
-        ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_method);
+        ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_type);
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {

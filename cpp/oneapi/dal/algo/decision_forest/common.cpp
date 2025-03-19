@@ -62,7 +62,7 @@ public:
     infer_mode infer_mode_value = infer_mode::class_responses;
 
     //the default engine has been switched from mt2203 to philox
-    df_engine_method engine_method = df_engine_method::philox4x32x10;
+    engine_type df_engine_method = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
     splitter_mode splitter_mode_value = splitter_mode::best;
@@ -182,8 +182,8 @@ std::int64_t descriptor_base<Task>::get_seed() const {
 }
 
 template <typename Task>
-df_engine_method descriptor_base<Task>::get_engine_method() const {
-    return impl_->engine_method;
+engine_type descriptor_base<Task>::get_engine_method() const {
+    return impl_->df_engine_method;
 }
 
 template <typename Task>
@@ -307,8 +307,8 @@ void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
 }
 
 template <typename Task>
-void descriptor_base<Task>::set_engine_method_impl(df_engine_method value) {
-    impl_->engine_method = value;
+void descriptor_base<Task>::set_engine_method_impl(engine_type value) {
+    impl_->df_engine_method = value;
 }
 
 template class ONEDAL_EXPORT descriptor_base<task::classification>;
