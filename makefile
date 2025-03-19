@@ -132,8 +132,11 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DMKL_ILP64 := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -Zl         := $(-Zl.$(COMPILER))
 -Zl_DPCPP   := $(-Zl.dpcpp)
--DEBC       := $(if $(REQDBG),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
--DEBC_DPCPP := $(if $(REQDBG),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)
+# if REQDBG set to 'symbols', it will disable assert checking.
+# Debug flags are defined per compiler in dev/make/compiler_definitions/ under -DEBC,
+# they are always enabled when the REQDBG flag is set.
+-DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
+-DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
@@ -1116,7 +1119,10 @@ Flags:
       possible values: $(CORE.ALGORITHMS.CUSTOM.AVAILABLE)
   REQCPU - list of CPU optimizations to be included into library
       possible values: $(CPUs)
-  REQDBG - flag that enables build in debug mode
+  REQDBG - flag that enables build in debug mode. Debug mode enables oneDAL
+      assertions and adds debug symbols. Any value will enable debug mode, 
+      except value "symbols" which will only add debug symbols.
+      special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
 endef
 
