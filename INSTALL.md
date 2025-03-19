@@ -172,9 +172,13 @@ It is possible to build oneDAL libraries with selected set of algorithms and/or 
 
 On **Linux\*** it is possible to build debug version of oneDAL or the version that allows to do kernel profiling using <ittnotify.h>.
 
-- To build debug version of oneDAL, run:
+- To build debug version of oneDAL (including debug symbols and asserts), run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=yes
+
+To build oneDAL to include only debug symbols, run:
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
@@ -229,7 +233,7 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 
 ## Conda Development Environment Setup
 
-The previous instructions assumed system-wide installs of the necessary dependencies. These can also be installed at a user-level through the `conda` or [mamba](https://github.com/conda-forge/miniforge) ecosystems.
+The previous instructions assumed system-wide installs of the necessary dependencies. On Linux*, these can also be installed at a user-level through the `conda` or [mamba](https://github.com/conda-forge/miniforge) ecosystems.
 
 First, create a conda environment for building oneDAL, after `conda` has been installed:
 
@@ -239,8 +243,6 @@ conda activate onedal_env
 ```
 
 Then, install the necessary dependencies from the appropriate channels with `conda`:
-
-* **Linux\***:
 
 ```shell
 conda install -y \
@@ -269,8 +271,6 @@ conda install -y^
 ```
 
 Then modify the relevant environment variables to point to the conda-installed libraries:
-
-* **Linux\***:
 
 ```shell
 export MKLROOT=${CONDA_PREFIX}
