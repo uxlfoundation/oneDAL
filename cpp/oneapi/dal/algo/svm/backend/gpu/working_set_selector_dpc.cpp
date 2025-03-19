@@ -198,7 +198,6 @@ sycl::event working_set_selector<Float>::sort_f_indices(sycl::queue& q,
     auto copy_event = dal::backend::copy(q, tmp_sort_ptr, f_ptr, row_count_, deps);
     auto arange_event = sorted_f_indices_.arange(q);
     auto radix_sort = pr::radix_sort_indices_inplace<Float, std::int32_t>{ q };
-
     auto radix_sort_event =
         radix_sort(tmp_sort_values_, sorted_f_indices_, { copy_event, arange_event });
 

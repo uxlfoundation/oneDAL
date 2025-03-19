@@ -125,16 +125,16 @@ Index train_kernel_hist_impl<Float, Bin, Index, Task>::get_global_row_offset(boo
     return global_row_offset;
 }
 
-pr::engine_type convert_engine_method(df_engine_types method) {
+pr::engine_type convert_engine_method(df_engine_method method) {
     switch (method) {
-        case df_engine_types::mt2203:
+        case df_engine_method::mt2203:
             return ::oneapi::dal::backend::primitives::engine_type::mt2203;
-        case df_engine_types::mcg59: return ::oneapi::dal::backend::primitives::engine_type::mcg59;
-        case df_engine_types::mrg32k3a:
+        case df_engine_method::mcg59: return ::oneapi::dal::backend::primitives::engine_type::mcg59;
+        case df_engine_method::mrg32k3a:
             return ::oneapi::dal::backend::primitives::engine_type::mrg32k3a;
-        case df_engine_types::philox4x32x10:
+        case df_engine_method::philox4x32x10:
             return ::oneapi::dal::backend::primitives::engine_type::philox4x32x10;
-        case df_engine_types::mt19937:
+        case df_engine_method::mt19937:
             return ::oneapi::dal::backend::primitives::engine_type::mt19937;
         default: throw std::runtime_error("Unsupported engine type in generate_rng");
     }
@@ -147,7 +147,9 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
                                                                   const table& responses,
                                                                   const table& weights) {
     ctx.distr_mode_ = (comm_.get_rank_count() > 1);
+
     ctx.use_private_mem_buf_ = true;
+
     ctx.is_weighted_ = (weights.get_row_count() == data.get_row_count());
 
     if constexpr (std::is_same_v<Task, task::classification>) {
@@ -157,6 +159,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
     ctx.row_count_ = de::integral_cast<Index>(data.get_row_count());
     ctx.row_total_count_ = get_row_total_count(ctx.distr_mode_, ctx.row_count_);
+
     ctx.column_count_ = de::integral_cast<Index>(data.get_column_count());
 
     // in case of distributed mode selected_row_count is defined during initial gen of tree order
@@ -167,9 +170,11 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
         desc.get_observations_per_tree_fraction() * ctx.row_total_count_;
 
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
+
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
     ctx.bootstrap_ = desc.get_bootstrap();
     ctx.max_tree_depth_ = desc.get_max_tree_depth();
+
     ctx.splitter_mode_value_ = desc.get_splitter_mode();
     ctx.seed_ = desc.get_seed();
 
@@ -1837,7 +1842,10 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     pr::ndarray<Float, 1> node_imp_decrease_list;
     if (ctx.distr_mode_) {
-        engine_gpu.skip_ahead(comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_);
+        std::int64_t skip_value =
+            comm_.get_rank() * ctx.tree_count_ * ctx.selected_row_total_count_;
+        skip_value += comm_.get_rank() * ctx.selected_ftr_count_ * ctx.tree_count_ * 2;
+        engine_gpu.skip_ahead(skip_value);
     }
 
     sycl::event last_event;

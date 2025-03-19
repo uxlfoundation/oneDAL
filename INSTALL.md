@@ -256,20 +256,6 @@ conda install -y \
     cmake `# required to build the examples only`
 ```
 
-* **Windows\***:
-
-```bat
-conda install -y^
-    -c https://software.repos.intel.com/python/conda/^
-    -c conda-forge^
-    make dos2unix "python>=3.9"^
-    dpcpp-cpp-rt dpcpp_win-64 intel-sycl-rt^
-    tbb tbb-devel^
-    mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp^
-    dpl onedpl-devel^
-    cmake
-```
-
 Then modify the relevant environment variables to point to the conda-installed libraries:
 
 ```shell
@@ -282,20 +268,6 @@ export CPATH="${CONDA_PREFIX}/include:${CPATH}"
 export PATH="${CONDA_PREFIX}/bin:${PATH}"
 export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-```
-
-* **Windows\***:
-
-```bat
-set MKLROOT=%CONDA_PREFIX%\Library
-set TBBROOT=%CONDA_PREFIX%\Library
-set DPL_ROOT=%CONDA_PREFIX%\Library
-set "LD_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LD_LIBRARY_PATH%"
-set "LIBRARY_PATH=%CONDA_PREFIX%\Library\lib;%LIBRARY_PATH%"
-set "CPATH=%CONDA_PREFIX%\Library\include;%CPATH%"
-set "PATH=%CONDA_PREFIX%\Library\bin;%PATH%"
-set "PKG_CONFIG_PATH=%CONDA_PREFIX%\Library\lib\pkgconfig;%PKG_CONFIG_PATH%"
-set "CMAKE_PREFIX_PATH=%CONDA_PREFIX%\Library\lib\cmake;%CMAKE_PREFIX_PATH%"
 ```
 
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.

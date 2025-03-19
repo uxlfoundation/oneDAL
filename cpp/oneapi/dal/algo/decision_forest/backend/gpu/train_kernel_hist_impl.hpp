@@ -115,7 +115,7 @@ private:
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] node_count       number of nodes on the current level
     /// @param[in] node_vs_tree_map an initial tree order
-    /// @param[in] rng_engine  a list of random generator engines
+    /// @param[in] rng_engine  a random generator engine
     std::tuple<pr::ndarray<Index, 1>, sycl::event> gen_feature_list(
         const train_context_t& ctx,
         Index node_count,
@@ -129,7 +129,7 @@ private:
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] node_count       number of nodes on the current level
     /// @param[in] node_vs_tree_map an initial tree order
-    /// @param[in] rng_engine  a list of random generator engines
+    /// @param[in] rng_engine  a random generator engine
     std::tuple<pr::ndarray<Float, 1>, sycl::event> gen_random_thresholds(
         const train_context_t& ctx,
         Index node_count,
@@ -561,7 +561,7 @@ private:
     /// @param[in] oob_per_obs_list     an array of OOB values per observation
     /// @param[in] var_imp              variable importance values
     /// @param[in] var_imp_variance     variable importance variance values
-    /// @param[in] rng_engine_arr       a list of random generator engines
+    /// @param[in] rng_engine       a random generator engine
     /// @param[in] tree_idx             a tree index
     /// @param[in] tree_in_block        number of trees in the computational block
     /// @param[in] built_tree_count     number of built trees
@@ -575,7 +575,7 @@ private:
                                 pr::ndarray<hist_type_t, 1>& oob_per_obs_list,
                                 pr::ndarray<Float, 1>& var_imp,
                                 pr::ndarray<Float, 1>& var_imp_variance,
-                                rng_engine_t& rng_engine_arr,
+                                rng_engine_t& rng_engine,
                                 Index tree_idx,
                                 Index tree_in_block,
                                 Index built_tree_count,
