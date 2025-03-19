@@ -20,6 +20,7 @@
 #include "oneapi/dal/backend/math.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include "oneapi/dal/backend/primitives/distance.hpp
 
 namespace oneapi::dal::correlation_distance::backend {
 
@@ -31,87 +32,68 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 namespace pr = dal::backend::primitives;
 
 template <typename Float>
-void compute_exponents(sycl::queue& queue,
-                       const pr::ndview<Float, 1>& sqr_x_nd,
-                       const pr::ndview<Float, 1>& sqr_y_nd,
+void compute_coefficient(sycl::queue& queue,
+                       const pr::ndview<Float, 1>& inv_norm_x_nd,
+                       const pr::ndview<Float, 1>& inv_norm_y_nd,
                        pr::ndview<Float, 2>& res_nd,
-                       double sigma,
                        const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(correlation_distance.compute_exponents, queue);
-    const std::int64_t x_row_count = sqr_x_nd.get_dimension(0);
-    const std::int64_t y_row_count = sqr_y_nd.get_dimension(0);
+    ONEDAL_PROFILER_TASK(correlation_distance.compute_coefficient, queue);
+    const std::int64_t x_row_count = inv_norm_x_nd.get_dimension(0);
+    const std::int64_t y_row_count = inv_norm_y_nd.get_dimension(0);
     ONEDAL_ASSERT(res_nd.get_count() == x_row_count * y_row_count);
 
-    const Float coeff = static_cast<Float>(-0.5 / (sigma * sigma));
-
-    const Float* sqr_x_ptr = sqr_x_nd.get_data();
-    const Float* sqr_y_ptr = sqr_y_nd.get_data();
+    const Float* inv_norm_x_ptr = inv_norm_x_nd.get_data();
+    const Float* inv_norm_y_ptr = inv_norm_y_nd.get_data();
     Float* res_ptr = res_nd.get_mutable_data();
-
-    const Float threshold = dal::backend::exp_low_threshold<Float>();
-
+    const auto res_stride = res_nd.get_leading_stride();
     const auto range = dal::backend::make_range_2d(x_row_count, y_row_count);
 
     queue
         .submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
-            const std::size_t ld = y_row_count;
-
             cgh.parallel_for(range, [=](sycl::id<2> idx) {
-                const std::size_t i = idx[0];
-                const std::size_t j = idx[1];
-                const Float sqr_x_i = sqr_x_ptr[i];
-                const Float sqr_y_j = sqr_y_ptr[j];
-                const Float res_rbf_ij = res_ptr[i * ld + j];
-                const Float arg = sycl::fmax((sqr_x_i + sqr_y_j + res_rbf_ij) * coeff, threshold);
-
-                res_ptr[i * ld + j] = sycl::exp(arg);
+                auto& res_nd = *(res_ptr + res_stride * idx[0] + idx[1]);
+                res_nd = 1 - res_nd * inv_norm_x_ptr[idx[0]] * inv_norm_y_ptr[idx[1]];
             });
         })
         .wait_and_throw();
 }
 
 template <typename Float>
-void compute_rbf(sycl::queue& queue,
+void compute_correlation_distance(sycl::queue& queue,
                  const pr::ndview<Float, 2>& x_nd,
                  const pr::ndview<Float, 2>& y_nd,
                  pr::ndview<Float, 2>& res_nd,
-                 double sigma,
                  const dal::backend::event_vector& deps = {}) {
     ONEDAL_ASSERT(x_nd.get_dimension(0) == res_nd.get_dimension(0));
     ONEDAL_ASSERT(y_nd.get_dimension(0) == res_nd.get_dimension(1));
     ONEDAL_ASSERT(x_nd.get_dimension(1) == y_nd.get_dimension(1));
 
-    const auto x_row_count = x_nd.get_dimension(0);
-    const auto y_row_count = y_nd.get_dimension(0);
+    /*const auto x_row_count = x_nd.get_dimension(0);
+    const auto y_row_count = y_nd.get_dimension(0);*/
 
-    auto sqr_x_nd = pr::ndarray<Float, 1>::empty(queue, { x_row_count }, sycl::usm::alloc::device);
-    auto sqr_y_nd = pr::ndarray<Float, 1>::empty(queue, { y_row_count }, sycl::usm::alloc::device);
+    auto [dev_x_nd, dev_x_nd_event] = pr::distance<Float, correlation_metric<Float>>::get_deviation(x_nd, deps);
+    auto [dev_y_nd, dev_y_nd_event] = pr::distance<Float, correlation_metric<Float>>::get_deviation(y_nd, deps);
 
-    sycl::event reduce_x_event;
-    sycl::event reduce_y_event;
-    {
-        ONEDAL_PROFILER_TASK(correlation_distance.reduce, queue);
-        reduce_x_event =
-            pr::reduce_by_rows(queue, x_nd, sqr_x_nd, pr::sum<Float>{}, pr::square<Float>{}, deps);
-        reduce_y_event =
-            pr::reduce_by_rows(queue, y_nd, sqr_y_nd, pr::sum<Float>{}, pr::square<Float>{}, deps);
-    }
+    auto [inv_norm_x_nd, inv_norm_x_nd_event] =
+        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_x_nd, { dev_x_nd_event });
+    auto [inv_norm_y_nd, inv_norm_y_nd_event] =
+        pr::distance<Float, correlation_metric<Float>>::get_inversed_norms(dev_y_nd, { dev_y_nd_event });
 
-    constexpr Float alpha = -2.0;
+    constexpr Float alpha = 1.0;
     constexpr Float beta = 0.0;
     sycl::event gemm_event;
     {
         ONEDAL_PROFILER_TASK(correlation_distance.gemm, queue);
 
-        gemm_event = pr::gemm(queue, x_nd, y_nd.t(), res_nd, alpha, beta, deps);
+        gemm_event =
+            pr::gemm(queue, dev_x_nd, dev_y_nd.t(), res_nd, alpha, beta, { dev_x_nd_event, dev_y_nd_event });
     }
-    compute_exponents(queue,
-                      sqr_x_nd,
-                      sqr_y_nd,
+    compute_coefficient(queue,
+                      inv_norm_x_nd,
+                      inv_norm_y_nd,
                       res_nd,
-                      sigma,
-                      { gemm_event, reduce_x_event, reduce_y_event });
+                      { gemm_event });
 }
 
 template <typename Float>
@@ -132,7 +114,7 @@ static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const 
     auto res_nd =
         pr::ndarray<Float, 2>::empty(queue, { x_row_count, y_row_count }, sycl::usm::alloc::device);
 
-    compute_rbf(queue, x_nd, y_nd, res_nd, desc.get_sigma());
+    compute_correlation_distance(queue, x_nd, y_nd, res_nd, desc.get_sigma());
 
     const auto res_array = res_nd.flatten(queue);
     auto res_table = homogen_table::wrap(res_array, x_row_count, y_row_count);
@@ -168,7 +150,7 @@ struct compute_kernel_gpu<Float, method::dense, task::compute> {
         auto res_nd = pr::ndarray<Float, 2>::wrap(const_cast<Float*>(res_ptr),
                                                   { res.get_row_count(), res.get_column_count() });
 
-        compute_rbf(queue, x_nd, y_nd, res_nd, desc.get_sigma());
+        compute_correlation_distance(queue, x_nd, y_nd, res_nd, desc.get_sigma());
     }
 #endif
 };

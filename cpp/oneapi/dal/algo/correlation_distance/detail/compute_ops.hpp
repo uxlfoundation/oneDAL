@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include "oneapi/dal/algo/rbf_kernel/compute_types.hpp"
+#include "oneapi/dal/algo/correlation_distance/compute_types.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/table/homogen.hpp"
 
-namespace oneapi::dal::rbf_kernel::detail {
+namespace oneapi::dal::correlation_distance::detail {
 namespace v1 {
 
 template <typename Context, typename Float, typename Method, typename Task, typename... Options>
@@ -94,4 +94,4 @@ struct compute_ops {
 
 using v1::compute_ops;
 
-} // namespace oneapi::dal::rbf_kernel::detail
+} // namespace oneapi::dal::correlation_distance::detail
