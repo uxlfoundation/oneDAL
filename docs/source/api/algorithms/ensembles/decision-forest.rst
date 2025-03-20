@@ -37,6 +37,7 @@ All types and functions in this section are declared in the
 
 Enum classes
 ++++++++++++
+.. onedal_enumclass:: oneapi::dal::engine_type
 
 `error_metric_mode`
 ~~~~~~~~~~~~~~~~~~~
@@ -101,10 +102,6 @@ splitter_mode::random
    The random splitting strategy chooses a random threshold for each feature while building trees
    and selects the best feature in terms of impurity
    computed for that random split from the feature subsets.
-
-`engine_type`
-~~~~~~~~~~~~~
-.. onedal_enumclass:: oneapi::dal::engine_type
 
 Descriptor
 ++++++++++
