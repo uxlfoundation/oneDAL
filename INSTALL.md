@@ -23,6 +23,7 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * Python version 3.9 or higher
 * oneTBB library (repository contains script to download it)
+* oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
@@ -105,9 +106,24 @@ is available as an alternative to the manual setup.
 
             ./dev/download_tbb.sh
 
-6. Download and install Python (version 3.9 or higher).
+6. Set up oneDPL
+  _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
 
-7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+    Download and install [Intel(R) oneDPL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html).
+    Set the environment variables for for Intel(R) oneDPL. For example:
+
+    - oneDPL (Windows\*):
+
+            call "C:\Program Files (x86)\Intel\oneAPI\dpl\latest\env\vars.bat" intel64
+
+    - oneDPL (Linux\*):
+
+            source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
+
+
+7. Download and install Python (version 3.9 or higher).
+
+8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
