@@ -49,3 +49,13 @@
 
 [suppress_function]
   name_regexp = oneapi::dal::.*detail::.*
+
+; deselect oneapi::dal preview namespaces
+[suppress_type]
+  name_regexp = oneapi::dal::.*preview::.*
+
+[suppress_variable]
+  name_regexp = oneapi::dal::.*preview::.*
+
+[suppress_function]
+  name_regexp = oneapi::dal::.*preview::.*
