@@ -22,8 +22,7 @@ Required Software:
 * [DPC++ Compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html) and [oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) if building with SYCL support
 * BLAS and LAPACK libraries - both provided by oneMKL
 * Python version 3.9 or higher
-* TBB library (repository contains script to download it)
-* oneDPL library
+* oneTBB library (repository contains script to download it)
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
 * `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
@@ -54,19 +53,11 @@ is available as an alternative to the manual setup.
 
         set PATH=C:\msys64\usr\bin;%PATH%
 
-3. Set the environment variables for one of the supported C/C++ compilers, such as [Intel(R)'s DPC compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html). For example:
+3. Set the environment variables for one of the supported C/C++ compilers, such as [Intel(R)'s DPC++ compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html). For example:
 
     - **Microsoft Visual Studio\* 2022**:
 
             call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat" x64
-
-    - **Intel(R) C++ Compiler 19.1 (Windows\*)**:
-
-            call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\bin\compilervars.bat" intel64
-
-    - **Intel(R) C++ Compiler 19.1 (Linux\*)**:
-
-            source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh intel64
 
     - **Intel(R) oneAPI DPC++/C++ Compiler 2023.2 (Linux\*)**:
 
@@ -76,7 +67,7 @@ is available as an alternative to the manual setup.
 
             call "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
 
-    Note: if the Intel compilers were installed as part of a bundle such as oneAPI Base Toolkit, it's also possible to set the environment variables at once for all oneAPI components used here (compilers, MKL, oneMKL, TBB) through the more general script that they provide - for Linux:
+    Note: if the Intel compilers were installed as part of a bundle such as oneAPI Base Toolkit, it's also possible to set the environment variables at once for all oneAPI components used here (Compilers, oneMKL, oneTBB) through the more general script that they provide - for Linux:
 
             source /opt/intel/oneapi/setvars.sh
 
@@ -95,12 +86,12 @@ is available as an alternative to the manual setup.
 
             source /opt/intel/oneapi/mkl/latest/env/vars.sh
 
-5. Set up Intel(R) Threading Building Blocks (Intel(R) TBB):
+5. Set up oneAPI Threading Building Blocks (oneTBB):
 
     _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneTBB will already have been set up._
 
-    Download and install [Intel(R) TBB](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html).
-    Set the environment variables for for Intel(R) TBB. For example:
+    Download and install [oneTBB](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html).
+    Set the environment variables for for oneTBB. For example:
 
     - oneTBB (Windows\*):
 
@@ -114,25 +105,9 @@ is available as an alternative to the manual setup.
 
             ./dev/download_tbb.sh
 
-6.  Set up Intel(R) oneDPL
+6. Download and install Python (version 3.9 or higher).
 
-    _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
-
-    Download and install [Intel(R) oneDPL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html).
-    Set the environment variables for for Intel(R) oneDPL. For example:
-
-    - oneDPL (Windows\*):
-
-            call "C:\Program Files (x86)\Intel\oneAPI\dpl\latest\env\vars.bat" intel64
-
-    - oneDPL (Linux\*):
-
-            source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
-
-
-7. Download and install Python (version 3.9 or higher).
-
-8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -252,7 +227,6 @@ conda install -y \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
-    dpl onedpl-devel `# required DPL packages` \
     cmake `# required to build the examples only`
 ```
 
@@ -261,7 +235,6 @@ Then modify the relevant environment variables to point to the conda-installed l
 ```shell
 export MKLROOT=${CONDA_PREFIX}
 export TBBROOT=${CONDA_PREFIX}
-export DPL_ROOT=${CONDA_PREFIX}
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
 export CPATH="${CONDA_PREFIX}/include:${CPATH}"
