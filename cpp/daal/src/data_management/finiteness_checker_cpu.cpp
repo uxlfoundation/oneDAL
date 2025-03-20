@@ -20,9 +20,9 @@
 #include "services/env_detect.h"
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_dispatch.h"
-#include "src/threading/threading.h"
-#include "service_numeric_table.h"
+#include "src/threading/threading.h"                    // conditional_threader_for, threader_for_break
 #include "src/algorithms/service_error_handling.h"
+#include "src/data_management/service_numeric_table.h"  // ReadColumns, ReadRows
 #include "src/data_management/finiteness_checker.h"
 
 #include "finiteness_checker_impl.i"
@@ -42,9 +42,6 @@ namespace internal
 using namespace daal::internal;
 
 #if defined(DAAL_INTEL_CPP_COMPILER) || (__CPUID__(DAAL_CPU) == __sve__)
-
-const size_t BLOCK_SIZE       = 8192;
-const size_t THREADING_BORDER = 262144;
 
 template <typename DataType>
 DataType getInf()
@@ -98,7 +95,6 @@ DataType sumWithXSIMD(size_t n, const DataType * dataPtr)
     return sum;
 }
 
-
 #if (__CPUID__(DAAL_CPU) != __sse2__)
 
 template <>
@@ -109,6 +105,22 @@ float sumWithSIMD<float, DAAL_CPU>(size_t n, const float * dataPtr) {
 template <>
 double sumWithSIMD<double, DAAL_CPU>(size_t n, const double * dataPtr) {
     return sumWithXSIMD<double, ONEDAL_XSIMD_ARCH>(n, dataPtr);
+}
+
+/*
+// Computes finiteness for a numeric table in blocks using SIMD calls
+*/
+template <typename DataType, daal::CpuType cpu>
+bool checkFinitenessSIMD(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs, bool allowNaN);
+
+template <>
+bool checkFinitenessSIMD<float, DAAL_CPU>(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const float ** dataPtrs, bool allowNaN) {
+    return checkFinitenessXSIMD<float, ONEDAL_XSIMD_ARCH>(nElements, nDataPtrs, nElementsPerPtr, dataPtrs, allowNaN);
+}
+
+template <>
+bool checkFinitenessSIMD<double, DAAL_CPU>(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const double ** dataPtrs, bool allowNaN) {
+    return checkFinitenessXSIMD<double, ONEDAL_XSIMD_ARCH>(nElements, nDataPtrs, nElementsPerPtr, dataPtrs, allowNaN);
 }
 
 #endif
@@ -231,6 +243,8 @@ double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Sta
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
 
+#ifndef ONEDAL_XSIMD_ENABLED
+
 template <daal::CpuType cpu>
 services::Status checkFinitenessInBlocks(const float ** dataPtrs, bool inParallel, size_t nTotalBlocks, size_t nBlocksPerPtr, size_t nPerBlock,
                                          size_t nSurplus, bool allowNaN, bool & finiteness);
@@ -257,6 +271,8 @@ bool checkFinitenessSIMD(const size_t nElements, size_t nDataPtrs, size_t nEleme
     checkFinitenessInBlocks<cpu>(dataPtrs, inParallel, nTotalBlocks, nBlocksPerPtr, nPerBlock, nSurplus, allowNaN, finiteness);
     return finiteness;
 }
+
+#endif // ifndef ONEDAL_XSIMD_ENABLED
 
 /*
 // Computes finiteness for a SOA numeric table by isinf/isnan using SIMD calls

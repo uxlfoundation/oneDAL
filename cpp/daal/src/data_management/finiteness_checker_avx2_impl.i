@@ -101,6 +101,7 @@ double computeSumSOA<avx2>(NumericTable & table, bool & sumIsFinite, services::S
     return computeSumSOASIMD<avx2>(table, sumIsFinite, st);
 }
 
+#ifndef ONEDAL_XSIMD_ENABLED
 /*
 // Computes finiteness for float data using multi-threading and AVX2 instructions which match isnan and isinf
 */
@@ -225,6 +226,8 @@ services::Status checkFinitenessInBlocks<avx2>(const double ** dataPtrs, bool in
     finiteness = true;
     return s;
 }
+
+#endif // #ifndef ONEDAL_XSIMD_ENABLED
 
 template <>
 bool checkFiniteness<float, avx2>(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const float ** dataPtrs, bool allowNaN)

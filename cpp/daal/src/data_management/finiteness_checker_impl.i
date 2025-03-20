@@ -25,7 +25,6 @@ namespace data_management
 namespace internal
 {
 using namespace daal::internal;
-
 /*
 // Computes sum of the elements of input array
 */

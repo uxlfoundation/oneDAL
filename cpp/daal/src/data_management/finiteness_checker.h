@@ -26,7 +26,15 @@ namespace data_management
 {
 namespace internal
 {
-using namespace daal::internal;
+//using namespace daal::internal;
+
+
+#if defined(DAAL_INTEL_CPP_COMPILER) || (__CPUID__(DAAL_CPU) == __sve__)
+
+const size_t BLOCK_SIZE       = 8192;
+const size_t THREADING_BORDER = 262144;
+
+#endif
 
 typedef daal::data_management::NumericTable::StorageLayout NTLayout;
 
@@ -44,6 +52,15 @@ bool valuesAreNotFinite(const double * dataPtr, size_t n, bool allowNaN);
 
 template <typename DataType, daal::CpuType cpu>
 services::Status allValuesAreFiniteImpl(NumericTable & table, bool allowNaN, bool * finiteness);
+
+#ifdef ONEDAL_XSIMD_ENABLED
+
+#if (__CPUID__(DAAL_CPU) != __sse2__)
+template <typename DataType, typename XSIMDArch>
+bool checkFinitenessXSIMD(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs, bool allowNaN);
+#endif
+
+#endif
 
 } // namespace internal
 } // namespace data_management
