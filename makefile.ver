@@ -61,7 +61,7 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 # update public headers in release directory with actual version data
 update_headers_version:
 	@file=$(RELEASEDIR.include)/services/library_version_info.h && mark="#define __INTEL_DAAL" && \
-	sed $(sed.-b) \
+	sed $(sed.-b) -i \
 		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
 		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
 		-e "s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
@@ -69,9 +69,4 @@ update_headers_version:
 		-e "s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
 		-e "s/\($${mark}_UPDATE__\).*/\1 $(UPDATE)$(sed.eol)/" \
 		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
-		$$file > $$file.tmp; \
-	if ! cmp -s $$file.tmp $$file; then \
-		mv $$file.tmp $$file; \
-	else \
-		rm $$file.tmp; \
-	fi
+		$$file 
