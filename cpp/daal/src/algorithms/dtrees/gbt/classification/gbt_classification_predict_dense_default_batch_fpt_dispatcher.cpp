@@ -41,7 +41,7 @@ namespace prediction
 namespace interface2
 {
 template <>
-Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
@@ -49,7 +49,7 @@ Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(size_t 
 
 using BatchType = Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(const BatchType & other)
+DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(const BatchType & other)
     : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());

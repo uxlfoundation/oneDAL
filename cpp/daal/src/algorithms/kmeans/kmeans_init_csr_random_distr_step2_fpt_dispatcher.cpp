@@ -38,7 +38,7 @@ namespace interface2
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, kmeans::init::randomCSR>;
 
 template <>
-DistributedType::Distributed(size_t nClusters, size_t offset)
+DAAL_EXPORT DistributedType::Distributed(size_t nClusters, size_t offset)
     : DistributedBase(new ParameterType(nClusters, offset)), parameter(*static_cast<ParameterType *>(_par))
 {
     Analysis<distributed>::_ac =

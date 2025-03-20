@@ -15,7 +15,7 @@
 *******************************************************************************/
 
 /// @file Data access interfaces needed for binary backward compatibility with
-/// the Intel(R) oneAPI Data Analytics Library (oneDAL) 2021.1. This file should be removed in 2022.1.
+/// the oneAPI Data Analytics Library (oneDAL) 2021.1. This file should be removed in 2022.1.
 
 #pragma once
 

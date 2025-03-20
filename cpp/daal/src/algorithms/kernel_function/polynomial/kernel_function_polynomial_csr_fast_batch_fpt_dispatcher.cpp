@@ -25,5 +25,27 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER_SAFE(kernel_function::polynomial::internal::BatchContainer, batch, DAAL_FPTYPE,
                                            kernel_function::polynomial::internal::fastCSR)
+namespace kernel_function
+{
+namespace polynomial
+{
+namespace internal
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::fastCSR>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+} // namespace internal
+} // namespace polynomial
+} // namespace kernel_function
 } // namespace algorithms
 } // namespace daal

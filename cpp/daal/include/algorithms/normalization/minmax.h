@@ -99,14 +99,14 @@ public:
     Parameter<algorithmFPType> parameter; /*!< Parameters */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs min-max normalization algorithm by copying input objects
      * of another min-max normalization algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 
