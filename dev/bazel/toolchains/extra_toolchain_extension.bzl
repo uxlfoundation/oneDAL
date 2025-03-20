@@ -14,6 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-package(default_visibility = ["//visibility:public"])
+load("@onedal//dev/bazel/toolchains:extra_toolchain.bzl", "onedal_extra_toolchain")
 
-toolchain_type(name = "extra")
+onedal_extra_toolchain_extension = module_extension(
+    implementation = lambda ctx: onedal_extra_toolchain(name = "onedal_extra_toolchain"),
+)
