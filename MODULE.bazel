@@ -91,7 +91,7 @@ ccl_repo(
     ]
 )
 
-dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "dpl_repo")
+dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
 dpl_repo(
     name = "dpl",
     root_env_var = "DPL_ROOT",

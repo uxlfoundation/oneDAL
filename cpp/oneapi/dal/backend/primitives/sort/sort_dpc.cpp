@@ -551,7 +551,10 @@ sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
         val_in.get_mutable_data(),
         val_in.get_mutable_data() + val_in.get_count(),
         ind_in.get_mutable_data(),
-        dpl::experimental::kt::kernel_param<256, 32>{});
+        // Parameters have been chosen based on the oneDPL example for radix sort by key.
+        // Reference: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/radix-sort-by-key.html
+        // These parameters ensure optimal performance for the given data type and distribution.
+        dpl::experimental::kt::kernel_param<96, 64>{});
     return event;
 }
 
@@ -578,7 +581,10 @@ sycl::event radix_sort_dpl(sycl::queue& queue,
             row_start_in,
             row_start_in + row_sorted_elem_count,
             row_start_out,
-            dpl::experimental::kt::kernel_param<256, 32>{});
+            // Parameters have been chosen based on the oneDPL example for radix sort by key.
+            // Reference: https://www.intel.com/content/www/us/en/docs/onedpl/developer-guide/2022-7/radix-sort-by-key.html
+            // These parameters ensure optimal performance for the given data type and distribution.
+            dpl::experimental::kt::kernel_param<96, 64>{});
     }
 
     return radix_sort_event;
