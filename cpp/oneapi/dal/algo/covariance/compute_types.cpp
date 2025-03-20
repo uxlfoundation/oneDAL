@@ -219,8 +219,8 @@ void partial_compute_result<Task>::set_partial_sum_impl(const table& value) {
 
 template class ONEDAL_EXPORT compute_input<task::compute>;
 template class ONEDAL_EXPORT compute_result<task::compute>;
-template class ONEDAL_EXPORT partial_compute_input<task::compute>;
 template class ONEDAL_EXPORT partial_compute_result<task::compute>;
+template class ONEDAL_EXPORT partial_compute_input<task::compute>;
 
 } // namespace v1
 } // namespace oneapi::dal::covariance

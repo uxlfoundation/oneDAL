@@ -69,4 +69,3 @@ onedal_cc_toolchain = repository_rule(
         "LIB",
     ],
 )
-

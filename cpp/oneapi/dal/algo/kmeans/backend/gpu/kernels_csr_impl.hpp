@@ -151,6 +151,9 @@ sycl::event assign_clusters(sycl::queue& q,
 
     sycl::event transpose_event = transpose(q, centroids, centroids_transposed, deps);
 
+    // Workaround to sparse K-means abort on PVC.
+    transpose_event.wait();
+
     // Compute dot products of each data point and each cluster centroid:
     // -2 * (x_i, c_j) term in the distances calculation
     auto dist_event = pr::gemm(q,
@@ -161,6 +164,9 @@ sycl::event assign_clusters(sycl::queue& q,
                                Float(-2.0),
                                Float(0),
                                { transpose_event });
+
+    // Workaround to sparse K-means abort on PVC.
+    dist_event.wait();
 
     // Select min_j (D_ij) and idxmin_j (D_ij),
     // where min_j (D_ij) == min_j (|| c_j ||^2 - 2 * (x_i, c_j)$),

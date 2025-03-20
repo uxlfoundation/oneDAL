@@ -29,8 +29,8 @@ namespace algorithms
 {
 namespace pca
 {
-template OnlineParameter<DAAL_FPTYPE, svdDense>::OnlineParameter();
-template services::Status OnlineParameter<DAAL_FPTYPE, svdDense>::check() const;
+template DAAL_EXPORT OnlineParameter<DAAL_FPTYPE, svdDense>::OnlineParameter();
+template DAAL_EXPORT services::Status OnlineParameter<DAAL_FPTYPE, svdDense>::check() const;
 
 } // namespace pca
 } // namespace algorithms

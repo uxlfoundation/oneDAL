@@ -23,6 +23,8 @@ on:
   push:
     branches:
       - main
+  # use workflow dispatch to regenerate cache
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,7 +35,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -56,24 +58,37 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
-      - name: Make daal
+      - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
-      - name: Make onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols --jobs 20
+           cp -r __work __work_daal
+      - name: Make onedal debug
+        id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols --jobs 20
+          cp -r __release_lnx __release_lnx_main
+          echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache build
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.onedal-dbg.outputs.key }}
+          path: ./__release_lnx_main
       - name: Archive build
+        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: __release_lnx
-          path: ./__release_lnx
-      - name: Archive oneDAL environment
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: oneDAL_env
-          path: .ci/env
+          path: ./__release_lnx_main
+      - name: Make onedal
+        run: |
+          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
+          source /opt/intel/oneapi/setvars.sh
+          rm -rf __work
+          mv __work_daal __work
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh

@@ -29,7 +29,7 @@ public:
 
 class global_context : public global_context_iface {
 public:
-    static const global_context_iface& get_global_context();
+    ONEDAL_EXPORT static const global_context_iface& get_global_context();
 
     virtual ~global_context() = default;
 
