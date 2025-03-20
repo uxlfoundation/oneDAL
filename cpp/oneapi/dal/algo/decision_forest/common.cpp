@@ -64,7 +64,7 @@ public:
     // The default engine has been switched from mt2203 to philox for GPU,
     // as philox is more efficient in terms of performance on GPU architectures.
     // Note: Due to this change, some conformance(not critical) tests might fail as a result.
-    engine_type df_engine_method = engine_type::philox4x32x10;
+    engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
     splitter_mode splitter_mode_value = splitter_mode::best;
@@ -185,7 +185,7 @@ std::int64_t descriptor_base<Task>::get_seed() const {
 
 template <typename Task>
 engine_type descriptor_base<Task>::get_engine_method() const {
-    return impl_->df_engine_method;
+    return impl_->df_engine_type;
 }
 
 template <typename Task>
@@ -310,7 +310,7 @@ void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
 
 template <typename Task>
 void descriptor_base<Task>::set_engine_method_impl(engine_type value) {
-    impl_->df_engine_method = value;
+    impl_->df_engine_type = value;
 }
 
 template class ONEDAL_EXPORT descriptor_base<task::classification>;

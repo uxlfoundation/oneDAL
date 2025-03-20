@@ -157,6 +157,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
 
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
+
     ctx.bootstrap_ = desc.get_bootstrap();
     ctx.max_tree_depth_ = desc.get_max_tree_depth();
 

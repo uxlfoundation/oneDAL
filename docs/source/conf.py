@@ -287,7 +287,6 @@ nitpick_ignore = [
     ('cpp:identifier', 'error_metric_mode::none'),
     ('cpp:identifier', 'error_metric_mode::out_of_bag_error'),
     ('cpp:identifier', 'error_metric_mode::out_of_bag_error_per_observation'),
-    ('cpp:identifier', 'engine_type'),
     # covariance
     ('cpp:identifier', 'covariance'),
     ('cpp:identifier', 'covariance::descriptor'),
@@ -326,6 +325,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'oneapi::dal::dbscan::method::v1::brute_force'),
     # common for algorithms
     ('cpp:identifier', 'result'),
+    ('cpp:identifier', 'engine_type'),
     # common for result options
     ('cpp:identifier', 'result_option_id_base'),
     ('cpp:identifier', 'result_option_id'),

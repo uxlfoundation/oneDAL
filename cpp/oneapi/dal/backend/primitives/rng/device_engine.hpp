@@ -43,7 +43,7 @@ public:
 
     /// Method to retrieve the engine method.
     /// @return The engine method as an enum value of `engine_type_internal`.
-    virtual engine_type_internal get_engine_type_internal() const = 0;
+    virtual engine_type_internal get_engine_type() const = 0;
 
     /// Method to skip ahead in the random number sequence.
     /// @param[in] nSkip The number of steps to skip in the generator sequence.
@@ -65,7 +65,7 @@ public:
 
     /// Returns the engine method for mt2203.
     /// @return The `mt2203` engine method as an enum value of `engine_type_internal`.
-    engine_type_internal get_engine_type_internal() const override {
+    engine_type_internal get_engine_type() const override {
         return engine_type_internal::mt2203;
     }
 
@@ -100,7 +100,7 @@ public:
 
     /// Returns the engine method for philox4x32x10.
     /// @return The `philox4x32x10` engine method as an enum value of `engine_type_internal`.
-    engine_type_internal get_engine_type_internal() const override {
+    engine_type_internal get_engine_type() const override {
         return engine_type_internal::philox4x32x10;
     }
 
@@ -134,7 +134,7 @@ public:
 
     /// Returns the engine method for mrg32k3a.
     /// @return The `mrg32k3a` engine method as an enum value of `engine_type_internal`.
-    engine_type_internal get_engine_type_internal() const override {
+    engine_type_internal get_engine_type() const override {
         return engine_type_internal::mrg32k3a;
     }
 
@@ -168,7 +168,7 @@ public:
 
     /// Returns the engine method for mt19937.
     /// @return The `mt19937` engine method as an enum value of `engine_type_internal`.
-    engine_type_internal get_engine_type_internal() const override {
+    engine_type_internal get_engine_type() const override {
         return engine_type_internal::mt19937;
     }
 
@@ -202,7 +202,7 @@ public:
 
     /// Returns the engine method for mcg59.
     /// @return The `mcg59` engine method as an enum value of `engine_type_internal`.
-    engine_type_internal get_engine_type_internal() const override {
+    engine_type_internal get_engine_type() const override {
         return engine_type_internal::mcg59;
     }
 

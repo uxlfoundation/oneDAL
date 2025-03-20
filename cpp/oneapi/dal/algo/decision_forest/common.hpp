@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include "oneapi/dal/rng.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/util/common.hpp"
 #include "oneapi/dal/algo/decision_tree/detail/node_visitor.hpp"
 #include "oneapi/dal/detail/serialization.hpp"
 #include "oneapi/dal/detail/threading.hpp"
+
+#include "oneapi/dal/rng.hpp"
 
 namespace oneapi::dal::decision_forest {
 

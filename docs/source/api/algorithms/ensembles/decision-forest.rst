@@ -103,7 +103,7 @@ splitter_mode::random
    computed for that random split from the feature subsets.
 
 `engine_type`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 engine_type::mt2203
    The engine method is mt2203 - Mersenne Twister engine with specific optimizations for 
