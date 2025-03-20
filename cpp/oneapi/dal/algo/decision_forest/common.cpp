@@ -184,7 +184,7 @@ std::int64_t descriptor_base<Task>::get_seed() const {
 }
 
 template <typename Task>
-engine_type descriptor_base<Task>::get_engine_method() const {
+engine_type descriptor_base<Task>::get_engine_type() const {
     return impl_->df_engine_type;
 }
 

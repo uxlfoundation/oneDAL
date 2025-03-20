@@ -1822,7 +1822,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
 
     model_manager_t model_manager(ctx, ctx.tree_count_, ctx.column_count_);
 
-    auto engine_type = pr::convert_engine_method(desc.get_engine_method());
+    auto engine_type = pr::convert_engine_method(desc.get_engine_type());
     rng_engine_t engine_gpu =
         ::oneapi::dal::backend::primitives::device_engine(queue_, desc.get_seed(), engine_type);
 

@@ -251,7 +251,7 @@ public:
         return get_voting_mode_impl();
     }
 
-    engine_type get_engine_method() const;
+    engine_type get_engine_type() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -599,9 +599,9 @@ public:
     }
 
     /// Engine method for the random numbers generator used by the algorithm
-    /// @remark default = engine_method::mt2203
-    engine_type get_engine_method() const {
-        return base_t::get_engine_method();
+    /// @remark default = engine_method::philox4x32x10
+    engine_type get_engine_type() const {
+        return base_t::get_engine_type();
     }
 
     auto& set_engine_method(engine_type value) {
