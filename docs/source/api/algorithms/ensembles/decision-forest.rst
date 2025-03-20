@@ -104,7 +104,6 @@ splitter_mode::random
 
 `engine_type`
 ~~~~~~~~~~~~~
-
 .. onedal_enumclass:: oneapi::dal::engine_type
 
 Descriptor
