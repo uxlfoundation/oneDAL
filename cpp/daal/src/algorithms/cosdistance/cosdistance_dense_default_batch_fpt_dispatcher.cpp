@@ -28,5 +28,25 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(cosine_distance::BatchContainer, batch, DAAL_FPTYPE, cosine_distance::defaultDense)
+namespace cosine_distance
+{
+namespace interface1
+{
+
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, cosine_distance::defaultDense>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, cosine_distance::defaultDense>;
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace cosine_distance
 } // namespace algorithms
 } // namespace daal

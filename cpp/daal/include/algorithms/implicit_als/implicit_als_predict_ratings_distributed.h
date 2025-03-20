@@ -100,7 +100,7 @@ public:
  *      - \ref Distributed class
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Distributed : public daal::algorithms::DistributedPrediction
+class DAAL_EXPORT Distributed : public daal::algorithms::DistributedPrediction
 {};
 
 /**
@@ -132,7 +132,7 @@ public:
     /**
      * Default constructor
      */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an implicit ALS ratings prediction algorithm by copying input objects and parameters
@@ -140,7 +140,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step1Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step1Local, algorithmFPType, method> & other);
 
     virtual ~Distributed() {}
 
