@@ -40,7 +40,7 @@ namespace algorithms
 namespace brownboost
 {
 /**
- * \brief Contains version 2.0 of Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 2.0 of oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {

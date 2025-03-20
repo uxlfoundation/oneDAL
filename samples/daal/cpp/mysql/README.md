@@ -1,6 +1,6 @@
-# Intel(R) oneAPI Data Analytics Library MySQL\* Samples
+# oneAPI Data Analytics Library MySQL\* Samples
 
-MySQL\* samples for the Intel(R) oneAPI Data Analytics Library (oneDAL) are designed to show how to use this library with a MySQL database in a C++ application.
+MySQL\* samples for the oneAPI Data Analytics Library (oneDAL) are designed to show how to use this library with a MySQL database in a C++ application.
 
 Unzip the archive with oneDAL samples to your working directory (`<sample_dir>`).
 

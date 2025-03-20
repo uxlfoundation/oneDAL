@@ -35,7 +35,7 @@ function (set_common_compiler_options)
     elseif(UNIX)
         add_compile_options(-pedantic -Wall -Wextra -Werror -Wno-unused-parameter)
     endif()
-    #For Intel(R) DAAL interfaces remove deprecated warnings
+    #For DAAL interfaces remove deprecated warnings
     if (ONEDAL_INTERFACE STREQUAL "no")
         if (UNIX)
             add_compile_options(-Wno-deprecated-declarations)
