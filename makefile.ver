@@ -62,7 +62,7 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 update_headers_version:
 	@relfile=$(RELEASEDIR.include)/services/library_version_info.h && \
 	workfile=$(CPPDIR.daal)/include/services/library_version_info.h && mark="#define __INTEL_DAAL" && \
-	cp -fp $$workfile $$relfile.tmp \
+	cp -fp $$workfile $$relfile.tmp && \
         sed $(sed.-b) $(sed.-i) \
 		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
 		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
