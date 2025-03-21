@@ -95,41 +95,39 @@ sycl::event scatter_host2device(sycl::queue& q,
     ONEDAL_ASSERT(is_known_usm(q, dst_device));
     ONEDAL_ASSERT_MUL_OVERFLOW(std::int64_t, block_count, block_size_in_bytes);
 
-    const auto gathered_device_unique =
-        make_unique_usm_device(q, block_count * block_size_in_bytes);
+    // const auto gathered_device_unique =
+    //     make_unique_usm_device(q, block_count * block_size_in_bytes);
 
-    auto copy_event = memcpy_host2usm(q,
-                                      gathered_device_unique.get(),
-                                      src_host,
-                                      block_count * block_size_in_bytes,
-                                      deps);
+    auto copy_event =
+        memcpy_host2usm(q, dst_device, src_host, block_count * block_size_in_bytes, deps);
+    copy_event.wait_and_throw();
+    // auto scatter_event = q.submit([&](sycl::handler& cgh) {
+    //     cgh.depends_on(copy_event);
 
-    auto scatter_event = q.submit([&](sycl::handler& cgh) {
-        cgh.depends_on(copy_event);
+    //     const byte_t* const gathered_byte =
+    //         reinterpret_cast<const byte_t*>(gathered_device_unique.get());
+    //     byte_t* const dst_byte = reinterpret_cast<byte_t*>(dst_device);
 
-        const byte_t* const gathered_byte =
-            reinterpret_cast<const byte_t*>(gathered_device_unique.get());
-        byte_t* const dst_byte = reinterpret_cast<byte_t*>(dst_device);
+    //     const std::int64_t required_local_size = bk::device_max_wg_size(q);
+    //     const std::int64_t local_size = std::min(down_pow2(block_count), required_local_size);
+    //     const auto range = make_multiple_nd_range_1d(block_count, local_size);
 
-        const std::int64_t required_local_size = bk::device_max_wg_size(q);
-        const std::int64_t local_size = std::min(down_pow2(block_count), required_local_size);
-        const auto range = make_multiple_nd_range_1d(block_count, local_size);
+    //     cgh.parallel_for(range, [=](sycl::nd_item<1> id) {
+    //         const auto i = id.get_global_id();
+    //         if (i < block_count) {
+    //             // TODO: Unroll for optimization
+    //             //#pragma unroll
+    //             for (std::int64_t j = 0; j < block_size_in_bytes; ++j) {
+    //                 dst_byte[i * dst_stride_in_bytes + j] =
+    //                     gathered_byte[i * block_size_in_bytes + j];
+    //             }
+    //         }
+    //     });
+    // });
 
-        cgh.parallel_for(range, [=](sycl::nd_item<1> id) {
-            const auto i = id.get_global_id();
-            if (i < block_count) {
-                // TODO: Unroll for optimization
-                for (std::int64_t j = 0; j < block_size_in_bytes; ++j) {
-                    dst_byte[i * dst_stride_in_bytes + j] =
-                        gathered_byte[i * block_size_in_bytes + j];
-                }
-            }
-        });
-    });
-
-    // We need to wait until scatter kernel is completed to deallocate
-    // `gathered_device_unique`
-    scatter_event.wait_and_throw();
+    // // We need to wait until scatter kernel is completed to deallocate
+    // // `gathered_device_unique`
+    // scatter_event.wait_and_throw();
 
     return sycl::event{};
 }

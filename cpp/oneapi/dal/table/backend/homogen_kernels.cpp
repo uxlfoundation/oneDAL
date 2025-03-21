@@ -17,7 +17,8 @@
 #include "oneapi/dal/table/backend/homogen_kernels.hpp"
 #include "oneapi/dal/table/backend/convert.hpp"
 #include "oneapi/dal/backend/common.hpp"
-
+#include "oneapi/dal/detail/profiler.hpp"
+#include <iostream>
 namespace oneapi::dal::backend {
 
 struct block_info {
@@ -95,6 +96,7 @@ static void pull_row_major_impl(const Policy& policy,
                                 array<BlockData>& block_data,
                                 alloc_kind requested_alloc_kind,
                                 bool preserve_mutability) {
+    ONEDAL_PROFILER_TASK(pull_row_major_impl);
     constexpr std::int64_t block_dtype_size = sizeof(BlockData);
     const auto origin_dtype_size = origin_info.get_data_type_size();
     const auto block_dtype = detail::make_data_type<BlockData>();
@@ -169,6 +171,7 @@ static void pull_column_major_impl(const Policy& policy,
                                    array<BlockData>& block_data,
                                    alloc_kind requested_alloc_kind,
                                    bool preserve_mutability) {
+    ONEDAL_PROFILER_TASK(pull_column_major_impl);
     constexpr std::int64_t block_dtype_size = sizeof(BlockData);
     const auto origin_dtype_size = origin_info.get_data_type_size();
     const auto block_dtype = detail::make_data_type<BlockData>();
@@ -363,6 +366,7 @@ void homogen_pull_rows(const Policy& policy,
                        const range& rows_range,
                        alloc_kind requested_alloc_kind,
                        bool preserve_mutability) {
+    ONEDAL_PROFILER_TASK(homogen_pull_rows);
     check_block_row_range(rows_range, origin_info.get_row_count());
 
     const block_info b_info{ rows_range.start_idx,
