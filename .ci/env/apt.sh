@@ -31,16 +31,21 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs=2025.0.0-406
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
     sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
 }
 
+function install_dpl {
+    sudo apt-get install -y intel-oneapi-libdpstd-devel
+}
+
 function install_mkl {
     sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
     install_tbb
+    install_dpl
 }
 
 function install_clang-format {
@@ -129,6 +134,9 @@ elif [ "${component}" == "tbb" ]; then
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -160,6 +168,6 @@ elif [ "${component}" == "miniforge" ] ; then
     install_dev-base-conda
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
     exit 1
 fi

@@ -29,7 +29,7 @@ variables:
   VM_IMAGE : 'ubuntu-24.04'
   SYSROOT_OS: 'noble'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
-  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel'
+  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
   repositories:

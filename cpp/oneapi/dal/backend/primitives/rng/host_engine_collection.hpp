@@ -26,7 +26,7 @@ class host_engine_collection {
 public:
     explicit host_engine_collection(std::int64_t count,
                                     std::int64_t seed = 777,
-                                    engine_type method = engine_type::mt2203)
+                                    engine_type_internal method = engine_type_internal::mt2203)
             : count_(count),
               engine_(initialize_host_engine(seed, method)),
               params_(count),
@@ -61,16 +61,17 @@ public:
 
 private:
     daal::algorithms::engines::EnginePtr initialize_host_engine(std::int64_t seed,
-                                                                engine_type method) {
+                                                                engine_type_internal method) {
         switch (method) {
-            case engine_type::mt2203:
+            case engine_type_internal::mt2203:
                 return daal::algorithms::engines::mt2203::Batch<>::create(seed);
-            case engine_type::mcg59: return daal::algorithms::engines::mcg59::Batch<>::create(seed);
-            case engine_type::mrg32k3a:
+            case engine_type_internal::mcg59:
+                return daal::algorithms::engines::mcg59::Batch<>::create(seed);
+            case engine_type_internal::mrg32k3a:
                 return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
-            case engine_type::philox4x32x10:
+            case engine_type_internal::philox4x32x10:
                 return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
-            case engine_type::mt19937:
+            case engine_type_internal::mt19937:
                 return daal::algorithms::engines::mt19937::Batch<>::create(seed);
             default: throw std::invalid_argument("Unsupported engine type");
         }
