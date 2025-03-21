@@ -24,12 +24,12 @@
 #include "oneapi/dal/exceptions.hpp"
 #include "oneapi/dal/infer.hpp"
 #include "oneapi/dal/read.hpp"
+#include "oneapi/dal/rng.hpp"
 #include "oneapi/dal/train.hpp"
 #include "oneapi/dal/partial_compute.hpp"
 #include "oneapi/dal/finalize_compute.hpp"
 #include "oneapi/dal/partial_train.hpp"
 #include "oneapi/dal/finalize_train.hpp"
-#include "oneapi/dal/rng.hpp"
 
 /* Tables */
 #include "oneapi/dal/table/common.hpp"
