@@ -62,16 +62,15 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 update_headers_version:
 	@relfile=$(RELEASEDIR.include)/services/library_version_info.h && \
 	workfile=$(CPPDIR.daal)/include/services/library_version_info.h && mark="#define __INTEL_DAAL" && \
-	cp -fp $$workfile $$relfile.tmp && \
-        sed $(sed.-b) $(sed.-i) \
-		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
-		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
-		-e "s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
-		-e "s/\($${mark}_MAJOR_BINARY__\).*/\1 $(MAJORBINARY)$(sed.eol)/" \
-		-e "s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
-		-e "s/\($${mark}_UPDATE__\).*/\1 $(UPDATE)$(sed.eol)/" \
-		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
-	        $$relfile.tmp && \
+        sed $(sed.-b) \
+		-e "H;1h;$!d;x;s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}_MAJOR_BINARY__\).*/\1 $(MAJORBINARY)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}_UPDATE__\).*/\1 $(UPDATE)$(sed.eol)/" \
+		-e "H;1h;$!d;x;s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
+	        $$workfile > $$relfile.tmp && \
 	if ! cmp -s $$relfile.tmp $$relfile; then \
 		mv $$relfile.tmp $$relfile; \
 	else \
