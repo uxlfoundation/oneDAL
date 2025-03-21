@@ -19,13 +19,20 @@
 namespace oneapi::dal {
 
 namespace v1 {
-/// Enumeration of RNG engine methods:
-/// - `mt2203`: Mersenne Twister engine with specific optimizations for parallel environments.
-/// - `mcg59`: Multiplicative congruential generator with a modulus of \(2^{59}\).
-/// - `mt19937`: Standard Mersenne Twister engine with a period of \(2^{19937} - 1\).
-/// - `mrg32k3a`: Combined multiple recursive generator with a period of \(2^{191}\).
-/// - `philox4x32x10`: Counter-based RNG engine optimized for parallel computations.
-enum class engine_type { mt2203, mcg59, philox4x32x10, mt19937, mrg32k3a };
+
+/// Enumeration of RNG engine methods
+enum class engine_type {
+    /// Mersenne Twister engine with specific optimizations for parallel environments.
+    mt2203,
+    /// Multiplicative congruential generator with a modulus of \(2^{59}\)
+    mcg59,
+    /// Counter-based RNG engine optimized for parallel computations
+    philox4x32x10,
+    /// Standard Mersenne Twister engine with a period of \(2^{19937} - 1\)
+    mt19937,
+    /// Combined multiple recursive generator with a period of \(2^{191}\)
+    mrg32k3a
+};
 
 } // namespace v1
 

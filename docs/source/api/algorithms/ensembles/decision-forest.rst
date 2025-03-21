@@ -37,6 +37,7 @@ All types and functions in this section are declared in the
 
 Enum classes
 ++++++++++++
+.. onedal_enumclass:: oneapi::dal::engine_type
 
 `error_metric_mode`
 ~~~~~~~~~~~~~~~~~~~

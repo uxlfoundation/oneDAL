@@ -325,7 +325,7 @@ nitpick_ignore = [
     ('cpp:identifier', 'oneapi::dal::dbscan::method::v1::brute_force'),
     # common for algorithms
     ('cpp:identifier', 'result'),
-    ('cpp:identifier', 'engine_type'),
+    ('cpp:identifier', 'oneapi::dal::engine_type'),
     # common for result options
     ('cpp:identifier', 'result_option_id_base'),
     ('cpp:identifier', 'result_option_id'),
