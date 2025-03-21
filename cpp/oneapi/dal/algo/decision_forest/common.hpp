@@ -280,7 +280,7 @@ protected:
     infer_mode get_infer_mode_impl() const;
     voting_mode get_voting_mode_impl() const;
 
-    void set_engine_method_impl(engine_type value);
+    void set_engine_type_impl(engine_type value);
     void set_seed_impl(std::int64_t value);
 
 private:
@@ -604,8 +604,8 @@ public:
         return base_t::get_engine_type();
     }
 
-    auto& set_engine_method(engine_type value) {
-        base_t::set_engine_method_impl(value);
+    auto& set_engine_type(engine_type value) {
+        base_t::set_engine_type_impl(value);
         return *this;
     }
 

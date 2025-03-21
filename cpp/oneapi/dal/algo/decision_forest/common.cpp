@@ -309,7 +309,7 @@ void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
 }
 
 template <typename Task>
-void descriptor_base<Task>::set_engine_method_impl(engine_type value) {
+void descriptor_base<Task>::set_engine_type_impl(engine_type value) {
     impl_->df_engine_type = value;
 }
 
