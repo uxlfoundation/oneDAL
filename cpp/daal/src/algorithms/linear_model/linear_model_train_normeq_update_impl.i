@@ -182,10 +182,10 @@ Status computeNonBatchedAggregates(const DAAL_INT nRows, const DAAL_INT nCols, c
     algorithmFPType one                 = 1;
     algorithmFPType zero                = 0;
     algorithmFPType * mult_current_data = initializeResult ? &zero : &one;
-    daal::services::internal::TArray<algorithmFPType, cpu> ones;
+    daal::services::internal::TArray<algorithmFPType, cpu> ones(nRows);
     if (interceptFlag)
     {
-        ones = daal::services::internal::TArray<algorithmFPType, cpu>(nRows);
+        /// ones = daal::services::internal::TArray<algorithmFPType, cpu>(nRows);
         std::fill(ones.get(), ones.get() + nRows, algorithmFPType(1));
     }
 
