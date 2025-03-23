@@ -510,6 +510,7 @@ jobs:
   - script: |
       git clone https://github.com/icfaust/scikit-learn-intelex.git .
       git checkout dev/onedal_gnu_fix
+      echo "retry"
     displayName: 'Clone sklearnex'
   - task: DownloadPipelineArtifact@2
     inputs:
