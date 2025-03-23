@@ -36,7 +36,7 @@ using namespace daal::services;
 using namespace daal::services::internal;
 
 template <typename DataType, daal::CpuType cpu>
-services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction, DataType & score)
+services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction, double & score)
 {
     services::Status s;
     SafeStatus safeStat;
@@ -68,7 +68,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     size_t rank            = 1;
     size_t elementsInBlock = 1;
     size_t i               = 0;
-    TArray<DataType, cpu> predictedRank(nElements);
+    TArray<double, cpu> predictedRank(nElements);
     DAAL_CHECK_MALLOC(predictedRank.get());
     while (i < nElements)
     {
@@ -84,14 +84,14 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         for (size_t j = 0; j < elementsInBlock; ++j)
         {
             const size_t idx   = predict[i + j].index;
-            predictedRank[idx] = static_cast<DataType>(rank) + ((static_cast<DataType>(elementsInBlock) - DataType(1.0)) * DataType(0.5));
+            predictedRank[idx] = static_cast<double>(rank) + ((static_cast<double>(elementsInBlock) - double(1.0)) * double(0.5));
         }
         rank += elementsInBlock;
         i += elementsInBlock;
     }
 
-    DataType nPos            = DataType(0);
-    DataType filteredRankSum = DataType(0);
+    double nPos            = DataType(0);
+    double filteredRankSum = DataType(0);
     for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
     {
         const size_t blockBegin = iBlock * blockSizeDefault;
@@ -108,15 +108,15 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
             }
         }
     }
-    const DataType nNeg = static_cast<DataType>(nElements) - nPos;
-    score               = (filteredRankSum - (nPos * (nPos + DataType(1.0)) * DataType(0.5))) / (nPos * nNeg);
+    const double nNeg = static_cast<double>(nElements) - nPos;
+    score               = (filteredRankSum - (nPos * (nPos + double(1.0)) * double(0.5))) / (nPos * nNeg);
     return s;
 }
 
 template <typename DataType>
-DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
+DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
 {
-    DataType score = DataType(0);
+    double score = double(0);
 #define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<DataType, cpuId>(__VA_ARGS__);
 
     DAAL_DISPATCH_FUNCTION_BY_CPU_SAFE(DAAL_ROC_AUC_SCORE, truePrediction, testPrediction, score);
@@ -125,7 +125,7 @@ DAAL_EXPORT DataType rocAucScore(const NumericTablePtr & truePrediction, const N
     return score;
 }
 
-template DAAL_EXPORT float rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+template DAAL_EXPORT double rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 template DAAL_EXPORT double rocAucScore<double>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 
 } // namespace internal
