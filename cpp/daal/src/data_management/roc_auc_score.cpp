@@ -90,8 +90,8 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         i += elementsInBlock;
     }
 
-    double nPos            = DataType(0);
-    double filteredRankSum = DataType(0);
+    double nPos            = double(0);
+    double filteredRankSum = double(0);
     for (size_t iBlock = 0; iBlock < nBlocks; ++iBlock)
     {
         const size_t blockBegin = iBlock * blockSizeDefault;
@@ -109,7 +109,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         }
     }
     const double nNeg = static_cast<double>(nElements) - nPos;
-    score               = (filteredRankSum - (nPos * (nPos + double(1.0)) * double(0.5))) / (nPos * nNeg);
+    score             = (filteredRankSum - (nPos * (nPos + double(1.0)) * double(0.5))) / (nPos * nNeg);
     return s;
 }
 
