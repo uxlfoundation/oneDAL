@@ -144,7 +144,7 @@ jobs:
       - name: Check ABI conformance
         run: |
           echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
-          echo "It utilizes the last run main, whose commit can be found in the 'Check Cache' step."
+          echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
           echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
           echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
           echo "please rerun the main 'CI' workflow via GitHub's workflow dispatch to regenerate the cache."
