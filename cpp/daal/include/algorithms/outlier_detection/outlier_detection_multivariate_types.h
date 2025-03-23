@@ -88,7 +88,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -185,6 +185,7 @@ class DAAL_EXPORT Input : public daal::algorithms::Input
 public:
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 
