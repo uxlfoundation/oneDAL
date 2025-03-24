@@ -15,7 +15,7 @@
 #===============================================================================
 
 ##  Content:
-##     Intel(R) oneAPI Data Analytics Library samples list
+##     oneAPI Data Analytics Library samples list
 ##******************************************************************************
 
 MPI  =  basic_statistics_distr_ccl            \
