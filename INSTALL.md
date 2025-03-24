@@ -254,10 +254,11 @@ export TBBROOT=${CONDA_PREFIX}
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
 export CPATH="${CONDA_PREFIX}/include:${CPATH}"
-export PATH="${CONDA_PREFIX}/bin:${PATH}"
 export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```
+
+_Note: variable `$PATH` is also required to contain `${CONDA_PREFIX}/bin`, but that should have been handled automatically by `conda activate`._
 
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.
 

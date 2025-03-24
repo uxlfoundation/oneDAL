@@ -37,7 +37,7 @@ do
     echo "======== ${name} ========"
     abidiff $i $release_dir/$name
     retVal=$?
-    # ignore a return value of 4 as it signifies a non-breaking change
+    # ignore a return value of 4 as it signifies a possibly compatible change
     if [ $retVal != 4 ]; then RETURN_CODE=$(($RETURN_CODE+$retVal)); fi
 done
 exit ${RETURN_CODE}
