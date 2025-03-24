@@ -128,6 +128,12 @@ DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const Num
 template DAAL_EXPORT double rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 template DAAL_EXPORT double rocAucScore<double>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
 
+// necessary for maintaining ABI
+DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
+{
+    return rocAucScore<double>(truePrediction, testPrediction);
+}
+
 } // namespace internal
 } // namespace data_management
 } // namespace daal
