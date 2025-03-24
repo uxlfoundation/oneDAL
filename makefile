@@ -1062,8 +1062,8 @@ $(CORE.incdirs): _release_c_h
 
 define .release.dd
 $3: $2
-$2: $1 ; $(value mkdir)$(value cpy)
-	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version)
+$2: $1 ; $(value mkdir)
+	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version, $(value cpy))
 	$(if $(USECPUS.out.defs.filter),$(if $(filter %daal_kernel_defines.h,$2),$(USECPUS.out.defs.filter) $2; rm -rf $(subst .h,.h.bak,$2)))
 endef
 $(foreach d,$(release.HEADERS.COMMON),$(eval $(call .release.dd,$d,$(subst $(CPPDIR.daal)/include/,$(RELEASEDIR.include)/,$d),_release_c_h)))
