@@ -105,3 +105,49 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+
+  LinuxABICheck:
+    name: ABI Conformance(AVX512)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: uxl-xlarge
+    env:
+      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v4
+      - name: install ABI checking tools
+        run: .ci/env/apt.sh abigail
+      - name: Check Cache
+        id: get-cache-key
+        run: |
+          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo $CACHE_KEY
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download oneDAL main build
+        uses: actions/cache/restore@v4
+        with:
+          path: ./__release_lnx_main
+          key: ${{ steps.get-cache-key.outputs.key }}
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Check ABI conformance
+        run: |
+          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
+          echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
+          echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
+          echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
+          echo "please rerun the main 'CI' workflow via GitHub's workflow dispatch to regenerate the cache."
+          echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
+          echo "in the ABI that can lead to erroneous failures in the ABI check."
+          .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
