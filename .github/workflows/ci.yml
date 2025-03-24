@@ -107,7 +107,7 @@ jobs:
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
-    name: ABI Conformance
+    name: ABI Conformance(AVX512)
     needs: LinuxMakeDPCPP
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
@@ -142,4 +142,12 @@ jobs:
           name: __release_lnx
           path: ./__release_lnx
       - name: Check ABI conformance
-        run: .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+        run: |
+          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
+          echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
+          echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
+          echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
+          echo "please rerun the main 'CI' workflow via GitHub's workflow dispatch to regenerate the cache."
+          echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
+          echo "in the ABI that can lead to erroneous failures in the ABI check."
+          .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/

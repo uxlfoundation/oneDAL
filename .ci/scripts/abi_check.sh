@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
