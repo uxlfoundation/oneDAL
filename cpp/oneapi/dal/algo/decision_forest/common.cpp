@@ -61,6 +61,10 @@ public:
     error_metric_mode error_metric_mode_value = error_metric_mode::none;
     infer_mode infer_mode_value = infer_mode::class_responses;
 
+    // The default engine has been switched from mt2203 to philox for GPU,
+    // as philox is more efficient in terms of performance on GPU architectures.
+    // Note: Due to this change, some conformance(not critical) tests might fail as a result.
+    engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
     splitter_mode splitter_mode_value = splitter_mode::best;
@@ -177,6 +181,11 @@ voting_mode descriptor_base<Task>::get_voting_mode_impl() const {
 template <typename Task>
 std::int64_t descriptor_base<Task>::get_seed() const {
     return impl_->seed;
+}
+
+template <typename Task>
+engine_type descriptor_base<Task>::get_engine_type() const {
+    return impl_->df_engine_type;
 }
 
 template <typename Task>
@@ -297,6 +306,11 @@ void descriptor_base<Task>::set_voting_mode_impl(voting_mode value) {
 template <typename Task>
 void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
     impl_->seed = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_engine_type_impl(engine_type value) {
+    impl_->df_engine_type = value;
 }
 
 template class ONEDAL_EXPORT descriptor_base<task::classification>;
