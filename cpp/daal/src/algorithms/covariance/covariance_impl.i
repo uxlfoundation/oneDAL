@@ -90,9 +90,13 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
 template <typename algorithmFPType, CpuType cpu>
 struct tls_data_t
 {
-    algorithmFPType * sums;
-    algorithmFPType * crossProduct;
     bool computeOk;
+
+    inline algorithmFPType * sums() { return sumsArray.get(); }
+    inline algorithmFPType * crossProduct() { return crossProductArray.get(); }
+
+    inline const algorithmFPType * sums() const { return sumsArray.get(); }
+    inline const algorithmFPType * crossProduct() const { return crossProductArray.get(); }
 
     static tls_data_t<algorithmFPType, cpu> * create(bool isNormalized, size_t nFeatures)
     {
@@ -125,56 +129,25 @@ struct tls_data_t
             sumsArray.reset(nFeatures);
         }
 
-        sums         = sumsArray.get();
-        crossProduct = crossProductArray.get();
         computeOk = true;
 
         if (doInit)
         {
+            algorithmFPType * crossProductPtr = crossProduct();
             for (size_t i = 0; i < nFeatures * nFeatures; ++i)
-                crossProduct[i] = 0.0;
+                crossProductPtr[i] = 0.0;
             if (!isNormalized)
             {
+                algorithmFPType * sumsPtr = sums();
                 for (size_t i = 0; i < nFeatures; ++i)
-                    sums[i] = 0.0;
+                    sumsPtr[i] = 0.0;
             }
         }
-    }
-
-    tls_data_t(const tls_data_t & other) : computeOk(other.computeOk)
-    {
-        sumsArray         = other.sumsArray;
-        crossProductArray = other.crossProductArray;
-        sums         = sumsArray.get();
-        crossProduct = crossProductArray.get();
-    }
-
-    tls_data_t & operator=(tls_data_t other)
-    {
-        swap(*this, other);
-        sums         = sumsArray.get();
-        crossProduct = crossProductArray.get();
-        return *this;
-    }
-
-    ~tls_data_t()
-    {
-        sums         = nullptr;
-        crossProduct = nullptr;
     }
 
 private:
     TArrayScalable<algorithmFPType, cpu> sumsArray;
     TArrayScalable<algorithmFPType, cpu> crossProductArray;
-
-    friend void swap(tls_data_t & first, tls_data_t & second)
-    {
-        if (&first == &second)
-            return;
-
-        swap(first.sumsArray, second.sumsArray);
-        swap(first.crossProductArray, second.crossProductArray);
-    }
 };
 
 /* Optimal block size for AVX512 low dimensions case (1024) and other CPU's and cases (140) */
@@ -227,7 +200,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         size_t numRowsInLastBlock = numRowsInBlock + (nVectors - numBlocks * numRowsInBlock);
 
         tls_data_t<algorithmFPType, cpu> identity(isNormalized, nFeatures, true);
-        if (!identity.crossProduct || !identity.sums)
+        if (!identity.crossProduct() || !identity.sums())
         {
             return services::Status(services::ErrorMemoryAllocationFailed);
         }
@@ -238,8 +211,11 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             identity,
             [&](const tbb::blocked_range<size_t> & r, tls_data_t<algorithmFPType, cpu> input)->tls_data_t<algorithmFPType, cpu> {
                 tls_data_t<algorithmFPType, cpu> local(input);
-                if (!local.computeOk || !local.crossProduct || !local.sums)
+                if (!local.computeOk || !local.crossProduct() || !local.sums())
+                {
+                    local.computeOk = false;
                     return local;
+                }
 
                 char uplo             = 'U';
                 char trans            = 'N';
@@ -260,8 +236,8 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                     }
                     algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
 
-                    algorithmFPType * crossProduct_local = local.crossProduct;
-                    algorithmFPType * sums_local         = local.sums;
+                    algorithmFPType * crossProduct_local = local.crossProduct();
+                    algorithmFPType * sums_local         = local.sums();
 
                     {
                         DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
@@ -286,41 +262,47 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 }
                 return local;
             },
-            [&](const tls_data_t<algorithmFPType, cpu> & left, const tls_data_t<algorithmFPType, cpu> & right)->tls_data_t<algorithmFPType, cpu> {
-                if (left.crossProduct == right.crossProduct)
+            [&](const tls_data_t<algorithmFPType, cpu> & left, tls_data_t<algorithmFPType, cpu> right)->tls_data_t<algorithmFPType, cpu> {
+                if (left.crossProduct() == right.crossProduct())
                     // Same data is passed as left and right values
                     return right;
-                if (!left.computeOk || !left.crossProduct || !left.sums
-                    || !right.computeOk || !right.crossProduct || !right.sums)
+                if (!left.computeOk || !left.crossProduct() || !left.sums()
+                    || !right.computeOk || !right.crossProduct() || !right.sums())
                 {
+                    right.computeOk = false;
                     return right;
                 }
-                tls_data_t<algorithmFPType, cpu> res(right);
+                const algorithmFPType * leftCrossProduct = left.crossProduct();
+                algorithmFPType * rightCrossProduct  = right.crossProduct();
                 PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < (nFeatures * nFeatures); i++)
                 {
-                    res.crossProduct[i] += left.crossProduct[i];
+                    rightCrossProduct[i] += leftCrossProduct[i];
                 }
                 if (!isNormalized && (method == defaultDense) && !assumeCentered)
                 {
+                    const algorithmFPType * leftSums = left.sums();
+                    algorithmFPType * rightSums  = right.sums();
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < nFeatures; i++)
                     {
-                        res.sums[i] += left.sums[i];
+                        rightSums[i] += leftSums[i];
                     }
                 }
-                return res;
+                return right;
             }
         );
-        if (result.computeOk == false)
+        if (result.computeOk == false || !result.crossProduct() || !result.sums())
         {
             return services::Status(services::ErrorCovarianceInternal);
         }
+        const algorithmFPType * resultCrossProduct = result.crossProduct();
+        const algorithmFPType * resultSums         = result.sums();
         for (size_t i = 0; i < nFeatures; i++)
         {
-            sums[i] = result.sums[i];
+            sums[i] = resultSums[i];
         }
 
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
@@ -333,7 +315,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
-                    crossProduct[i * nFeatures + j] = result.crossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
+                    crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
                 }
             }
         }
@@ -341,7 +323,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         {
             for (size_t i = 0; i < nFeatures * nFeatures; i++)
             {
-                crossProduct[i] = result.crossProduct[i];
+                crossProduct[i] = resultCrossProduct[i];
             }
         }
     }
