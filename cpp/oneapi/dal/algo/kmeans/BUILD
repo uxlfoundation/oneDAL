@@ -95,3 +95,18 @@ dal_test_suite(
         ":kmeans",
     ],
 )
+
+dal_test_suite(
+    name = "gpu_tests",
+    framework = "catch2",
+    private = True,
+    compile_as = [ "dpc++" ],
+    srcs = glob([
+        "backend/gpu/test/*.cpp",
+    ], exclude=[
+        "backend/gpu/test/perf_*.cpp",
+    ]),
+    dal_deps = [
+        ":kmeans",
+    ],
+)
