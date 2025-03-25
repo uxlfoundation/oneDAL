@@ -180,7 +180,7 @@ struct RefSpBlas
         DAAL_INT offset = pntrb[row] - 1;
         DAAL_INT nnz    = pntrb[row + 1] - pntrb[row];
         DAAL_INT csrcol = col + 1;
-//#pragma omp simd
+        //#pragma omp simd
         for (DAAL_INT i = 0; i < nnz; ++i)
         {
             if (csrcol < indx[offset + i]) break;

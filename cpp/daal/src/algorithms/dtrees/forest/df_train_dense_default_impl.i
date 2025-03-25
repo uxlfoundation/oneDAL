@@ -245,7 +245,7 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         {
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < nVars; ++i) 
+            for (size_t i = 0; i < nVars; ++i)
             {
                 varImp[i] = 0;
             }
@@ -752,7 +752,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
         auto aSample = _aSample.get();
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < _nSamples; ++i) 
+        for (size_t i = 0; i < _nSamples; ++i)
         {
             aSample[i] = i;
         }
@@ -763,7 +763,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     //use _aSample as an array of response indices stored by helper from now on
     PRAGMA_IVDEP
     PRAGMA_VECTOR_ALWAYS
-    for (size_t i = 0; i < _aSample.size(); ++i) 
+    for (size_t i = 0; i < _aSample.size(); ++i)
     {
         _aSample[i] = i;
     }
