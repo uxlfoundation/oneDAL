@@ -105,7 +105,7 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual ~Batch() {}
+    ~Batch() {}
 
     /**
      * Returns the method of the algorithm
