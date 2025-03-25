@@ -92,7 +92,7 @@ private:
 
 template <typename Cpu>
 void or_equal(std::uint8_t* vec, const std::uint8_t* pa, std::int64_t size) {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < size; i++) {
         vec[i] |= pa[i];
     }
@@ -100,7 +100,7 @@ void or_equal(std::uint8_t* vec, const std::uint8_t* pa, std::int64_t size) {
 
 template <typename Cpu>
 void and_equal(std::uint8_t* vec, const std::uint8_t* pa, std::int64_t size) {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < size; i++) {
         vec[i] &= pa[i];
     }
@@ -108,7 +108,7 @@ void and_equal(std::uint8_t* vec, const std::uint8_t* pa, std::int64_t size) {
 
 template <typename Cpu>
 void or_equal(std::uint8_t* vec, const std::int64_t* bit_index, const std::int64_t list_size) {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < list_size; i++) {
         vec[bit_vector<Cpu>::byte(bit_index[i])] |= bit_vector<Cpu>::bit(bit_index[i]);
     }
@@ -116,7 +116,7 @@ void or_equal(std::uint8_t* vec, const std::int64_t* bit_index, const std::int64
 
 template <typename Cpu>
 void set(std::uint8_t* vec, std::int64_t size, const std::uint8_t byte_val = 0x0) {
-    ONEDAL_VECTOR_ALWAYS
+    PRAGMA_VECTOR_ALWAYS
     for (std::int64_t i = 0; i < size; i++) {
         vec[i] = byte_val;
     }
@@ -130,7 +130,7 @@ void and_equal(std::uint8_t* vec,
                std::int64_t* tmp_array = nullptr,
                const std::int64_t tmp_size = 0) {
     std::int64_t counter = 0;
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < list_size; i++) {
         tmp_array[counter] = bit_index[i];
         counter += precomputed_popcount(vec[bit_vector<Cpu>::byte(bit_index[i])] &
@@ -139,7 +139,7 @@ void and_equal(std::uint8_t* vec,
 
     set<Cpu>(vec, bit_size, 0x0);
 
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < counter; i++) {
         vec[bit_vector<Cpu>::byte(tmp_array[i])] |= bit_vector<Cpu>::bit(tmp_array[i]);
     }
@@ -170,7 +170,7 @@ void bit_vector<Cpu>::set(const std::int64_t vector_size,
 
 template <typename Cpu>
 void bit_vector<Cpu>::set(const std::uint8_t byte_val) {
-    ONEDAL_VECTOR_ALWAYS
+    PRAGMA_VECTOR_ALWAYS
     for (std::int64_t i = 0; i < n; i++) {
         vector[i] = byte_val;
     }
@@ -281,7 +281,7 @@ bit_vector<Cpu>& bit_vector<Cpu>::operator=(const bit_vector<Cpu>& a) {
 
 template <typename Cpu>
 bit_vector<Cpu>& bit_vector<Cpu>::operator~() {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < n; i++) {
         vector[i] = ~vector[i];
     }
@@ -290,7 +290,7 @@ bit_vector<Cpu>& bit_vector<Cpu>::operator~() {
 
 template <typename Cpu>
 bit_vector<Cpu>& bit_vector<Cpu>::operator&=(const std::uint8_t* pa) {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < n; i++) {
         vector[i] &= pa[i];
     }
@@ -299,7 +299,7 @@ bit_vector<Cpu>& bit_vector<Cpu>::operator&=(const std::uint8_t* pa) {
 
 template <typename Cpu>
 bit_vector<Cpu>& bit_vector<Cpu>::operator|=(const std::uint8_t* pa) {
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t i = 0; i < n; i++) {
         vector[i] |= pa[i];
     }
