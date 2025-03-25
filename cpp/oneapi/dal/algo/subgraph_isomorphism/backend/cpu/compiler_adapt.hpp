@@ -29,14 +29,6 @@
 
 namespace oneapi::dal::preview::subgraph_isomorphism::backend {
 
-#if defined(__INTEL_COMPILER)
-#define ONEDAL_IVDEP         _Pragma("ivdep")
-#define ONEDAL_VECTOR_ALWAYS _Pragma("vector always")
-#else
-#define ONEDAL_IVDEP
-#define ONEDAL_VECTOR_ALWAYS
-#endif
-
 template <typename Cpu>
 ONEDAL_FORCEINLINE std::int32_t ONEDAL_lzcnt_u32(std::uint32_t a) {
 #if defined(__AVX2__) && defined(__INTEL_COMPILER)
