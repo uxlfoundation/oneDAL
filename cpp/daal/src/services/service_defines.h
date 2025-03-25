@@ -56,10 +56,10 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define DAAL_TYPENAME           typename
 #elif defined(__GNUC__)
     #if defined(TARGET_ARM)
-        #define PRAGMA_IVDEP            _Pragma("omp simd")
+        #define PRAGMA_IVDEP _Pragma("omp simd")
     #else
         #define PRAGMA_IVDEP
-    #endif   
+    #endif
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
