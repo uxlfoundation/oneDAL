@@ -204,7 +204,7 @@ std::int64_t matching_engine<Cpu>::state_exploration_bit(bool check_solution) {
     std::int64_t divider = pconsistent_conditions[current_level_index].divider;
 
     if (isomorphism_kind != kind::non_induced) {
-        ONEDAL_IVDEP
+        PRAGMA_IVDEP
         for (std::int64_t j = 0; j < divider; j++) {
             or_equal<Cpu>(vertex_candidates.get_vector_pointer(),
                           target->p_edges_bit[hlocal_stack.top(
@@ -215,7 +215,7 @@ std::int64_t matching_engine<Cpu>::state_exploration_bit(bool check_solution) {
 
     ~vertex_candidates;
 
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t j = current_level_index; j >= divider; j--) { //j > divider - 1
         and_equal<Cpu>(vertex_candidates.get_vector_pointer(),
                        target->p_edges_bit[hlocal_stack.top(
@@ -287,7 +287,7 @@ std::int64_t matching_engine<Cpu>::state_exploration_list(bool check_solution) {
     std::int64_t divider = pconsistent_conditions[current_level_index].divider;
 
     if (isomorphism_kind != kind::non_induced) {
-        ONEDAL_IVDEP
+        PRAGMA_IVDEP
         for (std::int64_t j = 0; j < divider; j++) {
             or_equal<Cpu>(vertex_candidates.get_vector_pointer(),
                           target->p_edges_list[hlocal_stack.top(
@@ -299,7 +299,7 @@ std::int64_t matching_engine<Cpu>::state_exploration_list(bool check_solution) {
 
     ~vertex_candidates;
 
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (std::int64_t j = current_level_index; j >= divider; j--) { //j > divider - 1
         and_equal<Cpu>(
             vertex_candidates.get_vector_pointer(),
