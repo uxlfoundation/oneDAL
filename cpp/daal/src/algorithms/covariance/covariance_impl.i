@@ -134,13 +134,11 @@ struct tls_data_t
         if (doInit)
         {
             algorithmFPType * crossProductPtr = crossProduct();
-            for (size_t i = 0; i < nFeatures * nFeatures; ++i)
-                crossProductPtr[i] = 0.0;
+            for (size_t i = 0; i < nFeatures * nFeatures; ++i) crossProductPtr[i] = 0.0;
             if (!isNormalized)
             {
                 algorithmFPType * sumsPtr = sums();
-                for (size_t i = 0; i < nFeatures; ++i)
-                    sumsPtr[i] = 0.0;
+                for (size_t i = 0; i < nFeatures; ++i) sumsPtr[i] = 0.0;
             }
         }
     }
@@ -207,20 +205,19 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
 
         /* Threaded loop with syrk seq calls */
         tls_data_t<algorithmFPType, cpu> result = tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(size_t{0}, numBlocks),
-            identity,
-            [&](const tbb::blocked_range<size_t> & r, tls_data_t<algorithmFPType, cpu> input)->tls_data_t<algorithmFPType, cpu> {
-                tls_data_t<algorithmFPType, cpu> local(input);
+            tbb::blocked_range<size_t>(size_t { 0 }, numBlocks), identity,
+            [&](const tbb::blocked_range<size_t> & r, tls_data_t<algorithmFPType, cpu> local) -> tls_data_t<algorithmFPType, cpu> {
+                DAAL_ITTNOTIFY_SCOPED_TASK(compute.gemmDataAndSums);
                 if (!local.computeOk || !local.crossProduct() || !local.sums())
                 {
                     local.computeOk = false;
                     return local;
                 }
 
-                char uplo             = 'U';
-                char trans            = 'N';
-                algorithmFPType alpha = 1.0;
-                algorithmFPType beta  = 1.0;
+                char uplo                = 'U';
+                char trans               = 'N';
+                algorithmFPType alpha    = 1.0;
+                algorithmFPType beta     = 1.0;
                 DAAL_INT nFeatures_local = nFeatures;
 
                 for (size_t iBlock = r.begin(); iBlock < r.end(); ++iBlock)
@@ -240,14 +237,13 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                     algorithmFPType * sums_local         = local.sums();
 
                     {
-                        DAAL_ITTNOTIFY_SCOPED_TASK(gemmData);
-                        BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
-                                                            (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
+                        BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha,
+                                                               dataBlock_local, (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local,
+                                                               (DAAL_INT *)&nFeatures_local);
                     }
 
                     if (!isNormalized && (method == defaultDense) && !assumeCentered)
                     {
-                        DAAL_ITTNOTIFY_SCOPED_TASK(cumputeSums.local);
                         /* Sum input array elements in case of non-normalized data */
                         for (DAAL_INT i = 0; i < nRows; i++)
                         {
@@ -262,18 +258,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 }
                 return local;
             },
-            [&](const tls_data_t<algorithmFPType, cpu> & left, tls_data_t<algorithmFPType, cpu> right)->tls_data_t<algorithmFPType, cpu> {
-                if (left.crossProduct() == right.crossProduct())
-                    // Same data is passed as left and right values
-                    return right;
-                if (!left.computeOk || !left.crossProduct() || !left.sums()
-                    || !right.computeOk || !right.crossProduct() || !right.sums())
+            [&](const tls_data_t<algorithmFPType, cpu> & left, tls_data_t<algorithmFPType, cpu> right) -> tls_data_t<algorithmFPType, cpu> {
+                DAAL_ITTNOTIFY_SCOPED_TASK(compute.reduceDataAndSums);
+                if (!left.computeOk || !left.crossProduct() || !left.sums() || !right.computeOk || !right.crossProduct() || !right.sums())
                 {
                     right.computeOk = false;
                     return right;
                 }
                 const algorithmFPType * leftCrossProduct = left.crossProduct();
-                algorithmFPType * rightCrossProduct  = right.crossProduct();
+                algorithmFPType * rightCrossProduct      = right.crossProduct();
                 PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < (nFeatures * nFeatures); i++)
@@ -283,7 +276,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 if (!isNormalized && (method == defaultDense) && !assumeCentered)
                 {
                     const algorithmFPType * leftSums = left.sums();
-                    algorithmFPType * rightSums  = right.sums();
+                    algorithmFPType * rightSums      = right.sums();
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < nFeatures; i++)
@@ -292,8 +285,8 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                     }
                 }
                 return right;
-            }
-        );
+            },
+            tbb::static_partitioner());
         if (result.computeOk == false || !result.crossProduct() || !result.sums())
         {
             return services::Status(services::ErrorCovarianceInternal);
@@ -308,7 +301,6 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
         if (!isNormalized && !assumeCentered)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(gemmSums);
             for (size_t i = 0; i < nFeatures; i++)
             {
                 PRAGMA_IVDEP
