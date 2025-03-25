@@ -37,7 +37,8 @@ namespace interface1
 using namespace daal::data_management;
 using namespace daal::services;
 Input::Input(size_t nElements) : regression::training::Input(nElements) {}
-Input::Input(const Input & other) : regression::training::Input(other) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 data_management::NumericTablePtr Input::get(InputId id) const
 {
