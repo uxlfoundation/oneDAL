@@ -499,7 +499,7 @@ void global_stack<Cpu>::grow() {
         (new_capacity * vertex_count_ > 0) ? new_capacity * vertex_count_ : 1);
     const auto new_top = new_bottom + size() * vertex_count_;
 
-    ONEDAL_IVDEP
+    PRAGMA_IVDEP
     for (auto dest = new_bottom, src = bottom_; dest != new_top;) {
         *(dest++) = *(src++);
     }
