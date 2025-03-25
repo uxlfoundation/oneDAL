@@ -38,7 +38,7 @@ template <typename Task>
 using node_visitor_ptr = dal::detail::shared<node_visitor_iface<Task>>;
 
 template <typename Task, typename Visitor>
-class node_visitor_impl : public base, public node_visitor_iface<Task> {
+class ONEDAL_EXPORT node_visitor_impl : public base, public node_visitor_iface<Task> {
 public:
     using task_t = Task;
     using leaf_t = leaf_node_info<task_t>;

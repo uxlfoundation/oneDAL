@@ -21,7 +21,7 @@
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 
-#include "oneapi/dal/backend/primitives/rng/host_engine_collection.hpp"
+#include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_misc_structs.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_impurity_data.hpp"
@@ -50,8 +50,7 @@ class train_kernel_hist_impl {
     using model_manager_t = train_model_manager<Float, Index, Task>;
     using train_context_t = train_context<Float, Index, Task>;
     using imp_data_t = impurity_data<Float, Index, Task>;
-    using rng_engine_t = pr::host_engine;
-    using rng_engine_list_t = std::vector<rng_engine_t>;
+    using rng_engine_t = pr::device_engine;
     using msg = dal::detail::error_messages;
     using comm_t = bk::communicator<spmd::device_memory_access::usm>;
     using node_t = node<Index>;
@@ -79,7 +78,7 @@ private:
                                           Index class_count) const;
 
     sycl::event gen_initial_tree_order(train_context_t& ctx,
-                                       rng_engine_list_t& rng_engine_list,
+                                       rng_engine_t& rng_engine,
                                        pr::ndarray<Index, 1>& node_list,
                                        pr::ndarray<Index, 1>& tree_order_level,
                                        Index engine_offset,
@@ -103,6 +102,7 @@ private:
                      const table& data,
                      const table& labels,
                      const table& weights);
+
     /// Allocates all buffers that are used for training.
     /// @param[in] ctx  a training context structure for a GPU backend
     void allocate_buffers(const train_context_t& ctx);
@@ -115,12 +115,12 @@ private:
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] node_count       number of nodes on the current level
     /// @param[in] node_vs_tree_map an initial tree order
-    /// @param[in] rng_engine_list  a list of random generator engines
+    /// @param[in] rng_engine  a random generator engine
     std::tuple<pr::ndarray<Index, 1>, sycl::event> gen_feature_list(
         const train_context_t& ctx,
         Index node_count,
         const pr::ndarray<Index, 1>& node_vs_tree_map,
-        rng_engine_list_t& rng_engine_list);
+        rng_engine_t& rng_engine);
 
     /// Generates random thresholds for each node and for each selected feature for node.
     /// Thresholds are used for a random splitter kernel to split each node.
@@ -129,12 +129,12 @@ private:
     /// @param[in] ctx              a training context structure for a GPU backend
     /// @param[in] node_count       number of nodes on the current level
     /// @param[in] node_vs_tree_map an initial tree order
-    /// @param[in] rng_engine_list  a list of random generator engines
+    /// @param[in] rng_engine  a random generator engine
     std::tuple<pr::ndarray<Float, 1>, sycl::event> gen_random_thresholds(
         const train_context_t& ctx,
         Index node_count,
         const pr::ndarray<Index, 1>& node_vs_tree_map,
-        rng_engine_list_t& rng_engine_list);
+        rng_engine_t& rng_engine);
 
     /// Computes initial impurity for each node.
     ///
@@ -561,7 +561,7 @@ private:
     /// @param[in] oob_per_obs_list     an array of OOB values per observation
     /// @param[in] var_imp              variable importance values
     /// @param[in] var_imp_variance     variable importance variance values
-    /// @param[in] rng_engine_arr       a list of random generator engines
+    /// @param[in] rng_engine       a random generator engine
     /// @param[in] tree_idx             a tree index
     /// @param[in] tree_in_block        number of trees in the computational block
     /// @param[in] built_tree_count     number of built trees
@@ -575,7 +575,7 @@ private:
                                 pr::ndarray<hist_type_t, 1>& oob_per_obs_list,
                                 pr::ndarray<Float, 1>& var_imp,
                                 pr::ndarray<Float, 1>& var_imp_variance,
-                                const rng_engine_list_t& rng_engine_arr,
+                                rng_engine_t& rng_engine,
                                 Index tree_idx,
                                 Index tree_in_block,
                                 Index built_tree_count,

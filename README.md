@@ -35,7 +35,7 @@ The oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is 
 
 There are different ways for you to build high-performance data science applications that use the advantages of oneDAL:
 - Use oneDAL C++ interfaces with or without SYCL support ([learn more](https://uxlfoundation.github.io/oneDAL/#oneapi-vs-daal-interfaces))
-- Use [Intel(R) Extension for Scikit-learn*](https://uxlfoundation.github.io/scikit-learn-intelex/) to accelerate existing scikit-learn code without changing it
+- Use [Extension for Scikit-learn*](https://uxlfoundation.github.io/scikit-learn-intelex/) to accelerate existing scikit-learn code without changing it
 - Use [daal4py](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/daal4py), a standalone package with Python API for oneDAL
 Deprecation Notice: The Java interfaces are removed from the oneDAL library.
 
@@ -49,11 +49,10 @@ There are several options available for installing oneDAL:
 - **Binary Distribution**: You can download pre-built binary packages from the following sources:
     - Intel® oneAPI:
         - Download as Part of the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html#gs.8xrue2)
-        - Download as the Stand-Alone [Intel® oneAPI Data Analytics Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html#gs.8xrue2)
+        - Download as the Stand-Alone [oneAPI Data Analytics Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html#gs.8xrue2)
     - Anaconda:
         | Channel | Version |
         |:-------:|:-------:|
-        | intel | [![Anaconda-Server Intel Badge](https://anaconda.org/intel/dal-devel/badges/version.svg)](https://anaconda.org/intel/dal-devel) |
         | conda-forge | [![Anaconda-Server Conda-forge Badge](https://anaconda.org/conda-forge/dal-devel/badges/version.svg)](https://anaconda.org/conda-forge/dal-devel) |
 
     - [NuGet](https://www.nuget.org/packages/inteldal.devel.linux-x64)
@@ -91,7 +90,7 @@ oneDAL documentation:
 Other related documentation:
 
 - [daal4py documentation](https://intelpython.github.io/daal4py/)
-- [Intel(R) Extension for Scikit-learn* documentation](https://uxlfoundation.github.io/scikit-learn-intelex/)
+- [Extension for Scikit-learn* documentation](https://uxlfoundation.github.io/scikit-learn-intelex/)
 - [oneDAL Specifications](https://spec.oneapi.com/versions/latest/elements/oneDAL/source/index.html)
 
 ## Apache Spark MLlib

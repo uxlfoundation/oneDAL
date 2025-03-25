@@ -129,11 +129,15 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -Q          := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
 -cxx17      := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
 -fPIC       := $(if $(OS_is_win),,-fPIC)
+-visibility := $(if $(OS_is_win),,-fvisibility=hidden)
 -DMKL_ILP64 := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
 -Zl         := $(-Zl.$(COMPILER))
 -Zl_DPCPP   := $(-Zl.dpcpp)
--DEBC       := $(if $(REQDBG),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
--DEBC_DPCPP := $(if $(REQDBG),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)
+# if REQDBG set to 'symbols', it will disable assert checking.
+# Debug flags are defined per compiler in dev/make/compiler_definitions/ under -DEBC,
+# they are always enabled when the REQDBG flag is set.
+-DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
+-DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
@@ -314,6 +318,11 @@ ifeq ($(REQPROFILE), yes)
     VTUNESDK.LIBS_A := $(if $(OS_is_lnx), $(VTUNESDK.libia)/libittnotify.a,)
 endif
 
+#=============================== oneDPL folders ======================================
+
+ONEDPLDIR := $(subst \,/,$(DPL_ROOT))
+ONEDPL.include := $(ONEDPLDIR)/include
+
 #===============================================================================
 # Release library names
 #===============================================================================
@@ -443,11 +452,10 @@ CORE.srcdirs  := $(CORE.SERV.srcdir) $(CORE.srcdir)                  \
                  $(addprefix $(CORE.SERV.srcdir)/, $(CORE.SERVICES)) \
                  $(addprefix $(CORE.srcdir)/, $(CORE.ALGORITHMS))    \
                  $(CORE.SERV.COMPILER.srcdir) $(EXTERNALS.srcdir)    \
-                 $(CPPDIR.daal)/src/sycl \
                  $(CPPDIR.daal)/src/data_management
 
 CORE.incdirs.common := $(RELEASEDIR.include) $(CPPDIR.daal) $(WORKDIR)
-CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(TBBDIR.include)
+CORE.incdirs.thirdp := $(daaldep.math_backend.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(TBBDIR.include)
 CORE.incdirs := $(CORE.incdirs.common) $(CORE.incdirs.thirdp)
 
 $(info CORE.incdirs: $(CORE.incdirs))
@@ -514,7 +522,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -565,7 +573,7 @@ PARAMETERS.tmpdir_a.dpc := $(WORKDIR)/parameters_dpc_static
 PARAMETERS.tmpdir_y.dpc := $(WORKDIR)/parameters_dpc_dynamic
 
 ONEAPI.incdirs.common := $(CPPDIR)
-ONEAPI.incdirs.thirdp := $(CORE.incdirs.common) $(daaldep.math_backend_oneapi.incdir) $(VTUNESDK.include) $(TBBDIR.include)
+ONEAPI.incdirs.thirdp := $(CORE.incdirs.common) $(daaldep.math_backend_oneapi.incdir) $(VTUNESDK.include) $(ONEDPL.include) $(TBBDIR.include)
 ONEAPI.incdirs := $(ONEAPI.incdirs.common) $(CORE.incdirs.thirdp) $(ONEAPI.incdirs.thirdp)
 
 ONEAPI.dispatcher_cpu = $(WORKDIR)/oneapi/dal/_dal_cpu_dispatcher_gen.hpp
@@ -697,12 +705,12 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a.dpc),.dpcpp))
 
 # Set compilation options to the object files which are part of DYNAMIC lib
 $(ONEAPI.objs_y): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y)/inc_y_folders.txt
-$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                           $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG) \
-                          -D__ONEDAL_ENABLE_DLL_EXPORT__ \
+                          -D__ONEDAL_ENABLE_EXPORT__ \
                           -D__TBB_NO_IMPLICIT_LINKAGE \
                           -DTBB_USE_ASSERT=0 \
                           @$(ONEAPI.tmpdir_y)/inc_y_folders.txt
@@ -713,13 +721,13 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y)))
 # When compiling with the debug flag $(-DEBC_DPCPP), linking with libonedal_dpc.so may cause indefinite linking times
 # due to the extensive processing of debug information. For debugging, please use the static library version (libonedal_dpc.a).
 $(ONEAPI.objs_y.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
-$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
+$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-visibility) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
                               -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                               $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG) \
-                              -D__ONEDAL_ENABLE_DLL_EXPORT__ \
+                              -D__ONEDAL_ENABLE_EXPORT__ \
                               -D__TBB_NO_IMPLICIT_LINKAGE \
                               -DTBB_USE_ASSERT=0 \
                               @$(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
@@ -1053,8 +1061,8 @@ $(CORE.incdirs): _release_c_h
 
 define .release.dd
 $3: $2
-$2: $1 ; $(value mkdir)$(value cpy)
-	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version)
+$2: $1 ; $(value mkdir)
+	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version, $(value cpy))
 	$(if $(USECPUS.out.defs.filter),$(if $(filter %daal_kernel_defines.h,$2),$(USECPUS.out.defs.filter) $2; rm -rf $(subst .h,.h.bak,$2)))
 endef
 $(foreach d,$(release.HEADERS.COMMON),$(eval $(call .release.dd,$d,$(subst $(CPPDIR.daal)/include/,$(RELEASEDIR.include)/,$d),_release_c_h)))
@@ -1067,7 +1075,7 @@ endef
 $(foreach d,$(release.ONEAPI.HEADERS.COMMON),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$d),_release_oneapi_c_h)))
 $(foreach d,$(release.ONEAPI.HEADERS.OSSPEC),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$(subst _$(_OS),,$d)),_release_oneapi_c_h)))
 
-#----- releasing static/dynamic Intel(R) TBB libraries
+#----- releasing static/dynamic oneTBB libraries
 $(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia): _release_common
 
 define .release.t
@@ -1116,7 +1124,10 @@ Flags:
       possible values: $(CORE.ALGORITHMS.CUSTOM.AVAILABLE)
   REQCPU - list of CPU optimizations to be included into library
       possible values: $(CPUs)
-  REQDBG - flag that enables build in debug mode
+  REQDBG - flag that enables build in debug mode. Debug mode enables oneDAL
+      assertions and adds debug symbols. Any value will enable debug mode, 
+      except value "symbols" which will only add debug symbols.
+      special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
 endef
 

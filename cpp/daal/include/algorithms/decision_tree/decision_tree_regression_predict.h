@@ -85,7 +85,7 @@ public:
  *      - \ref training::interface2::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public algorithms::regression::prediction::Batch
+class DAAL_EXPORT Batch : public algorithms::regression::prediction::Batch
 {
 public:
     typedef algorithms::regression::prediction::Batch super;
@@ -98,7 +98,7 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of prediction */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a Decision tree prediction algorithm by copying input objects and parameters
@@ -106,11 +106,7 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other)
-        : algorithms::regression::prediction::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual algorithms::regression::prediction::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
 

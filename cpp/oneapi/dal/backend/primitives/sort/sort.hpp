@@ -161,6 +161,25 @@ private:
     static constexpr inline std::uint32_t radix_count_ = sizeof(Integer);
 };
 
+template <typename Float, typename Index = std::uint32_t>
+sycl::event radix_sort_indices_inplace_dpl(sycl::queue& queue,
+                                           ndview<Float, 1>& val,
+                                           ndview<Index, 1>& ind,
+                                           const event_vector& deps = {});
+
+template <typename Integer>
+sycl::event radix_sort_dpl(sycl::queue& queue,
+                           ndview<Integer, 2>& val_in,
+                           ndview<Integer, 2>& val_out,
+                           std::int64_t sorted_elem_count,
+                           const event_vector& deps = {});
+
+template <typename Integer>
+sycl::event radix_sort_dpl(sycl::queue& queue,
+                           ndview<Integer, 2>& val_in,
+                           ndview<Integer, 2>& val_out,
+                           const event_vector& deps = {});
+
 #endif
 
 } // namespace oneapi::dal::backend::primitives

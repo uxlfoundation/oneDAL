@@ -152,7 +152,7 @@ public:
  *      - \ref interface1::DistributedParameter class
  */
 template <ComputeStep computeStep, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = correlationDense>
-class Distributed : public Analysis<distributed>
+class DAAL_EXPORT Distributed : public Analysis<distributed>
 {};
 
 /**
@@ -227,17 +227,14 @@ public:
     typedef algorithms::pca::PartialResult<correlationDense> PartialResultType;
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, correlationDense> & other) : input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Distributed(const Distributed<step2Master, algorithmFPType, correlationDense> & other);
 
     ~Distributed() {}
 
@@ -357,14 +354,14 @@ public:
     typedef algorithms::pca::PartialResult<svdDense> PartialResultType;
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, svdDense> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step2Master, algorithmFPType, svdDense> & other);
 
     ~Distributed() {}
 

@@ -97,7 +97,7 @@ public:
     InputType input;         /*!< %Input objects of the algorithm */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a KD-tree based kNN training algorithm by copying input objects
@@ -105,20 +105,13 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Constructs a KD-tree based kNN training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
     */
-    Batch(size_t nClasses)
-    {
-        parameter.nClasses = nClasses;
-        initialize();
-    }
+    Batch(size_t nClasses);
 
     /**
      * Get input objects for KD-tree based kNN model-based training algorithm
