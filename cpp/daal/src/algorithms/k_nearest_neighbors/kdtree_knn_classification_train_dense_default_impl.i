@@ -736,7 +736,7 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         size_t left  = first;
         size_t right = last - 1;
 
-#if defined(DAAL_INTEL_CPP_COMPILER) 
+#if defined(DAAL_INTEL_CPP_COMPILER)
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
 #endif
