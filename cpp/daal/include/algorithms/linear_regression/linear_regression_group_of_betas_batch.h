@@ -108,8 +108,6 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    ~Batch() {}
-
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
