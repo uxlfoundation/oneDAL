@@ -54,6 +54,7 @@ struct SingleBetaOutput
     SingleBetaOutput(size_t nResponses);
     SingleBetaOutput(const SingleBetaOutput & other)             = delete;
     SingleBetaOutput & operator=(const SingleBetaOutput & other) = delete;
+
     ~SingleBetaOutput();
 };
 
