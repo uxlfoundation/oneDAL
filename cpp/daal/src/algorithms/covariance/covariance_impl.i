@@ -40,6 +40,8 @@
 #include "oneapi/tbb/blocked_range.h"
 #include "oneapi/tbb/parallel_reduce.h"
 
+#include <climits>      // UINT_MAX
+
 using namespace daal::internal;
 using namespace daal::services::internal;
 
@@ -86,66 +88,176 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
     return services::Status();
 }
 
-/********************* tls_data_t class *******************************************************/
+/********************* ParallelReductionBody class *******************************************************/
+/// Stores thread-local partial results of the algorithm: Cross-product matrix and sums of the columns
+/// of the input data matrix
 template <typename algorithmFPType, CpuType cpu>
-struct tls_data_t
+struct ParallelReductionBody
 {
+    /// Status of the computation
     bool computeOk;
 
+    /// Get pointer to the array of partial sums
     inline algorithmFPType * sums() { return sumsArray.get(); }
+    /// Get pointer to the partial cross-product matrix
     inline algorithmFPType * crossProduct() { return crossProductArray.get(); }
 
+    /// Get pointer to the constant array of partial sums
     inline const algorithmFPType * sums() const { return sumsArray.get(); }
+    /// Get pointer to the constant partial cross-product matrix
     inline const algorithmFPType * crossProduct() const { return crossProductArray.get(); }
 
-    static tls_data_t<algorithmFPType, cpu> * create(bool isNormalized, size_t nFeatures)
+    /// Construct the thread-local partial results
+    ///
+    /// \param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
+    /// \param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
+    /// \param[in] numBlocks        Number of blocks of rows in the input data table
+    /// \param[in] isNormalized     Flag that specifies whether the input data is normalized
+    ParallelReductionBody(NumericTable * dataTable, DAAL_INT64 numRowsInBlock, size_t numBlocks, bool isNormalized)
+        : _dataTable(dataTable), _numRowsInBlock(numRowsInBlock), _numBlocks(numBlocks), _nFeatures(dataTable->getNumberOfColumns())
     {
-        auto object = new tls_data_t<algorithmFPType, cpu>(isNormalized, nFeatures);
-        if (!object)
+        crossProductArray.reset(_nFeatures * _nFeatures);
+        if(!crossProduct())
         {
-            return nullptr;
+            computeOk = false;
+            return;
         }
 
-        if (!(object->crossProduct))
-        {
-            delete object;
-            return nullptr;
-        }
-        if (!(object->sums) && !isNormalized)
-        {
-            delete object;
-            return nullptr;
-        }
-
-        return object;
-    }
-
-    tls_data_t(bool isNormalized, size_t nFeatures, bool doInit = false)
-    {
-        crossProductArray.reset(nFeatures * nFeatures);
-
+        initArray(_nFeatures * _nFeatures, crossProduct());
         if (!isNormalized)
         {
-            sumsArray.reset(nFeatures);
+            sumsArray.reset(_nFeatures);
+            algorithmFPType * sumsPtr = sums();
+            if(!sumsPtr)
+            {
+                computeOk = false;
+                return;
+            }
+            initArray(_nFeatures, sums());
+        }
+        computeOk = true;
+    }
+
+    ParallelReductionBody(ParallelReductionBody & other, tbb::split)
+        : ParallelReductionBody(other._dataTable, other._numRowsInBlock, other._numBlocks, other.sums() == nullptr)
+    {}
+
+    void operator()(const tbb::blocked_range<size_t>& r) {
+        DAAL_ITTNOTIFY_SCOPED_TASK(compute.syrkDataAndSums);
+        algorithmFPType * crossProduct_local = crossProduct();
+
+        if (!computeOk || !crossProduct_local)
+        {
+            computeOk = false;
+            return;
         }
 
-        computeOk = true;
+        char uplo                = 'U';
+        char trans               = 'N';
+        algorithmFPType alpha    = 1.0;
+        algorithmFPType beta     = 1.0;
+        const size_t nVectors   = _dataTable->getNumberOfRows();
 
-        if (doInit)
+        for (size_t iBlock = r.begin(); iBlock < r.end(); ++iBlock)
         {
-            algorithmFPType * crossProductPtr = crossProduct();
-            for (size_t i = 0; i < nFeatures * nFeatures; ++i) crossProductPtr[i] = 0.0;
-            if (!isNormalized)
+            size_t nRows    = ((iBlock < (_numBlocks - 1)) ? _numRowsInBlock : (_numRowsInBlock + (nVectors - _numBlocks * _numRowsInBlock)));
+            size_t startRow = iBlock * _numRowsInBlock;
+
+            ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(_dataTable, startRow, nRows);
+            if (!dataTableBD.get())
             {
-                algorithmFPType * sumsPtr = sums();
-                for (size_t i = 0; i < nFeatures; ++i) sumsPtr[i] = 0.0;
+                computeOk = false;
+                return;
+            }
+            algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
+
+            {
+                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&_nFeatures, (DAAL_INT *)&nRows, &alpha,
+                                                        dataBlock_local, (DAAL_INT *)&_nFeatures, &beta, crossProduct_local,
+                                                        (DAAL_INT *)&_nFeatures);
+            }
+
+            algorithmFPType * sums_local = sums();
+            if (sums_local)
+            {
+                /* Sum input array elements in case of non-normalized data */
+                for (DAAL_INT i = 0; i < nRows; i++)
+                {
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (DAAL_INT j = 0; j < _nFeatures; j++)
+                    {
+                        sums_local[j] += dataBlock_local[i * _nFeatures + j];
+                    }
+                }
+            }
+        }
+    }
+
+    void join(ParallelReductionBody & other)
+    {
+        DAAL_ITTNOTIFY_SCOPED_TASK(compute.joinDataAndSums);
+        const algorithmFPType * otherCrossProduct = other.crossProduct();
+        algorithmFPType * thisCrossProduct = crossProduct();
+        if (!computeOk || !thisCrossProduct || !other.computeOk || !otherCrossProduct)
+        {
+            computeOk = false;
+            return;
+        }
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_VECTOR_ALIGNED
+        for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
+        {
+            thisCrossProduct[i] += otherCrossProduct[i];
+        }
+        algorithmFPType * thisSums = sums();
+        if (thisSums)
+        {
+            const algorithmFPType * otherSums = other.sums();
+            if (!otherSums)
+            {
+                computeOk = false;
+                return;
+            }
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_VECTOR_ALIGNED
+            for (size_t i = 0; i < _nFeatures; i++)
+            {
+                thisSums[i] += otherSums[i];
             }
         }
     }
 
 private:
+    void initArray(size_t n, algorithmFPType * array)
+    {
+        if (n < UINT_MAX && !((DAAL_UINT64)array & 0x0000003FULL))
+        {
+            std::uint32_t n32 = (std::uint32_t)n;
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_VECTOR_ALIGNED
+            for (std::uint32_t i = 0; i < n; i++)
+            {
+                array[i] = 0.0;
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < n; i++)
+            {
+                array[i] = 0.0;
+            }
+        }
+    }
     TArrayScalable<algorithmFPType, cpu> sumsArray;
     TArrayScalable<algorithmFPType, cpu> crossProductArray;
+    NumericTable * _dataTable;
+    DAAL_INT64 _numRowsInBlock;
+    size_t _numBlocks;
+    DAAL_INT _nFeatures;
 };
 
 /* Optimal block size for AVX512 low dimensions case (1024) and other CPU's and cases (140) */
@@ -195,112 +307,34 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         {
             numBlocks++;
         }
-        size_t numRowsInLastBlock = numRowsInBlock + (nVectors - numBlocks * numRowsInBlock);
 
-        tls_data_t<algorithmFPType, cpu> identity(isNormalized, nFeatures, true);
-        if (!identity.crossProduct() || !identity.sums())
+        ParallelReductionBody<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
+        if (!result.crossProduct() || !result.sums())
         {
             return services::Status(services::ErrorMemoryAllocationFailed);
         }
 
-        /* Threaded loop with syrk seq calls */
-        tls_data_t<algorithmFPType, cpu> result = tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(size_t { 0 }, numBlocks), identity,
-            [&](const tbb::blocked_range<size_t> & r, tls_data_t<algorithmFPType, cpu> local) -> tls_data_t<algorithmFPType, cpu> {
-                DAAL_ITTNOTIFY_SCOPED_TASK(compute.gemmDataAndSums);
-                if (!local.computeOk || !local.crossProduct() || !local.sums())
-                {
-                    local.computeOk = false;
-                    return local;
-                }
+        /* Reduce input matrix X into cross product Xt X and a vector of column sums */
+        tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, numBlocks), result, tbb::static_partitioner());
 
-                char uplo                = 'U';
-                char trans               = 'N';
-                algorithmFPType alpha    = 1.0;
-                algorithmFPType beta     = 1.0;
-                DAAL_INT nFeatures_local = nFeatures;
-
-                for (size_t iBlock = r.begin(); iBlock < r.end(); ++iBlock)
-                {
-                    size_t nRows    = (iBlock < (numBlocks - 1)) ? numRowsInBlock : numRowsInLastBlock;
-                    size_t startRow = iBlock * numRowsInBlock;
-
-                    ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(dataTable, startRow, nRows);
-                    if (!dataTableBD.get())
-                    {
-                        local.computeOk = false;
-                        return local;
-                    }
-                    algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
-
-                    algorithmFPType * crossProduct_local = local.crossProduct();
-                    algorithmFPType * sums_local         = local.sums();
-
-                    {
-                        BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha,
-                                                               dataBlock_local, (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local,
-                                                               (DAAL_INT *)&nFeatures_local);
-                    }
-
-                    if (!isNormalized && (method == defaultDense) && !assumeCentered)
-                    {
-                        /* Sum input array elements in case of non-normalized data */
-                        for (DAAL_INT i = 0; i < nRows; i++)
-                        {
-                            PRAGMA_IVDEP
-                            PRAGMA_VECTOR_ALWAYS
-                            for (DAAL_INT j = 0; j < nFeatures_local; j++)
-                            {
-                                sums_local[j] += dataBlock_local[i * nFeatures_local + j];
-                            }
-                        }
-                    }
-                }
-                return local;
-            },
-            [&](const tls_data_t<algorithmFPType, cpu> & left, tls_data_t<algorithmFPType, cpu> right) -> tls_data_t<algorithmFPType, cpu> {
-                DAAL_ITTNOTIFY_SCOPED_TASK(compute.reduceDataAndSums);
-                if (!left.computeOk || !left.crossProduct() || !left.sums() || !right.computeOk || !right.crossProduct() || !right.sums())
-                {
-                    right.computeOk = false;
-                    return right;
-                }
-                const algorithmFPType * leftCrossProduct = left.crossProduct();
-                algorithmFPType * rightCrossProduct      = right.crossProduct();
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t i = 0; i < (nFeatures * nFeatures); i++)
-                {
-                    rightCrossProduct[i] += leftCrossProduct[i];
-                }
-                if (!isNormalized && (method == defaultDense) && !assumeCentered)
-                {
-                    const algorithmFPType * leftSums = left.sums();
-                    algorithmFPType * rightSums      = right.sums();
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t i = 0; i < nFeatures; i++)
-                    {
-                        rightSums[i] += leftSums[i];
-                    }
-                }
-                return right;
-            },
-            tbb::static_partitioner());
-        if (result.computeOk == false || !result.crossProduct() || !result.sums())
+        const algorithmFPType * resultCrossProduct = result.crossProduct();
+        if (result.computeOk == false || !resultCrossProduct)
         {
             return services::Status(services::ErrorCovarianceInternal);
-        }
-        const algorithmFPType * resultCrossProduct = result.crossProduct();
-        const algorithmFPType * resultSums         = result.sums();
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            sums[i] = resultSums[i];
         }
 
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
         if (!isNormalized && !assumeCentered)
         {
+            const algorithmFPType * resultSums         = result.sums();
+            if (!resultSums)
+            {
+                return services::Status(services::ErrorCovarianceInternal);
+            }
+            for (size_t i = 0; i < nFeatures; i++)
+            {
+                sums[i] = resultSums[i];
+            }
             for (size_t i = 0; i < nFeatures; i++)
             {
                 PRAGMA_IVDEP
