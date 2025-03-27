@@ -79,6 +79,7 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
+        ":gpu_tests",
         ":interface_tests",
     ],
 )
