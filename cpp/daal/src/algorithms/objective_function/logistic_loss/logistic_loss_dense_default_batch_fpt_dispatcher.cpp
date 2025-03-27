@@ -36,14 +36,14 @@ namespace interface2
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::logistic_loss::defaultDense>;
 
 template <>
-BatchType::Batch(size_t numberOfTerms) : sum_of_functions::Batch(numberOfTerms, &input, new ParameterType(numberOfTerms))
+DAAL_EXPORT BatchType::Batch(size_t numberOfTerms) : sum_of_functions::Batch(numberOfTerms, &input, new ParameterType(numberOfTerms))
 {
     initialize();
     _par = sumOfFunctionsParameter;
 }
 
 template <>
-BatchType::Batch(const BatchType & other)
+DAAL_EXPORT BatchType::Batch(const BatchType & other)
     : sum_of_functions::Batch(other.parameter().numberOfTerms, &input, new ParameterType(other.parameter())), input(other.input)
 {
     initialize();
@@ -51,7 +51,7 @@ BatchType::Batch(const BatchType & other)
 }
 
 template <>
-services::SharedPtr<BatchType> BatchType::create(size_t numberOfTerms)
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create(size_t numberOfTerms)
 {
     return services::SharedPtr<BatchType>(new BatchType(numberOfTerms));
 }

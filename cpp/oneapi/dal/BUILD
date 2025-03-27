@@ -31,6 +31,7 @@ dal_module(
     ],
     dpc_deps = [
         "@mkl//:mkl_dpc",
+        "@dpl//:headers",
     ],
 )
 

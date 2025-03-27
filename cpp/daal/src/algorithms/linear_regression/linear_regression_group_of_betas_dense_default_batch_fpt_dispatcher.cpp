@@ -29,5 +29,33 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::quality_metric::group_of_betas::BatchContainer, batch, DAAL_FPTYPE,
                                       linear_regression::quality_metric::group_of_betas::defaultDense)
+namespace linear_regression
+{
+namespace quality_metric
+{
+namespace group_of_betas
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nBeta, size_t nBetaReducedModel) : parameter(nBeta, nBetaReducedModel)
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : parameter(other.parameter)
+{
+    initialize();
+    input.set(expectedResponses, other.input.get(expectedResponses));
+    input.set(predictedResponses, other.input.get(predictedResponses));
+    input.set(predictedReducedModelResponses, other.input.get(predictedReducedModelResponses));
+}
+} // namespace interface1
+} // namespace group_of_betas
+} // namespace quality_metric
+} // namespace linear_regression
+} // namespace algorithms
 } // namespace daal

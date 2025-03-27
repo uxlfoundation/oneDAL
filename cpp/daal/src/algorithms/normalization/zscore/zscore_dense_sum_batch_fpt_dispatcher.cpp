@@ -40,23 +40,22 @@ namespace zscore
 {
 namespace interface3
 {
-template <typename algorithmFPType, daal::algorithms::normalization::zscore::Method method>
-Batch<algorithmFPType, method>::Batch()
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::zscore::sumDense>::Batch()
 {
     _par = new ParameterType();
     initialize();
 }
 
-template <typename algorithmFPType, daal::algorithms::normalization::zscore::Method method>
-Batch<algorithmFPType, method>::Batch(const Batch & other) : BatchImpl(other)
+using BatchType = Batch<DAAL_FPTYPE, normalization::zscore::sumDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const Batch & other) : BatchImpl(other)
 {
     _par = new ParameterType(other.parameter());
     initialize();
 }
-template Batch<DAAL_FPTYPE, normalization::zscore::sumDense>::Batch();
-template Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch();
-template Batch<DAAL_FPTYPE, normalization::zscore::sumDense>::Batch(const Batch &);
-template Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch(const Batch &);
+
 } // namespace interface3
 } // namespace zscore
 } // namespace normalization

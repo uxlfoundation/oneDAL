@@ -26,5 +26,24 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(cholesky::BatchContainer, batch, DAAL_FPTYPE, cholesky::defaultDense)
+
+namespace cholesky
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, cholesky::defaultDense>::Batch()
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, cholesky::defaultDense>;
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
+{
+    initialize();
+}
+} // namespace interface1
+} // namespace cholesky
+} // namespace algorithms
 } // namespace daal

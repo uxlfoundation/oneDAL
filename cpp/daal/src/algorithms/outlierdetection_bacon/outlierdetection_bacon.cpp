@@ -57,6 +57,7 @@ services::Status Parameter::check() const
 
 Input::Input() : daal::algorithms::Input(1) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns input object for the multivariate outlier detection algorithm

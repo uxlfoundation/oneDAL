@@ -29,5 +29,30 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(classifier::quality_metric::multiclass_confusion_matrix::BatchContainer, batch, DAAL_FPTYPE,
                                       classifier::quality_metric::multiclass_confusion_matrix::defaultDense)
+namespace classifier
+{
+namespace quality_metric
+{
+namespace multiclass_confusion_matrix
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, classifier::quality_metric::multiclass_confusion_matrix::defaultDense>::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, classifier::quality_metric::multiclass_confusion_matrix::defaultDense>;
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace multiclass_confusion_matrix
+} // namespace quality_metric
+} // namespace classifier
+} // namespace algorithms
 } // namespace daal
