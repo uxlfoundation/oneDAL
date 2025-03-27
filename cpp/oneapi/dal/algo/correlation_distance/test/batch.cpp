@@ -30,29 +30,26 @@ public:
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
 
-    auto get_descriptor(double sigma) const {
-        return correlation_distance::descriptor<Float, Method>{}.set_sigma(sigma);
+    auto get_descriptor() const {
+        return correlation_distance::descriptor<Float, Method>{};
     }
 
     void general_checks(const te::dataframe& x_data,
                         const te::dataframe& y_data,
-                        double sigma,
                         const te::table_id& x_data_table_id,
                         const te::table_id& y_data_table_id) {
-        CAPTURE(sigma);
         const table x = x_data.get_table(this->get_policy(), x_data_table_id);
         const table y = y_data.get_table(this->get_policy(), y_data_table_id);
 
         INFO("create descriptor");
-        const auto correlation_distance_desc = get_descriptor(sigma);
+        const auto correlation_distance_desc = get_descriptor();
 
         INFO("run compute");
         const auto compute_result = this->compute(correlation_distance_desc, x, y);
-        check_compute_result(sigma, x, y, compute_result);
+        check_compute_result(x, y, compute_result);
     }
 
-    void check_compute_result(double sigma,
-                              const table& x_data,
+    void check_compute_result(const table& x_data,
                               const table& y_data,
                               const correlation_distance::compute_result<>& result) {
         const auto result_values = result.get_values();
@@ -64,15 +61,14 @@ public:
         INFO("check if there is no NaN in result values table");
         REQUIRE(te::has_no_nans(result_values));
 
-        INFO("check if result values are expected");
-        check_result_values(sigma, x_data, y_data, result_values);
+        INFO("check if result values are within expected range");
+        check_result_values(x_data, y_data, result_values);
     }
 
-    void check_result_values(double sigma,
-                             const table& x_data,
+    void check_result_values(const table& x_data,
                              const table& y_data,
                              const table& result_values) {
-        const auto reference = compute_reference(sigma, x_data, y_data);
+        const auto reference = compute_reference(x_data, y_data);
 
         const auto col_count = reference.get_column_count();
         const auto row_count = reference.get_row_count();
@@ -94,7 +90,7 @@ public:
         }
     }
 
-    la::matrix<double> compute_reference(double sigma, const table& x_data, const table& y_data) {
+    la::matrix<double> compute_reference(const table& x_data, const table& y_data) {
         const auto x_data_matrix = la::matrix<double>::wrap(x_data);
         const auto y_data_matrix = la::matrix<double>::wrap(y_data);
         const auto row_count_x = x_data_matrix.get_row_count();
@@ -102,14 +98,13 @@ public:
         const auto column_count = x_data_matrix.get_column_count();
         auto reference = la::matrix<double>::full({ row_count_x, row_count_y }, 0.0);
 
-        const double inv_sigma = 1.0 / (sigma * sigma);
         for (std::int64_t i = 0; i < row_count_x; i++)
             for (std::int64_t j = 0; j < row_count_y; j++) {
                 for (std::int64_t k = 0; k < column_count; k++) {
                     double diff = x_data_matrix.get(i, k) - y_data_matrix.get(j, k);
                     reference.set(i, j) += diff * diff;
                 }
-                reference.set(i, j) = std::exp(-0.5 * inv_sigma * reference.get(i, j));
+                reference.set(i, j) = std::exp(-0.5 * reference.get(i, j));
             }
         return reference;
     }
@@ -140,9 +135,7 @@ TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
     // Homogen floating point type is the same as algorithm's floating point type
     const auto y_data_table_id = this->get_homogen_table_id();
 
-    const double sigma = GENERATE_COPY(0.8, 1.0, 5.0);
-
-    this->general_checks(x_data, y_data, sigma, x_data_table_id, y_data_table_id);
+    this->general_checks(x_data, y_data, x_data_table_id, y_data_table_id);
 }
 
 TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
@@ -163,9 +156,7 @@ TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
     // Homogen floating point type is the same as algorithm's floating point type
     const auto y_data_table_id = this->get_homogen_table_id();
 
-    const double sigma = GENERATE_COPY(0.8, 1.0, 5.0);
-
-    this->general_checks(x_data, y_data, sigma, x_data_table_id, y_data_table_id);
+    this->general_checks(x_data, y_data, x_data_table_id, y_data_table_id);
 }
 
 } // namespace oneapi::dal::correlation_distance::test
