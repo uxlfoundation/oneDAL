@@ -516,7 +516,7 @@ public:
         return *this;
     }
 
-    /// The memory saving mode.
+    /// The distributed trees build.
     /// @remark default = false
     bool get_parallel_build() const {
         return base_t::get_parallel_build();

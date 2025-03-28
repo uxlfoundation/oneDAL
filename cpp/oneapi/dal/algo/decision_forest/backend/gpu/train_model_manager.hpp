@@ -175,7 +175,9 @@ public:
             throw std::runtime_error("Failed to cast to daal_model_impl_t");
         }
         if constexpr (std::is_same_v<task::classification, Task>) {
-            daal_model_ptr_->copy_model(*daal_model_ptr_local, last_tree_copy_, total_tree_count);
+            daal_model_ptr_->copy_model_cls(*daal_model_ptr_local,
+                                            last_tree_copy_,
+                                            total_tree_count);
         }
         else {
             daal_model_ptr_->copy_model_reg(*daal_model_ptr_local,
@@ -325,6 +327,7 @@ private:
     Index last_tree_pos_ = 0;
     Index last_tree_copy_ = 0;
     Index total_tree_count = 0;
+
     std::vector<TreeType> tree_list_;
     const train_context_t& ctx_;
 };

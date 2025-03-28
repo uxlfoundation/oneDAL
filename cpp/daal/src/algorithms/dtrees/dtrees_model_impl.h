@@ -495,7 +495,7 @@ public:
 
     const data_management::DataCollection * serializationData() const { return _serializationData.get(); }
 
-    void copy_model(const ModelImpl & other, size_t idx, size_t global_count)
+    void copy_model_cls(const ModelImpl & other, size_t idx, size_t global_count)
     {
         if (idx == 0)
         {
@@ -535,6 +535,7 @@ public:
             }
         }
     }
+
     const DecisionTreeTable * at(const size_t i) const { return (const DecisionTreeTable *)(*_serializationData)[i].get(); }
 
     const double * getImpVals(size_t i) const
