@@ -20,6 +20,9 @@
 
 #include "src/services/service_allocators.h"
 #include "src/services/service_utils.h"
+#include "src/externals/service_profiler.h"
+
+#include <climits>      // UINT_MAX
 
 namespace daal
 {
@@ -63,8 +66,39 @@ public:
         return _data;
     }
 
-    DynamicArray(const DynamicArray &)             = delete;
-    DynamicArray & operator=(const DynamicArray &) = delete;
+    DynamicArray(const DynamicArray & other)
+    {
+        DAAL_ITTNOTIFY_SCOPED_TASK(DynamicArray.copy);
+        allocate(other.size());
+        if (!_data) return;
+        const T * otherData = other.get();
+        if (_size < UINT_MAX && !((std::uint64_t)_data & 0x0000003FULL) && !((std::uint64_t)otherData & 0x0000003FULL))
+        {
+            const std::uint32_t _size32 = static_cast<std::uint32_t>(_size);
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_VECTOR_ALIGNED
+            for (std::uint32_t i = 0; i < _size32; ++i)
+            {
+                _data[i] = otherData[i];
+            }
+        }
+        else
+        {
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t i = 0; i < _size; ++i)
+            {
+                _data[i] = otherData[i];
+            }
+        }
+    }
+
+    DynamicArray & operator=(DynamicArray other)
+    {
+        swap(*this, other);
+        return *this;
+    }
 
 private:
     void allocate(size_t size)
@@ -98,6 +132,14 @@ private:
 
         other._data = nullptr;
         other._size = 0;
+    }
+
+    friend void swap(DynamicArray & first, DynamicArray & second)
+    {
+        if (&first == &second) return;
+
+        swap<cpu, T *>(first._data, second._data);
+        swap<cpu, size_t>(first._size, second._size);
     }
 
 private:
