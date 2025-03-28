@@ -35,21 +35,21 @@ using namespace daal::internal;
 using namespace daal::services;
 using namespace daal::services::internal;
 
-template <daal::CpuType cpu>
+template <typename DataType, daal::CpuType cpu>
 services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction, double & score)
 {
     services::Status s;
     SafeStatus safeStat;
     const size_t nElements = truePrediction->getNumberOfRows();
-    TArrayScalable<IdxValType<double>, cpu> predict(nElements);
+    TArrayScalable<IdxValType<DataType>, cpu> predict(nElements);
     DAAL_CHECK_MALLOC(predict.get());
 
     const size_t blockSizeDefault = 256;
     const size_t nBlocks          = nElements / blockSizeDefault + !!(nElements % blockSizeDefault);
 
-    ReadColumns<double, cpu> testPredictionBlock(testPrediction.get(), 0, 0, nElements);
+    ReadColumns<DataType, cpu> testPredictionBlock(testPrediction.get(), 0, 0, nElements);
     DAAL_CHECK_BLOCK_STATUS(testPredictionBlock);
-    const double * const testPredictionPtr = testPredictionBlock.get();
+    const DataType * const testPredictionPtr = testPredictionBlock.get();
 
     daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
         const size_t blockBegin = iBlock * blockSizeDefault;
@@ -63,7 +63,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         }
     });
 
-    daal::parallel_sort<double>(predict.get(), predict.get() + nElements);
+    daal::parallel_sort<DataType>(predict.get(), predict.get() + nElements);
 
     size_t rank            = 1;
     size_t elementsInBlock = 1;
@@ -113,16 +113,27 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
     return s;
 }
 
+template <typename DataType>
 DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
 {
     double score = double(0);
-#define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<cpuId>(__VA_ARGS__);
+#define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<DataType, cpuId>(__VA_ARGS__);
 
     DAAL_DISPATCH_FUNCTION_BY_CPU_SAFE(DAAL_ROC_AUC_SCORE, truePrediction, testPrediction, score);
 
 #undef DAAL_ROC_AUC_SCORE
     return score;
 }
+
+template DAAL_EXPORT double rocAucScore<float>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+template DAAL_EXPORT double rocAucScore<double>(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction);
+
+// necessary for maintaining ABI
+DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction)
+{
+    return rocAucScore<double>(truePrediction, testPrediction);
+}
+
 } // namespace internal
 } // namespace data_management
 } // namespace daal
