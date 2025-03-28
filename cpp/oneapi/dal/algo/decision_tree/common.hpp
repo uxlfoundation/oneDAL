@@ -77,7 +77,7 @@ class ONEDAL_EXPORT node_info : public base {
 public:
     using task_t = Task;
     node_info();
-    virtual ~node_info();
+    ~node_info();
     node_info(const node_info<task_t>&);
     node_info(node_info<task_t>&&);
     node_info<task_t>& operator=(const node_info<task_t>&);
