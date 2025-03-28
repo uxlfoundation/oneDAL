@@ -151,14 +151,20 @@ void ModelImpl::traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisito
 
 services::Status ModelImpl::serializeImpl(data_management::InputDataArchive * arch)
 {
-    auto s = RegressionImplType::serialImpl<data_management::InputDataArchive, false>(arch);
-    return s.add(ImplType::serialImpl<data_management::InputDataArchive, false>(arch));
+    auto s = daal::algorithms::regression::Model::serialImpl<data_management::InputDataArchive, false>(arch);
+    s.add(ImplType::serialImpl<data_management::InputDataArchive, false>(arch));
+    arch->set(daal::algorithms::regression::internal::ModelInternal::_nFeatures);
+
+    return s;
 }
 
 services::Status ModelImpl::deserializeImpl(const data_management::OutputDataArchive * arch)
 {
-    auto s = RegressionImplType::serialImpl<const data_management::OutputDataArchive, true>(arch);
-    return s.add(ImplType::serialImpl<const data_management::OutputDataArchive, true>(arch));
+    auto s = daal::algorithms::regression::Model::serialImpl<const data_management::OutputDataArchive, true>(arch);
+    s.add(ImplType::serialImpl<const data_management::OutputDataArchive, true>(arch));
+    arch->set(RegressionImplType::_nFeatures);
+
+    return s;
 }
 
 bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
@@ -182,7 +188,6 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
     }
 
     tree.convertToTable(pTbl, impTbl, nodeSamplesTbl, probTbl, 0);
-
     (*_serializationData)[iTree].reset(pTbl);
     (*_impurityTables)[iTree].reset(impTbl);
     (*_nNodeSampleTables)[iTree].reset(nodeSamplesTbl);
