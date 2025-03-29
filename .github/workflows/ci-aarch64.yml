@@ -1,0 +1,145 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: "CI AArch64"
+
+on:
+  push:
+    branches: [main, "rls*"]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  DEP_DIR: ${{ github.workspace }}/__deps
+
+#* Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
+#* Does not apply to the main branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+#* Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [
+          { name: gh-ubuntu, label: ubuntu-24.04-arm },
+          { name: ah-ubuntu, label: ah-ubuntu_24_04-c6g_2x-50 }
+        ]
+
+    name: ${{ matrix.os.name }}
+    runs-on: ${{ matrix.os.label }}
+    steps:
+
+      # Faster builds where possible. Fix version of CMake and Ninja.
+      # Note: This will create a github actions cache
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6 # v3.31.6
+        with:
+          cmakeVersion: 3.31.0
+          ninjaVersion: 1.12.0
+
+      - name: Checkout oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: oneDAL
+
+      - name: Checkout oneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: v2022.0.0
+          path: oneTBB
+
+      - name: Checkout openBLAS
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: OpenMathLib/OpenBLAS
+          ref: v0.3.29
+          path: openBLAS
+
+      # TODO: Cache oneTBB
+      - name: Configure oneTBB
+        run: cmake -S. -Bbuild  -DTBB_TEST=OFF
+        env:
+          CMAKE_BUILD_TYPE: Release
+          CMAKE_INSTALL_PREFIX: ${{ env.DEP_DIR }}
+          CMAKE_GENERATOR: Ninja
+        working-directory: ${{ github.workspace }}/oneTBB
+
+      - name: Build oneTBB
+        run: cmake --build build --target install
+        working-directory: ${{ github.workspace }}/oneTBB
+
+      # TODO: Cache openBLAS
+      - name: Build openBLAS
+        run: |
+          make shared -j`nproc`
+          make install PREFIX=${{ env.DEP_DIR }}
+        env:
+          NO_FORTRAN: 1
+          USE_OPENMP: 0
+          USE_THREAD: 0
+          USE_LOCKING: 1
+        working-directory: ${{ github.workspace }}/openBLAS
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build oneDAL
+        run: |
+          make _daal COMPILER=gnu REQCPU=sve -j`nproc`
+          make _release COMPILER=gnu REQCPU=sve -j`nproc`
+        env:
+          TBBROOT: ${{ env.DEP_DIR }}
+          OPENBLASROOT: ${{ env.DEP_DIR }}
+        working-directory: ${{ github.workspace }}/oneDAL
+
+      - name: Configure examples
+        run: >-
+          cmake
+          -S__release_lnx_gnu/daal/latest/examples/daal/cpp
+          -B__release_lnx_gnu/daal/latest/examples/daal/cpp/build
+          -DONEDAL_LINK=static -DREF_BACKEND=ON
+        env:
+          TBBROOT: ${{ env.DEP_DIR }}
+          OPENBLASROOT: ${{ env.DEP_DIR }}
+          TBB_DIR: ${{ env.DEP_DIR }}/lib/cmake/TBB
+          oneDAL_DIR: __release_lnx_gnu/daal/latest
+          CMAKE_GENERATOR: Ninja
+        working-directory: ${{ github.workspace }}/oneDAL
+
+      - name: Build examples
+        run: >-
+          cmake
+          --build __release_lnx_gnu/daal/latest/examples/daal/cpp/build
+        working-directory: ${{ github.workspace }}/oneDAL
+  #* This job adds a check named "CI AArch64" that represents overall
+  #* workflow status and can be used in branch rulesets. This is useful when
+  #* running a matrix CI, and allows changing the CI without needing to change
+  #* the overall required check name.
+  status:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    name: "CI AArch64"
+    steps:
+      - name: Print success
+        run: echo Success
