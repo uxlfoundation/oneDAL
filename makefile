@@ -1129,6 +1129,8 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
+  CODE_COVERAGE - flag that integrates the gcov code coverage tool
+      can only be enabled when set to value "yes"
 endef
 
 daal_dbg:
