@@ -139,6 +139,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+-sanitize   := $(if $(REQASAN),$(if $(COMPILER_is_vc),/fsanitize=address,-fsanitize=address))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -522,7 +523,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -705,7 +706,7 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a.dpc),.dpcpp))
 
 # Set compilation options to the object files which are part of DYNAMIC lib
 $(ONEAPI.objs_y): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y)/inc_y_folders.txt
-$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -721,7 +722,7 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y)))
 # When compiling with the debug flag $(-DEBC_DPCPP), linking with libonedal_dpc.so may cause indefinite linking times
 # due to the extensive processing of debug information. For debugging, please use the static library version (libonedal_dpc.a).
 $(ONEAPI.objs_y.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
-$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-visibility) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
+$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
@@ -1129,6 +1130,7 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
+  REQASAN - flag that integrates AddressSanitizer (ASan)
 endef
 
 daal_dbg:
