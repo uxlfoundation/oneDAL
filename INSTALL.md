@@ -171,7 +171,7 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
   
-- To build oneDAL with integration to the gcov code coverate tool, run:
+- To build oneDAL with integration to the gcov code coverage tool, run:
 
     _Note: Only available for Linux operating systems_
 
