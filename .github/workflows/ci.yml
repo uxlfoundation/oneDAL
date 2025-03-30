@@ -58,6 +58,13 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
+      - name: Set environment variables
+        run: |
+          # reduce GPU driver/runner related memory issues
+          echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
+          echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
+          echo "DisableScratchPages=0" >> "$GITHUB_ENV"
+          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
@@ -100,11 +107,6 @@ jobs:
       - name: oneapi/dpc examples
         run: |
             source /opt/intel/oneapi/setvars.sh
-            # reduce GPU driver/runner related memory issues
-            export NEOReadDebugKeys=1
-            export EnableRecoverablePageFaults=1
-            export DisableScratchPages=0
-            export GpuFaultCheckThreshold=0
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
       - name: daal/cpp/mpi examples
         run: |
