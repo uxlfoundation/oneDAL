@@ -1130,7 +1130,7 @@ Flags:
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
-      can only be enabled when set to value "yes"
+      can only be enabled when set to value "yes" with a linux OS
 endef
 
 daal_dbg:
