@@ -173,7 +173,7 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
   
 - To build oneDAL with integration to the gcov code coverate tool, run:
 
-    _Note: Only available for Linux-based Operating Systems_
+    _Note: Only available for Linux operating systems_
 
             make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
 
