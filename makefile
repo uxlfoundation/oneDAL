@@ -140,6 +140,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 -sanitize   := $(if $(REQASAN),$(if $(COMPILER_is_vc),/fsanitize=address,-fsanitize=address))
+-lsanitize  := $(-sanitize) $(if $(REQASAN),$(if $(filter static,$(REQASAN)),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -505,6 +506,7 @@ $(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.ext) $(VTUNES
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
+$(WORKDIR.lib)/$(core_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 ifdef OS_is_win
 $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y)
@@ -778,6 +780,7 @@ $(WORKDIR.lib)/$(oneapi_y): \
     $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
+$(WORKDIR.lib)/$(oneapi_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 ifdef OS_is_win
@@ -792,6 +795,7 @@ $(WORKDIR.lib)/$(parameters_y): \
     $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(daaldep.rt.seq)
+$(WORKDIR.lib)/$(parameters_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 ifdef OS_is_win
@@ -812,6 +816,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): \
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
@@ -829,6 +834,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win), $(if $(libsycl),$(libsycl),$(libsycl.default)) OpenCL.lib)
@@ -861,7 +867,7 @@ THR_TBB.objs_y := $(addprefix $(THR.tmpdir_y)/,$(THR.srcs:%.cpp=%_tbb.$o))
 $(WORKDIR.lib)/$(thr_tbb_a): LOPT:=
 $(WORKDIR.lib)/$(thr_tbb_a): $(THR_TBB.objs_a) ; $(LINK.STATIC)
 
-$(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(-fPIC) $(daaldep.rt.thr)
+$(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(-fPIC) $(daaldep.rt.thr) $(-lsanitize)
 $(WORKDIR.lib)/$(thr_tbb_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.dll=%_dll.lib),)
 $(WORKDIR.lib)/$(thr_tbb_y): $(THR_TBB.objs_y) $(if $(OS_is_win),$(THR.tmpdir_y)/dll_tbb.res,) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
@@ -1130,7 +1136,10 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
-  REQASAN - flag that integrates AddressSanitizer (ASan)
+  REQASAN - flag that integrates AddressSanitizer (ASan). Any value will
+      enable ASan integration. A value of "static" will use the static ASan
+      library (use on Windows is unverified).
+      special value: static
 endef
 
 daal_dbg:
