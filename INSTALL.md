@@ -175,25 +175,19 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
     _Note: Windows support of ASan in oneDAL is experimental, AddressSanitizer is the default_
 
-            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN=yes
+            make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=yes
 
-- To build oneDAL with [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer) and static linking, run:
+- To build oneDAL with [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer), run:
 
     _Note: Only available on Clang and Clang-derived compilers_
 
-            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN="memory static"
+            make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=memory
   
 - To build oneDAL with gcov code coverage tool integration, run:
 
     _Note: Only available when building with the Intel DPC++ compiler on Linux operating systems_
 
             make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
-
-- To build oneDAL with [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) integration, run:
-
-    _Note: Windows support of ASan in oneDAL is experimental, static linking of ASan possible with REQASAN=static_
-
-            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN=yes
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
