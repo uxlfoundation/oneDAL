@@ -170,6 +170,18 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 - To build oneDAL to include only debug symbols, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
+
+- To build oneDAL with [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) integration, run:
+
+    _Note: Windows support of ASan in oneDAL is experimental, AddressSanitizer is the default_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN=yes
+
+- To build oneDAL with [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer) and static linking, run:
+
+    _Note: Only available on Clang and Clang-derived compilers_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN="memory static"
   
 - To build oneDAL with gcov code coverage tool integration, run:
 
