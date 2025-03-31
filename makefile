@@ -141,8 +141,8 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQASAN=memory). Default `address` is universally supported.
--sanitize   := $(if $(REQASAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if $(filter memory,$(REQASAN)),memory,$(if $(filter thread,$(REQASAN)),thread,address)))
--lsanitize  := $(-sanitize) $(if $(REQASAN),$(if $(filter static,$(REQASAN)),-static-libasan))
+-sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if $(filter memory,$(REQSAN)),memory,$(if $(filter thread,$(REQSAN)),thread,address)))
+-lsanitize  := $(-sanitize) $(if $(REQSAN),$(if $(filter static,$(REQSAN)),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -1138,7 +1138,7 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
-  REQSAN - flag that integrates Google sanitizers (ASan, TSan, and MSan).
+  REQSAN - flag that integrates a Google sanitizer (ASan, TSan, and MSan).
       Any value will enable ASan integration. A value of "static" will use 
       the static ASan library (use on Windows is unverified). A value of 
       "memory" will use the MemorySanitizer, and "thread" will integrate 
