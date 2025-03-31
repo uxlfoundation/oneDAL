@@ -171,6 +171,12 @@ To build oneDAL to include only debug symbols, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
 
+- To build oneDAL with [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) integration, run:
+
+    _Note: Windows support of ASan in oneDAL is experimental, static linking of ASan possible with REQASAN=static_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQASAN=yes
+
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
     _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, those steps will not be necessary as Intel(R) VTune(TM) Profiler will already have been set up._
