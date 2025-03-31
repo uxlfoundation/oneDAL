@@ -140,8 +140,8 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
-# quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The default is AddressSanitizer
-# as it is available by all compilers which build oneDAL, and can be set by REQSAN=address.
+# quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
+# explicitly specified. ASan can be statically linked with special value "static", ASan set with REQSAN=address.
 -sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if ifeq ($(REQSAN),static),address,$(REQSAN)))
 -lsanitize  := $(-sanitize) $(if $(REQSAN),$(if ifeq ($(REQSAN),static),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
