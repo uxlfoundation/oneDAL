@@ -1138,10 +1138,11 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
-  REQASAN - flag that integrates AddressSanitizer (ASan). Any value will
-      enable ASan integration. A value of "static" will use the static ASan
-      library (use on Windows is unverified). A value of "memory" will use
-      the MemorySanitizer, and "thread" will integrate the ThreadSanitizer.
+  REQSAN - flag that integrates Google sanitizers (ASan, TSan, and MSan).
+      Any value will enable ASan integration. A value of "static" will use 
+      the static ASan library (use on Windows is unverified). A value of 
+      "memory" will use the MemorySanitizer, and "thread" will integrate 
+      the ThreadSanitizer.
       special values: static memory thread
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
