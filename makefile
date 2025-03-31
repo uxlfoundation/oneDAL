@@ -1140,6 +1140,9 @@ Flags:
       enable ASan integration. A value of "static" will use the static ASan
       library (use on Windows is unverified).
       special value: static
+  CODE_COVERAGE - flag that integrates the gcov code coverage tool
+      can only be enabled when set to value "yes" with the icx compiler on
+      a Linux OS
 endef
 
 daal_dbg:
