@@ -141,9 +141,9 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The default is AddressSanitizer
-# as it is available by all compilers which build oneDAL.
--sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if $(filter memory,$(REQSAN)),memory,$(if $(filter thread,$(REQSAN)),thread,address)))
--lsanitize  := $(-sanitize) $(if $(REQSAN),$(if $(filter static,$(REQSAN)),-static-libasan))
+# as it is available by all compilers which build oneDAL, and can be set by REQSAN=address.
+-sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if ifeq ($(REQSAN),static),address,$(REQSAN)))
+-lsanitize  := $(-sanitize) $(if $(REQSAN),$(if ifeq ($(REQSAN),static),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -1139,12 +1139,12 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
-  REQSAN - flag that integrates a Google sanitizer (ASan, TSan, or MSan).
-      Any value will enable ASan integration. A value of "static" will use 
-      the static ASan library (use on Windows is unverified). A value of 
-      "memory" will use the MemorySanitizer, and "thread" will integrate 
-      the ThreadSanitizer.
-      special values: static memory thread
+  REQSAN - flag that integrates a Google sanitizer (e.g. AddressSanitizer).
+      The sanitizer must be specified as the flag value, except for the
+      value of "static". This value will use the static ASan library.
+      Use on Windows is unverified, with the available sanitizers dependent
+      on the compiler. It is recommended to use in tandem with REQDBG.
+      special values: static
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
       a Linux OS
