@@ -141,7 +141,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
-# explicitly specified. ASan can be statically linked with special value "static", ASan set with REQSAN=address.
+# explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
 -sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if ifeq ($(REQSAN),static),address,$(REQSAN)))
 -lsanitize  := $(-sanitize) $(if $(REQSAN),$(if ifeq ($(REQSAN),static),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
