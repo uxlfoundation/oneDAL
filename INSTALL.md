@@ -173,13 +173,13 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
 It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
 
-- To build oneDAL with [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) integration, run:
+- To integrate [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) in a oneDAL release, run:
 
     _Note: Windows support of REQSAN in oneDAL is experimental, static AddressSanitizer can be set with value: static_
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=address REQDBG=yes
 
-- To build oneDAL with [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer), run:
+- To integrate [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer) in a oneDAL release, run:
 
     _Note: Clang and Clang-derived compilers support MSan and TSan (including the Intel DPC++ compiler)_
 
