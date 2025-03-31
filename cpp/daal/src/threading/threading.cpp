@@ -853,7 +853,7 @@ public:
     ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false)
     {}
 
-    ReductionBody(ReductionBody & other, tbb::split) :  _reducer(other._reducer->create()), _isSplit(true)\
+    ReductionBody(ReductionBody & other, tbb::split) :  _reducer(other._reducer->create()), _isSplit(true)
     {}
 
     void operator()(const tbb::blocked_range<size_t>& r)
