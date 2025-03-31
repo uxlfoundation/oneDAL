@@ -37,7 +37,7 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 
-#include <climits>      // UINT_MAX
+#include <climits> // UINT_MAX
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -112,26 +112,23 @@ public:
     /// \param[in] numBlocks        Number of blocks of rows in the input data table
     /// \param[in] isNormalized     Flag that specifies whether the input data is normalized
     CovarianceReducer(NumericTable * dataTable, DAAL_INT64 numRowsInBlock, size_t numBlocks, bool isNormalized)
-        : _dataTable(dataTable), _numRowsInBlock(numRowsInBlock), _numBlocks(numBlocks), _nFeatures(dataTable->getNumberOfColumns()),
-        _isNormalized(isNormalized)
+        : _dataTable(dataTable),
+          _numRowsInBlock(numRowsInBlock),
+          _numBlocks(numBlocks),
+          _nFeatures(dataTable->getNumberOfColumns()),
+          _isNormalized(isNormalized)
     {
         init();
     }
 
-    void * operator new(size_t size)
-    {
-        return service_scalable_malloc<unsigned char, cpu>(size);
-    }
+    void * operator new(size_t size) { return service_scalable_malloc<unsigned char, cpu>(size); }
 
-    void operator delete(void * p)
-    {
-        service_scalable_free<unsigned char, cpu>((unsigned char *)p);
-    }
+    void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
 
     void init()
     {
         crossProductArray.reset(_nFeatures * _nFeatures);
-        if(!crossProduct())
+        if (!crossProduct())
         {
             computeOk = false;
             return;
@@ -142,7 +139,7 @@ public:
         {
             sumsArray.reset(_nFeatures);
             algorithmFPType * sumsPtr = sums();
-            if(!sumsPtr)
+            if (!sumsPtr)
             {
                 computeOk = false;
                 return;
@@ -152,7 +149,8 @@ public:
         computeOk = true;
     }
 
-    virtual daal::Reducer * create() const {
+    virtual daal::Reducer * create() const
+    {
         return new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized);
     }
 
@@ -166,11 +164,11 @@ public:
             return;
         }
 
-        char uplo                = 'U';
-        char trans               = 'N';
-        algorithmFPType alpha    = 1.0;
-        algorithmFPType beta     = 1.0;
-        const size_t nVectors   = _dataTable->getNumberOfRows();
+        char uplo             = 'U';
+        char trans            = 'N';
+        algorithmFPType alpha = 1.0;
+        algorithmFPType beta  = 1.0;
+        const size_t nVectors = _dataTable->getNumberOfRows();
 
         for (size_t iBlock = begin; iBlock < end; ++iBlock)
         {
@@ -186,9 +184,8 @@ public:
             algorithmFPType * dataBlock_local = const_cast<algorithmFPType *>(dataTableBD.get());
 
             {
-                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&_nFeatures, (DAAL_INT *)&nRows, &alpha,
-                                                        dataBlock_local, (DAAL_INT *)&_nFeatures, &beta, crossProduct_local,
-                                                        (DAAL_INT *)&_nFeatures);
+                BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&_nFeatures, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
+                                                       (DAAL_INT *)&_nFeatures, &beta, crossProduct_local, (DAAL_INT *)&_nFeatures);
             }
 
             if (!_isNormalized)
@@ -222,7 +219,7 @@ public:
             return;
         }
         const algorithmFPType * otherCrossProduct = other->crossProduct();
-        algorithmFPType * thisCrossProduct = crossProduct();
+        algorithmFPType * thisCrossProduct        = crossProduct();
         if (!computeOk || !thisCrossProduct || !other->computeOk || !otherCrossProduct)
         {
             computeOk = false;
@@ -237,7 +234,7 @@ public:
         }
         if (!_isNormalized)
         {
-            algorithmFPType * thisSums = sums();
+            algorithmFPType * thisSums        = sums();
             const algorithmFPType * otherSums = other->sums();
             if (!thisSums || !otherSums)
             {
@@ -270,6 +267,8 @@ private:
         }
         else
         {
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < n; i++)
             {
                 array[i] = 0.0;
@@ -352,7 +351,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
         if (!isNormalized && !assumeCentered)
         {
-            const algorithmFPType * resultSums         = result.sums();
+            const algorithmFPType * resultSums = result.sums();
             if (!resultSums)
             {
                 return services::Status(services::ErrorCovarianceInternal);

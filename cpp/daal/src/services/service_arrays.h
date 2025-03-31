@@ -22,7 +22,7 @@
 #include "src/services/service_utils.h"
 #include "src/externals/service_profiler.h"
 
-#include <climits>      // UINT_MAX
+#include <climits> // UINT_MAX
 
 namespace daal
 {
@@ -72,7 +72,7 @@ public:
         allocate(other.size());
         if (!_data) return;
         const T * otherData = other.get();
-        if (_size < UINT_MAX && !((std::uint64_t)_data & 0x0000003FULL) && !((std::uint64_t)otherData & 0x0000003FULL))
+        if (_size < UINT_MAX && !((DAAL_UINT64)_data & 0x0000003FULL) && !((DAAL_UINT64)otherData & 0x0000003FULL))
         {
             const std::uint32_t _size32 = static_cast<std::uint32_t>(_size);
             PRAGMA_IVDEP

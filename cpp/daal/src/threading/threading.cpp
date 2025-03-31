@@ -850,28 +850,23 @@ class ReductionBody
 public:
     /// Constructs the body of the parallel reduce algorithm from the given reducer
     /// @param reducer Pointer to the reducer object
-    ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false)
-    {}
+    ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false) {}
 
-    ReductionBody(ReductionBody & other, tbb::split) :  _reducer(other._reducer->create()), _isSplit(true)
-    {}
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()), _isSplit(true) {}
 
-    void operator()(const tbb::blocked_range<size_t>& r)
+    void operator()(const tbb::blocked_range<size_t> & r)
     {
-        if (_reducer)
-            _reducer->update(r.begin(), r.end());
+        if (_reducer) _reducer->update(r.begin(), r.end());
     }
 
     void join(ReductionBody & other)
     {
-        if (_reducer)
-            _reducer->merge(other._reducer);
+        if (_reducer) _reducer->merge(other._reducer);
     }
 
     ~ReductionBody()
     {
-        if (_isSplit)
-            delete _reducer;
+        if (_isSplit) delete _reducer;
     }
 
 private:

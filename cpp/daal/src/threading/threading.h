@@ -263,8 +263,6 @@ inline void threader_for(int n, int reserved, const F & func)
     _daal_threader_for(n, reserved, a, threader_func<F>);
 }
 
-
-
 /// Pass a function to be executed in a for loop to the threading layer.
 /// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
 /// The default scheduling of the threading layer is used to assign
@@ -795,12 +793,11 @@ void conditional_static_threader_for(const bool inParallel, const size_t n, Func
     }
 }
 
-template<typename ReducerType>
+template <typename ReducerType>
 void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)
 {
     _daal_threader_reduce(n, grainSize, reducer);
 }
-
 
 } // namespace daal
 
