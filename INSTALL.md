@@ -167,9 +167,15 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=yes
 
-To build oneDAL to include only debug symbols, run:
+- To build oneDAL to include only debug symbols, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
+  
+- To build oneDAL with gcov code coverage tool integration, run:
+
+    _Note: Only available when building with the Intel DPC++ compiler on Linux operating systems_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
