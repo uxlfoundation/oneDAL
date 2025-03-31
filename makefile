@@ -1141,7 +1141,7 @@ Flags:
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
   REQSAN - flag that integrates a Google sanitizer (e.g. AddressSanitizer).
       The sanitizer must be specified as the flag value, except for the
-      value of "static". This value will use the static ASan library.
+      value of "static". This value will link with the static ASan library.
       Use on Windows is unverified, with the available sanitizers dependent
       on the compiler. It is recommended to use in tandem with REQDBG.
       special values: static
