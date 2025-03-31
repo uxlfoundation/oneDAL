@@ -93,6 +93,7 @@ template <typename algorithmFPType, CpuType cpu>
 class CovarianceReducer : public daal::Reducer
 {
 public:
+    /// Status of the computation
     bool computeOk;
 
     /// Get pointer to the array of partial sums
@@ -125,6 +126,7 @@ public:
 
     void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
 
+    /// Initialize the thread-local partial results with zeros
     void init()
     {
         crossProductArray.reset(_nFeatures * _nFeatures);
@@ -256,11 +258,11 @@ private:
     {
         if (n < UINT_MAX && !((DAAL_UINT64)array & 0x0000003FULL))
         {
-            std::uint32_t n32 = (std::uint32_t)n;
+            unsigned int n32 = (unsigned int)n;
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_VECTOR_ALIGNED
-            for (std::uint32_t i = 0; i < n; i++)
+            for (unsigned int i = 0; i < n; i++)
             {
                 array[i] = 0.0;
             }

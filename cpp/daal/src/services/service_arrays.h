@@ -74,11 +74,11 @@ public:
         const T * otherData = other.get();
         if (_size < UINT_MAX && !((DAAL_UINT64)_data & 0x0000003FULL) && !((DAAL_UINT64)otherData & 0x0000003FULL))
         {
-            const std::uint32_t _size32 = static_cast<std::uint32_t>(_size);
+            const unsigned int _size32 = static_cast<unsigned int>(_size);
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_VECTOR_ALIGNED
-            for (std::uint32_t i = 0; i < _size32; ++i)
+            for (unsigned int i = 0; i < _size32; ++i)
             {
                 _data[i] = otherData[i];
             }
