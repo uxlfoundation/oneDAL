@@ -35,6 +35,11 @@
 #include <tbb/scalable_allocator.h>
 #include <tbb/global_control.h>
 #include <tbb/task_arena.h>
+
+#include "oneapi/tbb/task_arena.h"
+#include "oneapi/tbb/parallel_reduce.h"
+#include "oneapi/tbb/blocked_range.h"
+
 #include "services/daal_atomic_int.h"
 
 #if defined(TBB_INTERFACE_VERSION) && TBB_INTERFACE_VERSION >= 12002
@@ -509,18 +514,18 @@ public:
 };
 
 template <class T, class Allocator>
-class Collection
+class ThreadingCollection
 {
 public:
     /**
     *  Default constructor. Sets the size and capacity to 0.
     */
-    Collection() : _array(NULL), _size(0), _capacity(0) {}
+    ThreadingCollection() : _array(NULL), _size(0), _capacity(0) {}
 
     /**
     *  Destructor
     */
-    virtual ~Collection()
+    virtual ~ThreadingCollection()
     {
         for (size_t i = 0; i < _capacity; i++) _array[i].~T();
         Allocator::free(_array);
@@ -545,6 +550,8 @@ public:
     *  \return Size of the collection
     */
     size_t size() const { return _size; }
+
+    size_t capacity() const { return _capacity; }
 
     /**
     *  Changes the size of a storage
@@ -755,8 +762,8 @@ private:
 private:
     void * _a;
     daal::tls_functype _func;
-    Collection<Pair, SimpleAllocator> _free; //sorted by tid
-    Collection<Pair, SimpleAllocator> _used; //sorted by value
+    ThreadingCollection<Pair, SimpleAllocator> _free; //sorted by tid
+    ThreadingCollection<Pair, SimpleAllocator> _used; //sorted by value
     tbb::spin_mutex _mt;
 };
 
@@ -833,6 +840,58 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 {
     ((tbb::task_group *)taskGroupPtr)->wait();
+}
+
+/// The class implements the body of the parallel reduce algorithm in compliance with
+/// oneTBB ParallelReduceBody requirements:
+/// https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/named_requirements/algorithms/par_reduce_body
+class ReductionBody
+{
+public:
+    /// Constructs the body of the parallel reduce algorithm from the given reducer
+    /// @param reducer Pointer to the reducer object
+    ReductionBody(daal::Reducer * reducer) : _reducer(reducer) {
+        _allocatedReducers.resize(daal::threader_env()->getNumberOfThreads());
+        _nAllocatedReducers = 0;
+    }
+
+    ReductionBody(ReductionBody & other, tbb::split) {
+        _reducer = other._reducer->create();
+        _allocatedReducers.insert(_nAllocatedReducers, _reducer);
+        _nAllocatedReducers++;
+    }
+
+    void operator()(const tbb::blocked_range<size_t>& r) {
+        if (_reducer)
+            _reducer->update(r.begin(), r.end());
+    }
+
+    void join(ReductionBody & other) {
+        if (_reducer)
+            _reducer->merge(other._reducer);
+    }
+
+    void clear() {
+        tbb::parallel_for(tbb::blocked_range<size_t>(size_t{0}, _nAllocatedReducers), [&](tbb::blocked_range<size_t> r) {
+            for (size_t i = r.begin(); i < r.end(); i++)
+            {
+                delete _allocatedReducers[i];
+                _allocatedReducers[i] = nullptr;
+            }
+        });
+        _nAllocatedReducers = 0;
+        _allocatedReducers.clear();
+    }
+private:
+    daal::Reducer * _reducer;
+    ThreadingCollection<daal::Reducer *, SimpleAllocator> _allocatedReducers;
+    size_t _nAllocatedReducers;
+};
+
+DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    ReductionBody body(&reducer);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
 }
 
 namespace daal

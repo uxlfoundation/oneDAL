@@ -37,10 +37,9 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 
-#include "oneapi/tbb/blocked_range.h"
-#include "oneapi/tbb/parallel_reduce.h"
-
 #include <climits>      // UINT_MAX
+
+#include "oneapi/tbb/task_arena.h"
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -88,13 +87,14 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
     return services::Status();
 }
 
-/********************* ParallelReductionBody class *******************************************************/
-/// Stores thread-local partial results of the algorithm: Cross-product matrix and sums of the columns
-/// of the input data matrix
+/// Implements daal::Reducer interface for the dense Covariance algorithm computations
+///
+/// @tparam algorithmFPType     Data type to store partial results: double or float
+/// @tparam cpu                 Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
 template <typename algorithmFPType, CpuType cpu>
-struct ParallelReductionBody
+class CovarianceReducer : public daal::Reducer
 {
-    /// Status of the computation
+public:
     bool computeOk;
 
     /// Get pointer to the array of partial sums
@@ -107,14 +107,30 @@ struct ParallelReductionBody
     /// Get pointer to the constant partial cross-product matrix
     inline const algorithmFPType * crossProduct() const { return crossProductArray.get(); }
 
-    /// Construct the thread-local partial results
+    /// Construct and initialize the thread-local partial results
     ///
     /// \param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
     /// \param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
     /// \param[in] numBlocks        Number of blocks of rows in the input data table
     /// \param[in] isNormalized     Flag that specifies whether the input data is normalized
-    ParallelReductionBody(NumericTable * dataTable, DAAL_INT64 numRowsInBlock, size_t numBlocks, bool isNormalized)
-        : _dataTable(dataTable), _numRowsInBlock(numRowsInBlock), _numBlocks(numBlocks), _nFeatures(dataTable->getNumberOfColumns())
+    CovarianceReducer(NumericTable * dataTable, DAAL_INT64 numRowsInBlock, size_t numBlocks, bool isNormalized)
+        : _dataTable(dataTable), _numRowsInBlock(numRowsInBlock), _numBlocks(numBlocks), _nFeatures(dataTable->getNumberOfColumns()),
+        _isNormalized(isNormalized)
+    {
+        init();
+    }
+
+    void * operator new(size_t size)
+    {
+        return service_scalable_malloc<unsigned char, cpu>(size);
+    }
+
+    void operator delete(void * p)
+    {
+        service_scalable_free<unsigned char, cpu>((unsigned char *)p);
+    }
+
+    void init()
     {
         crossProductArray.reset(_nFeatures * _nFeatures);
         if(!crossProduct())
@@ -124,7 +140,7 @@ struct ParallelReductionBody
         }
 
         initArray(_nFeatures * _nFeatures, crossProduct());
-        if (!isNormalized)
+        if (!_isNormalized)
         {
             sumsArray.reset(_nFeatures);
             algorithmFPType * sumsPtr = sums();
@@ -138,12 +154,12 @@ struct ParallelReductionBody
         computeOk = true;
     }
 
-    ParallelReductionBody(ParallelReductionBody & other, tbb::split)
-        : ParallelReductionBody(other._dataTable, other._numRowsInBlock, other._numBlocks, other.sums() == nullptr)
-    {}
+    virtual daal::Reducer * create() const {
+        return new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized);
+    }
 
-    void operator()(const tbb::blocked_range<size_t>& r) {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.syrkDataAndSums);
+    virtual void update(size_t begin, size_t end)
+    {
         algorithmFPType * crossProduct_local = crossProduct();
 
         if (!computeOk || !crossProduct_local)
@@ -158,7 +174,7 @@ struct ParallelReductionBody
         algorithmFPType beta     = 1.0;
         const size_t nVectors   = _dataTable->getNumberOfRows();
 
-        for (size_t iBlock = r.begin(); iBlock < r.end(); ++iBlock)
+        for (size_t iBlock = begin; iBlock < end; ++iBlock)
         {
             size_t nRows    = ((iBlock < (_numBlocks - 1)) ? _numRowsInBlock : (_numRowsInBlock + (nVectors - _numBlocks * _numRowsInBlock)));
             size_t startRow = iBlock * _numRowsInBlock;
@@ -177,9 +193,14 @@ struct ParallelReductionBody
                                                         (DAAL_INT *)&_nFeatures);
             }
 
-            algorithmFPType * sums_local = sums();
-            if (sums_local)
+            if (!_isNormalized)
             {
+                algorithmFPType * sums_local = sums();
+                if (!sums_local)
+                {
+                    computeOk = false;
+                    return;
+                }
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
@@ -194,12 +215,17 @@ struct ParallelReductionBody
         }
     }
 
-    void join(ParallelReductionBody & other)
+    virtual void merge(Reducer * otherReducer)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.joinDataAndSums);
-        const algorithmFPType * otherCrossProduct = other.crossProduct();
+        CovarianceReducer<algorithmFPType, cpu> * other = dynamic_cast<CovarianceReducer<algorithmFPType, cpu> *>(otherReducer);
+        if (!other)
+        {
+            computeOk = false;
+            return;
+        }
+        const algorithmFPType * otherCrossProduct = other->crossProduct();
         algorithmFPType * thisCrossProduct = crossProduct();
-        if (!computeOk || !thisCrossProduct || !other.computeOk || !otherCrossProduct)
+        if (!computeOk || !thisCrossProduct || !other->computeOk || !otherCrossProduct)
         {
             computeOk = false;
             return;
@@ -211,11 +237,11 @@ struct ParallelReductionBody
         {
             thisCrossProduct[i] += otherCrossProduct[i];
         }
-        algorithmFPType * thisSums = sums();
-        if (thisSums)
+        if (!_isNormalized)
         {
-            const algorithmFPType * otherSums = other.sums();
-            if (!otherSums)
+            algorithmFPType * thisSums = sums();
+            const algorithmFPType * otherSums = other->sums();
+            if (!thisSums || !otherSums)
             {
                 computeOk = false;
                 return;
@@ -258,6 +284,7 @@ private:
     DAAL_INT64 _numRowsInBlock;
     size_t _numBlocks;
     DAAL_INT _nFeatures;
+    bool _isNormalized;
 };
 
 /* Optimal block size for AVX512 low dimensions case (1024) and other CPU's and cases (140) */
@@ -308,14 +335,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             numBlocks++;
         }
 
-        ParallelReductionBody<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
+        CovarianceReducer<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
         if (!result.crossProduct() || !result.sums())
         {
             return services::Status(services::ErrorMemoryAllocationFailed);
         }
 
         /* Reduce input matrix X into cross product Xt X and a vector of column sums */
-        tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, numBlocks), result, tbb::static_partitioner());
+        const size_t grainSize = 1; // minimal number of data blocks to be processed by a thread
+        daal::threader_reduce(numBlocks, grainSize, result);
 
         const algorithmFPType * resultCrossProduct = result.crossProduct();
         if (result.computeOk == false || !resultCrossProduct)

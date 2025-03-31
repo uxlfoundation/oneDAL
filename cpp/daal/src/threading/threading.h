@@ -54,6 +54,24 @@ typedef int64_t (*loop_functype_int32ptr_int64)(const int32_t * start_idx_reduce
 typedef int64_t (*reduction_functype_int64)(int64_t a, int64_t b, const void * reduction);
 
 class task;
+
+/// Interface for the parallel reduction operation
+class Reducer
+{
+public:
+    /// Constructs and initializes the thread-local partial result
+    virtual Reducer * create() const = 0;
+
+    /// Update partial result with the data from the range [begin, end)
+    /// @param begin Starting iteration of the range
+    /// @param end   The iteration after the last one in the range
+    virtual void update(size_t begin, size_t end) = 0;
+
+    /// Merge the partial result with the data from another thread
+    virtual void merge(Reducer * other) = 0;
+
+    virtual ~Reducer() {}
+};
 } // namespace daal
 
 extern "C"
@@ -61,6 +79,7 @@ extern "C"
     DAAL_EXPORT int _daal_threader_get_max_threads();
     DAAL_EXPORT int _daal_threader_get_current_thread_index();
     DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void * a, daal::functype func);
+    DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::functype_int64 func);
     DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
@@ -243,6 +262,8 @@ inline void threader_for(int n, int reserved, const F & func)
 
     _daal_threader_for(n, reserved, a, threader_func<F>);
 }
+
+
 
 /// Pass a function to be executed in a for loop to the threading layer.
 /// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
@@ -773,6 +794,13 @@ void conditional_static_threader_for(const bool inParallel, const size_t n, Func
         }
     }
 }
+
+template<typename ReducerType>
+void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)
+{
+    _daal_threader_reduce(n, grainSize, reducer);
+}
+
 
 } // namespace daal
 
