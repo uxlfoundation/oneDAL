@@ -139,7 +139,9 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
--sanitize   := $(if $(REQASAN),$(if $(COMPILER_is_vc),/fsanitize=address,-fsanitize=address))
+# NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
+# quietly hide the lack of support (e.g. gnu will fail with REQASAN=memory). Default `address` is universally supported.
+-sanitize   := $(if $(REQASAN),$(if $(COMPILER_is_vc),/fsanitize=,-fsanitize=)$(if $(filter memory,$(REQASAN)),memory,$(if $(filter thread,$(REQASAN)),thread,address)))
 -lsanitize  := $(-sanitize) $(if $(REQASAN),$(if $(filter static,$(REQASAN)),-static-libasan))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
@@ -1138,8 +1140,9 @@ Flags:
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
   REQASAN - flag that integrates AddressSanitizer (ASan). Any value will
       enable ASan integration. A value of "static" will use the static ASan
-      library (use on Windows is unverified).
-      special value: static
+      library (use on Windows is unverified). A value of "memory" will use
+      the MemorySanitizer, and "thread" will integrate the ThreadSanitizer.
+      special values: static memory thread
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
       a Linux OS
