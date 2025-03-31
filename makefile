@@ -1138,7 +1138,7 @@ Flags:
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
-  REQSAN - flag that integrates a Google sanitizer (ASan, TSan, and MSan).
+  REQSAN - flag that integrates a Google sanitizer (ASan, TSan, or MSan).
       Any value will enable ASan integration. A value of "static" will use 
       the static ASan library (use on Windows is unverified). A value of 
       "memory" will use the MemorySanitizer, and "thread" will integrate 
