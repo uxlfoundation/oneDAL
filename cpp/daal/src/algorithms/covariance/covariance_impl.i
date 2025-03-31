@@ -39,8 +39,6 @@
 
 #include <climits>      // UINT_MAX
 
-#include "oneapi/tbb/task_arena.h"
-
 using namespace daal::internal;
 using namespace daal::services::internal;
 

@@ -850,42 +850,33 @@ class ReductionBody
 public:
     /// Constructs the body of the parallel reduce algorithm from the given reducer
     /// @param reducer Pointer to the reducer object
-    ReductionBody(daal::Reducer * reducer) : _reducer(reducer) {
-        _allocatedReducers.resize(daal::threader_env()->getNumberOfThreads());
-        _nAllocatedReducers = 0;
-    }
+    ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false)
+    {}
 
-    ReductionBody(ReductionBody & other, tbb::split) {
-        _reducer = other._reducer->create();
-        _allocatedReducers.insert(_nAllocatedReducers, _reducer);
-        _nAllocatedReducers++;
-    }
+    ReductionBody(ReductionBody & other, tbb::split) :  _reducer(other._reducer->create()), _isSplit(true)\
+    {}
 
-    void operator()(const tbb::blocked_range<size_t>& r) {
+    void operator()(const tbb::blocked_range<size_t>& r)
+    {
         if (_reducer)
             _reducer->update(r.begin(), r.end());
     }
 
-    void join(ReductionBody & other) {
+    void join(ReductionBody & other)
+    {
         if (_reducer)
             _reducer->merge(other._reducer);
     }
 
-    void clear() {
-        tbb::parallel_for(tbb::blocked_range<size_t>(size_t{0}, _nAllocatedReducers), [&](tbb::blocked_range<size_t> r) {
-            for (size_t i = r.begin(); i < r.end(); i++)
-            {
-                delete _allocatedReducers[i];
-                _allocatedReducers[i] = nullptr;
-            }
-        });
-        _nAllocatedReducers = 0;
-        _allocatedReducers.clear();
+    ~ReductionBody()
+    {
+        if (_isSplit)
+            delete _reducer;
     }
+
 private:
     daal::Reducer * _reducer;
-    ThreadingCollection<daal::Reducer *, SimpleAllocator> _allocatedReducers;
-    size_t _nAllocatedReducers;
+    bool _isSplit;
 };
 
 DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
