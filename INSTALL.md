@@ -181,7 +181,7 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
 - To integrate [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer) in a debug oneDAL build, run:
 
-    _Note: Clang and Clang-derived compilers support MSan and TSan (including the Intel DPC++ compiler)_
+    _Note: Clang and Clang-derived compilers (including the Intel DPC++ compiler) support additional sanitizers such MSan, TSan, and UBSan_
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=memory REQDBG=yes
   
