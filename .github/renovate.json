@@ -38,6 +38,13 @@
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/openblas\\.sh$"],
+      "matchStrings": ["BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "OpenMathLib/OpenBLAS",
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
