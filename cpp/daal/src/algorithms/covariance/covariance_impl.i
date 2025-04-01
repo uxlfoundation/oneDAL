@@ -37,8 +37,6 @@
 #include "src/threading/threading.h"
 #include "src/externals/service_profiler.h"
 
-#include <climits> // UINT_MAX
-
 using namespace daal::internal;
 using namespace daal::services::internal;
 
@@ -119,18 +117,6 @@ public:
           _nFeatures(dataTable->getNumberOfColumns()),
           _isNormalized(isNormalized)
     {
-        init();
-    }
-
-    /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
-    /// if memory allocations are executed concurrently.
-    void * operator new(size_t size) { return service_scalable_malloc<unsigned char, cpu>(size); }
-
-    void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
-
-    /// Initialize the thread-local partial results with zeros.
-    void init()
-    {
         _crossProductArray.reset(_nFeatures * _nFeatures);
         if (!crossProduct())
         {
@@ -138,7 +124,6 @@ public:
             return;
         }
 
-        initArray(_nFeatures * _nFeatures, crossProduct());
         if (!_isNormalized)
         {
             _sumsArray.reset(_nFeatures);
@@ -148,10 +133,15 @@ public:
                 computeOk = false;
                 return;
             }
-            initArray(_nFeatures, sums());
         }
         computeOk = true;
     }
+
+    /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
+    /// if memory allocations are executed concurrently.
+    void * operator new(size_t size) { return service_scalable_malloc<unsigned char, cpu>(size); }
+
+    void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
 
     /// Constructs a thread-local partial result and initializes it with zeros.
     /// Must be able to run concurrently with `update` and `join` methods.
@@ -275,36 +265,6 @@ public:
     }
 
 private:
-    /// Initialize the thread-local array with zeros.
-    /// The function uses aligned loads and stores if the data is aligned.
-    ///
-    /// @param n     Number of elements in the array.
-    /// @param array Pointer to the array to be initialized.
-    void initArray(size_t n, algorithmFPType * array)
-    {
-        if (n < UINT_MAX && !((DAAL_UINT64)array & DAAL_MEMORY_ALIGNMENT_MASK))
-        {
-            /// Use aligned stores for aligned data
-            unsigned int n32 = (unsigned int)n;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            PRAGMA_VECTOR_ALIGNED
-            for (unsigned int i = 0; i < n; i++)
-            {
-                array[i] = 0.0;
-            }
-        }
-        else
-        {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < n; i++)
-            {
-                array[i] = 0.0;
-            }
-        }
-    }
-
     /// Pointer to the input data table that stores matrix X for which the cross-product matrix and sums are computed.
     NumericTable * _dataTable;
     /// Number of features in the input data table.
@@ -315,9 +275,9 @@ private:
     size_t _numBlocks;
     /// Thread-local array of partial sums of size `_nFeatures`.
     /// The array is used only if the input data is not normalized.
-    TArrayScalable<algorithmFPType, cpu> _sumsArray;
+    TArrayScalableCalloc<algorithmFPType, cpu> _sumsArray;
     /// Thread-local partial cross-product matrix of size `_nFeatures * _nFeatures`.
-    TArrayScalable<algorithmFPType, cpu> _crossProductArray;
+    TArrayScalableCalloc<algorithmFPType, cpu> _crossProductArray;
     /// Flag that specifies whether the input data is normalized.
     bool _isNormalized;
 };

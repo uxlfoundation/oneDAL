@@ -29,6 +29,8 @@
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
+#include <climits> // UINT_MAX
+
 namespace daal
 {
 namespace services
@@ -80,9 +82,24 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMEN
     char * const cptr        = (char *)ptr;
     const size_t sizeInBytes = size * sizeof(T);
 
-    for (size_t i = 0; i < sizeInBytes; i++)
+    if (sizeInBytes < UINT_MAX && !((DAAL_UINT64)cptr & DAAL_MEMORY_ALIGNMENT_MASK))
     {
-        cptr[i] = '\0';
+        /// Use aligned stores
+        const unsigned int size32 = static_cast<unsigned int>(sizeInBytes);
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_VECTOR_ALIGNED
+        for (unsigned int i = 0; i < size32; i++)
+        {
+            cptr[i] = '\0';
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < sizeInBytes; i++)
+        {
+            cptr[i] = '\0';
+        }
     }
 
     return ptr;
