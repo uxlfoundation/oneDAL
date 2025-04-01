@@ -35,11 +35,6 @@
 #include <tbb/scalable_allocator.h>
 #include <tbb/global_control.h>
 #include <tbb/task_arena.h>
-
-#include "oneapi/tbb/task_arena.h"
-#include "oneapi/tbb/parallel_reduce.h"
-#include "oneapi/tbb/blocked_range.h"
-
 #include "services/daal_atomic_int.h"
 
 #if defined(TBB_INTERFACE_VERSION) && TBB_INTERFACE_VERSION >= 12002
@@ -550,8 +545,6 @@ public:
     *  \return Size of the collection
     */
     size_t size() const { return _size; }
-
-    size_t capacity() const { return _capacity; }
 
     /**
     *  Changes the size of a storage
