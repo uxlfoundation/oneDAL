@@ -20,7 +20,6 @@
 
 #include "src/services/service_allocators.h"
 #include "src/services/service_utils.h"
-#include "src/externals/service_profiler.h"
 
 namespace daal
 {
@@ -99,14 +98,6 @@ private:
 
         other._data = nullptr;
         other._size = 0;
-    }
-
-    friend void swap(DynamicArray & first, DynamicArray & second)
-    {
-        if (&first == &second) return;
-
-        swap<cpu, T *>(first._data, second._data);
-        swap<cpu, size_t>(first._size, second._size);
     }
 
 private:
