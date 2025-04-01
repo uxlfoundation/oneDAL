@@ -1144,7 +1144,7 @@ Flags:
       value of "static". This value will link with the static ASan library.
       Use on Windows is unverified, with the available sanitizers dependent
       on the compiler. It is recommended to use in tandem with REQDBG.
-      special values: static
+      special values: static, address, memory, thread, leak, undefined
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
       a Linux OS
