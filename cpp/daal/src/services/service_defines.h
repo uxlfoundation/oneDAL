@@ -348,7 +348,7 @@ typedef union
     #define DAAL_FORCENOINLINE __attribute__((noinline))
 #endif
 
-#define DAAL_MEMORY_ALIGNMENT 64
+#define DAAL_MEMORY_ALIGNMENT      64
 #define DAAL_MEMORY_ALIGNMENT_MASK (DAAL_MEMORY_ALIGNMENT - 1)
 
 #if defined(_MSC_VER) && (_MSC_VER < 1900)
