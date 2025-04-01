@@ -857,7 +857,7 @@ public:
 
     /// Splitting constructor.
     /// Constructs the partial result initialized to identity value from the given partial result.
-    /// Must be able to run concurrently with operator() and join() methods.
+    /// Must be able to run concurrently with `operator()` and `join()` methods.
     ///
     /// @param other The body to split.
     /// @param split Split object.
@@ -876,7 +876,7 @@ public:
     /// @param other The body to merge.
     void join(ReductionBody & other)
     {
-        if (_reducer) _reducer->merge(other._reducer);
+        if (_reducer) _reducer->join(other._reducer);
     }
 
     ~ReductionBody()

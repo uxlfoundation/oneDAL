@@ -72,8 +72,9 @@ public:
         allocate(other.size());
         if (!_data) return;
         const T * otherData = other.get();
-        if (_size < UINT_MAX && !((DAAL_UINT64)_data & 0x0000003FULL) && !((DAAL_UINT64)otherData & 0x0000003FULL))
+        if (_size < UINT_MAX && !((DAAL_UINT64)_data & DAAL_MEMORY_ALIGNMENT_MASK) && !((DAAL_UINT64)otherData & DAAL_MEMORY_ALIGNMENT_MASK))
         {
+            /// Use aligned loads and stores for aligned data
             const unsigned int _size32 = static_cast<unsigned int>(_size);
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
