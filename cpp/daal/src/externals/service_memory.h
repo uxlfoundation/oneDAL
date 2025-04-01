@@ -36,7 +36,7 @@ namespace services
 namespace internal
 {
 template <typename T, CpuType cpu>
-T * service_calloc(size_t size, size_t alignment = 64)
+T * service_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
 {
     T * ptr = (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
     if (ptr == NULL)
@@ -56,7 +56,7 @@ T * service_calloc(size_t size, size_t alignment = 64)
 }
 
 template <typename T, CpuType cpu>
-T * service_malloc(size_t size, size_t alignment = 64)
+T * service_malloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
 {
     return (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
 }
@@ -68,7 +68,7 @@ void service_free(T * ptr)
 }
 
 template <typename T, CpuType cpu>
-T * service_scalable_calloc(size_t size, size_t alignment = 64)
+T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
 {
     T * ptr = (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
 
@@ -89,7 +89,7 @@ T * service_scalable_calloc(size_t size, size_t alignment = 64)
 }
 
 template <typename T, CpuType cpu>
-T * service_scalable_malloc(size_t size, size_t alignment = 64)
+T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
 {
     return (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
 }
