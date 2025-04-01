@@ -41,7 +41,8 @@ namespace interface1
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_LM_PREDICTION_RESULT_ID);
 
 Input::Input(size_t nElements) : regression::prediction::Input(nElements) {}
-Input::Input(const Input & other) : regression::prediction::Input(other) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 NumericTablePtr Input::get(NumericTableInputId id) const
 {

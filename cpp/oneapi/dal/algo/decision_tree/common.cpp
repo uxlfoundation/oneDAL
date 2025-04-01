@@ -22,22 +22,51 @@ namespace v1 {
 
 namespace de = dal::detail;
 
-template <typename Task>
-node_info<Task>::node_info() : impl_(new impl_t{}) {}
+// due to the very low-level dependence on implicit instantiation for leaf_node_info,
+// this full expansion of the node_info class methods were required in order to comply
+// with the various compilers and ONEDAL_EXPORT, which respond differently depending on
+// the compiler. This verbose solution is unfortunately necessary, as not to break the
+// API or ABI and still work with all supported compilers.
 
-template <typename Task>
-node_info<Task>::~node_info() {
+template <>
+ONEDAL_EXPORT node_info<task::classification>::node_info() : impl_(new impl_t{}) {}
+
+template <>
+ONEDAL_EXPORT node_info<task::regression>::node_info() : impl_(new impl_t{}) {}
+
+template <>
+ONEDAL_EXPORT node_info<task::classification>::~node_info() {
+    delete impl_;
+}
+template <>
+ONEDAL_EXPORT node_info<task::regression>::~node_info() {
     delete impl_;
 }
 
-template <typename Task>
-node_info<Task>::node_info(impl_t* impl) : impl_(impl) {}
+template <>
+ONEDAL_EXPORT node_info<task::classification>::node_info(impl_t* impl) : impl_(impl) {}
 
-template <typename Task>
-node_info<Task>::node_info(const node_info<Task>& orig) : impl_(new impl_t(*orig.impl_)) {}
+template <>
+ONEDAL_EXPORT node_info<task::regression>::node_info(impl_t* impl) : impl_(impl) {}
 
-template <typename Task>
-node_info<Task>::node_info(node_info<Task>&& orig) : impl_(orig.impl_) {
+template <>
+ONEDAL_EXPORT node_info<task::classification>::node_info(
+    const node_info<task::classification>& orig)
+        : impl_(new impl_t(*orig.impl_)) {}
+
+template <>
+ONEDAL_EXPORT node_info<task::regression>::node_info(const node_info<task::regression>& orig)
+        : impl_(new impl_t(*orig.impl_)) {}
+
+template <>
+ONEDAL_EXPORT node_info<task::classification>::node_info(node_info<task::classification>&& orig)
+        : impl_(orig.impl_) {
+    orig.impl_ = nullptr;
+}
+
+template <>
+ONEDAL_EXPORT node_info<task::regression>::node_info(node_info<task::regression>&& orig)
+        : impl_(orig.impl_) {
     orig.impl_ = nullptr;
 }
 
@@ -65,18 +94,33 @@ node_info<Task>& node_info<Task>::operator=(node_info<task_t>&& orig) {
     return *this;
 }
 
-template <typename Task>
-std::int64_t node_info<Task>::get_level() const {
+template <>
+std::int64_t ONEDAL_EXPORT node_info<task::classification>::get_level() const {
     return impl_->level;
 }
 
-template <typename Task>
-double node_info<Task>::get_impurity() const {
+template <>
+std::int64_t ONEDAL_EXPORT node_info<task::regression>::get_level() const {
+    return impl_->level;
+}
+
+template <>
+double ONEDAL_EXPORT node_info<task::classification>::get_impurity() const {
     return impl_->impurity;
 }
 
-template <typename Task>
-std::int64_t node_info<Task>::get_sample_count() const {
+template <>
+double ONEDAL_EXPORT node_info<task::regression>::get_impurity() const {
+    return impl_->impurity;
+}
+
+template <>
+std::int64_t ONEDAL_EXPORT node_info<task::classification>::get_sample_count() const {
+    return impl_->sample_count;
+}
+
+template <>
+std::int64_t ONEDAL_EXPORT node_info<task::regression>::get_sample_count() const {
     return impl_->sample_count;
 }
 
@@ -210,8 +254,6 @@ double leaf_node_info<task::regression>::get_response() const {
     return de::cast_impl<impl_t>(*this).response;
 }
 
-template class ONEDAL_EXPORT node_info<task::classification>;
-template class ONEDAL_EXPORT node_info<task::regression>;
 template class ONEDAL_EXPORT split_node_info<task::classification>;
 template class ONEDAL_EXPORT split_node_info<task::regression>;
 

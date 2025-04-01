@@ -49,6 +49,7 @@ Parameter::Parameter(const NumericTablePtr quantileOrders) : daal::algorithms::P
 
 Input::Input() : daal::algorithms::Input(lastInputId + 1) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for the quantiles algorithm

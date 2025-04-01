@@ -99,18 +99,14 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the algorithm */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a Decision tree training algorithm by copying input objects
      * and parameters of another Decision tree training algorithm in the batch processing mode
      * \param[in] other Algorithm to use as the source to initialize the input objects and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other)
-        : algorithms::regression::training::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual algorithms::regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
 

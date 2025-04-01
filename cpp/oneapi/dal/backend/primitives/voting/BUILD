@@ -14,27 +14,12 @@ dal_module(
 )
 
 dal_test_suite(
-    name = "perf_tests",
-    framework = "catch2",
-    compile_as = [ "dpc++" ],
-    private = True,
-    srcs = glob([
-        "test/*perf_dpc.cpp",
-    ]),
-    dal_deps = [
-        ":voting",
-    ],
-)
-
-dal_test_suite(
     name = "tests",
     framework = "catch2",
     compile_as = [ "dpc++" ],
     private = True,
     srcs = glob([
         "test/*_dpc.cpp",
-    ], exclude=[
-        "test/*perf*.cpp",
     ]),
     dal_deps = [
         ":voting",

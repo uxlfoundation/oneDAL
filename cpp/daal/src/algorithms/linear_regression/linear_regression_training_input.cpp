@@ -38,7 +38,8 @@ namespace interface1
 {
 /** Default constructor */
 Input::Input() : linear_model::training::Input(lastInputId + 1) {}
-Input::Input(const Input & other) : linear_model::training::Input(other) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for linear regression model-based training
