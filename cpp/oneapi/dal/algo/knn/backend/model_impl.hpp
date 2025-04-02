@@ -91,9 +91,9 @@ public:
     kd_tree_model_impl(const kd_tree_model_impl&) = delete;
     kd_tree_model_impl& operator=(const kd_tree_model_impl&) = delete;
 
-    kd_tree_model_impl(kd_tree_model_impl&& other) device_engine(device_engine&& other) noexcept = default;
+    kd_tree_model_impl(kd_tree_model_impl&& other) noexcept = default;
 
-    kd_tree_model_impl& operator=(kd_tree_model_impl&& other) device_engine(device_engine&& other) noexcept = default;
+    kd_tree_model_impl& operator=(kd_tree_model_impl&& other) noexcept = default;
 
     ~kd_tree_model_impl() {
         delete interop_;
@@ -116,7 +116,6 @@ public:
 private:
     backend::model_interop* interop_;
 };
-
 
 } // namespace backend
 } // namespace oneapi::dal::knn
