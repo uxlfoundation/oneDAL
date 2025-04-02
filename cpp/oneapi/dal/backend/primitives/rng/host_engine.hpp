@@ -173,7 +173,6 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
     ONEDAL_ASSERT(casted_count < casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::int64_t k = 0;
     std::size_t value = 0;
     auto state = host_engine.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
@@ -186,9 +185,7 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
         if (value >= casted_top)
             continue;
         indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-        k++;
     }
-    ONEDAL_ASSERT(k == count);
 }
 
 } // namespace oneapi::dal::backend::primitives

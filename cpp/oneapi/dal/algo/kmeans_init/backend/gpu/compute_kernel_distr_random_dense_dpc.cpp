@@ -71,7 +71,6 @@ template struct compute_kernel_distr<double, method::random_dense, task::init>;
 
 namespace misc {
 
-
 ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
                                         std::int64_t count,
                                         std::int64_t scount,
@@ -80,14 +79,17 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     auto& queue_ = ctx.get_queue();
     const auto rank_count = comm.get_rank_count();
     //auto engine_type = pr::convert_engine_method(desc.get_engine_type());
-    pr::device_engine engine_gpu =
-        ::oneapi::dal::backend::primitives::device_engine(queue_, rseed, ::oneapi::dal::backend::primitives::engine_type_internal::mt19937);
+    pr::device_engine engine_gpu = ::oneapi::dal::backend::primitives::device_engine(
+        queue_,
+        rseed,
+        ::oneapi::dal::backend::primitives::engine_type_internal::mt19937);
 
     ids_arr_t root_rand = ids_arr_t::empty(rank_count);
 
     if (comm.is_root_rank()) {
         const auto maxval = rank_count + 1;
-        auto ndres_result_root = pr::ndview<std::int64_t, 1>::wrap(root_rand.get_mutable_data(), { count });
+        auto ndres_result_root =
+            pr::ndview<std::int64_t, 1>::wrap(root_rand.get_mutable_data(), { count });
         pr::partial_fisher_yates_shuffle(queue_, ndres_result_root, maxval, rseed, engine_gpu);
     }
 

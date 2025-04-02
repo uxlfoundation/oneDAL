@@ -211,6 +211,6 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
     this->check_results(arr_gpu, arr_host);
 }
 
-//TODO: add engine collection test + separate host_engine tests
+//TODO: add separate host_engine tests
 
 } // namespace oneapi::dal::backend::primitives::test

@@ -18,7 +18,6 @@
 
 #include "oneapi/dal/algo/kmeans_init/compute_types.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
-#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 
 namespace oneapi::dal::kmeans_init::backend {
@@ -33,8 +32,6 @@ struct compute_kernel_distr {
 namespace misc {
 using ctx_t = dal::backend::context_gpu;
 using ids_arr_t = array<std::int64_t>;
-
-// ids_arr_t generate_random_indices(std::int64_t count, std::int64_t scount, std::int64_t seed = 777);
 
 ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
                                         std::int64_t count,
