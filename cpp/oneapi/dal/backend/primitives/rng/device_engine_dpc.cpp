@@ -162,9 +162,9 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          ndview<Type, 1>& result_array,
                                          std::int64_t top,
                                          std::int64_t seed,
-                                         engine_type_internal method,
+                                         device_engine& engine_,
                                          const event_vector& deps) {
-    device_engine eng_ = device_engine(queue_, seed, method);
+
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
@@ -173,7 +173,7 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
 
     std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = engine_.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
@@ -233,7 +233,7 @@ INSTANTIATE_SHUFFLE(std::int32_t)
                                                                     ndview<F, 1>& a,             \
                                                                     std::int64_t top,            \
                                                                     std::int64_t seed,           \
-                                                                    engine_type_internal method, \
+                                                                    device_engine& engine_, \
                                                                     const event_vector& deps);
 
 INSTANTIATE_PARTIAL_SHUFFLE(std::int32_t)

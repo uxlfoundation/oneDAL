@@ -457,8 +457,9 @@ sycl::event partial_fisher_yates_shuffle(
     ndview<Type, 1>& result_array,
     std::int64_t top,
     std::int64_t seed,
-    engine_type_internal method = engine_type_internal::mt19937,
+    device_engine& engine_,
     const event_vector& deps = {});
+
 #endif
 
 } // namespace oneapi::dal::backend::primitives

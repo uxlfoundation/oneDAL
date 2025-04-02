@@ -166,8 +166,7 @@ template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
                                   std::int64_t seed,
-                                  engine_type_internal method = engine_type_internal::mt19937) {
-    host_engine eng_ = host_engine(seed, method);
+                                  host_engine host_engine) {
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
@@ -176,7 +175,7 @@ void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
 
     std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = host_engine.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
