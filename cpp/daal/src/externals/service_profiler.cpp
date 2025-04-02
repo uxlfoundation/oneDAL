@@ -16,50 +16,94 @@
 *******************************************************************************/
 
 #include "src/externals/service_profiler.h"
+#include <iostream>
 
 namespace daal
 {
 namespace internal
 {
-#ifdef ONEDAL_KERNEL_PROFILER
 
-ProfilerTask::ProfilerTask(const char * taskName) : _taskName(taskName)
+bool is_verbose_enabled()
 {
-    _handle = __itt_string_handle_create(taskName);
-
-    __itt_task_begin(Profiler::getDomain(), __itt_null, __itt_null, _handle);
+    // const char * env_var = std::getenv("ONEDAL_VERBOSE");
+    // return env_var && std::string(env_var) == "1";
+    //for testing purposes
+    return true;
 }
 
-ProfilerTask::~ProfilerTask()
+profiler::profiler()
 {
-    Profiler::endTask(_taskName);
+    start_time = get_time();
 }
 
-ProfilerTask Profiler::startTask(const char * taskName)
+profiler::~profiler()
 {
-    return ProfilerTask(taskName);
+    auto end_time   = get_time();
+    auto total_time = end_time - start_time;
+    if (is_verbose_enabled())
+    {
+        std::cerr << "DAAL_KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+    }
 }
 
-void Profiler::endTask(const char * taskName)
+std::uint64_t profiler::get_time()
 {
-    __itt_task_end(Profiler::getDomain());
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
-#else
-ProfilerTask Profiler::startTask(const char * taskName)
+profiler * profiler::get_instance()
 {
-    return ProfilerTask(taskName);
+    static profiler instance;
+    return &instance;
 }
 
-void Profiler::endTask(const char * taskName) {}
-
-ProfilerTask::ProfilerTask(const char * taskName) : _taskName(taskName) {}
-
-ProfilerTask::~ProfilerTask()
+task & profiler::get_task()
 {
-    Profiler::endTask(_taskName);
+    return task_;
 }
+
+profiler_task profiler::start_task(const char * task_name)
+{
+    auto ns_start                                      = get_time();
+    auto & tasks_info                                  = get_instance()->get_task();
+    tasks_info.time_kernels[tasks_info.current_kernel] = ns_start;
+    tasks_info.current_kernel++;
+    return profiler_task(task_name);
+}
+
+void profiler::end_task(const char * task_name)
+{
+    const std::uint64_t ns_end = get_time();
+    auto & tasks_info          = get_instance()->get_task();
+#ifdef ONEDAL_DATA_PARALLEL
+    auto & queue = get_instance()->get_queue();
+    queue.wait_and_throw();
 #endif
+    tasks_info.current_kernel--;
+    const std::uint64_t times = ns_end - tasks_info.time_kernels[tasks_info.current_kernel];
 
+    auto it = tasks_info.kernels.find(task_name);
+    if (it == tasks_info.kernels.end())
+    {
+        tasks_info.kernels.insert({ task_name, times });
+    }
+    else
+    {
+        it->second += times;
+    }
+    if (is_verbose_enabled())
+    {
+        std::cerr << "DAAL_KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
+    }
+}
+
+profiler_task::profiler_task(const char * task_name) : task_name_(task_name) {}
+
+profiler_task::~profiler_task()
+{
+    profiler::end_task(task_name_);
+}
 } // namespace internal
 } // namespace daal
