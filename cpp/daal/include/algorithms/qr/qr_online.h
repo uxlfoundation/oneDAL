@@ -85,7 +85,7 @@ public:
  *      - \ref Method   Computation methods for the QR decomposition algorithm
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Online : public daal::algorithms::Analysis<online>
+class DAAL_EXPORT Online : public daal::algorithms::Analysis<online>
 {
 public:
     typedef OnlinePartialResult PartialResult;
@@ -99,7 +99,7 @@ public:
     InputType input;         /*!< Input object */
     ParameterType parameter; /*!< QR parameters */
 
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -107,7 +107,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Online(const Online<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

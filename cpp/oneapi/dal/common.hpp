@@ -19,8 +19,8 @@
 #include <cstdint>
 #include <utility>
 
+#ifdef __ONEDAL_ENABLE_EXPORT__
 #if defined(_WIN32) || defined(_WIN64)
-#ifdef __ONEDAL_ENABLE_DLL_EXPORT__
 #define __ONEDAL_IMPORT_IMPL __declspec(dllimport)
 #define __ONEDAL_EXPORT_IMPL __declspec(dllexport)
 #ifdef INVERT_EXPORT_IMPORT
@@ -30,8 +30,10 @@
 #define ONEDAL_EXPORT __ONEDAL_EXPORT_IMPL
 #define ONEDAL_IMPORT __ONEDAL_IMPORT_IMPL
 #endif // defined(INVERT_EXPORT_IMPORT)
-#endif // __ONEDAL_ENABLE_DLL_EXPORT__
+#else
+#define ONEDAL_EXPORT __attribute__((visibility("default")))
 #endif // defined(_WIN32) || defined(_WIN64)
+#endif // __ONEDAL_ENABLE_EXPORT__
 
 #ifndef ONEDAL_EXPORT
 #define ONEDAL_EXPORT

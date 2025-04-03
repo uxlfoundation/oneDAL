@@ -49,7 +49,7 @@ const size_t nFeatures = 13; /* Number of features in training and testing data 
 const size_t maxIterations = 40;
 size_t nTrees = 0;
 
-/** Node structure for representing nodes in trees after traversing Intel(R) DAAL model */
+/** Node structure for representing nodes in trees after traversing DAAL model */
 struct Node {
     Node *left;
     Node *right;
@@ -65,7 +65,7 @@ struct Node {
     Node() : left(NULL), right(NULL), response(0), featureIndex(0), featureValue(0) {}
 };
 
-/** Tree structure for representing tree after traversing Intel(R) DAAL model */
+/** Tree structure for representing tree after traversing DAAL model */
 struct Tree {
     Node *root;
     size_t nNodes;
@@ -176,7 +176,7 @@ bool buildTree(size_t treeId,
 int main(int argc, char *argv[]) {
     checkArguments(argc, argv, 1, &trainDatasetFileName);
 
-    /* Train Intel(R) DAAL Gradient Boosted Trees Regression model */
+    /* Train DAAL Gradient Boosted Trees Regression model */
     training::ResultPtr trainingResult = trainModel();
     std::cout << "Predict on trained model" << std::endl;
     ModelPtr trainedModel = trainingResult->get(training::model);

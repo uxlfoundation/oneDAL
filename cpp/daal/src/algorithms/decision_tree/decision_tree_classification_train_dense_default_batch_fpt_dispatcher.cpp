@@ -29,6 +29,31 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_tree::classification::training::BatchContainer, batch, DAAL_FPTYPE,
                                       decision_tree::classification::training::defaultDense)
+namespace decision_tree
+{
+namespace classification
+{
+namespace training
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_tree::classification::training::defaultDense>::Batch(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
 
+using BatchType = Batch<DAAL_FPTYPE, decision_tree::classification::training::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace training
+} // namespace classification
+} // namespace decision_tree
 } // namespace algorithms
 } // namespace daal

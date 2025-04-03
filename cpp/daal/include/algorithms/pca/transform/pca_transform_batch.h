@@ -82,7 +82,7 @@ public:
 *      - \ref Method   Computation methods for the PCA transformation algorithm
 */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public daal::algorithms::Analysis<batch>
+class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
 {
 public:
     typedef algorithms::pca::transform::Input InputType;
@@ -96,7 +96,7 @@ public:
     * Constructs a PCA transformation algorithm
     * \param[in] nComponents Number of principal components
     */
-    Batch(size_t nComponents = 0) : parameter(nComponents) { initialize(); }
+    Batch(size_t nComponents = 0);
 
     /**
     * Constructs a PCA transformation algorithm by copying input objects and parameters
@@ -104,7 +104,7 @@ public:
     * \param[in] other An algorithm to be used as the source to initialize the input objects
     *                  and parameters of the algorithm
     */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

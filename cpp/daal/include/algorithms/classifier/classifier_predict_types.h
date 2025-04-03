@@ -82,7 +82,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -163,7 +163,7 @@ protected:
 } // namespace interface1
 
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {

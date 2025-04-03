@@ -106,17 +106,13 @@ public:
     ParameterType parameter; /*!< %Training parameters */
 
     /** Default constructor */
-    Online() { initialize(); }
-
+    Online();
     /**
      * Constructs a ridge regression training algorithm by copying input objects and parameters of another ridge regression training algorithm in the
      * online processing mode
      * \param[in] other Algorithm to use as the source to initialize the input objects and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Online(const Online<algorithmFPType, method> & other);
 
     ~Online() {}
 
