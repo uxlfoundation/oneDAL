@@ -888,5 +888,11 @@ DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, d
     tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
 }
 
+DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    ReductionBody body(&reducer);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
+}
+
 namespace daal
 {}

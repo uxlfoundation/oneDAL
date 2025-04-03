@@ -163,6 +163,7 @@ typedef void * (*_getThreadPinner_t)(bool create_pinner, void (*read_topo)(int &
 #endif
 
 typedef void (*_daal_threader_reduce_t)(const size_t, const size_t, daal::Reducer & reducer);
+typedef void (*_daal_static_threader_reduce_t)(const size_t, const size_t, daal::Reducer & reducer);
 
 static _threaded_malloc_t _threaded_malloc_ptr = NULL;
 static _threaded_free_t _threaded_free_ptr     = NULL;
@@ -231,6 +232,7 @@ static _getThreadPinner_t _getThreadPinner_ptr                                  
 #endif
 
 static _daal_threader_reduce_t _daal_threader_reduce_ptr = NULL;
+static _daal_static_threader_reduce_t _daal_static_threader_reduce_ptr = NULL;
 
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
@@ -800,5 +802,15 @@ DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, d
         _daal_threader_reduce_ptr = (_daal_threader_reduce_t)load_daal_thr_func("_daal_threader_reduce");
     }
     _daal_threader_reduce_ptr(n, grainSize, reducer);
+}
+
+DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    load_daal_thr_dll();
+    if (_daal_static_threader_reduce_ptr == NULL)
+    {
+        _daal_static_threader_reduce_ptr = (_daal_static_threader_reduce_t)load_daal_thr_func("_daal_static_threader_reduce");
+    }
+    _daal_static_threader_reduce_ptr(n, grainSize, reducer);
 }
 #endif

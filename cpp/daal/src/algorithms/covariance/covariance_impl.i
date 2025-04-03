@@ -338,7 +338,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
 
         /* Reduce input matrix X into cross product Xt X and a vector of column sums */
         const size_t grainSize = 1; // minimal number of data blocks to be processed by a thread
-        daal::threader_reduce(numBlocks, grainSize, result);
+        daal::static_threader_reduce(numBlocks, grainSize, result);
 
         const algorithmFPType * resultCrossProduct = result.crossProduct();
         if (result.computeOk == false || !resultCrossProduct)
@@ -452,15 +452,31 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
 
         if (nObsValue == 0)
         {
-            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j <= i; j++)
+            if (nFeatures > 512)
+            {
+                daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j <= i; j++)
+                    {
+                        crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
+                        crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
+                    }
+                });
+            }
+            else
+            {
+                for(size_t i = 0; size_t < nFeatures; i++)
                 {
-                    crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
-                    crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j <= i; j++)
+                    {
+                        crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
+                        crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
+                    }
                 }
-            });
+            }
         }
         else
         {
