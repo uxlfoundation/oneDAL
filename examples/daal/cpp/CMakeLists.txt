@@ -34,6 +34,7 @@ set_common_compiler_options()
 include_directories(source/utils)
 
 option(REF_BACKEND "Exclude not supported files for non-MKL backend" OFF)
+option(OPENRNG_BACKEND "Exclude not supported files for ref+OpenRNG backend" OFF)
 
 set(EXCLUDE_LIST
     "source/utils/*"
@@ -45,6 +46,19 @@ if(REF_BACKEND)
         ${EXCLUDE_LIST}
         "source/boosting/brownboost_dense_batch.cpp"
     )
+    if(OPENRNG_BACKEND)
+        set(EXCLUDE_LIST
+            ${EXCLUDE_LIST}
+            "source/decision_forest/df_cls_default_dense_extratrees_batch.cpp"
+            "source/decision_forest/df_cls_hist_dense_extratrees_batch.cpp"
+            "source/decision_forest/df_reg_default_dense_batch.cpp"
+            "source/decision_forest/df_reg_hist_dense_batch.cpp"
+            "source/decision_forest/df_cls_hist_dense_batch.cpp"
+            "source/decision_forest/df_cls_default_dense_batch.cpp"
+            "source/decision_forest/df_cls_traversed_model_builder.cpp"
+            "source/host_app/host_cancel_compute.cpp"
+        )
+    endif()
 endif()
 
 include("target_excludes.cmake")
