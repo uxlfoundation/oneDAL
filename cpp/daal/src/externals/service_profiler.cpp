@@ -48,9 +48,16 @@ profiler::~profiler()
 
 std::uint64_t profiler::get_time()
 {
+#ifdef _WIN32
+    LARGE_INTEGER frequency, counter;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&counter);
+    return (counter.QuadPart * 1000000000) / frequency.QuadPart; // Перевод в наносекунды
+#else
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec * 1000000000 + t.tv_nsec;
+#endif
 }
 
 profiler * profiler::get_instance()

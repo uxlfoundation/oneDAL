@@ -21,7 +21,11 @@
 //--
 */
 
-#include <sys/time.h>
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <sys/time.h>
+#endif
 #include <time.h>
 #include <cstdint>
 #include <cstring>
@@ -47,7 +51,7 @@ namespace internal
 
 struct task
 {
-    static const std::uint64_t MAX_KERNELS = 256;
+    static const std::uint64_t MAX_KERNELS = 1024;
     std::map<const char *, std::uint64_t> kernels;
     std::uint64_t current_kernel = 0;
     std::uint64_t time_kernels[MAX_KERNELS];

@@ -16,6 +16,7 @@
 
 #include "oneapi/dal/detail/profiler.hpp"
 #include <iostream>
+#include <stdexcept>
 
 namespace oneapi::dal::detail {
 
@@ -37,9 +38,16 @@ profiler::~profiler() {
 }
 
 std::uint64_t profiler::get_time() {
+#ifdef _WIN32
+    LARGE_INTEGER frequency, counter;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&counter);
+    return (counter.QuadPart * 1000000000) / frequency.QuadPart; // Перевод в наносекунды
+#else
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec * 1000000000 + t.tv_nsec;
+#endif
 }
 
 profiler* profiler::get_instance() {
@@ -64,24 +72,25 @@ void profiler::set_queue(const sycl::queue& q) {
 profiler_task profiler::start_task(const char* task_name) {
     auto ns_start = get_time();
     auto& tasks_info = get_instance()->get_task();
-    tasks_info.time_kernels[tasks_info.current_kernel] = ns_start;
-    tasks_info.current_kernel++;
+    if (tasks_info.current_kernel >= task::MAX_KERNELS) {
+        throw std::runtime_error("Exceeded maximum kernel tracking limit");
+    }
+    tasks_info.time_kernels[tasks_info.current_kernel++] = ns_start;
     return profiler_task(task_name);
 }
 
 void profiler::end_task(const char* task_name) {
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
-#ifdef ONEDAL_DATA_PARALLEL
-    auto& queue = get_instance()->get_queue();
-    queue.wait_and_throw();
-#endif
+    if (tasks_info.current_kernel == 0) {
+        throw std::runtime_error("Attempting to end a task when no tasks are running");
+    }
     tasks_info.current_kernel--;
     const std::uint64_t times = ns_end - tasks_info.time_kernels[tasks_info.current_kernel];
 
     auto it = tasks_info.kernels.find(task_name);
     if (it == tasks_info.kernels.end()) {
-        tasks_info.kernels.insert({ task_name, times });
+        tasks_info.kernels.insert({ std::string(task_name), times });
     }
     else {
         it->second += times;
@@ -96,18 +105,13 @@ void profiler::end_task(const char* task_name) {
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
     task_queue.wait_and_throw();
     get_instance()->set_queue(task_queue);
-    auto ns_start = get_time();
-    auto& tasks_info = get_instance()->get_task();
-    tasks_info.time_kernels[tasks_info.current_kernel] = ns_start;
-    tasks_info.current_kernel++;
-    return profiler_task(task_name, task_queue);
+    return start_task(task_name);
 }
 
 profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue)
         : task_name_(task_name),
           task_queue_(task_queue),
           has_queue_(true) {}
-
 #endif
 
 profiler_task::profiler_task(const char* task_name) : task_name_(task_name) {}
