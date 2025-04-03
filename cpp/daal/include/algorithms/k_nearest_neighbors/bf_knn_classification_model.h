@@ -141,6 +141,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
         return *this;
     }
 
+    virtual ~Parameter() {}
     /**
      * Checks a parameter of the BF kNN algorithm
      */
