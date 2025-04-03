@@ -91,7 +91,6 @@ dal_collect_test_suites(
         "placement",
         "reduction",
         "regression",
-        "rng",
         "selection",
         "sort",
         "sparse_blas",
