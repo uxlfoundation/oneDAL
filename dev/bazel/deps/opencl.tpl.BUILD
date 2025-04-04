@@ -5,5 +5,5 @@ cc_library(
     srcs = glob([
         "libOpenCL.so.1.2",
         "libOpenCL.so.1.0",
-    ]),
+    ], allow_empty=True,),
 )
