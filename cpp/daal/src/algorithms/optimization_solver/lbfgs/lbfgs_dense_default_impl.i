@@ -577,7 +577,7 @@ void LBFGSTask<algorithmFPType, cpu>::computeCorrectionPairImpl(size_t correctio
         BlasInst<algorithmFPType, cpu>::xgemv(&trans, &n, &n, &one, const_cast<algorithmFPType *>(hessian), &n, s, &ione, &zero, y, &ione);
     }
     rho[correctionIndex] = dotProduct<algorithmFPType, cpu>(this->argumentSize, s, y);
-    if (rho[correctionIndex] != 0.0) // threshold
+    if (rho[correctionIndex] >= 1e-8) // threshold
     {
         rho[correctionIndex] = 1.0 / rho[correctionIndex];
     }
