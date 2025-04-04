@@ -32,9 +32,11 @@ cc_library(
         "-lpthread",
         "-lm",
         "-ldl",
+        "-lOpenCL"
     ],
     deps = [
         ":headers",
+        "@opencl//:opencl_binary",
     ],
     alwayslink = 1,
     linkstatic = 1,
