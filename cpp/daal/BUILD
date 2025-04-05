@@ -219,6 +219,7 @@ daal_algorithms(
         "stump",
         "svd",
         "svm",
+        "spectral_embedding",
         "weak_learner/inner",
     ],
 )
