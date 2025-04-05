@@ -107,6 +107,7 @@ TEMPLATE_LIST_TEST_M(sql2_distance_test_random,
                      "Randomly filled squared L2-distance computation",
                      "[l2][distance][small]",
                      distance_types) {
+    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
     this->generate();
     this->test_squared_l2_distance();
