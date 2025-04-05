@@ -422,9 +422,9 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
         DAAL_CHECK(V_buff, ErrorMemoryAllocationFailed);
 
         /* Call QR on master node for RB */
-        const auto ecQr = compute_QR_on_one_node_seq<algorithmFPType, cpu>(cols * blocks, cols, RT_buff, cols * blocks, R_buff, cols);
+        const auto ecQr = compute_QR_on_one_node<algorithmFPType, cpu>(cols * blocks, cols, RT_buff, cols * blocks, R_buff, cols);
         if (!ecQr) return ecQr;
-        const auto ecSvd = compute_svd_on_one_node_seq<algorithmFPType, cpu>(cols, cols, R_buff, cols, S_output, U_buff, cols, V_buff, cols);
+        const auto ecSvd = compute_svd_on_one_node<algorithmFPType, cpu>(cols, cols, R_buff, cols, S_output, U_buff, cols, V_buff, cols);
         if (!ecSvd) return ecSvd;
 
         WriteOnlyRows<algorithmFPType, cpu, NumericTable> bkS_output(ntS_output, 0, 1);
@@ -438,7 +438,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
 
         if (svdPar->leftSingularMatrix == requiredInPackedForm)
         {
-            compute_gemm_on_one_node_seq<algorithmFPType, cpu>(cols * blocks, cols, RT_buff, cols * blocks, U_buff, cols, R_buff, cols * blocks);
+            compute_gemm_on_one_node<algorithmFPType, cpu>(cols * blocks, cols, RT_buff, cols * blocks, U_buff, cols, R_buff, cols * blocks);
         }
 
         if (svdPar->rightSingularMatrix == requiredInPackedForm)
