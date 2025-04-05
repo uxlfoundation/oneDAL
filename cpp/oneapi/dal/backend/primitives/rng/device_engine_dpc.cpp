@@ -162,18 +162,16 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          ndview<Type, 1>& result_array,
                                          std::int64_t top,
                                          std::int64_t seed,
-                                         engine_type_internal method,
+                                         device_engine& engine_,
                                          const event_vector& deps) {
-    device_engine eng_ = device_engine(queue_, seed, method);
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
     ONEDAL_ASSERT(casted_count < casted_top);
     auto indices_ptr = result_array.get_mutable_data();
 
-    std::int64_t k = 0;
     std::size_t value = 0;
-    auto state = eng_.get_host_engine_state();
+    auto state = engine_.get_host_engine_state();
     for (std::size_t i = 0; i < casted_count; i++) {
         uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
         for (std::size_t j = i; j > 0; j--) {
@@ -184,9 +182,7 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
         if (value >= casted_top)
             continue;
         indices_ptr[i] = dal::detail::integral_cast<Type>(value);
-        k++;
     }
-    ONEDAL_ASSERT(k == count);
     auto event = queue_.submit([&](sycl::handler& h) {
         h.depends_on(deps);
     });
@@ -228,12 +224,12 @@ INSTANTIATE_UWR(std::int32_t)
 
 INSTANTIATE_SHUFFLE(std::int32_t)
 
-#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                           \
-    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue,          \
-                                                                    ndview<F, 1>& a,             \
-                                                                    std::int64_t top,            \
-                                                                    std::int64_t seed,           \
-                                                                    engine_type_internal method, \
+#define INSTANTIATE_PARTIAL_SHUFFLE(F)                                                      \
+    template ONEDAL_EXPORT sycl::event partial_fisher_yates_shuffle(sycl::queue& queue,     \
+                                                                    ndview<F, 1>& a,        \
+                                                                    std::int64_t top,       \
+                                                                    std::int64_t seed,      \
+                                                                    device_engine& engine_, \
                                                                     const event_vector& deps);
 
 INSTANTIATE_PARTIAL_SHUFFLE(std::int32_t)
