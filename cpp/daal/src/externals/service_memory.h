@@ -115,7 +115,7 @@ struct ServiceInitializer
 template <typename T, CpuType cpu>
 T * service_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
-    T * ptr = (T *)daal::services::daal_malloc(size, alignment);
+    T * ptr = (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
     if (ptr == NULL)
     {
         return NULL;
