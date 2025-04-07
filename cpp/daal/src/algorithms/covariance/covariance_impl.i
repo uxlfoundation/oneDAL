@@ -466,7 +466,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             }
             else
             {
-                for(size_t i = 0; size_t < nFeatures; i++)
+                for(size_t i = 0; i < nFeatures; i++)
                 {
                     PRAGMA_IVDEP
                     PRAGMA_VECTOR_ALWAYS
