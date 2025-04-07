@@ -39,7 +39,7 @@ namespace services
 namespace internal
 {
 
-/// Initialize block of memory of length num with value.
+/// Initializes block of memory of length `num` with value.
 ///
 /// @tparam T   Data type of the elements in the block.
 /// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
@@ -73,45 +73,50 @@ void service_memset_seq(T * const ptr, const T value, const size_t num)
     }
 }
 
+/// Structure that groups memory initialization methods for various data types together
+///
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
 template <CpuType cpu>
 struct ServiceInitializer
 {
+    /// Initialize block of memory of length `num` with the value returned by the default constructor.
+    ///
+    /// @tparam T   Data type of the elements in the block.
+    ///
+    /// @param ptr      Pointer to the block of memory.
+    /// @param num      Number of elements in the block.
     template <typename T>
     static void memset_default(T * const ptr, const size_t num)
     {
         service_memset_seq<T, cpu>(ptr, T(), num);
     }
 
+    /// Initialize block of memory of length `num` with zeros.
+    ///
+    /// @tparam T   Data type of the elements in the block.
+    ///
+    /// @param ptr      Pointer to the block of memory.
+    /// @param num      Number of elements in the block.
     template <typename T>
     static void memset(T * const ptr, const size_t num)
     {
         char * cptr = (char *)ptr;
         size_t size = num * sizeof(T);
 
-        if (size < UINT_MAX && !((DAAL_UINT64)cptr & DAAL_DEFAULT_ALIGNMENT_MASK))
-        {
-            /// Use aligned stores
-            unsigned int size32 = static_cast<unsigned int>(size);
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            PRAGMA_VECTOR_ALIGNED
-            for (unsigned int i = 0; i < size32; i++)
-            {
-                cptr[i] = '\0';
-            }
-        }
-        else
-        {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < size; i++)
-            {
-                cptr[i] = '\0';
-            }
-        }
+        service_memset_seq<char, cpu>(сptr, '\0', num);
     }
 };
 
+/// Allocates an aligned memory block for the `size` objects of type `T` and initialize it with the value
+/// returned by the default constructor if possible, or with zeros.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param size         Number of elements in the block.
+/// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
+///
+/// @return In case of success, the aligned address of the initialized memory block; NULL pointer otherwise.
 template <typename T, CpuType cpu>
 T * service_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
@@ -133,6 +138,18 @@ T * service_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT
     return ptr;
 }
 
+/// Allocates an aligned memory block for the `size` objects of type `T` and initialize it with the value
+/// returned by the default constructor if possible, or with zeros.
+///
+/// This saclable variant allocates memory in a way that scales with the number of processors.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param size         Number of elements in the block.
+/// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
+///
+/// @return In case of success, the aligned address of the initialized memory block; NULL pointer otherwise.
 template <typename T, CpuType cpu>
 T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
@@ -154,24 +171,55 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
     return ptr;
 }
 
+/// Allocates an aligned memory block for the `size` objects of type `T`.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param size         Number of elements in the block.
+/// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
+///
+/// @return In case of success, the aligned address of the uninitialized memory block; NULL pointer otherwise.
 template <typename T, CpuType cpu>
 T * service_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
     return (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
 }
 
+/// Frees the memory allocated with `service_malloc` or `service_calloc`.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param ptr  Pointer to the memory block.
 template <typename T, CpuType cpu>
 void service_free(T * ptr)
 {
     daal::services::daal_free(ptr);
 }
 
+/// Allocates an aligned memory block for the `size` objects of type `T`.
+/// This saclable variant allocates memory in a way that scales with the number of processors.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param size         Number of elements in the block.
+/// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
+///
+/// @return In case of success, the aligned address of the uninitialized memory block; NULL pointer otherwise.
 template <typename T, CpuType cpu>
 T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT)
 {
     return (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
 }
 
+/// Frees the memory allocated with `service_scalable_malloc` or `service_scalable_calloc`.
+///
+/// @tparam T   Data type of the elements in the block.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+///
+/// @param ptr  Pointer to the memory block.
 template <typename T, CpuType cpu>
 void service_scalable_free(T * ptr)
 {
