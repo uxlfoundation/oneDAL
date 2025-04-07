@@ -99,7 +99,7 @@ dal_algo_example_suite(
         "svm",
         "triangle_counting",
     ],
-    compile_as = [ "c++" ],
+    compile_as = [ "dpc++," ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS,
 )
