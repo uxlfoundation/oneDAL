@@ -39,10 +39,7 @@ void * daal::services::daal_calloc(size_t size, size_t alignment)
 
     char * cptr = (char *)ptr;
 
-    for (size_t i = 0; i < size; i++)
-    {
-        cptr[i] = '\0';
-    }
+    daal::services::internal::service_memset_seq<char, DAAL_BASE_CPU>(cptr, '\0', size);
 
     return ptr;
 }
