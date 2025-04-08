@@ -31,18 +31,10 @@ static volatile int daal_verbose_val __attribute__((aligned(64))) = -1;
 __declspec(align(64)) static volatile int daal_verbose_val = -1;
 #endif
 
+static bool device_info_needed = false;
+static bool kernel_info_needed = false;
+
 //__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
-
-// #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
-// #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
-
-// static __forceinline int strtoint(const char *str, int def) {
-//     int val;
-//     char *tail;
-//     if (str == NULL) return def;
-//     val = strtol(str, &tail, 0);
-//     return (*tail == '\0' && tail != str ? val : def);
-// }
 
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
@@ -50,7 +42,7 @@ __declspec(align(64)) static volatile int daal_verbose_val = -1;
 *  @returns pointer to mode
 *                      0 disabled
 *                      1 enabled
-*                      2 enabled (on cpu) OR enabled with timing (on GPU)
+*                      2 enabled with device and library information(will be added soon)
 */
 
 std::string format_time_for_output(std::uint64_t time_ns)
@@ -107,26 +99,12 @@ static void set_verbose_from_env(void)
 
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval               = 0;
-
-    if (verbose_str && *verbose_str != '\0')
+    if (verbose_str)
     {
-        bool valid = true;
-        for (const char * p = verbose_str; *p != '\0'; ++p)
+        newval = std::atoi(verbose_str);
+        if (newval < 0 || newval > 2)
         {
-            if (!std::isdigit(*p))
-            {
-                valid = false;
-                break;
-            }
-        }
-
-        if (valid)
-        {
-            newval = std::atoi(verbose_str);
-            if (newval != 0 && newval != 1 && newval != 2)
-            {
-                newval = 0;
-            }
+            newval = 0;
         }
     }
 
@@ -162,14 +140,27 @@ int onedal_verbose(int option)
 
 profiler::profiler()
 {
-    print_header();
+    int verbose = *onedal_verbose_mode();
+    if (verbose == 1)
+    {
+        kernel_info_needed = true;
+    }
+    else if (verbose == 2)
+    {
+        device_info_needed = true;
+        kernel_info_needed = true;
+    }
+
+    if (device_info_needed)
+    {
+        print_header();
+    }
     start_time = get_time();
 }
 
 profiler::~profiler()
 {
-    int verbose = *onedal_verbose_mode();
-    if (verbose == 1)
+    if (kernel_info_needed)
     {
         std::cerr << "DAAL KERNEL_PROFILER: ALL KERNELS total time "
                   << " " << format_time_for_output(total_time) << std::endl;
@@ -232,8 +223,7 @@ void profiler::end_task(const char * task_name)
         it->second += times;
     }
     get_instance()->total_time += times;
-    int verbose = *onedal_verbose_mode();
-    if (verbose == 1)
+    if (kernel_info_needed)
     {
         std::cerr << "DAAL KERNEL_PROFILER: total time " << std::string(task_name) << " " << format_time_for_output(times) << std::endl;
     }

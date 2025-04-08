@@ -40,18 +40,12 @@ __declspec(align(64)) static volatile int onedal_verbose_val = -1;
 #endif
 
 static bool device_info_printed = false;
+static bool device_info_needed = false;
+static bool kernel_info_needed = false;
 //__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 
 #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
 #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
-
-// static __forceinline int strtoint(const char *str, int def) {
-//     int val;
-//     char *tail;
-//     if (str == NULL) return def;
-//     val = strtol(str, &tail, 0);
-//     return (*tail == '\0' && tail != str ? val : def);
-// }
 
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
@@ -59,7 +53,7 @@ static bool device_info_printed = false;
 *  @returns pointer to mode
 *                      0 disabled
 *                      1 enabled
-*                      2 enabled (on cpu) OR enabled with timing (on GPU)
+*                      2 enabled with device and library information(will be added soon)
 */
 
 static void set_verbose_from_env(void) {
@@ -69,21 +63,10 @@ static void set_verbose_from_env(void) {
 
     const char* verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval = 0;
-
-    if (verbose_str && *verbose_str != '\0') {
-        bool valid = true;
-        for (const char* p = verbose_str; *p != '\0'; ++p) {
-            if (!std::isdigit(*p)) {
-                valid = false;
-                break;
-            }
-        }
-
-        if (valid) {
-            newval = std::atoi(verbose_str);
-            if (newval != 0 && newval != 1 && newval != 2) {
-                newval = 0;
-            }
+    if (verbose_str) {
+        newval = std::atoi(verbose_str);
+        if (newval < 0 || newval > 2) {
+            newval = 0;
         }
     }
 
@@ -108,13 +91,10 @@ void print_device_info(sycl::device dev) {
     std::cout << "\tType:\t" << device << std::endl;
     std::cout << "\tVendor:\t" << dev.get_info<sycl::info::device::vendor>() << std::endl;
     std::cout << "\tVersion:\t" << dev.get_info<sycl::info::device::version>() << std::endl;
-    //std::cout << "\tProfile:\t" << dev.get_info<sycl::info::device::profile>() << std::endl;
     std::cout << "\tDriver:\t" << dev.get_info<sycl::info::device::driver_version>() << std::endl;
 
-    // if (!dev.is_host()) {
-    //     std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
-    //               << std::endl;
-    // }
+    std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
+              << std::endl;
 
     std::cout << "\tMax comp units:\t" << dev.get_info<sycl::info::device::max_compute_units>()
               << std::endl;
@@ -192,13 +172,23 @@ int onedal_verbose(int option) {
 }
 
 profiler::profiler() {
-    print_header();
+    int verbose = *onedal_verbose_mode();
+    if (verbose == 1) {
+        kernel_info_needed = true;
+    }
+    else if (verbose == 2) {
+        device_info_needed = true;
+        kernel_info_needed = true;
+    }
+
+    if (device_info_needed) {
+        print_header();
+    }
     start_time = get_time();
 }
 
 profiler::~profiler() {
-    int verbose = *onedal_verbose_mode();
-    if (verbose == 1) {
+    if (kernel_info_needed) {
         std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time "
                   << format_time_for_output(total_time) << std::endl;
     }
@@ -267,8 +257,7 @@ void profiler::end_task(const char* task_name) {
         it->second += times;
     }
     get_instance()->total_time += times;
-    int verbose = *onedal_verbose_mode();
-    if (verbose > 0) {
+    if (kernel_info_needed) {
         std::cerr << "ONEDAL KERNEL_PROFILER: " << std::string(task_name) << " ";
         std::cerr << format_time_for_output(times) << std::endl;
     }
@@ -277,7 +266,7 @@ void profiler::end_task(const char* task_name) {
 #ifdef ONEDAL_DATA_PARALLEL
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
     task_queue.wait_and_throw();
-    if (device_info_printed == false) {
+    if (device_info_printed == false && device_info_needed == true) {
         auto device = task_queue.get_device();
         print_device_info(device);
         device_info_printed = true;
