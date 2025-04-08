@@ -25,13 +25,10 @@ namespace daal
 namespace internal
 {
 
-static volatile int daal_verbose_val __attribute__((aligned(64))) = -1;
-
+static volatile int daal_verbose_val = -1;
 
 static bool device_info_needed = false;
 static bool kernel_info_needed = false;
-
-//__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
@@ -76,16 +73,16 @@ std::string format_time_for_output(std::uint64_t time_ns)
 
 void print_header()
 {
-    daal::services::LibraryVersionInfo ver;
+    // daal::services::LibraryVersionInfo ver;
 
-    std::cout << "Major version:          " << ver.majorVersion << std::endl;
-    std::cout << "Minor version:          " << ver.minorVersion << std::endl;
-    std::cout << "Update version:         " << ver.updateVersion << std::endl;
-    std::cout << "Product status:         " << ver.productStatus << std::endl;
-    std::cout << "Build:                  " << ver.build << std::endl;
-    std::cout << "Build revision:         " << ver.build_rev << std::endl;
-    std::cout << "Name:                   " << ver.name << std::endl;
-    std::cout << "Processor optimization: " << ver.processor << std::endl;
+    // std::cout << "Major version:          " << ver.majorVersion << std::endl;
+    // std::cout << "Minor version:          " << ver.minorVersion << std::endl;
+    // std::cout << "Update version:         " << ver.updateVersion << std::endl;
+    // std::cout << "Product status:         " << ver.productStatus << std::endl;
+    // std::cout << "Build:                  " << ver.build << std::endl;
+    // std::cout << "Build revision:         " << ver.build_rev << std::endl;
+    // std::cout << "Name:                   " << ver.name << std::endl;
+    // std::cout << "Processor optimization: " << ver.processor << std::endl;
     std::cout << std::endl;
 }
 
