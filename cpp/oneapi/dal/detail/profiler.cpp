@@ -39,7 +39,9 @@ static volatile int onedal_verbose_val __attribute__((aligned(64))) = -1;
 __declspec(align(64)) static volatile int onedal_verbose_val = -1;
 #endif
 
+#ifdef ONEDAL_DATA_PARALLEL
 static bool device_info_printed = false;
+#endif
 static bool device_info_needed = false;
 static bool kernel_info_needed = false;
 //__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
