@@ -33,11 +33,8 @@
 
 namespace oneapi::dal::detail {
 
-#ifdef ONEDAL_REF
 static volatile int onedal_verbose_val __attribute__((aligned(64))) = -1;
-#else
-__declspec(align(64)) static volatile int onedal_verbose_val = -1;
-#endif
+
 
 #ifdef ONEDAL_DATA_PARALLEL
 static bool device_info_printed = false;

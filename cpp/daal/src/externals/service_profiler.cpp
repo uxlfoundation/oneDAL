@@ -25,11 +25,8 @@ namespace daal
 namespace internal
 {
 
-#ifdef DAAL_REF
 static volatile int daal_verbose_val __attribute__((aligned(64))) = -1;
-#else
-__declspec(align(64)) static volatile int daal_verbose_val = -1;
-#endif
+
 
 static bool device_info_needed = false;
 static bool kernel_info_needed = false;
