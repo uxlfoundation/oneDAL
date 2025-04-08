@@ -16,7 +16,6 @@ _TEST_DEPS = [
 
 _DATA_DEPS = [
     "@onedal//examples/oneapi:data",
-    ""
 ]
 
 dal_example_suite(
