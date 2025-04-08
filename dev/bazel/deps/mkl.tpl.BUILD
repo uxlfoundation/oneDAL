@@ -32,7 +32,6 @@ cc_library(
         "-lpthread",
         "-lm",
         "-ldl",
-        "-lOpenCL"
     ],
     deps = [
         ":headers",
