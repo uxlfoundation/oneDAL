@@ -17,7 +17,9 @@
 
 #include "src/externals/service_profiler.h"
 #include <iostream>
-
+#include <sstream>
+#include <iomanip>
+#include "services/library_version_info.h"
 namespace daal
 {
 namespace internal
@@ -50,6 +52,53 @@ __declspec(align(64)) static volatile int daal_verbose_val = -1;
 *                      1 enabled
 *                      2 enabled (on cpu) OR enabled with timing (on GPU)
 */
+
+std::string format_time_for_output(std::uint64_t time_ns)
+{
+    std::ostringstream out;
+    double time = static_cast<double>(time_ns);
+
+    if (time <= 0)
+    {
+        out << "0.00s";
+    }
+    else
+    {
+        if (time > 1e9)
+        {
+            out << std::fixed << std::setprecision(2) << time / 1e9 << "s";
+        }
+        else if (time > 1e6)
+        {
+            out << std::fixed << std::setprecision(2) << time / 1e6 << "ms";
+        }
+        else if (time > 1e3)
+        {
+            out << std::fixed << std::setprecision(2) << time / 1e3 << "us";
+        }
+        else
+        {
+            out << static_cast<std::uint64_t>(time) << "ns";
+        }
+    }
+
+    return out.str();
+}
+
+void print_header()
+{
+    daal::services::LibraryVersionInfo ver;
+
+    std::cout << "Major version:          " << ver.majorVersion << std::endl;
+    std::cout << "Minor version:          " << ver.minorVersion << std::endl;
+    std::cout << "Update version:         " << ver.updateVersion << std::endl;
+    std::cout << "Product status:         " << ver.productStatus << std::endl;
+    std::cout << "Build:                  " << ver.build << std::endl;
+    std::cout << "Build revision:         " << ver.build_rev << std::endl;
+    std::cout << "Name:                   " << ver.name << std::endl;
+    std::cout << "Processor optimization: " << ver.processor << std::endl;
+    std::cout << std::endl;
+}
 
 static void set_verbose_from_env(void)
 {
@@ -113,16 +162,17 @@ int onedal_verbose(int option)
 
 profiler::profiler()
 {
+    print_header();
     start_time = get_time();
 }
 
 profiler::~profiler()
 {
-    auto end_time   = get_time();
-    auto total_time = end_time - start_time;
-    if (*onedal_verbose_mode() == 1)
+    int verbose = *onedal_verbose_mode();
+    if (verbose == 1)
     {
-        std::cerr << "DAAL_KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
+        std::cerr << "DAAL KERNEL_PROFILER: ALL KERNELS total time "
+                  << " " << format_time_for_output(total_time) << std::endl;
     }
 }
 
@@ -181,9 +231,11 @@ void profiler::end_task(const char * task_name)
     {
         it->second += times;
     }
-    if (*onedal_verbose_mode() == 1)
+    get_instance()->total_time += times;
+    int verbose = *onedal_verbose_mode();
+    if (verbose == 1)
     {
-        std::cerr << "DAAL_KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
+        std::cerr << "DAAL KERNEL_PROFILER: total time " << std::string(task_name) << " " << format_time_for_output(times) << std::endl;
     }
 }
 

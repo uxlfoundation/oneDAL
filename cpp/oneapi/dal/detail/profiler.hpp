@@ -95,6 +95,7 @@ public:
 
 private:
     std::uint64_t start_time;
+    std::uint64_t total_time;
     task task_;
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue queue_;

@@ -80,6 +80,7 @@ public:
     static void end_task(const char * task_name);
 
 private:
+    std::uint64_t total_time = 0;
     std::uint64_t start_time;
     task task_;
 };
