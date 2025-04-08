@@ -20,7 +20,7 @@ _DATA_DEPS = [
 
 dal_example_suite(
     name = "graph",
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     srcs = glob(["source/graph/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/graph",
@@ -31,7 +31,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "table",
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     srcs = glob(["source/table/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/table",
@@ -42,7 +42,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "kmeans_init",
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     srcs = glob(["source/kmeans_init/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/algo:kmeans",
@@ -54,7 +54,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "misc",
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     srcs = glob(["source/misc/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal:io",
@@ -65,7 +65,7 @@ dal_example_suite(
 
 dal_example_suite(
     name = "jaccard",
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     srcs = glob(["source/jaccard/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/oneapi/dal/algo:jaccard",
@@ -98,7 +98,7 @@ dal_algo_example_suite(
         "svm",
         "triangle_counting",
     ],
-    compile_as = [ "dpc++" ],
+    compile_as = [ "c++" ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS,
 )
