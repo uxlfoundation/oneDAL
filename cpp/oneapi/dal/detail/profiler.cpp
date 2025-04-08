@@ -29,6 +29,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "oneapi/dal/detail/profiler.hpp"
+#include <daal/include/services/library_version_info.h>
 
 namespace oneapi::dal::detail {
 
@@ -89,6 +90,20 @@ static void set_verbose_from_env(void) {
     read_done = 1;
 }
 
+void print_header()
+{
+    daal::services::LibraryVersionInfo ver;
+
+    std::cout << "Major version:          " << ver.majorVersion << std::endl;
+    std::cout << "Minor version:          " << ver.minorVersion << std::endl;
+    std::cout << "Update version:         " << ver.updateVersion << std::endl;
+    std::cout << "Product status:         " << ver.productStatus << std::endl;
+    std::cout << "Build:                  " << ver.build << std::endl;
+    std::cout << "Build revision:         " << ver.build_rev << std::endl;
+    std::cout << "Name:                   " << ver.name << std::endl;
+    std::cout << "Processor optimization: " << ver.processor << std::endl;
+}
+
 int* onedal_verbose_mode() {
     if (__builtin_expect((onedal_verbose_val == -1), 0)) {
         // ADD MUTEX
@@ -113,6 +128,7 @@ int onedal_verbose(int option) {
 }
 
 profiler::profiler() {
+    print_header();
     start_time = get_time();
 }
 
@@ -184,7 +200,8 @@ void profiler::end_task(const char* task_name) {
     else {
         it->second += times;
     }
-    if (*onedal_verbose_mode() == 1) {
+
+    if (*onedal_verbose_mode() > 0) {
         std::cerr << "KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6
                   << std::endl;
     }
