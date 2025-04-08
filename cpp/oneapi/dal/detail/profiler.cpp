@@ -74,6 +74,7 @@ static void set_verbose_from_env(void) {
     read_done = 1;
 }
 
+#ifdef ONEDAL_DATA_PARALLEL
 void print_device_info(sycl::device dev) {
     std::cout << "Platfrom: " << dev.get_platform().get_info<sycl::info::platform::name>()
               << std::endl;
@@ -108,6 +109,7 @@ void print_device_info(sycl::device dev) {
               << dev.get_info<sycl::info::device::global_mem_cache_size>() << std::endl;
     std::cout << std::endl;
 }
+#endif
 
 std::string format_time_for_output(std::uint64_t time_ns) {
     std::ostringstream out;
