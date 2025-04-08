@@ -52,10 +52,9 @@
 namespace oneapi::dal::detail {
 
 struct task {
-    static constexpr std::uint64_t MAX_KERNELS = 1024;
     std::map<std::string, std::uint64_t> kernels;
     std::uint64_t current_kernel = 0;
-    std::uint64_t time_kernels[MAX_KERNELS]{};
+    std::vector<std::uint64_t> time_kernels;
     void clear();
 };
 

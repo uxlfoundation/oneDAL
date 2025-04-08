@@ -23,12 +23,88 @@ namespace daal
 namespace internal
 {
 
-bool is_verbose_enabled()
+__declspec(align(64)) static volatile int onedal_verbose_val = -1;
+
+//__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
+
+#define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
+#define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
+
+// static __forceinline int strtoint(const char *str, int def) {
+//     int val;
+//     char *tail;
+//     if (str == NULL) return def;
+//     val = strtol(str, &tail, 0);
+//     return (*tail == '\0' && tail != str ? val : def);
+// }
+
+/**
+* Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
+*
+*  @returns pointer to mode
+*                      0 disabled
+*                      1 enabled
+*                      2 enabled (on cpu) OR enabled with timing (on GPU)
+*/
+
+static void set_verbose_from_env(void)
 {
-    // const char * env_var = std::getenv("ONEDAL_VERBOSE");
-    // return env_var && std::string(env_var) == "1";
-    //for testing purposes
-    return true;
+    static volatile int read_done = 0;
+    if (read_done) return;
+
+    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
+    int newval               = 0;
+
+    if (verbose_str && *verbose_str != '\0')
+    {
+        bool valid = true;
+        for (const char * p = verbose_str; *p != '\0'; ++p)
+        {
+            if (!std::isdigit(*p))
+            {
+                valid = false;
+                break;
+            }
+        }
+
+        if (valid)
+        {
+            newval = std::atoi(verbose_str);
+            if (newval != 0 && newval != 1 && newval != 2)
+            {
+                newval = 0;
+            }
+        }
+    }
+
+    onedal_verbose_val = newval;
+    read_done          = 1;
+}
+
+int * onedal_verbose_mode()
+{
+    if (__builtin_expect((onedal_verbose_val == -1), 0))
+    {
+        // ADD MUTEX
+        if (onedal_verbose_val == -1) set_verbose_from_env();
+        // DISABLE MUTEX
+    }
+    return (int *)&onedal_verbose_val;
+}
+
+int onedal_verbose(int option)
+{
+    int * retVal = onedal_verbose_mode();
+    if (option != 0 && option != 1 && option != 2)
+    {
+        return -1;
+    }
+    if (option != onedal_verbose_val)
+    {
+        // ADD MUTEX
+        if (option != onedal_verbose_val) onedal_verbose_val = option;
+    }
+    return *retVal;
 }
 
 profiler::profiler()
@@ -40,7 +116,7 @@ profiler::~profiler()
 {
     auto end_time   = get_time();
     auto total_time = end_time - start_time;
-    if (is_verbose_enabled())
+    if (*onedal_verbose_mode() == 1)
     {
         std::cerr << "DAAL_KERNEL_PROFILER: total time " << total_time / 1e6 << std::endl;
     }
@@ -73,10 +149,9 @@ task & profiler::get_task()
 
 profiler_task profiler::start_task(const char * task_name)
 {
-    auto ns_start                                      = get_time();
-    auto & tasks_info                                  = get_instance()->get_task();
-    tasks_info.time_kernels[tasks_info.current_kernel] = ns_start;
-    tasks_info.current_kernel++;
+    auto ns_start     = get_time();
+    auto & tasks_info = get_instance()->get_task();
+    tasks_info.time_kernels.push_back(ns_start);
     return profiler_task(task_name);
 }
 
@@ -84,12 +159,14 @@ void profiler::end_task(const char * task_name)
 {
     const std::uint64_t ns_end = get_time();
     auto & tasks_info          = get_instance()->get_task();
-#ifdef ONEDAL_DATA_PARALLEL
-    auto & queue = get_instance()->get_queue();
-    queue.wait_and_throw();
-#endif
-    tasks_info.current_kernel--;
-    const std::uint64_t times = ns_end - tasks_info.time_kernels[tasks_info.current_kernel];
+
+    if (tasks_info.time_kernels.empty())
+    {
+        throw std::runtime_error("Attempting to end a task when no tasks are running");
+    }
+    const std::uint64_t ns_start = tasks_info.time_kernels.back();
+    tasks_info.time_kernels.pop_back();
+    const std::uint64_t times = ns_end - ns_start;
 
     auto it = tasks_info.kernels.find(task_name);
     if (it == tasks_info.kernels.end())
@@ -100,7 +177,7 @@ void profiler::end_task(const char * task_name)
     {
         it->second += times;
     }
-    if (is_verbose_enabled())
+    if (*onedal_verbose_mode() == 1)
     {
         std::cerr << "DAAL_KERNEL_PROFILER: " << std::string(task_name) << " " << times / 1e6 << std::endl;
     }
