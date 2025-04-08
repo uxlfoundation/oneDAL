@@ -36,7 +36,7 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@opencl//:opencl_lib",
+        "@opencl//:opencl_binary",
     ],
     alwayslink = 1,
     linkstatic = 1,

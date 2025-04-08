@@ -4,6 +4,10 @@ load("@onedal//dev/bazel:dal.bzl",
     "dal_algo_example_suite",
 )
 
+load("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
+opencl_repo(name = "opencl")
+
+
 dal_module(
     name = "example_util",
     hdrs = glob(["source/example_util/*.hpp"]),
@@ -11,11 +15,12 @@ dal_module(
 )
 
 _TEST_DEPS = [
-    ":example_util",
+    ":example_util", "@opencl//:opencl_lib",
 ]
 
 _DATA_DEPS = [
     "@onedal//examples/oneapi:data",
+    ""
 ]
 
 dal_example_suite(
