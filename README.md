@@ -68,7 +68,6 @@ C++ Examples:
 
 Python Examples:
 - [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/notebooks)
-- [daal4py](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/daal4py)
 
 <details><summary>Other Examples</summary>
 
