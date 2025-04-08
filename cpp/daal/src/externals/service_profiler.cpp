@@ -23,12 +23,16 @@ namespace daal
 namespace internal
 {
 
-__declspec(align(64)) static volatile int onedal_verbose_val = -1;
+#ifdef DAAL_REF
+static volatile int daal_verbose_val __attribute__((aligned(64))) = -1;
+#else
+__declspec(align(64)) static volatile int daal_verbose_val = -1;
+#endif
 
 //__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 
-#define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
-#define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
+// #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
+// #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
 
 // static __forceinline int strtoint(const char *str, int def) {
 //     int val;
@@ -77,19 +81,19 @@ static void set_verbose_from_env(void)
         }
     }
 
-    onedal_verbose_val = newval;
-    read_done          = 1;
+    daal_verbose_val = newval;
+    read_done        = 1;
 }
 
 int * onedal_verbose_mode()
 {
-    if (__builtin_expect((onedal_verbose_val == -1), 0))
+    if (__builtin_expect((daal_verbose_val == -1), 0))
     {
         // ADD MUTEX
-        if (onedal_verbose_val == -1) set_verbose_from_env();
+        if (daal_verbose_val == -1) set_verbose_from_env();
         // DISABLE MUTEX
     }
-    return (int *)&onedal_verbose_val;
+    return (int *)&daal_verbose_val;
 }
 
 int onedal_verbose(int option)
@@ -99,10 +103,10 @@ int onedal_verbose(int option)
     {
         return -1;
     }
-    if (option != onedal_verbose_val)
+    if (option != daal_verbose_val)
     {
         // ADD MUTEX
-        if (option != onedal_verbose_val) onedal_verbose_val = option;
+        if (option != daal_verbose_val) daal_verbose_val = option;
     }
     return *retVal;
 }
