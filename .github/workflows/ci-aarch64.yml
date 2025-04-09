@@ -40,10 +40,11 @@ permissions: read-all
 jobs:
   build-and-test:
     strategy:
+      fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: ubuntu-24.04-arm },
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50 }
+          { name: LinuxMakeGNU_OpenBLAS(SVE, GitHub), label: ubuntu-24.04-arm },
+          { name: LinuxMakeGNU_OpenBLAS(SVE, Arm hosted), label: ah-ubuntu_24_04-c6g_2x-50 }
         ]
 
     name: ${{ matrix.os.name }}
@@ -61,12 +62,10 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Checkout oneTBB
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: uxlfoundation/oneTBB
-          ref: v2022.0.0
-          path: oneTBB
+      - name: Build oneTBB
+        run: .ci/env/tbb.sh
+        env:
+          CMAKE_GENERATOR: Ninja
 
       - name: Checkout openBLAS
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -74,19 +73,6 @@ jobs:
           repository: OpenMathLib/OpenBLAS
           ref: v0.3.29
           path: openBLAS
-
-      # TODO: Cache oneTBB
-      - name: Configure oneTBB
-        run: cmake -S. -Bbuild  -DTBB_TEST=OFF
-        env:
-          CMAKE_BUILD_TYPE: Release
-          CMAKE_INSTALL_PREFIX: ${{ env.DEP_DIR }}
-          CMAKE_GENERATOR: Ninja
-        working-directory: ${{ github.workspace }}/oneTBB
-
-      - name: Build oneTBB
-        run: cmake --build build --target install
-        working-directory: ${{ github.workspace }}/oneTBB
 
       # TODO: Cache openBLAS
       - name: Build openBLAS
@@ -109,6 +95,9 @@ jobs:
         run: |
           echo "TBBROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
           echo "OPENBLASROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
+
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
   
       - name: make daal
         run: |
