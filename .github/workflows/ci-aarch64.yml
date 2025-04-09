@@ -83,7 +83,12 @@ jobs:
         working-directory: ${{ github.workspace }}/oneTBB
 
       - name: Install OpenBLAS
-        run: .ci/env/apt.sh openblas
+        run: |
+          .ci/env/apt.sh openblas
+          # temporary fix for deps.ref.mk
+          mkdir ${{ env.DEP_DIR }}/open_blas
+          ln -s /usr/include/aarch64-linux-gnu/openblas-pthread/ ${{ env.DEP_DIR }}/open_blas/include
+          ln -s /usr/lib/aarch64-linux-gnu/openblas-pthread/ ${{ env.DEP_DIR }}/open_blas/lib
 
       - name: Setup python
         uses: actions/setup-python@v5
@@ -93,14 +98,13 @@ jobs:
       - name: Set environment variables
         run: |
           echo "TBBROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
-          echo "OPENBLASROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
 
       - name: System Info
         run: .ci/scripts/describe_system.sh
   
       - name: make daal
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --blas-dir $OPENBLASROOT --tbb-dir $TBBROOT
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref  --tbb-dir $TBBROOT
 
       - name: make onedal_c
         run: |
