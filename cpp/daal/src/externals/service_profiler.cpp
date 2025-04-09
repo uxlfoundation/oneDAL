@@ -116,7 +116,11 @@ int * onedal_verbose_mode()
 #endif
     {
         std::lock_guard<std::mutex> lock(std::mutex);
+#ifdef _WIN
+        daal_verbose_val == -1;
+#else
         if (daal_verbose_val == -1) set_verbose_from_env();
+#endif
     }
     return (int *)&daal_verbose_val;
 }

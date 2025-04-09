@@ -160,8 +160,12 @@ int* onedal_verbose_mode() {
 #endif
     {
         std::lock_guard<std::mutex> lock(std::mutex);
+#ifdef _WIN
+        onedal_verbose_val == -1;
+#else
         if (onedal_verbose_val == -1)
             set_verbose_from_env();
+#endif
     }
     return (int*)&onedal_verbose_val;
 }
