@@ -61,7 +61,7 @@ function install_dev-base-conda {
 }
 
 function install_gnu-cross-compilers {
-    if [ -z "$1" ]; arch=$(uname -m); else arch=$1; fi
+    if [ -z "$1" ]; then arch=$(uname -m); else arch=$1; fi
     sudo apt-get install -y "gcc-${arch}-linux-gnu" "g++-${arch}-linux-gnu" "gfortran-${arch}-linux-gnu"
 }
 
