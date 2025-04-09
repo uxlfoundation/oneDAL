@@ -82,6 +82,9 @@ jobs:
         run: |
           # .ci/env/tbb.sh
           # echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt update
           apt-cache pkgnames intel-oneapi
           sudo apt-get install intel-oneapi-tbb-2022.1
 
