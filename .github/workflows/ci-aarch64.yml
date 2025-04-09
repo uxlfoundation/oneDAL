@@ -43,11 +43,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: LinuxMakeGNU_OpenBLAS(SVE, GitHub), label: ubuntu-24.04-arm },
-          { name: LinuxMakeGNU_OpenBLAS(SVE, Arm hosted), label: ah-ubuntu_24_04-c6g_2x-50 }
+          { name: GitHub hosted, label: ubuntu-24.04-arm },
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50 }
         ]
 
-    name: ${{ matrix.os.name }}
+    name: LinuxMakeGNU_OpenBLAS(SVE)-${{ matrix.os.name }}
     runs-on: ${{ matrix.os.label }}
     steps:
 
@@ -83,12 +83,7 @@ jobs:
         working-directory: ${{ github.workspace }}/oneTBB
 
       - name: Install OpenBLAS
-        run: |
-          .ci/env/apt.sh openblas
-          # temporary fix for deps.ref.mk / build.sh
-          mkdir ${{ env.DEP_DIR }}/openblas_arm
-          ln -s /usr/include/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/include
-          ln -s /usr/lib/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/lib
+        run: .ci/env/apt.sh openblas
 
       - name: Setup python
         uses: actions/setup-python@v5
