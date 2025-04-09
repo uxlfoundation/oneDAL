@@ -78,10 +78,11 @@ jobs:
           ref: ${{ env.OPENBLAS_VERSION }}
           path: ${{ github.workspace }}/__work/openblas
 
-      - name: Build oneTBB
+      - name: install TBB
         run: |
-          .ci/env/tbb.sh
-          echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+          # .ci/env/tbb.sh
+          # echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+          .ci/env/apt.sh tbb
 
       # TODO: Cache openBLAS
       - name: Build openBLAS
