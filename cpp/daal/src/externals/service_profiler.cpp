@@ -30,9 +30,10 @@ namespace internal
 std::mutex profiler::mutex_;
 
 static volatile int daal_verbose_val = -1;
-static bool device_info_needed       = false;
-static bool kernel_info_needed       = false;
 
+static bool device_info_needed   = false;
+static bool kernel_info_needed   = false;
+static bool function_info_needed = false;
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
 *
@@ -99,7 +100,7 @@ static void set_verbose_from_env(void)
     if (verbose_str)
     {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 2) newval = 0;
+        if (newval < 0 || newval > 3) newval = 0;
     }
 
     daal_verbose_val = newval;
@@ -153,7 +154,12 @@ profiler::profiler()
         device_info_needed = true;
         kernel_info_needed = true;
     }
-
+    else if (verbose == 3)
+    {
+        device_info_needed   = true;
+        kernel_info_needed   = true;
+        function_info_needed = true;
+    }
     if (device_info_needed)
     {
         print_header();
@@ -231,9 +237,54 @@ void profiler::end_task(const char * task_name)
         it->second += times;
     }
     get_instance()->total_time += times;
+
     if (kernel_info_needed)
     {
-        std::cerr << "DAAL KERNEL_PROFILER: total time " << std::string(task_name) << " " << format_time_for_output(times) << std::endl;
+        static std::vector<std::pair<std::string, std::size_t> > active_tasks;
+
+        std::ostringstream task_output;
+        std::size_t current_depth = tasks_info.time_kernels.size();
+        for (std::size_t i = 0; i < current_depth; ++i)
+        {
+            task_output << "  ";
+        }
+        if (current_depth > 0)
+        {
+            task_output << "-> ";
+        }
+        task_output << "DAAL KERNEL_PROFILER: total time " << task_name << " " << format_time_for_output(times);
+        if (function_info_needed)
+        {
+#ifdef _MSC_VER
+            task_output << " [Function: " << __FUNCSIG__ << "]";
+#else
+            task_output << " [Function: " << __PRETTY_FUNCTION__ << "]";
+#endif
+        }
+
+        if (current_depth > 0)
+        {
+            for (auto it = active_tasks.rbegin(); it != active_tasks.rend(); ++it)
+            {
+                if (it->second < current_depth)
+                {
+                    task_output << " [Within: " << it->first << "]";
+                    break;
+                }
+            }
+        }
+
+        std::cerr << task_output.str() << std::endl;
+
+        if (current_depth == 0)
+        {
+            active_tasks.clear();
+            active_tasks.push_back({ task_name, current_depth });
+        }
+        else
+        {
+            active_tasks.push_back({ task_name, current_depth });
+        }
     }
 }
 

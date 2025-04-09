@@ -28,7 +28,7 @@
 #include <time.h>
 #include <cstdint>
 #include <cstring>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <mutex>
 #include <stdexcept>

@@ -18,7 +18,7 @@
 #include <windows.h>
 #define PATH_MAX MAX_PATH
 #else
-#ifndef _GNU_SOURCE // must be before all includes or features.h to define __USE_GNU
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #include <linux/limits.h>
@@ -43,20 +43,22 @@ static bool device_info_printed = false;
 #endif
 static bool device_info_needed = false;
 static bool kernel_info_needed = false;
+static bool function_info_needed = false;
+
+//TODO: add support of file output
 //__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 
 #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
 #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
-
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
 *
 *  @returns pointer to mode
 *                      0 disabled
-*                      1 enabled
+*                      1 enabled with timing and ierarchy
 *                      2 enabled with device and library information(will be added soon)
+*                      3 enabled with the full list of function arguments(will be added soon)
 */
-
 static void set_verbose_from_env(void) {
     static volatile int read_done = 0;
     if (read_done)
@@ -66,7 +68,7 @@ static void set_verbose_from_env(void) {
     int newval = 0;
     if (verbose_str) {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 2)
+        if (newval < 0 || newval > 3)
             newval = 0;
     }
 
@@ -170,11 +172,11 @@ bool profiler::is_profiling_enabled() {
 
 int onedal_verbose(int option) {
     int* retVal = onedal_verbose_mode();
-    if (option != 0 && option != 1 && option != 2) {
+    if (option != 0 && option != 1 && option != 2 && option != 3) {
         return -1;
     }
     if (option != onedal_verbose_val) {
-        // ADD MUTEX
+        std::lock_guard<std::mutex> lock(std::mutex);
         if (option != onedal_verbose_val)
             onedal_verbose_val = option;
     }
@@ -190,7 +192,11 @@ profiler::profiler() {
         device_info_needed = true;
         kernel_info_needed = true;
     }
-
+    else if (verbose == 3) {
+        device_info_needed = true;
+        kernel_info_needed = true;
+        function_info_needed = true;
+    }
     if (device_info_needed) {
         print_header();
     }
@@ -239,6 +245,7 @@ void profiler::set_queue(const sycl::queue& q) {
 profiler_task profiler::start_task(const char* task_name) {
     if (!is_profiling_enabled())
         return profiler_task(nullptr);
+    std::lock_guard<std::mutex> lock(std::mutex);
     auto ns_start = get_time();
     auto& tasks_info = get_instance()->get_task();
     tasks_info.time_kernels.push_back(ns_start);
@@ -248,8 +255,10 @@ profiler_task profiler::start_task(const char* task_name) {
 void profiler::end_task(const char* task_name) {
     if (!is_profiling_enabled())
         return;
+    std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
+
     if (tasks_info.time_kernels.empty()) {
         std::cerr << "Warning: Attempting to end task '" << task_name
                   << "' when no tasks are running" << std::endl;
@@ -273,16 +282,49 @@ void profiler::end_task(const char* task_name) {
         it->second += times;
     }
     get_instance()->total_time += times;
+
     if (kernel_info_needed) {
-        std::cerr << "ONEDAL KERNEL_PROFILER: " << std::string(task_name) << " ";
-        std::cerr << format_time_for_output(times) << std::endl;
+        static std::vector<std::string> pending_nested_tasks;
+        static std::string last_non_nested_task;
+        bool is_nested = (tasks_info.time_kernels.size() > 0);
+
+        if (is_nested) {
+            std::ostringstream task_output;
+            for (std::size_t i = 0; i < tasks_info.time_kernels.size(); ++i) {
+                task_output << "  ";
+            }
+            task_output << "-> ONEDAL KERNEL_PROFILER: " << task_name << " "
+                        << format_time_for_output(times);
+            if (function_info_needed) {
+                task_output << " [Function: ]";
+            }
+            pending_nested_tasks.push_back(task_output.str());
+        }
+        else {
+            std::ostringstream task_output;
+            task_output << "ONEDAL KERNEL_PROFILER: " << task_name << " "
+                        << format_time_for_output(times);
+            if (function_info_needed) {
+                task_output << " [Function: ]";
+            }
+            std::cerr << task_output.str() << std::endl;
+
+            for (const auto& nested_task : pending_nested_tasks) {
+                std::cerr << nested_task << " [Within: " << task_name << "]" << std::endl;
+            }
+            pending_nested_tasks.clear();
+            last_non_nested_task = task_name;
+        }
     }
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
+    if (!is_profiling_enabled())
+        return profiler_task(nullptr);
+    std::lock_guard<std::mutex> lock(mutex_);
     task_queue.wait_and_throw();
-    if (device_info_printed == false && device_info_needed == true) {
+    if (!device_info_printed && device_info_needed) {
         auto device = task_queue.get_device();
         print_device_info(device);
         device_info_printed = true;
