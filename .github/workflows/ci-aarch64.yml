@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: ubuntu-24.04-arm, isa },
+          { name: GitHub hosted, label: ubuntu-24.04-arm },
           { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50 }
         ]
 
