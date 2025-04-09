@@ -83,7 +83,13 @@ jobs:
         working-directory: ${{ github.workspace }}/oneTBB
 
       - name: Install OpenBLAS
-        run: .ci/env/apt.sh openblas
+        run: |
+          .ci/env/apt.sh openblas
+          # temporary fix for deps.ref.mk / build.sh
+          mkdir ${{ env.DEP_DIR }}/openblas_arm
+          ln -s /usr/include/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/include
+          ln -s /usr/lib/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/lib
+          sed -i -e 's/-march=native/-march=native -lgfortran/' dev/make/compiler_definitions/gnu.ref.arm.mk
 
       - name: Setup python
         uses: actions/setup-python@v5
