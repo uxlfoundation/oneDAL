@@ -85,10 +85,10 @@ jobs:
       - name: Install OpenBLAS
         run: |
           .ci/env/apt.sh openblas
-          # temporary fix for deps.ref.mk
-          mkdir ${{ env.DEP_DIR }}/open_blas
-          ln -s /usr/include/aarch64-linux-gnu/openblas-pthread/ ${{ env.DEP_DIR }}/open_blas/include
-          ln -s /usr/lib/aarch64-linux-gnu/openblas-pthread/ ${{ env.DEP_DIR }}/open_blas/lib
+          # temporary fix for deps.ref.mk / build.sh
+          mkdir ${{ env.DEP_DIR }}/openblas_arm
+          ln -s /usr/include/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/include
+          ln -s /usr/lib/aarch64-linux-gnu/openblas-pthread ${{ env.DEP_DIR }}/openblas_arm/lib
 
       - name: Setup python
         uses: actions/setup-python@v5
