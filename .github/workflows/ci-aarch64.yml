@@ -79,11 +79,14 @@ jobs:
           path: ${{ github.workspace }}/__work/openblas
 
       - name: Build oneTBB
-        run: .ci/env/tbb.sh
+        run: |
+          .ci/env/tbb.sh
+          echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
 
       # TODO: Cache openBLAS
       - name: Build openBLAS
-        run: .ci/env/openblas.sh
+        run: |
+          .ci/env/openblas.sh
 
       - name: Setup python
         uses: actions/setup-python@v5
@@ -95,11 +98,11 @@ jobs:
   
       - name: make daal
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
 
       - name: make onedal_c
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref   
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
 
       - name: daal/cpp examples
         run: |
