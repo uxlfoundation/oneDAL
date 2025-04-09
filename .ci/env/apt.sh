@@ -48,6 +48,10 @@ function install_mkl {
     install_dpl
 }
 
+function install_openblas {
+    sudo apt-get install -y libopenblas-dev
+}
+
 function install_clang-format {
     sudo apt-get install -y clang-format-14
 }
@@ -135,12 +139,15 @@ if [ "${component}" == "dpcpp" ]; then
 elif [ "${component}" == "tbb" ]; then
     add_repo
     install_tbb
-elif [ "${component}" == "mkl" ]; then
-    add_repo
-    install_mkl
 elif [ "${component}" == "dpl" ]; then
     add_repo
     install_dpl
+elif [ "${component}" == "mkl" ]; then
+    add_repo
+    install_mkl
+elif [ "${component}" == "openblas" ]; then
+    update
+    install_openblas
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -175,6 +182,6 @@ elif [ "${component}" == "abigail" ] ; then
     install_abigail
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail]"
+    echo "   $0 [dpcpp|tbb|dpl|mkl|openblas|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail]"
     exit 1
 fi
