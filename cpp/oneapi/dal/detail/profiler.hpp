@@ -30,6 +30,7 @@
 #include <cstring>
 #include <map>
 #include <vector>
+#include <mutex>
 #include <stdexcept>
 
 #define ONEDAL_PROFILER_CONCAT2(x, y) x##y

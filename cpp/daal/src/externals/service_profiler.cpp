@@ -20,6 +20,7 @@
 #include <sstream>
 #include <iomanip>
 #include "services/library_version_info.h"
+#include <mutex>
 
 namespace daal
 {

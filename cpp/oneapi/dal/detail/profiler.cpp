@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include "oneapi/dal/detail/profiler.hpp"
 #include <daal/include/services/library_version_info.h>
+#include <mutex>
 
 namespace oneapi::dal::detail {
 
