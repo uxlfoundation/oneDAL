@@ -79,9 +79,7 @@ jobs:
           path: ${{ github.workspace }}/__work/openblas
 
       - name: Build oneTBB
-        run: .ci/env/tbb.sh 
-        env:
-          CMAKE_GENERATOR: Ninja
+        run: .ci/env/tbb.sh
 
       # TODO: Cache openBLAS
       - name: Build openBLAS
