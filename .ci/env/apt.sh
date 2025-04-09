@@ -61,13 +61,7 @@ function install_dev-base-conda {
 }
 
 function install_gnu-cross-compilers {
-    if [ -z "$1" ]; then arch=$(uname -m); else arch=$1; fi
-    sudo apt-get install -y "gcc-${arch}-linux-gnu" "g++-${arch}-linux-gnu" "gfortran-${arch}-linux-gnu"
-}
-
-function install_openblas {
-    install_gnu-cross-compilers
-    sudo apt-get install -y libopenblas-dev
+    sudo apt-get install -y "gcc-$1-linux-gnu" "g++-$1-linux-gnu" "gfortran-$1-linux-gnu"
 }
 
 function install_qemu_emulation_apt {
@@ -141,15 +135,12 @@ if [ "${component}" == "dpcpp" ]; then
 elif [ "${component}" == "tbb" ]; then
     add_repo
     install_tbb
-elif [ "${component}" == "dpl" ]; then
-    add_repo
-    install_dpl
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
-elif [ "${component}" == "openblas" ]; then
-    update
-    install_openblas
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -184,6 +175,6 @@ elif [ "${component}" == "abigail" ] ; then
     install_abigail
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|dpl|mkl|gnu-cross-compilers|openblas|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail]"
     exit 1
 fi
