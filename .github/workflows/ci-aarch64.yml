@@ -26,12 +26,13 @@ on:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
+  PYTHON_VERSION: '3.12'
 
 # Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
 # Does not apply to the main branch.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -104,47 +105,32 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Build oneDAL
+      - name: Set environment variables
         run: |
-          make onedal_c COMPILER=gnu REQCPU=sve -j`nproc`
-        env:
-          TBBROOT: ${{ env.DEP_DIR }}
-          OPENBLASROOT: ${{ env.DEP_DIR }}
-        working-directory: ${{ github.workspace }}/oneDAL
+          echo "TBBROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
+          echo "OPENBLASROOT=${{ env.DEP_DIR }}" >> "$GITHUB_ENV"
+  
+      - name: make daal
+        run: |
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --blas-dir $OPENBLASROOT --tbb-dir $TBBROOT
 
-      - name: Configure examples (Static Link)
+      - name: make onedal_c
         run: |
-          . ./env/vars.sh
-          cmake -Sexamples/daal/cpp -Bexamples/daal/cpp/build-static -DONEDAL_LINK=static -DREF_BACKEND=ON
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --blas-dir $OPENBLASROOT --tbb-dir $TBBROOT      
+
+      - name: daal/cpp examples
+        run: |
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface daal/cpp --build-system cmake --backend ref
         env:
-          TBBROOT: ${{ env.DEP_DIR }}
-          OPENBLASROOT: ${{ env.DEP_DIR }}
-          TBB_DIR: ${{ env.DEP_DIR }}/lib/cmake/TBB
           CMAKE_GENERATOR: Ninja
-        working-directory: ${{ github.workspace }}/oneDAL/__release_lnx_gnu/daal/latest
 
-      - name: Build examples (Static Link)
+      - name: oneapi/cpp examples
         run: |
-          cmake --build build-static
-        working-directory: ${{ github.workspace }}/oneDAL/__release_lnx_gnu/daal/latest/examples/daal/cpp 
-
-      - name: Configure examples (Dynamic Link)
-        run: |
-          . ./env/vars.sh
-          cmake -Sexamples/daal/cpp -Bexamples/daal/cpp/build-dynamic -DONEDAL_LINK=dynamic -DREF_BACKEND=ON
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface oneapi/cpp --build-system cmake --backend ref
         env:
-          TBBROOT: ${{ env.DEP_DIR }}
-          OPENBLASROOT: ${{ env.DEP_DIR }}
-          TBB_DIR: ${{ env.DEP_DIR }}/lib/cmake/TBB
           CMAKE_GENERATOR: Ninja
-        working-directory: ${{ github.workspace }}/oneDAL/__release_lnx_gnu/daal/latest
-
-      - name: Build examples (Dynamic Link)
-        run: |
-          cmake --build build-dynamic
-        working-directory: ${{ github.workspace }}/oneDAL/__release_lnx_gnu/daal/latest/examples/daal/cpp
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change
