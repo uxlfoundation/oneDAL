@@ -104,11 +104,11 @@ jobs:
   
       - name: make daal
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref  --tbb-dir $TBBROOT
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT
 
       - name: make onedal_c
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --blas-dir $OPENBLASROOT --tbb-dir $TBBROOT      
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT      
 
       - name: daal/cpp examples
         run: |
