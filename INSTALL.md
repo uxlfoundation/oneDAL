@@ -262,6 +262,7 @@ conda install -y \
     make "python>=3.9" `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
+    onedpl-devel `# required oneDPL package` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
     cmake `# required to build the examples only`
 ```
@@ -269,8 +270,9 @@ conda install -y \
 Then modify the relevant environment variables to point to the conda-installed libraries:
 
 ```shell
-export MKLROOT=${CONDA_PREFIX}
-export TBBROOT=${CONDA_PREFIX}
+export MKLROOT="${CONDA_PREFIX}"
+export TBBROOT="${CONDA_PREFIX}"
+export DPL_ROOT="${CONDA_PREFIX}"
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
 export CPATH="${CONDA_PREFIX}/include:${CPATH}"
