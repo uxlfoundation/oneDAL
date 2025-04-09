@@ -62,10 +62,12 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Build oneTBB
-        run: .ci/env/tbb.sh
-        env:
-          CMAKE_GENERATOR: Ninja
+      - name: Checkout oneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: v2022.0.0
+          path: oneTBB
 
       - name: Checkout openBLAS
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -73,6 +75,19 @@ jobs:
           repository: OpenMathLib/OpenBLAS
           ref: v0.3.29
           path: openBLAS
+
+      # TODO: Cache oneTBB
+      - name: Configure oneTBB
+        run: cmake -S. -Bbuild  -DTBB_TEST=OFF
+        env:
+          CMAKE_BUILD_TYPE: Release
+          CMAKE_INSTALL_PREFIX: ${{ env.DEP_DIR }}
+          CMAKE_GENERATOR: Ninja
+        working-directory: ${{ github.workspace }}/oneTBB
+
+      - name: Build oneTBB
+        run: cmake --build build --target install
+        working-directory: ${{ github.workspace }}/oneTBB
 
       # TODO: Cache openBLAS
       - name: Build openBLAS
