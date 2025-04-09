@@ -33,6 +33,8 @@
 
 namespace oneapi::dal::detail {
 
+std::mutex profiler::mutex_;
+
 static volatile int onedal_verbose_val = -1;
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -63,9 +65,8 @@ static void set_verbose_from_env(void) {
     int newval = 0;
     if (verbose_str) {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 2) {
+        if (newval < 0 || newval > 2)
             newval = 0;
-        }
     }
 
     onedal_verbose_val = newval;
@@ -149,13 +150,21 @@ void print_header() {
 }
 
 int* onedal_verbose_mode() {
-    if (__builtin_expect((onedal_verbose_val == -1), 0)) {
-        // ADD MUTEX
+#ifdef _MSC_VER
+    if (onedal_verbose_val == -1)
+#else
+    if (__builtin_expect((onedal_verbose_val == -1), 0))
+#endif
+    {
+        std::lock_guard<std::mutex> lock(std::mutex);
         if (onedal_verbose_val == -1)
             set_verbose_from_env();
-        // DISABLE MUTEX
     }
     return (int*)&onedal_verbose_val;
+}
+
+bool profiler::is_profiling_enabled() {
+    return *onedal_verbose_mode() > 0;
 }
 
 int onedal_verbose(int option) {
@@ -227,6 +236,8 @@ void profiler::set_queue(const sycl::queue& q) {
 #endif
 
 profiler_task profiler::start_task(const char* task_name) {
+    if (!is_profiling_enabled())
+        return profiler_task(nullptr);
     auto ns_start = get_time();
     auto& tasks_info = get_instance()->get_task();
     tasks_info.time_kernels.push_back(ns_start);
@@ -234,10 +245,14 @@ profiler_task profiler::start_task(const char* task_name) {
 }
 
 void profiler::end_task(const char* task_name) {
+    if (!is_profiling_enabled())
+        return;
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
     if (tasks_info.time_kernels.empty()) {
-        throw std::runtime_error("Attempting to end a task when no tasks are running");
+        std::cerr << "Warning: Attempting to end task '" << task_name
+                  << "' when no tasks are running" << std::endl;
+        return;
     }
 
 #ifdef ONEDAL_DATA_PARALLEL

@@ -20,15 +20,17 @@
 #include <sstream>
 #include <iomanip>
 #include "services/library_version_info.h"
+
 namespace daal
 {
 namespace internal
 {
 
-static volatile int daal_verbose_val = -1;
+std::mutex profiler::mutex_;
 
-static bool device_info_needed = false;
-static bool kernel_info_needed = false;
+static volatile int daal_verbose_val = -1;
+static bool device_info_needed       = false;
+static bool kernel_info_needed       = false;
 
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
@@ -96,10 +98,7 @@ static void set_verbose_from_env(void)
     if (verbose_str)
     {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 2)
-        {
-            newval = 0;
-        }
+        if (newval < 0 || newval > 2) newval = 0;
     }
 
     daal_verbose_val = newval;
@@ -108,11 +107,14 @@ static void set_verbose_from_env(void)
 
 int * onedal_verbose_mode()
 {
+#ifdef _MSC_VER
+    if (daal_verbose_val == -1)
+#else
     if (__builtin_expect((daal_verbose_val == -1), 0))
+#endif
     {
-        // ADD MUTEX
+        std::lock_guard<std::mutex> lock(std::mutex);
         if (daal_verbose_val == -1) set_verbose_from_env();
-        // DISABLE MUTEX
     }
     return (int *)&daal_verbose_val;
 }
@@ -120,16 +122,22 @@ int * onedal_verbose_mode()
 int onedal_verbose(int option)
 {
     int * retVal = onedal_verbose_mode();
-    if (option != 0 && option != 1 && option != 2)
-    {
-        return -1;
-    }
+    if (option != 0 && option != 1 && option != 2) return -1;
+#ifdef _MSC_VER
     if (option != daal_verbose_val)
+#else
+    if (__builtin_expect((option != daal_verbose_val), 0))
+#endif
     {
-        // ADD MUTEX
+        std::lock_guard<std::mutex> lock(std::mutex);
         if (option != daal_verbose_val) daal_verbose_val = option;
     }
     return *retVal;
+}
+
+bool profiler::is_profiling_enabled()
+{
+    return *onedal_verbose_mode() > 0;
 }
 
 profiler::profiler()
@@ -167,7 +175,7 @@ std::uint64_t profiler::get_time()
     LARGE_INTEGER frequency, counter;
     QueryPerformanceFrequency(&frequency);
     QueryPerformanceCounter(&counter);
-    return (counter.QuadPart * 1000000000) / frequency.QuadPart; // Перевод в наносекунды
+    return (counter.QuadPart * 1000000000) / frequency.QuadPart;
 #else
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
@@ -188,6 +196,8 @@ task & profiler::get_task()
 
 profiler_task profiler::start_task(const char * task_name)
 {
+    if (!is_profiling_enabled()) return profiler_task(nullptr);
+    std::lock_guard<std::mutex> lock(mutex_);
     auto ns_start     = get_time();
     auto & tasks_info = get_instance()->get_task();
     tasks_info.time_kernels.push_back(ns_start);
@@ -196,12 +206,15 @@ profiler_task profiler::start_task(const char * task_name)
 
 void profiler::end_task(const char * task_name)
 {
+    if (!is_profiling_enabled()) return;
+    std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t ns_end = get_time();
     auto & tasks_info          = get_instance()->get_task();
 
     if (tasks_info.time_kernels.empty())
     {
-        throw std::runtime_error("Attempting to end a task when no tasks are running");
+        std::cerr << "Warning: Attempting to end task '" << task_name << "' when no tasks are running" << std::endl;
+        return;
     }
     const std::uint64_t ns_start = tasks_info.time_kernels.back();
     tasks_info.time_kernels.pop_back();
@@ -210,7 +223,7 @@ void profiler::end_task(const char * task_name)
     auto it = tasks_info.kernels.find(task_name);
     if (it == tasks_info.kernels.end())
     {
-        tasks_info.kernels.insert({ task_name, times });
+        tasks_info.kernels.insert({ std::string(task_name), times });
     }
     else
     {
@@ -227,7 +240,8 @@ profiler_task::profiler_task(const char * task_name) : task_name_(task_name) {}
 
 profiler_task::~profiler_task()
 {
-    profiler::end_task(task_name_);
+    if (task_name_) profiler::end_task(task_name_);
 }
+
 } // namespace internal
 } // namespace daal

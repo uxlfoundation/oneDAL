@@ -28,21 +28,22 @@
 #endif
 #include <time.h>
 #include <cstdint>
-#include <cstring>
-#include <map>
+#include <string>
+#include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #ifndef __SERVICE_PROFILER_H__
     #define __SERVICE_PROFILER_H__
 
     #define DAAL_ITTNOTIFY_CONCAT2(x, y) x##y
     #define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
+    #define DAAL_ITTNOTIFY_UNIQUE_ID     __LINE__
 
-    #define DAAL_ITTNOTIFY_UNIQUE_ID __LINE__
-
-    #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                               \
-        daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) = \
-            daal::internal::profiler::start_task(#name);
+    #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                                  \
+        daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) =    \
+            (daal::internal::profiler::is_profiling_enabled() ? daal::internal::profiler::start_task(#name) : \
+                                                                daal::internal::profiler_task(nullptr))
 
 namespace daal
 {
@@ -51,10 +52,9 @@ namespace internal
 
 struct task
 {
-    std::map<const char *, std::uint64_t> kernels;
+    std::unordered_map<std::string, std::uint64_t> kernels;
     std::uint64_t current_kernel = 0;
     std::vector<std::uint64_t> time_kernels;
-    void clear();
 };
 
 class profiler_task
@@ -76,13 +76,14 @@ public:
     static std::uint64_t get_time();
     static profiler * get_instance();
     task & get_task();
-
+    static bool is_profiling_enabled();
     static void end_task(const char * task_name);
 
 private:
     std::uint64_t total_time = 0;
-    std::uint64_t start_time;
+    std::uint64_t start_time = 0;
     task task_;
+    static std::mutex mutex_;
 };
 
 } // namespace internal

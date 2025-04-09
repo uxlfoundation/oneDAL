@@ -44,18 +44,19 @@
 #define ONEDAL_PROFILER_TASK(...)                                                          \
     oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,           \
                                                               ONEDAL_PROFILER_UNIQUE_ID) = \
-        ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                             \
-                                  ONEDAL_PROFILER_MACRO_2,                                 \
-                                  ONEDAL_PROFILER_MACRO_1,                                 \
-                                  FICTIVE)(__VA_ARGS__)
+        (oneapi::dal::detail::profiler::is_profiling_enabled()                             \
+             ? ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                      \
+                                         ONEDAL_PROFILER_MACRO_2,                          \
+                                         ONEDAL_PROFILER_MACRO_1,                          \
+                                         FICTIVE)(__VA_ARGS__)                             \
+             : oneapi::dal::detail::profiler::start_task(nullptr))
 
 namespace oneapi::dal::detail {
 
 struct task {
-    std::map<std::string, std::uint64_t> kernels;
+    std::unordered_map<std::string, std::uint64_t> kernels;
     std::uint64_t current_kernel = 0;
     std::vector<std::uint64_t> time_kernels;
-    void clear();
 };
 
 class profiler_task {
@@ -85,7 +86,7 @@ public:
     static std::uint64_t get_time();
     static profiler* get_instance();
     task& get_task();
-
+    static bool is_profiling_enabled();
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();
     void set_queue(const sycl::queue& q);
@@ -94,9 +95,10 @@ public:
     static void end_task(const char* task_name);
 
 private:
-    std::uint64_t start_time;
-    std::uint64_t total_time;
+    std::uint64_t start_time = 0;
+    std::uint64_t total_time = 0;
     task task_;
+    static std::mutex mutex_;
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue queue_;
 #endif
