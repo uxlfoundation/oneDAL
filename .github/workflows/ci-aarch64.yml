@@ -82,6 +82,7 @@ jobs:
         run: |
           # .ci/env/tbb.sh
           # echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+          apt-cache pkgnames intel-tbb
           sudo apt-get install intel-tbb-2022.1
 
       # TODO: Cache openBLAS
