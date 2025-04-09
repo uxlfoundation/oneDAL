@@ -101,9 +101,9 @@ struct ServiceInitializer
     static void memset(T * const ptr, const size_t num)
     {
         char * cptr = (char *)ptr;
-        size_t size = num * sizeof(T);
+        const size_t size = num * sizeof(T);
 
-        service_memset_seq<char, cpu>(cptr, '\0', num);
+        service_memset_seq<char, cpu>(cptr, '\0', size);
     }
 };
 
