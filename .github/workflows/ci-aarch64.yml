@@ -86,6 +86,7 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt update
           apt-cache pkgnames intel-oneapi
+          apt-cache pkgnames intel-tbb
           sudo apt-get install intel-oneapi-tbb-2022.1
 
       # TODO: Cache openBLAS
