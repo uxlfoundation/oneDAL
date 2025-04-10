@@ -28,7 +28,7 @@
 #include <time.h>
 #include <cstdint>
 #include <cstring>
-#include <unordered_map>
+#include <map>
 #include <vector>
 #include <mutex>
 #include <stdexcept>
@@ -54,10 +54,14 @@
 
 namespace oneapi::dal::detail {
 
+struct task_entry {
+    std::string name;
+    std::uint64_t duration;
+    std::uint64_t level;
+};
+
 struct task {
-    std::unordered_map<std::string, std::uint64_t> kernels;
-    std::uint64_t current_kernel = 0;
-    std::vector<std::uint64_t> time_kernels;
+    std::vector<task_entry> kernels;
 };
 
 class profiler_task {
@@ -87,6 +91,7 @@ public:
     static std::uint64_t get_time();
     static profiler* get_instance();
     task& get_task();
+    std::uint64_t& get_current_level();
     static bool is_profiling_enabled();
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();
@@ -97,7 +102,8 @@ public:
 
 private:
     std::uint64_t start_time = 0;
-    std::uint64_t total_time = 0;
+    std::uint64_t current_kernel = 0;
+    //std::uint64_t total_time = 0;
     task task_;
     static std::mutex mutex_;
 #ifdef ONEDAL_DATA_PARALLEL

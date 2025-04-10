@@ -209,6 +209,35 @@ profiler::profiler() {
 
 profiler::~profiler() {
     if (kernel_info_needed) {
+        const auto& tasks_info = get_instance()->get_task();
+        std::uint64_t total_time = 0;
+
+        for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
+            const auto& entry = tasks_info.kernels[i];
+            std::string prefix;
+
+            for (size_t lvl = 0; lvl < entry.level; ++lvl) {
+                prefix += "│   ";
+            }
+
+            bool is_last = true;
+            if (i + 1 < tasks_info.kernels.size()) {
+                const auto& next = tasks_info.kernels[i + 1];
+                if (next.level >= entry.level) {
+                    is_last = false;
+                }
+            }
+
+            prefix += is_last ? "└── " : "├── ";
+
+            std::cout << "ONEDAL KERNEL_PROFILER " << prefix << entry.name
+                      << " time: " << format_time_for_output(entry.duration) << std::endl;
+
+            total_time += entry.duration;
+        }
+
+        std::cout << "ONEDAL KERNEL_PROFILER ╰── (end)" << std::endl;
+
         std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time "
                   << format_time_for_output(total_time) << std::endl;
     }
@@ -232,6 +261,10 @@ profiler* profiler::get_instance() {
     return &instance;
 }
 
+std::uint64_t& profiler::get_current_level() {
+    return current_kernel;
+}
+
 task& profiler::get_task() {
     return task_;
 }
@@ -249,77 +282,47 @@ void profiler::set_queue(const sycl::queue& q) {
 profiler_task profiler::start_task(const char* task_name) {
     if (!is_profiling_enabled())
         return profiler_task(nullptr);
-    std::lock_guard<std::mutex> lock(std::mutex);
+
+    // std::lock_guard<std::mutex> lock(mutex_);
     auto ns_start = get_time();
     auto& tasks_info = get_instance()->get_task();
-    tasks_info.time_kernels.push_back(ns_start);
+
+    // auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(),
+    //                        [&](const task_entry& entry) { return entry.name == task_name; });
+    auto& current = get_instance()->get_current_level();
+    // if (it == tasks_info.kernels.end()) {
+    tasks_info.kernels.push_back({ task_name, ns_start, current });
+    // } else {
+    //     it->duration = ns_start;
+    // }
+    current++;
     return profiler_task(task_name);
 }
-
 void profiler::end_task(const char* task_name) {
     if (!is_profiling_enabled())
         return;
+
     std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
-
-    if (tasks_info.time_kernels.empty()) {
-        std::cerr << "Warning: Attempting to end task '" << task_name
-                  << "' when no tasks are running" << std::endl;
-        return;
-    }
 
 #ifdef ONEDAL_DATA_PARALLEL
     auto& queue = get_instance()->get_queue();
     queue.wait_and_throw();
 #endif
 
-    const std::uint64_t ns_start = tasks_info.time_kernels.back();
-    tasks_info.time_kernels.pop_back();
-    const std::uint64_t times = ns_end - ns_start;
+    auto it = std::find_if(tasks_info.kernels.begin(),
+                           tasks_info.kernels.end(),
+                           [&](const task_entry& entry) {
+                               return entry.name == task_name;
+                           });
 
-    auto it = tasks_info.kernels.find(task_name);
-    if (it == tasks_info.kernels.end()) {
-        tasks_info.kernels.insert({ std::string(task_name), times });
-    }
-    else {
-        it->second += times;
-    }
-    get_instance()->total_time += times;
-
-    if (kernel_info_needed) {
-        static std::vector<std::string> pending_nested_tasks;
-        static std::string last_non_nested_task;
-        bool is_nested = (tasks_info.time_kernels.size() > 0);
-
-        if (is_nested) {
-            std::ostringstream task_output;
-            for (std::size_t i = 0; i < tasks_info.time_kernels.size(); ++i) {
-                task_output << "  ";
-            }
-            task_output << "-> ONEDAL KERNEL_PROFILER: " << task_name << " "
-                        << format_time_for_output(times);
-            if (function_info_needed) {
-                task_output << " [Function: ]";
-            }
-            pending_nested_tasks.push_back(task_output.str());
-        }
-        else {
-            std::ostringstream task_output;
-            task_output << "ONEDAL KERNEL_PROFILER: " << task_name << " "
-                        << format_time_for_output(times);
-            if (function_info_needed) {
-                task_output << " [Function: ]";
-            }
-            std::cerr << task_output.str() << std::endl;
-
-            for (const auto& nested_task : pending_nested_tasks) {
-                std::cerr << nested_task << " [Within: " << task_name << "]" << std::endl;
-            }
-            pending_nested_tasks.clear();
-            last_non_nested_task = task_name;
-        }
-    }
+    // if (it != tasks_info.kernels.end()) {
+    auto duration = ns_end - it->duration;
+    it->duration = duration;
+    auto& current = get_instance()->get_current_level();
+    current--;
+    //}
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
