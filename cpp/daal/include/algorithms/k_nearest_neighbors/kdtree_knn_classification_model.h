@@ -153,7 +153,7 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     Model(size_t nFeatures = 0);
-
+    Model & operator=(const Model & other);
     /**
      * Constructs the model trained with the boosting algorithm
      * \param[in]  nFeatures Number of features in the dataset

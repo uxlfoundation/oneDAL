@@ -28,8 +28,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER_SAFE(decision_forest::classification::training::BatchContainer, batch, DAAL_FPTYPE,
-                                           decision_forest::classification::training::hist)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_forest::classification::training::BatchContainer, batch, DAAL_FPTYPE,
+                                      decision_forest::classification::training::hist)
 namespace decision_forest
 {
 namespace classification

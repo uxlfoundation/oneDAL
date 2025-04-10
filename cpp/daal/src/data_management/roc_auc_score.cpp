@@ -119,7 +119,7 @@ DAAL_EXPORT double rocAucScore(const NumericTablePtr & truePrediction, const Num
     double score = double(0);
 #define DAAL_ROC_AUC_SCORE(cpuId, ...) rocAucScoreImpl<DataType, cpuId>(__VA_ARGS__);
 
-    DAAL_DISPATCH_FUNCTION_BY_CPU_SAFE(DAAL_ROC_AUC_SCORE, truePrediction, testPrediction, score);
+    DAAL_DISPATCH_FUNCTION_BY_CPU(DAAL_ROC_AUC_SCORE, truePrediction, testPrediction, score);
 
 #undef DAAL_ROC_AUC_SCORE
     return score;
