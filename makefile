@@ -142,8 +142,8 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
--sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if ifeq ($(REQSAN),static),address,$(REQSAN)) -fno-omit-frame-pointer)
--lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if ifeq ($(REQSAN),static),address -static-libasan,$(REQSAN)))
+-sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
+-lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address -static-libasan,$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), -shared-libasan)))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -1141,9 +1141,11 @@ Flags:
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
   REQSAN - flag that integrates a Google sanitizer (e.g. AddressSanitizer).
       The sanitizer must be specified as the flag value, except for the
-      value of "static". This value will link with the static ASan library.
-      Use on Windows is unverified, with the available sanitizers dependent
-      on the compiler. It is recommended to use in tandem with REQDBG.
+      value of "static". This value will link with the static ASan library,
+      ASan is otherwise linked dynamically by default for all compilers.
+      Use of sanitizers on Windows is unverified, with the available 
+      sanitizers and their default linking mode dependent on the compiler.
+      It is recommended to use in tandem with REQDBG.
       special values: static, address, memory, thread, leak, undefined
   CODE_COVERAGE - flag that integrates the gcov code coverage tool
       can only be enabled when set to value "yes" with the icx compiler on
