@@ -1618,7 +1618,7 @@ public:
         {
             OOBClassificationData * dst       = (OOBClassificationData *)other.oobBuf;
             const OOBClassificationData * src = (const OOBClassificationData *)this->oobBuf;
-            size_t n                          = _nClasses * nSamples;
+            const size_t n                          = _nClasses * nSamples;
             PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < n; ++i)
