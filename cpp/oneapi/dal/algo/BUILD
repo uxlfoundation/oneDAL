@@ -34,6 +34,7 @@ ALGOS = [
     "rbf_kernel",
     "sigmoid_kernel",
     "shortest_paths",
+    "spectral_embedding",
     "subgraph_isomorphism",
     "svm",
     "triangle_counting",
