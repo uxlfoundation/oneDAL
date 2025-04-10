@@ -68,6 +68,10 @@ function install_qemu_emulation_apt {
     sudo apt-get install -y qemu-user-static
 }
 
+function install_opencl_apt {
+    sudo apt-get install -y ocl-icd-opencl-dev
+}
+
 function install_qemu_emulation_deb {
     # get last version of qemu listed on debian, changes may need to occur to this with version 10 of qemu
     found_version=$(wget -q http://ftp.debian.org/debian/pool/main/q/qemu/ -O - | grep -oP "(?<=\")$1_.*_amd64.deb(?=\")" | tail -1)
@@ -173,8 +177,11 @@ elif [ "${component}" == "miniforge" ] ; then
 elif [ "${component}" == "abigail" ] ; then
     update
     install_abigail
+elif [ "${component}" == "opencl" ]; then
+    update
+    install_opencl_apt
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
     exit 1
 fi
