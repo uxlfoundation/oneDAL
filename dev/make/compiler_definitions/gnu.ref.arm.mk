@@ -22,7 +22,7 @@ include dev/make/compiler_definitions/gnu.mk
 
 PLATs.gnu = lnxarm
 
-COMPILER.all.gnu =  ${CXX} -march=armv8-a+sve -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
+COMPILER.all.gnu =  ${CXX} -march=armv8-a+sve -fopenmp-simd -ftree-vectorize -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wreturn-type $(if $(RNG_OPENRNG), -DOPENRNG_BACKEND)
 
 link.dynamic.all.gnu = ${CXX} -march=native
