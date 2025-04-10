@@ -33,6 +33,7 @@ set_common_compiler_options()
 include_directories(source)
 
 option(REF_BACKEND "Exclude not supported files for non-MKL backend" OFF)
+option(OPENRNG_BACKEND "Exclude not supported files for ref+OpenRNG backend" OFF)
 
 # Initialize the EXCLUDE_LIST variable
 set(EXCLUDE_LIST
@@ -45,7 +46,15 @@ if(REF_BACKEND)
     set(EXCLUDE_LIST
         ${EXCLUDE_LIST}
         "source/pca/*"
-)
+    )
+    if (OPENRNG_BACKEND)
+        set (EXCLUDE_LIST
+            ${EXCLUDE_LIST}
+            "source/decision_forest/df_reg_dense_batch.cpp"
+            "source/louvain/louvain_batch.cpp"
+            "source/connected_components/connected_components_batch.cpp"
+        )
+    endif()
 endif()
 
 include("target_excludes.cmake")
