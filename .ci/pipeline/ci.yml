@@ -387,6 +387,8 @@ jobs:
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
   - script: |
+      .ci/env/apt.sh opencl
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
