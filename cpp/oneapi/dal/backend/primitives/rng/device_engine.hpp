@@ -42,8 +42,8 @@ public:
     virtual ~gen_base() = default;
 
     /// Method to retrieve the engine method.
-    /// @return The engine method as an enum value of `engine_type`.
-    virtual engine_type get_engine_type() const = 0;
+    /// @return The engine method as an enum value of `engine_type_internal`.
+    virtual engine_type_internal get_engine_type() const = 0;
 
     /// Method to skip ahead in the random number sequence.
     /// @param[in] nSkip The number of steps to skip in the generator sequence.
@@ -64,9 +64,9 @@ public:
             : _gen(queue, seed, engine_idx) {}
 
     /// Returns the engine method for mt2203.
-    /// @return The `mt2203` engine method as an enum value of `engine_type`.
-    engine_type get_engine_type() const override {
-        return engine_type::mt2203;
+    /// @return The `mt2203` engine method as an enum value of `engine_type_internal`.
+    engine_type_internal get_engine_type() const override {
+        return engine_type_internal::mt2203;
     }
 
     /// Skips ahead in the random number sequence for mt2203 on the GPU.
@@ -99,9 +99,9 @@ public:
     gen_philox(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
 
     /// Returns the engine method for philox4x32x10.
-    /// @return The `philox4x32x10` engine method as an enum value of `engine_type`.
-    engine_type get_engine_type() const override {
-        return engine_type::philox4x32x10;
+    /// @return The `philox4x32x10` engine method as an enum value of `engine_type_internal`.
+    engine_type_internal get_engine_type() const override {
+        return engine_type_internal::philox4x32x10;
     }
 
     /// Skips ahead in the random number sequence for philox4x32x10 on the GPU.
@@ -133,9 +133,9 @@ public:
     gen_mrg32k(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
 
     /// Returns the engine method for mrg32k3a.
-    /// @return The `mrg32k3a` engine method as an enum value of `engine_type`.
-    engine_type get_engine_type() const override {
-        return engine_type::mrg32k3a;
+    /// @return The `mrg32k3a` engine method as an enum value of `engine_type_internal`.
+    engine_type_internal get_engine_type() const override {
+        return engine_type_internal::mrg32k3a;
     }
 
     /// Skips ahead in the random number sequence for mrg32k3a on the GPU.
@@ -167,9 +167,9 @@ public:
     gen_mt19937(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
 
     /// Returns the engine method for mt19937.
-    /// @return The `mt19937` engine method as an enum value of `engine_type`.
-    engine_type get_engine_type() const override {
-        return engine_type::mt19937;
+    /// @return The `mt19937` engine method as an enum value of `engine_type_internal`.
+    engine_type_internal get_engine_type() const override {
+        return engine_type_internal::mt19937;
     }
 
     /// Skips ahead in the random number sequence for mt19937 on the GPU.
@@ -201,9 +201,9 @@ public:
     gen_mcg59(sycl::queue queue, std::int64_t seed) : _gen(queue, seed) {}
 
     /// Returns the engine method for mcg59.
-    /// @return The `mcg59` engine method as an enum value of `engine_type`.
-    engine_type get_engine_type() const override {
-        return engine_type::mcg59;
+    /// @return The `mcg59` engine method as an enum value of `engine_type_internal`.
+    engine_type_internal get_engine_type() const override {
+        return engine_type_internal::mcg59;
     }
 
     /// Skips ahead in the random number sequence for mcg59 on the GPU.
@@ -236,30 +236,30 @@ class device_engine {
 public:
     /// @param[in] queue   The SYCL queue used to manage device operations.
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
+    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
     device_engine(sycl::queue& queue,
                   std::int64_t seed = 777,
-                  engine_type method = engine_type::mt2203,
+                  engine_type_internal method = engine_type_internal::mt2203,
                   std::int64_t idx = 0)
             : q(queue) {
         switch (method) {
-            case engine_type::mt2203:
+            case engine_type_internal::mt2203:
                 host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt2203>(queue, seed, idx);
                 break;
-            case engine_type::mcg59:
+            case engine_type_internal::mcg59:
                 host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mcg59>(queue, seed);
                 break;
-            case engine_type::mrg32k3a:
+            case engine_type_internal::mrg32k3a:
                 host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mrg32k>(queue, seed);
                 break;
-            case engine_type::philox4x32x10:
+            case engine_type_internal::philox4x32x10:
                 host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_philox>(queue, seed);
                 break;
-            case engine_type::mt19937:
+            case engine_type_internal::mt19937:
                 host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
                 dpc_engine_ = std::make_shared<gen_mt19937>(queue, seed);
                 break;
@@ -360,7 +360,6 @@ void uniform(std::int64_t count, Type* dst, device_engine& engine_, Type a, Type
 template <typename Type>
 void uniform_without_replacement(std::int64_t count,
                                  Type* dst,
-                                 Type* buffer,
                                  device_engine& engine_,
                                  Type a,
                                  Type b) {
@@ -369,7 +368,7 @@ void uniform_without_replacement(std::int64_t count,
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
     void* state = engine_.get_host_engine_state();
-    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, buffer, state, a, b);
+    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, state, a, b);
     engine_.skip_ahead_gpu(count);
 }
 
@@ -425,7 +424,6 @@ template <typename Type>
 sycl::event uniform_without_replacement(sycl::queue& queue,
                                         std::int64_t count,
                                         Type* dst,
-                                        Type* buffer,
                                         device_engine& engine_,
                                         Type a,
                                         Type b,
@@ -454,12 +452,13 @@ sycl::event shuffle(sycl::queue& queue,
 /// @param[in] method The rng engine type. Defaults to `mt19937`.
 /// @param[in] deps Dependencies for the SYCL event.
 template <typename Type>
-sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
-                                         ndview<Type, 1>& result_array,
-                                         std::int64_t top,
-                                         std::int64_t seed,
-                                         engine_type method = engine_type::mt19937,
-                                         const event_vector& deps = {});
+sycl::event partial_fisher_yates_shuffle(
+    sycl::queue& queue_,
+    ndview<Type, 1>& result_array,
+    std::int64_t top,
+    std::int64_t seed,
+    engine_type_internal method = engine_type_internal::mt19937,
+    const event_vector& deps = {});
 #endif
 
 } // namespace oneapi::dal::backend::primitives

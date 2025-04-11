@@ -37,36 +37,36 @@ class mrg32k3a {};
 class mt19937 {};
 class philox4x32x10 {};
 
-template <typename engine_type>
+template <typename engine_type_internal>
 struct engine_map {};
 
 template <>
 struct engine_map<mt2203> {
-    constexpr static auto value = engine_type::mt2203;
+    constexpr static auto value = engine_type_internal::mt2203;
 };
 
 template <>
 struct engine_map<mcg59> {
-    constexpr static auto value = engine_type::mcg59;
+    constexpr static auto value = engine_type_internal::mcg59;
 };
 
 template <>
 struct engine_map<mrg32k3a> {
-    constexpr static auto value = engine_type::mrg32k3a;
+    constexpr static auto value = engine_type_internal::mrg32k3a;
 };
 
 template <>
 struct engine_map<philox4x32x10> {
-    constexpr static auto value = engine_type::philox4x32x10;
+    constexpr static auto value = engine_type_internal::philox4x32x10;
 };
 
 template <>
 struct engine_map<mt19937> {
-    constexpr static auto value = engine_type::mt19937;
+    constexpr static auto value = engine_type_internal::mt19937;
 };
 
-template <typename engine_type>
-constexpr auto engine_v = engine_map<engine_type>::value;
+template <typename engine_type_internal>
+constexpr auto engine_v = engine_map<engine_type_internal>::value;
 
 template <typename TestType>
 class rng_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {

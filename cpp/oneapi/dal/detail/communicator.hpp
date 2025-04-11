@@ -30,7 +30,7 @@ namespace v1 {
 #ifdef ONEDAL_DATA_PARALLEL
 /// Implementation of the low-level SPMD communicator interface
 /// that uses host-only functions to exchange USM data
-class spmd_communicator_via_host_impl : public spmd::communicator_iface {
+class ONEDAL_EXPORT spmd_communicator_via_host_impl : public spmd::communicator_iface {
 public:
     // Explicitly declare all virtual functions with overloads to workaround Clang warning
     // https://stackoverflow.com/questions/18515183/c-overloaded-virtual-function-warning-by-clang

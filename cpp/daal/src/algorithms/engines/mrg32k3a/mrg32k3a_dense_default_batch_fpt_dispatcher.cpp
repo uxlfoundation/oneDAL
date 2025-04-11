@@ -26,5 +26,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mrg32k3a::BatchContainer, batch, DAAL_FPTYPE, engines::mrg32k3a::defaultDense)
+namespace engines
+{
+namespace mrg32k3a
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mrg32k3a::defaultDense>::Batch(size_t seed)
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, engines::mrg32k3a::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace mrg32k3a
+} // namespace engines
 } // namespace algorithms
 } // namespace daal

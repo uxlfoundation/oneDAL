@@ -30,5 +30,32 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::DistributedContainer, distributed, step1Local, DAAL_FPTYPE,
                                       implicit_als::prediction::ratings::defaultDense)
+namespace implicit_als
+{
+namespace prediction
+{
+namespace ratings
+{
+namespace interface1
+{
+
+using DistributedType = Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
+{
+    initialize();
 }
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace ratings
+} // namespace prediction
+} // namespace implicit_als
+} // namespace algorithms
 } // namespace daal

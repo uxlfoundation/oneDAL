@@ -109,7 +109,7 @@ public:
     ParameterType parameter; /*!< %Training \ref interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs a linear regression training algorithm by copying input objects and parameters
@@ -117,10 +117,7 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : linear_model::training::Online(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Online(const Online<algorithmFPType, method> & other);
 
     ~Online() {}
 

@@ -40,6 +40,7 @@ __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_OUTLIER_DETECTION_UNIV
 
 Input::Input() : daal::algorithms::Input(lastInputId + 1) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for the univariate outlier detection algorithm
