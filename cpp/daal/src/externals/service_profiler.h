@@ -21,102 +21,69 @@
 //--
 */
 
-#ifndef __SERVICE_PROFILER_H__
-#define __SERVICE_PROFILER_H__
-
-#ifdef ONEDAL_KERNEL_PROFILER
-    /* Here if oneDAL kernel profiling is enabled in the build */
-    #include <ittnotify.h>
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <sys/time.h>
 #endif
+#include <time.h>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <mutex>
 
-#define DAAL_ITTNOTIFY_CONCAT2(x, y) x##y
-#define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
+#ifndef __SERVICE_PROFILER_H__
+    #define __SERVICE_PROFILER_H__
 
-#define DAAL_ITTNOTIFY_UNIQUE_ID __LINE__
+    #define DAAL_ITTNOTIFY_CONCAT2(x, y) x##y
+    #define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
+    #define DAAL_ITTNOTIFY_UNIQUE_ID     __LINE__
 
-#define DAAL_ITTNOTIFY_SCOPED_TASK(name) \
-    daal::internal::ProfilerTask DAAL_ITTNOTIFY_CONCAT(__profiler_task__, DAAL_ITTNOTIFY_UNIQUE_ID) = daal::internal::Profiler::startTask(#name);
+    #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                                  \
+        daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) =    \
+            (daal::internal::profiler::is_profiling_enabled() ? daal::internal::profiler::start_task(#name) : \
+                                                                daal::internal::profiler_task(nullptr))
 
 namespace daal
 {
 namespace internal
 {
-/**
- * Defines a logical unit of work to be tracked by performance profilier.
- */
-class ProfilerTask
-{
-public:
-    /**
-     * Constructs a task with a given name.
-     * \param[in] taskName   Name of the task.
-     */
-    ProfilerTask(const char * taskName);
-    ~ProfilerTask();
 
-private:
-    const char * _taskName;
-#ifdef ONEDAL_KERNEL_PROFILER
-    /* Here if oneDAL kernel profiling is enabled */
-    __itt_string_handle * _handle; /* The task string handle */
-    __itt_domain * _domain;        /* Pointer to the domain of the task */
-#endif
+struct task
+{
+    std::unordered_map<std::string, std::uint64_t> kernels;
+    std::uint64_t current_kernel = 0;
+    std::vector<std::uint64_t> time_kernels;
 };
 
-/**
- * Global performance profiler.
- *
- * By default this class is a stub in the library and its redefinition will be in C++ Bechmarks.
- * If oneDAL kernel profiling is enabled, the profiler uses Task API from <ittnotify.h>
- */
-class Profiler
+class profiler_task
 {
 public:
-    /**
-     * Start the task to be profiled.
-     * \param[in] taskName   Name of the task.
-     */
-    static ProfilerTask startTask(const char * taskName);
-
-    /**
-     * Start the task to profile.
-     * \param[in] taskName   Name of the task.
-     */
-    static void endTask(const char * taskName);
-
-#ifdef ONEDAL_KERNEL_PROFILER
-    /* Here if oneDAL kernel profiling is enabled */
-
-    /**
-     * Get pointer to a global profiler state.
-     * \return Pointer to a global profiler state.
-     */
-    static Profiler * getInstance()
-    {
-        static Profiler instance;
-        return &instance;
-    }
-
-    /**
-     * Get pointer to the ITT domain associated with the profiler.
-     * \return Pointer to the ITT domain.
-     */
-    static __itt_domain * getDomain()
-    {
-        return (getInstance())->_domain;
-    }
+    profiler_task(const char * task_name);
+    ~profiler_task();
 
 private:
-    /**
-     * Construct the profiler.
-     */
-    Profiler()
-    {
-        _domain = __itt_domain_create("oneDAL");
-    }
-    ~Profiler() {}
-    __itt_domain * _domain; /* Pointer to the ITT domain */
-#endif
+    const char * task_name_;
+};
+
+class profiler
+{
+public:
+    profiler();
+    ~profiler();
+    static profiler_task start_task(const char * task_name);
+    static std::uint64_t get_time();
+    static profiler * get_instance();
+    task & get_task();
+    static bool is_profiling_enabled();
+    static void end_task(const char * task_name);
+
+private:
+    std::uint64_t total_time = 0;
+    std::uint64_t start_time = 0;
+    task task_;
+    static std::mutex mutex_;
 };
 
 } // namespace internal

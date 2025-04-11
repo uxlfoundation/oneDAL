@@ -49,7 +49,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
                                                       const parameters_t& params,
                                                       const input_t& input) {
     ONEDAL_ASSERT(input.get_data().has_data());
-
+    ONEDAL_PROFILER_TASK(covariance_algo, q_);
     const auto data = input.get_data();
 
     const std::int64_t row_count = data.get_row_count();
