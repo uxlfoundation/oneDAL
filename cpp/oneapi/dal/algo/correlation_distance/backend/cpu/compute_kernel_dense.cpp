@@ -31,14 +31,12 @@ using input_t = compute_input<task::compute>;
 using result_t = compute_result<task::compute>;
 using descriptor_t = detail::descriptor_base<task::compute>;
 
-namespace daal_kernel = daal::algorithms::cordistance;
-namespace daal_correlation_distance = daal::algorithms::correlation_distance;
-namespace daal_kernel_internal = daal::algorithms::correlation_distance::internal;
+namespace daal_correlation = daal::algorithms::correlation_distance;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::algorithms::correlation_distance::Method method, daal::CpuType Cpu>
-using daal_correlation_distance_t =
-    daal_correlation_distance::internal::DistanceKernel<Float, method, Cpu>;
+template <typename Float, daal::CpuType Cpu>
+using daal_correlation_t =
+    daal_correlation::internal::DistanceKernel<Float, daal_correlation::defaultDense, Cpu>;
 
 template <typename Float>
 static result_t call_daal_kernel(const context_cpu& ctx,
@@ -56,12 +54,17 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     const auto daal_values =
         interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_y);
 
+    daal::algorithms::Parameter param;
+    const daal::data_management::NumericTable* daal_input_tables[2] = { daal_x.get(), daal_y.get() };
+    daal::data_management::NumericTable* daal_result_table[1] = { daal_values.get() };
+
     interop::status_to_exception(
-        interop::call_daal_kernel<Float, daal_correlation_distance_t>(ctx,
-                                                                      daal_x.get(),
-                                                                      daal_y.get(),
-                                                                      daal_values.get(),
-                                                                      &kernel_parameter));
+        interop::call_daal_kernel<Float, daal_correlation_t>(ctx,
+		                                             2,
+							     daal_input_tables,
+							     1,
+                                                             daal_result_table,
+                                                             &param));
 
     return result_t().set_values(
         dal::detail::homogen_table_builder{}.reset(arr_values, row_count_x, row_count_y).build());
