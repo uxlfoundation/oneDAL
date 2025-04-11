@@ -25,8 +25,7 @@ namespace te = dal::test::engine;
 namespace la = te::linalg;
 
 template <typename TestType>
-class correlation_distance_batch_test
-        : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
+class correlation_distance_batch_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
 public:
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
@@ -62,7 +61,7 @@ public:
         INFO("check if there is no NaN in result values table");
         REQUIRE(te::has_no_nans(result_values));
 
-        INFO("check if result values are within expected range");
+        INFO("check if result values are expected");
         check_result_values(x_data, y_data, result_values);
     }
 
@@ -99,20 +98,50 @@ public:
         const auto column_count = x_data_matrix.get_column_count();
         auto reference = la::matrix<double>::full({ row_count_x, row_count_y }, 0.0);
 
-        for (std::int64_t i = 0; i < row_count_x; i++)
+        // For each pair of vectors
+        for (std::int64_t i = 0; i < row_count_x; i++) {
             for (std::int64_t j = 0; j < row_count_y; j++) {
+                // Calculate means
+                double mean_x = 0.0;
+                double mean_y = 0.0;
                 for (std::int64_t k = 0; k < column_count; k++) {
-                    double diff = x_data_matrix.get(i, k) - y_data_matrix.get(j, k);
-                    reference.set(i, j) += diff * diff;
+                    mean_x += x_data_matrix.get(i, k);
+                    mean_y += y_data_matrix.get(j, k);
                 }
-                reference.set(i, j) = std::exp(-0.5 * reference.get(i, j));
+                mean_x /= column_count;
+                mean_y /= column_count;
+
+                // Calculate the numerator (covariance)
+                double numerator = 0.0;
+                double x_variance = 0.0;
+                double y_variance = 0.0;
+
+                for (std::int64_t k = 0; k < column_count; k++) {
+                    double x_centered = x_data_matrix.get(i, k) - mean_x;
+                    double y_centered = y_data_matrix.get(j, k) - mean_y;
+                    numerator += x_centered * y_centered;
+                    x_variance += x_centered * x_centered;
+                    y_variance += y_centered * y_centered;
+                }
+
+                // Calculate correlation coefficient
+                double denominator = std::sqrt(x_variance * y_variance);
+                double correlation = 0.0;
+                
+                // Handle the case where one of the vectors has zero variance
+                if (denominator > 1e-10) {
+                    correlation = numerator / denominator;
+                }
+                
+                // Correlation distance is 1 - correlation coefficient
+                reference.set(i, j) = 1.0 - correlation;
             }
+        }
         return reference;
     }
 };
 
-using correlation_distance_types = COMBINE_TYPES((float, double),
-                                                 (correlation_distance::method::dense));
+using correlation_distance_types = COMBINE_TYPES((float, double), (correlation_distance::method::dense));
 
 TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
                      "correlation_distance common flow",
