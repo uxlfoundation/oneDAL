@@ -231,7 +231,7 @@ static _thread_pinner_set_pinning_t _thread_pinner_set_pinning_ptr              
 static _getThreadPinner_t _getThreadPinner_ptr                                   = NULL;
 #endif
 
-static _daal_threader_reduce_t _daal_threader_reduce_ptr = NULL;
+static _daal_threader_reduce_t _daal_threader_reduce_ptr               = NULL;
 static _daal_static_threader_reduce_t _daal_static_threader_reduce_ptr = NULL;
 
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
