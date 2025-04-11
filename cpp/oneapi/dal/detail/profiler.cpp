@@ -68,7 +68,7 @@ static void set_verbose_from_env(void) {
     int newval = 0;
     if (verbose_str) {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 3)
+        if (newval < 0 || newval > 4)
             newval = 0;
     }
 
@@ -141,15 +141,15 @@ std::string format_time_for_output(std::uint64_t time_ns) {
 void print_header() {
     // daal::services::LibraryVersionInfo ver;
 
-    // std::cout << "Major version:          " << ver.majorVersion << std::endl;
-    // std::cout << "Minor version:          " << ver.minorVersion << std::endl;
-    // std::cout << "Update version:         " << ver.updateVersion << std::endl;
-    // std::cout << "Product status:         " << ver.productStatus << std::endl;
-    // std::cout << "Build:                  " << ver.build << std::endl;
-    // std::cout << "Build revision:         " << ver.build_rev << std::endl;
-    // std::cout << "Name:                   " << ver.name << std::endl;
-    // std::cout << "Processor optimization: " << ver.processor << std::endl;
-    std::cout << std::endl;
+    // std::cerr << "Major version:          " << ver.majorVersion << std::endl;
+    // std::cerr << "Minor version:          " << ver.minorVersion << std::endl;
+    // std::cerr << "Update version:         " << ver.updateVersion << std::endl;
+    // std::cerr << "Product status:         " << ver.productStatus << std::endl;
+    // std::cerr << "Build:                  " << ver.build << std::endl;
+    // std::cerr << "Build revision:         " << ver.build_rev << std::endl;
+    // std::cerr << "Name:                   " << ver.name << std::endl;
+    // std::cerr << "Processor optimization: " << ver.processor << std::endl;
+    std::cerr << std::endl;
 }
 
 int* onedal_verbose_mode() {
@@ -190,13 +190,18 @@ int onedal_verbose(int option) {
 profiler::profiler() {
     int verbose = *onedal_verbose_mode();
     if (verbose == 1) {
-        kernel_info_needed = true;
+        kernel_info_needed = false;
     }
     else if (verbose == 2) {
         device_info_needed = true;
-        kernel_info_needed = true;
+        kernel_info_needed = false;
     }
     else if (verbose == 3) {
+        device_info_needed = true;
+        kernel_info_needed = true;
+        function_info_needed = true;
+    }
+    else if (verbose == 4) {
         device_info_needed = true;
         kernel_info_needed = true;
         function_info_needed = true;
@@ -211,7 +216,7 @@ profiler::~profiler() {
     if (kernel_info_needed) {
         const auto& tasks_info = get_instance()->get_task();
         std::uint64_t total_time = 0;
-
+        std::cerr << "Algorithm tree profiler" << std::endl;
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
             const auto& entry = tasks_info.kernels[i];
             std::string prefix;
@@ -219,7 +224,9 @@ profiler::~profiler() {
             for (size_t lvl = 0; lvl < entry.level; ++lvl) {
                 prefix += "│   ";
             }
-
+            if (entry.level == 0) {
+                total_time += entry.duration;
+            }
             bool is_last = true;
             if (i + 1 < tasks_info.kernels.size()) {
                 const auto& next = tasks_info.kernels[i + 1];
@@ -230,13 +237,11 @@ profiler::~profiler() {
 
             prefix += is_last ? "└── " : "├── ";
 
-            std::cout << "ONEDAL KERNEL_PROFILER " << prefix << entry.name
-                      << " time: " << format_time_for_output(entry.duration) << std::endl;
-
-            total_time += entry.duration;
+            std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration)
+                      << std::endl;
         }
 
-        std::cout << "ONEDAL KERNEL_PROFILER ╰── (end)" << std::endl;
+        std::cerr << "╰── (end)" << std::endl;
 
         std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time "
                   << format_time_for_output(total_time) << std::endl;
@@ -265,6 +270,10 @@ std::uint64_t& profiler::get_current_level() {
     return current_kernel;
 }
 
+std::int64_t& profiler::get_current_kernel_count() {
+    return total_kernel_count;
+}
+
 task& profiler::get_task() {
     return task_;
 }
@@ -281,7 +290,30 @@ void profiler::set_queue(const sycl::queue& q) {
 
 profiler_task profiler::start_task(const char* task_name) {
     if (!is_profiling_enabled())
-        return profiler_task(nullptr);
+        return profiler_task(nullptr, -1);
+    // std::lock_guard<std::mutex> lock(mutex_);
+    auto ns_start = get_time();
+    auto& tasks_info = get_instance()->get_task();
+
+    // auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(),
+    //                        [&](const task_entry& entry) { return entry.name == task_name; });
+    auto& current = get_instance()->get_current_level();
+    auto& current_count = get_instance()->get_current_kernel_count();
+    // if (it == tasks_info.kernels.end()) {
+    std::int64_t tmp = current_count;
+    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current });
+    // } else {
+    //     it->duration = ns_start;
+    // }
+    current++;
+    current_count++;
+    std::cerr << "ONEDAL LOGGER: " << task_name << std::endl;
+    return profiler_task(task_name, tmp);
+}
+
+profiler_task profiler::start_service_task(const char* task_name) {
+    if (*onedal_verbose_mode() != 4)
+        return profiler_task(nullptr, -1);
 
     // std::lock_guard<std::mutex> lock(mutex_);
     auto ns_start = get_time();
@@ -290,15 +322,20 @@ profiler_task profiler::start_task(const char* task_name) {
     // auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(),
     //                        [&](const task_entry& entry) { return entry.name == task_name; });
     auto& current = get_instance()->get_current_level();
+    auto& current_count = get_instance()->get_current_kernel_count();
     // if (it == tasks_info.kernels.end()) {
-    tasks_info.kernels.push_back({ task_name, ns_start, current });
+    std::int64_t tmp = current_count;
+    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current });
     // } else {
     //     it->duration = ns_start;
     // }
     current++;
-    return profiler_task(task_name);
+    current_count++;
+    std::cerr << "ONEDAL LOGGER: " << task_name << std::endl;
+    return profiler_task(task_name, tmp);
 }
-void profiler::end_task(const char* task_name) {
+
+void profiler::end_task(const char* task_name, int idx_) {
     if (!is_profiling_enabled())
         return;
 
@@ -314,7 +351,7 @@ void profiler::end_task(const char* task_name) {
     auto it = std::find_if(tasks_info.kernels.begin(),
                            tasks_info.kernels.end(),
                            [&](const task_entry& entry) {
-                               return entry.name == task_name;
+                               return entry.idx == idx_;
                            });
 
     // if (it != tasks_info.kernels.end()) {
@@ -322,14 +359,13 @@ void profiler::end_task(const char* task_name) {
     it->duration = duration;
     auto& current = get_instance()->get_current_level();
     current--;
-    //}
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
     if (!is_profiling_enabled())
-        return profiler_task(nullptr);
-    std::lock_guard<std::mutex> lock(mutex_);
+        return profiler_task(nullptr, -1);
+    // std::lock_guard<std::mutex> lock(mutex_);
     task_queue.wait_and_throw();
     if (!device_info_printed && device_info_needed) {
         auto device = task_queue.get_device();
@@ -340,20 +376,35 @@ profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queu
     return start_task(task_name);
 }
 
-profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue)
+profiler_task profiler::start_service_task(const char* task_name, sycl::queue& task_queue) {
+    if (*onedal_verbose_mode() != 4)
+        return profiler_task(nullptr, -1);
+    // std::lock_guard<std::mutex> lock(mutex_);
+    task_queue.wait_and_throw();
+    if (!device_info_printed && device_info_needed) {
+        auto device = task_queue.get_device();
+        print_device_info(device);
+        device_info_printed = true;
+    }
+    get_instance()->set_queue(task_queue);
+    return start_task(task_name);
+}
+
+profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue, int idx_)
         : task_name_(task_name),
+          idx(idx_),
           task_queue_(task_queue),
           has_queue_(true) {}
 #endif
 
-profiler_task::profiler_task(const char* task_name) : task_name_(task_name) {}
+profiler_task::profiler_task(const char* task_name, int idx_) : task_name_(task_name), idx(idx_) {}
 
 profiler_task::~profiler_task() {
 #ifdef ONEDAL_DATA_PARALLEL
     if (has_queue_)
         task_queue_.wait_and_throw();
 #endif // ONEDAL_DATA_PARALLEL
-    profiler::end_task(task_name_);
+    profiler::end_task(task_name_, idx);
 }
 
 } // namespace oneapi::dal::detail
