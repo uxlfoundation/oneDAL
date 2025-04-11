@@ -83,7 +83,7 @@ jobs:
   build_win:
     name: oneDAL Windows nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 120
 
     steps:

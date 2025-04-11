@@ -72,7 +72,7 @@ class DAAL_EXPORT Input : public classifier::training::Input
 public:
     Input() : classifier::training::Input() {}
     Input(const Input & other) : classifier::training::Input(other) {}
-
+    Input & operator=(const Input & other);
     /**
      * Checks the correctness of the input object
      * \param[in] parameter Pointer to the structure of the algorithm parameters

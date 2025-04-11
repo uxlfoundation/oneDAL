@@ -87,10 +87,13 @@ class kd_tree_model_impl : public model_impl<Task>,
                                                    knn_kd_tree_search_model_impl_id) {
 public:
     kd_tree_model_impl() : interop_(nullptr) {}
+    kd_tree_model_impl(backend::model_interop* interop) : interop_(interop) {}
     kd_tree_model_impl(const kd_tree_model_impl&) = delete;
     kd_tree_model_impl& operator=(const kd_tree_model_impl&) = delete;
 
-    kd_tree_model_impl(backend::model_interop* interop) : interop_(interop) {}
+    kd_tree_model_impl(kd_tree_model_impl&& other) noexcept = default;
+
+    kd_tree_model_impl& operator=(kd_tree_model_impl&& other) noexcept = default;
 
     ~kd_tree_model_impl() {
         delete interop_;
@@ -106,6 +109,7 @@ public:
     }
 
     void deserialize(dal::detail::input_archive& ar) override {
+        delete interop_;
         interop_ = dal::detail::deserialize_polymorphic<backend::model_interop>(ar);
     }
 
