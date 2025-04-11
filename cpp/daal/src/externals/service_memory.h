@@ -29,8 +29,6 @@
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
 
-#include <climits> // UINT_MAX
-
 namespace daal
 {
 namespace services
@@ -38,7 +36,7 @@ namespace services
 namespace internal
 {
 template <typename T, CpuType cpu>
-T * service_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
+T * service_calloc(size_t size, size_t alignment = 64)
 {
     T * ptr = (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
     if (ptr == NULL)
@@ -58,7 +56,7 @@ T * service_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
 }
 
 template <typename T, CpuType cpu>
-T * service_malloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
+T * service_malloc(size_t size, size_t alignment = 64)
 {
     return (T *)daal::services::daal_malloc(size * sizeof(T), alignment);
 }
@@ -70,7 +68,7 @@ void service_free(T * ptr)
 }
 
 template <typename T, CpuType cpu>
-T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
+T * service_scalable_calloc(size_t size, size_t alignment = 64)
 {
     T * ptr = (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
 
@@ -82,31 +80,16 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMEN
     char * const cptr        = (char *)ptr;
     const size_t sizeInBytes = size * sizeof(T);
 
-    if (sizeInBytes < UINT_MAX && !((DAAL_UINT64)cptr & DAAL_MEMORY_ALIGNMENT_MASK))
+    for (size_t i = 0; i < sizeInBytes; i++)
     {
-        /// Use aligned stores
-        const unsigned int size32 = static_cast<unsigned int>(sizeInBytes);
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
-        for (unsigned int i = 0; i < size32; i++)
-        {
-            cptr[i] = '\0';
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < sizeInBytes; i++)
-        {
-            cptr[i] = '\0';
-        }
+        cptr[i] = '\0';
     }
 
     return ptr;
 }
 
 template <typename T, CpuType cpu>
-T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MEMORY_ALIGNMENT)
+T * service_scalable_malloc(size_t size, size_t alignment = 64)
 {
     return (T *)threaded_scalable_malloc(size * sizeof(T), alignment);
 }
