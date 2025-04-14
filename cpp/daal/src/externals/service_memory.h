@@ -50,6 +50,11 @@ namespace internal
 template <typename T, CpuType cpu>
 void service_memset_seq(T * const ptr, const T value, const size_t num)
 {
+    /// TODO: 1. Add aligned branch for the case when num is greater than UINT_MAX
+    ///          and ptr is aligned.
+    ///       2. When possible, split the loop into two parts:
+    ///          - the first part uses unaligned stores until the first aligned address,
+    ///          - the second part uses aligned stores until the end of the block.
     if (num < UINT_MAX && !((DAAL_UINT64)ptr & DAAL_DEFAULT_ALIGNMENT_MASK))
     {
         /// Use aligned stores
