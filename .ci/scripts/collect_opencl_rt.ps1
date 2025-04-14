@@ -15,7 +15,7 @@
 #===============================================================================
 
 echo "Download intel opencl runtime"
-(new-object System.Net.WebClient).DownloadFile("https://registrationcenter-download.intel.com/akdlm/IRC_NAS/d9883ab0-0e26-47fd-9612-950b95460d72/w_opencl_runtime_p_2024.2.0.980.exe", "opencl_installer.exe")
+(new-object System.Net.WebClient).DownloadFile("https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b6dccdb7-b503-41ea-bd4b-a78e9c2d8dd6/w_opencl_runtime_p_2025.1.0.972.exe", "opencl_installer.exe")
 echo "Unpacking opencl runtime installer"
 Start-Process ".\opencl_installer.exe" -ArgumentList "--s --x --f ocl" -Wait
-Move-Item -Path ".\ocl\w_opencl_runtime_p_2024.2.0.980.msi" -Destination ".\opencl_rt.msi"
+Move-Item -Path ".\ocl\w_opencl_runtime_p_2025.1.0.972.msi" -Destination ".\opencl_rt.msi"
