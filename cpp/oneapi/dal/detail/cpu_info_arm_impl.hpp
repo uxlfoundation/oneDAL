@@ -26,11 +26,13 @@ public:
     cpu_info_arm() {
         info_["top_cpu_extension"] = cpu_extension::sve;
         info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
     }
 
     explicit cpu_info_arm(const cpu_extension cpu_extension) {
         info_["top_cpu_extension"] = cpu_extension;
         info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
     }
 };
 

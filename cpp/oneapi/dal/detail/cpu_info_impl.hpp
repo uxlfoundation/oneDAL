@@ -22,6 +22,8 @@
 #include <map>
 #include <string>
 
+#include <iostream>
+
 namespace oneapi::dal::detail {
 namespace v1 {
 
@@ -33,6 +35,8 @@ public:
     cpu_vendor get_cpu_vendor() const override;
 
     cpu_extension get_top_cpu_extension() const override;
+
+    uint64_t get_cpu_features() const override;
 
     std::string dump() const override;
 

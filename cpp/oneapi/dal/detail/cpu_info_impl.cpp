@@ -68,6 +68,14 @@ cpu_extension cpu_info_impl::get_top_cpu_extension() const {
     return std::any_cast<cpu_extension>(entry->second);
 }
 
+uint64_t cpu_info_impl::get_cpu_features() const {
+    const auto entry = info_.find("cpu_features");
+    if (entry == info_.end()) {
+        throw invalid_argument{ error_messages::invalid_key() };
+    }
+    return std::any_cast<uint64_t>(entry->second);
+}
+
 std::string cpu_info_impl::dump() const {
     std::ostringstream ss;
     for (auto const& [name, value] : info_) {
@@ -91,6 +99,9 @@ void cpu_info_impl::print_any(const std::any& value, std::ostringstream& ss) con
     }
     else if (ti == typeid(cpu_vendor)) {
         print<cpu_vendor>(value, ss);
+    }
+    else if (ti == typeid(uint64_t)) {
+        ss << std::any_cast<uint64_t>(value);
     }
     else {
         throw unimplemented{ dal::detail::error_messages::unsupported_data_type() };

@@ -31,6 +31,10 @@ public:
     /// The highest supported CPU extension
     virtual cpu_extension get_top_cpu_extension() const = 0;
 
+    /// The CPU features avaliable on the system
+    /// @return The CPU features bitmask
+    virtual uint64_t get_cpu_features() const = 0;
+
     /// The dump of all supported CPU features in the format:
     /// feature 1: value1; feature2: value2; ...
     virtual std::string dump() const = 0;

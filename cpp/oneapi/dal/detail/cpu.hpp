@@ -51,11 +51,24 @@ enum class cpu_extension : uint64_t {
 #endif
 };
 
+enum class cpu_feature : uint64_t {
+    none = 0U,
+#if defined(TARGET_X86_64)
+    bf16 = 1U << 1,
+    vnni = 1U << 2,
+    tb3 = 1U << 3,
+    sshift = 1U << 4
+#endif
+};
+
 ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int);
 ONEDAL_EXPORT cpu_extension detect_top_cpu_extension();
+uint64_t detect_cpu_features();
 
 } // namespace v1
 using v1::cpu_vendor;
 using v1::cpu_extension;
+using v1::cpu_feature;
 using v1::detect_top_cpu_extension;
+using v1::detect_cpu_features;
 } // namespace oneapi::dal::detail
