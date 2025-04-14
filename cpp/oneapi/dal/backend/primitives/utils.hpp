@@ -34,7 +34,7 @@ namespace oneapi::dal::backend::primitives {
 /// @return The new 2D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 2> table2ndarray(const table& table) {
-    ONEDAL_PROFILER_SERVICE(service::table2ndarray);
+    ONEDAL_PROFILER_TASK(table2ndarray);
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull({ 0, -1 });
     return ndarray<Type, 2>::wrap(data, { table.get_row_count(), table.get_column_count() });
@@ -49,7 +49,7 @@ inline ndarray<Type, 2> table2ndarray(const table& table) {
 /// @return The new 1D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 1> table2ndarray_1d(const table& table) {
-    ONEDAL_PROFILER_SERVICE(service::table2ndarray_1d);
+    ONEDAL_PROFILER_TASK(table2ndarray_1d);
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull({ 0, -1 });
     return ndarray<Type, 1>::wrap(data, { data.get_count() });
@@ -172,7 +172,7 @@ template <typename Type, ndorder order = ndorder::c>
 inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
                                              const table& table,
                                              sycl::usm::alloc alloc = sycl::usm::alloc::shared) {
-    ONEDAL_PROFILER_SERVICE(service::table2ndarray_queue);
+    ONEDAL_PROFILER_TASK(table2ndarray_queue);
     [[maybe_unused]] const auto layout = table.get_data_layout();
     if constexpr (order == ndorder::c) {
         ONEDAL_ASSERT(layout == decltype(layout)::row_major);

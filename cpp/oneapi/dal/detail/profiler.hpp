@@ -20,16 +20,14 @@
 #include <sycl/sycl.hpp>
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/time.h>
-#endif
-#include <time.h>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <map>
 #include <vector>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <algorithm>
@@ -39,35 +37,57 @@
 
 #define ONEDAL_PROFILER_UNIQUE_ID __LINE__
 
-#define ONEDAL_PROFILER_MACRO_1(name)        oneapi::dal::detail::profiler::start_task(#name)
-#define ONEDAL_PROFILER_MACRO_2(name, queue) oneapi::dal::detail::profiler::start_task(#name, queue)
-#define ONEDAL_PROFILER_SERVICE_MACRO_1(name) \
-    oneapi::dal::detail::profiler::start_service_task(#name)
-#define ONEDAL_PROFILER_SERVICE_MACRO_2(name, queue) \
-    oneapi::dal::detail::profiler::start_service_task(#name, queue)
+#define ONEDAL_PROFILER_MACRO_1(name)                       oneapi::dal::detail::profiler::start_task(#name)
+#define ONEDAL_PROFILER_MACRO_2(name, queue)                oneapi::dal::detail::profiler::start_task(#name, queue)
 #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-#define ONEDAL_PROFILER_TASK(...)                                                          \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,           \
-                                                              ONEDAL_PROFILER_UNIQUE_ID) = \
-        (oneapi::dal::detail::profiler::is_profiling_enabled()                             \
-             ? ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                      \
-                                         ONEDAL_PROFILER_MACRO_2,                          \
-                                         ONEDAL_PROFILER_MACRO_1,                          \
-                                         FICTIVE)(__VA_ARGS__)                             \
-             : oneapi::dal::detail::profiler::start_task(nullptr))
+#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, queue, ...)                        \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                       \
+        __profiler_task__,                                                           \
+        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {   \
+        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                 \
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;                           \
+            std::cerr << "TASK: " << #task_name << " ARGS: ";               \
+            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__); \
+            std::cerr << std::endl;                                                  \
+            return oneapi::dal::detail::profiler::start_task(#task_name, queue);     \
+        }                                                                            \
+        return oneapi::dal::detail::profiler::start_task(nullptr);                   \
+    }()
 
-#define ONEDAL_PROFILER_SERVICE(...)                                                       \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,           \
-                                                              ONEDAL_PROFILER_UNIQUE_ID) = \
-        (oneapi::dal::detail::profiler::is_profiling_enabled()                             \
-             ? ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                      \
-                                         ONEDAL_PROFILER_MACRO_2,                          \
-                                         ONEDAL_PROFILER_MACRO_1,                          \
-                                         FICTIVE)(__VA_ARGS__)                             \
-             : oneapi::dal::detail::profiler::start_service_task(nullptr))
+#define ONEDAL_PROFILER_TASK(...)                                                  \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                     \
+        __profiler_task__,                                                         \
+        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task { \
+        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {               \
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;                         \
+            return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                          \
+                                             ONEDAL_PROFILER_MACRO_2,              \
+                                             ONEDAL_PROFILER_MACRO_1,              \
+                                             FICTIVE)(__VA_ARGS__);                \
+        }                                                                          \
+        return oneapi::dal::detail::profiler::start_task(nullptr);                 \
+    }()
 
 namespace oneapi::dal::detail {
+
+inline void profiler_log_named_args(const char* /*names*/) {
+    // base case — no args
+}
+
+template <typename T, typename... Rest>
+void profiler_log_named_args(const char* names, const T& value, Rest&&... rest) {
+    const char* comma = strchr(names, ',');
+    std::string name = comma ? std::string(names, comma) : std::string(names);
+
+    name.erase(0, name.find_first_not_of(" \t\n\r"));
+
+    std::cerr << name << ": " << value << "; ";
+
+    if (comma) {
+        profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
+    }
+}
 
 struct task_entry {
     std::int64_t idx;
@@ -105,7 +125,6 @@ public:
     profiler();
     ~profiler();
     static profiler_task start_task(const char* task_name);
-    static profiler_task start_service_task(const char* task_name);
     static std::uint64_t get_time();
     static profiler* get_instance();
     task& get_task();
@@ -116,7 +135,6 @@ public:
     sycl::queue& get_queue();
     void set_queue(const sycl::queue& q);
     static profiler_task start_task(const char* task_name, sycl::queue& task_queue);
-    static profiler_task start_service_task(const char* task_name, sycl::queue& task_queue);
 #endif
     static void end_task(const char* task_name, int idx);
 

@@ -30,7 +30,7 @@ sycl::event gemm(sycl::queue& queue,
                  Float alpha,
                  Float beta,
                  const event_vector& deps) {
-    ONEDAL_PROFILER_TASK(blas.gemm, queue);
+    ONEDAL_PROFILER_TASK_WITH_ARGS(blas.gemm, queue, a.get_dimension(0), a.get_dimension(1), alpha);
 
     ONEDAL_ASSERT(a.get_dimension(0) == c.get_dimension(0));
     ONEDAL_ASSERT(a.get_dimension(1) == b.get_dimension(0));

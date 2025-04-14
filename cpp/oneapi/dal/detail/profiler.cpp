@@ -14,20 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifdef _WIN
-#include <windows.h>
-#define PATH_MAX MAX_PATH
-#else
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <linux/limits.h>
-#endif
-
 #include <sstream>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
 #include "oneapi/dal/detail/profiler.hpp"
 #include <daal/include/services/library_version_info.h>
 #include <mutex>
@@ -50,6 +41,7 @@ static bool function_info_needed = false;
 
 #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
 #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
+
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
 *
@@ -160,12 +152,8 @@ int* onedal_verbose_mode() {
 #endif
     {
         std::lock_guard<std::mutex> lock(std::mutex);
-#ifdef _WIN
-        onedal_verbose_val == -1;
-#else
         if (onedal_verbose_val == -1)
             set_verbose_from_env();
-#endif
     }
     return (int*)&onedal_verbose_val;
 }
@@ -249,16 +237,9 @@ profiler::~profiler() {
 }
 
 std::uint64_t profiler::get_time() {
-#ifdef _WIN32
-    LARGE_INTEGER frequency, counter;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&counter);
-    return (counter.QuadPart * 1000000000) / frequency.QuadPart;
-#else
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec * 1000000000 + t.tv_nsec;
-#endif
+    auto now = std::chrono::steady_clock::now();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+    return static_cast<std::uint64_t>(ns);
 }
 
 profiler* profiler::get_instance() {
@@ -311,30 +292,6 @@ profiler_task profiler::start_task(const char* task_name) {
     return profiler_task(task_name, tmp);
 }
 
-profiler_task profiler::start_service_task(const char* task_name) {
-    if (*onedal_verbose_mode() != 4)
-        return profiler_task(nullptr, -1);
-
-    // std::lock_guard<std::mutex> lock(mutex_);
-    auto ns_start = get_time();
-    auto& tasks_info = get_instance()->get_task();
-
-    // auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(),
-    //                        [&](const task_entry& entry) { return entry.name == task_name; });
-    auto& current = get_instance()->get_current_level();
-    auto& current_count = get_instance()->get_current_kernel_count();
-    // if (it == tasks_info.kernels.end()) {
-    std::int64_t tmp = current_count;
-    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current });
-    // } else {
-    //     it->duration = ns_start;
-    // }
-    current++;
-    current_count++;
-    std::cerr << "ONEDAL LOGGER: " << task_name << std::endl;
-    return profiler_task(task_name, tmp);
-}
-
 void profiler::end_task(const char* task_name, int idx_) {
     if (!is_profiling_enabled())
         return;
@@ -364,20 +321,6 @@ void profiler::end_task(const char* task_name, int idx_) {
 #ifdef ONEDAL_DATA_PARALLEL
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
     if (!is_profiling_enabled())
-        return profiler_task(nullptr, -1);
-    // std::lock_guard<std::mutex> lock(mutex_);
-    task_queue.wait_and_throw();
-    if (!device_info_printed && device_info_needed) {
-        auto device = task_queue.get_device();
-        print_device_info(device);
-        device_info_printed = true;
-    }
-    get_instance()->set_queue(task_queue);
-    return start_task(task_name);
-}
-
-profiler_task profiler::start_service_task(const char* task_name, sycl::queue& task_queue) {
-    if (*onedal_verbose_mode() != 4)
         return profiler_task(nullptr, -1);
     // std::lock_guard<std::mutex> lock(mutex_);
     task_queue.wait_and_throw();
