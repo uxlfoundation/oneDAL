@@ -48,7 +48,7 @@
         if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
             std::cerr << "--------------------------------------------------" << std::endl; \
             std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
-            std::cerr << "ONEDAL_TASK: " << #task_name << " ARGS: ";                        \
+            std::cerr << "task_name: " << #task_name << " args: ";                          \
             oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
             std::cerr << std::endl;                                                         \
             return oneapi::dal::detail::profiler::start_task(#task_name);                   \
@@ -63,7 +63,7 @@
         if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
             std::cerr << "--------------------------------------------------" << std::endl; \
             std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
-            std::cerr << "ONEDAL_TASK: " << #task_name << " ARGS: ";                        \
+            std::cerr << "task_name: " << #task_name << " args: ";                          \
             oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
             std::cerr << std::endl;                                                         \
             return oneapi::dal::detail::profiler::start_task(#task_name, queue);            \
@@ -78,6 +78,7 @@
         if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
             std::cerr << "--------------------------------------------------" << std::endl; \
             std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
+            std::cerr << "task_name: " << #__VA_ARGS__ << std::endl;                        \
             return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                   \
                                              ONEDAL_PROFILER_MACRO_2,                       \
                                              ONEDAL_PROFILER_MACRO_1,                       \

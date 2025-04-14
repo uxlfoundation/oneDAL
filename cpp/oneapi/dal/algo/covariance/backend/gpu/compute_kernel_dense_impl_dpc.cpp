@@ -86,7 +86,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
     }
 
     {
-        ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
+        ONEDAL_PROFILER_TASK_WITH_ARGS(allreduce_rows_count_global, rows_count_global);
         comm_.allreduce(rows_count_global, spmd::reduce_op::sum).wait();
     }
 

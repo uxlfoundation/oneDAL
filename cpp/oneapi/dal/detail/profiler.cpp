@@ -70,38 +70,38 @@ static void set_verbose_from_env(void) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 void print_device_info(sycl::device dev) {
-    std::cout << "Platfrom: " << dev.get_platform().get_info<sycl::info::platform::name>()
-              << std::endl;
+    // std::cout << "Platfrom: " << dev.get_platform().get_info<sycl::info::platform::name>()
+    //           << std::endl;
 
-    std::cout << "\tName:\t" << dev.get_info<sycl::info::device::name>() << std::endl;
+    // std::cout << "\tName:\t" << dev.get_info<sycl::info::device::name>() << std::endl;
 
-    std::string device = "UNKNOWN";
-    switch (dev.get_info<sycl::info::device::device_type>()) {
-        case sycl::info::device_type::gpu: device = "GPU"; break;
-        case sycl::info::device_type::cpu: device = "CPU"; break;
-        case sycl::info::device_type::accelerator: device = "ACCELERATOR"; break;
-        case sycl::info::device_type::host: device = "HOST"; break;
-        default: break;
-    }
-    std::cout << "\tType:\t" << device << std::endl;
-    std::cout << "\tVendor:\t" << dev.get_info<sycl::info::device::vendor>() << std::endl;
-    std::cout << "\tVersion:\t" << dev.get_info<sycl::info::device::version>() << std::endl;
-    std::cout << "\tDriver:\t" << dev.get_info<sycl::info::device::driver_version>() << std::endl;
+    // std::string device = "UNKNOWN";
+    // switch (dev.get_info<sycl::info::device::device_type>()) {
+    //     case sycl::info::device_type::gpu: device = "GPU"; break;
+    //     case sycl::info::device_type::cpu: device = "CPU"; break;
+    //     case sycl::info::device_type::accelerator: device = "ACCELERATOR"; break;
+    //     case sycl::info::device_type::host: device = "HOST"; break;
+    //     default: break;
+    // }
+    // std::cout << "\tType:\t" << device << std::endl;
+    // std::cout << "\tVendor:\t" << dev.get_info<sycl::info::device::vendor>() << std::endl;
+    // std::cout << "\tVersion:\t" << dev.get_info<sycl::info::device::version>() << std::endl;
+    // std::cout << "\tDriver:\t" << dev.get_info<sycl::info::device::driver_version>() << std::endl;
 
-    std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
-              << std::endl;
+    // std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
+    //           << std::endl;
 
-    std::cout << "\tMax comp units:\t" << dev.get_info<sycl::info::device::max_compute_units>()
-              << std::endl;
-    std::cout << "\tMax work item dims:\t"
-              << dev.get_info<sycl::info::device::max_work_item_dimensions>() << std::endl;
-    std::cout << "\tMax work group size:\t"
-              << dev.get_info<sycl::info::device::max_work_group_size>() << std::endl;
-    std::cout << "\tGlobal mem size:\t" << dev.get_info<sycl::info::device::global_mem_size>()
-              << std::endl;
-    std::cout << "\tGlobal mem cache size:\t"
-              << dev.get_info<sycl::info::device::global_mem_cache_size>() << std::endl;
-    std::cout << std::endl;
+    // std::cout << "\tMax comp units:\t" << dev.get_info<sycl::info::device::max_compute_units>()
+    //           << std::endl;
+    // std::cout << "\tMax work item dims:\t"
+    //           << dev.get_info<sycl::info::device::max_work_item_dimensions>() << std::endl;
+    // std::cout << "\tMax work group size:\t"
+    //           << dev.get_info<sycl::info::device::max_work_group_size>() << std::endl;
+    // std::cout << "\tGlobal mem size:\t" << dev.get_info<sycl::info::device::global_mem_size>()
+    //           << std::endl;
+    // std::cout << "\tGlobal mem cache size:\t"
+    //           << dev.get_info<sycl::info::device::global_mem_cache_size>() << std::endl;
+    // std::cout << std::endl;
 }
 #endif
 
