@@ -42,6 +42,20 @@ static bool function_info_needed = false;
 #define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
 #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
 
+void print_header() {
+    daal::services::LibraryVersionInfo ver;
+
+    std::cerr << "Major version:          " << ver.majorVersion << std::endl;
+    std::cerr << "Minor version:          " << ver.minorVersion << std::endl;
+    std::cerr << "Update version:         " << ver.updateVersion << std::endl;
+    std::cerr << "Product status:         " << ver.productStatus << std::endl;
+    std::cerr << "Build:                  " << ver.build << std::endl;
+    std::cerr << "Build revision:         " << ver.build_rev << std::endl;
+    std::cerr << "Name:                   " << ver.name << std::endl;
+    std::cerr << "Processor optimization: " << ver.processor << std::endl;
+    std::cerr << std::endl;
+}
+
 /**
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
 *
@@ -60,8 +74,12 @@ static void set_verbose_from_env(void) {
     int newval = 0;
     if (verbose_str) {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 4)
+        if (newval < 0 || newval > 4) {
             newval = 0;
+        }
+        else {
+            print_header();
+        }
     }
 
     onedal_verbose_val = newval;
@@ -130,20 +148,6 @@ std::string format_time_for_output(std::uint64_t time_ns) {
     return out.str();
 }
 
-void print_header() {
-    // daal::services::LibraryVersionInfo ver;
-
-    // std::cerr << "Major version:          " << ver.majorVersion << std::endl;
-    // std::cerr << "Minor version:          " << ver.minorVersion << std::endl;
-    // std::cerr << "Update version:         " << ver.updateVersion << std::endl;
-    // std::cerr << "Product status:         " << ver.productStatus << std::endl;
-    // std::cerr << "Build:                  " << ver.build << std::endl;
-    // std::cerr << "Build revision:         " << ver.build_rev << std::endl;
-    // std::cerr << "Name:                   " << ver.name << std::endl;
-    // std::cerr << "Processor optimization: " << ver.processor << std::endl;
-    std::cerr << std::endl;
-}
-
 int* onedal_verbose_mode() {
 #ifdef _MSC_VER
     if (onedal_verbose_val == -1)
@@ -151,7 +155,6 @@ int* onedal_verbose_mode() {
     if (__builtin_expect((onedal_verbose_val == -1), 0))
 #endif
     {
-        // std::lock_guard<std::mutex> lock(std::mutex);
         if (onedal_verbose_val == -1)
             set_verbose_from_env();
     }
@@ -168,9 +171,7 @@ int onedal_verbose(int option) {
         return -1;
     }
     if (option != onedal_verbose_val) {
-        std::lock_guard<std::mutex> lock(std::mutex);
-        if (option != onedal_verbose_val)
-            onedal_verbose_val = option;
+        onedal_verbose_val = option;
     }
     return *retVal;
 }
@@ -193,9 +194,6 @@ profiler::profiler() {
         device_info_needed = true;
         kernel_info_needed = true;
         function_info_needed = true;
-    }
-    if (device_info_needed) {
-        print_header();
     }
 }
 

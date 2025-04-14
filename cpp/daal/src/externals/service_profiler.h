@@ -20,18 +20,19 @@
 //  Profiler for time measurement of kernels
 //--
 */
+#pragma once
 
-#ifdef _WIN32
-    #include <windows.h>
-#else
-    #include <sys/time.h>
-#endif
-#include <time.h>
+#include <chrono>
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include <cstring>
+#include <map>
 #include <vector>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 #include <mutex>
+#include <stdexcept>
+#include <algorithm>
 
 #ifndef __SERVICE_PROFILER_H__
     #define __SERVICE_PROFILER_H__
@@ -40,31 +41,96 @@
     #define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
     #define DAAL_ITTNOTIFY_UNIQUE_ID     __LINE__
 
-    #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                                  \
-        daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) =    \
-            (daal::internal::profiler::is_profiling_enabled() ? daal::internal::profiler::start_task(#name) : \
-                                                                daal::internal::profiler_task(nullptr))
+// #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                                  \
+    //     daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) =    \
+    //         (daal::internal::profiler::is_profiling_enabled() ? daal::internal::profiler::start_task(#name) : \
+    //                                                             daal::internal::profiler_task(nullptr))
+
+    #define ONEDAL_PROFILER_CONCAT2(x, y) x##y
+    #define ONEDAL_PROFILER_CONCAT(x, y)  ONEDAL_PROFILER_CONCAT2(x, y)
+
+    #define ONEDAL_PROFILER_UNIQUE_ID __LINE__
+
+    #define ONEDAL_PROFILER_MACRO_1(name)                       daal::internal::profiler::start_task(#name)
+    #define ONEDAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name, queue)
+    #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
+
+    #define DAAL_ITTNOTIFY_SCOPED_TASK_WITH_ARGS(task_name, ...)                                                                   \
+        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                    \
+                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                  \
+            {                                                                                                                      \
+                std::cerr << "--------------------------------------------------" << std::endl;                                    \
+                std::cerr << __PRETTY_FUNCTION__ << std::endl;                                                                     \
+                std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                                            \
+                daal::internal::profiler::_log_named_args(#__VA_ARGS__, __VA_ARGS__);                                              \
+                std::cerr << std::endl;                                                                                            \
+                return daal::internal::profiler::start_task(#task_name);                                                           \
+            }                                                                                                                      \
+            return daal::internal::profiler::start_task(nullptr);                                                                  \
+        }()
+
+    #define DAAL_ITTNOTIFY_SCOPED_TASK(...)                                                                                            \
+        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                        \
+                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {     \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                      \
+            {                                                                                                                          \
+                std::cerr << "--------------------------------------------------" << std::endl;                                        \
+                std::cerr << __PRETTY_FUNCTION__ << std::endl;                                                                         \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                      \
+                return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__, ONEDAL_PROFILER_MACRO_2, ONEDAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__); \
+            }                                                                                                                          \
+            return daal::internal::profiler::start_task(nullptr);                                                                      \
+        }()
 
 namespace daal
 {
 namespace internal
 {
 
+inline void profiler_log_named_args(const char * /*names*/)
+{
+    // base case — no args
+}
+
+template <typename T, typename... Rest>
+void profiler_log_named_args(const char * names, const T & value, Rest &&... rest)
+{
+    const char * comma = strchr(names, ',');
+    std::string name   = comma ? std::string(names, comma) : std::string(names);
+
+    name.erase(0, name.find_first_not_of(" \t\n\r"));
+
+    std::cerr << name << ": " << value << "; ";
+
+    if (comma)
+    {
+        profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
+    }
+}
+
+struct task_entry
+{
+    std::int64_t idx;
+    std::string name;
+    std::uint64_t duration;
+    std::int64_t level;
+};
+
 struct task
 {
-    std::unordered_map<std::string, std::uint64_t> kernels;
-    std::uint64_t current_kernel = 0;
-    std::vector<std::uint64_t> time_kernels;
+    std::vector<task_entry> kernels;
 };
 
 class profiler_task
 {
 public:
-    profiler_task(const char * task_name);
+    profiler_task(const char * task_name, int idx);
     ~profiler_task();
 
 private:
     const char * task_name_;
+    int idx;
 };
 
 class profiler
@@ -76,12 +142,14 @@ public:
     static std::uint64_t get_time();
     static profiler * get_instance();
     task & get_task();
+    std::int64_t & get_current_level();
+    std::int64_t & get_kernel_count();
     static bool is_profiling_enabled();
-    static void end_task(const char * task_name);
+    static void end_task(const char * task_name, int idx);
 
 private:
-    std::uint64_t total_time = 0;
-    std::uint64_t start_time = 0;
+    std::int64_t current_level = 0;
+    std::int64_t kernel_count  = 0;
     task task_;
     static std::mutex mutex_;
 };
