@@ -41,32 +41,49 @@
 #define ONEDAL_PROFILER_MACRO_2(name, queue)                oneapi::dal::detail::profiler::start_task(#name, queue)
 #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, queue, ...)                        \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                       \
-        __profiler_task__,                                                           \
-        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {   \
-        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                 \
-            std::cerr << __PRETTY_FUNCTION__ << std::endl;                           \
-            std::cerr << "TASK: " << #task_name << " ARGS: ";               \
-            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__); \
-            std::cerr << std::endl;                                                  \
-            return oneapi::dal::detail::profiler::start_task(#task_name, queue);     \
-        }                                                                            \
-        return oneapi::dal::detail::profiler::start_task(nullptr);                   \
+#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                      \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
+        __profiler_task__,                                                                  \
+        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
+        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
+            std::cerr << "--------------------------------------------------" << std::endl; \
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
+            std::cerr << "ONEDAL_TASK: " << #task_name << " ARGS: ";                        \
+            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
+            std::cerr << std::endl;                                                         \
+            return oneapi::dal::detail::profiler::start_task(#task_name);                   \
+        }                                                                                   \
+        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
     }()
 
-#define ONEDAL_PROFILER_TASK(...)                                                  \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                     \
-        __profiler_task__,                                                         \
-        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task { \
-        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {               \
-            std::cerr << __PRETTY_FUNCTION__ << std::endl;                         \
-            return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                          \
-                                             ONEDAL_PROFILER_MACRO_2,              \
-                                             ONEDAL_PROFILER_MACRO_1,              \
-                                             FICTIVE)(__VA_ARGS__);                \
-        }                                                                          \
-        return oneapi::dal::detail::profiler::start_task(nullptr);                 \
+#define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                         \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
+        __profiler_task__,                                                                  \
+        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
+        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
+            std::cerr << "--------------------------------------------------" << std::endl; \
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
+            std::cerr << "ONEDAL_TASK: " << #task_name << " ARGS: ";                        \
+            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
+            std::cerr << std::endl;                                                         \
+            return oneapi::dal::detail::profiler::start_task(#task_name, queue);            \
+        }                                                                                   \
+        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
+    }()
+
+#define ONEDAL_PROFILER_TASK(...)                                                           \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
+        __profiler_task__,                                                                  \
+        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
+        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
+            std::cerr << "--------------------------------------------------" << std::endl; \
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
+            return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                   \
+                                             ONEDAL_PROFILER_MACRO_2,                       \
+                                             ONEDAL_PROFILER_MACRO_1,                       \
+                                             FICTIVE)(__VA_ARGS__);                         \
+        }                                                                                   \
+        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
     }()
 
 namespace oneapi::dal::detail {
@@ -93,7 +110,7 @@ struct task_entry {
     std::int64_t idx;
     std::string name;
     std::uint64_t duration;
-    std::uint64_t level;
+    std::int64_t level;
 };
 
 struct task {
@@ -128,8 +145,8 @@ public:
     static std::uint64_t get_time();
     static profiler* get_instance();
     task& get_task();
-    std::uint64_t& get_current_level();
-    std::int64_t& get_current_kernel_count();
+    std::int64_t& get_current_level();
+    std::int64_t& get_kernel_count();
     static bool is_profiling_enabled();
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();
@@ -139,9 +156,8 @@ public:
     static void end_task(const char* task_name, int idx);
 
 private:
-    std::uint64_t start_time = 0;
-    std::uint64_t current_kernel = 0;
-    std::int64_t total_kernel_count = 0;
+    std::int64_t current_level = 0;
+    std::int64_t kernel_count = 0;
     task task_;
     static std::mutex mutex_;
 #ifdef ONEDAL_DATA_PARALLEL

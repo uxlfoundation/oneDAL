@@ -115,7 +115,7 @@ int * onedal_verbose_mode()
     if (__builtin_expect((daal_verbose_val == -1), 0))
 #endif
     {
-        std::lock_guard<std::mutex> lock(std::mutex);
+        // std::lock_guard<std::mutex> lock(std::mutex);
 #ifdef _WIN
         daal_verbose_val == -1;
 #else
@@ -135,7 +135,7 @@ int onedal_verbose(int option)
     if (__builtin_expect((option != daal_verbose_val), 0))
 #endif
     {
-        std::lock_guard<std::mutex> lock(std::mutex);
+        // std::lock_guard<std::mutex> lock(std::mutex);
         if (option != daal_verbose_val) daal_verbose_val = option;
     }
     return *retVal;
