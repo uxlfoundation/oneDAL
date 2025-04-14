@@ -32,6 +32,12 @@
 #include <stdexcept>
 #include <algorithm>
 
+#ifdef _WIN32
+#define PRETTY_FUNCTION __FUNCSIG__
+#else
+#define PRETTY_FUNCTION __PRETTY_FUNCTION__
+#endif
+
 #define ONEDAL_PROFILER_CONCAT2(x, y) x##y
 #define ONEDAL_PROFILER_CONCAT(x, y)  ONEDAL_PROFILER_CONCAT2(x, y)
 
@@ -41,51 +47,52 @@
 #define ONEDAL_PROFILER_MACRO_2(name, queue)                oneapi::dal::detail::profiler::start_task(#name, queue)
 #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                      \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
-        __profiler_task__,                                                                  \
-        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
-        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
-            std::cerr << "--------------------------------------------------" << std::endl; \
-            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
-            std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";         \
-            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
-            std::cerr << std::endl;                                                         \
-            return oneapi::dal::detail::profiler::start_task(#task_name);                   \
-        }                                                                                   \
-        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
-    }()
+#define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                         \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,               \
+                                                              ONEDAL_PROFILER_UNIQUE_ID) =     \
+        (oneapi::dal::detail::profiler::is_profiling_enabled())                                \
+        ? [&]() -> oneapi::dal::detail::profiler_task {                                        \
+        std::cerr                                                                              \
+            << "-----------------------------------------------------------------------------" \
+            << std::endl;                                                                      \
+        std::cerr << PRETTY_FUNCTION << std::endl;                                             \
+        std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                \
+        oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);               \
+        std::cerr << std::endl;                                                                \
+        return oneapi::dal::detail::profiler::start_task(#task_name);                          \
+    }()                                                                                        \
+        : oneapi::dal::detail::profiler::start_task(nullptr)
 
-#define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                         \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
-        __profiler_task__,                                                                  \
-        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
-        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
-            std::cerr << "--------------------------------------------------" << std::endl; \
-            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
-            std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";         \
-            oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);        \
-            std::cerr << std::endl;                                                         \
-            return oneapi::dal::detail::profiler::start_task(#task_name, queue);            \
-        }                                                                                   \
-        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
-    }()
+#define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)                            \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,               \
+                                                              ONEDAL_PROFILER_UNIQUE_ID) =     \
+        (oneapi::dal::detail::profiler::is_profiling_enabled())                                \
+        ? [&]() -> oneapi::dal::detail::profiler_task {                                        \
+        std::cerr                                                                              \
+            << "-----------------------------------------------------------------------------" \
+            << std::endl;                                                                      \
+        std::cerr << PRETTY_FUNCTION << std::endl;                                             \
+        std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                \
+        oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);               \
+        std::cerr << std::endl;                                                                \
+        return oneapi::dal::detail::profiler::start_task(#task_name, queue);                   \
+    }()                                                                                        \
+        : oneapi::dal::detail::profiler::start_task(nullptr)
 
-#define ONEDAL_PROFILER_TASK(...)                                                           \
-    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(                              \
-        __profiler_task__,                                                                  \
-        ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> oneapi::dal::detail::profiler_task {          \
-        if (oneapi::dal::detail::profiler::is_profiling_enabled()) {                        \
-            std::cerr << "--------------------------------------------------" << std::endl; \
-            std::cerr << __PRETTY_FUNCTION__ << std::endl;                                  \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;               \
-            return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                   \
-                                             ONEDAL_PROFILER_MACRO_2,                       \
-                                             ONEDAL_PROFILER_MACRO_1,                       \
-                                             FICTIVE)(__VA_ARGS__);                         \
-        }                                                                                   \
-        return oneapi::dal::detail::profiler::start_task(nullptr);                          \
-    }()
+#define ONEDAL_PROFILER_TASK(...)                                                          \
+    oneapi::dal::detail::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,           \
+                                                              ONEDAL_PROFILER_UNIQUE_ID) = \
+        (oneapi::dal::detail::profiler::is_profiling_enabled())                            \
+        ? [&]() -> oneapi::dal::detail::profiler_task {                                    \
+        std::cerr << "--------------------------------------------------" << std::endl;    \
+        std::cerr << PRETTY_FUNCTION << std::endl;                                         \
+        std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                  \
+        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                      \
+                                         ONEDAL_PROFILER_MACRO_2,                          \
+                                         ONEDAL_PROFILER_MACRO_1,                          \
+                                         FICTIVE)(__VA_ARGS__);                            \
+    }()                                                                                    \
+        : oneapi::dal::detail::profiler::start_task(nullptr)
 
 namespace oneapi::dal::detail {
 

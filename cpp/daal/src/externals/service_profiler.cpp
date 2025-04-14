@@ -156,7 +156,6 @@ profiler::profiler()
     }
     else if (verbose == 2)
     {
-        device_info_needed = true;
         kernel_info_needed = true;
     }
     else if (verbose == 3)

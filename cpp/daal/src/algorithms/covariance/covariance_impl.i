@@ -51,7 +51,7 @@ namespace internal
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status prepareSums(NumericTable * dataTable, algorithmFPType * sums)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.prepareSums);
+    DAAL_PROFILER_TASK(Covariance::prepareSums);
 
     const size_t nFeatures = dataTable->getNumberOfColumns();
     int result             = 0;
@@ -76,7 +76,7 @@ services::Status prepareSums(NumericTable * dataTable, algorithmFPType * sums)
 template <typename algorithmFPType, CpuType cpu>
 services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossProduct)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.prepareCrossProduct);
+    DAAL_PROFILER_TASK(Covariance::prepareCrossProduct);
 
     const algorithmFPType zero = 0.0;
     services::internal::service_memset<algorithmFPType, cpu>(crossProduct, zero, nFeatures * nFeatures);
@@ -156,7 +156,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                                                 algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.updateDenseCrossProductAndSums);
+    DAAL_PROFILER_TASK(Covariance::updateDenseCrossProductAndSums);
     bool assumeCentered = parameter->assumeCentered;
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {

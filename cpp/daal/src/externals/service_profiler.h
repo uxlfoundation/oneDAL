@@ -34,6 +34,12 @@
 #include <stdexcept>
 #include <algorithm>
 
+#ifdef _WIN32
+    #define PRETTY_FUNCTION __FUNCSIG__
+#else
+    #define PRETTY_FUNCTION __PRETTY_FUNCTION__
+#endif
+
 #ifndef __SERVICE_PROFILER_H__
     #define __SERVICE_PROFILER_H__
 
@@ -60,8 +66,8 @@
                                                              ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
             if (daal::internal::profiler::is_profiling_enabled())                                                                  \
             {                                                                                                                      \
-                std::cerr << "--------------------------------------------------" << std::endl;                                    \
-                std::cerr << __PRETTY_FUNCTION__ << std::endl;                                                                     \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;         \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                         \
                 std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                                            \
                 daal::internal::profiler::_log_named_args(#__VA_ARGS__, __VA_ARGS__);                                              \
                 std::cerr << std::endl;                                                                                            \
@@ -70,13 +76,26 @@
             return daal::internal::profiler::start_task(nullptr);                                                                  \
         }()
 
+    #define DAAL_PROFILER_TASK(...)                                                                                                    \
+        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                        \
+                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {     \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                      \
+            {                                                                                                                          \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;             \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                             \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                      \
+                return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__, ONEDAL_PROFILER_MACRO_2, ONEDAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__); \
+            }                                                                                                                          \
+            return daal::internal::profiler::start_task(nullptr);                                                                      \
+        }()
+
     #define DAAL_ITTNOTIFY_SCOPED_TASK(...)                                                                                            \
         daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                        \
                                                              ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {     \
             if (daal::internal::profiler::is_profiling_enabled())                                                                      \
             {                                                                                                                          \
-                std::cerr << "--------------------------------------------------" << std::endl;                                        \
-                std::cerr << __PRETTY_FUNCTION__ << std::endl;                                                                         \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;             \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                             \
                 std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                      \
                 return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__, ONEDAL_PROFILER_MACRO_2, ONEDAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__); \
             }                                                                                                                          \
