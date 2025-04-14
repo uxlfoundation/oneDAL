@@ -58,6 +58,20 @@ enum CpuType
 #endif
 };
 
+/**
+ * Supported CPU features
+ */
+enum CpuFeature
+{
+    unknown     = 0ULL,        /*!< Unknown feature */
+#if defined(TARGET_X86_64)
+    bf16        = (1ULL << 1), /*!< Intel(R) processors with support for bfloat16 (Intel(R) BF16) */
+    vnni        = (1ULL << 2), /*!< Intel(R) processors with support for VNNI (Intel(R) VNNI) */
+    tb3         = (1ULL << 3), /*!< Turbo Boost Max 3.0 */
+    sshift      = (1ULL << 4), /*!< SpeedShift */
+#endif
+};
+
 namespace services
 {
 namespace interface1

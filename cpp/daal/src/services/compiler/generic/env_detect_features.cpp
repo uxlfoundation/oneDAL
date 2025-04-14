@@ -128,6 +128,7 @@ static int check_xgetbv_xcr0_ymm(uint32_t mask)
     return ((xcr0 & mask) == mask); /* checking if xmm and ymm state are enabled in XCR0 */
 }
 
+
 static int check_avx512_features()
 {
     /*
@@ -165,6 +166,33 @@ static int check_avx512_features()
 
     return 1;
 }
+
+static int check_avx512_vnni_features()
+{
+    /*
+    CPUID.(EAX=07H, ECX=0H):ECX.AVX512_VNNI[bit 11]==1
+    */
+    uint32_t avx512_vnni_mask = (1 << 11);
+    if (!check_cpuid(7, 0, 2, avx512_vnni_mask))
+    {
+        return 0;
+    }
+    return 1;
+}
+
+static int check_avx512_bf16_features()
+{
+    /*
+    CPUID.(EAX=07H, ECX=0H):EDX.AVX512_BF16[bit 22]==1
+    */
+    uint32_t avx512_bf16_mask = (1 << 22);
+    if (!check_cpuid(7, 0, 3, avx512_bf16_mask))
+    {
+        return 0;
+    }
+    return 1;
+}
+
 
 static int check_avx2_features()
 {
@@ -236,6 +264,27 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 
     return daal::sse2;
 }
+
+DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+{
+    DAAL_UINT64 result = daal::unknown;
+
+    if (check_avx512_features())
+    {
+        if (check_avx512_bf16_features())
+        {
+            result |= daal::bf16;
+        }
+
+        if (check_avx512_vnni_features())
+        {
+            result |= daal::vnni;
+        }
+    }
+
+    return result;
+}
+
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
 {
