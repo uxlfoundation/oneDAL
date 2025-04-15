@@ -188,11 +188,6 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
         // run of memory way before we hit this limit
         throw services::ErrorIncorrectIndex;
     }
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
     int depth               = static_cast<int>(uniqueDepth);
     int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
 
@@ -233,11 +228,6 @@ float unwoundPathSum(const PathElement * uniquePath, const float * partialWeight
                      uint32_t pathIndex)
 {
     if (uniqueDepth >= INT_MAX || uniqueDepthPartialWeights >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
