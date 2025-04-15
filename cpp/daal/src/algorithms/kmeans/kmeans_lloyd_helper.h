@@ -53,11 +53,12 @@ struct TlsTask
 {
     DAAL_NEW_DELETE();
 
-    TlsTask(int dim, int clNum, int maxBlockSize)
+    TlsTask(int dim, int clNum, int nSamples, int maxBlockSize)
     {
         mklBuff  = service_scalable_calloc<algorithmFPType, cpu>(maxBlockSize * clNum);
         cS1      = service_scalable_calloc<algorithmFPType, cpu>(clNum * dim);
         cS0      = service_scalable_calloc<int, cpu>(clNum);
+        cS2      = service_scalable_calloc<int, cpu>(nSamples);
         cValues  = service_scalable_calloc<algorithmFPType, cpu>(clNum);
         cIndices = service_scalable_calloc<size_t, cpu>(clNum);
     }
@@ -76,6 +77,10 @@ struct TlsTask
         {
             service_scalable_free<int, cpu>(cS0);
         }
+        if (cS2)
+        {
+            service_scalable_free<int, cpu>(cS2);
+        }
         if (cValues)
         {
             service_scalable_free<algorithmFPType, cpu>(cValues);
@@ -86,14 +91,14 @@ struct TlsTask
         }
     }
 
-    static TlsTask<algorithmFPType, cpu> * create(const size_t dim, const size_t clNum, const size_t maxBlockSize)
+    static TlsTask<algorithmFPType, cpu> * create(const size_t dim, const size_t clNum, const size_t nSamples, const size_t maxBlockSize)
     {
-        TlsTask<algorithmFPType, cpu> * result = new TlsTask<algorithmFPType, cpu>(dim, clNum, maxBlockSize);
+        TlsTask<algorithmFPType, cpu> * result = new TlsTask<algorithmFPType, cpu>(dim, clNum, nSamples, maxBlockSize);
         if (!result)
         {
             return nullptr;
         }
-        if (!result->mklBuff || !result->cS1 || !result->cS0)
+        if (!result->mklBuff || !result->cS1 || !result->cS0 || !result->cS2)
         {
             delete result;
             return nullptr;
@@ -104,6 +109,7 @@ struct TlsTask
     algorithmFPType * mklBuff = nullptr;
     algorithmFPType * cS1     = nullptr;
     int * cS0                 = nullptr;
+    int * cS2                 = nullptr;
     algorithmFPType goalFunc  = 0.0;
     size_t cNum               = 0;
     algorithmFPType * cValues = nullptr;

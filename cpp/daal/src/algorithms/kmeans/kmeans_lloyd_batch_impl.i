@@ -62,8 +62,9 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, p, sizeof(algorithmFPType));
 
     TArray<int, cpu> clusterS0(nClusters);
+    TArray<int, cpu> clusterS2(nClusters);
     TArray<algorithmFPType, cpu> clusterS1(nClusters * p);
-    DAAL_CHECK(clusterS0.get() && clusterS1.get(), services::ErrorMemoryAllocationFailed);
+    DAAL_CHECK(clusterS0.get() && clusterS2.get() && clusterS1.get(), services::ErrorMemoryAllocationFailed);
 
     ReadRows<algorithmFPType, cpu> mtInClusters(*const_cast<NumericTable *>(a[1]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtInClusters);
@@ -116,7 +117,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     for (kIter = 0; kIter < nIter; kIter++)
     {
-        auto task = TaskKMeansLloyd<algorithmFPType, cpu>::create(p, nClusters, inClusters, blockSize);
+        auto task = TaskKMeansLloyd<algorithmFPType, cpu>::create(p, nClusters, n, inClusters, blockSize);
         DAAL_CHECK(task.get(), services::ErrorMemoryAllocationFailed);
         {
             DAAL_ITTNOTIFY_SCOPED_TASK(addNTToTaskThreaded);
@@ -132,7 +133,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
         {
             DAAL_ITTNOTIFY_SCOPED_TASK(kmeansPartialReduceCentroids);
-            task->template kmeansComputeCentroids<method>(clusterS0.get(), clusterS1.get(), dS1.get());
+            task->template kmeansComputeCentroids<method>(clusterS0.get(), clusterS2.get(), clusterS1.get(), dS1.get());
         }
 
         size_t cNum;
@@ -143,6 +144,38 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         algorithmFPType l2Norm             = (algorithmFPType)0.0;
         {
             DAAL_ITTNOTIFY_SCOPED_TASK(kmeansMergeReduceCentroids);
+
+            for (size_t i = 0; i < nClusters; i++)
+            {
+                if (clusterS0[i] == 0)
+                {
+                    DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
+                    newCentersGoalFunc += cValues[cPos];
+                    ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices[cPos], 1);
+                    const algorithmFPType * row = mtRow.get();
+
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j < p; j++)
+                    {
+                        const algorithmFPType dist = clusters[i * p + j] - row[j];
+                        l2Norm += dist * dist;
+                    }
+
+                    int indexes = clusterS2[cPos];
+                    clusterS0[indexes]--;
+                    const algorithmFPType coeff = 1.0 / clusterS0[indexes];
+
+                    for (size_t j = 0; j < p; j++)
+                    {
+                        clusterS1[indexes * p + j] -= row[j];
+                    }
+
+                    result |=
+                        daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
+                    cPos++;
+                }
+            }
 
             for (size_t i = 0; i < nClusters; i++)
             {
@@ -159,24 +192,6 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                         l2Norm += dist * dist;
                         clusters[i * p + j] = newCluster;
                     }
-                }
-                else
-                {
-                    DAAL_CHECK(cPos < cNum, services::ErrorKMeansNumberOfClustersIsTooLarge);
-                    newCentersGoalFunc += cValues[cPos];
-                    ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices[cPos], 1);
-                    const algorithmFPType * row = mtRow.get();
-
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j < p; j++)
-                    {
-                        const algorithmFPType dist = clusters[i * p + j] - row[j];
-                        l2Norm += dist * dist;
-                    }
-                    result |=
-                        daal::services::internal::daal_memcpy_s(&clusters[i * p], p * sizeof(algorithmFPType), row, p * sizeof(algorithmFPType));
-                    cPos++;
                 }
             }
         }
