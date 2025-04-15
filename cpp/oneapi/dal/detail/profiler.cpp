@@ -263,15 +263,15 @@ task& profiler::get_task() {
     return task_;
 }
 
-#ifdef ONEDAL_DATA_PARALLEL
-sycl::queue& profiler::get_queue() {
-    return queue_;
-}
+// #ifdef ONEDAL_DATA_PARALLEL
+// sycl::queue& profiler::get_queue() {
+//     return queue_;
+// }
 
-void profiler::set_queue(const sycl::queue& q) {
-    queue_ = q;
-}
-#endif
+// void profiler::set_queue(const sycl::queue& q) {
+//     queue_ = q;
+// }
+// #endif
 
 profiler_task profiler::start_task(const char* task_name) {
     if (task_name == nullptr)
@@ -298,10 +298,10 @@ void profiler::end_task(const char* task_name, int idx_) {
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
 
-#ifdef ONEDAL_DATA_PARALLEL
-    auto& queue = get_instance()->get_queue();
-    queue.wait_and_throw();
-#endif
+    // #ifdef ONEDAL_DATA_PARALLEL
+    //     auto& queue = get_instance()->get_queue();
+    //     queue.wait_and_throw();
+    // #endif
 
     auto it = std::find_if(tasks_info.kernels.begin(),
                            tasks_info.kernels.end(),
@@ -315,30 +315,28 @@ void profiler::end_task(const char* task_name, int idx_) {
     current_level_--;
 }
 
-#ifdef ONEDAL_DATA_PARALLEL
-profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
-    if (task_name == nullptr)
-        return profiler_task(nullptr, -1);
-    task_queue.wait_and_throw();
+// #ifdef ONEDAL_DATA_PARALLEL
+// profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
+//     if (task_name == nullptr)
+//         return profiler_task(nullptr, -1);
+//     // task_queue.wait_and_throw();
 
-    get_instance()->set_queue(task_queue);
-    return start_task(task_name);
-}
+//     // get_instance()->set_queue(task_queue);
+//     return start_task(task_name);
+// }
 
-profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue, int idx_)
-        : task_name_(task_name),
-          idx(idx_),
-          task_queue_(task_queue),
-          has_queue_(true) {}
-#endif
+// profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue, int idx_)
+//         : task_name_(task_name),
+//           idx(idx_)  {}
+// #endif
 
 profiler_task::profiler_task(const char* task_name, int idx_) : task_name_(task_name), idx(idx_) {}
 
 profiler_task::~profiler_task() {
-#ifdef ONEDAL_DATA_PARALLEL
-    if (has_queue_)
-        task_queue_.wait_and_throw();
-#endif // ONEDAL_DATA_PARALLEL
+    // #ifdef ONEDAL_DATA_PARALLEL
+    //     if (has_queue_)
+    //         task_queue_.wait_and_throw();
+    // #endif // ONEDAL_DATA_PARALLEL
     profiler::end_task(task_name_, idx);
 }
 
