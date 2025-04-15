@@ -1,6 +1,7 @@
 load("@onedal//dev/bazel:release.bzl",
     "release",
     "release_include",
+    "release_env"
 )
 
 release(
@@ -13,6 +14,10 @@ release(
         release_include(
             hdrs = [ "@onedal//cpp/daal:kernel_defines" ],
             add_prefix = "services/internal",
+        ),
+        release_include(
+            hdrs = [ "@micromkl_dpc//:headers" ],
+            skip_prefix = "external/micromkl_dpc/include/",
         ),
         release_include(
             hdrs = [ "@onedal//cpp/oneapi/dal:public_includes" ],
@@ -37,4 +42,5 @@ release(
         ],
         "//conditions:default": [],
     }),
+    env = release_env()
 )
