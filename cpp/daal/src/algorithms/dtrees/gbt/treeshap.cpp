@@ -40,7 +40,7 @@ void extendPath(PathElement * uniquePath, size_t uniqueDepth, float zeroFraction
     uniquePath[uniqueDepth].partialWeight = (uniqueDepth == 0 ? 1.0f : 0.0f);
 
     const float constant = 1.0f / static_cast<float>(uniqueDepth + 1);
-    for (int i = uniqueDepth - 1; i >= 0; --i)
+    for (int i = static_cast<int>(uniqueDepth) - 1; i >= 0; --i)
     {
         uniquePath[i + 1].partialWeight += oneFraction * uniquePath[i].partialWeight * (i + 1) * constant;
         uniquePath[i].partialWeight = zeroFraction * uniquePath[i].partialWeight * (uniqueDepth - i) * constant;
