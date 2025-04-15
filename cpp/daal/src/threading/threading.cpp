@@ -835,5 +835,64 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
     ((tbb::task_group *)taskGroupPtr)->wait();
 }
 
+/// The class implements the body of the parallel reduce algorithm in compliance with
+/// oneTBB ParallelReduceBody requirements:
+/// https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/named_requirements/algorithms/par_reduce_body
+///
+/// The class uses pimpl idiom to hide the implementation details of the reducer.
+class ReductionBody
+{
+public:
+    /// Constructs the body of the parallel reduce algorithm from the given reducer.
+    ///
+    /// @param reducer Pointer to the reducer object.
+    ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false) {}
+
+    /// Splitting constructor.
+    /// Constructs the partial result initialized to identity value from the given partial result.
+    /// Must be able to run concurrently with `operator()` and `join()` methods.
+    ///
+    /// @param other The body to split.
+    /// @param split Split object.
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()), _isSplit(true) {}
+
+    /// Accumulate the partial results for a sub-range
+    ///
+    /// @param r The sub-range to process.
+    void operator()(const tbb::blocked_range<size_t> & r)
+    {
+        if (_reducer) _reducer->update(r.begin(), r.end());
+    }
+
+    /// Merge the partial results. The partial result from the given object is merged into this partial result.
+    ///
+    /// @param other The body to merge.
+    void join(ReductionBody & other)
+    {
+        if (_reducer) _reducer->join(other._reducer);
+    }
+
+    ~ReductionBody()
+    {
+        if (_isSplit) delete _reducer;
+    }
+
+private:
+    daal::Reducer * _reducer; // Pointer to the implementation
+    bool _isSplit;            // Flag to indicate whether the _reducer object is created in split constructor
+};
+
+DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    ReductionBody body(&reducer);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
+}
+
+DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    ReductionBody body(&reducer);
+    tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
+}
+
 namespace daal
 {}
