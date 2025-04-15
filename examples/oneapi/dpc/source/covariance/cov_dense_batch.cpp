@@ -45,7 +45,9 @@ int main(int argc, char const *argv[]) {
                   << ", " << d.get_info<sycl::info::device::name>() << "\n"
                   << std::endl;
         auto q = sycl::queue{ d };
-        run(q);
+        for (int i = 0; i < 5; i++) {
+            run(q);
+        }
     }
     return 0;
 }

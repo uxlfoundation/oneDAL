@@ -25,22 +25,13 @@
 
 namespace oneapi::dal::detail {
 
-std::mutex profiler::mutex_;
-
 static volatile int onedal_verbose_val = -1;
 
-#ifdef ONEDAL_DATA_PARALLEL
-static bool device_info_printed = false;
-#endif
-static bool device_info_needed = false;
-static bool kernel_info_needed = false;
-static bool function_info_needed = false;
-
 //TODO: add support of file output
-//__declspec(align(64)) static volatile char verbose_file_val[PATH_MAX] = {'\0'};
+//static volatile char verbose_file_val[PATH_MAX] = {'\0'};
+// #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
 
-#define ONEDAL_VERBOSE_ENV      "ONEDAL_VERBOSE"
-#define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
+#define ONEDAL_VERBOSE_ENV "ONEDAL_VERBOSE"
 
 void print_header() {
     daal::services::LibraryVersionInfo ver;
@@ -56,15 +47,6 @@ void print_header() {
     std::cerr << std::endl;
 }
 
-/**
-* Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
-*
-*  @returns pointer to mode
-*                      0 disabled
-*                      1 enabled with timing and ierarchy
-*                      2 enabled with device and library information(will be added soon)
-*                      3 enabled with the full list of function arguments(will be added soon)
-*/
 static void set_verbose_from_env(void) {
     static volatile int read_done = 0;
     if (read_done)
@@ -148,6 +130,16 @@ std::string format_time_for_output(std::uint64_t time_ns) {
     return out.str();
 }
 
+/**
+* Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
+*
+*  @returns pointer to mode
+*                      0 disabled
+*                      1 enabled only with logger
+*                      2 enabled only with kernel profiler
+*                      3 enabled with kernel profiler and logger
+*                      4 enabled with kernel profiler and logger + service functions
+*/
 int* onedal_verbose_mode() {
 #ifdef _MSC_VER
     if (onedal_verbose_val == -1)
@@ -161,8 +153,36 @@ int* onedal_verbose_mode() {
     return (int*)&onedal_verbose_val;
 }
 
-bool profiler::is_profiling_enabled() {
-    return *onedal_verbose_mode() > 0;
+bool profiler::is_service_debug_enabled() {
+    static const bool service_debug_value = [] {
+        int value = *onedal_verbose_mode();
+        return value == 4;
+    }();
+    return service_debug_value;
+}
+
+bool profiler::is_logger_enabled() {
+    static const bool logger_value = [] {
+        int value = *onedal_verbose_mode();
+        return value == 1 || value == 3 || value == 4;
+    }();
+    return logger_value;
+}
+
+bool profiler::is_verbose_enabled() {
+    static const bool verbose_value = [] {
+        int value = *onedal_verbose_mode();
+        return value == 1 || value == 2 || value == 3 || value == 4;
+    }();
+    return verbose_value;
+}
+
+bool profiler::is_profiler_enabled() {
+    static const bool profiler_value = [] {
+        int value = *onedal_verbose_mode();
+        return value == 2 || value == 3 || value == 4;
+    }();
+    return profiler_value;
 }
 
 int onedal_verbose(int option) {
@@ -178,27 +198,14 @@ int onedal_verbose(int option) {
 
 profiler::profiler() {
     int verbose = *onedal_verbose_mode();
-    if (verbose == 1) {
-        kernel_info_needed = false;
-    }
-    else if (verbose == 2) {
-        device_info_needed = true;
-        kernel_info_needed = false;
-    }
-    else if (verbose == 3) {
-        device_info_needed = true;
-        kernel_info_needed = true;
-        function_info_needed = true;
-    }
-    else if (verbose == 4) {
-        device_info_needed = true;
-        kernel_info_needed = true;
-        function_info_needed = true;
+    if (verbose == 1 || verbose == 3 || verbose == 4) {
+        print_header();
+        // print_device_info();
     }
 }
 
 profiler::~profiler() {
-    if (kernel_info_needed) {
+    if (is_profiler_enabled()) {
         const auto& tasks_info = get_instance()->get_task();
         std::uint64_t total_time = 0;
         std::cerr << "Algorithm tree profiler" << std::endl;
@@ -267,7 +274,7 @@ void profiler::set_queue(const sycl::queue& q) {
 #endif
 
 profiler_task profiler::start_task(const char* task_name) {
-    if (!is_profiling_enabled())
+    if (task_name == nullptr)
         return profiler_task(nullptr, -1);
 
     auto ns_start = get_time();
@@ -285,10 +292,9 @@ profiler_task profiler::start_task(const char* task_name) {
 }
 
 void profiler::end_task(const char* task_name, int idx_) {
-    if (!is_profiling_enabled())
+    if (task_name == nullptr)
         return;
 
-    std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
 
@@ -311,14 +317,10 @@ void profiler::end_task(const char* task_name, int idx_) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
-    if (!is_profiling_enabled())
+    if (task_name == nullptr)
         return profiler_task(nullptr, -1);
     task_queue.wait_and_throw();
-    if (!device_info_printed && device_info_needed) {
-        auto device = task_queue.get_device();
-        print_device_info(device);
-        device_info_printed = true;
-    }
+
     get_instance()->set_queue(task_queue);
     return start_task(task_name);
 }
