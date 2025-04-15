@@ -17,7 +17,7 @@
 #include "oneapi/dal/algo/covariance/compute_types.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/exceptions.hpp"
-
+#include <iostream>
 namespace oneapi::dal::covariance {
 
 namespace detail::v1 {
@@ -72,6 +72,7 @@ std::int64_t compute_parameters<Task>::get_cpu_macro_block() const {
 
 template <typename Task>
 void compute_parameters<Task>::set_cpu_macro_block_impl(std::int64_t val) {
+    std::cout << "macro block value=" << val << std::endl;
     impl_->cpu_macro_block = val;
 }
 
