@@ -128,7 +128,6 @@ static int check_xgetbv_xcr0_ymm(uint32_t mask)
     return ((xcr0 & mask) == mask); /* checking if xmm and ymm state are enabled in XCR0 */
 }
 
-
 static int check_avx512_features()
 {
     /*
@@ -205,8 +204,6 @@ static int check_tb3_features()
     }
     return 1;
 }
-
-
 
 static int check_avx2_features()
 {

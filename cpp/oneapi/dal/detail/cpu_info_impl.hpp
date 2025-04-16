@@ -42,11 +42,6 @@ public:
 
 protected:
     std::map<std::string, std::any> info_;
-
-    template <typename T>
-    void print(const std::any& value, std::ostringstream& ss) const;
-
-    void print_any(const std::any& value, std::ostringstream& ss) const;
 };
 
 } // namespace v1
