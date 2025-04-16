@@ -199,6 +199,7 @@ public:
     static bool is_verbose_enabled();
     static bool is_profiler_enabled();
     static bool is_logger_enabled();
+    static bool is_analyzer_enabled();
     static bool is_service_debug_enabled();
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();

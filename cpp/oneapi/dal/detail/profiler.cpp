@@ -154,6 +154,7 @@ int* onedal_verbose_mode() {
     return (int*)&onedal_verbose_val;
 }
 
+// General check to enable or disable service functions profiling
 bool profiler::is_service_debug_enabled() {
     static const bool service_debug_value = [] {
         int value = *onedal_verbose_mode();
@@ -162,6 +163,7 @@ bool profiler::is_service_debug_enabled() {
     return service_debug_value;
 }
 
+// For the PRETTYFUNCTION and the names of started tasks output
 bool profiler::is_logger_enabled() {
     static const bool logger_value = [] {
         int value = *onedal_verbose_mode();
@@ -170,18 +172,29 @@ bool profiler::is_logger_enabled() {
     return logger_value;
 }
 
+// General check to enable or disable profiling
 bool profiler::is_verbose_enabled() {
     static const bool verbose_value = [] {
+        std::ios::sync_with_stdio(false);
         int value = *onedal_verbose_mode();
         return value == 1 || value == 2 || value == 3 || value == 4;
     }();
     return verbose_value;
 }
 
+// Output kernel times
 bool profiler::is_profiler_enabled() {
     static const bool profiler_value = [] {
         int value = *onedal_verbose_mode();
         return value == 2 || value == 3 || value == 4;
+    }();
+    return profiler_value;
+}
+
+bool profiler::is_analyzer_enabled() {
+    static const bool profiler_value = [] {
+        int value = *onedal_verbose_mode();
+        return value == 2 || value == 3 || value == 4 || value == 5;
     }();
     return profiler_value;
 }
@@ -206,11 +219,16 @@ profiler::profiler() {
 }
 
 profiler::~profiler() {
-    if (is_profiler_enabled()) {
-        std::ios::sync_with_stdio(false);
+    if (is_analyzer_enabled()) {
         const auto& tasks_info = get_instance()->get_task();
         std::uint64_t total_time = 0;
-        std::cerr << "Algorithm tree profiler" << std::endl;
+        std::cerr << "Algorithm tree analyzer" << std::endl;
+        for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
+            const auto& entry = tasks_info.kernels[i];
+            if (entry.level == 0) {
+                total_time += entry.duration;
+            }
+        }
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
             const auto& entry = tasks_info.kernels[i];
             std::string prefix;
@@ -218,9 +236,9 @@ profiler::~profiler() {
             for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) {
                 prefix += "│   ";
             }
-            if (entry.level == 0) {
-                total_time += entry.duration;
-            }
+            // if (entry.level == 0) {
+            //     total_time += entry.duration;
+            // }
             bool is_last = true;
             if (i + 1 < tasks_info.kernels.size()) {
                 const auto& next = tasks_info.kernels[i + 1];
@@ -232,6 +250,8 @@ profiler::~profiler() {
             prefix += is_last ? "└── " : "├── ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration)
+                      << " percent of total time: " << std::fixed << std::setprecision(2)
+                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%"
                       << std::endl;
         }
 
@@ -310,6 +330,8 @@ void profiler::end_task(const char* task_name, int idx_) {
     it->duration = duration;
     auto& current_level_ = profiler::get_instance()->get_current_level();
     current_level_--;
+    if (is_profiler_enabled())
+        std::cerr << task_name << " " << format_time_for_output(duration) << std::endl;
 }
 
 #ifdef ONEDAL_DATA_PARALLEL

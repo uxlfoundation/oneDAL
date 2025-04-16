@@ -47,59 +47,51 @@
     #define DAAL_ITTNOTIFY_CONCAT(x, y)  DAAL_ITTNOTIFY_CONCAT2(x, y)
     #define DAAL_ITTNOTIFY_UNIQUE_ID     __LINE__
 
-// #define DAAL_ITTNOTIFY_SCOPED_TASK(name)                                                                  \
-    //     daal::internal::profiler_task DAAL_ITTNOTIFY_CONCAT(__profiler_taks__, DAAL_ITTNOTIFY_UNIQUE_ID) =    \
-    //         (daal::internal::profiler::is_profiling_enabled() ? daal::internal::profiler::start_task(#name) : \
-    //                                                             daal::internal::profiler_task(nullptr))
+    #define DAAL_PROFILER_CONCAT2(x, y) x##y
+    #define DAAL_PROFILER_CONCAT(x, y)  DAAL_PROFILER_CONCAT2(x, y)
 
-    #define ONEDAL_PROFILER_CONCAT2(x, y) x##y
-    #define ONEDAL_PROFILER_CONCAT(x, y)  ONEDAL_PROFILER_CONCAT2(x, y)
+    #define DAAL_PROFILER_UNIQUE_ID __LINE__
 
-    #define ONEDAL_PROFILER_UNIQUE_ID __LINE__
+    #define DAAL_PROFILER_MACRO_1(name)                       daal::internal::profiler::start_task(#name)
+    #define DAAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name, queue)
+    #define DAAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
-    #define ONEDAL_PROFILER_MACRO_1(name)                       daal::internal::profiler::start_task(#name)
-    #define ONEDAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name, queue)
-    #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
-
-    #define DAAL_ITTNOTIFY_SCOPED_TASK_WITH_ARGS(task_name, ...)                                                                   \
-        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                    \
-                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-            if (daal::internal::profiler::is_profiling_enabled())                                                                  \
-            {                                                                                                                      \
-                std::cerr << "-----------------------------------------------------------------------------" << std::endl;         \
-                std::cerr << PRETTY_FUNCTION << std::endl;                                                                         \
-                std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                                            \
-                daal::internal::profiler::_log_named_args(#__VA_ARGS__, __VA_ARGS__);                                              \
-                std::cerr << std::endl;                                                                                            \
-                return daal::internal::profiler::start_task(#task_name);                                                           \
-            }                                                                                                                      \
-            return daal::internal::profiler::start_task(nullptr);                                                                  \
+    #define DAAL_ITTNOTIFY_SCOPED_TASK_WITH_ARGS(task_name, ...)                                                                                  \
+        daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                                 \
+            {                                                                                                                                     \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
+                std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                                                           \
+                daal::internal::profiler::_log_named_args(#__VA_ARGS__, __VA_ARGS__);                                                             \
+                std::cerr << std::endl;                                                                                                           \
+                return daal::internal::profiler::start_task(#task_name);                                                                          \
+            }                                                                                                                                     \
+            return daal::internal::profiler::start_task(nullptr);                                                                                 \
         }()
 
-    #define DAAL_PROFILER_TASK(...)                                                                                                    \
-        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                        \
-                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {     \
-            if (daal::internal::profiler::is_profiling_enabled())                                                                      \
-            {                                                                                                                          \
-                std::cerr << "-----------------------------------------------------------------------------" << std::endl;             \
-                std::cerr << PRETTY_FUNCTION << std::endl;                                                                             \
-                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                      \
-                return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__, ONEDAL_PROFILER_MACRO_2, ONEDAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__); \
-            }                                                                                                                          \
-            return daal::internal::profiler::start_task(nullptr);                                                                      \
+    #define DAAL_PROFILER_TASK(...)                                                                                                               \
+        daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                                 \
+            {                                                                                                                                     \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                                 \
+                return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
+            }                                                                                                                                     \
+            return daal::internal::profiler::start_task(nullptr);                                                                                 \
         }()
 
-    #define DAAL_ITTNOTIFY_SCOPED_TASK(...)                                                                                            \
-        daal::internal::profiler_task ONEDAL_PROFILER_CONCAT(__profiler_task__,                                                        \
-                                                             ONEDAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task {     \
-            if (daal::internal::profiler::is_profiling_enabled())                                                                      \
-            {                                                                                                                          \
-                std::cerr << "-----------------------------------------------------------------------------" << std::endl;             \
-                std::cerr << PRETTY_FUNCTION << std::endl;                                                                             \
-                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                      \
-                return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__, ONEDAL_PROFILER_MACRO_2, ONEDAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__); \
-            }                                                                                                                          \
-            return daal::internal::profiler::start_task(nullptr);                                                                      \
+    #define DAAL_ITTNOTIFY_SCOPED_TASK(...)                                                                                                       \
+        daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+            if (daal::internal::profiler::is_profiling_enabled())                                                                                 \
+            {                                                                                                                                     \
+                std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
+                std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                                 \
+                return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
+            }                                                                                                                                     \
+            return daal::internal::profiler::start_task(nullptr);                                                                                 \
         }()
 
 namespace daal
