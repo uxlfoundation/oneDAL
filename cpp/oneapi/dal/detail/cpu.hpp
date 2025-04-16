@@ -59,17 +59,28 @@ enum class cpu_extension : uint64_t {
 #endif
 };
 
+enum class cpu_feature : uint64_t {
+    unknown = 0ULL,
+#if defined(TARGET_X86_64)
+    sstep = 1ULL << 0, /// Intel(R) SpeedStep
+    tb = 1ULL << 1, /// Intel(R) Turbo Boost
+    bf16 = 1ULL << 2, /// bfloat16
+    vnni = 1ULL << 3, /// VNNI
+    tb3 = 1ULL << 4 /// Intel(R) Turbo Boost Max 3.0
+#endif
+};
+
 /// A map of CPU features to their string representations.
 /// This map is used to convert CPU feature bitmasks to human-readable strings.
 /// Keys are bitflags representing CPU features. They are defined in daal::CpuFeature enumeration.
 static const std::map<uint64_t, const std::string> cpu_feature_map = {
-    { 0ULL, "Unknown" },
+    { uint64_t(cpu_feature::unknown), "Unknown" },
 #if defined(TARGET_X86_64)
-    { 1ULL << 0, "Intel(R) SpeedStep" },
-    { 1ULL << 1, "Intel(R) Turbo Boost" },
-    { 1ULL << 2, "bfloat16" },
-    { 1ULL << 3, "VNNI" },
-    { 1ULL << 4, "Intel(R) Turbo Boost Max 3.0" }
+    { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
+    { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
+    { uint64_t(cpu_feature::bf16), "bfloat16" },
+    { uint64_t(cpu_feature::vnni), "VNNI" },
+    { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" }
 #endif
 };
 
