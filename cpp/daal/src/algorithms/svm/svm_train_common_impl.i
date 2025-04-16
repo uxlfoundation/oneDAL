@@ -72,7 +72,7 @@ template <typename algorithmFPType, CpuType cpu>
 algorithmFPType HelperTrainSVM<algorithmFPType, cpu>::WSSi(size_t nActiveVectors, const algorithmFPType * grad, const char * I, int & Bi,
                                                            SignNuType signNuType)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(findMaximumViolatingPair.WSSi);
+    DAAL_PROFILER_TASK(findMaximumViolatingPair.WSSi);
 
     Bi                   = -1;
     algorithmFPType GMin = (MaxVal<algorithmFPType>::get()); // some big negative number
@@ -257,7 +257,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status SubDataTaskCSR<algorithmFPType, cpu>::copyDataByIndices(const uint32_t * wsIndices, const size_t nSubsetVectors,
                                                                          const NumericTablePtr & xTable)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(cache.copyDataByIndices.CSR);
+    DAAL_PROFILER_TASK(cache.copyDataByIndices.CSR);
     services::Status status;
     CSRNumericTableIface * csrIface = dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(xTable.get()));
     DAAL_CHECK(csrIface, services::ErrorEmptyCSRNumericTable);
@@ -298,7 +298,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status SubDataTaskDense<algorithmFPType, cpu>::copyDataByIndices(const uint32_t * wsIndices, const size_t nSubsetVectors,
                                                                            const NumericTablePtr & xTable)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(cache.copyDataByIndices.Dense);
+    DAAL_PROFILER_TASK(cache.copyDataByIndices.Dense);
     services::Status status;
     NumericTable & x = *xTable.get();
     const size_t p   = x.getNumberOfColumns();

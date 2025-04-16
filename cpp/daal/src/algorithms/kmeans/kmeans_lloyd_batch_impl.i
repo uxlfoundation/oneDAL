@@ -119,7 +119,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         auto task = TaskKMeansLloyd<algorithmFPType, cpu>::create(p, nClusters, inClusters, blockSize);
         DAAL_CHECK(task.get(), services::ErrorMemoryAllocationFailed);
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(addNTToTaskThreaded);
+            DAAL_PROFILER_TASK(addNTToTaskThreaded);
             /* For the last iteration we do not need to recount of assignmets */
             s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize, assignmetsNT && (kIter == nIter - 1) ? assignmetsNT : nullptr);
         }
@@ -131,7 +131,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         }
 
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(kmeansPartialReduceCentroids);
+            DAAL_PROFILER_TASK(kmeansPartialReduceCentroids);
             task->template kmeansComputeCentroids<method>(clusterS0.get(), clusterS1.get(), dS1.get());
         }
 
@@ -142,7 +142,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         algorithmFPType newCentersGoalFunc = (algorithmFPType)0.0;
         algorithmFPType l2Norm             = (algorithmFPType)0.0;
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(kmeansMergeReduceCentroids);
+            DAAL_PROFILER_TASK(kmeansMergeReduceCentroids);
 
             for (size_t i = 0; i < nClusters; i++)
             {
@@ -181,7 +181,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
             }
         }
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(kmeansUpdateObjectiveFunction);
+            DAAL_PROFILER_TASK(kmeansUpdateObjectiveFunction);
             if (par->accuracyThreshold > (algorithmFPType)0.0)
             {
                 algorithmFPType newTargetFunc = (algorithmFPType)0.0;

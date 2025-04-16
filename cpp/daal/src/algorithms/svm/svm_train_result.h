@@ -63,7 +63,7 @@ public:
 
     services::Status compute(const NumericTablePtr & xTable, Model & model, const algorithmFPType * cw) const
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(saveResult);
+        DAAL_PROFILER_TASK(saveResult);
 
         services::Status s;
 

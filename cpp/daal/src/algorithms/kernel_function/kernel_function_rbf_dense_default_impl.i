@@ -124,7 +124,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInternalMatrixMatrix(const NumericTable * a1, const NumericTable * a2,
                                                                                                 NumericTable * r, const KernelParameter * par)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(KernelRBF.MatrixMatrix);
+    DAAL_PROFILER_TASK(KernelRBF.MatrixMatrix);
 
     SafeStatus safeStat;
 

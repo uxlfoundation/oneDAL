@@ -70,7 +70,7 @@
 // PROFILER TASKS
 #define ONEDAL_PROFILER_TASK_WITH_ARGS(task_name, ...)            \
     oneapi::dal::detail::profiler_task __profiler_task =          \
-        (oneapi::dal::detail::profiler::is_verbose_enabled())     \
+        (oneapi::dal::detail::profiler::is_profiler_enabled())    \
         ? [&]() -> oneapi::dal::detail::profiler_task {           \
         if (oneapi::dal::detail::profiler::is_logger_enabled()) { \
             ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);     \
@@ -81,7 +81,7 @@
 
 #define ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(task_name, queue, ...)     \
     oneapi::dal::detail::profiler_task __profiler_task =                \
-        (oneapi::dal::detail::profiler::is_verbose_enabled())           \
+        (oneapi::dal::detail::profiler::is_profiler_enabled())          \
         ? [&]() -> oneapi::dal::detail::profiler_task {                 \
         if (oneapi::dal::detail::profiler::is_logger_enabled()) {       \
             ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);           \
@@ -92,7 +92,7 @@
 
 #define ONEDAL_PROFILER_TASK(...)                                             \
     oneapi::dal::detail::profiler_task __profiler_task =                      \
-        (oneapi::dal::detail::profiler::is_verbose_enabled())                 \
+        (oneapi::dal::detail::profiler::is_profiler_enabled())                \
         ? [&]() -> oneapi::dal::detail::profiler_task {                       \
         if (oneapi::dal::detail::profiler::is_logger_enabled()) {             \
             ONEDAL_PROFILER_PRINT_HEADER();                                   \
@@ -195,7 +195,7 @@ public:
     task& get_task();
     std::int64_t& get_current_level();
     std::int64_t& get_kernel_count();
-    static bool is_verbose_enabled();
+    static bool is_tracer_enabled();
     static bool is_profiler_enabled();
     static bool is_logger_enabled();
     static bool is_analyzer_enabled();

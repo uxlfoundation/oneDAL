@@ -71,38 +71,41 @@ static void set_verbose_from_env(void) {
 
 #ifdef ONEDAL_DATA_PARALLEL
 void print_device_info(sycl::device dev) {
-    // std::cout << "Platfrom: " << dev.get_platform().get_info<sycl::info::platform::name>()
-    //           << std::endl;
+    if (profiler::is_logger_enabled()) {
+        std::cout << "Platfrom: " << dev.get_platform().get_info<sycl::info::platform::name>()
+                  << std::endl;
 
-    // std::cout << "\tName:\t" << dev.get_info<sycl::info::device::name>() << std::endl;
+        std::cout << "\tName:\t" << dev.get_info<sycl::info::device::name>() << std::endl;
 
-    // std::string device = "UNKNOWN";
-    // switch (dev.get_info<sycl::info::device::device_type>()) {
-    //     case sycl::info::device_type::gpu: device = "GPU"; break;
-    //     case sycl::info::device_type::cpu: device = "CPU"; break;
-    //     case sycl::info::device_type::accelerator: device = "ACCELERATOR"; break;
-    //     case sycl::info::device_type::host: device = "HOST"; break;
-    //     default: break;
-    // }
-    // std::cout << "\tType:\t" << device << std::endl;
-    // std::cout << "\tVendor:\t" << dev.get_info<sycl::info::device::vendor>() << std::endl;
-    // std::cout << "\tVersion:\t" << dev.get_info<sycl::info::device::version>() << std::endl;
-    // std::cout << "\tDriver:\t" << dev.get_info<sycl::info::device::driver_version>() << std::endl;
+        std::string device = "UNKNOWN";
+        switch (dev.get_info<sycl::info::device::device_type>()) {
+            case sycl::info::device_type::gpu: device = "GPU"; break;
+            case sycl::info::device_type::cpu: device = "CPU"; break;
+            case sycl::info::device_type::accelerator: device = "ACCELERATOR"; break;
+            case sycl::info::device_type::host: device = "HOST"; break;
+            default: break;
+        }
+        std::cout << "\tType:\t" << device << std::endl;
+        std::cout << "\tVendor:\t" << dev.get_info<sycl::info::device::vendor>() << std::endl;
+        std::cout << "\tVersion:\t" << dev.get_info<sycl::info::device::version>() << std::endl;
+        std::cout << "\tDriver:\t" << dev.get_info<sycl::info::device::driver_version>()
+                  << std::endl;
 
-    // std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
-    //           << std::endl;
+        std::cout << "\tMax freq:\t" << dev.get_info<sycl::info::device::max_clock_frequency>()
+                  << std::endl;
 
-    // std::cout << "\tMax comp units:\t" << dev.get_info<sycl::info::device::max_compute_units>()
-    //           << std::endl;
-    // std::cout << "\tMax work item dims:\t"
-    //           << dev.get_info<sycl::info::device::max_work_item_dimensions>() << std::endl;
-    // std::cout << "\tMax work group size:\t"
-    //           << dev.get_info<sycl::info::device::max_work_group_size>() << std::endl;
-    // std::cout << "\tGlobal mem size:\t" << dev.get_info<sycl::info::device::global_mem_size>()
-    //           << std::endl;
-    // std::cout << "\tGlobal mem cache size:\t"
-    //           << dev.get_info<sycl::info::device::global_mem_cache_size>() << std::endl;
-    // std::cout << std::endl;
+        std::cout << "\tMax comp units:\t" << dev.get_info<sycl::info::device::max_compute_units>()
+                  << std::endl;
+        std::cout << "\tMax work item dims:\t"
+                  << dev.get_info<sycl::info::device::max_work_item_dimensions>() << std::endl;
+        std::cout << "\tMax work group size:\t"
+                  << dev.get_info<sycl::info::device::max_work_group_size>() << std::endl;
+        std::cout << "\tGlobal mem size:\t" << dev.get_info<sycl::info::device::global_mem_size>()
+                  << std::endl;
+        std::cout << "\tGlobal mem cache size:\t"
+                  << dev.get_info<sycl::info::device::global_mem_cache_size>() << std::endl;
+        std::cout << std::endl;
+    }
 }
 #endif
 
@@ -135,11 +138,12 @@ std::string format_time_for_output(std::uint64_t time_ns) {
 * Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
 *
 *  @returns pointer to mode
-*                      0 disabled
+*                      0/empty disabled
 *                      1 enabled only with logger
-*                      2 enabled only with kernel profiler
-*                      3 enabled with kernel profiler and logger
-*                      4 enabled with kernel profiler and logger + service functions
+*                      2 enabled only with tracer
+*                      3 enabled only with analyzer
+*                      4 enabled with logger tracer and analyzer
+*                      5 enabled with logger tracer and analyzer with service functions
 */
 int* onedal_verbose_mode() {
 #ifdef _MSC_VER
@@ -154,47 +158,48 @@ int* onedal_verbose_mode() {
     return (int*)&onedal_verbose_val;
 }
 
-// General check to enable or disable service functions profiling
+// Check for the service functions profiling
 bool profiler::is_service_debug_enabled() {
     static const bool service_debug_value = [] {
         int value = *onedal_verbose_mode();
-        return value == 4;
+        return value == 5;
     }();
     return service_debug_value;
 }
 
-// For the PRETTYFUNCTION and the names of started tasks output
+// Check for logger enabling(PRETTY_FUNCTION + Params)
 bool profiler::is_logger_enabled() {
     static const bool logger_value = [] {
         int value = *onedal_verbose_mode();
-        return value == 1 || value == 3 || value == 4;
+        return value == 1 || value == 4 || value == 5;
     }();
     return logger_value;
 }
 
-// General check to enable or disable profiling
-bool profiler::is_verbose_enabled() {
+// Check for tracer enabling(kernel runtimes in runtime)
+bool profiler::is_tracer_enabled() {
     static const bool verbose_value = [] {
         std::ios::sync_with_stdio(false);
         int value = *onedal_verbose_mode();
-        return value == 1 || value == 2 || value == 3 || value == 4;
+        return value == 2 || value == 4 || value == 5;
     }();
     return verbose_value;
 }
 
-// Output kernel times
+// General check for profiler
 bool profiler::is_profiler_enabled() {
     static const bool profiler_value = [] {
         int value = *onedal_verbose_mode();
-        return value == 2 || value == 3 || value == 4;
+        return value == 1 || value == 2 || value == 3 || value == 4 || value == 5;
     }();
     return profiler_value;
 }
 
+// Check for analyzer enabling(algorithm trees and kernel times)
 bool profiler::is_analyzer_enabled() {
     static const bool profiler_value = [] {
         int value = *onedal_verbose_mode();
-        return value == 2 || value == 3 || value == 4 || value == 5;
+        return value == 3 || value == 4 || value == 5;
     }();
     return profiler_value;
 }
@@ -212,9 +217,8 @@ int onedal_verbose(int option) {
 
 profiler::profiler() {
     int verbose = *onedal_verbose_mode();
-    if (verbose == 1 || verbose == 3 || verbose == 4) {
+    if (verbose == 1 || verbose == 4 || verbose == 5) {
         print_header();
-        // print_device_info();
     }
 }
 
@@ -330,7 +334,7 @@ void profiler::end_task(const char* task_name, int idx_) {
     it->duration = duration;
     auto& current_level_ = profiler::get_instance()->get_current_level();
     current_level_--;
-    if (is_profiler_enabled())
+    if (is_tracer_enabled())
         std::cerr << task_name << " " << format_time_for_output(duration) << std::endl;
 }
 
@@ -339,7 +343,10 @@ profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queu
     if (task_name == nullptr)
         return profiler_task(nullptr, -1);
 
-    profiler::get_instance()->set_queue(task_queue);
+    if (!queue_exists_global) {
+        profiler::get_instance()->set_queue(task_queue);
+        print_device_info(task_queue.get_device());
+    }
     queue_exists_global = true;
     return start_task(task_name);
 }

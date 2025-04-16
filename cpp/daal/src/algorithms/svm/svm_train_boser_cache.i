@@ -196,7 +196,7 @@ public:
 protected:
     Status init(const NumericTablePtr & xTable)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(CACHE.computeKernel);
+        DAAL_PROFILER_TASK(CACHE.computeKernel);
 
         Status s = super::init();
         if (!s) return s;
@@ -334,7 +334,7 @@ protected:
 
     Status getRowBlockImpl(size_t rowIndex, size_t startColIndex, size_t blockSize, size_t cacheOffset, const algorithmFPType *& block)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(NOT_CACHE.computeKernel);
+        DAAL_PROFILER_TASK(NOT_CACHE.computeKernel);
 
         _cacheTable->setArray(_cache.get() + cacheOffset, _cacheTable->getNumberOfRows());
         _kernel->getParameter()->rowIndexY = _doShrinking ? _shrinkingRowIndices[rowIndex] : rowIndex;
