@@ -54,10 +54,11 @@ enum class cpu_extension : uint64_t {
 enum class cpu_feature : uint64_t {
     none = 0U,
 #if defined(TARGET_X86_64)
-    bf16 = 1U << 1,
-    vnni = 1U << 2,
-    tb3 = 1U << 3,
-    sshift = 1U << 4
+    sstep = 1U << 1,    /// Intel(R) SpeedStep
+    tb = 1U << 2,       /// Intel(R) Turbo Boost
+    bf16 = 1U << 3,     /// bfloat16
+    vnni = 1U << 4,     /// Vector Neural Network Instructions (VNNI)
+    tb3 = 1U << 5       /// Intel(R) Turbo Boost Max 3.0
 #endif
 };
 

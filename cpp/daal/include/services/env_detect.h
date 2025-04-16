@@ -65,10 +65,11 @@ enum CpuFeature
 {
     unknown     = 0ULL,        /*!< Unknown feature */
 #if defined(TARGET_X86_64)
-    bf16        = (1ULL << 1), /*!< Intel(R) processors with support for bfloat16 (Intel(R) BF16) */
-    vnni        = (1ULL << 2), /*!< Intel(R) processors with support for VNNI (Intel(R) VNNI) */
-    tb3         = (1ULL << 3), /*!< Turbo Boost Max 3.0 */
-    sshift      = (1ULL << 4), /*!< SpeedShift */
+    sstep       = (1ULL << 1), /*!< Intel(R) SpeedStep */
+    tb          = (1ULL << 2), /*!< Intel(R) Turbo Boost */
+    bf16        = (1ULL << 3), /*!< bfloat16 */
+    vnni        = (1ULL << 4), /*!< Vector Neural Network Instructions (VNNI) */
+    tb3         = (1ULL << 5), /*!< Intel(R) Turbo Boost Max 3.0 */
 #endif
 };
 

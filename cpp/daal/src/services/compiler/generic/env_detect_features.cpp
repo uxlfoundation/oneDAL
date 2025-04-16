@@ -193,6 +193,20 @@ static int check_avx512_bf16_features()
     return 1;
 }
 
+static int check_tb3_features()
+{
+    /*
+    CPUID.(EAX=06H, ECX=0H):EAX[bit 14]==1
+    */
+    uint32_t tb3_mask = (1 << 14);
+    if (!check_cpuid(6, 0, 0, tb3_mask))
+    {
+        return 0;
+    }
+    return 1;
+}
+
+
 
 static int check_avx2_features()
 {
@@ -222,6 +236,19 @@ static int check_avx2_features()
         return 0;
     }
     if (!check_cpuid(0x80000001, 0, 2, lzcnt_mask))
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int check_sstep_features()
+{
+    /* CPUID.(EAX=01H, ECX=0H):ECX.EIST[bit 7]==1 */
+    uint32_t eist_mask = (1 << 7);
+
+    if (!check_cpuid(1, 0, 2, eist_mask))
     {
         return 0;
     }
@@ -267,19 +294,27 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 
 DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 {
-    DAAL_UINT64 result = daal::unknown;
+    DAAL_UINT64 result = daal::CpuFeature::unknown;
 
     if (check_avx512_features())
     {
         if (check_avx512_bf16_features())
         {
-            result |= daal::bf16;
+            result |= daal::CpuFeature::bf16;
         }
 
         if (check_avx512_vnni_features())
         {
-            result |= daal::vnni;
+            result |= daal::CpuFeature::vnni;
         }
+    }
+    if (check_tb3_features())
+    {
+        result |= daal::CpuFeature::tb3;
+    }
+    if (check_sstep_features())
+    {
+        result |= daal::CpuFeature::sstep;
     }
 
     return result;
@@ -311,6 +346,12 @@ bool daal_check_is_intel_cpu()
 {
     return false;
 }
+
+DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+{
+    return daal::CpuFeature::unknown;
+}
+
 #elif defined(TARGET_RISCV64)
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
@@ -325,5 +366,10 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
 bool daal_check_is_intel_cpu()
 {
     return false;
+}
+
+DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+{
+    return daal::CpuFeature::unknown;
 }
 #endif
