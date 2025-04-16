@@ -27,6 +27,7 @@ namespace oneapi::dal::detail {
 
 static volatile int onedal_verbose_val = -1;
 
+static bool queue_exists_global = false;
 //TODO: add support of file output
 //static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 // #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
@@ -206,6 +207,7 @@ profiler::profiler() {
 
 profiler::~profiler() {
     if (is_profiler_enabled()) {
+        std::ios::sync_with_stdio(false);
         const auto& tasks_info = get_instance()->get_task();
         std::uint64_t total_time = 0;
         std::cerr << "Algorithm tree profiler" << std::endl;
@@ -263,15 +265,15 @@ task& profiler::get_task() {
     return task_;
 }
 
-// #ifdef ONEDAL_DATA_PARALLEL
-// sycl::queue& profiler::get_queue() {
-//     return queue_;
-// }
+#ifdef ONEDAL_DATA_PARALLEL
+sycl::queue& profiler::get_queue() {
+    return queue_;
+}
 
-// void profiler::set_queue(const sycl::queue& q) {
-//     queue_ = q;
-// }
-// #endif
+void profiler::set_queue(const sycl::queue& q) {
+    queue_ = q;
+}
+#endif
 
 profiler_task profiler::start_task(const char* task_name) {
     if (task_name == nullptr)
@@ -298,11 +300,6 @@ void profiler::end_task(const char* task_name, int idx_) {
     const std::uint64_t ns_end = get_time();
     auto& tasks_info = get_instance()->get_task();
 
-    // #ifdef ONEDAL_DATA_PARALLEL
-    //     auto& queue = get_instance()->get_queue();
-    //     queue.wait_and_throw();
-    // #endif
-
     auto it = std::find_if(tasks_info.kernels.begin(),
                            tasks_info.kernels.end(),
                            [&](const task_entry& entry) {
@@ -311,32 +308,30 @@ void profiler::end_task(const char* task_name, int idx_) {
 
     auto duration = ns_end - it->duration;
     it->duration = duration;
-    auto& current_level_ = get_instance()->get_current_level();
+    auto& current_level_ = profiler::get_instance()->get_current_level();
     current_level_--;
 }
 
-// #ifdef ONEDAL_DATA_PARALLEL
-// profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
-//     if (task_name == nullptr)
-//         return profiler_task(nullptr, -1);
-//     // task_queue.wait_and_throw();
+#ifdef ONEDAL_DATA_PARALLEL
+profiler_task profiler::start_task(const char* task_name, sycl::queue& task_queue) {
+    if (task_name == nullptr)
+        return profiler_task(nullptr, -1);
 
-//     // get_instance()->set_queue(task_queue);
-//     return start_task(task_name);
-// }
-
-// profiler_task::profiler_task(const char* task_name, const sycl::queue& task_queue, int idx_)
-//         : task_name_(task_name),
-//           idx(idx_)  {}
-// #endif
+    profiler::get_instance()->set_queue(task_queue);
+    queue_exists_global = true;
+    return start_task(task_name);
+}
+#endif // ONEDAL_DATA_PARALLEL
 
 profiler_task::profiler_task(const char* task_name, int idx_) : task_name_(task_name), idx(idx_) {}
 
 profiler_task::~profiler_task() {
-    // #ifdef ONEDAL_DATA_PARALLEL
-    //     if (has_queue_)
-    //         task_queue_.wait_and_throw();
-    // #endif // ONEDAL_DATA_PARALLEL
+    if (queue_exists_global)
+#ifdef ONEDAL_DATA_PARALLEL
+    {
+        profiler::get_instance()->get_queue().wait_and_throw();
+    }
+#endif // ONEDAL_DATA_PARALLEL
     profiler::end_task(task_name_, idx);
 }
 
