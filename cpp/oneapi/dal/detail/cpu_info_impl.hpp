@@ -22,8 +22,6 @@
 #include <map>
 #include <string>
 
-#include <iostream>
-
 namespace oneapi::dal::detail {
 namespace v1 {
 

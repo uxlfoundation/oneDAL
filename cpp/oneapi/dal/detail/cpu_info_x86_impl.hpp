@@ -26,7 +26,6 @@ namespace v1 {
 class cpu_info_x86 : public cpu_info_impl {
 public:
     cpu_info_x86() {
-        std::cout << "cpu_info_x86()" << std::endl;
         info_["top_cpu_extension"] = detect_top_cpu_extension();
         info_["vendor"] = (daal_check_is_intel_cpu() ? cpu_vendor::intel : cpu_vendor::amd);
         info_["cpu_features"] = detect_cpu_features();
