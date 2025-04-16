@@ -46,7 +46,6 @@
 // HEADER OUTPUT
 #define ONEDAL_PROFILER_PRINT_HEADER()                                                         \
     do {                                                                                       \
-        std::ios::sync_with_stdio(false);                                                      \
         std::cerr                                                                              \
             << "-----------------------------------------------------------------------------" \
             << std::endl;                                                                      \

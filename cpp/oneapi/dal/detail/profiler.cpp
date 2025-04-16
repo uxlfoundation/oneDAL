@@ -223,12 +223,14 @@ profiler::~profiler() {
         const auto& tasks_info = get_instance()->get_task();
         std::uint64_t total_time = 0;
         std::cerr << "Algorithm tree analyzer" << std::endl;
+
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
             const auto& entry = tasks_info.kernels[i];
             if (entry.level == 0) {
                 total_time += entry.duration;
             }
         }
+
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i) {
             const auto& entry = tasks_info.kernels[i];
             std::string prefix;
@@ -236,9 +238,7 @@ profiler::~profiler() {
             for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) {
                 prefix += "│   ";
             }
-            // if (entry.level == 0) {
-            //     total_time += entry.duration;
-            // }
+
             bool is_last = true;
             if (i + 1 < tasks_info.kernels.size()) {
                 const auto& next = tasks_info.kernels[i + 1];
@@ -250,7 +250,7 @@ profiler::~profiler() {
             prefix += is_last ? "└── " : "├── ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration)
-                      << " percent of total time: " << std::fixed << std::setprecision(2)
+                      << " " << std::fixed << std::setprecision(2)
                       << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%"
                       << std::endl;
         }
