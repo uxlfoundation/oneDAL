@@ -113,7 +113,6 @@ jobs:
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
-            rm -rf __release_lnx_main
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
       - name: oneapi/cpp examples
