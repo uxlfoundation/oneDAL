@@ -85,12 +85,19 @@ jobs:
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Prepare Cache build
+        if: github.event_name != 'pull_request'
+        run: cp -r __release_lnx __release_lnx_main
       - name: Cache build
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
-          path: ./__release_lnx
+          path: ./__release_lnx_main
+      - name: Remove Cache build
+        if: github.event_name != 'pull_request'
+        # clean up build directory due to space limitations
+        run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -106,6 +113,7 @@ jobs:
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
+            rm -rf __release_lnx_main
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
       - name: oneapi/cpp examples
