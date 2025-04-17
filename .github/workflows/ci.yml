@@ -96,7 +96,6 @@ jobs:
           path: ./__release_lnx_main
       - name: Remove Cache build
         if: github.event_name != 'pull_request'
-        # clean up build directory due to space limitations
         run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
