@@ -48,7 +48,12 @@ jobs:
       - name: Checkout oneDAL
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install DPC++
-        run: .ci/env/apt.sh dpcpp
+        run: |
+          echo ${{ runner.name }}
+          .ci/env/apt.sh dpcpp
+      - name: temp
+        if: runner.name != 'ubuntu-24.04'
+        run: echo "yes"
       - name: Install MKL
         run: .ci/env/apt.sh mkl
       - name: Install Python
