@@ -36,7 +36,6 @@ concurrency:
 jobs:
   LinuxMakeDPCPP:
     if: github.repository == 'uxlfoundation/oneDAL'
-
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -45,7 +44,7 @@ jobs:
           - ISA: avx2
             runner: ubuntu-24.04
 
-    runs-on: matrix.runner
+    runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
     steps:
       - name: Checkout oneDAL
@@ -55,7 +54,7 @@ jobs:
           echo ${{ matrix.runner }}
           .ci/env/apt.sh dpcpp
       - name: temp
-        if: matrix.runner != 'ubuntu-24.04'
+        if: ${{ matrix.runner }} != 'ubuntu-24.04'
         run: echo "yes"
       - name: Install MKL
         run: .ci/env/apt.sh mkl
@@ -71,7 +70,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Set environment variables
-        if: matrix.runner != 'ubuntu-24.04'
+        if: ${{ matrix.runner }} != 'ubuntu-24.04'
         run: |
           # reduce GPU driver/runner related memory issues
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
@@ -102,7 +101,7 @@ jobs:
           name: __release_lnx
           path: ./__release_lnx
       - name: Make onedal
-        if: matrix.runner != 'ubuntu-24.04'
+        if: ${{ matrix.runner }} != 'ubuntu-24.04'
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
@@ -118,7 +117,7 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
       - name: oneapi/dpc examples
-        if: matrix.runner != 'ubuntu-24.04'
+        if: ${{ matrix.runner }} != 'ubuntu-24.04'
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
