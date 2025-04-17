@@ -94,7 +94,7 @@ jobs:
           name: __release_lnx
           path: ./__release_lnx
       - name: Make onedal
-        if: ${{ runner.name }} != 'ubuntu-24.04'
+        if: runner.name != 'ubuntu-24.04'
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
@@ -110,7 +110,7 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
       - name: oneapi/dpc examples
-        if: ${{ runner.name }} != 'ubuntu-24.04'
+        if: runner.name != 'ubuntu-24.04'
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
