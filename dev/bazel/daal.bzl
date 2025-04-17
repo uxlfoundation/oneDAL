@@ -40,7 +40,7 @@ def daal_module(name, features=[], lib_tag="daal",
     cc_module(
         name = name,
         lib_tag = lib_tag,
-        features = [ "c++11" ] + features,
+        features = [ "c++17" ] + features,
         cpu_defines = {
             "sse2":       [ "DAAL_CPU=sse2"       ],
             "sse42":      [ "DAAL_CPU=sse42"      ],
