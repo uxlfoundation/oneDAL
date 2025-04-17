@@ -45,7 +45,7 @@ jobs:
           - ISA: avx2
             runner: ubuntu-24.04
 
-    runs-on: ${{ matrix.label }}
+    runs-on: matrix.runner
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
     steps:
       - name: Checkout oneDAL
