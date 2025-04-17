@@ -124,7 +124,10 @@ jobs:
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
-    if: github.repository == 'uxlfoundation/oneDAL' && github.event_name == 'pull_request' 
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
     runs-on: ubuntu-24.04
     env:
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
@@ -162,6 +165,4 @@ jobs:
           echo "please rerun the main 'CI' workflow via GitHub's workflow dispatch to regenerate the cache."
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
-          .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/ || $ABI_BREAK
-        env:
-          ABI_BREAK: contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+          .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
