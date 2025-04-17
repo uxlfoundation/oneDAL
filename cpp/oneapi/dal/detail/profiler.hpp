@@ -203,7 +203,6 @@ public:
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue& get_queue();
     void set_queue(const sycl::queue& q);
-    bool is_queue_exists();
     static profiler_task start_task(const char* task_name, sycl::queue& task_queue);
 #endif
     static void end_task(const char* task_name, int idx);
@@ -214,7 +213,6 @@ private:
     task task_;
 #ifdef ONEDAL_DATA_PARALLEL
     sycl::queue queue_;
-    bool queue_exists_;
 #endif
 };
 

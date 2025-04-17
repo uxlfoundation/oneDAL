@@ -29,48 +29,35 @@ namespace daal
 namespace internal
 {
 
-std::mutex profiler::mutex_;
-
 static volatile int daal_verbose_val = -1;
-
-static bool device_info_needed   = false;
-static bool kernel_info_needed   = false;
-static bool function_info_needed = false;
 
 void print_header()
 {
-    // daal::services::LibraryVersionInfo ver;
+    daal::services::LibraryVersionInfo ver;
 
-    // std::cout << "Major version:          " << ver.majorVersion << std::endl;
-    // std::cout << "Minor version:          " << ver.minorVersion << std::endl;
-    // std::cout << "Update version:         " << ver.updateVersion << std::endl;
-    // std::cout << "Product status:         " << ver.productStatus << std::endl;
-    // std::cout << "Build:                  " << ver.build << std::endl;
-    // std::cout << "Build revision:         " << ver.build_rev << std::endl;
-    // std::cout << "Name:                   " << ver.name << std::endl;
-    // std::cout << "Processor optimization: " << ver.processor << std::endl;
+    std::cout << "Major version:          " << ver.majorVersion << std::endl;
+    std::cout << "Minor version:          " << ver.minorVersion << std::endl;
+    std::cout << "Update version:         " << ver.updateVersion << std::endl;
+    std::cout << "Product status:         " << ver.productStatus << std::endl;
+    std::cout << "Build:                  " << ver.build << std::endl;
+    std::cout << "Build revision:         " << ver.build_rev << std::endl;
+    std::cout << "Name:                   " << ver.name << std::endl;
+    std::cout << "Processor optimization: " << ver.processor << std::endl;
     std::cout << std::endl;
 }
 
-/**
-* Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
-*
-*  @returns pointer to mode
-*                      0 disabled
-*                      1 enabled
-*                      2 enabled with device and library information(will be added soon)
-*/
 static void set_verbose_from_env(void)
 {
-    static volatile int read_done = 0;
-    if (read_done) return;
+    // Every time check that the env is not changed
+    // static volatile int read_done = 0;
+    // if (read_done) return;
 
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval               = 0;
     if (verbose_str)
     {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 4)
+        if (newval < 0 || newval > 5)
         {
             newval = 0;
         }
@@ -81,7 +68,7 @@ static void set_verbose_from_env(void)
     }
 
     daal_verbose_val = newval;
-    read_done        = 1;
+    // read_done        = 1;
 }
 
 std::string format_time_for_output(std::uint64_t time_ns)
@@ -116,7 +103,18 @@ std::string format_time_for_output(std::uint64_t time_ns)
     return out.str();
 }
 
-int * onedal_verbose_mode()
+/**
+* Returns the pointer to variable that holds oneDAL verbose mode information (enabled/disabled)
+*
+*  @returns pointer to mode
+*                      0/empty disabled
+*                      1 enabled only with logger
+*                      2 enabled only with tracer
+*                      3 enabled only with analyzer
+*                      4 enabled with logger tracer and analyzer
+*                      5 enabled with logger tracer and analyzer with service functions
+*/
+int * daal_verbose_mode()
 {
 #ifdef _MSC_VER
     if (daal_verbose_val == -1)
@@ -129,14 +127,60 @@ int * onedal_verbose_mode()
     return (int *)&daal_verbose_val;
 }
 
-bool profiler::is_profiling_enabled()
+// Check for the service functions profiling
+bool profiler::is_service_debug_enabled()
 {
-    return *onedal_verbose_mode() > 0;
+    static const bool service_debug_value = [] {
+        int value = *daal_verbose_mode();
+        return value == 5;
+    }();
+    return service_debug_value;
 }
 
-int onedal_verbose(int option)
+// Check for logger enabling(PRETTY_FUNCTION + Params)
+bool profiler::is_logger_enabled()
 {
-    int * retVal = onedal_verbose_mode();
+    static const bool logger_value = [] {
+        int value = *daal_verbose_mode();
+        return value == 1 || value == 4 || value == 5;
+    }();
+    return logger_value;
+}
+
+// Check for tracer enabling(kernel runtimes in runtime)
+bool profiler::is_tracer_enabled()
+{
+    static const bool verbose_value = [] {
+        std::ios::sync_with_stdio(false);
+        int value = *daal_verbose_mode();
+        return value == 2 || value == 4 || value == 5;
+    }();
+    return verbose_value;
+}
+
+// General check for profiler
+bool profiler::is_profiler_enabled()
+{
+    static const bool profiler_value = [] {
+        int value = *daal_verbose_mode();
+        return value == 1 || value == 2 || value == 3 || value == 4 || value == 5;
+    }();
+    return profiler_value;
+}
+
+// Check for analyzer enabling(algorithm trees and kernel times)
+bool profiler::is_analyzer_enabled()
+{
+    static const bool profiler_value = [] {
+        int value = *daal_verbose_mode();
+        return value == 3 || value == 4 || value == 5;
+    }();
+    return profiler_value;
+}
+
+int daal_verbose(int option)
+{
+    int * retVal = daal_verbose_mode();
     if (option != 0 && option != 1 && option != 2 && option != 3)
     {
         return -1;
@@ -149,30 +193,30 @@ int onedal_verbose(int option)
 
 profiler::profiler()
 {
-    int verbose = *onedal_verbose_mode();
-    if (verbose == 1)
+    int verbose = *daal_verbose_mode();
+    if (verbose == 1 || verbose == 4 || verbose == 5)
     {
-        kernel_info_needed = true;
-    }
-    else if (verbose == 2)
-    {
-        kernel_info_needed = true;
-    }
-    else if (verbose == 3)
-    {
-        device_info_needed   = true;
-        kernel_info_needed   = true;
-        function_info_needed = true;
+        print_header();
     }
 }
 
 profiler::~profiler()
 {
-    if (kernel_info_needed)
+    if (is_analyzer_enabled())
     {
         const auto & tasks_info  = get_instance()->get_task();
         std::uint64_t total_time = 0;
-        std::cerr << "Algorithm tree profiler" << std::endl;
+        std::cerr << "Algorithm tree analyzer" << std::endl;
+
+        for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+        {
+            const auto & entry = tasks_info.kernels[i];
+            if (entry.level == 0)
+            {
+                total_time += entry.duration;
+            }
+        }
+
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
         {
             const auto & entry = tasks_info.kernels[i];
@@ -182,10 +226,7 @@ profiler::~profiler()
             {
                 prefix += "│   ";
             }
-            if (entry.level == 0)
-            {
-                total_time += entry.duration;
-            }
+
             bool is_last = true;
             if (i + 1 < tasks_info.kernels.size())
             {
@@ -198,12 +239,13 @@ profiler::~profiler()
 
             prefix += is_last ? "└── " : "├── ";
 
-            std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << std::endl;
+            std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
+                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%" << std::endl;
         }
 
         std::cerr << "╰── (end)" << std::endl;
 
-        std::cerr << "DAAL KERNEL_PROFILER: ALL KERNELS total time " << format_time_for_output(total_time) << std::endl;
+        std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time " << format_time_for_output(total_time) << std::endl;
     }
 }
 
@@ -237,7 +279,7 @@ task & profiler::get_task()
 
 profiler_task profiler::start_task(const char * task_name)
 {
-    if (!is_profiling_enabled()) return profiler_task(nullptr, -1);
+    if (task_name == nullptr) return profiler_task(nullptr, -1);
 
     auto ns_start     = get_time();
     auto & tasks_info = get_instance()->get_task();
@@ -255,9 +297,8 @@ profiler_task profiler::start_task(const char * task_name)
 
 void profiler::end_task(const char * task_name, int idx_)
 {
-    if (!is_profiling_enabled()) return;
+    if (task_name == nullptr) return;
 
-    std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t ns_end = get_time();
     auto & tasks_info          = get_instance()->get_task();
 
@@ -265,8 +306,9 @@ void profiler::end_task(const char * task_name, int idx_)
 
     auto duration         = ns_end - it->duration;
     it->duration          = duration;
-    auto & current_level_ = get_instance()->get_current_level();
+    auto & current_level_ = profiler::get_instance()->get_current_level();
     current_level_--;
+    if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << std::endl;
 }
 
 profiler_task::profiler_task(const char * task_name, int idx_) : task_name_(task_name), idx(idx_) {}

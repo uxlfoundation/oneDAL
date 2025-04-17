@@ -54,7 +54,7 @@
 
     #define DAAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                                                                          \
         daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-            if (daal::internal::profiler::is_profiling_enabled())                                                                                 \
+            if (daal::internal::profiler::is_profiler_enabled())                                                                                  \
             {                                                                                                                                     \
                 std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
                 std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
@@ -68,7 +68,7 @@
 
     #define DAAL_PROFILER_TASK(...)                                                                                                               \
         daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
-            if (daal::internal::profiler::is_profiling_enabled())                                                                                 \
+            if (daal::internal::profiler::is_profiler_enabled())                                                                                  \
             {                                                                                                                                     \
                 std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
                 std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
@@ -139,14 +139,17 @@ public:
     task & get_task();
     std::int64_t & get_current_level();
     std::int64_t & get_kernel_count();
-    static bool is_profiling_enabled();
+    static bool is_tracer_enabled();
+    static bool is_profiler_enabled();
+    static bool is_logger_enabled();
+    static bool is_analyzer_enabled();
+    static bool is_service_debug_enabled();
     static void end_task(const char * task_name, int idx);
 
 private:
     std::int64_t current_level = 0;
     std::int64_t kernel_count  = 0;
     task task_;
-    static std::mutex mutex_;
 };
 
 } // namespace internal

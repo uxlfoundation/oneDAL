@@ -28,6 +28,7 @@ namespace oneapi::dal::detail {
 static volatile int onedal_verbose_val = -1;
 
 static bool queue_exists_global = false;
+
 //TODO: add support of file output
 //static volatile char verbose_file_val[PATH_MAX] = {'\0'};
 // #define ONEDAL_VERBOSE_FILE_ENV "ONEDAL_VERBOSE_OUTPUT_FILE"
@@ -49,15 +50,17 @@ void print_header() {
 }
 
 static void set_verbose_from_env(void) {
-    static volatile int read_done = 0;
-    if (read_done)
-        return;
+    // Every time check that the env is not changed
+
+    // static volatile int read_done = 0;
+    // if (read_done)
+    //     return;
 
     const char* verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval = 0;
     if (verbose_str) {
         newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 4) {
+        if (newval < 0 || newval > 5) {
             newval = 0;
         }
         else {
@@ -66,7 +69,7 @@ static void set_verbose_from_env(void) {
     }
 
     onedal_verbose_val = newval;
-    read_done = 1;
+    //read_done = 1;
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -361,7 +364,8 @@ profiler_task::~profiler_task() {
         profiler::get_instance()->get_queue().wait_and_throw();
     }
 #endif // ONEDAL_DATA_PARALLEL
-    profiler::end_task(task_name_, idx);
+    if (task_name_)
+        profiler::end_task(task_name_, idx);
 }
 
 } // namespace oneapi::dal::detail
