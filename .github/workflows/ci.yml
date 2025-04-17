@@ -82,6 +82,8 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
+          # clean up build directory due to space limitations
+          rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
         if: github.event_name != 'pull_request'
@@ -100,7 +102,6 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          rm -rf __work
           mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
