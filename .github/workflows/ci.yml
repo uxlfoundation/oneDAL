@@ -80,20 +80,19 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
-          cp -r __release_lnx __release_lnx_main
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Cache build
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
-          path: ./__release_lnx_main
+          path: ./__release_lnx
       - name: Archive build
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: __release_lnx
-          path: ./__release_lnx_main
+          path: ./__release_lnx
       - name: Make onedal
         if: ${{ runner.name }} != 'ubuntu-24.04'
         run: |
