@@ -52,6 +52,39 @@ std::string ONEDAL_EXPORT to_string(cpu_extension extension) {
     return extension_str;
 }
 
+template <typename T>
+void print(const std::any& value, std::ostringstream& ss) {
+    T typed_value = std::any_cast<T>(value);
+    ss << to_string(typed_value);
+}
+
+void print_any(const std::any& value, std::ostringstream& ss) {
+    const std::type_info& ti = value.type();
+    if (ti == typeid(cpu_extension)) {
+        print<cpu_extension>(value, ss);
+    }
+    else if (ti == typeid(cpu_vendor)) {
+        print<cpu_vendor>(value, ss);
+    }
+    else {
+        throw unimplemented{ dal::detail::error_messages::unsupported_data_type() };
+    }
+}
+
+void print_cpu_features(const std::any& value, std::ostringstream& ss) {
+    std::uint64_t cpu_features = std::any_cast<std::uint64_t>(value);
+    if (cpu_features == 0) {
+        ss << cpu_feature_map.at(cpu_features);
+    }
+    else {
+        for (const auto& [key, feature] : cpu_feature_map) {
+            if (key && (cpu_features & key) != 0) {
+                ss << feature << ", ";
+            }
+        }
+    }
+}
+
 cpu_vendor cpu_info_impl::get_cpu_vendor() const {
     const auto entry = info_.find("vendor");
     if (entry == info_.end()) {
@@ -68,33 +101,27 @@ cpu_extension cpu_info_impl::get_top_cpu_extension() const {
     return std::any_cast<cpu_extension>(entry->second);
 }
 
+uint64_t cpu_info_impl::get_cpu_features() const {
+    const auto entry = info_.find("cpu_features");
+    if (entry == info_.end()) {
+        throw invalid_argument{ error_messages::invalid_key() };
+    }
+    return std::any_cast<uint64_t>(entry->second);
+}
+
 std::string cpu_info_impl::dump() const {
     std::ostringstream ss;
     for (auto const& [name, value] : info_) {
         ss << name << " : ";
-        print_any(value, ss);
+        if (name == "cpu_features") {
+            print_cpu_features(value, ss);
+        }
+        else {
+            print_any(value, ss);
+        }
         ss << "; ";
     }
     return std::move(ss).str();
-}
-
-template <typename T>
-void cpu_info_impl::print(const std::any& value, std::ostringstream& ss) const {
-    T typed_value = std::any_cast<T>(value);
-    ss << to_string(typed_value);
-}
-
-void cpu_info_impl::print_any(const std::any& value, std::ostringstream& ss) const {
-    const std::type_info& ti = value.type();
-    if (ti == typeid(cpu_extension)) {
-        print<cpu_extension>(value, ss);
-    }
-    else if (ti == typeid(cpu_vendor)) {
-        print<cpu_vendor>(value, ss);
-    }
-    else {
-        throw unimplemented{ dal::detail::error_messages::unsupported_data_type() };
-    }
 }
 
 } // namespace v1

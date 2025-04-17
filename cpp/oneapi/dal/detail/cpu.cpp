@@ -49,5 +49,9 @@ ONEDAL_EXPORT cpu_extension detect_top_cpu_extension() {
     return from_daal_cpu_type(daal_cpu);
 }
 
+uint64_t detect_cpu_features() {
+    return __daal_serv_cpu_feature_detect();
+}
+
 } // namespace v1
 } // namespace oneapi::dal::detail
