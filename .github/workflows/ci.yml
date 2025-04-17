@@ -54,7 +54,7 @@ jobs:
           echo ${{ matrix.runner }}
           .ci/env/apt.sh dpcpp
       - name: temp
-        if: ${{ matrix.runner }} != 'ubuntu-24.04'
+        if: matrix.runner != 'ubuntu-24.04'
         run: echo "yes"
       - name: Install MKL
         run: .ci/env/apt.sh mkl
