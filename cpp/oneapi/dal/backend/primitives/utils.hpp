@@ -176,9 +176,9 @@ template <typename Type, ndorder order = ndorder::c>
 inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
                                              const table& table,
                                              sycl::usm::alloc alloc = sycl::usm::alloc::shared) {
-    //ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(service::table2ndarray_queue,
-    //q,
-    //table.get_row_count());
+    ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(service::table2ndarray_queue,
+                                                 q,
+                                                 table.get_row_count());
     [[maybe_unused]] const auto layout = table.get_data_layout();
     if constexpr (order == ndorder::c) {
         ONEDAL_ASSERT(layout == decltype(layout)::row_major);
