@@ -42,7 +42,7 @@ services::Status CovarianceDenseBatchKernel<algorithmFPType, method, cpu>::compu
                                                                                    NumericTable * meanTable, const Parameter * parameter,
                                                                                    const Hyperparameter * hyperparameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(computeDenseBatch);
+    DAAL_PROFILER_TASK(CovarianceDenseBatchKernel::compute);
 
     algorithmFPType nObservations = 0.0;
 

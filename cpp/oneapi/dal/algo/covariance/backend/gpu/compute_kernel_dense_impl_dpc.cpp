@@ -49,6 +49,12 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
                                                       const parameters_t& params,
                                                       const input_t& input) {
     ONEDAL_ASSERT(input.get_data().has_data());
+    ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(covariance_algo_compute,
+                                         q_,
+                                         input.get_data().get_row_count(),
+                                         input.get_data().get_column_count(),
+                                         desc.get_bias(),
+                                         desc.get_assume_centered());
 
     const auto data = input.get_data();
 
@@ -86,7 +92,7 @@ result_t compute_kernel_dense_impl<Float>::operator()(const descriptor_t& desc,
     }
 
     {
-        ONEDAL_PROFILER_TASK(allreduce_rows_count_global);
+        ONEDAL_PROFILER_TASK_WITH_ARGS(allreduce_rows_count_global, rows_count_global);
         comm_.allreduce(rows_count_global, spmd::reduce_op::sum).wait();
     }
 
