@@ -36,26 +36,23 @@ static bool queue_exists_global = false;
 #define ONEDAL_VERBOSE_ENV "ONEDAL_VERBOSE"
 
 static void set_verbose_from_env(void) {
-    // Every time check that the env is not changed
-
-    // static volatile int read_done = 0;
-    // if (read_done)
-    //     return;
-
     const char* verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval = 0;
+
     if (verbose_str) {
-        newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 5) {
-            newval = 0;
-        }
-        else {
+        char* endptr = nullptr;
+        errno = 0;
+        long val = std::strtol(verbose_str, &endptr, 10);
+
+        bool parsed_ok = (errno == 0 && endptr != verbose_str && *endptr == '\0');
+
+        if (parsed_ok && val >= 0 && val <= 5) {
+            newval = static_cast<int>(val);
             daal::internal::print_header();
         }
     }
 
     onedal_verbose_val = newval;
-    //read_done = 1;
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -134,14 +131,12 @@ std::string format_time_for_output(std::uint64_t time_ns) {
 *                      5 enabled with logger tracer and analyzer with service functions
 */
 int onedal_verbose_mode() {
-#ifdef _MSC_VER
-    if (onedal_verbose_val == -1)
-#else
+#if defined(__GNUC__) || defined(__clang__)
     if (__builtin_expect((onedal_verbose_val == -1), 0))
+#else
+    if (onedal_verbose_val == -1)
 #endif
-    {
         set_verbose_from_env();
-    }
     return onedal_verbose_val;
 }
 
@@ -216,7 +211,7 @@ profiler::~profiler() {
             std::string prefix;
 
             for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) {
-                prefix += "│   ";
+                prefix += "|   ";
             }
 
             bool is_last = true;
@@ -227,7 +222,7 @@ profiler::~profiler() {
                 }
             }
 
-            prefix += is_last ? "└── " : "├── ";
+            prefix += is_last ? "|-- " : "|-- ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration)
                       << " " << std::fixed << std::setprecision(2)
@@ -235,9 +230,9 @@ profiler::~profiler() {
                       << '\n';
         }
 
-        std::cerr << "╰── (end)" << '\n';
+        std::cerr << "|---(end)" << '\n';
 
-        std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time "
+        std::cerr << "ONEDAL KERNEL_PROFILER: kernels total time "
                   << format_time_for_output(total_time) << '\n';
     }
 }

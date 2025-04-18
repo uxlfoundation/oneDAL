@@ -110,7 +110,8 @@ inline void profiler_log_named_args(const char * names, const T & value, Rest &&
     const char * comma = strchr(names, ',');
     std::string name   = comma ? std::string(names, comma) : std::string(names);
 
-    name.erase(0, name.find_first_not_of(" \t\n\r"));
+    // Trim leading whitespace using std::isspace
+    name.erase(name.begin(), std::find_if(name.begin(), name.end(), [](unsigned char ch) { return !std::isspace(ch); }));
 
     std::cerr << name << ": " << value << "; ";
 

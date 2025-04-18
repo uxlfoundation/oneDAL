@@ -33,27 +33,25 @@ static volatile int daal_verbose_val = -1;
 
 static void set_verbose_from_env(void)
 {
-    // Every time check that the env is not changed
-    // static volatile int read_done = 0;
-    // if (read_done) return;
-
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval               = 0;
+
     if (verbose_str)
     {
-        newval = std::atoi(verbose_str);
-        if (newval < 0 || newval > 5)
+        char * endptr = nullptr;
+        errno         = 0;
+        long val      = std::strtol(verbose_str, &endptr, 10);
+
+        bool parsed_ok = (errno == 0 && endptr != verbose_str && *endptr == '\0');
+
+        if (parsed_ok && val >= 0 && val <= 5)
         {
-            newval = 0;
-        }
-        else
-        {
+            newval = static_cast<int>(val);
             print_header();
         }
     }
 
     daal_verbose_val = newval;
-    // read_done        = 1;
 }
 
 std::string format_time_for_output(std::uint64_t time_ns)
@@ -101,10 +99,10 @@ std::string format_time_for_output(std::uint64_t time_ns)
 */
 int daal_verbose_mode()
 {
-#ifdef _MSC_VER
-    if (daal_verbose_val == -1)
-#else
+#if defined(__GNUC__) || defined(__clang__)
     if (__builtin_expect((daal_verbose_val == -1), 0))
+#else
+    if (daal_verbose_val == -1)
 #endif
         set_verbose_from_env();
     return daal_verbose_val;
@@ -194,7 +192,7 @@ profiler::~profiler()
 
             for (std::int64_t lvl = 0; lvl < entry.level; ++lvl)
             {
-                prefix += "│   ";
+                prefix += "|   ";
             }
 
             bool is_last = true;
@@ -207,15 +205,15 @@ profiler::~profiler()
                 }
             }
 
-            prefix += is_last ? "└── " : "├── ";
+            prefix += is_last ? "|-- " : "|-- ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
                       << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%" << '\n';
         }
 
-        std::cerr << "╰── (end)" << '\n';
+        std::cerr << "|---(end)" << '\n';
 
-        std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time " << format_time_for_output(total_time) << '\n';
+        std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
     }
 }
 
