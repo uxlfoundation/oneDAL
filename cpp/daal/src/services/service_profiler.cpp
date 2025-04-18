@@ -15,7 +15,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "src/externals/service_profiler.h"
+#include "services/service_profiler.h"
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -30,21 +30,6 @@ namespace internal
 {
 
 static volatile int daal_verbose_val = -1;
-
-void print_header()
-{
-    daal::services::LibraryVersionInfo ver;
-
-    std::cout << "Major version:          " << ver.majorVersion << std::endl;
-    std::cout << "Minor version:          " << ver.minorVersion << std::endl;
-    std::cout << "Update version:         " << ver.updateVersion << std::endl;
-    std::cout << "Product status:         " << ver.productStatus << std::endl;
-    std::cout << "Build:                  " << ver.build << std::endl;
-    std::cout << "Build revision:         " << ver.build_rev << std::endl;
-    std::cout << "Name:                   " << ver.name << std::endl;
-    std::cout << "Processor optimization: " << ver.processor << std::endl;
-    std::cout << std::endl;
-}
 
 static void set_verbose_from_env(void)
 {
@@ -114,24 +99,22 @@ std::string format_time_for_output(std::uint64_t time_ns)
 *                      4 enabled with logger tracer and analyzer
 *                      5 enabled with logger tracer and analyzer with service functions
 */
-int * daal_verbose_mode()
+int daal_verbose_mode()
 {
 #ifdef _MSC_VER
     if (daal_verbose_val == -1)
 #else
     if (__builtin_expect((daal_verbose_val == -1), 0))
 #endif
-    {
-        if (daal_verbose_val == -1) set_verbose_from_env();
-    }
-    return (int *)&daal_verbose_val;
+        set_verbose_from_env();
+    return daal_verbose_val;
 }
 
 // Check for the service functions profiling
 bool profiler::is_service_debug_enabled()
 {
     static const bool service_debug_value = [] {
-        int value = *daal_verbose_mode();
+        int value = daal_verbose_mode();
         return value == 5;
     }();
     return service_debug_value;
@@ -141,7 +124,7 @@ bool profiler::is_service_debug_enabled()
 bool profiler::is_logger_enabled()
 {
     static const bool logger_value = [] {
-        int value = *daal_verbose_mode();
+        int value = daal_verbose_mode();
         return value == 1 || value == 4 || value == 5;
     }();
     return logger_value;
@@ -152,7 +135,7 @@ bool profiler::is_tracer_enabled()
 {
     static const bool verbose_value = [] {
         std::ios::sync_with_stdio(false);
-        int value = *daal_verbose_mode();
+        int value = daal_verbose_mode();
         return value == 2 || value == 4 || value == 5;
     }();
     return verbose_value;
@@ -162,7 +145,7 @@ bool profiler::is_tracer_enabled()
 bool profiler::is_profiler_enabled()
 {
     static const bool profiler_value = [] {
-        int value = *daal_verbose_mode();
+        int value = daal_verbose_mode();
         return value == 1 || value == 2 || value == 3 || value == 4 || value == 5;
     }();
     return profiler_value;
@@ -172,31 +155,18 @@ bool profiler::is_profiler_enabled()
 bool profiler::is_analyzer_enabled()
 {
     static const bool profiler_value = [] {
-        int value = *daal_verbose_mode();
+        int value = daal_verbose_mode();
         return value == 3 || value == 4 || value == 5;
     }();
     return profiler_value;
 }
 
-int daal_verbose(int option)
-{
-    int * retVal = daal_verbose_mode();
-    if (option != 0 && option != 1 && option != 2 && option != 3)
-    {
-        return -1;
-    }
-    {
-        if (option != daal_verbose_val) daal_verbose_val = option;
-    }
-    return *retVal;
-}
-
 profiler::profiler()
 {
-    int verbose = *daal_verbose_mode();
+    int verbose = daal_verbose_mode();
     if (verbose == 1 || verbose == 4 || verbose == 5)
     {
-        print_header();
+        daal::internal::print_header();
     }
 }
 
@@ -206,7 +176,7 @@ profiler::~profiler()
     {
         const auto & tasks_info  = get_instance()->get_task();
         std::uint64_t total_time = 0;
-        std::cerr << "Algorithm tree analyzer" << std::endl;
+        std::cerr << "Algorithm tree analyzer" << '\n';
 
         for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
         {
@@ -240,12 +210,12 @@ profiler::~profiler()
             prefix += is_last ? "└── " : "├── ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
-                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%" << std::endl;
+                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%" << '\n';
         }
 
-        std::cerr << "╰── (end)" << std::endl;
+        std::cerr << "╰── (end)" << '\n';
 
-        std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time " << format_time_for_output(total_time) << std::endl;
+        std::cerr << "ONEDAL KERNEL_PROFILER: ALL KERNELS total time " << format_time_for_output(total_time) << '\n';
     }
 }
 
@@ -308,7 +278,7 @@ void profiler::end_task(const char * task_name, int idx_)
     it->duration          = duration;
     auto & current_level_ = profiler::get_instance()->get_current_level();
     current_level_--;
-    if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << std::endl;
+    if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
 }
 
 profiler_task::profiler_task(const char * task_name, int idx_) : task_name_(task_name), idx(idx_) {}

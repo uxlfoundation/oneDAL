@@ -20,6 +20,8 @@
 #include <sycl/sycl.hpp>
 #endif
 
+#include "services/service_profiler.h"
+
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -48,17 +50,17 @@
     do {                                                                                       \
         std::cerr                                                                              \
             << "-----------------------------------------------------------------------------" \
-            << std::endl;                                                                      \
-        std::cerr << __PRETTY_FUNCTION__ << std::endl;                                         \
+            << '\n';                                                                           \
+        std::cerr << __PRETTY_FUNCTION__ << '\n';                                              \
     } while (0)
 
 // ARGS LOGGING
-#define ONEDAL_PROFILER_LOG_ARGS(task_name, ...)                                 \
-    do {                                                                         \
-        ONEDAL_PROFILER_PRINT_HEADER();                                          \
-        std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";  \
-        oneapi::dal::detail::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__); \
-        std::cerr << std::endl;                                                  \
+#define ONEDAL_PROFILER_LOG_ARGS(task_name, ...)                                \
+    do {                                                                        \
+        ONEDAL_PROFILER_PRINT_HEADER();                                         \
+        std::cerr << "Profiler task_name: " << #task_name << " Printed args: "; \
+        daal::internal::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);     \
+        std::cerr << '\n';                                                      \
     } while (0)
 
 // START_TASKS
@@ -90,19 +92,19 @@
     }()                                                                 \
         : ONEDAL_PROFILER_START_NULL_TASK()
 
-#define ONEDAL_PROFILER_TASK(...)                                             \
-    oneapi::dal::detail::profiler_task __profiler_task =                      \
-        (oneapi::dal::detail::profiler::is_profiler_enabled())                \
-        ? [&]() -> oneapi::dal::detail::profiler_task {                       \
-        if (oneapi::dal::detail::profiler::is_logger_enabled()) {             \
-            ONEDAL_PROFILER_PRINT_HEADER();                                   \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl; \
-        }                                                                     \
-        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                         \
-                                         ONEDAL_PROFILER_MACRO_2,             \
-                                         ONEDAL_PROFILER_MACRO_1,             \
-                                         FICTIVE)(__VA_ARGS__);               \
-    }()                                                                       \
+#define ONEDAL_PROFILER_TASK(...)                                        \
+    oneapi::dal::detail::profiler_task __profiler_task =                 \
+        (oneapi::dal::detail::profiler::is_profiler_enabled())           \
+        ? [&]() -> oneapi::dal::detail::profiler_task {                  \
+        if (oneapi::dal::detail::profiler::is_logger_enabled()) {        \
+            ONEDAL_PROFILER_PRINT_HEADER();                              \
+            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n'; \
+        }                                                                \
+        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                    \
+                                         ONEDAL_PROFILER_MACRO_2,        \
+                                         ONEDAL_PROFILER_MACRO_1,        \
+                                         FICTIVE)(__VA_ARGS__);          \
+    }()                                                                  \
         : ONEDAL_PROFILER_START_NULL_TASK()
 
 #define ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS(task_name, ...)      \
@@ -127,39 +129,22 @@
     }()                                                                     \
         : ONEDAL_PROFILER_START_NULL_TASK()
 
-#define ONEDAL_PROFILER_SERVICE_TASK(...)                                     \
-    oneapi::dal::detail::profiler_task __profiler_task =                      \
-        (oneapi::dal::detail::profiler::is_service_debug_enabled())           \
-        ? [&]() -> oneapi::dal::detail::profiler_task {                       \
-        if (oneapi::dal::detail::profiler::is_logger_enabled()) {             \
-            ONEDAL_PROFILER_PRINT_HEADER();                                   \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl; \
-        }                                                                     \
-        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                         \
-                                         ONEDAL_PROFILER_MACRO_2,             \
-                                         ONEDAL_PROFILER_MACRO_1,             \
-                                         FICTIVE)(__VA_ARGS__);               \
-    }()                                                                       \
+#define ONEDAL_PROFILER_SERVICE_TASK(...)                                \
+    oneapi::dal::detail::profiler_task __profiler_task =                 \
+        (oneapi::dal::detail::profiler::is_service_debug_enabled())      \
+        ? [&]() -> oneapi::dal::detail::profiler_task {                  \
+        if (oneapi::dal::detail::profiler::is_logger_enabled()) {        \
+            ONEDAL_PROFILER_PRINT_HEADER();                              \
+            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n'; \
+        }                                                                \
+        return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                    \
+                                         ONEDAL_PROFILER_MACRO_2,        \
+                                         ONEDAL_PROFILER_MACRO_1,        \
+                                         FICTIVE)(__VA_ARGS__);          \
+    }()                                                                  \
         : ONEDAL_PROFILER_START_NULL_TASK()
 
 namespace oneapi::dal::detail {
-inline void profiler_log_named_args(const char* /*names*/) {
-    // base case — no args
-}
-
-template <typename T, typename... Rest>
-void profiler_log_named_args(const char* names, const T& value, Rest&&... rest) {
-    const char* comma = strchr(names, ',');
-    std::string name = comma ? std::string(names, comma) : std::string(names);
-
-    name.erase(0, name.find_first_not_of(" \t\n\r"));
-
-    std::cerr << name << ": " << value << "; ";
-
-    if (comma) {
-        profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
-    }
-}
 
 struct task_entry {
     std::int64_t idx;

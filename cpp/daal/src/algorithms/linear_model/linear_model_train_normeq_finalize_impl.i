@@ -26,7 +26,7 @@
 
 #include "src/algorithms/service_kernel_math.h"
 #include "src/externals/service_lapack.h"
-#include "src/externals/service_profiler.h"
+#include "services/service_profiler.h"
 
 namespace daal
 {

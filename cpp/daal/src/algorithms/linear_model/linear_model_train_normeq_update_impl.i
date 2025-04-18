@@ -27,7 +27,7 @@
 #include "src/externals/service_blas.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
-#include "src/externals/service_profiler.h"
+#include "services/service_profiler.h"
 
 namespace daal
 {

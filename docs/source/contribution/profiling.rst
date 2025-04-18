@@ -17,29 +17,29 @@ Using oneDAL Verbose Mode
 
 When building applications that call Intel® oneAPI Data Analytics Library functions, it may be useful to determine:
 
-- which computational functions are called
-- what parameters are passed to them
-- how much time is spent to execute the functions
-- (for GPU applications) which GPU device the kernel is executed on
+- Which computational kernels are called
+- What parameters are passed to them
+- How much time is spent to execute the functions
+- Which device (CPU/GPU) the kernel is executed on
 
 You can get an application to print this information to a standard output
-device by enabling **Intel® oneAPI Data Analytics Library Verbose**.
+device by enabling **Intel® oneAPI Data Analytics Library Verbose Mode**.
 
 When Verbose mode is active in oneDAL, every call of a verbose-enabled function finishes with 
-printing a human-readable line describing the call. Even, if your application gets terminated during 
+printing a human-readable line describing the call. Even if the application gets terminated during 
 the function call, information for that function will be printed. 
 The first call to a verbose-enabled function also prints a version information line.
 
 For GPU applications, additional information (one or more GPU information lines) will also 
-be printed by the first call to a verbose-enabled function, following the version information line printed
+be printed on the first call to a verbose-enabled function, following the version information lines printed
 for the host CPU.
 
-Modes of Verbose
+Verbosity Levels
 ----------------
 
-We have common implementations for verbose with CPU and GPU applications.
+We have common implementations for verbose mode with CPU and GPU applications.
 
-- **Applications**:
+  - **Levels**:
   - Disabled (default)
   - Logger enabled
   - Tracer enabled
