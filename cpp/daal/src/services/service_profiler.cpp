@@ -169,6 +169,7 @@ profiler::profiler()
 
 profiler::~profiler()
 {
+    merge_tasks();
     if (is_analyzer_enabled())
     {
         const auto & tasks_info  = get_instance()->get_task();
@@ -207,7 +208,8 @@ profiler::~profiler()
             prefix += is_last ? "|-- " : "|-- ";
 
             std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
-                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "%" << '\n';
+                      << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count << " times"
+                      << " in a " << entry.threading_task << " region" << '\n';
         }
 
         std::cerr << "|---(end)" << '\n';
@@ -244,6 +246,59 @@ task & profiler::get_task()
     return task_;
 }
 
+void profiler::merge_tasks()
+{
+    auto & tasks_info = get_instance()->get_task();
+    auto & kernels    = tasks_info.kernels;
+
+    size_t i = 0;
+    while (i < kernels.size())
+    {
+        // finding the start and the end of the current level
+        size_t start      = i;
+        int current_level = kernels[i].level;
+        size_t end        = start;
+        while (end < kernels.size() && kernels[end].level == current_level) ++end;
+
+        // A flag to check is it merged region or no
+        bool merged = false;
+
+        for (size_t j = start; j < end; ++j)
+        {
+            for (size_t k = j + 1; k < end; ++k)
+            {
+                // The same kernels on the same level
+                if (kernels[j].name == kernels[k].name)
+                {
+                    // For thread tasks takes the max, for all other sums
+                    if (kernels[j].threading_task)
+                    {
+                        kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
+                    }
+                    else
+                    {
+                        kernels[j].duration += kernels[k].duration;
+                    }
+
+                    kernels.erase(kernels.begin() + k);
+                    --k;
+                    --end;
+                    kernels[j].count++;
+                    merged = true;
+                }
+            }
+        }
+
+        if (merged)
+        {
+            std::cout << "Loop/Parallel section. The output is squashed. "
+                      << "To get unsquashed version use ONEDAL_VERBOSE=5" << std::endl;
+        }
+
+        i = end;
+    }
+}
+
 profiler_task profiler::start_task(const char * task_name)
 {
     if (task_name == nullptr) return profiler_task(nullptr, -1);
@@ -255,11 +310,28 @@ profiler_task profiler::start_task(const char * task_name)
     auto & current_kernel_count_ = get_instance()->get_kernel_count();
 
     std::int64_t tmp = current_kernel_count_;
-    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_ });
+    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, false });
 
     current_level_++;
     current_kernel_count_++;
     return profiler_task(task_name, tmp);
+}
+
+profiler_task profiler::start_threading_task(const char * task_name)
+{
+    if (task_name == nullptr) return profiler_task(nullptr, -1);
+
+    auto ns_start     = get_time();
+    auto & tasks_info = get_instance()->get_task();
+
+    auto & current_level_        = get_instance()->get_current_level();
+    auto & current_kernel_count_ = get_instance()->get_kernel_count();
+
+    std::int64_t tmp = current_kernel_count_;
+    tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, true });
+
+    current_kernel_count_++;
+    return profiler_task(task_name, tmp, true);
 }
 
 void profiler::end_task(const char * task_name, int idx_)
@@ -278,11 +350,38 @@ void profiler::end_task(const char * task_name, int idx_)
     if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
 }
 
+void profiler::end_threading_task(const char * task_name, int idx_)
+{
+    if (task_name == nullptr) return;
+
+    const std::uint64_t ns_end = get_time();
+    auto & tasks_info          = get_instance()->get_task();
+
+    auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(), [&](const task_entry & entry) { return entry.idx == idx_; });
+
+    auto duration = ns_end - it->duration;
+    it->duration  = duration;
+
+    if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
+}
+
 profiler_task::profiler_task(const char * task_name, int idx_) : task_name_(task_name), idx(idx_) {}
+
+profiler_task::profiler_task(const char * task_name, int idx_, bool thread_) : task_name_(task_name), idx(idx_), is_thread(thread_) {}
 
 profiler_task::~profiler_task()
 {
-    if (task_name_) profiler::end_task(task_name_, idx);
+    if (task_name_)
+    {
+        if (is_thread)
+        {
+            profiler::end_threading_task(task_name_, idx);
+        }
+        else
+        {
+            profiler::end_task(task_name_, idx);
+        }
+    }
 }
 
 } // namespace internal

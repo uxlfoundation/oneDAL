@@ -58,7 +58,7 @@
     do                                                                                                        \
     {                                                                                                         \
         std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
-        std::cerr << PRETTY_FUNCTION << '\n';                                                             \
+        std::cerr << PRETTY_FUNCTION << '\n';                                                                 \
     } while (0)
 
 // ARGS LOGGING
@@ -94,6 +94,20 @@
                 std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                             \
             }                                                                                                                                 \
             return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
+        }                                                                                                                                     \
+        return daal::internal::profiler::start_task(nullptr);                                                                                 \
+    }()
+
+#define DAAL_PROFILER_THREADING_TASK(task_name)                                                                                               \
+    daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+        if (daal::internal::profiler::is_profiler_enabled())                                                                                  \
+        {                                                                                                                                     \
+            if (daal::internal::profiler::is_logger_enabled())                                                                                \
+            {                                                                                                                                 \
+                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
+                std::cerr << "Profiler task_name: " << #task_name << std::endl;                                                               \
+            }                                                                                                                                 \
+            return daal::internal::profiler::start_threading_task(#task_name);                                                                \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
@@ -146,6 +160,8 @@ struct task_entry
     std::string name;
     std::uint64_t duration;
     std::int64_t level;
+    std::int64_t count;
+    bool threading_task;
 };
 
 struct task
@@ -157,11 +173,13 @@ class profiler_task
 {
 public:
     profiler_task(const char * task_name, int idx);
+    profiler_task(const char * task_name, int idx, bool thread);
     ~profiler_task();
 
 private:
     const char * task_name_;
     int idx;
+    bool is_thread = false;
 };
 
 class profiler
@@ -170,8 +188,11 @@ public:
     profiler();
     ~profiler();
     static profiler_task start_task(const char * task_name);
+    static profiler_task start_threading_task(const char * task_name);
+
     static std::uint64_t get_time();
     static profiler * get_instance();
+    void merge_tasks();
     task & get_task();
     std::int64_t & get_current_level();
     std::int64_t & get_kernel_count();
@@ -181,6 +202,7 @@ public:
     static bool is_analyzer_enabled();
     static bool is_service_debug_enabled();
     static void end_task(const char * task_name, int idx);
+    static void end_threading_task(const char * task_name, int idx);
 
 private:
     std::int64_t current_level = 0;

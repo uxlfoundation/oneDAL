@@ -88,14 +88,14 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
     const algorithmFPType * y = _yBlock.get();
 
     {
-        DAAL_PROFILER_TASK(computeUpdate.syrkX);
+        DAAL_PROFILER_THREADING_TASK(update.syrkX);
         BlasInst<algorithmFPType, cpu>::xxsyrk(&up, &notrans, &nFeatures, &nRows, &alpha, const_cast<algorithmFPType *>(x), &nFeatures, &alpha, _xtx,
                                                &_nBetasIntercept);
     }
 
     if (nFeatures < _nBetasIntercept)
     {
-        DAAL_PROFILER_TASK(computeUpdate.gemm1X);
+        DAAL_PROFILER_THREADING_TASK(update.gemm1X);
         algorithmFPType * xtxPtr     = _xtx + nFeatures * _nBetasIntercept;
         const algorithmFPType * xPtr = x;
 
@@ -113,14 +113,14 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
     }
 
     {
-        DAAL_PROFILER_TASK(computeUpdate.gemmXY);
+        DAAL_PROFILER_THREADING_TASK(update.gemmXY);
         BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &trans, &nFeatures, &_nResponses, &nRows, &alpha, x, &nFeatures, y, &_nResponses, &alpha,
                                                _xty, &_nBetasIntercept);
     }
 
     if (nFeatures < _nBetasIntercept)
     {
-        DAAL_PROFILER_TASK(computeUpdate.gemm1Y);
+        DAAL_PROFILER_THREADING_TASK(update.gemm1Y);
         const algorithmFPType * yPtr = y;
         for (DAAL_INT i = 0; i < nRows; i++, yPtr += _nResponses)
         {
@@ -139,7 +139,7 @@ template <typename algorithmFPType, CpuType cpu>
 void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorithmFPType * xty)
 {
     {
-        DAAL_PROFILER_TASK(computeUpdate.syrkX);
+        DAAL_PROFILER_THREADING_TASK(reduce.syrkX);
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nBetasIntercept); i++)
@@ -149,7 +149,7 @@ void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorith
     }
 
     {
-        DAAL_PROFILER_TASK(computeUpdate.gemmXY);
+        DAAL_PROFILER_THREADING_TASK(reduce.gemmXY);
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nResponses); i++)
@@ -295,7 +295,7 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     }
 
     /* Split rows by blocks */
-    size_t nRowsInBlock = 128;
+    size_t nRowsInBlock = 64;
     if (hyperparameter != nullptr)
     {
         DAAL_INT64 nRowsInBlockInt64 = 0l;
