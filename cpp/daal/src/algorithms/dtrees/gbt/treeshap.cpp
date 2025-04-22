@@ -38,7 +38,8 @@ void extendPath(PathElement * uniquePath, size_t uniqueDepth, float zeroFraction
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::Status(services::ErrorIncorrectIndex)));
+        return;
     }
     int depth = static_cast<int>(uniqueDepth);
 
@@ -62,7 +63,8 @@ void unwindPath(PathElement * uniquePath, size_t uniqueDepth, size_t pathIndex)
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::ErrorIncorrectIndex));
+        return;
     }
     int depth = static_cast<int>(uniqueDepth);
 
@@ -102,7 +104,8 @@ float unwoundPathSum(const PathElement * uniquePath, size_t uniqueDepth, size_t 
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::ErrorIncorrectIndex));
+        return 0.0f;
     }
     int depth = static_cast<int>(uniqueDepth);
 
@@ -153,7 +156,8 @@ void extendPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::ErrorIncorrectIndex));
+        return;
     }
     int depth               = static_cast<int>(uniqueDepth);
     int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
@@ -186,7 +190,8 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::ErrorIncorrectIndex));
+        return;
     }
     int depth               = static_cast<int>(uniqueDepth);
     int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
@@ -231,7 +236,8 @@ float unwoundPathSum(const PathElement * uniquePath, const float * partialWeight
     {
         // this is virtually impossible because memory consumption increases exponentially and we'd
         // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
+        services::throwIfPossible(services::Status(services::ErrorIncorrectIndex));
+        return 0.0f;
     }
     int depth               = static_cast<int>(uniqueDepth);
     int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
