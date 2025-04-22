@@ -53,16 +53,33 @@
 #define DAAL_PROFILER_MACRO_2(name, queue)                daal::internal::profiler::start_task(#name, queue)
 #define DAAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
 
+// HEADER OUTPUT
+#define DAAL_PROFILER_PRINT_HEADER()                                                                          \
+    do                                                                                                        \
+    {                                                                                                         \
+        std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
+        std::cerr << __PRETTY_FUNCTION__ << '\n';                                                             \
+    } while (0)
+
+// ARGS LOGGING
+#define DAAL_PROFILER_LOG_ARGS(task_name, ...)                                  \
+    do                                                                          \
+    {                                                                           \
+        DAAL_PROFILER_PRINT_HEADER();                                           \
+        std::cerr << "Profiler task_name: " << #task_name << " Printed args: "; \
+        daal::internal::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);     \
+        std::cerr << '\n';                                                      \
+    } while (0)
+
 #define DAAL_PROFILER_TASK_WITH_ARGS(task_name, ...)                                                                                          \
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
         if (daal::internal::profiler::is_profiler_enabled())                                                                                  \
         {                                                                                                                                     \
-            std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
-            std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
-            std::cerr << "Profiler task_name: " << #task_name << " Printed args: ";                                                           \
-            daal::internal::profiler::_log_named_args(#__VA_ARGS__, __VA_ARGS__);                                                             \
-            std::cerr << std::endl;                                                                                                           \
-            return daal::internal::profiler::start_task(#task_name);                                                                          \
+            if (daal::internal::profiler::is_logger_enabled())                                                                                \
+            {                                                                                                                                 \
+                DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                                                               \
+            }                                                                                                                                 \
+            \ return daal::internal::profiler::start_task(#task_name);                                                                        \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
@@ -71,9 +88,11 @@
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
         if (daal::internal::profiler::is_profiler_enabled())                                                                                  \
         {                                                                                                                                     \
-            std::cerr << "-----------------------------------------------------------------------------" << std::endl;                        \
-            std::cerr << PRETTY_FUNCTION << std::endl;                                                                                        \
-            std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                                 \
+            if (daal::internal::profiler::is_logger_enabled())                                                                                \
+            {                                                                                                                                 \
+                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                             \
+            }                                                                                                                                 \
             return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \

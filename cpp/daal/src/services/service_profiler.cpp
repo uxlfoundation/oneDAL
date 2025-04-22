@@ -47,7 +47,6 @@ static void set_verbose_from_env(void)
         if (parsed_ok && val >= 0 && val <= 5)
         {
             newval = static_cast<int>(val);
-            print_header();
         }
     }
 
