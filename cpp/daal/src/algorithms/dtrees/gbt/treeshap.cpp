@@ -34,60 +34,44 @@ namespace v0
 // extend our decision path with a fraction of one and zero extensions
 void extendPath(PathElement * uniquePath, size_t uniqueDepth, float zeroFraction, float oneFraction, int featureIndex)
 {
-    if (uniqueDepth >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth = static_cast<int>(uniqueDepth);
+    uniquePath[uniqueDepth].featureIndex  = featureIndex;
+    uniquePath[uniqueDepth].zeroFraction  = zeroFraction;
+    uniquePath[uniqueDepth].oneFraction   = oneFraction;
+    uniquePath[uniqueDepth].partialWeight = (uniqueDepth == 0 ? 1.0f : 0.0f);
 
-    uniquePath[depth].featureIndex  = featureIndex;
-    uniquePath[depth].zeroFraction  = zeroFraction;
-    uniquePath[depth].oneFraction   = oneFraction;
-    uniquePath[depth].partialWeight = (depth == 0 ? 1.0f : 0.0f);
-
-    const float constant = 1.0f / static_cast<float>(depth + 1);
-    for (int i = depth - 1; i >= 0; --i)
+    const float constant = 1.0f / static_cast<float>(uniqueDepth + 1);
+    for (int i = uniqueDepth - 1; i >= 0; --i)
     {
         uniquePath[i + 1].partialWeight += oneFraction * uniquePath[i].partialWeight * (i + 1) * constant;
-        uniquePath[i].partialWeight = zeroFraction * uniquePath[i].partialWeight * (depth - i) * constant;
+        uniquePath[i].partialWeight = zeroFraction * uniquePath[i].partialWeight * (uniqueDepth - i) * constant;
     }
 }
 
 // undo a previous extension of the decision path
 void unwindPath(PathElement * uniquePath, size_t uniqueDepth, size_t pathIndex)
 {
-    if (uniqueDepth >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth = static_cast<int>(uniqueDepth);
-
     const float oneFraction  = uniquePath[pathIndex].oneFraction;
     const float zeroFraction = uniquePath[pathIndex].zeroFraction;
-    float nextOnePortion     = uniquePath[depth].partialWeight;
+    float nextOnePortion     = uniquePath[uniqueDepth].partialWeight;
 
     if (oneFraction != 0)
     {
-        for (int i = depth - 1; i >= 0; --i)
+        for (int i = uniqueDepth - 1; i >= 0; --i)
         {
             const float tmp             = uniquePath[i].partialWeight;
-            uniquePath[i].partialWeight = nextOnePortion * (depth + 1) / static_cast<float>((i + 1) * oneFraction);
-            nextOnePortion              = tmp - uniquePath[i].partialWeight * zeroFraction * (depth - i) / static_cast<float>(depth + 1);
+            uniquePath[i].partialWeight = nextOnePortion * (uniqueDepth + 1) / static_cast<float>((i + 1) * oneFraction);
+            nextOnePortion              = tmp - uniquePath[i].partialWeight * zeroFraction * (uniqueDepth - i) / static_cast<float>(uniqueDepth + 1);
         }
     }
     else
     {
-        for (int i = 0; i < depth; ++i)
+        for (int i = 0; i < uniqueDepth; ++i)
         {
-            uniquePath[i].partialWeight = (uniquePath[i].partialWeight * (depth + 1)) / static_cast<float>(zeroFraction * (depth - i));
+            uniquePath[i].partialWeight = (uniquePath[i].partialWeight * (uniqueDepth + 1)) / static_cast<float>(zeroFraction * (uniqueDepth - i));
         }
     }
 
-    for (size_t i = pathIndex; i < depth; ++i)
+    for (size_t i = pathIndex; i < uniqueDepth; ++i)
     {
         uniquePath[i].featureIndex = uniquePath[i + 1].featureIndex;
         uniquePath[i].zeroFraction = uniquePath[i + 1].zeroFraction;
@@ -98,42 +82,34 @@ void unwindPath(PathElement * uniquePath, size_t uniqueDepth, size_t pathIndex)
 // determine what the total permutation weight would be if we unwound a previous extension in the decision path
 float unwoundPathSum(const PathElement * uniquePath, size_t uniqueDepth, size_t pathIndex)
 {
-    if (uniqueDepth >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth = static_cast<int>(uniqueDepth);
-
     const float oneFraction  = uniquePath[pathIndex].oneFraction;
     const float zeroFraction = uniquePath[pathIndex].zeroFraction;
 
-    float nextOnePortion = uniquePath[depth].partialWeight;
+    float nextOnePortion = uniquePath[uniqueDepth].partialWeight;
     float total          = 0;
 
     if (oneFraction != 0)
     {
         const float frac = zeroFraction / oneFraction;
-        for (int i = depth - 1; i >= 0; --i)
+        for (int i = uniqueDepth - 1; i >= 0; --i)
         {
             const float tmp = nextOnePortion / (i + 1);
             total += tmp;
-            nextOnePortion = uniquePath[i].partialWeight - tmp * frac * (depth - i);
+            nextOnePortion = uniquePath[i].partialWeight - tmp * frac * (uniqueDepth - i);
         }
-        total *= (depth + 1) / oneFraction;
+        total *= (uniqueDepth + 1) / oneFraction;
     }
     else if (zeroFraction != 0)
     {
-        for (int i = 0; i < depth; ++i)
+        for (int i = 0; i < uniqueDepth; ++i)
         {
-            total += uniquePath[i].partialWeight / (depth - i);
+            total += uniquePath[i].partialWeight / (uniqueDepth - i);
         }
-        total *= (depth + 1) / zeroFraction;
+        total *= (uniqueDepth + 1) / zeroFraction;
     }
     else
     {
-        for (int i = 0; i < depth; ++i)
+        for (int i = 0; i < uniqueDepth; ++i)
         {
             DAAL_ASSERT(uniquePath[i].partialWeight == 0);
         }
@@ -149,48 +125,30 @@ namespace v1
 void extendPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqueDepth, uint32_t uniqueDepthPartialWeights, float zeroFraction,
                 float oneFraction, int featureIndex)
 {
-    if (uniqueDepth >= INT_MAX || uniqueDepthPartialWeights >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth               = static_cast<int>(uniqueDepth);
-    int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
-
-    uniquePath[depth].featureIndex = featureIndex;
-    uniquePath[depth].zeroFraction = zeroFraction;
-    uniquePath[depth].oneFraction  = oneFraction;
+    uniquePath[uniqueDepth].featureIndex = featureIndex;
+    uniquePath[uniqueDepth].zeroFraction = zeroFraction;
+    uniquePath[uniqueDepth].oneFraction  = oneFraction;
     if (oneFraction != 0)
     {
         // extend partialWeights iff the feature of the last split satisfies the threshold
         partialWeights[uniqueDepthPartialWeights] = (uniqueDepthPartialWeights == 0 ? 1.0f : 0.0f);
-        for (int i = depthPartialWeights - 1; i >= 0; i--)
+        for (int i = uniqueDepthPartialWeights - 1; i >= 0; i--)
         {
-            partialWeights[i + 1] += partialWeights[i] * (i + 1) / static_cast<float>(depth + 1);
-            partialWeights[i] *= zeroFraction * (depth - i) / static_cast<float>(depth + 1);
+            partialWeights[i + 1] += partialWeights[i] * (i + 1) / static_cast<float>(uniqueDepth + 1);
+            partialWeights[i] *= zeroFraction * (uniqueDepth - i) / static_cast<float>(uniqueDepth + 1);
         }
     }
     else
     {
-        for (int i = depthPartialWeights - 1; i >= 0; i--)
+        for (int i = uniqueDepthPartialWeights - 1; i >= 0; i--)
         {
-            partialWeights[i] *= (depth - i) / static_cast<float>(depth + 1);
+            partialWeights[i] *= (uniqueDepth - i) / static_cast<float>(uniqueDepth + 1);
         }
     }
 }
 
 void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqueDepth, uint32_t uniqueDepthPartialWeights, uint32_t pathIndex)
 {
-    if (uniqueDepth >= INT_MAX || uniqueDepthPartialWeights >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth               = static_cast<int>(uniqueDepth);
-    int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
-
     const float oneFraction  = uniquePath[pathIndex].oneFraction;
     const float zeroFraction = uniquePath[pathIndex].zeroFraction;
     float nextOnePortion     = partialWeights[uniqueDepthPartialWeights];
@@ -198,11 +156,11 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
     if (oneFraction != 0)
     {
         // shrink partialWeights iff the feature satisfies the threshold
-        for (uint32_t i = depthPartialWeights - 1;; --i)
+        for (uint32_t i = uniqueDepthPartialWeights - 1;; --i)
         {
             const float tmp   = partialWeights[i];
-            partialWeights[i] = nextOnePortion * (depth + 1) / static_cast<float>(i + 1);
-            nextOnePortion    = tmp - partialWeights[i] * zeroFraction * (depth - i) / static_cast<float>(depth + 1);
+            partialWeights[i] = nextOnePortion * (uniqueDepth + 1) / static_cast<float>(i + 1);
+            nextOnePortion    = tmp - partialWeights[i] * zeroFraction * (uniqueDepth - i) / static_cast<float>(uniqueDepth + 1);
             if (i == 0) break;
         }
     }
@@ -210,7 +168,7 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
     {
         for (uint32_t i = 0; i <= uniqueDepthPartialWeights; ++i)
         {
-            partialWeights[i] *= (depth + 1) / static_cast<float>(depth - i);
+            partialWeights[i] *= (uniqueDepth + 1) / static_cast<float>(uniqueDepth - i);
         }
     }
 
@@ -227,25 +185,16 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
 float unwoundPathSum(const PathElement * uniquePath, const float * partialWeights, uint32_t uniqueDepth, uint32_t uniqueDepthPartialWeights,
                      uint32_t pathIndex)
 {
-    if (uniqueDepth >= INT_MAX || uniqueDepthPartialWeights >= INT_MAX)
-    {
-        // this is virtually impossible because memory consumption increases exponentially and we'd
-        // run of memory way before we hit this limit
-        throw services::ErrorIncorrectIndex;
-    }
-    int depth               = static_cast<int>(uniqueDepth);
-    int depthPartialWeights = static_cast<int>(uniqueDepthPartialWeights);
-
     float total              = 0;
     const float zeroFraction = uniquePath[pathIndex].zeroFraction;
     float nextOnePortion     = partialWeights[uniqueDepthPartialWeights];
-    for (int i = depthPartialWeights - 1; i >= 0; --i)
+    for (int i = uniqueDepthPartialWeights - 1; i >= 0; --i)
     {
         const float tmp = nextOnePortion / static_cast<float>(i + 1);
         total += tmp;
-        nextOnePortion = partialWeights[i] - tmp * zeroFraction * (depth - i);
+        nextOnePortion = partialWeights[i] - tmp * zeroFraction * (uniqueDepth - i);
     }
-    return total * (depth + 1);
+    return total * (uniqueDepth + 1);
 }
 
 float unwoundPathSumZero(const float * partialWeights, uint32_t uniqueDepth, uint32_t uniqueDepthPartialWeights)
