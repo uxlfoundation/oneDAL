@@ -58,7 +58,7 @@
     do                                                                                                        \
     {                                                                                                         \
         std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
-        std::cerr << __PRETTY_FUNCTION__ << '\n';                                                             \
+        std::cerr << PRETTY_FUNCTION << '\n';                                                             \
     } while (0)
 
 // ARGS LOGGING
