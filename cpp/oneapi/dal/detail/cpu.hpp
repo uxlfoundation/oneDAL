@@ -93,6 +93,11 @@ ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int);
 /// @return The corresponding oneDAL CPU extension value.
 ONEDAL_EXPORT cpu_extension detect_top_cpu_extension();
 
+/// Detects the highest CPU extension used by oneDAL.
+/// If REQCPU was used, it might be different from the one returned by detect_top_cpu_extension.
+/// @return The corresponding oneDAL CPU extension value.
+ONEDAL_EXPORT cpu_extension detect_onedal_cpu_extension();
+
 /// Detects the CPU features.
 /// @return Bitmask representing the supported CPU features.
 /// @note The bitmask is a combination of the CPU feature bitflags defined in daal::CpuFeature enumeration.
@@ -103,5 +108,6 @@ using v1::cpu_vendor;
 using v1::cpu_extension;
 using v1::cpu_feature_map;
 using v1::detect_top_cpu_extension;
+using v1::detect_onedal_cpu_extension;
 using v1::detect_cpu_features;
 } // namespace oneapi::dal::detail

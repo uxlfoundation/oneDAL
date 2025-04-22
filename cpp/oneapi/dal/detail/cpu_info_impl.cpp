@@ -74,7 +74,11 @@ void print_any(const std::any& value, std::ostringstream& ss) {
 void print_cpu_features(const std::any& value, std::ostringstream& ss) {
     std::uint64_t cpu_features = std::any_cast<std::uint64_t>(value);
     if (cpu_features == 0) {
-        ss << cpu_feature_map.at(cpu_features);
+        const auto entry = cpu_feature_map.find(0);
+        if (entry == cpu_feature_map.end()) {
+            throw invalid_argument{ error_messages::invalid_key() };
+        }
+        ss << entry->second;
     }
     else {
         for (const auto& [key, feature] : cpu_feature_map) {
@@ -95,6 +99,14 @@ cpu_vendor cpu_info_impl::get_cpu_vendor() const {
 
 cpu_extension cpu_info_impl::get_top_cpu_extension() const {
     const auto entry = info_.find("top_cpu_extension");
+    if (entry == info_.end()) {
+        throw invalid_argument{ error_messages::invalid_key() };
+    }
+    return std::any_cast<cpu_extension>(entry->second);
+}
+
+cpu_extension cpu_info_impl::get_onedal_cpu_extension() const {
+    const auto entry = info_.find("onedal_cpu_extension");
     if (entry == info_.end()) {
         throw invalid_argument{ error_messages::invalid_key() };
     }

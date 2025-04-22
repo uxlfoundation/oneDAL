@@ -22,8 +22,8 @@
 //--
 */
 
-#include "services/env_detect.h"
 #include "services/daal_defines.h"
+#include "services/internal/daal_kernel_defines.h"
 
 #if defined(TARGET_X86_64)
     #include <immintrin.h>
@@ -182,10 +182,10 @@ static int check_avx512_vnni_features()
 static int check_avx512_bf16_features()
 {
     /*
-    CPUID.(EAX=07H, ECX=0H):EDX.AVX512_BF16[bit 22]==1
+    CPUID.(EAX=07H, ECX=1):EAX.AVX512_BF16[bit 5]==1
     */
-    uint32_t avx512_bf16_mask = (1 << 22);
-    if (!check_cpuid(7, 0, 3, avx512_bf16_mask))
+    uint32_t avx512_bf16_mask = (1 << 5);
+    if (!check_cpuid(7, 1, 0, avx512_bf16_mask))
     {
         return 0;
     }
@@ -271,6 +271,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     #if defined(__APPLE__)
     __daal_serv_CPUHasAVX512f_enable_it_mac();
     #endif
+
     if (check_avx512_features() && daal_check_is_intel_cpu())
     {
         return daal::avx512;
@@ -289,9 +290,39 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     return daal::sse2;
 }
 
+DAAL_EXPORT int __daal_enabled_cpu_detect()
+{
+    #ifdef DAAL_KERNEL_AVX512
+    if (check_avx512_features() && daal_check_is_intel_cpu())
+    {
+        return daal::avx512;
+    }
+    #endif
+
+    #ifdef DAAL_KERNEL_AVX2
+    if (check_avx2_features())
+    {
+        return daal::avx2;
+    }
+    #endif
+
+    #ifdef DAAL_KERNEL_SSE42
+    if (check_sse42_features())
+    {
+        return daal::sse42;
+    }
+    #endif
+
+    return daal::sse2;
+}
+
 DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 {
     DAAL_UINT64 result = daal::CpuFeature::unknown;
+    if (!__daal_internal_is_intel_cpu())
+    {
+        return result;
+    }
 
     if (check_avx512_features())
     {
@@ -334,6 +365,17 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     return -1;
 }
 
+DAAL_EXPORT int __daal_enabled_cpu_detect()
+{
+    #ifdef DAAL_KERNEL_SVE
+    if (check_sve_features())
+    {
+        return daal::sve;
+    }
+    #endif
+    return -1;
+}
+
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
 {
     // TODO: ARM implementation for cpuid
@@ -353,6 +395,17 @@ DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
     return daal::rv64;
+}
+
+DAAL_EXPORT int __daal_enabled_cpu_detect()
+{
+    #ifdef DAAL_KERNEL_RV64
+    if (check_sve_features())
+    {
+        return daal::sve;
+    }
+    #endif
+    return -1;
 }
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
