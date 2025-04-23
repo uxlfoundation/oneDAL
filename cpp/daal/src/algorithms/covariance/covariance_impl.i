@@ -190,7 +190,7 @@ public:
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.syrkData);
                 BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &alpha, dataBlock, &_nFeatures, &beta,
-                                                       crossProductPtr, &_nFeatures);
+                                                      crossProductPtr, &_nFeatures);
             }
 
             if (!_isNormalized)
