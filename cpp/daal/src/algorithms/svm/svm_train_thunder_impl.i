@@ -74,7 +74,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
                                                                       NumericTable & yTable, daal::algorithms::Model * r,
                                                                       const KernelParameter & svmPar)
 {
-    DAAL_PROFILER_TASK(COMPUTE);
+    DAAL_PROFILER_TASK(SVMTrainImpl::compute);
 
     services::Status status;
 
@@ -156,7 +156,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
         const uint32_t * const wsIndices = workSet.getIndices();
         algorithmFPType ** kernelSOARes  = nullptr;
         {
-            DAAL_PROFILER_TASK(getRowsBlock);
+            DAAL_PROFILER_TASK(SVMTrainImpl::getRowsBlock);
 
             DAAL_CHECK_STATUS(status, cachePtr->getRowsBlock(wsIndices, nWS, kernelSOARes));
         }
@@ -190,7 +190,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::classificationInit
     const size_t blockSize = 16384;
     const size_t nBlocks   = nVectors / blockSize + !!(nVectors % blockSize);
 
-    DAAL_PROFILER_TASK(init.set);
+    DAAL_PROFILER_TASK(SVMTrainImpl::init.set);
     TlsSum<size_t, cpu> weightsCounter(1);
     TlsSum<algorithmFPType, cpu> weightsSumTls(1);
     SafeStatus safeStat;
@@ -536,7 +536,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::updateGrad(algorit
                                                                          algorithmFPType * grad, const size_t nVectors, const size_t nTrainVectors,
                                                                          const size_t nWS)
 {
-    DAAL_PROFILER_TASK(updateGrad);
+    DAAL_PROFILER_TASK(SVMTrainImpl::updateGrad);
 
     SafeStatus safeStat;
     const size_t blockSizeGrad = 64;
@@ -631,7 +631,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::initGrad(const Num
 
         algorithmFPType ** kernelSOARes = nullptr;
         {
-            DAAL_PROFILER_TASK(getRowsBlock);
+            DAAL_PROFILER_TASK(initGrad::getRowsBlock);
 
             status |= cachePtr->getRowsBlock(indices + startRow, nRowsInBlock, kernelSOARes);
         }
