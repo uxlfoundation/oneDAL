@@ -111,7 +111,10 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
                 DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
             }
 
-            DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
+            {
+                DAAL_PROFILER_TASK(computeFinalize.computeBetasImpl);
+                DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
+            }
         }
     }
 

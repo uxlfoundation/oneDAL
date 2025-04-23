@@ -330,8 +330,8 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
-
+        static std::mutex mutex;
+        std::lock_guard<std::mutex> lock(mutex);
         auto & entry          = tasks_info.kernels[idx_];
         auto duration         = ns_end - entry.duration;
         entry.duration        = duration;
