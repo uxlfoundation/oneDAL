@@ -313,6 +313,8 @@ public:
     inline static profiler_task start_threading_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
+        static std::mutex mutex;
+        std::lock_guard<std::mutex> lock(mutex);
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
         auto & current_level_        = get_instance()->get_current_level();
@@ -341,6 +343,8 @@ public:
     inline static void end_threading_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
+        static std::mutex mutex;
+        std::lock_guard<std::mutex> lock(mutex);
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
 
