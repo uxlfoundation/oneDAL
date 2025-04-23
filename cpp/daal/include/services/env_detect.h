@@ -59,7 +59,11 @@ enum CpuType
 };
 
 /**
- * Supported CPU features
+ * Supported CPU features.
+ * The features are defined as bit masks in order to allow for easy combination of features.
+ * For example, (bf16 | vnni) will return a bit mask that indicates both the bf16 and vnni features are supported.
+ * This allows for easy checking if a specific feature is supported by using a bitwise AND operation.
+ * For example, (cpuFeatures & bf16) will return true if the bf16 feature is supported.
  */
 enum CpuFeature
 {

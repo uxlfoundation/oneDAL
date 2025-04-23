@@ -399,13 +399,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 
 DAAL_EXPORT int __daal_enabled_cpu_detect()
 {
-    #ifdef DAAL_KERNEL_RV64
-    if (check_sve_features())
-    {
-        return daal::sve;
-    }
-    #endif
-    return -1;
+    return daal::rv64;
 }
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
