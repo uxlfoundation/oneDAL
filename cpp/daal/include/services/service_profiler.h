@@ -100,7 +100,7 @@
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_profiler_enabled())                                                                                            \
         {                                                                                                                                     \
-            if (daal::internal::is_logger_enabled())                                                                                          \
+            if (daal::internal::is_service_debug_enabled())                                                                                   \
             {                                                                                                                                 \
                 DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
                 std::cerr << "Profiler task_name: " << #task_name << std::endl;                                                               \
@@ -267,9 +267,9 @@ public:
 
     inline ~profiler()
     {
-        merge_tasks();
         if (is_analyzer_enabled())
         {
+            merge_tasks();
             const auto & tasks_info  = get_instance()->get_task();
             std::uint64_t total_time = 0;
             std::cerr << "Algorithm tree analyzer" << '\n';
@@ -328,9 +328,11 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(), [&](const task_entry & entry) { return entry.idx == idx_; });
-        auto duration         = ns_end - it->duration;
-        it->duration          = duration;
+        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
+
+        auto & entry          = tasks_info.kernels[idx_];
+        auto duration         = ns_end - entry.duration;
+        entry.duration        = duration;
         auto & current_level_ = get_instance()->get_current_level();
         current_level_--;
         if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
@@ -341,10 +343,13 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        auto it = std::find_if(tasks_info.kernels.begin(), tasks_info.kernels.end(), [&](const task_entry & entry) { return entry.idx == idx_; });
-        auto duration = ns_end - it->duration;
-        it->duration  = duration;
-        if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
+
+        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
+
+        auto & entry   = tasks_info.kernels[idx_];
+        auto duration  = ns_end - entry.duration;
+        entry.duration = duration;
+        if (is_service_debug_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
     }
 
     inline static std::uint64_t get_time()
@@ -390,7 +395,7 @@ public:
                     }
                 }
             }
-            if (merged) std::cout << "Loop/Parallel section. The output is squashed. To get unsquashed version use ONEDAL_VERBOSE=5" << std::endl;
+            //if (merged) std::cout << "Loop/Parallel section. The output is squashed. To get unsquashed version use ONEDAL_VERBOSE=5" << std::endl;
             i = end;
         }
     }

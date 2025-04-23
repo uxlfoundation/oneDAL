@@ -214,7 +214,6 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             algorithmFPType * sums_local         = tls_data_local->sums;
 
             {
-                DAAL_PROFILER_THREADING_TASK(gemmData);
                 BlasInst<algorithmFPType, cpu>::xxsyrk(&uplo, &trans, (DAAL_INT *)&nFeatures_local, (DAAL_INT *)&nRows, &alpha, dataBlock_local,
                                                        (DAAL_INT *)&nFeatures_local, &beta, crossProduct_local, (DAAL_INT *)&nFeatures_local);
             }

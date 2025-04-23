@@ -28,7 +28,7 @@
 #include "src/externals/service_memory.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/data_management/service_numeric_table.h"
-
+#include "services/service_profiler.h"
 #include "src/externals/config.h"
 
 namespace daal
@@ -112,6 +112,7 @@ struct Blas
     static void xxsyrk(const char * uplo, const char * trans, const SizeType * p, const SizeType * n, const fpType * alpha, const fpType * a,
                        const SizeType * lda, const fpType * beta, fpType * ata, const SizeType * ldata)
     {
+        DAAL_PROFILER_THREADING_TASK(gemmData);
         _impl<fpType, cpu>::xxsyrk(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
 
