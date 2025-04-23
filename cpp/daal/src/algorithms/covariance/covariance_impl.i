@@ -189,7 +189,7 @@ public:
             /// Update the cross-product matrix with the data from the block
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.syrkData);
-                BlasInst<algorithmFPType, cpu>::xxsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &alpha, dataBlock, &_nFeatures, &beta,
+                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &alpha, dataBlock, &_nFeatures, &beta,
                                                        crossProductPtr, &_nFeatures);
             }
 
