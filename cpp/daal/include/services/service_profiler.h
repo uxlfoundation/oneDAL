@@ -56,7 +56,11 @@
     do                                                                                                        \
     {                                                                                                         \
         std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
-        std::cerr << PRETTY_FUNCTION << '\n';                                                                 \
+        std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                                  \
+        if (is_service_debug_enabled())                                                                       \
+        {                                                                                                     \
+            std::cerr << PRETTY_FUNCTION << '\n';                                                             \
+        }                                                                                                     \
     } while (0)
 
 // ARGS LOGGING
@@ -106,6 +110,20 @@
                 std::cerr << "Profiler task_name: " << #task_name << std::endl;                                                               \
             }                                                                                                                                 \
             return daal::internal::profiler::start_threading_task(#task_name);                                                                \
+        }                                                                                                                                     \
+        return daal::internal::profiler::start_task(nullptr);                                                                                 \
+    }()
+
+#define DAAL_PROFILER_SERVICE_TASK(...)                                                                                                       \
+    daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
+        if (daal::internal::is_service_debug_enabled())                                                                                       \
+        {                                                                                                                                     \
+            if (daal::internal::is_logger_enabled())                                                                                          \
+            {                                                                                                                                 \
+                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
+                std::cerr << "Profiler task_name: " << #__VA_ARGS__ << std::endl;                                                             \
+            }                                                                                                                                 \
+            return DAAL_PROFILER_GET_MACRO(__VA_ARGS__, DAAL_PROFILER_MACRO_2, DAAL_PROFILER_MACRO_1, FICTIVE)(__VA_ARGS__);                  \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
@@ -371,6 +389,10 @@ public:
 
     inline void merge_tasks()
     {
+        if (is_service_debug_enabled())
+        {
+            return;
+        }
         auto & tasks_info = get_instance()->get_task();
         auto & kernels    = tasks_info.kernels;
         size_t i          = 0;
@@ -380,7 +402,6 @@ public:
             int current_level = kernels[i].level;
             size_t end        = start;
             while (end < kernels.size() && kernels[end].level == current_level) ++end;
-            bool merged = false;
             for (size_t j = start; j < end; ++j)
             {
                 for (size_t k = j + 1; k < end; ++k)
@@ -395,11 +416,9 @@ public:
                         --k;
                         --end;
                         kernels[j].count++;
-                        merged = true;
                     }
                 }
             }
-            //if (merged) std::cout << "Loop/Parallel section. The output is squashed. To get unsquashed version use ONEDAL_VERBOSE=5" << std::endl;
             i = end;
         }
     }
