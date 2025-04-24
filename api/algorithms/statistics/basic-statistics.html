@@ -1069,13 +1069,26 @@ document.write(`
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3sumE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3sumE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3sumE"></span><span id="oneapi::dal::basic_statistics::compute_result::sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3sumE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3maxE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3maxE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3maxE"></span><span id="oneapi::dal::basic_statistics::compute_result::max__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">max</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3maxE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the maximum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_sum()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_max()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result14result_optionsE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result14result_optionsE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result14result_optionsE"></span><span id="oneapi::dal::basic_statistics::compute_result::result_options__result_option_idCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Result options that indicates availability of the properties. <strong>Default value</strong>: full set of.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1108,39 +1121,13 @@ document.write(`
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result11sum_squaresE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result11sum_squaresE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result11sum_squaresE"></span><span id="oneapi::dal::basic_statistics::compute_result::sum_squares__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">sum_squares</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result11sum_squaresE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum_squares result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result4meanE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result4meanE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result4meanE"></span><span id="oneapi::dal::basic_statistics::compute_result::mean__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">mean</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result4meanE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the mean result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_sum_squares()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_sum_squares(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3maxE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3maxE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3maxE"></span><span id="oneapi::dal::basic_statistics::compute_result::max__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">max</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3maxE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the maximum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_max()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result8varianceE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result8varianceE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result8varianceE"></span><span id="oneapi::dal::basic_statistics::compute_result::variance__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">variance</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result8varianceE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the variance result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_variance()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variance(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_mean()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_mean(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1160,19 +1147,6 @@ document.write(`
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3minE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3minE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3minE"></span><span id="oneapi::dal::basic_statistics::compute_result::min__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">min</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3minE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the minimum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_min()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result20sum_squares_centeredE">
 <span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result20sum_squares_centeredE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result20sum_squares_centeredE"></span><span id="oneapi::dal::basic_statistics::compute_result::sum_squares_centered__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">sum_squares_centered</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result20sum_squares_centeredE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum_squares_centered result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
@@ -1186,26 +1160,52 @@ document.write(`
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result4meanE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result4meanE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result4meanE"></span><span id="oneapi::dal::basic_statistics::compute_result::mean__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">mean</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result4meanE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the mean result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3minE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3minE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3minE"></span><span id="oneapi::dal::basic_statistics::compute_result::min__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">min</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3minE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the minimum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_mean()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_mean(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_min()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result14result_optionsE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result14result_optionsE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result14result_optionsE"></span><span id="oneapi::dal::basic_statistics::compute_result::result_options__result_option_idCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Result options that indicates availability of the properties. <strong>Default value</strong>: full set of.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result8varianceE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result8varianceE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result8varianceE"></span><span id="oneapi::dal::basic_statistics::compute_result::variance__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">variance</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result8varianceE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the variance result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_variance()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variance(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result11sum_squaresE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result11sum_squaresE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result11sum_squaresE"></span><span id="oneapi::dal::basic_statistics::compute_result::sum_squares__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">sum_squares</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result11sum_squaresE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum_squares result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_sum_squares()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_sum_squares(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics14compute_result3sumE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics14compute_result3sumE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics14compute_result3sumE"></span><span id="oneapi::dal::basic_statistics::compute_result::sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics14compute_result3sumE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_sum()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1267,6 +1267,18 @@ document.write(`
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input4prevE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics21partial_compute_input4prevE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics21partial_compute_input4prevE"></span><span id="oneapi::dal::basic_statistics::partial_compute_input::prev__partial_compute_result:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN6oneapi3dal16basic_statistics22partial_compute_resultE" title="oneapi::dal::basic_statistics::partial_compute_result"><span class="n"><span class="pre">partial_compute_result</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">prev</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input4prevE" title="Permalink to this definition">#</a><br /></dt>
+<dd><dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">partial_compute_result&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_prev()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_prev(const</span> <span class="pre">partial_compute_result&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input7weightsE">
 <span id="_CPPv3N6oneapi3dal16basic_statistics21partial_compute_input7weightsE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics21partial_compute_input7weightsE"></span><span id="oneapi::dal::basic_statistics::partial_compute_input::weights__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">weights</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input7weightsE" title="Permalink to this definition">#</a><br /></dt>
 <dd><dl>
@@ -1290,18 +1302,6 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input4prevE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics21partial_compute_input4prevE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics21partial_compute_input4prevE"></span><span id="oneapi::dal::basic_statistics::partial_compute_input::prev__partial_compute_result:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4I0EN6oneapi3dal16basic_statistics22partial_compute_resultE" title="oneapi::dal::basic_statistics::partial_compute_result"><span class="n"><span class="pre">partial_compute_result</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">prev</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics21partial_compute_input4prevE" title="Permalink to this definition">#</a><br /></dt>
-<dd><dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">partial_compute_result&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_prev()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_prev(const</span> <span class="pre">partial_compute_result&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
 </dd></dl>
 
 </section>
@@ -1318,39 +1318,13 @@ document.write(`
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_min__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_min</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the minimum current result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_max__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_max</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the maximum current result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_min()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_min(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_n_rows__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_n_rows</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The nobs value. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_n_rows()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_n_rows(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_sum_squares__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum_squares</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum_squares result of current blocks for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum_squares()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum_squares(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_max()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_max(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1370,13 +1344,13 @@ document.write(`
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE">
-<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_max__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_max</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_maxE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the maximum current result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_n_rows__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_n_rows</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result14partial_n_rowsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The nobs value. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_max()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_max(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_n_rows()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_n_rows(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1390,6 +1364,32 @@ document.write(`
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_sum_squares__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum_squares</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result19partial_sum_squaresE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the sum_squares result of current blocks for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum_squares()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum_squares(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE">
+<span id="_CPPv3N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE"></span><span id="_CPPv2N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE"></span><span id="oneapi::dal::basic_statistics::partial_compute_result::partial_min__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_min</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal16basic_statistics22partial_compute_result11partial_minE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table, where element <span class="math notranslate nohighlight">\(j\)</span> is the minimum current result for feature <span class="math notranslate nohighlight">\(j\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_min()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_min(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>

@@ -963,19 +963,6 @@ Their usage is application-dependent. The covariance algorithm computes the foll
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance10descriptor14result_optionsE">
-<span id="_CPPv3N6oneapi3dal10covariance10descriptor14result_optionsE"></span><span id="_CPPv2N6oneapi3dal10covariance10descriptor14result_optionsE"></span><span id="oneapi::dal::covariance::descriptor::result_options__result_option_id"></span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance10descriptor14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Choose which results should be computed and returned.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">result_option_id</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance10descriptor4biasE">
 <span id="_CPPv3N6oneapi3dal10covariance10descriptor4biasE"></span><span id="_CPPv2N6oneapi3dal10covariance10descriptor4biasE"></span><span id="oneapi::dal::covariance::descriptor::bias__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bias</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance10descriptor4biasE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>Choose if result biased or not.</p>
@@ -983,6 +970,19 @@ Their usage is application-dependent. The covariance algorithm computes the foll
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_bias()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bias(const</span> <span class="pre">bool</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance10descriptor14result_optionsE">
+<span id="_CPPv3N6oneapi3dal10covariance10descriptor14result_optionsE"></span><span id="_CPPv2N6oneapi3dal10covariance10descriptor14result_optionsE"></span><span id="oneapi::dal::covariance::descriptor::result_options__result_option_id"></span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance10descriptor14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Choose which results should be computed and returned.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">result_option_id</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1222,13 +1222,13 @@ Their usage is application-dependent. The covariance algorithm computes the foll
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE">
-<span id="_CPPv3N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE"></span><span id="_CPPv2N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE"></span><span id="oneapi::dal::covariance::partial_compute_result::partial_crossproduct__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_crossproduct</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The crossproduct matrix. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance22partial_compute_result11partial_sumE">
+<span id="_CPPv3N6oneapi3dal10covariance22partial_compute_result11partial_sumE"></span><span id="_CPPv2N6oneapi3dal10covariance22partial_compute_result11partial_sumE"></span><span id="oneapi::dal::covariance::partial_compute_result::partial_sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance22partial_compute_result11partial_sumE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Sums. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_crossproduct()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_crossproduct(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1248,13 +1248,13 @@ Their usage is application-dependent. The covariance algorithm computes the foll
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance22partial_compute_result11partial_sumE">
-<span id="_CPPv3N6oneapi3dal10covariance22partial_compute_result11partial_sumE"></span><span id="_CPPv2N6oneapi3dal10covariance22partial_compute_result11partial_sumE"></span><span id="oneapi::dal::covariance::partial_compute_result::partial_sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance22partial_compute_result11partial_sumE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Sums. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE">
+<span id="_CPPv3N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE"></span><span id="_CPPv2N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE"></span><span id="oneapi::dal::covariance::partial_compute_result::partial_crossproduct__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_crossproduct</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal10covariance22partial_compute_result20partial_crossproductE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The crossproduct matrix. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_crossproduct()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_crossproduct(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>

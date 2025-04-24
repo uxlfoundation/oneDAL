@@ -993,6 +993,36 @@ variance, that is, the directions where the data is mostly spread out.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor14result_optionsE">
+<span id="_CPPv3N6oneapi3dal3pca10descriptor14result_optionsE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor14result_optionsE"></span><span id="oneapi::dal::pca::descriptor::result_options__result_option_id"></span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Choose which results should be computed and returned.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">result_option_id</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor15component_countE">
+<span id="_CPPv3N6oneapi3dal3pca10descriptor15component_countE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor15component_countE"></span><span id="oneapi::dal::pca::descriptor::component_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">component_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor15component_countE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The number of principal components <span class="math notranslate nohighlight">\(r\)</span>. If it is zero, the algorithm computes the eigenvectors for all features, <span class="math notranslate nohighlight">\(r = p\)</span>. <strong>Default value</strong>: 0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_component_count()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_component_count(std::int64_t</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca10descriptor15component_countE" title="oneapi::dal::pca::descriptor::component_count"><span class="n">component_count</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">0</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor18data_normalizationE">
 <span id="_CPPv3N6oneapi3dal3pca10descriptor18data_normalizationE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor18data_normalizationE"></span><span id="oneapi::dal::pca::descriptor::data_normalization__normalization"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca13normalizationE" title="oneapi::dal::pca::normalization"><span class="n"><span class="pre">normalization</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">data_normalization</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor18data_normalizationE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>. <strong>Default value</strong>: normalization::none.</p>
@@ -1019,23 +1049,6 @@ variance, that is, the directions where the data is mostly spread out.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor15component_countE">
-<span id="_CPPv3N6oneapi3dal3pca10descriptor15component_countE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor15component_countE"></span><span id="oneapi::dal::pca::descriptor::component_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">component_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor15component_countE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The number of principal components <span class="math notranslate nohighlight">\(r\)</span>. If it is zero, the algorithm computes the eigenvectors for all features, <span class="math notranslate nohighlight">\(r = p\)</span>. <strong>Default value</strong>: 0.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_component_count()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_component_count(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca10descriptor15component_countE" title="oneapi::dal::pca::descriptor::component_count"><span class="n">component_count</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">0</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor18normalization_modeE">
 <span id="_CPPv3N6oneapi3dal3pca10descriptor18normalization_modeE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor18normalization_modeE"></span><span id="oneapi::dal::pca::descriptor::normalization_mode__normalization"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca13normalizationE" title="oneapi::dal::pca::normalization"><span class="n"><span class="pre">normalization</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">normalization_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor18normalization_modeE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>. <strong>Default value</strong>: normalization::zscore.</p>
@@ -1043,19 +1056,6 @@ variance, that is, the directions where the data is mostly spread out.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">normalization</span> <span class="pre">get_normalization_mode()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_normalization_mode(normalization</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca10descriptor14result_optionsE">
-<span id="_CPPv3N6oneapi3dal3pca10descriptor14result_optionsE"></span><span id="_CPPv2N6oneapi3dal3pca10descriptor14result_optionsE"></span><span id="oneapi::dal::pca::descriptor::result_options__result_option_id"></span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca10descriptor14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Choose which results should be computed and returned.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">result_option_id</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1124,19 +1124,6 @@ variance, that is, the directions where the data is mostly spread out.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model12eigenvectorsE">
-<span id="_CPPv3N6oneapi3dal3pca5model12eigenvectorsE"></span><span id="_CPPv2N6oneapi3dal3pca5model12eigenvectorsE"></span><span id="oneapi::dal::pca::model::eigenvectors__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvectors</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model12eigenvectorsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>An <span class="math notranslate nohighlight">\(r \times p\)</span> table with the eigenvectors. Each row contains one eigenvector. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvectors()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvectors(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model9variancesE">
 <span id="_CPPv3N6oneapi3dal3pca5model9variancesE"></span><span id="_CPPv2N6oneapi3dal3pca5model9variancesE"></span><span id="oneapi::dal::pca::model::variances__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">variances</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model9variancesE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>Variances. <strong>Default value</strong>: table{}.</p>
@@ -1150,19 +1137,6 @@ variance, that is, the directions where the data is mostly spread out.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model11eigenvaluesE">
-<span id="_CPPv3N6oneapi3dal3pca5model11eigenvaluesE"></span><span id="_CPPv2N6oneapi3dal3pca5model11eigenvaluesE"></span><span id="oneapi::dal::pca::model::eigenvalues__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvalues</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model11eigenvaluesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Eigenvalues. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvalues()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvalues(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model5meansE">
 <span id="_CPPv3N6oneapi3dal3pca5model5meansE"></span><span id="_CPPv2N6oneapi3dal3pca5model5meansE"></span><span id="oneapi::dal::pca::model::means__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">means</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model5meansE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>Means. <strong>Default value</strong>: table{}.</p>
@@ -1170,6 +1144,32 @@ variance, that is, the directions where the data is mostly spread out.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_means()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_means(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model12eigenvectorsE">
+<span id="_CPPv3N6oneapi3dal3pca5model12eigenvectorsE"></span><span id="_CPPv2N6oneapi3dal3pca5model12eigenvectorsE"></span><span id="oneapi::dal::pca::model::eigenvectors__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvectors</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model12eigenvectorsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>An <span class="math notranslate nohighlight">\(r \times p\)</span> table with the eigenvectors. Each row contains one eigenvector. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvectors()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvectors(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca5model11eigenvaluesE">
+<span id="_CPPv3N6oneapi3dal3pca5model11eigenvaluesE"></span><span id="_CPPv2N6oneapi3dal3pca5model11eigenvaluesE"></span><span id="oneapi::dal::pca::model::eigenvalues__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvalues</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca5model11eigenvaluesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Eigenvalues. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvalues()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvalues(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1238,13 +1238,39 @@ variance, that is, the directions where the data is mostly spread out.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result11eigenvaluesE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result11eigenvaluesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result11eigenvaluesE"></span><span id="oneapi::dal::pca::train_result::eigenvalues__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvalues</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result11eigenvaluesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the eigenvalues for for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result9variancesE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result9variancesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result9variancesE"></span><span id="oneapi::dal::pca::train_result::variances__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">variances</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result9variancesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the variances for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvalues()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvalues(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_variances()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variances(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result14result_optionsE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result14result_optionsE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result14result_optionsE"></span><span id="oneapi::dal::pca::train_result::result_options__result_option_idCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Result options that indicates availability of the properties. <strong>Default value</strong>: default_result_options&lt;Task&gt;.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result15singular_valuesE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result15singular_valuesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result15singular_valuesE"></span><span id="oneapi::dal::pca::train_result::singular_values__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">singular_values</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result15singular_valuesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the singular values for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_singular_values()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_singular_values(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1264,13 +1290,13 @@ variance, that is, the directions where the data is mostly spread out.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result25explained_variances_ratioE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result25explained_variances_ratioE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result25explained_variances_ratioE"></span><span id="oneapi::dal::pca::train_result::explained_variances_ratio__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">explained_variances_ratio</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result25explained_variances_ratioE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the explained variances values for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result5modelE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result5modelE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result5modelE"></span><span id="oneapi::dal::pca::train_result::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca12train_result5modelE" title="oneapi::dal::pca::train_result::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result5modelE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The trained PCA model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_explained_variances_ratio()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_explained_variances_ratio(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1294,52 +1320,26 @@ variance, that is, the directions where the data is mostly spread out.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result9variancesE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result9variancesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result9variancesE"></span><span id="oneapi::dal::pca::train_result::variances__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">variances</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result9variancesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the variances for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result25explained_variances_ratioE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result25explained_variances_ratioE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result25explained_variances_ratioE"></span><span id="oneapi::dal::pca::train_result::explained_variances_ratio__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">explained_variances_ratio</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result25explained_variances_ratioE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the explained variances values for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_variances()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variances(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_explained_variances_ratio()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_explained_variances_ratio(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result15singular_valuesE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result15singular_valuesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result15singular_valuesE"></span><span id="oneapi::dal::pca::train_result::singular_values__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">singular_values</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result15singular_valuesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the singular values for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result11eigenvaluesE">
+<span id="_CPPv3N6oneapi3dal3pca12train_result11eigenvaluesE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result11eigenvaluesE"></span><span id="oneapi::dal::pca::train_result::eigenvalues__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">eigenvalues</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result11eigenvaluesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times r\)</span> table that contains the eigenvalues for for the first <code class="docutils literal notranslate"><span class="pre">r</span></code> features. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_singular_values()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_singular_values(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result14result_optionsE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result14result_optionsE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result14result_optionsE"></span><span id="oneapi::dal::pca::train_result::result_options__result_option_idCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">result_option_id</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">result_options</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result14result_optionsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Result options that indicates availability of the properties. <strong>Default value</strong>: default_result_options&lt;Task&gt;.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;</span> <span class="pre">get_result_options()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_result_options(const</span> <span class="pre">result_option_id</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca12train_result5modelE">
-<span id="_CPPv3N6oneapi3dal3pca12train_result5modelE"></span><span id="_CPPv2N6oneapi3dal3pca12train_result5modelE"></span><span id="oneapi::dal::pca::train_result::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca12train_result5modelE" title="oneapi::dal::pca::train_result::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca12train_result5modelE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The trained PCA model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_eigenvalues()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_eigenvalues(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1454,25 +1454,13 @@ variance, that is, the directions where the data is mostly spread out.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result15auxiliary_tableE">
-<span id="_CPPv3N6oneapi3dal3pca20partial_train_result15auxiliary_tableE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result15auxiliary_tableE"></span><span id="oneapi::dal::pca::partial_train_result::auxiliary_table__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">auxiliary_table</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result15auxiliary_tableE" title="Permalink to this definition">#</a><br /></dt>
-<dd><dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_auxiliary_table(const</span> <span class="pre">std::int64_t)</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_auxiliary_table(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result20partial_crossproductE">
-<span id="_CPPv3N6oneapi3dal3pca20partial_train_result20partial_crossproductE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result20partial_crossproductE"></span><span id="oneapi::dal::pca::partial_train_result::partial_crossproduct__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_crossproduct</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result20partial_crossproductE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The crossproduct matrix. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result11partial_sumE">
+<span id="_CPPv3N6oneapi3dal3pca20partial_train_result11partial_sumE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result11partial_sumE"></span><span id="oneapi::dal::pca::partial_train_result::partial_sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result11partial_sumE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Sums. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_crossproduct()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_crossproduct(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1492,13 +1480,25 @@ variance, that is, the directions where the data is mostly spread out.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result11partial_sumE">
-<span id="_CPPv3N6oneapi3dal3pca20partial_train_result11partial_sumE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result11partial_sumE"></span><span id="oneapi::dal::pca::partial_train_result::partial_sum__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_sum</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result11partial_sumE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Sums. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result20partial_crossproductE">
+<span id="_CPPv3N6oneapi3dal3pca20partial_train_result20partial_crossproductE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result20partial_crossproductE"></span><span id="oneapi::dal::pca::partial_train_result::partial_crossproduct__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">partial_crossproduct</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result20partial_crossproductE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The crossproduct matrix. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_sum()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_sum(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_partial_crossproduct()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_partial_crossproduct(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca20partial_train_result15auxiliary_tableE">
+<span id="_CPPv3N6oneapi3dal3pca20partial_train_result15auxiliary_tableE"></span><span id="_CPPv2N6oneapi3dal3pca20partial_train_result15auxiliary_tableE"></span><span id="oneapi::dal::pca::partial_train_result::auxiliary_table__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">auxiliary_table</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca20partial_train_result15auxiliary_tableE" title="Permalink to this definition">#</a><br /></dt>
+<dd><dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_auxiliary_table(const</span> <span class="pre">std::int64_t)</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_auxiliary_table(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1532,19 +1532,6 @@ variance, that is, the directions where the data is mostly spread out.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca11infer_input4dataE">
-<span id="_CPPv3N6oneapi3dal3pca11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal3pca11infer_input4dataE"></span><span id="oneapi::dal::pca::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca11infer_input5modelE">
 <span id="_CPPv3N6oneapi3dal3pca11infer_input5modelE"></span><span id="_CPPv2N6oneapi3dal3pca11infer_input5modelE"></span><span id="oneapi::dal::pca::infer_input::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3pca11infer_input5modelE" title="oneapi::dal::pca::infer_input::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca11infer_input5modelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The trained PCA model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
@@ -1552,6 +1539,19 @@ variance, that is, the directions where the data is mostly spread out.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3pca11infer_input4dataE">
+<span id="_CPPv3N6oneapi3dal3pca11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal3pca11infer_input4dataE"></span><span id="oneapi::dal::pca::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3pca11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>

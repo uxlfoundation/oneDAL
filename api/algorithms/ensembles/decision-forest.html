@@ -1008,17 +1008,26 @@ computed for that random split from the feature subsets.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor10tree_countE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor10tree_countE"></span><span id="oneapi::dal::decision_forest::descriptor::tree_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tree_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The number of trees in the forest. <strong>Default value</strong>: 100.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor11voting_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor11voting_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::voting_mode__voting_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE" title="oneapi::dal::decision_forest::descriptor::voting_mode"><span class="n"><span class="pre">voting_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">voting_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The voting mode. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest4task14classificationE" title="oneapi::dal::decision_forest::task::classification"><span class="n">classification</span></a></span> only.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_tree_count()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_tree_count(std::int64_t</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">voting_mode</span> <span class="pre">get_voting_mode()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_voting_mode(voting_mode</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE" title="oneapi::dal::decision_forest::descriptor::tree_count"><span class="n">tree_count</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0</span></span></div>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::memory_saving_mode__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">memory_saving_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The memory saving mode. <strong>Default value</strong>: false.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_memory_saving_mode()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_memory_saving_mode(bool</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1055,26 +1064,17 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor9bootstrapE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor9bootstrapE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor9bootstrapE"></span><span id="oneapi::dal::decision_forest::descriptor::bootstrap__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bootstrap</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor9bootstrapE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The bootstrap mode, if true, the training set for a tree is a bootstrap of the whole training set, if False, the whole dataset is used to build each tree. <strong>Default value</strong>: true.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor10tree_countE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor10tree_countE"></span><span id="oneapi::dal::decision_forest::descriptor::tree_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tree_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The number of trees in the forest. <strong>Default value</strong>: 100.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_bootstrap()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bootstrap(bool</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_tree_count()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_tree_count(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor11engine_typeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor11engine_typeE"></span><span id="oneapi::dal::decision_forest::descriptor::engine_type__engine_type"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE" title="oneapi::dal::decision_forest::descriptor::engine_type"><span class="n"><span class="pre">engine_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">engine_type</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Engine method for the random numbers generator used by the algorithm. <strong>Default value</strong>: engine_method::philox4x32x10.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">engine_type</span> <span class="pre">get_engine_type()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_engine_type(engine_type</span> <span class="pre">value)</span></code></div>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor10tree_countE" title="oneapi::dal::decision_forest::descriptor::tree_count"><span class="n">tree_count</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0</span></span></div>
 </div>
 </dd>
 </dl>
@@ -1094,13 +1094,13 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor14max_tree_depthE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor14max_tree_depthE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor14max_tree_depthE"></span><span id="oneapi::dal::decision_forest::descriptor::max_tree_depth__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">max_tree_depth</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor14max_tree_depthE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The maximal depth of the tree. If 0, then nodes are expanded until all leaves are pure or until all leaves contain less or equal to min observations in leaf node samples. <strong>Default value</strong>: 0.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor9bootstrapE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor9bootstrapE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor9bootstrapE"></span><span id="oneapi::dal::decision_forest::descriptor::bootstrap__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bootstrap</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor9bootstrapE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The bootstrap mode, if true, the training set for a tree is a bootstrap of the whole training set, if False, the whole dataset is used to build each tree. <strong>Default value</strong>: true.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_max_tree_depth()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max_tree_depth(std::int64_t</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_bootstrap()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bootstrap(bool</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1124,13 +1124,26 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor11voting_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor11voting_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::voting_mode__voting_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE" title="oneapi::dal::decision_forest::descriptor::voting_mode"><span class="n"><span class="pre">voting_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">voting_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11voting_modeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The voting mode. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest4task14classificationE" title="oneapi::dal::decision_forest::task::classification"><span class="n">classification</span></a></span> only.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor11engine_typeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor11engine_typeE"></span><span id="oneapi::dal::decision_forest::descriptor::engine_type__engine_type"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE" title="oneapi::dal::decision_forest::descriptor::engine_type"><span class="n"><span class="pre">engine_type</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">engine_type</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor11engine_typeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Engine method for the random numbers generator used by the algorithm. <strong>Default value</strong>: engine_method::philox4x32x10.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">voting_mode</span> <span class="pre">get_voting_mode()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_voting_mode(voting_mode</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">engine_type</span> <span class="pre">get_engine_type()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_engine_type(engine_type</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor14max_tree_depthE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor14max_tree_depthE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor14max_tree_depthE"></span><span id="oneapi::dal::decision_forest::descriptor::max_tree_depth__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">max_tree_depth</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor14max_tree_depthE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The maximal depth of the tree. If 0, then nodes are expanded until all leaves are pure or until all leaves contain less or equal to min observations in leaf node samples. <strong>Default value</strong>: 0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_max_tree_depth()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max_tree_depth(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1149,36 +1162,6 @@ computed for that random split from the feature subsets.</p>
 <dt>Invariants</dt><dd><div class="line-block">
 <div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor32min_weight_fraction_in_leaf_nodeE" title="oneapi::dal::decision_forest::descriptor::min_weight_fraction_in_leaf_node"><span class="n">min_weight_fraction_in_leaf_node</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">0.0</span></span></div>
 <div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor32min_weight_fraction_in_leaf_nodeE" title="oneapi::dal::decision_forest::descriptor::min_weight_fraction_in_leaf_node"><span class="n">min_weight_fraction_in_leaf_node</span></a><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">0.5</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE"></span><span id="oneapi::dal::decision_forest::descriptor::min_bin_size__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">min_bin_size</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The minimal number of observations in a bin. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">method</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest6method4histE" title="oneapi::dal::decision_forest::method::hist"><span class="n">hist</span></a></span> split-finding method only. <strong>Default value</strong>: 5.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_min_bin_size()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min_bin_size(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE" title="oneapi::dal::decision_forest::descriptor::min_bin_size"><span class="n">min_bin_size</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor17features_per_nodeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor17features_per_nodeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor17features_per_nodeE"></span><span id="oneapi::dal::decision_forest::descriptor::features_per_node__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">features_per_node</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17features_per_nodeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The number of features to consider when looking for the best split for a node. <strong>Default value</strong>: task::classification ? sqrt(p) : p/3, where p is the total number of features.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_features_per_node()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_features_per_node(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1215,17 +1198,17 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE"></span><span id="oneapi::dal::decision_forest::descriptor::min_observations_in_split_node__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">min_observations_in_split_node</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The minimal number of observations in a split node. <strong>Default value</strong>: 2.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE"></span><span id="oneapi::dal::decision_forest::descriptor::min_bin_size__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">min_bin_size</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The minimal number of observations in a bin. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">method</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest6method4histE" title="oneapi::dal::decision_forest::method::hist"><span class="n">hist</span></a></span> split-finding method only. <strong>Default value</strong>: 5.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_min_observations_in_split_node()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min_observations_in_split_node(std::int64_t</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_min_bin_size()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min_bin_size(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 <dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE" title="oneapi::dal::decision_forest::descriptor::min_observations_in_split_node"><span class="n">min_observations_in_split_node</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">1</span></span></div>
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor12min_bin_sizeE" title="oneapi::dal::decision_forest::descriptor::min_bin_size"><span class="n">min_bin_size</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0</span></span></div>
 </div>
 </dd>
 </dl>
@@ -1249,39 +1232,13 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE"></span><span id="oneapi::dal::decision_forest::descriptor::max_leaf_nodes__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">max_leaf_nodes</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The maximal number of the leaf nodes. If 0, the number of leaf nodes is not limited. <strong>Default value</strong>: 0.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor17error_metric_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor17error_metric_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::error_metric_mode__error_metric_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE" title="oneapi::dal::decision_forest::descriptor::error_metric_mode"><span class="n"><span class="pre">error_metric_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">error_metric_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The error metric mode. <strong>Default value</strong>: error_metric_mode::none.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_max_leaf_nodes()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max_leaf_nodes(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::memory_saving_mode__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">memory_saving_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor18memory_saving_modeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The memory saving mode. <strong>Default value</strong>: false.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_memory_saving_mode()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_memory_saving_mode(bool</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::variable_importance_mode__variable_importance_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE" title="oneapi::dal::decision_forest::descriptor::variable_importance_mode"><span class="n"><span class="pre">variable_importance_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">variable_importance_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The variable importance mode. <strong>Default value</strong>: variable_importance_mode::none.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">variable_importance_mode</span> <span class="pre">get_variable_importance_mode()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variable_importance_mode(variable_importance_mode</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">error_metric_mode</span> <span class="pre">get_error_metric_mode()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_error_metric_mode(error_metric_mode</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1305,13 +1262,13 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE">
-<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor17error_metric_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor17error_metric_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::error_metric_mode__error_metric_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE" title="oneapi::dal::decision_forest::descriptor::error_metric_mode"><span class="n"><span class="pre">error_metric_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">error_metric_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17error_metric_modeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The error metric mode. <strong>Default value</strong>: error_metric_mode::none.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor17features_per_nodeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor17features_per_nodeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor17features_per_nodeE"></span><span id="oneapi::dal::decision_forest::descriptor::features_per_node__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">features_per_node</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor17features_per_nodeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The number of features to consider when looking for the best split for a node. <strong>Default value</strong>: task::classification ? sqrt(p) : p/3, where p is the total number of features.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">error_metric_mode</span> <span class="pre">get_error_metric_mode()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_error_metric_mode(error_metric_mode</span> <span class="pre">value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_features_per_node()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_features_per_node(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1330,6 +1287,49 @@ computed for that random split from the feature subsets.</p>
 <dt>Invariants</dt><dd><div class="line-block">
 <div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30observations_per_tree_fractionE" title="oneapi::dal::decision_forest::descriptor::observations_per_tree_fraction"><span class="n">observations_per_tree_fraction</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0.0</span></span></div>
 <div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30observations_per_tree_fractionE" title="oneapi::dal::decision_forest::descriptor::observations_per_tree_fraction"><span class="n">observations_per_tree_fraction</span></a><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">1.0</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE"></span><span id="oneapi::dal::decision_forest::descriptor::max_leaf_nodes__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">max_leaf_nodes</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor14max_leaf_nodesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The maximal number of the leaf nodes. If 0, the number of leaf nodes is not limited. <strong>Default value</strong>: 0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_max_leaf_nodes()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_max_leaf_nodes(std::int64_t</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE"></span><span id="oneapi::dal::decision_forest::descriptor::variable_importance_mode__variable_importance_mode"></span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE" title="oneapi::dal::decision_forest::descriptor::variable_importance_mode"><span class="n"><span class="pre">variable_importance_mode</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">variable_importance_mode</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor24variable_importance_modeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The variable importance mode. <strong>Default value</strong>: variable_importance_mode::none.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">variable_importance_mode</span> <span class="pre">get_variable_importance_mode()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_variable_importance_mode(variable_importance_mode</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE">
+<span id="_CPPv3N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE"></span><span id="_CPPv2N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE"></span><span id="oneapi::dal::decision_forest::descriptor::min_observations_in_split_node__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">min_observations_in_split_node</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The minimal number of observations in a split node. <strong>Default value</strong>: 2.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_min_observations_in_split_node()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_min_observations_in_split_node(std::int64_t</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest10descriptor30min_observations_in_split_nodeE" title="oneapi::dal::decision_forest::descriptor::min_observations_in_split_node"><span class="n">min_observations_in_split_node</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">1</span></span></div>
 </div>
 </dd>
 </dl>
@@ -1497,6 +1497,19 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11train_input6labelsE">
+<span id="_CPPv3N6oneapi3dal15decision_forest11train_input6labelsE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11train_input6labelsE"></span><span id="oneapi::dal::decision_forest::train_input::labels__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">labels</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11train_input6labelsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>Vector of labels <span class="math notranslate nohighlight">\(y\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_labels()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_labels(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11train_input7weightsE">
 <span id="_CPPv3N6oneapi3dal15decision_forest11train_input7weightsE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11train_input7weightsE"></span><span id="oneapi::dal::decision_forest::train_input::weights__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">weights</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11train_input7weightsE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The vector of weights <span class="math notranslate nohighlight">\(w\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
@@ -1517,19 +1530,6 @@ computed for that random split from the feature subsets.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11train_input6labelsE">
-<span id="_CPPv3N6oneapi3dal15decision_forest11train_input6labelsE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11train_input6labelsE"></span><span id="oneapi::dal::decision_forest::train_input::labels__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">labels</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11train_input6labelsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>Vector of labels <span class="math notranslate nohighlight">\(y\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_labels()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_labels(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1557,13 +1557,13 @@ computed for that random split from the feature subsets.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result7oob_errE">
-<span id="_CPPv3N6oneapi3dal15decision_forest12train_result7oob_errE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result7oob_errE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result7oob_errE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error</span></code>. <strong>Default value</strong>: table{}.</p>
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result10oob_err_r2E">
+<span id="_CPPv3N6oneapi3dal15decision_forest12train_result10oob_err_r2E"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result10oob_err_r2E"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_r2__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_r2</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result10oob_err_r2E" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error (R2) value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_r2</span></code>. <strong>Default value</strong>: table{}.</p>
 <dl>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_r2()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_r2(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1583,19 +1583,6 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE">
-<span id="_CPPv3N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_decision_function__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_decision_function</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(n \times c\)</span> table containing decision function value per observation. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_decision_function</span></code>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_decision_function()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_decision_function(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result14var_importanceE">
 <span id="_CPPv3N6oneapi3dal15decision_forest12train_result14var_importanceE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result14var_importanceE"></span><span id="oneapi::dal::decision_forest::train_result::var_importance__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">var_importance</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result14var_importanceE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>A <span class="math notranslate nohighlight">\(1 \times p\)</span> table containing variable importance value for each feature. Computed when <span class="cpp-expr sig sig-inline cpp"><span class="n">variable_importance_mode</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">variable_importance_mode</span><span class="p">::</span><span class="n">none</span></span>. <strong>Default value</strong>: table{}.</p>
@@ -1603,19 +1590,6 @@ computed for that random split from the feature subsets.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_var_importance()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_var_importance(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE">
-<span id="_CPPv3N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_accuracy__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_accuracy</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error (accuracy) value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_accuracy</span></code>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_accuracy()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_accuracy(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1635,19 +1609,6 @@ computed for that random split from the feature subsets.</p>
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result10oob_err_r2E">
-<span id="_CPPv3N6oneapi3dal15decision_forest12train_result10oob_err_r2E"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result10oob_err_r2E"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_r2__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_r2</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result10oob_err_r2E" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error (R2) value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_r2</span></code>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_r2()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_r2(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result5modelE">
 <span id="_CPPv3N6oneapi3dal15decision_forest12train_result5modelE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result5modelE"></span><span id="oneapi::dal::decision_forest::train_result::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest12train_result5modelE" title="oneapi::dal::decision_forest::train_result::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result5modelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The trained Decision Forest model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
@@ -1655,6 +1616,45 @@ computed for that random split from the feature subsets.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result7oob_errE">
+<span id="_CPPv3N6oneapi3dal15decision_forest12train_result7oob_errE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result7oob_errE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result7oob_errE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error</span></code>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE">
+<span id="_CPPv3N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_accuracy__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_accuracy</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result16oob_err_accuracyE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(1 \times 1\)</span> table containing cumulative out-of-bag error (accuracy) value. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_accuracy</span></code>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_accuracy()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_accuracy(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE">
+<span id="_CPPv3N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE"></span><span id="oneapi::dal::decision_forest::train_result::oob_err_decision_function__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">oob_err_decision_function</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12train_result25oob_err_decision_functionE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(n \times c\)</span> table containing decision function value per observation. Computed when <code class="docutils literal notranslate"><span class="pre">error_metric_mode</span></code> set with <code class="docutils literal notranslate"><span class="pre">error_metric_mode::out_of_bag_error_decision_function</span></code>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_oob_err_decision_function()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_oob_err_decision_function(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1712,19 +1712,6 @@ computed for that random split from the feature subsets.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11infer_input4dataE">
-<span id="_CPPv3N6oneapi3dal15decision_forest11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11infer_input4dataE"></span><span id="oneapi::dal::decision_forest::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11infer_input5modelE">
 <span id="_CPPv3N6oneapi3dal15decision_forest11infer_input5modelE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11infer_input5modelE"></span><span id="oneapi::dal::decision_forest::infer_input::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal15decision_forest11infer_input5modelE" title="oneapi::dal::decision_forest::infer_input::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11infer_input5modelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The trained Decision Forest model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
@@ -1732,6 +1719,19 @@ computed for that random split from the feature subsets.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest11infer_input4dataE">
+<span id="_CPPv3N6oneapi3dal15decision_forest11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal15decision_forest11infer_input4dataE"></span><span id="oneapi::dal::decision_forest::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1759,6 +1759,19 @@ computed for that random split from the feature subsets.</p>
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12infer_result13probabilitiesE">
+<span id="_CPPv3N6oneapi3dal15decision_forest12infer_result13probabilitiesE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12infer_result13probabilitiesE"></span><span id="oneapi::dal::decision_forest::infer_result::probabilities__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">probabilities</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12infer_result13probabilitiesE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(n \times c\)</span> table with the predicted class probabilities for each observation.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_probabilities()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_probabilities(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12infer_result9responsesE">
 <span id="_CPPv3N6oneapi3dal15decision_forest12infer_result9responsesE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12infer_result9responsesE"></span><span id="oneapi::dal::decision_forest::infer_result::responses__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">responses</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12infer_result9responsesE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The <span class="math notranslate nohighlight">\(n \times 1\)</span> table with the predicted responses. <strong>Default value</strong>: table{}.</p>
@@ -1779,19 +1792,6 @@ computed for that random split from the feature subsets.</p>
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_labels()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_labels(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal15decision_forest12infer_result13probabilitiesE">
-<span id="_CPPv3N6oneapi3dal15decision_forest12infer_result13probabilitiesE"></span><span id="_CPPv2N6oneapi3dal15decision_forest12infer_result13probabilitiesE"></span><span id="oneapi::dal::decision_forest::infer_result::probabilities__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">probabilities</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal15decision_forest12infer_result13probabilitiesE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(n \times c\)</span> table with the predicted class probabilities for each observation.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_probabilities()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_probabilities(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>

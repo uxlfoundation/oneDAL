@@ -954,6 +954,87 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor9shrinkingE">
+<span id="_CPPv3N6oneapi3dal3svm10descriptor9shrinkingE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor9shrinkingE"></span><span id="oneapi::dal::svm::descriptor::shrinking__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">shrinking</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor9shrinkingE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A flag that enables the use of a shrinking optimization technique. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">method</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm6method3smoE" title="oneapi::dal::svm::method::smo"><span class="n">smo</span></a></span> split-finding method only. <strong>Default value</strong>: true.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_shrinking()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_shrinking(bool</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor11class_countE">
+<span id="_CPPv3N6oneapi3dal3svm10descriptor11class_countE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor11class_countE"></span><span id="oneapi::dal::svm::descriptor::class_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">class_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor11class_countE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The number of classes. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>. <strong>Default value</strong>: 2.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">std::int64_t</span> <span class="pre">get_class_count()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_class_count(std::int64_t</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor11class_countE" title="oneapi::dal::svm::descriptor::class_count"><span class="n">class_count</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">2</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE">
+<span id="_CPPv3N6oneapi3dal3svm10descriptor10cache_sizeE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor10cache_sizeE"></span><span id="oneapi::dal::svm::descriptor::cache_size__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cache_size</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The size of cache (in megabytes) for storing the values of the kernel matrix. <strong>Default value</strong>: 200.0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_cache_size()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_cache_size(double</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE" title="oneapi::dal::svm::descriptor::cache_size"><span class="n">cache_size</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">0.0</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor3tauE">
+<span id="_CPPv3N6oneapi3dal3svm10descriptor3tauE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor3tauE"></span><span id="oneapi::dal::svm::descriptor::tau__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tau</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor3tauE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The threshold parameter <span class="math notranslate nohighlight">\(\tau\)</span> for computing the quadratic coefficient. <strong>Default value</strong>: 1e-6.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_tau()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_tau(double</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor3tauE" title="oneapi::dal::svm::descriptor::tau"><span class="n">tau</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0.0</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor2nuE">
+<span id="_CPPv3N6oneapi3dal3svm10descriptor2nuE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor2nuE"></span><span id="oneapi::dal::svm::descriptor::nu__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nu</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor2nuE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The nu. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task13nu_regressionE" title="oneapi::dal::svm::task::nu_regression"><span class="n">nu_regression</span></a></span>. <strong>Default value</strong>: 0.5.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_nu_task_t&lt;T&gt;&gt;</span> <span class="pre">double</span> <span class="pre">get_nu()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_nu_task_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_nu(double</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+<dt>Invariants</dt><dd><div class="line-block">
+<div class="line"><span class="cpp-expr sig sig-inline cpp"><span class="m">0</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor2nuE" title="oneapi::dal::svm::descriptor::nu"><span class="n">nu</span></a><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">1</span></span></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor7epsilonE">
 <span id="_CPPv3N6oneapi3dal3svm10descriptor7epsilonE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor7epsilonE"></span><span id="oneapi::dal::svm::descriptor::epsilon__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">epsilon</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor7epsilonE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The epsilon. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task10regressionE" title="oneapi::dal::svm::task::regression"><span class="n">regression</span></a></span> only. <strong>Default value</strong>: 0.1.</p>
@@ -1005,70 +1086,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor3tauE">
-<span id="_CPPv3N6oneapi3dal3svm10descriptor3tauE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor3tauE"></span><span id="oneapi::dal::svm::descriptor::tau__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">tau</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor3tauE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The threshold parameter <span class="math notranslate nohighlight">\(\tau\)</span> for computing the quadratic coefficient. <strong>Default value</strong>: 1e-6.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_tau()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_tau(double</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor3tauE" title="oneapi::dal::svm::descriptor::tau"><span class="n">tau</span></a><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0.0</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor2nuE">
-<span id="_CPPv3N6oneapi3dal3svm10descriptor2nuE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor2nuE"></span><span id="oneapi::dal::svm::descriptor::nu__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">nu</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor2nuE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The nu. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task13nu_regressionE" title="oneapi::dal::svm::task::nu_regression"><span class="n">nu_regression</span></a></span>. <strong>Default value</strong>: 0.5.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_nu_task_t&lt;T&gt;&gt;</span> <span class="pre">double</span> <span class="pre">get_nu()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_nu_task_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_nu(double</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><span class="m">0</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor2nuE" title="oneapi::dal::svm::descriptor::nu"><span class="n">nu</span></a><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">1</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor11class_countE">
-<span id="_CPPv3N6oneapi3dal3svm10descriptor11class_countE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor11class_countE"></span><span id="oneapi::dal::svm::descriptor::class_count__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">class_count</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor11class_countE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The number of classes. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>. <strong>Default value</strong>: 2.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">std::int64_t</span> <span class="pre">get_class_count()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_class_count(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor11class_countE" title="oneapi::dal::svm::descriptor::class_count"><span class="n">class_count</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">2</span></span></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor9shrinkingE">
-<span id="_CPPv3N6oneapi3dal3svm10descriptor9shrinkingE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor9shrinkingE"></span><span id="oneapi::dal::svm::descriptor::shrinking__b"></span><span class="kt"><span class="pre">bool</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">shrinking</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor9shrinkingE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A flag that enables the use of a shrinking optimization technique. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">method</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm6method3smoE" title="oneapi::dal::svm::method::smo"><span class="n">smo</span></a></span> split-finding method only. <strong>Default value</strong>: true.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">get_shrinking()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_shrinking(bool</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor6kernelE">
 <span id="_CPPv3N6oneapi3dal3svm10descriptor6kernelE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor6kernelE"></span><span id="oneapi::dal::svm::descriptor::kernel__KernelCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">Kernel</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">kernel</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor6kernelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The descriptor of kernel function <span class="math notranslate nohighlight">\(K(x, y)\)</span>. Can be <span class="cpp-expr sig sig-inline cpp"><span class="n">linear_kernel</span><span class="p">::</span><a class="reference internal" href="../kernel-functions/linear-kernel.html#_CPPv4I000EN6oneapi3dal13linear_kernel10descriptorE" title="oneapi::dal::linear_kernel::descriptor"><span class="n">descriptor</span></a></span> or <span class="cpp-expr sig sig-inline cpp"><span class="n">polynomial_kernel</span><span class="p">::</span><a class="reference internal" href="../kernel-functions/polynomial-kernel.html#_CPPv4I000EN6oneapi3dal17polynomial_kernel10descriptorE" title="oneapi::dal::polynomial_kernel::descriptor"><span class="n">descriptor</span></a></span> or <span class="cpp-expr sig sig-inline cpp"><span class="n">rbf_kernel</span><span class="p">::</span><a class="reference internal" href="../kernel-functions/rbf-kernel.html#_CPPv4I000EN6oneapi3dal10rbf_kernel10descriptorE" title="oneapi::dal::rbf_kernel::descriptor"><span class="n">descriptor</span></a></span> or <span class="cpp-expr sig sig-inline cpp"><span class="n">sigmoid_kernel</span><span class="p">::</span><a class="reference internal" href="../kernel-functions/sigmoid-kernel.html#_CPPv4I000EN6oneapi3dal14sigmoid_kernel10descriptorE" title="oneapi::dal::sigmoid_kernel::descriptor"><span class="n">descriptor</span></a></span>.</p>
@@ -1076,23 +1093,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">Kernel</span> <span class="pre">&amp;</span> <span class="pre">get_kernel()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_kernel(const</span> <span class="pre">Kernel</span> <span class="pre">&amp;kernel)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE">
-<span id="_CPPv3N6oneapi3dal3svm10descriptor10cache_sizeE"></span><span id="_CPPv2N6oneapi3dal3svm10descriptor10cache_sizeE"></span><span id="oneapi::dal::svm::descriptor::cache_size__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">cache_size</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The size of cache (in megabytes) for storing the values of the kernel matrix. <strong>Default value</strong>: 200.0.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_cache_size()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_cache_size(double</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-<dt>Invariants</dt><dd><div class="line-block">
-<div class="line"><span class="cpp-expr sig sig-inline cpp"><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm10descriptor10cache_sizeE" title="oneapi::dal::svm::descriptor::cache_size"><span class="n">cache_size</span></a><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="m">0.0</span></span></div>
 </div>
 </dd>
 </dl>
@@ -1181,6 +1181,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model4biasE">
+<span id="_CPPv3N6oneapi3dal3svm5model4biasE"></span><span id="_CPPv2N6oneapi3dal3svm5model4biasE"></span><span id="oneapi::dal::svm::model::bias__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bias</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model4biasE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The bias. <strong>Default value</strong>: 0.0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_bias()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bias(double</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model21second_class_responseE">
 <span id="_CPPv3N6oneapi3dal3svm5model21second_class_responseE"></span><span id="_CPPv2N6oneapi3dal3svm5model21second_class_responseE"></span><span id="oneapi::dal::svm::model::second_class_response__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">second_class_response</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model21second_class_responseE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The second unique value in class responses. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>.</p>
@@ -1194,32 +1207,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model20first_class_responseE">
-<span id="_CPPv3N6oneapi3dal3svm5model20first_class_responseE"></span><span id="_CPPv2N6oneapi3dal3svm5model20first_class_responseE"></span><span id="oneapi::dal::svm::model::first_class_response__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">first_class_response</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model20first_class_responseE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The first unique value in class responses. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_first_class_response()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_first_class_response(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model17first_class_labelE">
-<span id="_CPPv3N6oneapi3dal3svm5model17first_class_labelE"></span><span id="_CPPv2N6oneapi3dal3svm5model17first_class_labelE"></span><span id="oneapi::dal::svm::model::first_class_label__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">first_class_label</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model17first_class_labelE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The first unique value in class labels. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_first_class_label()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_first_class_label(std::int64_t</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model6biasesE">
 <span id="_CPPv3N6oneapi3dal3svm5model6biasesE"></span><span id="_CPPv2N6oneapi3dal3svm5model6biasesE"></span><span id="oneapi::dal::svm::model::biases__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">biases</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model6biasesE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>A <span class="math notranslate nohighlight">\(class_count*(class_count-1)/2 \times 1\)</span> table for <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span> and a <span class="math notranslate nohighlight">\(1 \times 1\)</span> table for <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task10regressionE" title="oneapi::dal::svm::task::regression"><span class="n">regression</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task13nu_regressionE" title="oneapi::dal::svm::task::nu_regression"><span class="n">nu_regression</span></a></span> containing constants in decision function.</p>
@@ -1227,6 +1214,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_biases()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_biases(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model20first_class_responseE">
+<span id="_CPPv3N6oneapi3dal3svm5model20first_class_responseE"></span><span id="_CPPv2N6oneapi3dal3svm5model20first_class_responseE"></span><span id="oneapi::dal::svm::model::first_class_response__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">first_class_response</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model20first_class_responseE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The first unique value in class responses. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_first_class_response()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_first_class_response(std::int64_t</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1259,6 +1259,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model17first_class_labelE">
+<span id="_CPPv3N6oneapi3dal3svm5model17first_class_labelE"></span><span id="_CPPv2N6oneapi3dal3svm5model17first_class_labelE"></span><span id="oneapi::dal::svm::model::first_class_label__std::int64_t"></span><span class="n"><span class="pre">std</span></span><span class="p"><span class="pre">::</span></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">first_class_label</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model17first_class_labelE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The first unique value in class labels. Used with <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task14classificationE" title="oneapi::dal::svm::task::classification"><span class="n">classification</span></a></span> and <span class="cpp-expr sig sig-inline cpp"><span class="n">task</span><span class="p">::</span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm4task17nu_classificationE" title="oneapi::dal::svm::task::nu_classification"><span class="n">nu_classification</span></a></span>.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">std::int64_t</span> <span class="pre">get_first_class_label()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">template</span> <span class="pre">&lt;typename</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">Task,</span> <span class="pre">typename</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">detail::enable_if_classification_t&lt;T&gt;&gt;</span> <span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_first_class_label(std::int64_t</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model15support_vectorsE">
 <span id="_CPPv3N6oneapi3dal3svm5model15support_vectorsE"></span><span id="_CPPv2N6oneapi3dal3svm5model15support_vectorsE"></span><span id="oneapi::dal::svm::model::support_vectors__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">support_vectors</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model15support_vectorsE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>A <span class="math notranslate nohighlight">\(nsv \times p\)</span> table containing support vectors. Where <span class="math notranslate nohighlight">\(nsv\)</span> - number of support vectors. <strong>Default value</strong>: table{}.</p>
@@ -1266,19 +1279,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_support_vectors()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_support_vectors(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm5model4biasE">
-<span id="_CPPv3N6oneapi3dal3svm5model4biasE"></span><span id="_CPPv2N6oneapi3dal3svm5model4biasE"></span><span id="oneapi::dal::svm::model::bias__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bias</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm5model4biasE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The bias. <strong>Default value</strong>: 0.0.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_bias()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bias(double</span> <span class="pre">value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1321,6 +1321,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11train_input6labelsE">
+<span id="_CPPv3N6oneapi3dal3svm11train_input6labelsE"></span><span id="_CPPv2N6oneapi3dal3svm11train_input6labelsE"></span><span id="oneapi::dal::svm::train_input::labels__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">labels</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11train_input6labelsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The vector of labels <span class="math notranslate nohighlight">\(y\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_labels()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_labels(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11train_input7weightsE">
 <span id="_CPPv3N6oneapi3dal3svm11train_input7weightsE"></span><span id="_CPPv2N6oneapi3dal3svm11train_input7weightsE"></span><span id="oneapi::dal::svm::train_input::weights__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">weights</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11train_input7weightsE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The vector of weights <span class="math notranslate nohighlight">\(w\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
@@ -1341,19 +1354,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11train_input6labelsE">
-<span id="_CPPv3N6oneapi3dal3svm11train_input6labelsE"></span><span id="_CPPv2N6oneapi3dal3svm11train_input6labelsE"></span><span id="oneapi::dal::svm::train_input::labels__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">labels</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11train_input6labelsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The vector of labels <span class="math notranslate nohighlight">\(y\)</span> for the training set <span class="math notranslate nohighlight">\(X\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_labels()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_labels(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1387,6 +1387,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <p><strong>Properties</strong></p>
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result4biasE">
+<span id="_CPPv3N6oneapi3dal3svm12train_result4biasE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result4biasE"></span><span id="oneapi::dal::svm::train_result::bias__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bias</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result4biasE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The bias. <strong>Default value</strong>: 0.0.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_bias()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bias(double</span> <span class="pre">value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result15support_indicesE">
 <span id="_CPPv3N6oneapi3dal3svm12train_result15support_indicesE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result15support_indicesE"></span><span id="oneapi::dal::svm::train_result::support_indices__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">support_indices</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result15support_indicesE" title="Permalink to this definition">#</a><br /></dt>
@@ -1427,32 +1440,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 </dd></dl>
 
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result15support_vectorsE">
-<span id="_CPPv3N6oneapi3dal3svm12train_result15support_vectorsE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result15support_vectorsE"></span><span id="oneapi::dal::svm::train_result::support_vectors__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">support_vectors</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result15support_vectorsE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>A <span class="math notranslate nohighlight">\(nsv \times p\)</span> table containing support vectors, where <span class="math notranslate nohighlight">\(nsv\)</span> is the number of support vectors. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_support_vectors()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_support_vectors(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result4biasE">
-<span id="_CPPv3N6oneapi3dal3svm12train_result4biasE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result4biasE"></span><span id="oneapi::dal::svm::train_result::bias__double"></span><span class="kt"><span class="pre">double</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bias</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result4biasE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The bias. <strong>Default value</strong>: 0.0.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">double</span> <span class="pre">get_bias()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_bias(double</span> <span class="pre">value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result5modelE">
 <span id="_CPPv3N6oneapi3dal3svm12train_result5modelE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result5modelE"></span><span id="oneapi::dal::svm::train_result::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm12train_result5modelE" title="oneapi::dal::svm::train_result::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result5modelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The trained SVM model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
@@ -1460,6 +1447,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm12train_result15support_vectorsE">
+<span id="_CPPv3N6oneapi3dal3svm12train_result15support_vectorsE"></span><span id="_CPPv2N6oneapi3dal3svm12train_result15support_vectorsE"></span><span id="oneapi::dal::svm::train_result::support_vectors__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">support_vectors</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm12train_result15support_vectorsE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>A <span class="math notranslate nohighlight">\(nsv \times p\)</span> table containing support vectors, where <span class="math notranslate nohighlight">\(nsv\)</span> is the number of support vectors. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_support_vectors()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_support_vectors(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
@@ -1515,19 +1515,6 @@ algorithms. It belongs to a family of generalized linear classification problems
 
 <p><strong>Properties</strong></p>
 <dl class="cpp member">
-<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11infer_input4dataE">
-<span id="_CPPv3N6oneapi3dal3svm11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal3svm11infer_input4dataE"></span><span id="oneapi::dal::svm::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
-<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
-<dl>
-<dt>Getter &amp; Setter</dt><dd><div class="line-block">
-<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
-</div>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="cpp member">
 <dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11infer_input5modelE">
 <span id="_CPPv3N6oneapi3dal3svm11infer_input5modelE"></span><span id="_CPPv2N6oneapi3dal3svm11infer_input5modelE"></span><span id="oneapi::dal::svm::infer_input::model__model:Task:CR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv4N6oneapi3dal3svm11infer_input5modelE" title="oneapi::dal::svm::infer_input::model"><span class="n"><span class="pre">model</span></span></a><span class="p"><span class="pre">&lt;</span></span><span class="n"><span class="pre">Task</span></span><span class="p"><span class="pre">&gt;</span></span><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">model</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11infer_input5modelE" title="Permalink to this definition">#</a><br /></dt>
 <dd><p>The trained SVM model. <strong>Default value</strong>: model&lt;Task&gt;{}.</p>
@@ -1535,6 +1522,19 @@ algorithms. It belongs to a family of generalized linear classification problems
 <dt>Getter &amp; Setter</dt><dd><div class="line-block">
 <div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;</span> <span class="pre">get_model()</span> <span class="pre">const</span></code></div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_model(const</span> <span class="pre">model&lt;</span> <span class="pre">Task</span> <span class="pre">&gt;</span> <span class="pre">&amp;value)</span></code></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp member">
+<dt class="sig sig-object cpp" id="_CPPv4N6oneapi3dal3svm11infer_input4dataE">
+<span id="_CPPv3N6oneapi3dal3svm11infer_input4dataE"></span><span id="_CPPv2N6oneapi3dal3svm11infer_input4dataE"></span><span id="oneapi::dal::svm::infer_input::data__tableCR"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../../data-management/tables.html#_CPPv4N6oneapi3dal5tableE" title="oneapi::dal::table"><span class="n"><span class="pre">table</span></span></a><span class="w"> </span><span class="p"><span class="pre">&amp;</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N6oneapi3dal3svm11infer_input4dataE" title="Permalink to this definition">#</a><br /></dt>
+<dd><p>The dataset for inference <span class="math notranslate nohighlight">\(X'\)</span>. <strong>Default value</strong>: table{}.</p>
+<dl>
+<dt>Getter &amp; Setter</dt><dd><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">table</span> <span class="pre">&amp;</span> <span class="pre">get_data()</span> <span class="pre">const</span></code></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">&amp;</span> <span class="pre">set_data(const</span> <span class="pre">table</span> <span class="pre">&amp;value)</span></code></div>
 </div>
 </dd>
 </dl>
