@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2020 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2020 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. highlight:: cpp
 .. default-domain:: cpp
@@ -76,7 +74,7 @@ The PCA algorithm can be trained using either the covariance or the correlation 
 The choice of covariance matrix or correlation matrix is application-dependent.
 More specifically, if scaling of the features is important for a problem,
 which is often the case, using the correlation matrix to compute principal components is more appropriate.
-By default, oneDAL uses the correlation matrix to compute the principal components. It is possible
+By default, oneAPI Data Analytics Library (oneDAL) uses the correlation matrix to compute the principal components. It is possible
 to use the covariance matrix by passing "precomputed" as method and feeding a covariance matrix as input
 to the PCA algorithm. To compute the covariance matrix, the :ref:`Covariance <alg_covariance>` algorithm can be used.
 

@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2014 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2014 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 Build applications with oneDAL
 ==============================
@@ -29,7 +27,7 @@ Applications on Linux* OS
 
 #. Install |short_name|.
 
-#. Set environment variables by calling ``<install dir>/setvars.sh``.
+#. Set environment variables by calling ``<install dir>/vars.sh``.
 
 #. Build the application using ``icpx`` (Linux* OS) and ``icx-cl`` (Windows* OS) commands:
 
@@ -68,7 +66,7 @@ Applications on Linux* OS
 
      .. code-block:: text
 
-        <install dir>/dal/latest/lib/libonedal_sycl.a
+        <install dir>/mkl/latest/lib/libmkl_sycl.a
 
 .. _app_on_win:
 
@@ -116,13 +114,11 @@ Applications on Windows* OS
       :class: longtable
 
       * - Static linking
-        - 
-          | onedal_core.lib,
+        -
           | onedal_core.lib,
           | onedal_thread.lib
       * - Dynamic linking
-        - 
-          | onedal_core_dll.lib
+        -
           | onedal_core_dll.lib
 
    You may also add debug versions of the libraries based on the threading mode and linking method:
@@ -141,26 +137,16 @@ Applications on Windows* OS
           | onedald.lib,
           | onedal_dpcd.lib,
           | onedal_sycld.lib,
-          | onedal_cored.lib,
-          | onedald.lib,
-          | onedal_dpcd.lib,
-          | onedal_sycld.lib,
           | onedal_threadd.lib
       * - Dynamic linking
         -
-          | onedal_cored_dll.lib (onedal_cored_dll.2.lib),
-          | onedald_dll.lib (onedald_dll.2.lib),
-          | onedal_dpcd_dll.lib (onedal_dpcd_dll.2.lib),
-          | onedald.2.dll,
-          | onedal_cored.2.dll,
-          | onedal_dpcd.2.dll,
-          | onedal_cored_dll.lib (onedal_cored_dll.2.lib),
-          | onedald_dll.lib (onedald_dll.2.lib),
-          | onedal_dpcd_dll.lib (onedal_dpcd_dll.2.lib),
-          | onedald.2.dll,
-          | onedal_cored.2.dll,
-          | onedal_dpcd.2.dll,
-          | onedal_threadd.2.dll
+          | onedal_cored_dll.lib (onedal_cored_dll.3.lib),
+          | onedald_dll.lib (onedald_dll.3.lib),
+          | onedal_dpcd_dll.lib (onedal_dpcd_dll.3.lib),
+          | onedald.3.dll,
+          | onedal_cored.3.dll,
+          | onedal_dpcd.3.dll,
+          | onedal_threadd.3.dll
 
 Examples
 ********
@@ -168,14 +154,14 @@ Examples
 Dynamic linking |short_name| with the GPU target:
 
 * Linux* OS:
-   
+
   .. code-block:: text
 
      icpx -fsycl my_first_dal_program.cpp -Wl,
      --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -lOpenCL -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc <install dir>/dal/latest/lib/libonedal_sycl.a -Wl,--end-group
 
 * Windows* OS:
-   
+
   .. code-block:: text
 
      icx-cl -fsycl my_first_dal_program.cpp -Wl,
