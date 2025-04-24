@@ -332,6 +332,16 @@ public:
         }
     }
 
+    /// Starts a profiling task with the given task name and returns a profiler_task object
+    ///
+    /// @param[in] task_name The name of the task to be profiled
+    ///
+    /// @return A profiler_task object containing the task name and a unique task ID. Returns an invalid
+    /// profiler_task (nullptr, -1) if task_name is nullptr
+    ///
+    /// @note Captures the start time, updates task information, increments the current nesting level and kernel count,
+    /// and stores task details (ID, name, start time, level, active status) in the tasks_info.kernels vector.
+    /// Invoked by the DAAL_PROFILER_TASK macro.
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
@@ -346,6 +356,16 @@ public:
         return profiler_task(task_name, tmp);
     }
 
+    /// Starts a threading-specific profiling task with the given task name and returns a profiler_task object
+    ///
+    /// @param[in] task_name The name of the threading task to be profiled
+    ///
+    /// @return A profiler_task object containing the task name, a unique task ID, and a threading flag.
+    /// Returns an invalid profiler_task (nullptr, -1) if task_name is nullptr
+    ///
+    /// @note Uses a mutex for thread safety, logs unique task names if logging is enabled, captures the start time,
+    /// updates task info, and increments the kernel count. Stores task details in tasks_info.kernels, marking it
+    /// as a threading task. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static profiler_task start_threading_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
@@ -354,11 +374,19 @@ public:
         std::lock_guard<std::mutex> lock(mutex);
         if (is_logger_enabled())
         {
-            static std::set<std::string> unique_task_names;
-            if (unique_task_names.insert(task_name).second)
+            if (!is_service_debug_enabled())
+            {
+                static std::set<std::string> unique_task_names;
+                if (unique_task_names.insert(task_name).second)
+                {
+                    std::cerr << "-----------------------------------------------------------------------------" << '\n';
+                    std::cout << "THREADING Profiler task started on the main rank: " << task_name << std::endl;
+                }
+            }
+            else
             {
                 std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                std::cout << "THREADING Profiler task started on the main rank: " << task_name << std::endl;
+                std::cout << "THREADING Profiler task started " << task_name << std::endl;
             }
         }
         auto ns_start                = get_time();
@@ -371,6 +399,15 @@ public:
         return profiler_task(task_name, tmp, true);
     }
 
+    /// Terminates a profiling task and records its duration
+    ///
+    /// @param[in] task_name The name of the task to end
+    /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
+    ///
+    /// @note If task_name is nullptr, the function returns immediately. Captures the end time,
+    /// calculates the task duration, updates the task entry, and decrements the current nesting level.
+    /// Logs the task name and duration if tracing is enabled. Uses a mutex for thread safety.
+    /// Invoked by macros such as DAAL_PROFILER_TASK.
     inline static void end_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
@@ -386,6 +423,15 @@ public:
         if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
     }
 
+    /// Terminates a threading-specific profiling task and records its duration
+    ///
+    /// @param[in] task_name The name of the threading task to end
+    /// @param[in] idx_ The index of the task in the tasks_info.kernels vector
+    ///
+    /// @note If task_name is nullptr or idx_ is invalid, the function returns immediately.
+    /// Captures the end time, calculates the task duration, and updates the task entry.
+    /// Logs unique task names and duration if tracing is enabled, indicating completion on the main rank.
+    /// Uses a mutex for thread safety. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static void end_threading_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
@@ -426,6 +472,12 @@ public:
         return &instance;
     }
 
+    /// Merges tasks at the same nesting level with identical names to improve profiling clarity
+    ///
+    /// @note Combines tasks with the same name and level in the tasks_info.kernels vector to simplify
+    /// profiling output. For non-threading tasks, durations are summed; for threading tasks, the maximum
+    /// duration is taken. Updates task counts and removes redundant entries. Skips merging if service
+    /// debug mode is enabled to preserve detailed task information.
     inline void merge_tasks()
     {
         if (is_service_debug_enabled())
