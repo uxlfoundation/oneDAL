@@ -32,6 +32,8 @@
 #include <mutex>
 #include <stdexcept>
 #include <algorithm>
+#include <set>
+#include <unordered_set>
 
 #include "services/library_version_info.h"
 
@@ -261,6 +263,11 @@ struct task
     std::vector<task_entry> kernels;
 };
 
+struct task_thread
+{
+    std::set<task_entry> kernels;
+};
+
 class profiler_task
 {
 public:
@@ -332,7 +339,13 @@ public:
     {
         if (!task_name) return profiler_task(nullptr, -1);
         static std::mutex mutex;
+        static std::set<std::string> unique_task_names;
+
         std::lock_guard<std::mutex> lock(mutex);
+        if (unique_task_names.insert(task_name).second)
+        {
+            std::cout << "THREADING Profiler task_name: " << task_name << std::endl;
+        }
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
         auto & current_level_        = get_instance()->get_current_level();
@@ -361,7 +374,10 @@ public:
     inline static void end_threading_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
+
         static std::mutex mutex;
+        static std::unordered_set<std::string> unique_task_names;
+
         std::lock_guard<std::mutex> lock(mutex);
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
@@ -371,7 +387,11 @@ public:
         auto & entry   = tasks_info.kernels[idx_];
         auto duration  = ns_end - entry.duration;
         entry.duration = duration;
-        if (is_service_debug_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
+
+        if (unique_task_names.emplace(task_name).second)
+        {
+            std::cerr << task_name << ", Main rank Duration(could be different for other ones): " << format_time_for_output(duration) << '\n';
+        }
     }
 
     inline static std::uint64_t get_time()
