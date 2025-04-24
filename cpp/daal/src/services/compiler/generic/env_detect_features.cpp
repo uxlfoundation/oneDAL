@@ -276,13 +276,13 @@ DAAL_EXPORT int __daal_enabled_cpu_detect()
     /// Check if the CPU supports the specified feature
     /// \param result   The result of the CPU feature detection of type DAAL_UINT64.
     ///                 A combination of CPU features.
-    /// \param feature  The CPU feature to check of type daal::CpuFeature.
     /// \param eax      Input EAX register value passed to CPUID.
     /// \param ecx      Input ECX register value passed to CPUID.
     /// \param abcd_id  The index of the output register to check:
     ///                 0 - EAX, 1 - EBX, 2 - ECX, 3 - EDX.
     /// \param bit      The bit position in the output register to check.
-    #define DAAL_TEST_CPU_FEATURE(result, feature, eax, ecx, abcd_id, bit) \
+    /// \param feature  The CPU feature to check of type daal::CpuFeature.
+    #define DAAL_TEST_CPU_FEATURE(result, eax, ecx, abcd_id, bit, feature) \
         if (check_cpuid(eax, ecx, abcd_id, (1 << bit)))                    \
         {                                                                  \
             result |= feature;                                             \
@@ -298,12 +298,12 @@ DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 
     if (check_avx512_features())
     {
-        DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::avx512_bf16, 7, 1, 0, 5);
-        DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::avx512_vnni, 7, 0, 2, 11);
+        DAAL_TEST_CPU_FEATURE(result, 7, 1, 0, 5, daal::CpuFeature::avx512_bf16);
+        DAAL_TEST_CPU_FEATURE(result, 7, 0, 2, 11, daal::CpuFeature::avx512_vnni);
     }
-    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::sstep, 1, 0, 2, 7);
-    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::tb, 6, 0, 0, 1);
-    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::tb3, 6, 0, 0, 14);
+    DAAL_TEST_CPU_FEATURE(result, 1, 0, 2, 7, daal::CpuFeature::sstep);
+    DAAL_TEST_CPU_FEATURE(result, 6, 0, 0, 1, daal::CpuFeature::tb);
+    DAAL_TEST_CPU_FEATURE(result, 6, 0, 0, 14, daal::CpuFeature::tb3);
 
     return result;
 }
