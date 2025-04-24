@@ -118,7 +118,7 @@ Examples
 
   .. tab:: Python*
 
-    - :daal4py_example:`log_reg_model_builder.py <https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/examples/mb/log_reg_model_builder.py>`
+    - `log_reg_model_builder.py <https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/examples/mb/log_reg_model_builder.py>`__
 
 Batch Processing
 ****************
