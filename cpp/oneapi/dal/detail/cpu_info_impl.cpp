@@ -53,25 +53,25 @@ std::string ONEDAL_EXPORT to_string(cpu_extension extension) {
 }
 
 template <typename T>
-void print(const std::any& value, std::ostringstream& ss) {
+void to_stream(const std::any& value, std::ostream& ss) {
     T typed_value = std::any_cast<T>(value);
     ss << to_string(typed_value);
 }
 
-void print_any(const std::any& value, std::ostringstream& ss) {
+void any_to_stream(const std::any& value, std::ostream& ss) {
     const std::type_info& ti = value.type();
     if (ti == typeid(cpu_extension)) {
-        print<cpu_extension>(value, ss);
+        to_stream<cpu_extension>(value, ss);
     }
     else if (ti == typeid(cpu_vendor)) {
-        print<cpu_vendor>(value, ss);
+        to_stream<cpu_vendor>(value, ss);
     }
     else {
         throw unimplemented{ dal::detail::error_messages::unsupported_data_type() };
     }
 }
 
-void print_cpu_features(const std::any& value, std::ostringstream& ss) {
+void cpu_features_to_stream(const std::any& value, std::ostream& ss) {
     std::uint64_t cpu_features = std::any_cast<std::uint64_t>(value);
     if (cpu_features == 0) {
         const auto entry = cpu_feature_map.find(0);
@@ -126,10 +126,10 @@ std::string cpu_info_impl::dump() const {
     for (auto const& [name, value] : info_) {
         ss << name << " : ";
         if (name == "cpu_features") {
-            print_cpu_features(value, ss);
+            cpu_features_to_stream(value, ss);
         }
         else {
-            print_any(value, ss);
+            any_to_stream(value, ss);
         }
         ss << "; ";
     }

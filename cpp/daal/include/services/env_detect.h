@@ -61,9 +61,10 @@ enum CpuType
 /**
  * Supported CPU features.
  * The features are defined as bit masks in order to allow for easy combination of features.
- * For example, (bf16 | vnni) will return a bit mask that indicates both the bf16 and vnni features are supported.
+ * For example, (avx512_bf16 | avx512_vnni) will return a bit mask that indicates both the avx512_bf16
+ * and avx512_vnni features are supported.
  * This allows for easy checking if a specific feature is supported by using a bitwise AND operation.
- * For example, (cpuFeatures & bf16) will return true if the bf16 feature is supported.
+ * For example, (cpuFeatures & avx512_bf16) will return true if the avx512_bf16 feature is supported.
  */
 enum CpuFeature
 {
@@ -71,8 +72,8 @@ enum CpuFeature
 #if defined(TARGET_X86_64)
     sstep       = (1ULL << 0), /*!< Intel(R) SpeedStep */
     tb          = (1ULL << 1), /*!< Intel(R) Turbo Boost */
-    avx512_bf16 = (1ULL << 2), /*!< AVX512 bfloat16 */
-    avx512_vnni = (1ULL << 3), /*!< AVX512 Vector Neural Network Instructions (VNNI) */
+    avx512_bf16 = (1ULL << 2), /*!< AVX-512 bfloat16 */
+    avx512_vnni = (1ULL << 3), /*!< AVX-512 Vector Neural Network Instructions (VNNI) */
     tb3         = (1ULL << 4), /*!< Intel(R) Turbo Boost Max 3.0 */
 #endif
 };

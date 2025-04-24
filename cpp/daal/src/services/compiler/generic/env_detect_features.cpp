@@ -24,7 +24,6 @@
 
 #include "services/daal_defines.h"
 #include "services/internal/daal_kernel_defines.h"
-#include <map>
 
 #if defined(TARGET_X86_64)
     #include <immintrin.h>

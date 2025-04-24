@@ -78,8 +78,8 @@ static const std::map<uint64_t, const std::string> cpu_feature_map = {
 #if defined(TARGET_X86_64)
     { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
     { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
-    { uint64_t(cpu_feature::avx512_bf16), "AVX512 bfloat16" },
-    { uint64_t(cpu_feature::avx512_vnni), "AVX512 VNNI" },
+    { uint64_t(cpu_feature::avx512_bf16), "AVX-512 bfloat16" },
+    { uint64_t(cpu_feature::avx512_vnni), "AVX-512 VNNI" },
     { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" }
 #endif
 };
