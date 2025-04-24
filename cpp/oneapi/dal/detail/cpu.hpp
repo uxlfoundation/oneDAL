@@ -64,8 +64,8 @@ enum class cpu_feature : uint64_t {
 #if defined(TARGET_X86_64)
     sstep = 1ULL << 0, /// Intel(R) SpeedStep
     tb = 1ULL << 1, /// Intel(R) Turbo Boost
-    bf16 = 1ULL << 2, /// bfloat16
-    vnni = 1ULL << 3, /// VNNI
+    avx512_bf16 = 1ULL << 2, /// AVX512 bfloat16
+    avx512_vnni = 1ULL << 3, /// AVX512 VNNI
     tb3 = 1ULL << 4 /// Intel(R) Turbo Boost Max 3.0
 #endif
 };
@@ -78,8 +78,8 @@ static const std::map<uint64_t, const std::string> cpu_feature_map = {
 #if defined(TARGET_X86_64)
     { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
     { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
-    { uint64_t(cpu_feature::bf16), "bfloat16" },
-    { uint64_t(cpu_feature::vnni), "VNNI" },
+    { uint64_t(cpu_feature::avx512_bf16), "AVX512 bfloat16" },
+    { uint64_t(cpu_feature::avx512_vnni), "AVX512 VNNI" },
     { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" }
 #endif
 };

@@ -24,6 +24,7 @@
 
 #include "services/daal_defines.h"
 #include "services/internal/daal_kernel_defines.h"
+#include <map>
 
 #if defined(TARGET_X86_64)
     #include <immintrin.h>
@@ -103,6 +104,14 @@ DAAL_EXPORT bool daal_check_is_intel_cpu()
     return result;
 }
 
+/// Check if the result of CPUID instruction contains the required mask.
+///
+/// \param eax          Input EAX register value passed to CPUID.
+/// \param ecx          Input ECX register value passed to CPUID.
+/// \param abcd_index   The index of the output register to check:
+///                     0 - EAX, 1 - EBX, 2 - ECX, 3 - EDX.
+/// \param mask         The bit mask to check in the output register.
+/// \return 1 if the mask is present in the output register, 0 otherwise.
 static int check_cpuid(uint32_t eax, uint32_t ecx, int abcd_index, uint32_t mask)
 {
     if (daal_get_max_extension_support() < eax)
@@ -166,45 +175,6 @@ static int check_avx512_features()
     return 1;
 }
 
-static int check_avx512_vnni_features()
-{
-    /*
-    CPUID.(EAX=07H, ECX=0H):ECX.AVX512_VNNI[bit 11]==1
-    */
-    uint32_t avx512_vnni_mask = (1 << 11);
-    if (!check_cpuid(7, 0, 2, avx512_vnni_mask))
-    {
-        return 0;
-    }
-    return 1;
-}
-
-static int check_avx512_bf16_features()
-{
-    /*
-    CPUID.(EAX=07H, ECX=1):EAX.AVX512_BF16[bit 5]==1
-    */
-    uint32_t avx512_bf16_mask = (1 << 5);
-    if (!check_cpuid(7, 1, 0, avx512_bf16_mask))
-    {
-        return 0;
-    }
-    return 1;
-}
-
-static int check_tb3_features()
-{
-    /*
-    CPUID.(EAX=06H, ECX=0H):EAX[bit 14]==1
-    */
-    uint32_t tb3_mask = (1 << 14);
-    if (!check_cpuid(6, 0, 0, tb3_mask))
-    {
-        return 0;
-    }
-    return 1;
-}
-
 static int check_avx2_features()
 {
     /* CPUID.(EAX=01H, ECX=0H):ECX.FMA[bit 12]==1     &&
@@ -233,19 +203,6 @@ static int check_avx2_features()
         return 0;
     }
     if (!check_cpuid(0x80000001, 0, 2, lzcnt_mask))
-    {
-        return 0;
-    }
-
-    return 1;
-}
-
-static int check_sstep_features()
-{
-    /* CPUID.(EAX=01H, ECX=0H):ECX.EIST[bit 7]==1 */
-    uint32_t eist_mask = (1 << 7);
-
-    if (!check_cpuid(1, 0, 2, eist_mask))
     {
         return 0;
     }
@@ -316,6 +273,21 @@ DAAL_EXPORT int __daal_enabled_cpu_detect()
     return daal::sse2;
 }
 
+    /// Check if the CPU supports the specified feature
+    /// \param result   The result of the CPU feature detection of type DAAL_UINT64.
+    ///                 A combination of CPU features.
+    /// \param feature  The CPU feature to check of type daal::CpuFeature.
+    /// \param eax      Input EAX register value passed to CPUID.
+    /// \param ecx      Input ECX register value passed to CPUID.
+    /// \param abcd_id  The index of the output register to check:
+    ///                 0 - EAX, 1 - EBX, 2 - ECX, 3 - EDX.
+    /// \param bit      The bit position in the output register to check.
+    #define DAAL_TEST_CPU_FEATURE(result, feature, eax, ecx, abcd_id, bit) \
+        if (check_cpuid(eax, ecx, abcd_id, (1 << bit)))                    \
+        {                                                                  \
+            result |= feature;                                             \
+        }
+
 DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 {
     DAAL_UINT64 result = daal::CpuFeature::unknown;
@@ -326,27 +298,17 @@ DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 
     if (check_avx512_features())
     {
-        if (check_avx512_bf16_features())
-        {
-            result |= daal::CpuFeature::bf16;
-        }
-
-        if (check_avx512_vnni_features())
-        {
-            result |= daal::CpuFeature::vnni;
-        }
+        DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::avx512_bf16, 7, 1, 0, 5);
+        DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::avx512_vnni, 7, 0, 2, 11);
     }
-    if (check_tb3_features())
-    {
-        result |= daal::CpuFeature::tb3;
-    }
-    if (check_sstep_features())
-    {
-        result |= daal::CpuFeature::sstep;
-    }
+    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::sstep, 1, 0, 2, 7);
+    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::tb, 6, 0, 0, 1);
+    DAAL_TEST_CPU_FEATURE(result, daal::CpuFeature::tb3, 6, 0, 0, 14);
 
     return result;
 }
+
+    #undef DAAL_TEST_CPU_FEATURE
 
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
