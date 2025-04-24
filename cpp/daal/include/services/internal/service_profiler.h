@@ -59,7 +59,7 @@
     {                                                                                                         \
         std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
         std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                                  \
-        if (is_service_debug_enabled())                                                                       \
+        if (daal::internal::is_service_debug_enabled())                                                       \
         {                                                                                                     \
             std::cerr << PRETTY_FUNCTION << '\n';                                                             \
         }                                                                                                     \
@@ -130,7 +130,14 @@
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
 
-static volatile int daal_verbose_val = -1;
+static volatile int daal_verbose_val                = -1;
+inline static constexpr int PROFILER_MODE_OFF       = 0;
+inline static constexpr int PROFILER_MODE_LOGGER    = 1;
+inline static constexpr int PROFILER_MODE_TRACER    = 2;
+inline static constexpr int PROFILER_MODE_ANALYZER  = 3;
+inline static constexpr int PROFILER_MODE_ALL_TOOLS = 4;
+inline static constexpr int PROFILER_MODE_DEBUG     = 5;
+
 namespace daal
 {
 namespace internal
@@ -141,7 +148,7 @@ inline static void set_verbose_from_env()
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-    int newval               = 0;
+    int newval               = PROFILER_MODE_OFF;
     if (verbose_str)
     {
         char * endptr  = nullptr;
@@ -176,20 +183,6 @@ inline static std::string format_time_for_output(std::uint64_t time_ns)
     return out.str();
 }
 
-inline void print_header()
-{
-    daal::services::LibraryVersionInfo ver;
-    std::cerr << "Major version:          " << ver.majorVersion << '\n';
-    std::cerr << "Minor version:          " << ver.minorVersion << '\n';
-    std::cerr << "Update version:         " << ver.updateVersion << '\n';
-    std::cerr << "Product status:         " << ver.productStatus << '\n';
-    std::cerr << "Build:                  " << ver.build << '\n';
-    std::cerr << "Build revision:         " << ver.build_rev << '\n';
-    std::cerr << "Name:                   " << ver.name << '\n';
-    std::cerr << "Processor optimization: " << ver.processor << '\n';
-    std::cerr << '\n';
-}
-
 inline void profiler_log_named_args(const char * /*names*/) {}
 
 template <typename T, typename... Rest>
@@ -206,7 +199,7 @@ inline static bool is_service_debug_enabled()
 {
     static const bool service_debug_value = [] {
         int value = daal_verbose_mode();
-        return value == 5;
+        return value == PROFILER_MODE_DEBUG;
     }();
     return service_debug_value;
 }
@@ -215,7 +208,7 @@ inline static bool is_logger_enabled()
 {
     static const bool logger_value = [] {
         int value = daal_verbose_mode();
-        return value == 1 || value == 4 || value == 5;
+        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
     return logger_value;
 }
@@ -225,7 +218,7 @@ inline static bool is_tracer_enabled()
     static const bool verbose_value = [] {
         std::ios::sync_with_stdio(false);
         int value = daal_verbose_mode();
-        return value == 2 || value == 4 || value == 5;
+        return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
     return verbose_value;
 }
@@ -234,7 +227,8 @@ inline static bool is_profiler_enabled()
 {
     static const bool profiler_value = [] {
         int value = daal_verbose_mode();
-        return value == 1 || value == 2 || value == 3 || value == 4 || value == 5;
+        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS
+               || value == PROFILER_MODE_DEBUG;
     }();
     return profiler_value;
 }
@@ -243,9 +237,26 @@ inline static bool is_analyzer_enabled()
 {
     static const bool profiler_value = [] {
         int value = daal_verbose_mode();
-        return value == 3 || value == 4 || value == 5;
+        return value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
     return profiler_value;
+}
+
+inline void print_header()
+{
+    if (is_profiler_enabled())
+    {
+        daal::services::LibraryVersionInfo ver;
+        std::cerr << "Major version:          " << ver.majorVersion << '\n';
+        std::cerr << "Minor version:          " << ver.minorVersion << '\n';
+        std::cerr << "Update version:         " << ver.updateVersion << '\n';
+        std::cerr << "Product status:         " << ver.productStatus << '\n';
+        std::cerr << "Build:                  " << ver.build << '\n';
+        std::cerr << "Build revision:         " << ver.build_rev << '\n';
+        std::cerr << "Name:                   " << ver.name << '\n';
+        std::cerr << "Processor optimization: " << ver.processor << '\n';
+        std::cerr << '\n';
+    }
 }
 
 struct task_entry
@@ -271,24 +282,24 @@ struct task_thread
 class profiler_task
 {
 public:
-    inline profiler_task(const char * task_name, int idx) : task_name_(task_name), idx(idx) {}
-    inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx(idx), is_thread(thread) {}
+    inline profiler_task(const char * task_name, int idx) : task_name_(task_name), idx_(idx) {}
+    inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
     inline ~profiler_task();
+
+    // Delete copy constructor and copy assignment operator
+    profiler_task(const profiler_task &)             = delete;
+    profiler_task & operator=(const profiler_task &) = delete;
 
 private:
     const char * task_name_;
-    int idx;
-    bool is_thread = false;
+    int idx_;
+    bool is_thread_ = false;
 };
 
 class profiler
 {
 public:
-    inline profiler()
-    {
-        int verbose = daal_verbose_mode();
-        if (verbose == 1 || verbose == 4 || verbose == 5) print_header();
-    }
+    inline profiler() { int verbose = daal_verbose_mode(); }
 
     inline ~profiler()
     {
@@ -339,12 +350,16 @@ public:
     {
         if (!task_name) return profiler_task(nullptr, -1);
         static std::mutex mutex;
-        static std::set<std::string> unique_task_names;
 
         std::lock_guard<std::mutex> lock(mutex);
-        if (unique_task_names.insert(task_name).second)
+        if (is_logger_enabled())
         {
-            std::cout << "THREADING Profiler task_name: " << task_name << std::endl;
+            static std::set<std::string> unique_task_names;
+            if (unique_task_names.insert(task_name).second)
+            {
+                std::cerr << "-----------------------------------------------------------------------------" << '\n';
+                std::cout << "THREADING Profiler task started on the main rank: " << task_name << std::endl;
+            }
         }
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
@@ -376,7 +391,6 @@ public:
         if (!task_name) return;
 
         static std::mutex mutex;
-        static std::unordered_set<std::string> unique_task_names;
 
         std::lock_guard<std::mutex> lock(mutex);
         const std::uint64_t ns_end = get_time();
@@ -388,9 +402,14 @@ public:
         auto duration  = ns_end - entry.duration;
         entry.duration = duration;
 
-        if (unique_task_names.emplace(task_name).second)
+        if (is_tracer_enabled())
         {
-            std::cerr << task_name << ", Main rank Duration(could be different for other ones): " << format_time_for_output(duration) << '\n';
+            static std::unordered_set<std::string> unique_task_names;
+            if (unique_task_names.emplace(task_name).second)
+            {
+                std::cerr << "THREADING " << task_name
+                          << " finished on the main rank(time could be different for other ranks): " << format_time_for_output(duration) << '\n';
+            }
         }
     }
 
@@ -457,10 +476,10 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
-        if (is_thread)
-            profiler::end_threading_task(task_name_, idx);
+        if (is_thread_)
+            profiler::end_threading_task(task_name_, idx_);
         else
-            profiler::end_task(task_name_, idx);
+            profiler::end_task(task_name_, idx_);
     }
 }
 

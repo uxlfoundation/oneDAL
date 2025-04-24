@@ -35,7 +35,10 @@
         std::cerr                                                                              \
             << "-----------------------------------------------------------------------------" \
             << '\n';                                                                           \
-        std::cerr << PRETTY_FUNCTION << '\n';                                                  \
+        std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                   \
+        if (daal::internal::is_service_debug_enabled()) {                                      \
+            std::cerr << PRETTY_FUNCTION << '\n';                                              \
+        }                                                                                      \
     } while (0)
 
 // ARGS LOGGING

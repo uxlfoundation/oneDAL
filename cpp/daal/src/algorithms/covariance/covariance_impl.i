@@ -348,6 +348,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
                               const algorithmFPType * partialNObservations, algorithmFPType * crossProduct, algorithmFPType * sums,
                               algorithmFPType * nObservations, const Hyperparameter * hyperparameter)
 {
+    DAAL_PROFILER_TASK(Covariance::mergeCrossProductAndSums);
     /* Merge cross-products */
     algorithmFPType partialNObsValue = partialNObservations[0];
 
