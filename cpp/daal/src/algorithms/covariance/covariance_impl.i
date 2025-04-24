@@ -35,7 +35,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
-#include "services/service_profiler.h"
+#include "services/internal/service_profiler.h"
 
 using namespace daal::internal;
 using namespace daal::services::internal;

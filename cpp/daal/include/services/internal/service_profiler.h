@@ -1,6 +1,6 @@
 /* file: service_profiler.h */
 /*******************************************************************************
-* Copyright 2019 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -444,12 +444,12 @@ public:
     }
 
     inline task & get_task() { return task_; }
-    inline std::int64_t & get_current_level() { return current_level; }
-    inline std::int64_t & get_kernel_count() { return kernel_count; }
+    inline std::int64_t & get_current_level() { return current_level_; }
+    inline std::int64_t & get_kernel_count() { return kernel_count_; }
 
 private:
-    std::int64_t current_level = 0;
-    std::int64_t kernel_count  = 0;
+    std::int64_t current_level_ = 0;
+    std::int64_t kernel_count_  = 0;
     task task_;
 };
 

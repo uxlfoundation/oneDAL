@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "services/service_profiler.h"
+#include "services/internal/service_profiler.h"
 
 #ifdef _WIN32
 #define PRETTY_FUNCTION __FUNCSIG__
