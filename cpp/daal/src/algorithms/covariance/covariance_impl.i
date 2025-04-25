@@ -158,7 +158,7 @@ public:
     /// Must be able to run concurrently with `update` and `join` methods.
     ///
     /// @return Pointer to the partial result of the covariance algorithm.
-    virtual daal::Reducer * create() const
+    virtual daal::Reducer * create() const override
     {
         return new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized);
     }
@@ -168,7 +168,7 @@ public:
     ///
     /// @param begin Index of the starting block of the input data table.
     /// @param end   Index of the block after the last one in the sub-range.
-    virtual void update(size_t begin, size_t end)
+    virtual void update(size_t begin, size_t end) override
     {
         DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update);
         if (errorCode != ErrorCode::ok)
@@ -240,7 +240,7 @@ public:
     /// Merge the partial result with the data from another thread.
     ///
     /// @param otherReducer Pointer to the other thread's partial result.
-    virtual void join(Reducer * otherReducer)
+    virtual void join(Reducer * otherReducer) override
     {
         if (errorCode != ErrorCode::ok)
         {
