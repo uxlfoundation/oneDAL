@@ -810,7 +810,8 @@ void conditional_static_threader_for(const bool inParallel, const size_t n, Func
 /// @tparam ReducerType     A subtype of `daal::Reducer`.
 ///
 /// @param[in] n         Number of iterations in the reduction loop.
-/// @param[in] grainSize Parameter reserved for the future. Currently unused.
+/// @param[in] grainSize A minimum threshold for parallelization.
+///                      The number of iterations assigned to each thread is at least `grainSize / 2`.
 /// @param[in] reducer   Callable object that defines the loop body.
 template <typename ReducerType>
 void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)
@@ -828,7 +829,8 @@ void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reduc
 /// @tparam ReducerType     A subtype of `daal::Reducer`.
 ///
 /// @param[in] n         Number of iterations in the reduction loop.
-/// @param[in] grainSize Parameter reserved for the future. Currently unused.
+/// @param[in] grainSize A minimum threshold for parallelization.
+///                      The number of iterations assigned to each thread is at least `grainSize / 2`.
 /// @param[in] reducer   Callable object that defines the loop body.
 template <typename ReducerType>
 void static_threader_reduce(const size_t n, const size_t grainSize, ReducerType & reducer)

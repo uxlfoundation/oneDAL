@@ -91,8 +91,15 @@ template <typename algorithmFPType, CpuType cpu>
 class CovarianceReducer : public daal::Reducer
 {
 public:
+    enum ErrorCode
+    {
+        ok                  = 0, /// No error
+        memAllocationFailed = 1, /// Memory allocation failed
+        intOverflow         = 2, /// Integer overflow
+        badCast             = 3  /// Cannot cast base daal::Reducer to derived class
+    };
     /// Status of the computation.
-    bool computeOk;
+    ErrorCode errorCode;
 
     /// Get pointer to the array of partial sums.
     inline algorithmFPType * sums() { return _sumsArray.get(); }
@@ -110,7 +117,7 @@ public:
     /// \param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
     /// \param[in] numBlocks        Number of blocks of rows in the input data table
     /// \param[in] isNormalized     Flag that specifies whether the input data is normalized
-    CovarianceReducer(NumericTable * dataTable, DAAL_INT64 numRowsInBlock, size_t numBlocks, bool isNormalized)
+    CovarianceReducer(NumericTable * dataTable, DAAL_INT numRowsInBlock, size_t numBlocks, bool isNormalized)
         : _dataTable(dataTable),
           _numRowsInBlock(numRowsInBlock),
           _numBlocks(numBlocks),
@@ -121,27 +128,24 @@ public:
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nFeatures, _nFeatures, isOverflow);
         if (isOverflow)
         {
-            computeOk = false;
+            errorCode = ErrorCode::intOverflow;
             return;
         }
-        _crossProductArray.reset(_nFeatures * _nFeatures);
-        if (!crossProduct())
+        if (!_crossProductArray.reset(_nFeatures * _nFeatures))
         {
-            computeOk = false;
+            errorCode = ErrorCode::memAllocationFailed;
             return;
         }
 
         if (!_isNormalized)
         {
-            _sumsArray.reset(_nFeatures);
-            algorithmFPType * sumsPtr = sums();
-            if (!sumsPtr)
+            if (!_sumsArray.reset(_nFeatures))
             {
-                computeOk = false;
+                errorCode = ErrorCode::memAllocationFailed;
                 return;
             }
         }
-        computeOk = true;
+        errorCode = ErrorCode::ok;
     }
 
     /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
@@ -167,11 +171,15 @@ public:
     virtual void update(size_t begin, size_t end)
     {
         DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update);
+        if (errorCode != ErrorCode::ok)
+        {
+            return;
+        }
         algorithmFPType * crossProductPtr = crossProduct();
 
-        if (!computeOk || !crossProductPtr)
+        if (!crossProductPtr)
         {
-            computeOk = false;
+            errorCode = ErrorCode::memAllocationFailed;
             return;
         }
 
@@ -179,11 +187,15 @@ public:
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nFeatures, isOverflow);
         if (isOverflow)
         {
-            computeOk = false;
+            errorCode = ErrorCode::intOverflow;
             return;
         }
-        const size_t numRowsInLastBlock = _numRowsInBlock + (_dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock);
-        algorithmFPType one             = 1.0;
+        size_t numRowsInLastBlock = _numRowsInBlock;
+        if (_numRowsInBlock + _dataTable->getNumberOfRows() > _numBlocks * _numRowsInBlock)
+        {
+            numRowsInLastBlock += (_dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock);
+        }
+        algorithmFPType one = 1.0;
 
         /// Process blocks of the input data table
         for (size_t iBlock = begin; iBlock < end; ++iBlock)
@@ -194,7 +206,7 @@ public:
             ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(_dataTable, startRow, nRows);
             if (!dataTableBD.get())
             {
-                computeOk = false;
+                errorCode = ErrorCode::memAllocationFailed;
                 return;
             }
             algorithmFPType * dataBlock = const_cast<algorithmFPType *>(dataTableBD.get());
@@ -212,7 +224,7 @@ public:
                 algorithmFPType * sumsPtr = sums();
                 if (!sumsPtr)
                 {
-                    computeOk = false;
+                    errorCode = ErrorCode::memAllocationFailed;
                     return;
                 }
                 /* Sum input array elements in case of non-normalized data */
@@ -234,22 +246,32 @@ public:
     /// @param otherReducer Pointer to the other thread's partial result.
     virtual void join(Reducer * otherReducer)
     {
+        if (errorCode != ErrorCode::ok)
+        {
+            return;
+        }
         DAAL_ITTNOTIFY_SCOPED_TASK(reducer.join);
         CovarianceReducer<algorithmFPType, cpu> * other = dynamic_cast<CovarianceReducer<algorithmFPType, cpu> *>(otherReducer);
         if (!other)
         {
-            computeOk = false;
+            errorCode = ErrorCode::badCast;
+            return;
+        }
+        if (other->errorCode != ErrorCode::ok)
+        {
+            errorCode = other->errorCode;
             return;
         }
         const algorithmFPType * otherCrossProduct = other->crossProduct();
         algorithmFPType * thisCrossProduct        = crossProduct();
-        if (!computeOk || !thisCrossProduct || !other->computeOk || !otherCrossProduct)
+
+        if (!thisCrossProduct || !otherCrossProduct)
         {
-            computeOk = false;
+            errorCode = ErrorCode::memAllocationFailed;
             return;
         }
 
-        /// It is safe to use aligned loads and stores because the data is aligned
+        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         PRAGMA_VECTOR_ALIGNED
@@ -263,7 +285,7 @@ public:
             const algorithmFPType * otherSums = other->sums();
             if (!thisSums || !otherSums)
             {
-                computeOk = false;
+                errorCode = ErrorCode::memAllocationFailed;
                 return;
             }
             /// It is safe to use aligned loads and stores because the data is aligned
@@ -283,7 +305,7 @@ private:
     /// Number of features in the input data table.
     DAAL_INT _nFeatures;
     /// Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread.
-    DAAL_INT64 _numRowsInBlock;
+    DAAL_INT _numRowsInBlock;
     /// Number of blocks of rows in the input data table.
     size_t _numBlocks;
     /// Thread-local array of partial sums of size `_nFeatures`.
@@ -328,7 +350,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
         /* Inverse number of rows (for normalization) */
-        algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
+        const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
 
         /* Split rows by blocks */
         DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
@@ -336,6 +358,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         {
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
             DAAL_CHECK_STATUS_VAR(status);
+            DAAL_CHECK(0ll < numRowsInBlock, services::ErrorHyperparameterBadValue);
         }
         size_t numBlocks = nVectors / numRowsInBlock;
         if (numBlocks * numRowsInBlock < nVectors)
@@ -352,11 +375,26 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         /* Reduce input matrix X into cross product Xt X and a vector of column sums */
         const size_t grainSize = 1; // minimal number of data blocks to be processed by a thread
         daal::static_threader_reduce(numBlocks, grainSize, result);
+        if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
+        {
+            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::memAllocationFailed)
+            {
+                return services::Status(services::ErrorMemoryAllocationFailed);
+            }
+            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::intOverflow)
+            {
+                return services::Status(services::ErrorBufferSizeIntegerOverflow);
+            }
+            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::badCast)
+            {
+                return services::Status(services::ErrorCovarianceInternal);
+            }
+        }
 
         const algorithmFPType * resultCrossProduct = result.crossProduct();
-        if (result.computeOk == false || !resultCrossProduct)
+        if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok || !resultCrossProduct)
         {
-            return services::Status(services::ErrorCovarianceInternal);
+            return services::Status(services::ErrorMemoryAllocationFailed);
         }
 
         /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
@@ -365,7 +403,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             const algorithmFPType * resultSums = result.sums();
             if (!resultSums)
             {
-                return services::Status(services::ErrorCovarianceInternal);
+                return services::Status(services::ErrorMemoryAllocationFailed);
             }
             for (size_t i = 0; i < nFeatures; i++)
             {
