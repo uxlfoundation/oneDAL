@@ -113,10 +113,10 @@ public:
 
     /// Construct and initialize the thread-local partial results
     ///
-    /// \param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
-    /// \param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
-    /// \param[in] numBlocks        Number of blocks of rows in the input data table
-    /// \param[in] isNormalized     Flag that specifies whether the input data is normalized
+    /// @param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
+    /// @param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
+    /// @param[in] numBlocks        Number of blocks of rows in the input data table
+    /// @param[in] isNormalized     Flag that specifies whether the input data is normalized
     CovarianceReducer(NumericTable * dataTable, DAAL_INT numRowsInBlock, size_t numBlocks, bool isNormalized)
         : _dataTable(dataTable),
           _numRowsInBlock(numRowsInBlock),
@@ -190,12 +190,8 @@ public:
             errorCode = ErrorCode::intOverflow;
             return;
         }
-        size_t numRowsInLastBlock = _numRowsInBlock;
-        if (_numRowsInBlock + _dataTable->getNumberOfRows() > _numBlocks * _numRowsInBlock)
-        {
-            numRowsInLastBlock += (_dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock);
-        }
-        algorithmFPType one = 1.0;
+        const size_t numRowsInLastBlock = _numRowsInBlock + _dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock;
+        algorithmFPType one             = 1.0;
 
         /// Process blocks of the input data table
         for (size_t iBlock = begin; iBlock < end; ++iBlock)
