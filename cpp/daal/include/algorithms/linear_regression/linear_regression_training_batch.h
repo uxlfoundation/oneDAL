@@ -101,7 +101,7 @@ public:
     ParameterType parameter; /*!< %Training \ref interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a linear regression training algorithm by copying input objects
@@ -109,7 +109,7 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     ~Batch() {}
 

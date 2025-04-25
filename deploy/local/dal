@@ -1,4 +1,3 @@
-
 #%Module1.0###################################################################
 #===============================================================================
 # Copyright 2020 Intel Corporation
@@ -42,7 +41,7 @@ set componentroot "[file dirname [file dirname [file dirname [file dirname "${sc
 
 ##############################################################################
 
-module-whatis "Name: Intel® oneAPI Data Analytics Library"
+module-whatis "Name: oneAPI Data Analytics Library"
 module-whatis "Version: $modulefilename/$modulefilever"
 module-whatis "Description: Library for building compute-intense applications optimized for Intel CPUs and GPUs."
 module-whatis "URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html"

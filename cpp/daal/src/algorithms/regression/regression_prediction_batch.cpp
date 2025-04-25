@@ -42,6 +42,7 @@ __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_REGRESSION_PREDICTION_
 
 Input::Input(size_t nElements) : daal::algorithms::Input(nElements) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 NumericTablePtr Input::get(NumericTableInputId id) const
 {

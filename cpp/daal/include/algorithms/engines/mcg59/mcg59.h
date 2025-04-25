@@ -148,9 +148,9 @@ public:
     }
 
 protected:
-    Batch(size_t seed = 777) { initialize(); }
+    Batch(size_t seed = 777);
 
-    Batch(const Batch<algorithmFPType, method> & other) : super(other) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
 

@@ -15,7 +15,7 @@
 #===============================================================================
 
 ##  Content:
-##     Intel(R) oneDAL configuration file for the Sphinx documentation builder
+##     oneDAL configuration file for the Sphinx documentation builder
 ##******************************************************************************
 
 # Configuration file for the Sphinx documentation builder.

@@ -40,7 +40,7 @@ namespace prediction
 namespace interface3
 {
 template <>
-Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>::Batch(size_t nClasses)
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>::Batch(size_t nClasses)
 {
     _par = new ParameterType(nClasses);
     initialize();
@@ -48,8 +48,7 @@ Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>::B
 
 using BatchType = Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>::Batch(const BatchType & other)
-    : classifier::prediction::Batch(other), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();

@@ -38,13 +38,14 @@ namespace interface2
 using DistributedType = Distributed<step4Local, DAAL_FPTYPE, kmeans::init::parallelPlusDense>;
 
 template <>
-DistributedType::Distributed(size_t nClusters) : DistributedBase(new ParameterType(nClusters)), parameter(*static_cast<ParameterType *>(_par))
+DAAL_EXPORT DistributedType::Distributed(size_t nClusters)
+    : DistributedBase(new ParameterType(nClusters)), parameter(*static_cast<ParameterType *>(_par))
 {
     initialize();
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
     : DistributedBase(new ParameterType(other.parameter)), parameter(*static_cast<ParameterType *>(_par)), input(other.input)
 {
     initialize();

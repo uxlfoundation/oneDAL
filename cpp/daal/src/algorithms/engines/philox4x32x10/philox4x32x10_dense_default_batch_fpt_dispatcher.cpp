@@ -26,5 +26,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::philox4x32x10::BatchContainer, batch, DAAL_FPTYPE, engines::philox4x32x10::defaultDense)
+namespace engines
+{
+namespace philox4x32x10
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::Batch(size_t seed)
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace philox4x32x10
+} // namespace engines
 } // namespace algorithms
 } // namespace daal

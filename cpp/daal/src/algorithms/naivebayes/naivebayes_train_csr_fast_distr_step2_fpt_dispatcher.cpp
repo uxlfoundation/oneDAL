@@ -30,5 +30,28 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multinomial_naive_bayes::training::DistributedContainer, distributed, step2Master, DAAL_FPTYPE,
                                       multinomial_naive_bayes::training::fastCSR)
+namespace multinomial_naive_bayes
+{
+namespace training
+{
+namespace interface2
+{
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, multinomial_naive_bayes::training::fastCSR>;
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(size_t nClasses) : parameter(nClasses)
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : Training<distributed>(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace training
+} // namespace multinomial_naive_bayes
 } // namespace algorithms
 } // namespace daal

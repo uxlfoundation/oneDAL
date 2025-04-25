@@ -16,7 +16,7 @@
 *******************************************************************************/-->
 
 # How to Contribute
-We welcome community contributions to Intel(R) oneAPI Data Analytics Library. You can:
+We welcome community contributions to oneAPI Data Analytics Library. You can:
 
 - Submit your changes directly with a [pull request](https://github.com/uxlfoundation/oneDAL/pulls).
 - Log a bug or make a feature request with an [issue](https://github.com/uxlfoundation/oneDAL/issues).
@@ -87,8 +87,7 @@ For your convenience we also added [coding guidelines](https://uxlfoundation.git
 
 ### CPU Features Dispatching
 
-oneDAL provides binaries that can contain code targeting different architectural extensions of a base instruction set architecture (ISA). For example, code paths can exist for Intel(R) SSE2, Intel(R) AVX2, Intel(R) AVX-512, etc. extensions, on top of the x86-64 base architecture.
-When run on a specific hardware implementation like Haswell, Skylake-X, etc., oneDAL chooses the code path which is most suitable for that implementation.
+oneDAL provides binaries that can contain code targeting different architectural extensions of a base instruction set architecture (ISA). For example, code paths can exist for AVX2, AVX-512 extensions, on top of the x86-64 base architecture. oneDAL chooses the code path which is most suitable for that implementation.
 Contributors should leverage [CPU Features Dispatching](http://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html) mechanism to implement the code of the algorithms that can perform most optimally on various hardware implementations.
 
 ### Threading Layer
