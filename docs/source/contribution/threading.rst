@@ -129,7 +129,7 @@ as shown here:
 
 Local memory of the threads should be released when it is no longer needed.
 
-**NOTE**: The code above is executed in sequentially, no parallelism is used. This might have a performance
+**NOTE**: The code above is executed sequentially, no parallelism is used. This might have a performance
 impact if the number of threads is large.
 
 The complete parallel version of dot product computations would look like:
