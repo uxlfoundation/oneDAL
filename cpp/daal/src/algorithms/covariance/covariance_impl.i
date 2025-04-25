@@ -499,31 +499,15 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
 
         if (nObsValue == 0)
         {
-            if (nFeatures > 512)
-            {
-                daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j <= i; j++)
-                    {
-                        crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
-                        crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
-                    }
-                });
-            }
-            else
-            {
-                for (size_t i = 0; i < nFeatures; i++)
+            daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
+                PRAGMA_IVDEP
+                PRAGMA_VECTOR_ALWAYS
+                for (size_t j = 0; j <= i; j++)
                 {
-                    PRAGMA_IVDEP
-                    PRAGMA_VECTOR_ALWAYS
-                    for (size_t j = 0; j <= i; j++)
-                    {
-                        crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
-                        crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
-                    }
+                    crossProduct[i * nFeatures + j] += partialCrossProduct[i * nFeatures + j];
+                    crossProduct[j * nFeatures + i] = crossProduct[i * nFeatures + j];
                 }
-            }
+            });
         }
         else
         {
