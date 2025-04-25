@@ -1,7 +1,0 @@
-.. _cpp_svm_reg_thunder_csr_batch.cpp:
-
-svm_reg_thunder_csr_batch.cpp
-#############################
-
-.. literalinclude:: ../../../../examples/oneapi/cpp/source/svm/svm_reg_thunder_csr_batch.cpp
-  :language: cpp

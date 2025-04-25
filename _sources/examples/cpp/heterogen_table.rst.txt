@@ -1,7 +1,0 @@
-.. _cpp_heterogen_table.cpp:
-
-heterogen_table.cpp
-###################
-
-.. literalinclude:: ../../../../examples/oneapi/cpp/source/table/heterogen_table.cpp
-  :language: cpp

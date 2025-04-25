@@ -1,7 +1,0 @@
-.. _dpc_svm_two_class_thunder_dense_batch.cpp:
-
-svm_two_class_thunder_dense_batch.cpp
-#####################################
-
-.. literalinclude:: ../../../../examples/oneapi/dpc/source/svm/svm_two_class_thunder_dense_batch.cpp
-  :language: cpp

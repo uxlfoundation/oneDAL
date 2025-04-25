@@ -1,0 +1,1354 @@
+
+
+<!DOCTYPE html>
+
+
+<html lang="en" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>CPU Features Dispatching &#8212; oneDAL  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=365ca57ee442770a23c6" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=365ca57ee442770a23c6" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=365ca57ee442770a23c6" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=365ca57ee442770a23c6" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=365ca57ee442770a23c6" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=365ca57ee442770a23c6" />
+  <script src="../_static/vendor/fontawesome/6.1.2/js/all.min.js?digest=365ca57ee442770a23c6"></script>
+
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'contribution/cpu_features';</script>
+    <link rel="icon" href="../_static/favicons.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Threading Layer" href="threading.html" />
+    <link rel="prev" title="Ideas for contributions" href="ideas.html" />
+    <script defer type="text/javascript" src="https://www.intel.com/content/dam/www/global/wap/performance-config.js" ></script>
+    <script type="text/javascript">
+        // Configure TMS settings
+        var wapLocalCode = 'us-en'; // Dynamically set per localized site, see mapping table for values
+        var wapSection = "oneapi-dal"; // WAP team will give you a unique section for your site
+        // Load TMS
+        (function () {
+          var url = 'https://www.intel.com/content/dam/www/global/wap/tms-loader.js'; // WAP file URL
+          var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true; po.src = url;
+          var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+      </script>
+    <link href="../_static/style.css" rel="stylesheet" type="text/css">
+
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/uxl-foundation-logo-horizontal-color.png" class="logo__image only-light" alt="oneDAL  documentation - Home"/>
+    <script>document.write(`<img src="../_static/uxl-foundation-logo-horizontal-color.png" class="logo__image only-dark" alt="oneDAL  documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../data-analytics-pipeline.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system-requirements.html">System Requirements</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../quick-start.html">Quick Start</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../examples.html">oneAPI Examples</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../examples/dpc.html">DPC++</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/basic_statistics_dense_batch.html">basic_statistics_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/basic_statistics_dense_online.html">basic_statistics_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/column_accessor_homogen.html">column_accessor_homogen.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cor_dense_batch.html">cor_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cor_dense_online.html">cor_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cov_dense_batch.html">cov_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cov_dense_biased_batch.html">cov_dense_biased_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cov_dense_biased_online.html">cov_dense_biased_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/cov_dense_online.html">cov_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/csr_accessor.html">csr_accessor.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/csr_table.html">csr_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/dbscan_brute_force_batch.html">dbscan_brute_force_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_cls_hist_batch.html">df_cls_hist_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_cls_hist_batch_random.html">df_cls_hist_batch_random.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_cls_traverse_model.html">df_cls_traverse_model.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_reg_hist_batch.html">df_reg_hist_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_reg_hist_batch_random.html">df_reg_hist_batch_random.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/df_reg_traverse_model.html">df_reg_traverse_model.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/heterogen_table.html">heterogen_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/homogen_table.html">homogen_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/kmeans_init_dense.html">kmeans_init_dense.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/kmeans_lloyd_dense_batch.html">kmeans_lloyd_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/knn_cls_brute_force_dense_batch.html">knn_cls_brute_force_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/knn_reg_brute_force_dense_batch.html">knn_reg_brute_force_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/knn_search_brute_force_dense_batch.html">knn_search_brute_force_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/linear_kernel_dense_batch.html">linear_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/linear_regression_dense_batch.html">linear_regression_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/linear_regression_dense_online.html">linear_regression_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/logistic_regression_dense_batch.html">logistic_regression_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_cor_dense_batch.html">pca_cor_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_cor_dense_online.html">pca_cor_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_cov_dense_batch.html">pca_cov_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_cov_dense_online.html">pca_cov_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_precomputed_cor_dense_batch.html">pca_precomputed_cor_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_precomputed_cov_dense_batch.html">pca_precomputed_cov_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/pca_svd_dense_batch.html">pca_svd_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/rbf_kernel_dense_batch.html">rbf_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/read_batch.html">read_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/dpc/svm_two_class_thunder_dense_batch.html">svm_two_class_thunder_dense_batch.cpp</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../examples/cpp.html">C++</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/basic_statistics_dense_batch.html">basic_statistics_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/basic_statistics_dense_online.html">basic_statistics_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/column_accessor_homogen.html">column_accessor_homogen.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/connected_components_batch.html">connected_components_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cor_dense_batch.html">cor_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cor_dense_online.html">cor_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cov_dense_batch.html">cov_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cov_dense_biased_batch.html">cov_dense_biased_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cov_dense_biased_online.html">cov_dense_biased_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/cov_dense_online.html">cov_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/csr_accessor.html">csr_accessor.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/csr_table.html">csr_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/dbscan_brute_force_batch.html">dbscan_brute_force_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/df_cls_dense_batch.html">df_cls_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/df_reg_dense_batch.html">df_reg_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/directed_graph.html">directed_graph.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/graph_service_functions.html">graph_service_functions.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/heterogen_table.html">heterogen_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/homogen_table.html">homogen_table.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/jaccard_batch.html">jaccard_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/jaccard_batch_app.html">jaccard_batch_app.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/kmeans_init_dense.html">kmeans_init_dense.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/kmeans_lloyd_dense_batch.html">kmeans_lloyd_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/knn_cls_brute_force_dense_batch.html">knn_cls_brute_force_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/knn_cls_kd_tree_dense_batch.html">knn_cls_kd_tree_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/knn_search_brute_force_dense_batch.html">knn_search_brute_force_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/linear_kernel_dense_batch.html">linear_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/linear_regression_dense_batch.html">linear_regression_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/linear_regression_dense_online.html">linear_regression_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/logloss_dense_batch.html">logloss_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/louvain_batch.html">louvain_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_cor_dense_batch.html">pca_cor_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_cor_dense_online.html">pca_cor_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_cov_dense_batch.html">pca_cov_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_cov_dense_online.html">pca_cov_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_precomputed_dense_batch.html">pca_precomputed_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_svd_dense_batch.html">pca_svd_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/pca_svd_dense_online.html">pca_svd_dense_online.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/polynomial_kernel_dense_batch.html">polynomial_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/rbf_kernel_dense_batch.html">rbf_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/read_batch.html">read_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/shortest_paths_batch.html">shortest_paths_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/sigmoid_kernel_dense_batch.html">sigmoid_kernel_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/subgraph_isomorphism_batch.html">subgraph_isomorphism_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_multi_class_thunder_csr_batch.html">svm_multi_class_thunder_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_multi_class_thunder_dense_batch.html">svm_multi_class_thunder_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_nu_cls_thunder_csr_batch.html">svm_nu_cls_thunder_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_nu_cls_thunder_dense_batch.html">svm_nu_cls_thunder_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_nu_reg_thunder_csr_batch.html">svm_nu_reg_thunder_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_nu_reg_thunder_dense_batch.html">svm_nu_reg_thunder_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_reg_thunder_csr_batch.html">svm_reg_thunder_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_reg_thunder_dense_batch.html">svm_reg_thunder_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_two_class_smo_csr_batch.html">svm_two_class_smo_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_two_class_smo_dense_batch.html">svm_two_class_smo_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_two_class_thunder_csr_batch.html">svm_two_class_thunder_csr_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/svm_two_class_thunder_dense_batch.html">svm_two_class_thunder_dense_batch.cpp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../examples/cpp/triangle_counting_batch.html">triangle_counting_batch.cpp</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../oneapi-interfaces.html">oneAPI Interfaces</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../onedal/introduction.html">Introduction</a></li>
+
+<li class="toctree-l2"><a class="reference internal" href="../onedal/programming-model/computational-modes.html">Computational Modes</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../onedal/data-management/index.html">Data Management</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/data-management/array.html">Array</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/data-management/accessors.html">Accessors</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/accessor/column.html">Column accessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/accessor/row.html">Row accessor</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/data-management/data-sources.html">Data Sources</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/data-source/csv.html">CSV data source</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/data-management/graphs.html">Graphs</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/graph/undirected-adjacency-vector-graph.html">Undirected adjacency vector graph</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/graph/directed-adjacency-vector-graph.html">Directed adjacency vector graph</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/data-management/tables.html">Tables</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-10"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/table/homogen.html">Homogeneous table</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/data-management/table/csr.html">Compressed Sparse Rows (CSR) Table</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/data-management/backend-primitives.html">Backend Primitives</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../onedal/algorithms/index.html">Algorithms</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-11"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/clustering/index.html">Clustering</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-12"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/clustering/dbscan.html">DBSCAN</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/clustering/kmeans.html">K-Means</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/clustering/kmeans-init.html">K-Means initialization</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/covariance/index.html">Covariance</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-13"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/covariance/covariance.html">Covariance</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/decomposition/index.html">Decomposition</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-14"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/decomposition/pca.html">Principal Components Analysis (PCA)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/ensembles/index.html">Ensembles</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-15"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/ensembles/decision-forest.html">Decision Forest Classification and Regression (DF)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/graph/index.html">Graph</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-16"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/graph/subgraph-isomorphism.html">Subgraph Isomorphism</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/graph/connected-components.html">Connected Components</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/kernel-functions/index.html">Kernel Functions</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-17"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/kernel-functions/linear-kernel.html">Linear kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/kernel-functions/polynomial-kernel.html">Polynomial kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/kernel-functions/rbf-kernel.html">Radial Basis Function (RBF) kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/kernel-functions/sigmoid-kernel.html">Sigmoid kernel</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/algorithms/logistic-regression/index.html">Logistic Regression</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/linear-regression/index.html">Linear Regression</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-18"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/linear-regression/linear-regression.html">Linear Regression</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/nearest-neighbors/index.html">Nearest Neighbors (kNN)</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-19"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/nearest-neighbors/knn.html">k-Nearest Neighbors Classification, Regression, and Search (k-NN)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/objective-function/index.html">Objective function</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-20"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/objective-function/logloss.html">Logistic Loss</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/algorithms/optimizers/index.html">Optimizers</a></li>
+
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/pairwise-distances/index.html">Pairwise Distances</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-21"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/pairwise-distances/minkowski-distance.html">Minkowski distance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/pairwise-distances/chebyshev-distance.html">Chebyshev distance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/pairwise-distances/cosine-distance.html">Cosine distance</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/statistics/index.html">Statistics</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-22"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/statistics/basic-statistics.html">Basic Statistics</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../onedal/algorithms/svm/index.html">Support Vector Machines</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-23"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../onedal/algorithms/svm/svm.html">Support Vector Machine Classifier and Regression (SVM)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../onedal/spmd/index.html">Single Program Multiple Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../onedal/appendix/index.html">Appendix</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-24"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/appendix/decision-tree.html">Decision Tree</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../onedal/appendix/kd_tree.html">k-d Tree</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../daal-interfaces.html">DAAL Interfaces</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-25"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../daal/cpu-vs-gpu.html">CPU and GPU Support</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../daal/usage/index.html">Library Usage</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-26"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../daal/usage/algorithms.html">Algorithms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/usage/computation-modes.html">Computation Modes</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/usage/training-and-prediction/index.html">Training and Prediction</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-27"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/usage/training-and-prediction/classification.html">Classification Usage Model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/usage/training-and-prediction/regression.html">Regression Usage Model</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/usage/training-and-prediction/recommendation-systems.html">Recommendation Systems Usage Model</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../daal/data-management/data-management.html">Data Management</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-28"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/data-management/numeric-tables.html">Numeric Tables</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-29"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/data-management/generic-interfaces.html">Generic Interfaces</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/data-management/essential-interfaces.html">Essential Interfaces for Algorithms</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/data-management/numeric-tables-types.html">Types of Numeric Tables</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/data-management/data-sources.html">Data Sources</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/data-management/data-dictionaries.html">Data Dictionaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/data-management/data-serialization-and-deserialization.html">Data Serialization and Deserialization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/data-management/data-model.html">Data Model</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../daal/analysis.html">Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-30"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/kmeans/k-means-clustering.html">K-Means Clustering</a><input class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-31"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/kmeans/initialization-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/kmeans/initialization-distributed.html">Distributed Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/kmeans/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/kmeans/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/dbscan/index.html">Density-Based Spatial Clustering of Applications with Noise</a><input class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-32"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/dbscan/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/dbscan/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/covariance/correlation-and-variance-covariance-matrices.html">Correlation and Variance-Covariance Matrices</a><input class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-33"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/covariance/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/covariance/computation-online.html">Online Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/covariance/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/pca/principal-component-analysis.html">Principal Component Analysis</a><input class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-34"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/pca/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/pca/computation-online.html">Online Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/pca/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/algorithms/pca/transform.html">Principal Components Analysis Transform</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/svd/singular-value-decomposition.html">Singular Value Decomposition</a><input class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-35"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/svd/computation-batch-online.html">Batch and Online Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/svd/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/association_rules/association-rules.html">Association Rules</a><input class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-36"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/kernel_function/kernel-functions.html">Kernel Functions</a><input class="toctree-checkbox" id="toctree-checkbox-37" name="toctree-checkbox-37" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-37"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/em/expectation-maximization.html">Expectation-Maximization</a><input class="toctree-checkbox" id="toctree-checkbox-38" name="toctree-checkbox-38" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-38"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/algorithms/cholesky/cholesky.html">Cholesky Decomposition</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/qr/qr-decomposition.html">QR Decomposition</a><input class="toctree-checkbox" id="toctree-checkbox-39" name="toctree-checkbox-39" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-39"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/qr/qr-without-pivoting.html">QR Decomposition without Pivoting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/qr/qr-pivoted.html">Pivoted QR Decomposition</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/outlier_detection/index.html">Outlier Detection</a><input class="toctree-checkbox" id="toctree-checkbox-40" name="toctree-checkbox-40" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-40"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/outlier_detection/multivariate.html">Multivariate Outlier Detection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/outlier_detection/multivariate-bacon.html">Multivariate BACON Outlier Detection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/outlier_detection/univariate.html">Univariate Outlier Detection</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/distance/index.html">Distance Matrix</a><input class="toctree-checkbox" id="toctree-checkbox-41" name="toctree-checkbox-41" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-41"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/distance/correlation.html">Correlation Distance Matrix</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/distance/cosine.html">Cosine Distance Matrix</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/distributions/index.html">Distributions</a><input class="toctree-checkbox" id="toctree-checkbox-42" name="toctree-checkbox-42" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-42"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/distributions/uniform.html">Uniform Distribution</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/distributions/normal.html">Normal Distribution</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/distributions/bernoulli.html">Bernoulli Distribution</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/engines/index.html">Engines</a><input class="toctree-checkbox" id="toctree-checkbox-43" name="toctree-checkbox-43" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-43"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/engines/mcg59.html">mcg59</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/engines/mt19937.html">mt19937</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/engines/mt2203.html">mt2203</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/engines/mrg32k3a.html">mrg32k3a</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/engines/philox4x32x10.html">philox4x32x10</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/moments/moments-of-low-order.html">Moments of Low Order</a><input class="toctree-checkbox" id="toctree-checkbox-44" name="toctree-checkbox-44" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-44"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/moments/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/moments/computation-online.html">Online Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/moments/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/algorithms/quantiles/index.html">Quantile</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/quality_metrics/index.html">Quality Metrics</a><input class="toctree-checkbox" id="toctree-checkbox-45" name="toctree-checkbox-45" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-45"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/quality_metrics/default-metric-set.html">Working with the Default Metric Set</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/quality_metrics/user-defined.html">Working with User-defined Quality Metrics</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/algorithms/sorting/index.html">Sorting</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/normalization/index.html">Normalization</a><input class="toctree-checkbox" id="toctree-checkbox-46" name="toctree-checkbox-46" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-46"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/normalization/z-score.html">Z-score</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/normalization/min-max.html">Min-max</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/optimization-solvers/optimization-solvers.html">Optimization Solvers</a><input class="toctree-checkbox" id="toctree-checkbox-47" name="toctree-checkbox-47" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-47"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/optimization-solvers/objective-function.html">Objective Function</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/optimization-solvers/iterative-solver.html">Iterative Solver</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../daal/training-prediction.html">Training and Prediction</a><input class="toctree-checkbox" id="toctree-checkbox-48" name="toctree-checkbox-48" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-48"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/decision_forest/index.html">Decision Forest</a><input class="toctree-checkbox" id="toctree-checkbox-49" name="toctree-checkbox-49" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-49"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_forest/decision-forest.html">Decision Forest</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_forest/decision-forest-regression.html">Regression Decision Forest</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_forest/decision-forest-classification.html">Classification Decision Forest</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/decision_tree/index.html">Decision Trees</a><input class="toctree-checkbox" id="toctree-checkbox-50" name="toctree-checkbox-50" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-50"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_tree/decision-tree.html">Decision Tree</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_tree/decision-tree-regression.html">Regression Decision Tree</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/decision_tree/decision-tree-classification.html">Classification Decision Tree</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/gradient_boosted_trees/index.html">Gradient Boosted Trees</a><input class="toctree-checkbox" id="toctree-checkbox-51" name="toctree-checkbox-51" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-51"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/gradient_boosted_trees/gradient-boosted-trees.html">Gradient Boosted Trees</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/gradient_boosted_trees/gradient-boosted-trees-regression.html">Regression Gradient Boosted Trees</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/gradient_boosted_trees/gradient-boosted-trees-classification.html">Classification Gradient Boosted Trees</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/stump/index.html">Stump</a><input class="toctree-checkbox" id="toctree-checkbox-52" name="toctree-checkbox-52" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-52"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/stump/classification.html">Classification Stump</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/stump/regression.html">Regression Stump</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/linear_ridge_regression/index.html">Linear and Ridge Regressions</a><input class="toctree-checkbox" id="toctree-checkbox-53" name="toctree-checkbox-53" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-53"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/linear_ridge_regression/linear-regression.html">Linear Regression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/linear_ridge_regression/ridge-regression.html">Ridge Regression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/linear_ridge_regression/linear-ridge-regression-computation.html">Linear and Ridge Regressions Computation</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/lasso_elastic_net/index.html">LASSO and Elastic Net Regressions</a><input class="toctree-checkbox" id="toctree-checkbox-54" name="toctree-checkbox-54" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-54"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/lasso_elastic_net/lasso.html">LASSO</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/lasso_elastic_net/elastic-net.html">Elastic Net</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/lasso_elastic_net/lasso-elasticnet-computation.html">LASSO and Elastic Net Computation</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/k_nearest_neighbors/k-nearest-neighbors-knn-classifier.html">k-Nearest Neighbors (kNN) Classifier</a><input class="toctree-checkbox" id="toctree-checkbox-55" name="toctree-checkbox-55" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-55"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/implicit_als/implicit-alternating-least-squares.html">Implicit Alternating Least Squares</a><input class="toctree-checkbox" id="toctree-checkbox-56" name="toctree-checkbox-56" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-56"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/implicit_als/initialization-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/implicit_als/initialization-distributed.html">Distributed Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/implicit_als/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/implicit_als/computation-distributed-training.html">Distributed Processing: Training</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/implicit_als/computation-distributed-prediction.html">Distributed Processing: Prediction of Ratings</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/logistic_regression/logistic-regression.html">Logistic Regression</a><input class="toctree-checkbox" id="toctree-checkbox-57" name="toctree-checkbox-57" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-57"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/naive_bayes/naive-bayes-classifier.html">Naïve Bayes Classifier</a><input class="toctree-checkbox" id="toctree-checkbox-58" name="toctree-checkbox-58" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-58"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/naive_bayes/computation-batch.html">Batch Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/naive_bayes/computation-online.html">Online Processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/naive_bayes/computation-distributed.html">Distributed Processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/svm/support-vector-machine-classifier.html">Support Vector Machine Classifier</a><input class="toctree-checkbox" id="toctree-checkbox-59" name="toctree-checkbox-59" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-59"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/svm_multi_class/multi-class-classifier.html">Multi-class Classifier</a><input class="toctree-checkbox" id="toctree-checkbox-60" name="toctree-checkbox-60" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-60"><i class="fa-solid fa-chevron-down"></i></label><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../daal/algorithms/boosting/index.html">Boosting</a><input class="toctree-checkbox" id="toctree-checkbox-61" name="toctree-checkbox-61" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-61"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/boosting/adaboost.html">AdaBoost Classifier</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/boosting/adaboost-multiclass.html">AdaBoost Multiclass Classifier</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/boosting/brownboost.html">BrownBoost Classifier</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../daal/algorithms/boosting/logitboost.html">LogitBoost Classifier</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../daal/services/services.html">Services</a><input class="toctree-checkbox" id="toctree-checkbox-62" name="toctree-checkbox-62" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-62"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../daal/services/extracting-version-information.html">Extracting Version Information</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/services/handling-errors.html">Handling Errors</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/services/managing-memory.html">Managing Memory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/services/managing-computational-environment.html">Managing the Computational Environment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../daal/services/callback-for-host-application.html">Providing a Callback for the Host Application</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bibliography.html">Bibliography</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../deprecation.html">Deprecation Notice</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/index.html">C++ API</a><input class="toctree-checkbox" id="toctree-checkbox-63" name="toctree-checkbox-63" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-63"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/data-management/index.html">Data Management</a><input class="toctree-checkbox" id="toctree-checkbox-64" name="toctree-checkbox-64" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-64"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/data-management/array.html">Array</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/accessors.html">Accessors</a><input class="toctree-checkbox" id="toctree-checkbox-65" name="toctree-checkbox-65" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-65"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/accessor/column.html">Column Accessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/accessor/csr.html">Compressed Sparse Rows (CSR) Accessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/accessor/row.html">Row Accessor</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/data-sources.html">Data Sources</a><input class="toctree-checkbox" id="toctree-checkbox-66" name="toctree-checkbox-66" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-66"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/data-source/csv.html">CSV data source</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/graphs.html">Graphs</a><input class="toctree-checkbox" id="toctree-checkbox-67" name="toctree-checkbox-67" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-67"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/graph/undirected-adjacency-vector-graph.html">Undirected adjacency vector graph</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/graph/directed-adjacency-vector-graph.html">Directed adjacency vector graph</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/graph-service.html">Graph Service</a><input class="toctree-checkbox" id="toctree-checkbox-68" name="toctree-checkbox-68" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-68"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/graph-service/undirected-adjacency-vector-graph.html">Undirected adjacency vector graph service</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/graph-service/directed-adjacency-vector-graph.html">Directed adjacency vector graph service</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/tables.html">Tables</a><input class="toctree-checkbox" id="toctree-checkbox-69" name="toctree-checkbox-69" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-69"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/table/homogen.html">Homogeneous table</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/table/csr.html">Compressed Sparse Rows (CSR) Table</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/data-management/backend-primitives.html">Backend Primitives</a><input class="toctree-checkbox" id="toctree-checkbox-70" name="toctree-checkbox-70" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-70"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/backend/ndview.html">Multidimensional view</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/data-management/backend/ndarray.html">Multidimensional array</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/algorithms/index.html">Algorithms</a><input class="toctree-checkbox" id="toctree-checkbox-71" name="toctree-checkbox-71" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-71"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/clustering/index.html">Clustering</a><input class="toctree-checkbox" id="toctree-checkbox-72" name="toctree-checkbox-72" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-72"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/clustering/dbscan.html">DBSCAN</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/clustering/kmeans.html">K-Means</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/clustering/kmeans-init.html">K-Means initialization</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/covariance/index.html">Covariance</a><input class="toctree-checkbox" id="toctree-checkbox-73" name="toctree-checkbox-73" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-73"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/covariance/covariance.html">Covariance</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/decomposition/index.html">Decomposition</a><input class="toctree-checkbox" id="toctree-checkbox-74" name="toctree-checkbox-74" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-74"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/decomposition/pca.html">Principal Components Analysis (PCA)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/ensembles/index.html">Ensembles</a><input class="toctree-checkbox" id="toctree-checkbox-75" name="toctree-checkbox-75" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-75"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/ensembles/decision-forest.html">Decision Forest Classification and Regression (DF)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/graph/index.html">Graph</a><input class="toctree-checkbox" id="toctree-checkbox-76" name="toctree-checkbox-76" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-76"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/graph/subgraph-isomorphism.html">Subgraph Isomorphism</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/graph/connected-components.html">Connected Components</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/kernel-functions/index.html">Kernel Functions</a><input class="toctree-checkbox" id="toctree-checkbox-77" name="toctree-checkbox-77" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-77"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/kernel-functions/linear-kernel.html">Linear kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/kernel-functions/polynomial-kernel.html">Polynomial kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/kernel-functions/rbf-kernel.html">Radial Basis Function (RBF) kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/kernel-functions/sigmoid-kernel.html">Sigmoid kernel</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/logistic-regression/index.html">Logistic Regression</a><input class="toctree-checkbox" id="toctree-checkbox-78" name="toctree-checkbox-78" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-78"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/logistic-regression/logistic-regression.html">Logistic Regression</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/linear-regression/index.html">Linear Regression</a><input class="toctree-checkbox" id="toctree-checkbox-79" name="toctree-checkbox-79" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-79"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/linear-regression/linear-regression.html">Linear Regression</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/nearest-neighbors/index.html">Nearest Neighbors (kNN)</a><input class="toctree-checkbox" id="toctree-checkbox-80" name="toctree-checkbox-80" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-80"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/nearest-neighbors/knn-classification.html">k-Nearest Neighbors Classification (k-NN)</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/optimizers/index.html">Optimizers</a><input class="toctree-checkbox" id="toctree-checkbox-81" name="toctree-checkbox-81" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-81"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/optimizers/newton-cg.html">Newton-CG Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/objective-function/index.html">Objective function</a><input class="toctree-checkbox" id="toctree-checkbox-82" name="toctree-checkbox-82" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-82"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/objective-function/objective-function.html">Objective function</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/objective-function/logloss.html">Logistic Loss</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/pairwise-distances/index.html">Pairwise Distances</a><input class="toctree-checkbox" id="toctree-checkbox-83" name="toctree-checkbox-83" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-83"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/pairwise-distances/minkowski-distance.html">Minkowski distance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/pairwise-distances/chebyshev-distance.html">Chebyshev distance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/pairwise-distances/cosine-distance.html">Cosine distance</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/statistics/index.html">Statistics</a><input class="toctree-checkbox" id="toctree-checkbox-84" name="toctree-checkbox-84" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-84"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/statistics/basic-statistics.html">Basic Statistics</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/algorithms/svm/index.html">Support Vector Machines</a><input class="toctree-checkbox" id="toctree-checkbox-85" name="toctree-checkbox-85" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-85"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/algorithms/svm/svm.html">Support Vector Machine Classifier (SVM)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/spmd/index.html">Distributed Model: Single Process Multiple Data</a><input class="toctree-checkbox" id="toctree-checkbox-86" name="toctree-checkbox-86" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-86"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/spmd/overview.html">Distributed SPMD model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/spmd/communicator.html">Communicators</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Contributing Guide</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="coding_guide.html">Coding Guidelines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ideas.html">Ideas for contributions</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Custom Components</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">CPU Features Dispatching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="threading.html">Threading Layer</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/contribution/cpu_features.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>CPU Features Dispatching</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#algorithm-implementation-options">Algorithm Implementation Options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-tasks">Computational Tasks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-stages">Computational Stages</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-methods">Computational Methods</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-modes">Computational Modes</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#folders-and-files">Folders and Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-h">*_kernel.h</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#impl-i">*_impl.i</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fpt-cpu-cpp">*_fpt_cpu.cpp</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-system-configuration">Build System Configuration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#makefile">Makefile</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bazel">Bazel</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <section id="cpu-features-dispatching">
+<h1>CPU Features Dispatching<a class="headerlink" href="#cpu-features-dispatching" title="Permalink to this heading">#</a></h1>
+<p>For each algorithm oneDAL provides several code paths for x86-64-compatible architectural extensions.</p>
+<p>Following extensions are currently supported:</p>
+<ul class="simple">
+<li><p>Intel® Streaming SIMD Extensions 2 (Intel® SSE2)</p></li>
+<li><p>Intel® Streaming SIMD Extensions 4.2 (Intel® SSE4.2)</p></li>
+<li><p>Intel® Advanced Vector Extensions 2 (Intel® AVX2)</p></li>
+<li><p>Intel® Advanced Vector Extensions 512 (Intel® AVX-512)</p></li>
+</ul>
+<p>The particular code path is chosen at runtime based on underlying hardware properties.</p>
+<p>This chapter describes how the code is organized to support this variety of extensions.</p>
+<section id="algorithm-implementation-options">
+<h2>Algorithm Implementation Options<a class="headerlink" href="#algorithm-implementation-options" title="Permalink to this heading">#</a></h2>
+<p>In addition to the architectural extensions, an algorithm in oneDAL may have various
+implementation options. Below is a description of these options to help you better understand
+the oneDAL code structure and conventions.</p>
+<section id="computational-tasks">
+<h3>Computational Tasks<a class="headerlink" href="#computational-tasks" title="Permalink to this heading">#</a></h3>
+<p>An algorithm might have various tasks to compute. The most common options are:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://uxlfoundation.github.io/oneDAL/onedal/glossary.html#term-Classification">Classification</a>,</p></li>
+<li><p><a class="reference external" href="https://uxlfoundation.github.io/oneDAL/onedal/glossary.html#term-Regression">Regression</a>.</p></li>
+</ul>
+</section>
+<section id="computational-stages">
+<h3>Computational Stages<a class="headerlink" href="#computational-stages" title="Permalink to this heading">#</a></h3>
+<p>An algorithm might have <code class="docutils literal notranslate"><span class="pre">training</span></code> and <code class="docutils literal notranslate"><span class="pre">inference</span></code> computation stages aimed
+at training a model on the input dataset and computing the inference results, respectively.</p>
+</section>
+<section id="computational-methods">
+<h3>Computational Methods<a class="headerlink" href="#computational-methods" title="Permalink to this heading">#</a></h3>
+<p>An algorithm can support several methods for the same type of computations.
+For example, kNN algorithm supports
+<a class="reference external" href="https://uxlfoundation.github.io/oneDAL/onedal/algorithms/nearest-neighbors/knn.html#knn-t-math-brute-force">brute_force</a>
+and <a class="reference external" href="https://uxlfoundation.github.io/oneDAL/onedal/algorithms/nearest-neighbors/knn.html#knn-t-math-kd-tree">kd_tree</a>
+methods for algorithm training and inference.</p>
+</section>
+<section id="computational-modes">
+<h3>Computational Modes<a class="headerlink" href="#computational-modes" title="Permalink to this heading">#</a></h3>
+<p>oneDAL can provide several computational modes for an algorithm.
+See <a class="reference external" href="https://uxlfoundation.github.io/oneDAL/onedal/programming-model/computational-modes.html">Computational Modes</a>
+chapter for details.</p>
+</section>
+</section>
+<section id="folders-and-files">
+<h2>Folders and Files<a class="headerlink" href="#folders-and-files" title="Permalink to this heading">#</a></h2>
+<p>Suppose that you are working on some algorithm <code class="docutils literal notranslate"><span class="pre">Abc</span></code> in oneDAL.</p>
+<p>The part of the implementation of this algorithms that is running on CPU should be located in
+<cite>cpp/daal/src/algorithms/abc</cite> folder.</p>
+<p>Suppose that it provides:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">classification</span></code> and <code class="docutils literal notranslate"><span class="pre">regression</span></code> learning tasks;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">training</span></code> and <code class="docutils literal notranslate"><span class="pre">inference</span></code> stages;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method1</span></code> and <code class="docutils literal notranslate"><span class="pre">method2</span></code> for the <code class="docutils literal notranslate"><span class="pre">training</span></code> stage and only <code class="docutils literal notranslate"><span class="pre">method1</span></code> for <code class="docutils literal notranslate"><span class="pre">inference</span></code> stage;</p></li>
+<li><p>only <code class="docutils literal notranslate"><span class="pre">batch</span></code> computational mode.</p></li>
+</ul>
+<p>Then the <cite>cpp/daal/src/algorithms/abc</cite> folder should contain at least the following files:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">cpp</span><span class="o">/</span><span class="n">daal</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">algorithms</span><span class="o">/</span><span class="n">abc</span><span class="o">/</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method2_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method2_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method2_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method2_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_kernel</span><span class="p">.</span><span class="n">h</span>
+</pre></div>
+</div>
+<p>Alternative variant of the folder structure to avoid storing too many files within a single folder
+could be:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">cpp</span><span class="o">/</span><span class="n">daal</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">algorithms</span><span class="o">/</span><span class="n">abc</span><span class="o">/</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">classification</span><span class="o">/</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_predict_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method2_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_method2_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">  </span><span class="o">|</span><span class="w">     </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_classification_train_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">  </span><span class="o">|--</span><span class="w"> </span><span class="n">regression</span><span class="o">/</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_predict_kernel</span><span class="p">.</span><span class="n">h</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method1_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method2_batch_fpt_cpu</span><span class="p">.</span><span class="n">cpp</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method1_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_method2_impl</span><span class="p">.</span><span class="n">i</span>
+<span class="w">        </span><span class="o">|--</span><span class="w"> </span><span class="n">abc_regression_train_kernel</span><span class="p">.</span><span class="n">h</span>
+</pre></div>
+</div>
+<p>The names of the files stay the same in this case, just the folder layout differs.</p>
+<p>The folders of the algorithms that are already implemented can contain additional files.
+For example, files with <code class="docutils literal notranslate"><span class="pre">container.h</span></code>, <code class="docutils literal notranslate"><span class="pre">dispatcher.cpp</span></code> suffixes, etc.
+These files are used in the Data Analytics Acceleration Library (DAAL) interface implementation.
+That interface is still available to users, but it is not recommended for use in new code.
+The files related to the DAAL interface are not described here as they are not part of the CPU features
+dispatching mechanism.</p>
+<p>Further the purpose and contents of each file are to be described on the example of classification
+training task. For other types of the tasks the structure of the code is similar.</p>
+<section id="kernel-h">
+<h3>*_kernel.h<a class="headerlink" href="#kernel-h" title="Permalink to this heading">#</a></h3>
+<p>In the directory structure of the <code class="docutils literal notranslate"><span class="pre">Abc</span></code> algorithm, there are files with a <cite>_kernel.h</cite> suffix.
+These files contain the definitions of one or several template classes that define member functions that
+do the actual computations. Here is a variant of the <code class="docutils literal notranslate"><span class="pre">Abc</span></code> training algorithm kernel definition in the file
+<cite>abc_classification_train_kernel.h</cite>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#ifndef __ABC_CLASSIFICATION_TRAIN_KERNEL_H__</span>
+<span class="cp">#define __ABC_CLASSIFICATION_TRAIN_KERNEL_H__</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/algorithms/kernel.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;data_management/data/numeric_table.h&quot;</span><span class="c1">    // NumericTable class</span>
+<span class="cm">/* Other necessary includes go here */</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">daal</span><span class="o">::</span><span class="nn">data_management</span><span class="p">;</span><span class="w">    </span><span class="c1">// NumericTable class</span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">daal</span><span class="o">::</span><span class="nn">algorithms</span><span class="o">::</span><span class="nn">abc</span><span class="o">::</span><span class="nn">training</span><span class="o">::</span><span class="nn">internal</span>
+<span class="p">{</span>
+<span class="cm">/* Dummy base template class */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">Method</span><span class="w"> </span><span class="n">method</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AbcClassificationTrainingKernel</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Kernel</span>
+<span class="p">{};</span>
+
+<span class="cm">/* Computational kernel for &#39;method1&#39; of the Abc training algoirthm */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AbcClassificationTrainingKernel</span><span class="o">&lt;</span><span class="n">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">method1</span><span class="p">,</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Kernel</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">   </span><span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">compute</span><span class="p">(</span><span class="cm">/* Input and output arguments for the &#39;method1&#39; */</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="cm">/* Computational kernel for &#39;method2&#39; of the Abc training algoirthm */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AbcClassificationTrainingKernel</span><span class="o">&lt;</span><span class="n">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">method2</span><span class="p">,</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Kernel</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">   </span><span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">compute</span><span class="p">(</span><span class="cm">/* Input and output arguments for the &#39;method2&#39; */</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="p">}</span><span class="w"> </span><span class="c1">// namespace daal::algorithms::abc::training::internal</span>
+
+<span class="cp">#endif </span><span class="c1">// __ABC_CLASSIFICATION_TRAIN_KERNEL_H__</span>
+</pre></div>
+</div>
+<p>Typical template parameters are:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">algorithmFPType</span></code>  Data type to use in intermediate computations for the algorithm,</dt><dd><p><code class="docutils literal notranslate"><span class="pre">float</span></code> or <code class="docutils literal notranslate"><span class="pre">double</span></code>.</p>
+</dd>
+</dl>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span></code> Computational methods of the algorithm. <code class="docutils literal notranslate"><span class="pre">method1</span></code> or <code class="docutils literal notranslate"><span class="pre">method2</span></code> in the case of <code class="docutils literal notranslate"><span class="pre">Abc</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cpu</span></code> Version of the cpu-specific implementation of the algorithm, <code class="docutils literal notranslate"><span class="pre">daal::CpuType</span></code>.</p></li>
+</ul>
+<p>Implementations for different methods are usually defined using partial class templates specialization.</p>
+</section>
+<section id="impl-i">
+<h3>*_impl.i<a class="headerlink" href="#impl-i" title="Permalink to this heading">#</a></h3>
+<p>In the directory structure of the <code class="docutils literal notranslate"><span class="pre">Abc</span></code> algorithm, there are files with a <cite>_impl.i</cite> suffix.
+These files contain the implementations of the computational functions defined in the files with a <cite>_kernel.h</cite> suffix.
+Here is a variant of <code class="docutils literal notranslate"><span class="pre">method1</span></code> implementation for <code class="docutils literal notranslate"><span class="pre">Abc</span></code> training algorithm that does not contain any
+instruction set specific code. The implementation is located in the file <cite>abc_classification_train_method1_impl.i</cite>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cm">/*</span>
+<span class="cm">//++</span>
+<span class="cm">//  Implementation of Abc training algorithm.</span>
+<span class="cm">//--</span>
+<span class="cm">*/</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/algorithms/service_error_handling.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/data_management/service_numeric_table.h&quot;</span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">daal</span><span class="o">::</span><span class="nn">algorithms</span><span class="o">::</span><span class="nn">abc</span><span class="o">::</span><span class="nn">training</span><span class="o">::</span><span class="nn">internal</span>
+<span class="p">{</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">AbcClassificationTrainingKernel</span><span class="o">&lt;</span><span class="n">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">method1</span><span class="p">,</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;::</span><span class="n">compute</span><span class="p">(</span><span class="cm">/* ... */</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+
+<span class="w">    </span><span class="cm">/* Implementation that does not contain instruction set specific code */</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+
+
+<span class="p">}</span><span class="w"> </span><span class="c1">// namespace daal::algorithms::abc::training::internal</span>
+</pre></div>
+</div>
+<p>Although the implementation of the <code class="docutils literal notranslate"><span class="pre">method1</span></code> does not contain any instruction set specific code, it is
+expected that the developers leverage SIMD related macros available in oneDAL.
+For example, <code class="docutils literal notranslate"><span class="pre">PRAGMA_IVDEP</span></code>, <code class="docutils literal notranslate"><span class="pre">PRAGMA_VECTOR_ALWAYS</span></code>, <code class="docutils literal notranslate"><span class="pre">PRAGMA_VECTOR_ALIGNED</span></code> and other pragmas defined in
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/src/services/service_defines.h">service_defines.h</a>.
+This will guide the compiler to generate more efficient code for the target architecture.</p>
+<p>Consider that the implementation of the <code class="docutils literal notranslate"><span class="pre">method2</span></code> for the same algorithm will be different and will contain
+AVX-512-specific code located in <code class="docutils literal notranslate"><span class="pre">cpuSpecificCode</span></code> function. Note that all the compiler-specific code
+should be gated by values of compiler-specific defines.
+For example, the Intel® oneAPI DPC++/C++ Compiler specific code should be gated the existence of the
+<code class="docutils literal notranslate"><span class="pre">DAAL_INTEL_CPP_COMPILER</span></code> define. All the CPU-specific code should be gated on the value of CPU-specific define.
+For example, the AVX-512 specific code should be gated on the value <code class="docutils literal notranslate"><span class="pre">__CPUID__(DAAL_CPU)</span> <span class="pre">==</span> <span class="pre">__avx512__</span></code>.</p>
+<p>Then the implementation of the <code class="docutils literal notranslate"><span class="pre">method2</span></code> in the file <cite>abc_classification_train_method2_impl.i</cite> will look like:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cm">/*</span>
+<span class="cm">//++</span>
+<span class="cm">//  Implementation of Abc training algorithm.</span>
+<span class="cm">//--</span>
+<span class="cm">*/</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/algorithms/service_error_handling.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/data_management/service_numeric_table.h&quot;</span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">daal</span><span class="o">::</span><span class="nn">algorithms</span><span class="o">::</span><span class="nn">abc</span><span class="o">::</span><span class="nn">training</span><span class="o">::</span><span class="nn">internal</span>
+<span class="p">{</span>
+
+<span class="cm">/* Generic template implementation of cpuSpecificCode function for all data types</span>
+<span class="cm">   and various instruction set architectures */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">cpuSpecificCode</span><span class="p">(</span><span class="cm">/* arguments */</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="cm">/* Implementation */</span>
+<span class="p">};</span>
+
+<span class="cp">#if defined(DAAL_INTEL_CPP_COMPILER) &amp;&amp; (__CPUID__(DAAL_CPU) == __avx512__)</span>
+
+<span class="cm">/* Specialization of cpuSpecificCode function for double data type and Intel(R) AVX-512 instruction set */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;&gt;</span>
+<span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">cpuSpecificCode</span><span class="o">&lt;</span><span class="kt">double</span><span class="p">,</span><span class="w"> </span><span class="n">avx512</span><span class="o">&gt;</span><span class="p">(</span><span class="cm">/* arguments */</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="cm">/* Implementation */</span>
+<span class="p">};</span>
+
+<span class="cm">/* Specialization of cpuSpecificCode function for float data type and Intel(R) AVX-512 instruction set */</span>
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;&gt;</span>
+<span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">cpuSpecificCode</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="n">avx512</span><span class="o">&gt;</span><span class="p">(</span><span class="cm">/* arguments */</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">   </span><span class="cm">/* Implementation */</span>
+<span class="p">};</span>
+
+<span class="cp">#endif </span><span class="c1">// DAAL_INTEL_CPP_COMPILER &amp;&amp; (__CPUID__(DAAL_CPU) == __avx512__)</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">CpuType</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span>
+<span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">AbcClassificationTrainingKernel</span><span class="o">&lt;</span><span class="n">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">method2</span><span class="p">,</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;::</span><span class="n">compute</span><span class="p">(</span><span class="cm">/* arguments */</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">services</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+
+<span class="w">    </span><span class="cm">/* Implementation that calls CPU-specific code: */</span>
+<span class="w">    </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cpuSpecificCode</span><span class="o">&lt;</span><span class="n">algorithmFPType</span><span class="p">,</span><span class="w"> </span><span class="n">cpu</span><span class="o">&gt;</span><span class="p">(</span><span class="cm">/* ... */</span><span class="p">);</span>
+<span class="w">    </span><span class="n">DAAL_CHECK_STATUS_VAR</span><span class="p">(</span><span class="n">status</span><span class="p">);</span>
+
+<span class="w">    </span><span class="cm">/* Implementation continues */</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">}</span><span class="w"> </span><span class="c1">// namespace daal::algorithms::abc::training::internal</span>
+</pre></div>
+</div>
+</section>
+<section id="fpt-cpu-cpp">
+<h3>*_fpt_cpu.cpp<a class="headerlink" href="#fpt-cpu-cpp" title="Permalink to this heading">#</a></h3>
+<p>In the directory structure of the <code class="docutils literal notranslate"><span class="pre">Abc</span></code> algorithm, there are files with a <cite>_fpt_cpu.cpp</cite> suffix.
+These files contain the instantiations of the template classes defined in the files with a <cite>_kernel.h</cite> suffix.
+The instantiation of the <code class="docutils literal notranslate"><span class="pre">Abc</span></code> training algorithm kernel for <code class="docutils literal notranslate"><span class="pre">method1</span></code> is located in the file
+<cite>abc_classification_train_method1_batch_fpt_cpu.cpp</cite>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cm">/*</span>
+<span class="cm">//++</span>
+<span class="cm">//  instantiations of method1 of the Abc training algorithm.</span>
+<span class="cm">//--</span>
+<span class="cm">*/</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/algorithms/abc/abc_classification_train_kernel.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;src/algorithms/abc/abc_classification_train_method1_impl.i&quot;</span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">daal</span><span class="o">::</span><span class="nn">algorithms</span><span class="o">::</span><span class="nn">abc</span><span class="o">::</span><span class="nn">training</span><span class="o">::</span><span class="nn">internal</span>
+<span class="p">{</span>
+<span class="k">template</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">DAAL_EXPORT</span><span class="w"> </span><span class="n">AbcClassificationTrainingKernel</span><span class="o">&lt;</span><span class="n">DAAL_FPTYPE</span><span class="p">,</span><span class="w"> </span><span class="n">method1</span><span class="p">,</span><span class="w"> </span><span class="n">DAAL_CPU</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="c1">// namespace daal::algorithms::abc::training::internal</span>
+</pre></div>
+</div>
+<p><cite>_fpt_cpu.cpp</cite> files are not compiled directly into object files. First, multiple copies of those files
+are made replacing the <code class="docutils literal notranslate"><span class="pre">fpt</span></code>, which stands for ‘floating point type’, and <code class="docutils literal notranslate"><span class="pre">cpu</span></code> parts of the file name
+as well as the corresponding <code class="docutils literal notranslate"><span class="pre">DAAL_FPTYPE</span></code> and <code class="docutils literal notranslate"><span class="pre">DAAL_CPU</span></code> macros with the actual data type and CPU type values.
+Then the resulting files are compiled with appropriate CPU-specific compiler optimization options.</p>
+<p>The values for <code class="docutils literal notranslate"><span class="pre">fpt</span></code> file name part replacement are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">flt</span></code> for <code class="docutils literal notranslate"><span class="pre">float</span></code> data type, and</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dbl</span></code> for <code class="docutils literal notranslate"><span class="pre">double</span></code> data type.</p></li>
+</ul>
+<p>The values for <code class="docutils literal notranslate"><span class="pre">DAAL_FPTYPE</span></code> macro replacement are <code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">double</span></code>, respectively.</p>
+<p>The values for <code class="docutils literal notranslate"><span class="pre">cpu</span></code> file name part replacement are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nrh</span></code> for Intel® SSE2 architecture, which stands for Northwood,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">neh</span></code> for Intel® SSE4.2 architecture, which stands for Nehalem,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hsw</span></code> for Intel® AVX2 architecture, which stands for Haswell,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">skx</span></code> for Intel® AVX-512 architecture, which stands for Skylake-X.</p></li>
+</ul>
+<p>The values for <code class="docutils literal notranslate"><span class="pre">DAAL_CPU</span></code> macro replacement are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">__sse2__</span></code> for Intel® SSE2 architecture,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">__sse42__</span></code> for Intel® SSE4.2 architecture,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">__avx2__</span></code> for Intel® AVX2 architecture,</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">__avx512__</span></code> for Intel® AVX-512 architecture.</p></li>
+</ul>
+</section>
+</section>
+<section id="build-system-configuration">
+<h2>Build System Configuration<a class="headerlink" href="#build-system-configuration" title="Permalink to this heading">#</a></h2>
+<p>This chapter describes which parts of the build system need to be modified to add new architectural
+extension or to remove an outdated one.</p>
+<section id="makefile">
+<h3>Makefile<a class="headerlink" href="#makefile" title="Permalink to this heading">#</a></h3>
+<p>The most important definitions and functions for CPU features dispatching are located in the files
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/make/function_definitions/32e.mk">32e.mk</a> for x86-64 architecture, <a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/make/function_definitions/riscv64.mk">riscv64.mk</a> for RISC-V 64-bit architecture, and <a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/make/function_definitions/arm.mk">arm.mk</a>
+for ARM architecture.
+Those files are included into operating system related makefiles.
+For example, the 32e.mk file is included into <code class="docutils literal notranslate"><span class="pre">lnx32e.mk</span></code> file:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">include</span><span class="w"> </span><span class="n">dev</span><span class="o">/</span><span class="n">make</span><span class="o">/</span><span class="n">function_definitions</span><span class="o">/</span><span class="mi">32</span><span class="n">e</span><span class="p">.</span><span class="n">mk</span>
+</pre></div>
+</div>
+<p>And <code class="docutils literal notranslate"><span class="pre">lnx32e.mk</span></code> and similar files are included into the main Makefile:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">include</span><span class="w"> </span><span class="n">dev</span><span class="o">/</span><span class="n">make</span><span class="o">/</span><span class="n">function_definitions</span><span class="o">/</span><span class="n">$</span><span class="p">(</span><span class="n">PLAT</span><span class="p">).</span><span class="n">mk</span>
+</pre></div>
+</div>
+<p>Where <code class="docutils literal notranslate"><span class="pre">$(PLAT)</span></code> is the platform name, for example, <code class="docutils literal notranslate"><span class="pre">lnx32e</span></code>, <code class="docutils literal notranslate"><span class="pre">win32e</span></code>, <code class="docutils literal notranslate"><span class="pre">lnxriscv64</span></code>, etc.</p>
+<p>To add a new architectural extension into 32e.mk file, <code class="docutils literal notranslate"><span class="pre">CPUs</span></code> and <code class="docutils literal notranslate"><span class="pre">CPUs.files</span></code> lists need to be updated.
+The functions like <code class="docutils literal notranslate"><span class="pre">set_uarch_options_for_compiler</span></code> and others should also be updated accordingly.</p>
+<p>The compiler options for the new architectural extension should be added to the respective file in the
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/tree/main/dev/make/compiler_definitions">compiler_definitions</a> folder.</p>
+<p>For example, <a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/make/compiler_definitions/gnu.32e.mk">gnu.32e.mk</a>
+file contains the compiler options for the GNU compiler for x86-64 architecture in the form
+<code class="docutils literal notranslate"><span class="pre">option_name.compiler_name</span></code>:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">p4_OPT</span><span class="p">.</span><span class="n">gnu</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="o">-</span><span class="n">Q</span><span class="p">)</span><span class="n">march</span><span class="o">=</span><span class="n">nocona</span>
+<span class="n">mc3_OPT</span><span class="p">.</span><span class="n">gnu</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="o">-</span><span class="n">Q</span><span class="p">)</span><span class="n">march</span><span class="o">=</span><span class="n">corei7</span>
+<span class="n">avx2_OPT</span><span class="p">.</span><span class="n">gnu</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="o">-</span><span class="n">Q</span><span class="p">)</span><span class="n">march</span><span class="o">=</span><span class="n">haswell</span>
+<span class="n">skx_OPT</span><span class="p">.</span><span class="n">gnu</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">$</span><span class="p">(</span><span class="o">-</span><span class="n">Q</span><span class="p">)</span><span class="n">march</span><span class="o">=</span><span class="n">skylake</span>
+</pre></div>
+</div>
+</section>
+<section id="bazel">
+<h3>Bazel<a class="headerlink" href="#bazel" title="Permalink to this heading">#</a></h3>
+<p>For now, Bazel build is supported only for Linux x86-64 platform
+It provides <code class="docutils literal notranslate"><span class="pre">cpu</span></code> <a class="reference external" href="https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel#bazel-options">option</a>
+that allows to specify the list of target architectural extensions.</p>
+<p>To add a new architectural extension into Bazel configuration, following steps should be done:</p>
+<ul class="simple">
+<li><p>Add the new extension to the list of allowed values in the <code class="docutils literal notranslate"><span class="pre">_ISA_EXTENSIONS</span></code> variable in the
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/config/config.bzl">config.bzl</a> file;</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">get_cpu_flags</span></code> function in the
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/flags.bzl">flags.bzl</a>
+file to provide the compiler flags for the new extension;</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">cpu_defines</span></code> dictionaries in
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/dal.bzl">dal.bzl</a> and
+<a class="reference external" href="https://github.com/uxlfoundation/oneDAL/blob/main/dev/bazel/daal.bzl">daal.bzl</a> files accordingly.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  <!-- Previous / next buttons -->
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ideas.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Ideas for contributions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="threading.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Threading Layer</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#algorithm-implementation-options">Algorithm Implementation Options</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-tasks">Computational Tasks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-stages">Computational Stages</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-methods">Computational Methods</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#computational-modes">Computational Modes</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#folders-and-files">Folders and Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#kernel-h">*_kernel.h</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#impl-i">*_impl.i</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#fpt-cpu-cpp">*_fpt_cpu.cpp</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#build-system-configuration">Build System Configuration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#makefile">Makefile</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bazel">Bazel</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright Intel Corporation.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <div><a href='https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html' data-cookie-notice='true'>Cookies</a> <a href='https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html'>| Privacy</a> <a data-wap_ref='dns' id='wap_dns' href='https://www.intel.com/content/www/us/en/privacy/intel-cookie- notice.html'>| Do Not Share My Personal Information</a> </div><div>&copy; Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others. No license (express or implied, by estoppel or otherwise) to any intellectual property rights is granted by this document, with the sole exception that code included in this document is licensed subject to the Zero-Clause BSD open source license (OBSD), <a href='http://opensource.org/licenses/0BSD'>http://opensource.org/licenses/0BSD</a>. </div><br><div>oneDAL is licensed under Apache License Version 2.0. Refer to the <a href='https://github.com/uxlfoundation/oneDAL/blob/main/LICENSE'>LICENSE </a> file for the full license text and copyright notice.</div>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=365ca57ee442770a23c6"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=365ca57ee442770a23c6"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
