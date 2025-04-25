@@ -106,11 +106,6 @@
     daal::internal::profiler_task DAAL_PROFILER_CONCAT(__profiler_task__, DAAL_PROFILER_UNIQUE_ID) = [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_profiler_enabled())                                                                                            \
         {                                                                                                                                     \
-            if (daal::internal::is_service_debug_enabled())                                                                                   \
-            {                                                                                                                                 \
-                DAAL_PROFILER_PRINT_HEADER();                                                                                                 \
-                std::cerr << "Profiler task_name: " << #task_name << std::endl;                                                               \
-            }                                                                                                                                 \
             return daal::internal::profiler::start_threading_task(#task_name);                                                                \
         }                                                                                                                                     \
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
@@ -286,9 +281,18 @@ public:
     inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
     inline ~profiler_task();
 
-    // Delete copy constructor and copy assignment operator
-    profiler_task(const profiler_task &)             = delete;
-    profiler_task & operator=(const profiler_task &) = delete;
+    inline profiler_task(const profiler_task & other) : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_) {}
+
+    inline profiler_task & operator=(const profiler_task & other)
+    {
+        if (this != &other)
+        { // Проверка на самоприсваивание
+            task_name_ = other.task_name_;
+            idx_       = other.idx_;
+            is_thread_ = other.is_thread_;
+        }
+        return *this;
+    }
 
 private:
     const char * task_name_;
