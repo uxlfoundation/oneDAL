@@ -117,6 +117,13 @@ public:
           _nFeatures(dataTable->getNumberOfColumns()),
           _isNormalized(isNormalized)
     {
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nFeatures, _nFeatures, isOverflow);
+        if (isOverflow)
+        {
+            computeOk = false;
+            return;
+        }
         _crossProductArray.reset(_nFeatures * _nFeatures);
         if (!crossProduct())
         {
@@ -168,9 +175,15 @@ public:
             return;
         }
 
-        algorithmFPType alpha           = 1.0;
-        algorithmFPType beta            = 1.0;
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nFeatures, isOverflow);
+        if (isOverflow)
+        {
+            computeOk = false;
+            return;
+        }
         const size_t numRowsInLastBlock = _numRowsInBlock + (_dataTable->getNumberOfRows() - _numBlocks * _numRowsInBlock);
+        algorithmFPType one             = 1.0;
 
         /// Process blocks of the input data table
         for (size_t iBlock = begin; iBlock < end; ++iBlock)
@@ -189,8 +202,8 @@ public:
             /// Update the cross-product matrix with the data from the block
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.syrkData);
-                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &alpha, dataBlock, &_nFeatures, &beta,
-                                                      crossProductPtr, &_nFeatures);
+                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &one, dataBlock, &_nFeatures, &one, crossProductPtr,
+                                                      &_nFeatures);
             }
 
             if (!_isNormalized)

@@ -856,6 +856,9 @@ public:
     /// @param split Split object.
     ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()), _isSplit(true) {}
 
+    ReductionBody(const ReductionBody & other)             = delete;
+    ReductionBody & operator=(const ReductionBody & other) = delete;
+
     /// Accumulate the partial results for a sub-range
     ///
     /// @param r The sub-range to process.
