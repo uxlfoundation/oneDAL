@@ -286,7 +286,7 @@ public:
     inline profiler_task & operator=(const profiler_task & other)
     {
         if (this != &other)
-        { // Проверка на самоприсваивание
+        {
             task_name_ = other.task_name_;
             idx_       = other.idx_;
             is_thread_ = other.is_thread_;

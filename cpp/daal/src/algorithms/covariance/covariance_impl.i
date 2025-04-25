@@ -76,7 +76,7 @@ services::Status prepareSums(NumericTable * dataTable, algorithmFPType * sums)
 template <typename algorithmFPType, CpuType cpu>
 services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossProduct)
 {
-    DAAL_PROFILER_TASK(Covariance::prepareCrossProduct);
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::prepareCrossProduct, nFeatures);
 
     const algorithmFPType zero = 0.0;
     services::internal::service_memset<algorithmFPType, cpu>(crossProduct, zero, nFeatures * nFeatures);
