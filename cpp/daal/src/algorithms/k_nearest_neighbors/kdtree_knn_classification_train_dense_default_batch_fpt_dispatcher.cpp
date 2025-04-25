@@ -29,5 +29,34 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(kdtree_knn_classification::training::BatchContainer, batch, DAAL_FPTYPE,
                                       kdtree_knn_classification::training::defaultDense)
+namespace kdtree_knn_classification
+{
+namespace training
+{
+namespace interface3
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch()
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(const Batch<DAAL_FPTYPE, defaultDense> & other)
+    : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
+{
+    initialize();
+}
+
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, defaultDense>::Batch(size_t nClasses)
+{
+    parameter.nClasses = nClasses;
+    initialize();
+}
+
+} // namespace interface3
+} // namespace training
+} // namespace kdtree_knn_classification
 } // namespace algorithms
 } // namespace daal

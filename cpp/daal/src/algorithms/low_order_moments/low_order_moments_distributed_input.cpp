@@ -36,17 +36,17 @@ namespace low_order_moments
 namespace interface1
 {
 template <>
-DistributedInput<step2Master>::DistributedInput() : InputIface(lastMasterInputId + 1)
+DAAL_EXPORT DistributedInput<step2Master>::DistributedInput() : InputIface(lastMasterInputId + 1)
 {
     Argument::set(partialResults, DataCollectionPtr(new DataCollection()));
 }
 
 template <>
-DistributedInput<step2Master>::DistributedInput(const DistributedInput<step2Master> & other) : InputIface(other)
+DAAL_EXPORT DistributedInput<step2Master>::DistributedInput(const DistributedInput<step2Master> & other) : InputIface(other)
 {}
 
 template <>
-DistributedInput<step2Master> & DistributedInput<step2Master>::operator=(const DistributedInput<step2Master> & other)
+DAAL_EXPORT DistributedInput<step2Master> & DistributedInput<step2Master>::operator=(const DistributedInput<step2Master> & other)
 {
     InputIface::operator=(other);
     return *this;
@@ -57,7 +57,7 @@ DistributedInput<step2Master> & DistributedInput<step2Master>::operator=(const D
  * \return Number of columns in the input data set
  */
 template <>
-services::Status DistributedInput<step2Master>::getNumberOfColumns(size_t & nCols) const
+services::Status DAAL_EXPORT DistributedInput<step2Master>::getNumberOfColumns(size_t & nCols) const
 {
     DataCollectionPtr collectionOfPartialResults = staticPointerCast<DataCollection, SerializationIface>(Argument::get(partialResults));
 
@@ -80,7 +80,7 @@ services::Status DistributedInput<step2Master>::getNumberOfColumns(size_t & nCol
  * \param[in] partialResult Partial result obtained in the first step of the distributed algorithm
  */
 template <>
-void DistributedInput<step2Master>::add(MasterInputId id, const PartialResultPtr & partialResult)
+void DAAL_EXPORT DistributedInput<step2Master>::add(MasterInputId id, const PartialResultPtr & partialResult)
 {
     DataCollectionPtr collection = staticPointerCast<DataCollection, SerializationIface>(Argument::get(id));
     collection->push_back(staticPointerCast<SerializationIface, PartialResult>(partialResult));
@@ -91,7 +91,7 @@ void DistributedInput<step2Master>::add(MasterInputId id, const PartialResultPtr
  * \param[in] ptr Pointer to the input object
  */
 template <>
-void DistributedInput<step2Master>::set(MasterInputId id, const DataCollectionPtr & ptr)
+void DAAL_EXPORT DistributedInput<step2Master>::set(MasterInputId id, const DataCollectionPtr & ptr)
 {
     Argument::set(id, ptr);
 }
@@ -101,7 +101,7 @@ void DistributedInput<step2Master>::set(MasterInputId id, const DataCollectionPt
  * \return Collection of distributed input objects
  */
 template <>
-DataCollectionPtr DistributedInput<step2Master>::get(MasterInputId id) const
+DataCollectionPtr DAAL_EXPORT DistributedInput<step2Master>::get(MasterInputId id) const
 {
     return staticPointerCast<DataCollection, SerializationIface>(Argument::get(partialResults));
 }
@@ -111,7 +111,7 @@ DataCollectionPtr DistributedInput<step2Master>::get(MasterInputId id) const
  * \param[in] method    Computation method
  */
 template <>
-services::Status DistributedInput<step2Master>::check(const daal::algorithms::Parameter * parameter, int method) const
+services::Status DAAL_EXPORT DistributedInput<step2Master>::check(const daal::algorithms::Parameter * parameter, int method) const
 {
     services::Status s;
     DataCollectionPtr collectionPtr = DataCollection::cast(Argument::get(0));

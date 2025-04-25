@@ -306,7 +306,7 @@ private:
 
 class serializable_registry : public base {
 public:
-    static serializable_registry& instance();
+    ONEDAL_EXPORT static serializable_registry& instance();
 
     template <typename T>
     T* make(std::uint64_t serialization_id) {

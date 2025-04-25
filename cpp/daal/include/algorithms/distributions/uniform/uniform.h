@@ -100,13 +100,13 @@ public:
      *  \param[in] a     Left bound a
      *  \param[in] b     Right bound b
      */
-    Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0) : parameter(a, b) { initialize(); }
+    Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0);
 
     /**
      * Constructs uniform distribution by copying input objects and parameters of another uniform distribution
      * \param[in] other Uniform distribution
      */
-    Batch(const Batch<algorithmFPType, method> & other) : super(other), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns method of the distribution

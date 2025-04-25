@@ -99,7 +99,7 @@ public:
     typedef algorithms::bacon_outlier_detection::Result ResultType;
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs an algorithm for computing BACON outlier detection by copying input objects and parameters
@@ -107,7 +107,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

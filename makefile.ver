@@ -15,7 +15,7 @@
 #===============================================================================
 
 MAJOR   =       2025
-MINOR   =       5
+MINOR   =       6
 UPDATE  =       0
 BUILD   =       $(shell date +'%Y%m%d')
 STATUS  =       P
@@ -60,8 +60,11 @@ $(VERSION_DATA_FILE): | $(WORKDIR)/.
 
 # update public headers in release directory with actual version data
 update_headers_version:
-	@file=$(RELEASEDIR.include)/services/library_version_info.h && mark="#define __INTEL_DAAL" && \
-	sed $(sed.-b) \
+	@relfile=$(RELEASEDIR.include)/services/library_version_info.h && \
+	workfile=$(CPPDIR.daal)/include/services/library_version_info.h && \
+	file=$$relfile && \
+	if [ -a "$$relfile" ]; then file=$$file.tmp; fi && mark="#define __INTEL_DAAL" && \
+        sed $(sed.-b) \
 		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
 		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
 		-e "s/\($${mark}_MINOR__\).*/\1 $(MINOR)$(sed.eol)/" \
@@ -69,9 +72,9 @@ update_headers_version:
 		-e "s/\($${mark}_MINOR_BINARY__\).*/\1 $(MINORBINARY)$(sed.eol)/" \
 		-e "s/\($${mark}_UPDATE__\).*/\1 $(UPDATE)$(sed.eol)/" \
 		-e "s/\($${mark}_STATUS__\).*/\1 \"$(STATUS)\"$(sed.eol)/" \
-		$$file > $$file.tmp; \
-	if ! cmp -s $$file.tmp $$file; then \
-		mv $$file.tmp $$file; \
-	else \
-		rm $$file.tmp; \
+	        $$workfile > $$file && \
+	if ! cmp -s $$file $$relfile; then \
+		mv $$file $$relfile; \
+	elif [ -a "$$relfile.tmp" ]; then \
+		rm $$relfile.tmp; \
 	fi

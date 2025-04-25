@@ -37,7 +37,7 @@ namespace interface2
 using DistributedType = Distributed<step1Local, DAAL_FPTYPE, kmeans::lloydCSR>;
 
 template <>
-DistributedType::Distributed(size_t nClusters, bool assignFlag)
+DAAL_EXPORT DistributedType::Distributed(size_t nClusters, bool assignFlag)
 {
     _par = new ParameterType(nClusters, 1);
     initialize();
@@ -48,7 +48,7 @@ DistributedType::Distributed(size_t nClusters, bool assignFlag)
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other)
 {
     _par = new ParameterType(other.parameter());
     initialize();

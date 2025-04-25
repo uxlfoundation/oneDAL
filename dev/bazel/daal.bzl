@@ -32,15 +32,15 @@ def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
                 local_defines=[], **kwargs):
     if auto:
-        auto_hdrs = native.glob(["**/*.h", "**/*.i"])
-        auto_srcs = native.glob(["**/*.cpp"])
+        auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
+        auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
     else:
         auto_hdrs = []
         auto_srcs = []
     cc_module(
         name = name,
         lib_tag = lib_tag,
-        features = [ "c++11" ] + features,
+        features = [ "c++17" ] + features,
         cpu_defines = {
             "sse2":       [ "DAAL_CPU=sse2"       ],
             "sse42":      [ "DAAL_CPU=sse42"      ],

@@ -23,7 +23,6 @@ dal_test_suite(
     mpi_ranks = 2,
     framework = "catch2",
     hdrs = glob([
-        "test/mpi_*.hpp",
         "test/data.hpp",
         "test/spmd_backend_fixture.hpp",
         "test/spmd_backend_template.hpp",
@@ -42,37 +41,12 @@ dal_test_suite(
     mpi_ranks = 2,
     framework = "catch2",
     hdrs = glob([
-        "test/ccl_*.hpp",
         "test/data.hpp",
         "test/spmd_backend_fixture.hpp",
         "test/spmd_backend_template.hpp",
     ]),
     srcs = glob([
         "test/ccl_*.cpp"
-    ]),
-    dal_deps = [
-        ":dbscan",
-    ],
-)
-
-dal_test_suite(
-    name = "cpu_tests",
-    private = True,
-    compile_as = [ "c++" ],
-    srcs = glob([
-        "backend/cpu/test/*.cpp",
-    ]),
-    dal_deps = [
-        ":dbscan",
-    ],
-)
-
-dal_test_suite(
-    name = "gpu_tests",
-    private = True,
-    compile_as = [ "dpc++" ],
-    srcs = glob([
-        "backend/gpu/test/*.cpp",
     ]),
     dal_deps = [
         ":dbscan",

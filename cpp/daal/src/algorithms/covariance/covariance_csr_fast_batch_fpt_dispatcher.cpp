@@ -28,5 +28,26 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::BatchContainer, batch, DAAL_FPTYPE, covariance::fastCSR)
+
+namespace covariance
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, covariance::fastCSR>::Batch()
+{
+    initialize();
 }
+
+using BatchType = Batch<DAAL_FPTYPE, covariance::fastCSR>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : BatchImpl(other)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace covariance
+} // namespace algorithms
 } // namespace daal

@@ -39,7 +39,7 @@ namespace pca
 namespace interface3
 {
 /**
-    * \brief Contains version 3.0 of Intel(R) oneAPI Data Analytics Library interface.
+    * \brief Contains version 3.0 of oneAPI Data Analytics Library interface.
     */
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
@@ -105,7 +105,7 @@ public:
  *      - \ref Method  Computation methods for the algorithm
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = correlationDense>
-class Batch : public Analysis<batch>
+class DAAL_EXPORT Batch : public Analysis<batch>
 {
 public:
     typedef algorithms::pca::Input InputType;
@@ -113,14 +113,14 @@ public:
     typedef algorithms::pca::Result ResultType;
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     ~Batch() {}
 
