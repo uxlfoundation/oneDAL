@@ -384,13 +384,13 @@ public:
                 if (unique_task_names.insert(task_name).second)
                 {
                     std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                    std::cout << "THREADING Profiler task started on the main rank: " << task_name << std::endl;
+                    std::cerr << "THREADING Profiler task started on the main rank: " << task_name << '\n';
                 }
             }
             else
             {
                 std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                std::cout << "THREADING Profiler task started " << task_name << std::endl;
+                std::cerr << "THREADING Profiler task started " << task_name << '\n';
             }
         }
         auto ns_start                = get_time();
