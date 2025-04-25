@@ -303,7 +303,7 @@ private:
 class profiler
 {
 public:
-    inline profiler() { int verbose = daal_verbose_mode(); }
+    inline profiler() { daal_verbose_mode(); }
 
     inline ~profiler()
     {

@@ -24,12 +24,13 @@ When building applications that call Intel® oneAPI Data Analytics Library funct
 
 You can get an application to print this information to a standard output
 device by enabling **Intel® oneAPI Data Analytics Library Verbose Mode**.
-All logs are printed to std::cerr.
+All logs are printed to the `stderr` stream.
 
 When Verbose mode is active in oneDAL, every call of a verbose-enabled function finishes with 
 printing a human-readable line describing the call. Even if the application gets terminated during 
 the function call, information for that function will be printed. 
 The first call to a verbose-enabled function also prints a version information line.
+The analyzer becomes available only at the end of the oneDAL workflow, when static objects are destroyed.
 
 For GPU applications, additional information (one or more GPU information lines) will also 
 be printed on the first call to a verbose-enabled function, following the version information lines printed
@@ -40,7 +41,7 @@ Verbosity Levels
 
 We have common implementations for verbose mode with CPU and GPU applications.
 
-  - Levels:
+ Levels:
   - Disabled (default)
   - Logger enabled
   - Tracer enabled
@@ -101,16 +102,12 @@ Example output (for ``cov_dense_batch``):
 
 ::
 
-    reduction.reduce_by_columns        81.72ms
-    compute_sums                       81.95ms
-    allreduce_sums                      9.45us
-    blas.gemm                         217.41ms
-    gemm                              217.42ms
-    allreduce_xtx                       6.70us
-    allreduce_rows_count_global       461ns
-    compute_correlation               155.92ms
-    compute_means                      50.67ms
-    covariance_algo_compute           506.08ms
+    Covariance::prepareSums 8.40us
+    Covariance::prepareCrossProduct 1.26us
+    THREADING computeSums.local finished on the main rank(time could be different for other ranks): 2.36us
+    THREADING computeSums.reduce finished on the main rank(time could be different for other ranks): 630ns
+    THREADING gemmSums finished on the main rank(time could be different for other ranks): 761ns
+    THREADING Covariance::updateDenseCrossProductAndSums finished on the main rank(time could be different for other ranks): 316.42us
 
 The Tracer is particularly useful in Jupyter Notebooks or general profiling scenarios where performance insights are needed.
 
@@ -125,16 +122,14 @@ Example output (for ``cov_dense_batch``):
 ::
 
     Algorithm tree analyzer
-    |-- covariance_algo_compute               time: 501.60ms   100.00%
-    |   |-- compute_sums                      time: 81.56ms    16.26%
-    |   |   |-- reduction.reduce_by_columns   time: 81.09ms    16.17%
-    |   |-- allreduce_sums                   time: 8.78us      0.00%
-    |   |-- gemm                             time: 215.34ms    42.93%
-    |   |   |-- blas.gemm                     time: 215.34ms   42.93%
-    |   |-- allreduce_xtx                    time: 6.85us      0.00%
-    |   |-- allreduce_rows_count_global      time: 422ns       0.00%
-    |   |-- compute_correlation              time: 154.44ms    30.79%
-    |   |-- compute_means                    time: 50.19ms     10.01%
+    |-- CovarianceDenseBatchKernel::compute time: 782.13us 100.00% 1 times in a 0 region
+    |   |-- Covariance::prepareSums time: 19.51us 2.49% 1 times in a 0 region
+    |   |-- Covariance::prepareCrossProduct time: 1.35us 0.17% 1 times in a 0 region
+    |   |-- Covariance::updateDenseCrossProductAndSums time: 636.83us 81.42% 1 times in a 1 region
+    |   |-- computeSums.local time: 2.54us 0.33% 2 times in a 1 region
+    |   |-- computeSums.reduce time: 783ns 0.10% 2 times in a 1 region
+    |   |-- gemmSums time: 767ns 0.10% 1 times in a 1 region
+    |   |-- compute.finalizeCovariance time: 1.19us 0.15% 1 times in a 0 region
     |---(end)
 
     ONEDAL KERNEL_PROFILER: kernels total time 501.60ms
@@ -146,3 +141,6 @@ The Analyzer helps visualize nested kernel calls and their contribution to the t
 General Notes on Verbose Mode
 -----------------------------
 
+Important: This means that the analyzer will not work properly in interactive environments like Jupyter Notebooks, 
+where the application may not fully terminate and static object destructors may never be called.
+To use the analyzer, run your application as a standalone script.
