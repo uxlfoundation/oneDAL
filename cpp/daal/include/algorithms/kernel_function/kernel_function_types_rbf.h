@@ -57,7 +57,7 @@ enum Method
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -84,18 +84,7 @@ class DAAL_EXPORT Input : public kernel_function::Input
 public:
     Input();
     Input(const Input & other);
-
-    // Copy assignment operator
-    Input & operator=(const Input & other)
-    {
-        if (this != &other) // Check for self-assignment
-        {
-            // Call the base class assignment operator if necessary
-            kernel_function::Input::operator=(other);
-        }
-        return *this;
-    }
-
+    Input & operator=(const Input & other);
     virtual ~Input() {}
 
     /**
