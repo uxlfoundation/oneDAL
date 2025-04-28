@@ -62,8 +62,11 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     algorithmFPType * initClusters = const_cast<algorithmFPType *>(mtInitClusters.get());
     WriteOnlyRows<int, cpu> mtClusterS0(*const_cast<NumericTable *>(r[0]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtClusterS0);
+    WriteOnlyRows<int, cpu> mtClusterS2(*const_cast<NumericTable *>(r[0]), 0, n);
+    DAAL_CHECK_BLOCK_STATUS(mtClusterS2)
     /* TODO: That should be size_t or double */
     int * clusterS0 = mtClusterS0.get();
+    int * clusterS2 = mtClusterS2.get();
     WriteOnlyRows<algorithmFPType, cpu> mtClusterS1(*const_cast<NumericTable *>(r[1]), 0, nClusters);
     DAAL_CHECK_BLOCK_STATUS(mtClusterS1);
     algorithmFPType * clusterS1 = mtClusterS1.get();
@@ -116,7 +119,7 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
     Status s;
     algorithmFPType oldTargetFunc = (algorithmFPType)0.0;
     {
-        auto task = TaskKMeansLloyd<algorithmFPType, cpu>::create(p, nClusters, initClusters, blockSize);
+        auto task = TaskKMeansLloyd<algorithmFPType, cpu>::create(p, nClusters, n, initClusters, blockSize);
         DAAL_CHECK(task.get(), services::ErrorMemoryAllocationFailed);
         DAAL_ASSERT(task);
 
@@ -142,7 +145,7 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::compute(size_
             DAAL_CHECK(dS1.get(), services::ErrorMemoryAllocationFailed);
         }
 
-        task->template kmeansComputeCentroids<method>(clusterS0, clusterS1, dS1.get());
+        task->template kmeansComputeCentroids<method>(clusterS0, clusterS2, clusterS1, dS1.get());
 
         size_t cNum;
         DAAL_CHECK_STATUS(s, task->kmeansComputeCentroidsCandidates(cValues, cIndices.get(), cNum));

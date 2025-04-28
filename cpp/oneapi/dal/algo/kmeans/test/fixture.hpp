@@ -206,7 +206,7 @@ public:
         float_t initial_centroids[] = { -10, -10, -10 };
         const auto c_init = homogen_table::wrap(initial_centroids, 3, 1);
 
-        float_t final_centroids[] = { -1.65, 10, 9.5 };
+        float_t final_centroids[] = { -4.5, 10, 9.5 };
         const auto c_final = homogen_table::wrap(final_centroids, 3, 1);
 
         float_t responses[] = { 0, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
