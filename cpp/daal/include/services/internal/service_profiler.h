@@ -31,7 +31,6 @@
 #include <iostream>
 #include <mutex>
 #include <algorithm>
-#include <unordered_set>
 
 #include "services/library_version_info.h"
 
@@ -363,38 +362,7 @@ public:
     /// @note Uses a mutex for thread safety, logs unique task names if logging is enabled, captures the start time,
     /// updates task info, and increments the kernel count. Stores task details in tasks_info.kernels, marking it
     /// as a threading task. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
-    inline static profiler_task start_threading_task(const char * task_name)
-    {
-        if (!task_name) return profiler_task(nullptr, -1);
-        static std::mutex mutex;
-
-        std::lock_guard<std::mutex> lock(mutex);
-        if (is_logger_enabled())
-        {
-            if (!is_service_debug_enabled())
-            {
-                static std::unordered_set<std::string> unique_task_names;
-                if (unique_task_names.insert(task_name).second)
-                {
-                    std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                    std::cerr << "THREADING Profiler task started on the main rank: " << task_name << '\n';
-                }
-            }
-            else
-            {
-                std::cerr << "-----------------------------------------------------------------------------" << '\n';
-                std::cerr << "THREADING Profiler task started " << task_name << '\n';
-            }
-        }
-        auto ns_start                = get_time();
-        auto & tasks_info            = get_instance()->get_task();
-        auto & current_level_        = get_instance()->get_current_level();
-        auto & current_kernel_count_ = get_instance()->get_kernel_count();
-        std::int64_t tmp             = current_kernel_count_;
-        tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, true });
-        current_kernel_count_++;
-        return profiler_task(task_name, tmp, true);
-    }
+    static profiler_task start_threading_task(const char * task_name);
 
     /// Terminates a profiling task and records its duration
     ///
@@ -429,32 +397,7 @@ public:
     /// Captures the end time, calculates the task duration, and updates the task entry.
     /// Logs unique task names and duration if tracing is enabled, indicating completion on the main rank.
     /// Uses a mutex for thread safety. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
-    inline static void end_threading_task(const char * task_name, int idx_)
-    {
-        if (!task_name) return;
-
-        static std::mutex mutex;
-
-        std::lock_guard<std::mutex> lock(mutex);
-        const std::uint64_t ns_end = get_time();
-        auto & tasks_info          = get_instance()->get_task();
-
-        if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
-
-        auto & entry   = tasks_info.kernels[idx_];
-        auto duration  = ns_end - entry.duration;
-        entry.duration = duration;
-
-        if (is_tracer_enabled())
-        {
-            static std::unordered_set<std::string> unique_task_names;
-            if (unique_task_names.emplace(task_name).second)
-            {
-                std::cerr << "THREADING " << task_name
-                          << " finished on the main rank(time could be different for other ranks): " << format_time_for_output(duration) << '\n';
-            }
-        }
-    }
+    static void end_threading_task(const char * task_name, int idx_);
 
     inline static std::uint64_t get_time()
     {
