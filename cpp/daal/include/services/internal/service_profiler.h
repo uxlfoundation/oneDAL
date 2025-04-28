@@ -366,7 +366,7 @@ public:
     {
         if (!task_name) return profiler_task(nullptr, -1);
         static std::mutex mutex;
-    
+
         std::lock_guard<std::mutex> lock(mutex);
         if (is_logger_enabled())
         {
@@ -433,19 +433,19 @@ public:
     inline static void end_threading_task(const char * task_name, int idx_)
     {
         if (!task_name) return;
-    
+
         static std::mutex mutex;
-    
+
         std::lock_guard<std::mutex> lock(mutex);
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-    
+
         if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
-    
+
         auto & entry   = tasks_info.kernels[idx_];
         auto duration  = ns_end - entry.duration;
         entry.duration = duration;
-    
+
         if (is_tracer_enabled())
         {
             static std::vector<std::string> unique_task_names;
