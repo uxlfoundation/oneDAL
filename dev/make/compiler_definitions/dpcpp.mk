@@ -29,14 +29,14 @@ CORE.SERV.COMPILER.dpcpp = generic
 -DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
-                     -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
+                     -Werror -Wreturn-type -fsycl-device-code-split=auto
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
-                     -Wno-deprecated-declarations -fsycl-device-code-split=per_kernel
+                     -Wno-deprecated-declarations -fsycl-device-code-split=auto
 
-link.dynamic.lnx.dpcpp = icpx -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+link.dynamic.lnx.dpcpp = icpx -fsycl -m64 -fsycl-device-code-split=auto -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
-link.dynamic.win.dpcpp = icx -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+link.dynamic.win.dpcpp = icx -fsycl -m64 -fsycl-device-code-split=auto -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \

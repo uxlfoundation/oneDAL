@@ -190,7 +190,7 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
     bin_search_flag_dpcc = _get_bin_search_flag(repo_ctx, tools.dpcc)
 
     # DPC++ kernel code split option
-    dpcc_code_split = "per_kernel"
+    dpcc_code_split = "auto"
 
     repo_ctx.template(
         "BUILD",
