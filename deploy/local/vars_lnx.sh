@@ -110,9 +110,9 @@ fi
 
 # ############################################################################
 
-# Prepend path segment(s) to path-like env vars (PATH, CPATH, etc.).
+# Prepend path segment(s) to path-like env vars (PATH, CPLUS_INCLUDE_PATH, etc.).
 
-# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPATH)
+# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPLUS_INCLUDE_PATH)
 # prepend_manpath() includes dangling ":" needed by MANPATH.
 # PATH > https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
 # MANPATH > https://manpages.debian.org/stretch/man-db/manpath.1.en.html
@@ -247,7 +247,7 @@ if [ "$(basename "${my_script_path}")" = "env" ] ; then   # assume stand-alone
     export DALROOT="$__daal_tmp_dir"
     export PKG_CONFIG_PATH="$__daal_tmp_dir/lib/pkgconfig${PKG_CONFIG_PATH+:${PKG_CONFIG_PATH}}"
     export CMAKE_PREFIX_PATH="$__daal_tmp_dir${CMAKE_PREFIX_PATH+:${CMAKE_PREFIX_PATH}}"
-    export CPATH="$__daal_tmp_dir/include:$__daal_tmp_dir/include/dal${CPATH+:${CPATH}}"
+    export CPLUS_INCLUDE_PATH="/some/include/path${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}"
     if [ -d "${component_root}/include/dal" ]; then
       export LIBRARY_PATH="$__daal_tmp_dir/lib${LIBRARY_PATH+:${LIBRARY_PATH}}"
       export LD_LIBRARY_PATH="$__daal_tmp_dir/lib${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}"
@@ -277,7 +277,7 @@ else   # must be a consolidated layout
 
   # *"etc"*)
     export DALROOT="$ONEAPI_ROOT"
-    export CPATH="$ONEAPI_ROOT/include:$ONEAPI_ROOT/include/dal${CPATH+:${CPATH}}"
+    export CPLUS_INCLUDE_PATH="$ONEAPI_ROOT/include:$ONEAPI_ROOT/include/dal${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}"
   # ;;
 # esac
 fi
