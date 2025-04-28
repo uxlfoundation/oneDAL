@@ -295,7 +295,7 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     }
 
     /* Split rows by blocks */
-    size_t nRowsInBlock = 64;
+    size_t nRowsInBlock = 128;
     if (hyperparameter != nullptr)
     {
         DAAL_INT64 nRowsInBlockInt64 = 0l;

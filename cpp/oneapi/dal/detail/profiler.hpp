@@ -18,37 +18,10 @@
 
 #include "services/internal/service_profiler.h"
 
-#ifdef _WIN32
-#define PRETTY_FUNCTION __FUNCSIG__
-#else
-#define PRETTY_FUNCTION __PRETTY_FUNCTION__
-#endif
-
 // UTILS
 #define ONEDAL_PROFILER_MACRO_1(name)                       ONEDAL_PROFILER_START_TASK(name)
 #define ONEDAL_PROFILER_MACRO_2(name, queue)                ONEDAL_PROFILER_START_TASK_WITH_QUEUE(name, queue)
 #define ONEDAL_PROFILER_GET_MACRO(arg_1, arg_2, MACRO, ...) MACRO
-
-// HEADER OUTPUT
-#define ONEDAL_PROFILER_PRINT_HEADER()                                                         \
-    do {                                                                                       \
-        std::cerr                                                                              \
-            << "-----------------------------------------------------------------------------" \
-            << '\n';                                                                           \
-        std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                   \
-        if (daal::internal::is_service_debug_enabled()) {                                      \
-            std::cerr << PRETTY_FUNCTION << '\n';                                              \
-        }                                                                                      \
-    } while (0)
-
-// ARGS LOGGING
-#define ONEDAL_PROFILER_LOG_ARGS(task_name, ...)                                \
-    do {                                                                        \
-        ONEDAL_PROFILER_PRINT_HEADER();                                         \
-        std::cerr << "Profiler task_name: " << #task_name << " Printed args: "; \
-        daal::internal::profiler_log_named_args(#__VA_ARGS__, __VA_ARGS__);     \
-        std::cerr << '\n';                                                      \
-    } while (0)
 
 // START_TASKS
 #define ONEDAL_PROFILER_START_TASK(name) daal::internal::profiler::start_task(#name)
@@ -61,7 +34,7 @@
     daal::internal::profiler_task __profiler_task =                                        \
         (daal::internal::is_profiler_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                         \
-            ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                              \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                \
         }                                                                                  \
         return ONEDAL_PROFILER_START_TASK(task_name);                                      \
     }()                                                                                    \
@@ -71,7 +44,7 @@
     daal::internal::profiler_task __profiler_task =                                        \
         (daal::internal::is_profiler_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                         \
-            ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                              \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                \
         }                                                                                  \
         return ONEDAL_PROFILER_START_TASK_WITH_QUEUE(task_name, queue);                    \
     }()                                                                                    \
@@ -81,7 +54,7 @@
     daal::internal::profiler_task __profiler_task =                                        \
         (daal::internal::is_profiler_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                         \
-            ONEDAL_PROFILER_PRINT_HEADER();                                                \
+            DAAL_PROFILER_PRINT_HEADER();                                                  \
             std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                   \
         }                                                                                  \
         return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                      \
@@ -95,7 +68,7 @@
     daal::internal::profiler_task __profiler_task =                                             \
         (daal::internal::is_service_debug_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                              \
-            ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                   \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                     \
         }                                                                                       \
         return ONEDAL_PROFILER_START_TASK(task_name);                                           \
     }()                                                                                         \
@@ -105,7 +78,7 @@
     daal::internal::profiler_task __profiler_task =                                             \
         (daal::internal::is_service_debug_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                              \
-            ONEDAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                   \
+            DAAL_PROFILER_LOG_ARGS(task_name, __VA_ARGS__);                                     \
         }                                                                                       \
         return ONEDAL_PROFILER_START_TASK_WITH_QUEUE(task_name, queue);                         \
     }()                                                                                         \
@@ -115,7 +88,7 @@
     daal::internal::profiler_task __profiler_task =                                             \
         (daal::internal::is_service_debug_enabled()) ? [&]() -> daal::internal::profiler_task { \
         if (daal::internal::is_logger_enabled()) {                                              \
-            ONEDAL_PROFILER_PRINT_HEADER();                                                     \
+            DAAL_PROFILER_PRINT_HEADER();                                                       \
             std::cerr << "Profiler task_name: " << #__VA_ARGS__ << '\n';                        \
         }                                                                                       \
         return ONEDAL_PROFILER_GET_MACRO(__VA_ARGS__,                                           \

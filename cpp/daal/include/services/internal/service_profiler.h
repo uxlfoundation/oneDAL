@@ -30,9 +30,7 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
-#include <stdexcept>
 #include <algorithm>
-#include <set>
 #include <unordered_set>
 
 #include "services/library_version_info.h"
@@ -269,11 +267,6 @@ struct task
     std::vector<task_entry> kernels;
 };
 
-struct task_thread
-{
-    std::set<task_entry> kernels;
-};
-
 class profiler_task
 {
 public:
@@ -380,7 +373,7 @@ public:
         {
             if (!is_service_debug_enabled())
             {
-                static std::set<std::string> unique_task_names;
+                static std::unordered_set<std::string> unique_task_names;
                 if (unique_task_names.insert(task_name).second)
                 {
                     std::cerr << "-----------------------------------------------------------------------------" << '\n';
