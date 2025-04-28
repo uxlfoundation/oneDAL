@@ -30,6 +30,7 @@ help:
 create_rst_examples:
 	@echo "Creating rST files for oneAPI Examples..."
 	python3 rst_examples.py
+	@echo "Done"
 
 doxygen:
 	cd doxygen/oneapi && doxygen
