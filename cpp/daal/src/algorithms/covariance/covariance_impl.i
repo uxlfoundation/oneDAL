@@ -158,9 +158,9 @@ public:
     /// Must be able to run concurrently with `update` and `join` methods.
     ///
     /// @return Pointer to the partial result of the covariance algorithm.
-    virtual daal::Reducer * create() const override
+    virtual std::unique_ptr<daal::Reducer> create() const override
     {
-        return new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized);
+        return std::unique_ptr<daal::Reducer>(new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized));
     }
 
     /// Updates partial cross-product matrix and, if required, sums with the data
@@ -196,7 +196,7 @@ public:
         /// Process blocks of the input data table
         for (size_t iBlock = begin; iBlock < end; ++iBlock)
         {
-            size_t nRows    = ((iBlock < (_numBlocks - 1)) ? _numRowsInBlock : numRowsInLastBlock);
+            size_t nRows    = ((iBlock + 1 < _numBlocks) ? _numRowsInBlock : numRowsInLastBlock);
             size_t startRow = iBlock * _numRowsInBlock;
 
             ReadRows<algorithmFPType, cpu, NumericTable> dataTableBD(_dataTable, startRow, nRows);
@@ -210,8 +210,8 @@ public:
             /// Update the cross-product matrix with the data from the block
             {
                 DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.syrkData);
-                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, (DAAL_INT *)&nRows, &one, dataBlock, &_nFeatures, &one, crossProductPtr,
-                                                      &_nFeatures);
+                BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, static_cast<DAAL_INT *>(&nRows), &one, dataBlock, &_nFeatures, &one,
+                                                      crossProductPtr, &_nFeatures);
             }
 
             if (!_isNormalized)

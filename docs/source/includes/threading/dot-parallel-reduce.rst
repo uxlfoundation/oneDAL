@@ -14,7 +14,7 @@
 
 ::
 
-  double parallelDotProduct(size_t n, const float* a, const float* b)
+  float parallelDotProduct(size_t n, const float* a, const float* b)
   {
     DotReducer reducer(n, a, b);
     const size_t grainSize = 1000; // Example grain size

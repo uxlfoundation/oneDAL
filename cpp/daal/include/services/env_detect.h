@@ -58,6 +58,14 @@ enum CpuType
 #endif
 };
 
+#if defined(TARGET_X86_64)
+    #define DAAL_DEFAULT_CPU_TYPE CpuType::sse2
+#elif defined(TARGET_ARM)
+    #define DAAL_DEFAULT_CPU_TYPE CpuType::sve
+#elif defined(TARGET_RISCV64)
+    #define DAAL_DEFAULT_CPU_TYPE CpuType::rv64
+#endif
+
 namespace services
 {
 namespace interface1

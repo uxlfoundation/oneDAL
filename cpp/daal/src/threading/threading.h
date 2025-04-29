@@ -25,6 +25,7 @@
 #define __THREADING_H__
 
 #include <stdint.h>
+#include <memory>
 #include "services/daal_defines.h"
 
 namespace daal
@@ -63,7 +64,7 @@ public:
     /// Must be able to run concurrently with `update` and `join` methods.
     ///
     /// @return Pointer to the constructed thread-local partial result.
-    virtual Reducer * create() const = 0;
+    virtual std::unique_ptr<Reducer> create() const = 0;
 
     /// Update partial result with the data from the sub-range [begin, end).
     ///

@@ -835,6 +835,21 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
     ((tbb::task_group *)taskGroupPtr)->wait();
 }
 
+/// Class to manage the lifetime of the daal::Reducer object.
+/// It uses a unique_ptr with default_deleter or empty deleter to ensure that the
+/// destructor of the daal::Reducer object is called when needed.
+class ReducerUniquePtr : public std::unique_ptr<daal::Reducer, std::function<void(daal::Reducer *)> >
+{
+public:
+    using unique_ptr::unique_ptr;
+
+    /// Deprecate the constructors that do not provide a custom deleter.
+    /// This is to prevent the use of default_deleter, which may not be appropriate for daal::Reducer.
+    ReducerUniquePtr(pointer)        = delete;
+    ReducerUniquePtr()               = delete;
+    ReducerUniquePtr(std::nullptr_t) = delete;
+};
+
 /// The class implements the body of the parallel reduce algorithm in compliance with
 /// oneTBB ParallelReduceBody requirements:
 /// https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/named_requirements/algorithms/par_reduce_body
@@ -846,7 +861,7 @@ public:
     /// Constructs the body of the parallel reduce algorithm from the given reducer.
     ///
     /// @param reducer Pointer to the reducer object.
-    ReductionBody(daal::Reducer * reducer) : _reducer(reducer), _isSplit(false) {}
+    explicit ReductionBody(daal::Reducer & reducer) : _reducer(&reducer, /* empty deleter */ [](daal::Reducer *) {}) {}
 
     /// Splitting constructor.
     /// Constructs the partial result initialized to identity value from the given partial result.
@@ -854,10 +869,7 @@ public:
     ///
     /// @param other The body to split.
     /// @param split Split object.
-    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()), _isSplit(true) {}
-
-    ReductionBody(const ReductionBody & other)             = delete;
-    ReductionBody & operator=(const ReductionBody & other) = delete;
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(std::move(other._reducer->create())) {}
 
     /// Accumulate the partial results for a sub-range
     ///
@@ -872,29 +884,41 @@ public:
     /// @param other The body to merge.
     void join(ReductionBody & other)
     {
-        if (_reducer) _reducer->join(other._reducer);
-    }
-
-    ~ReductionBody()
-    {
-        if (_isSplit) delete _reducer;
+        if (_reducer) _reducer->join(other._reducer.get());
     }
 
 private:
-    daal::Reducer * _reducer; // Pointer to the implementation
-    bool _isSplit;            // Flag to indicate whether the _reducer object is created in split constructor
+    ReducerUniquePtr _reducer; // Pointer to the implementation
 };
 
 DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
 {
-    ReductionBody body(&reducer);
-    tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        ReductionBody body(reducer);
+        tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
+    }
+    else
+    {
+        // If the number of threads is 1, we can use the reducer directly
+        // without creating a new instance.
+        reducer.update(0, n);
+    }
 }
 
 DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
 {
-    ReductionBody body(&reducer);
-    tbb::parallel_deterministic_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        ReductionBody body(reducer);
+        tbb::parallel_deterministic_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
+    }
+    else
+    {
+        // If the number of threads is 1, we can use the reducer directly
+        // without creating a new instance.
+        reducer.update(0, n);
+    }
 }
 
 namespace daal
