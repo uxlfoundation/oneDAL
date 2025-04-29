@@ -27,6 +27,10 @@
 
 namespace oneapi::dal::backend::primitives::test {
 
+#define IS_CLOSE(ftype, real, expected, rtol, atol) \
+    REQUIRE(abs(real - expected) < atol);           \
+    REQUIRE(abs(real - expected) / std::max(std::abs(expected), (ftype)1.0) < rtol);
+
 // f(x) = 1/2 x^t A x - b^t x
 // df / dx = Ax - b
 // df / d^2x = A

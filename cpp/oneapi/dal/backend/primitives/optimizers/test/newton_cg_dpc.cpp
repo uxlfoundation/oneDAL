@@ -24,6 +24,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include <math.h>
+#include <iostream>
 
 #include "oneapi/dal/backend/primitives/objective_function.hpp"
 
@@ -47,6 +48,7 @@ public:
             n_ = n;
             p_ = p;
         }
+        std::cout << n_ << " " << p_ << std::endl;
         std::int64_t bsz = GENERATE(-1, 1024);
         auto X_host =
             ndarray<float_t, 2>::empty(this->get_queue(), { n_, p_ }, sycl::usm::alloc::host);
@@ -57,6 +59,7 @@ public:
         auto params_host =
             ndarray<float_t, 1>::empty(this->get_queue(), { p_ + 1 }, sycl::usm::alloc::host);
 
+        std::cout << "data is on host" << std::endl;
         primitives::host_engine eng(2007 + n);
         primitives::uniform<float_t>(n_ * p_, X_host.get_mutable_data(), eng, -10.0, 10.0);
         primitives::uniform<float_t>(p_ + 1, params_host.get_mutable_data(), eng, -5.0, 5.0);
@@ -179,7 +182,8 @@ public:
                 buffer.at(i) = grad_gth;
                 grad_gth -= b_host.at(i);
                 // TODO: Investigate whether 2e-5 is acceptable substitute (fails with 1e-5)
-                check_val(grad_gth, grad_host.at(i), float_t(1e-5), float_t(2e-5));
+                // check_val(grad_gth, grad_host.at(i), float_t(1e-5), float_t(2e-5));
+                IS_CLOSE(float_t, grad_gth, grad_host.at(i), float_t(1e-5), float_t(2e-5))
             }
 
             float_t val_gth = 0;
@@ -190,7 +194,8 @@ public:
             for (std::int64_t i = 0; i < n_; ++i) {
                 val_gth -= b_host.at(i) * x_host.at(i);
             }
-            check_val(val_gth, val, float_t(5e-5), float_t(5e-5));
+            // check_val(val_gth, val, float_t(5e-5), float_t(5e-5));
+            IS_CLOSE(float_t, val_gth, val, float_t(5e-5), float_t(5e-5))
         }
     }
 
@@ -205,7 +210,8 @@ public:
         auto x_host = x.to_host(this->get_queue());
         float_t tol = sizeof(float_t) == 4 ? 1e-4 : 1e-7;
         for (std::int64_t i = 0; i < n_; ++i) {
-            check_val(solution_.at(i), x_host.at(i), tol, tol);
+            // check_val(solution_.at(i), x_host.at(i), tol, tol);
+            IS_CLOSE(float_t, solution_.at(i), x_host.at(i), tol, tol)
         }
     }
 
