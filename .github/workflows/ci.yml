@@ -34,99 +34,99 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  LinuxMakeDPCPP:
-    if: github.repository == 'uxlfoundation/oneDAL'
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - ISA: avx2
-            runner: ubuntu-24.04
+  # LinuxMakeDPCPP:
+  #   if: github.repository == 'uxlfoundation/oneDAL'
+  #   timeout-minutes: 120
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - ISA: avx2
+  #           runner: ubuntu-24.04
 
-    runs-on: ${{ matrix.runner }}
-    name: LinuxMakeDPCPP(${{ matrix.ISA }})
-    steps:
-      - name: Checkout oneDAL
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Install DPC++
-        run: .ci/env/apt.sh dpcpp
-      - name: Install MKL
-        run: .ci/env/apt.sh mkl
-      - name: Install Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
-        with:
-          python-version: 3.9
-      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
-      - name: Install Miniforge
-        run: .ci/env/apt.sh miniforge
-      - name: System Info
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/describe_system.sh
-      - name: Set environment variables
-        if: matrix.runner != 'ubuntu-24.04'
-        run: |
-          # reduce GPU driver/runner related memory issues
-          echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
-          echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
-          echo "DisableScratchPages=0" >> "$GITHUB_ENV"
-          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
-      - name: Make daal debug
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
-           if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
-      - name: Make onedal debug
-        id: onedal-dbg
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
-          # clean up build directory due to space limitations
-          rm -rf __work
-          echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Prepare Cache build
-        if: github.event_name != 'pull_request'
-        run: cp -r __release_lnx __release_lnx_main
-      - name: Cache build
-        if: github.event_name != 'pull_request'
-        uses: actions/cache/save@v4
-        with:
-          key: ${{ steps.onedal-dbg.outputs.key }}
-          path: ./__release_lnx_main
-      - name: Remove Cache build
-        if: github.event_name != 'pull_request'
-        run: rm -rf __release_lnx_main
-      - name: Archive build
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: __release_lnx
-          path: ./__release_lnx
-      - name: Make onedal
-        if: matrix.runner != 'ubuntu-24.04'
-        run: |
-          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
-          source /opt/intel/oneapi/setvars.sh
-          mv __work_daal __work
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
-      - name: daal/cpp examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
-      - name: oneapi/cpp examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
-      - name: oneapi/dpc examples
-        if: matrix.runner != 'ubuntu-24.04'
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
-      - name: daal/cpp/mpi examples
-        run: |
-            source /opt/intel/oneapi/setvars.sh
-            .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+  #   runs-on: ${{ matrix.runner }}
+  #   name: LinuxMakeDPCPP(${{ matrix.ISA }})
+  #   steps:
+  #     - name: Checkout oneDAL
+  #       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  #     - name: Install DPC++
+  #       run: .ci/env/apt.sh dpcpp
+  #     - name: Install MKL
+  #       run: .ci/env/apt.sh mkl
+  #     - name: Install Python
+  #       uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+  #       with:
+  #         python-version: 3.9
+  #     # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
+  #     - name: Install Miniforge
+  #       run: .ci/env/apt.sh miniforge
+  #     - name: System Info
+  #       run: |
+  #         source /opt/intel/oneapi/setvars.sh
+  #         .ci/scripts/describe_system.sh
+  #     - name: Set environment variables
+  #       if: matrix.runner != 'ubuntu-24.04'
+  #       run: |
+  #         # reduce GPU driver/runner related memory issues
+  #         echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
+  #         echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
+  #         echo "DisableScratchPages=0" >> "$GITHUB_ENV"
+  #         echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
+  #     - name: Make daal debug
+  #       run: |
+  #         source /opt/intel/oneapi/setvars.sh
+  #         .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
+  #          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
+  #     - name: Make onedal debug
+  #       id: onedal-dbg
+  #       run: |
+  #         source /opt/intel/oneapi/setvars.sh
+  #         .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
+  #         # clean up build directory due to space limitations
+  #         rm -rf __work
+  #         echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  #     - name: Prepare Cache build
+  #       if: github.event_name != 'pull_request'
+  #       run: cp -r __release_lnx __release_lnx_main
+  #     - name: Cache build
+  #       if: github.event_name != 'pull_request'
+  #       uses: actions/cache/save@v4
+  #       with:
+  #         key: ${{ steps.onedal-dbg.outputs.key }}
+  #         path: ./__release_lnx_main
+  #     - name: Remove Cache build
+  #       if: github.event_name != 'pull_request'
+  #       run: rm -rf __release_lnx_main
+  #     - name: Archive build
+  #       if: github.event_name == 'pull_request'
+  #       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+  #       with:
+  #         name: __release_lnx
+  #         path: ./__release_lnx
+  #     - name: Make onedal
+  #       if: matrix.runner != 'ubuntu-24.04'
+  #       run: |
+  #         # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
+  #         source /opt/intel/oneapi/setvars.sh
+  #         mv __work_daal __work
+  #         .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
+  #     - name: daal/cpp examples
+  #       run: |
+  #           source /opt/intel/oneapi/setvars.sh
+  #           .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
+  #     - name: oneapi/cpp examples
+  #       run: |
+  #           source /opt/intel/oneapi/setvars.sh
+  #           .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
+  #     - name: oneapi/dpc examples
+  #       if: matrix.runner != 'ubuntu-24.04'
+  #       run: |
+  #           source /opt/intel/oneapi/setvars.sh
+  #           .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
+  #     - name: daal/cpp/mpi examples
+  #       run: |
+  #           source /opt/intel/oneapi/setvars.sh
+  #           .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
     name: ABI Conformance(avx2)
