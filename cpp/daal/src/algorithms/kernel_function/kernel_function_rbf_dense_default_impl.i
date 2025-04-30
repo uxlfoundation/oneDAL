@@ -28,7 +28,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_blas.h"
-#include "src/externals/service_profiler.h"
+#include "services/internal/service_profiler.h"
 #include "src/threading/threading.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_helper.h"
 
@@ -124,7 +124,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInternalMatrixMatrix(const NumericTable * a1, const NumericTable * a2,
                                                                                                 NumericTable * r, const KernelParameter * par)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(KernelRBF.MatrixMatrix);
+    DAAL_PROFILER_TASK(KernelRBF.MatrixMatrix);
 
     SafeStatus safeStat;
 
