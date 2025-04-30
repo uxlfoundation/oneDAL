@@ -60,7 +60,7 @@ struct OutlierDetectionKernel : public Kernel
         const algorithmFPType zero(0.0);
         const algorithmFPType one(1.0);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
@@ -97,7 +97,7 @@ struct OutlierDetectionKernel : public Kernel
             algorithmFPType diff;
             for (size_t i = 0; i < nRowsInBlock; i++, dataPtr += nFeatures, weightPtr += nFeatures)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {

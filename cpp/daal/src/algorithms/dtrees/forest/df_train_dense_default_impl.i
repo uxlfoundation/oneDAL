@@ -243,7 +243,7 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         }
         else
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nVars; ++i)
             {
@@ -366,7 +366,7 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
 
         for (size_t i = iStart; i < iEnd; ++i)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nCols; ++j)
             {
@@ -746,7 +746,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     else
     {
         auto aSample = _aSample.get();
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nSamples; ++i)
         {
@@ -757,7 +757,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     DAAL_CHECK_MALLOC(_helper.init(_data, _resp, _aSample.get(), _weights));
 
     //use _aSample as an array of response indices stored by helper from now on
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < _aSample.size(); ++i)
     {

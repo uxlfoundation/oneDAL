@@ -163,7 +163,7 @@ private:
             for (size_t ind1 = 0; ind1 < nnzCol1; ++ind1)
             {
                 fpType * ptr_ = res.ptr + rowPtr1[ind1] * res.stride;
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t ind2 = 0; ind2 < nnzCol2; ++ind2)
                 {

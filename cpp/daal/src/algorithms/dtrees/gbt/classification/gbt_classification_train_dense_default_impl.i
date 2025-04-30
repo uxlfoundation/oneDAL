@@ -71,7 +71,7 @@ public:
             const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             if (sampleInd)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -83,7 +83,7 @@ public:
             }
             else
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -96,7 +96,7 @@ public:
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(end - start, exp + start, exp + start);
             if (sampleInd)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -107,7 +107,7 @@ public:
             }
             else
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -139,7 +139,7 @@ public:
             algorithmFPType * p  = bUseTLS ? lsData.local() : buf;
             const size_t iSample = (sampleInd ? sampleInd[i] : i);
             getSoftmax(f + _nClasses * iSample, p);
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t k = 0; k < _nClasses; ++k)
             {
@@ -165,7 +165,7 @@ protected:
         {
             if (maxArg < arg[i]) maxArg = arg[i];
         }
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i)
         {
@@ -180,7 +180,7 @@ protected:
         for (size_t i = 0; i < _nClasses; ++i) sum += res[i];
 
         sum = algorithmFPType(1.) / sum;
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i) res[i] *= sum;
     }

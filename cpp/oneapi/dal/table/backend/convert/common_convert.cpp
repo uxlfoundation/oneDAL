@@ -45,7 +45,7 @@ dal::array<Pointer> compute_pointers(const dal::array<dal::byte_t>& data,
     auto pointers = dal::array<ptr_t>::empty(count);
     ptr_t* raw_pointers = pointers.get_mutable_data();
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     for (std::int64_t row = 0l; row < count; ++row) {
         raw_pointers[row] = source + raw_offsets[row];
     }
@@ -65,7 +65,7 @@ dal::array<std::int64_t> compute_output_offsets(data_type output_type,
     detail::check_mul_overflow(row_count, row_stride_in_bytes);
     std::int64_t* const raw_offsets = offsets.get_mutable_data();
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     for (std::int64_t row = 0l; row < row_count; ++row) {
         raw_offsets[row] = row * row_stride_in_bytes;
     }

@@ -311,7 +311,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 #if defined _MEAN_ENABLE_ || defined _SORM_ENABLE_
                 const algorithmFPType _invN = algorithmFPType(1.0) / algorithmFPType(_td->nvectors + 1);
 #endif
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _cd.nFeatures; j++)
                 {
@@ -376,7 +376,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             algorithmFPType mean_scale     = algorithmFPType(1.0) / (n1_p_n2);
             algorithmFPType variance_scale = algorithmFPType(1.0) / (n1_p_n2 - algorithmFPType(1.0));
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < _cd.nFeatures; j++)
             {
@@ -415,7 +415,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
         if (isOnline)
         {
 #if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < _cd.nFeatures; i++)
             {
@@ -430,7 +430,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             algorithmFPType nVectorsM1 = (algorithmFPType)(_cd.nVectors - 1);
             if (!isOnline)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _cd.nFeatures; i++)
                 {
@@ -441,7 +441,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             {
                 if (nObs == 0)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _cd.nFeatures; i++)
                     {
@@ -454,7 +454,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                     algorithmFPType invNVectors     = 1.0 / (algorithmFPType)_cd.nVectors;
                     algorithmFPType coeff           = (algorithmFPType)(nObs * _cd.nVectors) / (algorithmFPType)(nObs + _cd.nVectors);
 
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _cd.nFeatures; i++)
                     {

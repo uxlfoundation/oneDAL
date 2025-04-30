@@ -132,7 +132,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t id = 0; id < nDependentVariables; ++id)
                 {
@@ -142,7 +142,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
         });
         yTlsData.reduceTo(yMeansPtr, nDependentVariables);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nDependentVariables; ++i)
         {
@@ -160,7 +160,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t id = 0; id < nDependentVariables; ++id)
                 {
@@ -190,7 +190,7 @@ services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(
 
             for (size_t i = 0; i < numRowsInBlock; ++i)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; ++j)
                 {

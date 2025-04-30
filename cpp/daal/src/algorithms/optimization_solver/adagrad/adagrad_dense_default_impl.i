@@ -209,7 +209,7 @@ services::Status AdagradKernel<algorithmFPType, method, cpu>::compute(HostAppIfa
                     processByBlocks<cpu>(
                         nRows,
                         [=](size_t startOffset, size_t nRowsInBlock) {
-                            PRAGMA_IVDEP
+                            PRAGMA_FORCE_SIMD
                             PRAGMA_VECTOR_ALWAYS
                             for (size_t j = startOffset; j < startOffset + nRowsInBlock; j++)
                             {
@@ -225,7 +225,7 @@ services::Status AdagradKernel<algorithmFPType, method, cpu>::compute(HostAppIfa
         processByBlocks<cpu>(
             nRows,
             [=](size_t startOffset, size_t nRowsInBlock) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = startOffset; j < startOffset + nRowsInBlock; j++)
                 {

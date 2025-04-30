@@ -116,7 +116,7 @@ public:
             Index* const lc = lc_list_host.get_mutable_data() + tree_idx * max_tree_size_;
             Float* const fv = fv_list_host.get_mutable_data() + tree_idx * max_tree_size_;
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (Index i = 0; i < tree_size; i++) {
                 fi[i] = static_cast<Index>(dt_node_list[i].featureIndex);
@@ -128,7 +128,7 @@ public:
                 const double* probas = daal_model_ptr->getProbas(tree_idx);
                 Float* pv = probas_list_host.get_mutable_data() +
                             tree_idx * max_tree_size_ * ctx_.class_count;
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (Index i = 0; i < tree_size * ctx_.class_count; i++) {
                     pv[i] = static_cast<Float>(probas[i]);

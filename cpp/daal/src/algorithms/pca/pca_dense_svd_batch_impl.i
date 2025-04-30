@@ -230,7 +230,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
         {
             const algorithmFPType _invN = algorithmFPType(1.0) / algorithmFPType(tls_data_local->nvectors + 1);
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nFeatures; j++)
             {
@@ -258,7 +258,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
         const algorithmFPType inv_n1_p_n2       = algorithmFPType(1.0) / (n1_p_n2);
         const algorithmFPType inv_n1_p_n2_m1    = algorithmFPType(1.0) / (n1_p_n2 - algorithmFPType(1.0));
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
@@ -280,7 +280,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     if (!safeStat) return safeStat.detach();
 
     /* Convert array of variances to inverse sigma's */
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t j = 0; j < nFeatures; j++)
     {
@@ -297,7 +297,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
 
         for (size_t i = 0; i < nVectors_local; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nFeatures; j++)
             {

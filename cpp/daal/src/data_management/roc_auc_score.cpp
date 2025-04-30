@@ -79,7 +79,7 @@ services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const N
         }
         elementsInBlock = j - i + 1;
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < elementsInBlock; ++j)
         {
