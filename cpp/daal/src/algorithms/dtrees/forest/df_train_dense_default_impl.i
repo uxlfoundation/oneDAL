@@ -728,10 +728,6 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     DAAL_CHECK_MALLOC(_aSample.get() && _helper.reset(_nSamples) && _helper.resetWeights(_nSamples) && _aFeatureBuf.get() && _aFeatureIndexBuf.get()
                       && _aFeatureIdx.get());
 
-#if defined(DAAL_INTEL_CPP_COMPILER)
-    PRAGMA_IVDEP
-    PRAGMA_VECTOR_ALWAYS
-#endif
     for (size_t i = 0; i < _nFeatureBufs; ++i)
     {
         _aFeatureBuf[i].reset(_data->getNumberOfRows());
