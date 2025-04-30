@@ -39,8 +39,6 @@
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_impl.i"
 #include "src/algorithms/engines/engine_batch_impl.h"
 
-#include "services/internal/service_profiler.h"
-
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include <immintrin.h>
 #endif
@@ -140,7 +138,6 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                                                                                 kdtree_knn_classification::Model * r,
                                                                                                 engines::BatchBase & engine)
 {
-    DAAL_PROFILER_TASK(KNNClassificationTrainBatchKernel::compute);
     Status status;
 
     typedef daal::internal::MathInst<algorithmFpType, cpu> Math;
@@ -186,7 +183,6 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     Queue<BuildNode, cpu> & q, BoundingBox<algorithmFpType> *& bboxQ, const NumericTable & x, kdtree_knn_classification::Model & r, size_t * indexes,
     engines::BatchBase & engine)
 {
-    DAAL_PROFILER_TASK(KNNClassificationTrainBatchKernel::buildFirstPartOfKDTree);
     Status status;
 
     typedef daal::internal::MathInst<algorithmFpType, cpu> Math;
@@ -306,7 +302,6 @@ template <typename algorithmFpType, CpuType cpu>
 Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, cpu>::computeLocalBoundingBoxOfKDTree(
     BoundingBox<algorithmFpType> * bbox, const NumericTable & x, const size_t * indexes)
 {
-    DAAL_PROFILER_TASK(KNNClassificationTrainBatchKernel::computeLocalBoundingBoxOfKDTree);
     Status status;
 
     typedef BoundingBox<algorithmFpType> BBox;
@@ -406,7 +401,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     size_t start, size_t end, size_t * sampleIndexes, algorithmFpType * sampleValues, size_t sampleCount, const NumericTable & x,
     const size_t * indexes, engines::BatchBase * engine)
 {
-    DAAL_PROFILER_THREADING_TASK(KNNClassificationTrainBatchKernel::selectDimensionSophisticated);
     const size_t elementCount = min<cpu>(end - start, sampleCount);
     const size_t xColumnCount = x.getNumberOfColumns();
     const size_t xRowCount    = x.getNumberOfRows();
@@ -713,7 +707,6 @@ template <typename algorithmFpType, CpuType cpu>
 size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, cpu>::adjustIndexesInParallel(
     size_t start, size_t end, size_t dimension, algorithmFpType median, const NumericTable & x, size_t * indexes, services::Status & status)
 {
-    DAAL_PROFILER_THREADING_TASK(KNNClassificationTrainBatchKernel::adjustIndexesInParallel);
     status                 = services::Status();
     const size_t xRowCount = x.getNumberOfRows();
     data_management::BlockDescriptor<algorithmFpType> columnBD;
@@ -839,7 +832,6 @@ void KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, 
 template <typename algorithmFpType, CpuType cpu>
 Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, cpu>::rearrangePoints(NumericTable & x, const size_t * indexes)
 {
-    DAAL_PROFILER_TASK(KNNClassificationTrainBatchKernel::rearrangePoints);
     Status status;
 
     const size_t xRowCount    = x.getNumberOfRows();
@@ -929,7 +921,6 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     Queue<BuildNode, cpu> & q, BoundingBox<algorithmFpType> *& bboxQ, const NumericTable & x, kdtree_knn_classification::Model & r, size_t * indexes,
     engines::BatchBase & engine)
 {
-    DAAL_PROFILER_TASK(KNNClassificationTrainBatchKernel::buildSecondPartOfKDTree);
     Status status;
 
     typedef daal::internal::MathInst<algorithmFpType, cpu> Math;
@@ -1318,7 +1309,6 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
     IndexValuePair<algorithmFpType, cpu> * outSortValues, size_t sortValueCount, const NumericTable & x, size_t * indexes,
     engines::BatchBase * engine, services::Status & status)
 {
-    DAAL_PROFILER_THREADING_TASK(KNNClassificationTrainBatchKernel::computeApproximatedMedianInSerial);
     status = services::Status();
     size_t i;
     const auto xRowCount = x.getNumberOfRows();
@@ -1467,7 +1457,6 @@ template <typename algorithmFpType, CpuType cpu>
 size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, cpu>::adjustIndexesInSerial(
     size_t start, size_t end, size_t dimension, algorithmFpType median, const NumericTable & x, size_t * indexes)
 {
-    DAAL_PROFILER_THREADING_TASK(KNNClassificationTrainBatchKernel::adjustIndexesInSerial);
     const size_t xRowCount = x.getNumberOfRows();
     data_management::BlockDescriptor<algorithmFpType> columnBD;
     const_cast<NumericTable &>(x).getBlockOfColumnValues(dimension, 0, xRowCount, readOnly, columnBD);
@@ -1536,7 +1525,6 @@ void KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense, 
                                                                                                 size_t valueCount,
                                                                                                 IndexValuePair<algorithmFpType, cpu> * outValues)
 {
-    DAAL_PROFILER_THREADING_TASK(KNNClassificationTrainBatchKernel::radixSort);
 #if (__FPTYPE__(DAAL_FPTYPE) == __float__)
     typedef IndexValuePair<algorithmFpType, cpu> Item;
     typedef unsigned int IntegerType;
