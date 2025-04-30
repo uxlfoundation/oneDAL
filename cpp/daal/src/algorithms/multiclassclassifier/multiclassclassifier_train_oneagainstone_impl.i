@@ -364,14 +364,14 @@ Status SubTaskCSR<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures, 
         DAAL_CHECK_BLOCK_STATUS(_mtX);
         const size_t nNonZeroValuesInRow = _mtX.rows()[1] - _mtX.rows()[0];
         const size_t * colIndices        = _mtX.cols();
-#if defined(DAAL_INTEL_CPP_COMPILER)
+        const algorithmFPType * mtXValues = _mtX.values();
+        algorithmFPType * subsetXData = this->_subsetX.get();
         PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
-#endif
-        for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx, ++dataIndex)
+        for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx)
         {
-            this->_subsetX.get()[dataIndex] = _mtX.values()[jx];
-            _colIndicesX[dataIndex]         = colIndices[jx];
+            subsetXData[dataIndex + jx]  = mtXValues[jx];
+            _colIndicesX[dataIndex + jx] = colIndices[jx];
         }
         _rowOffsetsX[nRows + 1] = _rowOffsetsX[nRows] + nNonZeroValuesInRow;
         this->_subsetY[nRows]   = label;
