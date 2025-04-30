@@ -394,7 +394,6 @@ public:
         std::int64_t tmp             = current_kernel_count_;
         tasks_info.kernels.push_back({ tmp, task_name, ns_start, current_level_, 1, true });
         current_kernel_count_++;
-        
         return profiler_task(task_name, tmp, true);
     }
 
