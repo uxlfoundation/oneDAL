@@ -227,7 +227,7 @@ public:
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (DAAL_INT j = 0; j < _nFeatures; j++)
                     {
@@ -269,7 +269,7 @@ public:
         }
 
         /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         PRAGMA_VECTOR_ALIGNED
         for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
@@ -286,7 +286,7 @@ public:
                 return;
             }
             /// It is safe to use aligned loads and stores because the data is aligned
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_VECTOR_ALIGNED
             for (size_t i = 0; i < _nFeatures; i++)
@@ -407,7 +407,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             }
             for (size_t i = 0; i < nFeatures; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
@@ -501,7 +501,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         if (nObsValue == 0)
         {
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -517,7 +517,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {

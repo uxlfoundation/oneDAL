@@ -26,13 +26,13 @@
 #include "oneapi/dal/detail/common.hpp"
 
 #if defined(__INTEL_COMPILER)
-#define PRAGMA_IVDEP         _Pragma("ivdep")
+#define PRAGMA_FORCE_SIMD    _Pragma("ivdep")
 #define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
 #else
 #if defined(TARGET_ARM)
-#define PRAGMA_IVDEP _Pragma("omp simd")
+#define PRAGMA_FORCE_SIMD    _Pragma("omp simd")
 #else
-#define PRAGMA_IVDEP
+#define PRAGMA_FORCE_SIMD
 #endif
 #define PRAGMA_VECTOR_ALWAYS
 #endif
