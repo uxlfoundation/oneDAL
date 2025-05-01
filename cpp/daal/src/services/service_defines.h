@@ -55,9 +55,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_ICC_NO16(ARGS)   PRAGMA_ICC_TO_STR(ARGS)
     #define DAAL_TYPENAME           typename
 #elif defined(__GNUC__)
-    #if defined(TARGET_X86_64)
-        #define PRAGMA_FORCE_SIMD   _Pragma("ivdep")
-    #elif defined(TARGET_ARM)
+    #if defined(TARGET_ARM)
         #define PRAGMA_FORCE_SIMD   _Pragma("omp simd")
     #else
         #define PRAGMA_FORCE_SIMD
