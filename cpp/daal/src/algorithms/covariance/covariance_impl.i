@@ -35,7 +35,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
-#include "src/externals/service_profiler.h"
+#include "services/internal/service_profiler.h"
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -51,7 +51,7 @@ namespace internal
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status prepareSums(NumericTable * dataTable, algorithmFPType * sums)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.prepareSums);
+    DAAL_PROFILER_TASK(Covariance::prepareSums);
 
     const size_t nFeatures = dataTable->getNumberOfColumns();
     int result             = 0;
@@ -76,7 +76,7 @@ services::Status prepareSums(NumericTable * dataTable, algorithmFPType * sums)
 template <typename algorithmFPType, CpuType cpu>
 services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossProduct)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.prepareCrossProduct);
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::prepareCrossProduct, nFeatures);
 
     const algorithmFPType zero = 0.0;
     services::internal::service_memset<algorithmFPType, cpu>(crossProduct, zero, nFeatures * nFeatures);
@@ -341,8 +341,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                                                 algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.updateDenseCrossProductAndSums);
-
+    DAAL_PROFILER_THREADING_TASK(Covariance::updateDenseCrossProductAndSums);
     bool assumeCentered = parameter->assumeCentered;
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
@@ -491,6 +490,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
                               const algorithmFPType * partialNObservations, algorithmFPType * crossProduct, algorithmFPType * sums,
                               algorithmFPType * nObservations, const Hyperparameter * hyperparameter)
 {
+    DAAL_PROFILER_TASK(Covariance::mergeCrossProductAndSums);
     /* Merge cross-products */
     algorithmFPType partialNObsValue = partialNObservations[0];
 
@@ -546,7 +546,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservations, algorithmFPType * crossProduct, algorithmFPType * sums,
                                     algorithmFPType * cov, algorithmFPType * mean, const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute.finalizeCovariance);
+    DAAL_PROFILER_TASK(compute.finalizeCovariance);
 
     algorithmFPType invNObservations   = 1.0 / nObservations;
     algorithmFPType invNObservationsM1 = 1.0;
