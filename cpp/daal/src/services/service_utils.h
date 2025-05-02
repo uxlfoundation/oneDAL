@@ -200,6 +200,17 @@ inline float infToBigValue(float arg)
     }
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+    // Definitions of the "min" and "max" funstions below clash with the defines declared in <windows.h>
+    #ifdef min
+        #undef min
+    #endif
+
+    #ifdef max
+        #undef max
+    #endif
+#endif
+
 template <CpuType cpu, typename T>
 inline const T & min(const T & a, const T & b)
 {
