@@ -248,8 +248,6 @@ INSTANTIATE_UNIFORM_NORMALIZED(std::int32_t)
                                                                    F b,                    \
                                                                    const event_vector& deps);
 
-INSTANTIATE_UWR(float)
-INSTANTIATE_UWR(double)
 INSTANTIATE_UWR(std::int32_t)
 
 #define INSTANTIATE_SHUFFLE(F)                                         \
