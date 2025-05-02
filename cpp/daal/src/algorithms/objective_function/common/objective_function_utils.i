@@ -38,7 +38,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status getXY(NumericTable * dataNT, NumericTable * dependentVariablesNT, const NumericTable * indNT, algorithmFPType * aX,
                        algorithmFPType * aY, size_t nRows, size_t n, size_t p)
 {
-    DAAL_PROFILER_TASK(getXY);
+    DAAL_ITTNOTIFY_SCOPED_TASK(getXY);
     DAAL_ASSERT(indNT != nullptr);
     DAAL_ASSERT(dataNT != nullptr);
     DAAL_ASSERT(dependentVariablesNT != nullptr);

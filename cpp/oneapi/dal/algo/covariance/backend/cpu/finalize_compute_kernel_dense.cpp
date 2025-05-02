@@ -23,7 +23,6 @@
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
-#include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
 
@@ -51,7 +50,6 @@ template <typename Float, typename Task>
 static compute_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
                                                       const descriptor_t& desc,
                                                       const partial_compute_result<Task>& input) {
-    ONEDAL_PROFILER_TASK(finalize_compute_cov);
     const std::int64_t component_count = input.get_partial_crossproduct().get_column_count();
 
     bool is_mean_computed = false;

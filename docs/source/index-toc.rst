@@ -51,7 +51,6 @@
 
    contribution/coding_guide.rst
    contribution/ideas.rst
-   contribution/profiling.rst
 
 .. toctree::
    :maxdepth: 1

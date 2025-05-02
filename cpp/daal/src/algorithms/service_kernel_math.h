@@ -44,7 +44,6 @@
 #include "src/externals/service_lapack.h"
 #include "src/externals/service_memory.h"
 #include "src/externals/service_math.h"
-#include "services/internal/service_profiler.h"
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include "immintrin.h"
@@ -648,7 +647,6 @@ inline double MinkowskiDistances<double, avx512>::computeDistance(const double *
 template <typename FPType, CpuType cpu>
 bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
 {
-    DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithCholesky, n, nX);
     /* POTRF and POTRS parameters */
     char uplo     = 'U';
     DAAL_INT info = 0;
@@ -691,7 +689,6 @@ bool solveEquationsSystemWithCholesky(FPType * a, FPType * b, size_t n, size_t n
 template <typename FPType, CpuType cpu>
 bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
 {
-    DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithSpectralDecomposition, n, nX);
     /* Storage for the eigenvalues.
     Note: this allocates more size than they might require when nX > 1, because the same
     buffer will get reused later on and needs the extra size. Those additional entries
@@ -843,7 +840,6 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
 template <typename FPType, CpuType cpu>
 bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
 {
-    DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
     TArrayScalable<FPType, cpu> aCopy(n * n);
     TArrayScalable<FPType, cpu> bCopy(n * nX);

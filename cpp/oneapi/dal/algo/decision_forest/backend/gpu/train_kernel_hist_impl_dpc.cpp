@@ -1810,7 +1810,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
     const table& weights) {
     using imp_data_mng_t = impurity_data_manager<Float, Index, Task>;
     using tree_level_record_t = tree_level_record<Float, Index, Task>;
-    ONEDAL_PROFILER_TASK(decision_forest_algo, queue_);
+
     validate_input(desc, data, responses);
 
     train_context_t ctx;

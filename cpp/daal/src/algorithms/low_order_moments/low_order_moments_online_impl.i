@@ -88,7 +88,7 @@ services::Status LowOrderMomentsOnlineKernel<algorithmFPType, method, cpu>::fina
     LowOrderMomentsFinalizeTask<algorithmFPType, cpu> task(nObservationsTable, sumTable, sumSqTable, sumSqCenTable, meanTable, raw2MomTable,
                                                            varianceTable, stDevTable, variationTable);
 
-    DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.finalize);
+    DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.finalize);
     finalize<algorithmFPType, cpu>(task);
     return Status();
 }

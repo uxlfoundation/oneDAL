@@ -30,7 +30,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/externals/service_profiler.h"
 
 using namespace daal::internal;
 using namespace daal::services;
@@ -55,7 +55,7 @@ services::Status SGDKernel<algorithmFPType, miniBatch, cpu>::compute(HostAppIfac
                                                                      OptionalArgument * optionalArgument, OptionalArgument * optionalResult,
                                                                      engines::BatchBase & engine)
 {
-    DAAL_PROFILER_TASK(SGDKernel(miniBatch).compute);
+    DAAL_ITTNOTIFY_SCOPED_TASK(SGDKernel(miniBatch).compute);
 
     services::Status s;
     int result                = 0;
@@ -115,7 +115,7 @@ services::Status SGDKernel<algorithmFPType, miniBatch, cpu>::compute(HostAppIfac
             consCoeff    = task.consCoeffsArray[(epoch / L) % task.consCoeffsLength];
             if (task.indicesStatus == user || task.indicesStatus == random)
             {
-                DAAL_PROFILER_TASK(generateUniform);
+                DAAL_ITTNOTIFY_SCOPED_TASK(generateUniform);
                 const int * pValues = nullptr;
                 s                   = rngTask.get(pValues);
                 DAAL_CHECK_BREAK(!s);
@@ -143,7 +143,7 @@ services::Status SGDKernel<algorithmFPType, miniBatch, cpu>::compute(HostAppIfac
         {
             if (nIter > 1)
             {
-                DAAL_PROFILER_TASK(convergence_check);
+                DAAL_ITTNOTIFY_SCOPED_TASK(convergence_check);
 
                 algorithmFPType pointNorm, gradientNorm;
                 s = vectorNorm(workValue, argumentSize, pointNorm);
@@ -169,7 +169,7 @@ template <typename algorithmFPType, CpuType cpu>
 void SGDMiniBatchTask<algorithmFPType, cpu>::makeStep(const algorithmFPType * gradient, algorithmFPType learningRate, algorithmFPType consCoeff,
                                                       size_t argumentSize)
 {
-    DAAL_PROFILER_TASK(makeStep);
+    DAAL_ITTNOTIFY_SCOPED_TASK(makeStep);
 
     algorithmFPType * workValue = mtWorkValue.get();
     for (size_t j = 0; j < argumentSize; j++)

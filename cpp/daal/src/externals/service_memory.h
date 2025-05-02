@@ -28,7 +28,6 @@
 #include "services/daal_memory.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
-#include "services/internal/service_profiler.h"
 
 #include <climits>     // UINT_MAX
 #include <type_traits> // is_trivially_default_constructible
@@ -235,7 +234,6 @@ void service_scalable_free(T * ptr)
 template <typename T, CpuType cpu>
 T * service_memset(T * const ptr, const T value, const size_t num)
 {
-    DAAL_PROFILER_SERVICE_TASK(daal_service::service_memset);
     const size_t blockSize = 512;
     size_t nBlocks         = num / blockSize;
     if (nBlocks * blockSize < num)

@@ -45,7 +45,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/externals/service_profiler.h"
 #include "src/algorithms/svm/svm_train_result.h"
 #include "src/algorithms/svm/svm_train_common_impl.i"
 
@@ -168,7 +168,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status SVMTrainTask<algorithmFPType, cpu>::WSSj(size_t nActiveVectors, algorithmFPType tau, int Bi, algorithmFPType GMin, int & Bj,
                                                           algorithmFPType & delta, algorithmFPType & res) const
 {
-    DAAL_PROFILER_TASK(findMaximumViolatingPair.WSSj);
+    DAAL_ITTNOTIFY_SCOPED_TASK(findMaximumViolatingPair.WSSj);
 
     Bj                    = -1;
     algorithmFPType fpMax = MaxVal<algorithmFPType>::get();
@@ -221,7 +221,7 @@ bool SVMTrainTask<algorithmFPType, cpu>::findMaximumViolatingPair(size_t nActive
                                                                   algorithmFPType & delta, algorithmFPType & ma, algorithmFPType & Ma,
                                                                   algorithmFPType & curEps, services::Status & s) const
 {
-    DAAL_PROFILER_TASK(findMaximumViolatingPair);
+    DAAL_ITTNOTIFY_SCOPED_TASK(findMaximumViolatingPair);
 
     Bi = -1;
     ma = HelperTrainSVM<algorithmFPType, cpu>::WSSi(nActiveVectors, _grad.get(), _flags.get(), Bi);
@@ -236,7 +236,7 @@ bool SVMTrainTask<algorithmFPType, cpu>::findMaximumViolatingPair(size_t nActive
 template <typename algorithmFPType, CpuType cpu>
 services::Status SVMTrainTask<algorithmFPType, cpu>::update(size_t nActiveVectors, int Bi, int Bj, algorithmFPType delta)
 {
-    DAAL_PROFILER_TASK(updateGrad);
+    DAAL_ITTNOTIFY_SCOPED_TASK(updateGrad);
 
     /* Update alpha */
     algorithmFPType newDeltai, newDeltaj;
@@ -292,7 +292,7 @@ template <typename algorithmFPType, CpuType cpu>
 inline void SVMTrainTask<algorithmFPType, cpu>::updateAlpha(int Bi, int Bj, algorithmFPType delta, algorithmFPType & newDeltai,
                                                             algorithmFPType & newDeltaj)
 {
-    DAAL_PROFILER_TASK(updateAlpha);
+    DAAL_ITTNOTIFY_SCOPED_TASK(updateAlpha);
     const algorithmFPType * cw = _cw.get();
 
     const algorithmFPType oldAlphai = _alpha[Bi];
@@ -360,7 +360,7 @@ size_t SVMTrainTask<algorithmFPType, cpu>::doShrink(size_t nActiveVectors)
 template <typename algorithmFPType, CpuType cpu>
 size_t SVMTrainTask<algorithmFPType, cpu>::updateShrinkingFlags(size_t nActiveVectors, algorithmFPType ma, algorithmFPType Ma)
 {
-    DAAL_PROFILER_TASK(updateShrinkingFlags);
+    DAAL_ITTNOTIFY_SCOPED_TASK(updateShrinkingFlags);
 
     const algorithmFPType * const y     = _y.get();
     const algorithmFPType * const grad  = _grad.get();
@@ -497,7 +497,7 @@ SVMTrainTask<algorithmFPType, cpu>::~SVMTrainTask()
 template <typename algorithmFPType, CpuType cpu>
 services::Status SVMTrainTask<algorithmFPType, cpu>::init(algorithmFPType C, const NumericTablePtr & wTable, NumericTable & yTable)
 {
-    DAAL_PROFILER_TASK(init);
+    DAAL_ITTNOTIFY_SCOPED_TASK(init);
 
     ReadColumns<algorithmFPType, cpu> mtW(wTable.get(), 0, 0, _nVectors);
     DAAL_CHECK_BLOCK_STATUS(mtW);
