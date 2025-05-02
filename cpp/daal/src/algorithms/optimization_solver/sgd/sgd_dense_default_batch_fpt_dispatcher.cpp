@@ -33,14 +33,28 @@ namespace sgd
 {
 namespace interface2
 {
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
+    : input(), parameter(objectiveFunction)
+{
+    initialize();
+}
+
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>;
 
 template <>
-services::SharedPtr<BatchType> BatchType::create()
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+template <>
+services::SharedPtr<BatchType> DAAL_EXPORT BatchType::create()
 {
     return services::SharedPtr<BatchType>(new BatchType());
 }
 
+template class Batch<DAAL_FPTYPE, optimization_solver::sgd::defaultDense>;
 } // namespace interface2
 } // namespace sgd
 } // namespace optimization_solver

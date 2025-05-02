@@ -410,7 +410,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -419,7 +419,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : OnlineImpl(other) { initialize(); }
+    Online(const Online<algorithmFPType, method> & other);
 
     virtual ~Online() {}
 

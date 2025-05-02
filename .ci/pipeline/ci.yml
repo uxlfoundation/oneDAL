@@ -26,10 +26,10 @@ pr:
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2021.10.0'
-  VM_IMAGE : 'ubuntu-22.04'
-  SYSROOT_OS: 'jammy'
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
-  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel'
+  VM_IMAGE : 'ubuntu-24.04'
+  SYSROOT_OS: 'noble'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/487fd8c3-a3d8-4c22-a903-f8d54c2c57be/intel-oneapi-base-toolkit-2025.1.0.650_offline.exe'
+  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
   repositories:
@@ -387,6 +387,8 @@ jobs:
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
   - script: |
+      .ci/env/apt.sh opencl
+  - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
@@ -420,7 +422,7 @@ jobs:
       # Display oneDAL build configuration
       bazel build @config//:dump
       echo
-      cat bazel-bin/external/config/config.json
+      cat bazel-bin/external/+_repo_rules+config/config.json
       echo
     displayName: 'bazel-configure'
   - script: |

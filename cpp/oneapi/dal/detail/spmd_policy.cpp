@@ -37,7 +37,9 @@ const spmd::communicator<MemoryAccessKind>& spmd_policy_base<MemoryAccessKind>::
     return impl_->comm;
 }
 
-template class spmd_policy_base<spmd::device_memory_access::usm>;
+template class ONEDAL_EXPORT spmd_policy_base<spmd::device_memory_access::usm>;
+// implicit instantiation occurs in header when generating the spmd_policy class
+// this must be corrected
 template class spmd_policy_base<spmd::device_memory_access::none>;
 
 } // namespace v1

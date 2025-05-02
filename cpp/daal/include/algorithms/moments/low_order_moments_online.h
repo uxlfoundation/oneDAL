@@ -102,7 +102,7 @@ public:
     ParameterType parameter; /*!< %Parameters structure */
 
     /** Default constructor */
-    Online() { initialize(); }
+    Online();
 
     /**
      * Constructs and algorithm that computes moments of low order by copying input objects and parameters
@@ -110,7 +110,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Online(const Online<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Online(const Online<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

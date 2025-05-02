@@ -28,5 +28,28 @@ namespace daal
 namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::prediction::BatchContainer, batch, DAAL_FPTYPE, svm::prediction::defaultDense)
+namespace svm
+{
+namespace prediction
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, svm::prediction::defaultDense>::Batch()
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, svm::prediction::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace prediction
+} // namespace svm
 } // namespace algorithms
 } // namespace daal

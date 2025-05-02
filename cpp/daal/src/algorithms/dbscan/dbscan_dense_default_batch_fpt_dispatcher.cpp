@@ -34,7 +34,7 @@ namespace dbscan
 namespace interface1
 {
 template <>
-Batch<DAAL_FPTYPE, dbscan::defaultDense>::Batch(DAAL_FPTYPE epsilon, size_t minObservations)
+DAAL_EXPORT Batch<DAAL_FPTYPE, dbscan::defaultDense>::Batch(DAAL_FPTYPE epsilon, size_t minObservations)
 {
     _par = new ParameterType(epsilon, minObservations);
     initialize();
@@ -42,7 +42,7 @@ Batch<DAAL_FPTYPE, dbscan::defaultDense>::Batch(DAAL_FPTYPE epsilon, size_t minO
 
 using BatchType = Batch<DAAL_FPTYPE, dbscan::defaultDense>;
 template <>
-Batch<DAAL_FPTYPE, dbscan::defaultDense>::Batch(const BatchType & other) : input(other.input)
+DAAL_EXPORT Batch<DAAL_FPTYPE, dbscan::defaultDense>::Batch(const BatchType & other) : input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();

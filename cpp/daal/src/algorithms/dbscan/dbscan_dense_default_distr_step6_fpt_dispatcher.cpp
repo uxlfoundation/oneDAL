@@ -37,7 +37,7 @@ namespace interface1
 using DistributedType = Distributed<step6Local, DAAL_FPTYPE, defaultDense>;
 
 template <>
-DistributedType::Distributed(size_t blockIndex, size_t nBlocks, DAAL_FPTYPE epsilon, size_t minObservations)
+DAAL_EXPORT DistributedType::Distributed(size_t blockIndex, size_t nBlocks, DAAL_FPTYPE epsilon, size_t minObservations)
 {
     ParameterType * par  = new ParameterType();
     par->blockIndex      = blockIndex;
@@ -50,7 +50,7 @@ DistributedType::Distributed(size_t blockIndex, size_t nBlocks, DAAL_FPTYPE epsi
 }
 
 template <>
-DistributedType::Distributed(const DistributedType & other) : input(other.input)
+DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : input(other.input)
 {
     _par = new ParameterType(other.parameter());
     initialize();

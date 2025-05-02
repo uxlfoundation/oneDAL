@@ -85,7 +85,7 @@ public:
  *      - \ref training::interface3::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public classifier::prediction::Batch
+class DAAL_EXPORT Batch : public classifier::prediction::Batch
 {
 public:
     typedef classifier::prediction::Batch super;
@@ -98,7 +98,7 @@ public:
     ParameterType parameter; /*!< \ref kdtree_knn_classification::interface3::Parameter "Parameters" of prediction */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a KD-tree based kNN prediction algorithm by copying input objects and parameters
@@ -106,20 +106,13 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Constructs a KD-tree based kNN prediction algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
     */
-    Batch(size_t nClasses)
-    {
-        parameter.nClasses = nClasses;
-        initialize();
-    }
+    Batch(size_t nClasses);
 
     /**
      * Get input objects for the KD-tree based kNN prediction algorithm

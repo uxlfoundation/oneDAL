@@ -68,7 +68,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface1
 {
@@ -85,6 +85,7 @@ public:
      */
     Input(size_t nElements);
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 

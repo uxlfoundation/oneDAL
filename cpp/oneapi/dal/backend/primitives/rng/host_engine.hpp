@@ -38,22 +38,23 @@ namespace oneapi::dal::backend::primitives {
 class host_engine {
 public:
     /// @param[in] seed    The initial seed for the random number generator. Defaults to `777`.
-    /// @param[in] method  The engine method. Defaults to `engine_type::mt2203`.
-    host_engine(std::int64_t seed = 777, engine_type method = engine_type::mt2203) {
+    /// @param[in] method  The engine method. Defaults to `engine_type_internal::mt2203`.
+    host_engine(std::int64_t seed = 777,
+                engine_type_internal method = engine_type_internal::mt2203) {
         switch (method) {
-            case engine_type::mt2203:
+            case engine_type_internal::mt2203:
                 host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
                 break;
-            case engine_type::mcg59:
+            case engine_type_internal::mcg59:
                 host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
                 break;
-            case engine_type::mrg32k3a:
+            case engine_type_internal::mrg32k3a:
                 host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
                 break;
-            case engine_type::philox4x32x10:
+            case engine_type_internal::philox4x32x10:
                 host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
                 break;
-            case engine_type::mt19937:
+            case engine_type_internal::mt19937:
                 host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
                 break;
             default: throw std::invalid_argument("Unsupported engine type 1");
@@ -165,7 +166,7 @@ template <typename Type>
 void partial_fisher_yates_shuffle(ndview<Type, 1>& result_array,
                                   std::int64_t top,
                                   std::int64_t seed,
-                                  engine_type method = engine_type::mt19937) {
+                                  engine_type_internal method = engine_type_internal::mt19937) {
     host_engine eng_ = host_engine(seed, method);
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();

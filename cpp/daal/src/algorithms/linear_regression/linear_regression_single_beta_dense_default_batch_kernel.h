@@ -52,6 +52,9 @@ struct SingleBetaOutput
     NumericTable * inverseOfXtX;
 
     SingleBetaOutput(size_t nResponses);
+    SingleBetaOutput(const SingleBetaOutput & other)             = delete;
+    SingleBetaOutput & operator=(const SingleBetaOutput & other) = delete;
+
     ~SingleBetaOutput();
 };
 
