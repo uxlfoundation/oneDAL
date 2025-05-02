@@ -247,7 +247,7 @@ if [ "$(basename "${my_script_path}")" = "env" ] ; then   # assume stand-alone
     export DALROOT="$__daal_tmp_dir"
     export PKG_CONFIG_PATH="$__daal_tmp_dir/lib/pkgconfig${PKG_CONFIG_PATH+:${PKG_CONFIG_PATH}}"
     export CMAKE_PREFIX_PATH="$__daal_tmp_dir${CMAKE_PREFIX_PATH+:${CMAKE_PREFIX_PATH}}"
-    export CPLUS_INCLUDE_PATH="/some/include/path${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}"
+    export CPLUS_INCLUDE_PATH="$__daal_tmp_dir/include:$__daal_tmp_dir/include/dal${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}"
     if [ -d "${component_root}/include/dal" ]; then
       export LIBRARY_PATH="$__daal_tmp_dir/lib${LIBRARY_PATH+:${LIBRARY_PATH}}"
       export LD_LIBRARY_PATH="$__daal_tmp_dir/lib${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}"
