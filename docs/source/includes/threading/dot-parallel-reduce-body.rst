@@ -21,11 +21,11 @@
 
     DotReducer(size_t n, const float * a, const float * b) : dot(0.0f), n_(n), a_(a), b_(b) {}
 
-    virtual daal::Reducer * create() const override
+    virtual ReducerUniquePtr create() const override
     {
-      // Memory for the local result will be freed by the threading layer
+      // Memory for the local result will be freed automatically
       // when the local result is no longer needed
-      return new DotReducer(n_, a_, b_);
+      return daal::internal::makeUnique<DotReducer, DAAL_BASE_CPU>(n_, a_, b_);
     }
 
     virtual void update(size_t begin, size_t end) override

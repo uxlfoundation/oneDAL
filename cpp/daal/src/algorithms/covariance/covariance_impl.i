@@ -158,9 +158,10 @@ public:
     /// Must be able to run concurrently with `update` and `join` methods.
     ///
     /// @return Pointer to the partial result of the covariance algorithm.
-    virtual std::unique_ptr<daal::Reducer> create() const override
+    virtual ReducerUniquePtr create() const override
     {
-        return std::unique_ptr<daal::Reducer>(new CovarianceReducer<algorithmFPType, cpu>(_dataTable, _numRowsInBlock, _numBlocks, _isNormalized));
+        return daal::internal::makeUnique<CovarianceReducer<algorithmFPType, cpu>, DAAL_BASE_CPU>(_dataTable, _numRowsInBlock, _numBlocks,
+                                                                                                  _isNormalized);
     }
 
     /// Updates partial cross-product matrix and, if required, sums with the data

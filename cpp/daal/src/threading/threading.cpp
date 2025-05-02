@@ -509,18 +509,18 @@ public:
 };
 
 template <class T, class Allocator>
-class Collection
+class ThreadingCollection
 {
 public:
     /**
     *  Default constructor. Sets the size and capacity to 0.
     */
-    Collection() : _array(NULL), _size(0), _capacity(0) {}
+    ThreadingCollection() : _array(NULL), _size(0), _capacity(0) {}
 
     /**
     *  Destructor
     */
-    virtual ~Collection()
+    virtual ~ThreadingCollection()
     {
         for (size_t i = 0; i < _capacity; i++) _array[i].~T();
         Allocator::free(_array);
@@ -755,8 +755,8 @@ private:
 private:
     void * _a;
     daal::tls_functype _func;
-    Collection<Pair, SimpleAllocator> _free; //sorted by tid
-    Collection<Pair, SimpleAllocator> _used; //sorted by value
+    ThreadingCollection<Pair, SimpleAllocator> _free; //sorted by tid
+    ThreadingCollection<Pair, SimpleAllocator> _used; //sorted by value
     tbb::spin_mutex _mt;
 };
 
@@ -838,16 +838,16 @@ DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 /// Class to manage the lifetime of the daal::Reducer object.
 /// It uses a unique_ptr with default_deleter or empty deleter to ensure that the
 /// destructor of the daal::Reducer object is called when needed.
-class ReducerUniquePtr : public std::unique_ptr<daal::Reducer, std::function<void(daal::Reducer *)> >
+class ReducerManagingPtr : public daal::internal::UniquePtr<daal::Reducer, DAAL_BASE_CPU, std::function<void(daal::Reducer *)> >
 {
 public:
-    using unique_ptr::unique_ptr;
+    using UniquePtr::UniquePtr;
 
     /// Deprecate the constructors that do not provide a custom deleter.
     /// This is to prevent the use of default_deleter, which may not be appropriate for daal::Reducer.
-    ReducerUniquePtr(pointer)        = delete;
-    ReducerUniquePtr()               = delete;
-    ReducerUniquePtr(std::nullptr_t) = delete;
+    ReducerManagingPtr(daal::Reducer *) = delete;
+    ReducerManagingPtr()                = delete;
+    ReducerManagingPtr(std::nullptr_t)  = delete;
 };
 
 /// The class implements the body of the parallel reduce algorithm in compliance with
@@ -857,11 +857,13 @@ public:
 /// The class uses pimpl idiom to hide the implementation details of the reducer.
 class ReductionBody
 {
+    using EmptyDeleterT = daal::services::internal::EmptyDeleter<daal::Reducer, DAAL_BASE_CPU>;
+
 public:
     /// Constructs the body of the parallel reduce algorithm from the given reducer.
     ///
     /// @param reducer Pointer to the reducer object.
-    explicit ReductionBody(daal::Reducer & reducer) : _reducer(&reducer, /* empty deleter */ [](daal::Reducer *) {}) {}
+    explicit ReductionBody(daal::Reducer & reducer) : _reducer(&reducer, EmptyDeleterT {}) {}
 
     /// Splitting constructor.
     /// Constructs the partial result initialized to identity value from the given partial result.
@@ -869,7 +871,7 @@ public:
     ///
     /// @param other The body to split.
     /// @param split Split object.
-    ReductionBody(ReductionBody & other, tbb::split) : _reducer(std::move(other._reducer->create())) {}
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()) {}
 
     /// Accumulate the partial results for a sub-range
     ///
@@ -888,7 +890,7 @@ public:
     }
 
 private:
-    ReducerUniquePtr _reducer; // Pointer to the implementation
+    ReducerManagingPtr _reducer; // Pointer to the implementation
 };
 
 DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
