@@ -247,13 +247,13 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     const size_t numRowsBlocks      = _cd.nVectors / numRowsInBlock;
     const size_t numRowsInLastBlock = numRowsInBlock + (_cd.nVectors - numRowsBlocks * numRowsInBlock);
 
-    DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsBatchTask.compute);
+    DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.compute);
     /* TLS buffers initialization */
     daal::tls<tls_moments_data_t<algorithmFPType, cpu> *> tls_data([&]() { return new tls_moments_data_t<algorithmFPType, cpu>(_cd.nFeatures); });
 
     SafeStatus safeStat;
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsBatchTask.ProcessBlocks);
+        DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.ProcessBlocks);
         /* Compute partial results for each TLS buffer */
         daal::threader_for(numRowsBlocks, numRowsBlocks, [&](int iBlock) {
             struct tls_moments_data_t<algorithmFPType, cpu> * _td = tls_data.local();
@@ -315,7 +315,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
                 _td->nvectors++;
             }
         });
-    } /* end for  DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsBatchTask.ProcessBlocks); */
+    } /* end for  DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.ProcessBlocks); */
 
     /* Number of already merged values */
     algorithmFPType n_current = 0;
@@ -335,7 +335,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     algorithmFPType * _vart  = _cd.resultArray[(int)variation];
 
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsBatchTask.MergeBlocks);
+        DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.MergeBlocks);
         /* Merge results by TLS buffers */
         tls_data.reduce([&](tls_moments_data_t<algorithmFPType, cpu> * _td) {
             if (_td->malloc_errors)
@@ -470,7 +470,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
     #endif
         }
 #endif /* #if (defined _VART_ENABLE_ || defined _SORM_ENABLE_) */
-    }  /* end for DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsBatchTask.MergeBlocks); */
+    }  /* end for DAAL_PROFILER_TASK(LowOrderMomentsBatchTask.MergeBlocks); */
 
     return Status();
 } /* compute_estimates */

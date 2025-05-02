@@ -21,6 +21,7 @@
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
 
@@ -49,6 +50,7 @@ static partial_compute_result<Task> call_daal_kernel_partial_compute(
     const context_cpu& ctx,
     const descriptor_t& desc,
     const partial_compute_input<Task>& input) {
+    ONEDAL_PROFILER_TASK(partial_compute_cov);
     const std::int64_t component_count = input.get_data().get_column_count();
     const auto input_ = input.get_prev();
     daal_covariance::Parameter daal_parameter;
