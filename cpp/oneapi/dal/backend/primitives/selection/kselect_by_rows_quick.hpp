@@ -24,15 +24,17 @@
 
 #include "oneapi/dal/backend/primitives/selection/row_partitioning_kernel.hpp"
 #include "oneapi/dal/backend/primitives/selection/kselect_by_rows_base.hpp"
-#include "oneapi/dal/backend/primitives/rng/rnd_seq.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
-
+namespace de = dal::detail;
+namespace bk = dal::backend;
+namespace pr = dal::backend::primitives;
 // Performs k-selection using Quick Select algorithm which is based on row partitioning
 template <typename Float>
 class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
@@ -43,10 +45,24 @@ class kselect_by_rows_quick : public kselect_by_rows_base<Float> {
 
 public:
     kselect_by_rows_quick() = delete;
-    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape)
-            : rnd_seq_(queue, std::min(shape[1], max_rnd_seq_size_)) {
+    kselect_by_rows_quick(sycl::queue& queue, const ndshape<2>& shape) {
         data_ = ndarray<Float, 2>::empty(queue, shape, sycl::usm::alloc::device);
         indices_ = ndarray<std::int32_t, 2>::empty(queue, shape, sycl::usm::alloc::device);
+        rnd_seq_ = ndarray<Float, 1>::empty(queue,
+                                            std::min(shape[1], max_rnd_seq_size_),
+                                            sycl::usm::alloc::shared);
+        auto* rnd_seq_ptr = rnd_seq_.get_mutable_data();
+
+        pr::device_engine engine_gpu = ::oneapi::dal::backend::primitives::device_engine(
+            queue,
+            777,
+            ::oneapi::dal::backend::primitives::engine_type_internal::mt2203);
+        auto generation_event = pr::uniform<Float>(queue,
+                                                   std::min(shape[1], max_rnd_seq_size_),
+                                                   rnd_seq_ptr,
+                                                   engine_gpu,
+                                                   0,
+                                                   1);
     }
     ~kselect_by_rows_quick() {
         last_call_.wait_and_throw();
@@ -308,7 +324,7 @@ private:
     static constexpr std::uint32_t preffered_sg_size = 16;
     static constexpr std::int64_t max_rnd_seq_size_ = 1024;
     std::int64_t rnd_seq_size_ = max_rnd_seq_size_;
-    rnd_seq<Float> rnd_seq_;
+    ndarray<Float, 1> rnd_seq_;
     ndarray<Float, 2> data_;
     ndarray<std::int32_t, 2> indices_;
     sycl::event last_call_;

@@ -87,6 +87,32 @@ sycl::event uniform(sycl::queue& queue,
     return event;
 }
 
+template <typename Type>
+sycl::event uniform_normalized(sycl::queue& queue,
+                               std::int64_t count,
+                               Type* dst,
+                               device_engine& engine_,
+                               Type a,
+                               Type b,
+                               const event_vector& deps = {}) {
+    using Index = std::uint32_t;
+
+    auto index_array = array<Index>::empty(queue, count);
+    Index* index_ptr = index_array.get_mutable_data();
+
+    auto gen_event =
+        uniform<Index>(queue, count, index_ptr, engine_, 0, static_cast<Index>(count), deps);
+
+    auto norm_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(gen_event);
+        cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> i) {
+            dst[i] = a + (b - a) * static_cast<Type>(index_ptr[i]) / static_cast<Type>(count);
+        });
+    });
+
+    return norm_event;
+}
+
 /// Generates a random permutation of elements without replacement on the GPU.
 /// @tparam Type The data type of the elements.
 /// @param[in] queue The SYCL queue for device execution.
@@ -201,6 +227,17 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
 INSTANTIATE_UNIFORM(float)
 INSTANTIATE_UNIFORM(double)
 INSTANTIATE_UNIFORM(std::int32_t)
+
+#define INSTANTIATE_UNIFORM_NORMALIZED(F)                                         \
+    template ONEDAL_EXPORT sycl::event uniform_normalized(sycl::queue& queue,     \
+                                                          std::int64_t count_,    \
+                                                          F* dst,                 \
+                                                          device_engine& engine_, \
+                                                          F a,                    \
+                                                          F b,                    \
+                                                          const event_vector& deps);
+
+INSTANTIATE_UNIFORM_NORMALIZED(std::int32_t)
 
 #define INSTANTIATE_UWR(F)                                                                 \
     template ONEDAL_EXPORT sycl::event uniform_without_replacement(sycl::queue& queue,     \
