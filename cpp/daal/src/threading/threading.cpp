@@ -41,8 +41,6 @@
     #include <tbb/task.h>
 #endif
 
-using namespace daal::services;
-
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
     return scalable_aligned_malloc(size, alignment);
@@ -509,18 +507,18 @@ public:
 };
 
 template <class T, class Allocator>
-class ThreadingCollection
+class Collection
 {
 public:
     /**
     *  Default constructor. Sets the size and capacity to 0.
     */
-    ThreadingCollection() : _array(NULL), _size(0), _capacity(0) {}
+    Collection() : _array(NULL), _size(0), _capacity(0) {}
 
     /**
     *  Destructor
     */
-    virtual ~ThreadingCollection()
+    virtual ~Collection()
     {
         for (size_t i = 0; i < _capacity; i++) _array[i].~T();
         Allocator::free(_array);
@@ -755,8 +753,8 @@ private:
 private:
     void * _a;
     daal::tls_functype _func;
-    ThreadingCollection<Pair, SimpleAllocator> _free; //sorted by tid
-    ThreadingCollection<Pair, SimpleAllocator> _used; //sorted by value
+    Collection<Pair, SimpleAllocator> _free; //sorted by tid
+    Collection<Pair, SimpleAllocator> _used; //sorted by value
     tbb::spin_mutex _mt;
 };
 
@@ -799,7 +797,7 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 {
     struct shared_task
     {
-        typedef Atomic<int> RefCounterType;
+        typedef daal::services::Atomic<int> RefCounterType;
 
         shared_task(daal::task & t) : _t(t), _nRefs(nullptr)
         {
