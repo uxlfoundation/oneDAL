@@ -45,7 +45,7 @@ auto compute_sums(sycl::queue& q,
                   const pr::ndview<Float, 2>& data,
                   bool assume_centered = false,
                   const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_sums, q);
+    ONEDAL_PROFILER_TASK_WITH_ARGS_QUEUE(compute_sums, q, data.get_dimension(1));
     ONEDAL_ASSERT(data.has_data());
     ONEDAL_ASSERT(data.get_dimension(1) > 0);
 
