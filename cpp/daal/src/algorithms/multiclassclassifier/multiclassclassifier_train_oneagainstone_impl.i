@@ -362,10 +362,10 @@ Status SubTaskCSR<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures, 
         originalIndicesMap[nRows] = ix;
         _mtX.next(ix, 1);
         DAAL_CHECK_BLOCK_STATUS(_mtX);
-        const size_t nNonZeroValuesInRow = _mtX.rows()[1] - _mtX.rows()[0];
-        const size_t * colIndices        = _mtX.cols();
+        const size_t nNonZeroValuesInRow  = _mtX.rows()[1] - _mtX.rows()[0];
+        const size_t * colIndices         = _mtX.cols();
         const algorithmFPType * mtXValues = _mtX.values();
-        algorithmFPType * subsetXData = this->_subsetX.get();
+        algorithmFPType * subsetXData     = this->_subsetX.get();
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx)
