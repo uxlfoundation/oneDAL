@@ -30,7 +30,7 @@
 #define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
 #else
 #if defined(TARGET_ARM)
-#define PRAGMA_FORCE_SIMD    _Pragma("omp simd")
+#define PRAGMA_FORCE_SIMD _Pragma("omp simd")
 #else
 #define PRAGMA_FORCE_SIMD
 #endif

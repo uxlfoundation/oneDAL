@@ -56,7 +56,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define DAAL_TYPENAME           typename
 #elif defined(__GNUC__)
     #if defined(TARGET_ARM)
-        #define PRAGMA_FORCE_SIMD   _Pragma("omp simd")
+        #define PRAGMA_FORCE_SIMD _Pragma("omp simd")
     #else
         #define PRAGMA_FORCE_SIMD
     #endif
