@@ -171,7 +171,7 @@ public:
     /// @param end   Index of the block after the last one in the sub-range.
     virtual void update(size_t begin, size_t end) override
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update);
+        DAAL_PROFILER_THREADING_TASK(reducer.update);
         if (errorCode != ErrorCode::ok)
         {
             return;
@@ -210,14 +210,14 @@ public:
 
             /// Update the cross-product matrix with the data from the block
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.syrkData);
+                DAAL_PROFILER_THREADING_TASK(reducer.update.syrkData);
                 BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &_nFeatures, reinterpret_cast<DAAL_INT *>(&nRows), &one, dataBlock, &_nFeatures, &one,
                                                       crossProductPtr, &_nFeatures);
             }
 
             if (!_isNormalized)
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(reducer.update.sums);
+                DAAL_PROFILER_THREADING_TASK(reducer.update.sums);
                 algorithmFPType * sumsPtr = sums();
                 if (!sumsPtr)
                 {
@@ -247,7 +247,7 @@ public:
         {
             return;
         }
-        DAAL_ITTNOTIFY_SCOPED_TASK(reducer.join);
+        DAAL_PROFILER_THREADING_TASK(reducer.join);
         CovarianceReducer<algorithmFPType, cpu> * other = dynamic_cast<CovarianceReducer<algorithmFPType, cpu> *>(otherReducer);
         if (!other)
         {
@@ -341,7 +341,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                                                 algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_PROFILER_THREADING_TASK(Covariance::updateDenseCrossProductAndSums);
+    DAAL_PROFILER_TASK(Covariance::updateDenseCrossProductAndSums);
     bool assumeCentered = parameter->assumeCentered;
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
