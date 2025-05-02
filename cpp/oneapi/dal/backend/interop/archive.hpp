@@ -128,6 +128,7 @@ public:
 
     daal_input_data_archive(const daal_input_data_archive&) = delete;
     daal_input_data_archive& operator=(const daal_input_data_archive&) = delete;
+    ~daal_input_data_archive() override = default;
 };
 
 class daal_output_data_archive : public daal::data_management::InputDataArchive {
@@ -139,6 +140,7 @@ public:
 
     daal_output_data_archive(const daal_output_data_archive&) = delete;
     daal_output_data_archive& operator=(const daal_output_data_archive&) = delete;
+    ~daal_output_data_archive() override = default;
 };
 
 } // namespace oneapi::dal::backend::interop

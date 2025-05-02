@@ -66,11 +66,12 @@ sycl::event gather_device2host(sycl::queue& q,
         });
     });
 
+    gather_event.wait_and_throw();
     auto copy_event = memcpy_usm2host(q,
                                       dst_host,
                                       gathered_device_unique.get(),
                                       block_count * block_size_in_bytes,
-                                      { gather_event });
+                                      {});
 
     // We need to wait until gather kernel is completed to deallocate
     // `gathered_device_unique`
@@ -192,7 +193,7 @@ sycl::event scatter_host2device_blocking(sycl::queue& q,
                 }
             });
         });
-        events.push_back(scatter_event);
+        events.push_back(std::move(scatter_event));
     }
     // We need to wait until scatter kernel is completed to deallocate
     // `gathered_device_unique`
