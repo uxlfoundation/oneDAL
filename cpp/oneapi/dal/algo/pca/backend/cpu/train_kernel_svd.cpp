@@ -141,6 +141,21 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         result.set_variances(homogen_table::wrap(arr_vars, 1, column_count));
     }
 
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto eigvals = arr_eigval.get_data();
+        auto total_variance = arr_vars.get_data();
+
+        double noiseVariance = 0.0;
+        for (int64_t i = 0; i < column_count; i++) {
+            noiseVariance += total_variance[i];
+        }
+        for (int64_t i = 0; i < component_count; i++) {
+            noiseVariance -= eigvals[i];
+        }
+        noiseVariance = noiseVariance / column_count;
+        result.set_noise_variance(noiseVariance);
+    }
+
     if (desc.get_result_options().test(result_options::means)) {
         result.set_means(homogen_table::wrap(arr_means, 1, column_count));
     }
