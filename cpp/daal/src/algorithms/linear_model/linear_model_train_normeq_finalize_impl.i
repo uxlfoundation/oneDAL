@@ -26,7 +26,7 @@
 
 #include "src/algorithms/service_kernel_math.h"
 #include "src/externals/service_lapack.h"
-#include "src/externals/service_profiler.h"
+#include "services/internal/service_profiler.h"
 
 namespace daal
 {
@@ -59,7 +59,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
                                                      const KernelHelperIface<algorithmFPType, cpu> & helper,
                                                      const HyperparameterType * hyperparameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize);
+    DAAL_PROFILER_TASK(computeFinalize);
     const size_t nBetas(betaTable.getNumberOfColumns());
     const size_t nResponses(betaTable.getNumberOfRows());
     const size_t nBetasIntercept = (interceptFlag ? nBetas : (nBetas - 1));
@@ -77,7 +77,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
 
         if (&xtxTable != &xtxFinalTable)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize.copyToxtxFinalTable);
+            DAAL_PROFILER_TASK(computeFinalize.copyToxtxFinalTable);
             DAAL_CHECK_STATUS(st, copyDataToTable(xtx, xtxSizeInBytes, xtxFinalTable));
         }
 
@@ -88,7 +88,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
 
             if (&xtyTable != &xtyFinalTable)
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize.copyToxtyFinalTable);
+                DAAL_PROFILER_TASK(computeFinalize.copyToxtyFinalTable);
                 DAAL_CHECK_STATUS(st, copyDataToTable(xty, xtySizeInBytes, xtyFinalTable));
             }
 
@@ -96,7 +96,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
             betaBuffer = betaBufferArray.get();
             DAAL_CHECK_MALLOC(betaBuffer);
 
-            DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize.betaBufCopy);
+            DAAL_PROFILER_TASK(computeFinalize.betaBufCopy);
             int result = daal::services::internal::daal_memcpy_s(betaBuffer, xtySizeInBytes, xty, xtySizeInBytes);
             DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
         }
@@ -106,12 +106,15 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
             DAAL_CHECK_MALLOC(xtxCopy);
 
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize.xtxCopy);
+                DAAL_PROFILER_TASK(computeFinalize.xtxCopy);
                 int result = daal::services::internal::daal_memcpy_s(xtxCopy, xtxSizeInBytes, xtx, xtxSizeInBytes);
                 DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
             }
 
-            DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
+            {
+                DAAL_PROFILER_TASK(computeFinalize.computeBetasImpl);
+                DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
+            }
         }
     }
 
@@ -119,7 +122,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     DAAL_CHECK_BLOCK_STATUS(betaBlock);
     algorithmFPType * beta = betaBlock.get();
 
-    DAAL_ITTNOTIFY_SCOPED_TASK(computeFinalize.copyBetaToResult);
+    DAAL_PROFILER_TASK(computeFinalize.copyBetaToResult);
     if (nBetasIntercept == nBetas)
     {
         for (size_t i = 0; i < nResponses; i++)
