@@ -113,7 +113,7 @@ services::Status ImplicitALSInitKernel<algorithmFPType, fastCSR, cpu>::reduceSum
         {
             algorithmFPType * const s = arrSum[k];
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = start; j < end; ++j)
             {
@@ -164,14 +164,14 @@ services::Status ImplicitALSInitKernel<algorithmFPType, fastCSR, cpu>::compute(c
 
     s |= this->randFactors(nItems, nFactors, itemsFactors, engine);
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nItems; i++) // if number of not null elems is equal 0
     {
         notNullElemSum[i] = (notNullElemSum[i] == algorithmFPType(0.0) ? algorithmFPType(1.0) : notNullElemSum[i]);
     }
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nItems; i++)
     {

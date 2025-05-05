@@ -224,7 +224,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (DAAL_INT j = 0; j < nFeatures_local; j++)
                     {
@@ -241,7 +241,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             /* Sum all cross products */
             if (tls_data_local->crossProduct)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < (nFeatures * nFeatures); i++)
                 {
@@ -254,7 +254,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             {
                 if (tls_data_local->sums)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < nFeatures; i++)
                     {
@@ -272,7 +272,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             DAAL_PROFILER_THREADING_TASK(gemmSums);
             for (size_t i = 0; i < nFeatures; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
@@ -359,7 +359,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         if (nObsValue == 0)
         {
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -375,7 +375,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {

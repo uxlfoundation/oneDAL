@@ -63,7 +63,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
 
     //compute
     dataR[0] = 0.0;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {
@@ -102,7 +102,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     services::internal::service_memset_seq<algorithmFPType, cpu>(dataR, b, nVectors1);
     for (size_t i = 0; i < nVectors1; i++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
@@ -183,7 +183,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                 BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &nRowsInBlock2, &nRowsInBlock1, (DAAL_INT *)&nFeatures, &alpha, dataA2,
                                                        (DAAL_INT *)&nFeatures, dataA1, (DAAL_INT *)&nFeatures, &beta, dataR, (DAAL_INT *)&nVectors2);
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsInBlock1; ++i)
                 {
@@ -218,7 +218,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                 BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &nRowsInBlock1, &nRowsInBlock2, (DAAL_INT *)&nFeatures, &alpha, dataA1,
                                                        (DAAL_INT *)&nFeatures, dataA2, (DAAL_INT *)&nFeatures, &beta, mklBuff, &ldc2);
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < blockSize * blockSize; ++i)
                 {

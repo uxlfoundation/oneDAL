@@ -95,7 +95,7 @@ public:
                 algorithmFPType * normPtr = normTls.local();
                 DAAL_CHECK_THR(normPtr, services::ErrorMemoryAllocationFailed);
                 PRAGMA_VECTOR_ALWAYS
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 for (size_t j = 0; j < nRowsInBlock; j++)
                 {
                     *normPtr += vecLocal[j] * vecLocal[j];
@@ -117,7 +117,7 @@ public:
         res = 0;
         if (nElements < blockStartThreshold)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nElements; j++)
             {

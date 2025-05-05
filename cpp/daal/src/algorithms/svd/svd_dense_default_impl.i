@@ -181,7 +181,7 @@ Status compute_QR_on_one_node(DAAL_INT m, DAAL_INT n, algorithmFPType * a_q, DAA
     // Get R of the QR factorization formed by xgeqrf
     for (DAAL_INT i = 0; i < nColumnsInQ; ++i)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (DAAL_INT j = 0; j <= i; ++j)
         {
@@ -194,14 +194,14 @@ Status compute_QR_on_one_node(DAAL_INT m, DAAL_INT n, algorithmFPType * a_q, DAA
         const algorithmFPType zero(0.0);
         for (size_t i = m; i < n; ++i)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < m; ++j)
             {
                 r[i * ldr + j] = a_q[i * lda_q + j];
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = m; j <= i; ++j)
             {

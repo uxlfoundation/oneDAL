@@ -52,7 +52,7 @@ Status ZScoreKernel<algorithmFPType, sumDense, cpu>::computeMeanVariance_thr(Num
     algorithmFPType invNm1 = algorithmFPType(1.0) / (algorithmFPType(nVectors) - algorithmFPType(1.0));
 
     /* Compute means from sums */
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t j = 0; j < nFeatures; j++)
     {
@@ -89,7 +89,7 @@ Status ZScoreKernel<algorithmFPType, sumDense, cpu>::computeMeanVariance_thr(Num
 
         for (size_t i = 0; i < _nRows; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nFeatures; j++)
             {
@@ -103,7 +103,7 @@ Status ZScoreKernel<algorithmFPType, sumDense, cpu>::computeMeanVariance_thr(Num
     tls_data.reduce([&](algorithmFPType * pVariances) {
         if (pVariances)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nFeatures; j++)
             {
@@ -114,7 +114,7 @@ Status ZScoreKernel<algorithmFPType, sumDense, cpu>::computeMeanVariance_thr(Num
     });
     /* Convert array of variances to unbiased */
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t j = 0; j < nFeatures; j++)
     {

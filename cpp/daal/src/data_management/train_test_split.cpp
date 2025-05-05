@@ -170,7 +170,7 @@ services::Status assignColumnValues(const DataType * origDataPtr, const NumericT
     DataType * dataPtr = dataBlock.get();
     DAAL_CHECK_MALLOC(dataPtr);
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nRows; ++i)
     {
@@ -232,7 +232,7 @@ services::Status assignRows(const DataType * origDataPtr, const NumericTablePtr 
 
     for (size_t i = 0; i < nRows; ++i)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nColumns; ++j)
         {

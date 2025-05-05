@@ -172,7 +172,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
         /* Update additive function's values
            Step 2.b) of the Algorithm 6 from [1] */
         /* i-row contains Fi() for all classes in i-th point x */
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = start; i < start + size; i++)
         {
@@ -206,7 +206,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
            Step 2.c) of the Algorithm 6 from [1] */
         const bool useFullBuffer = size * nc <= n;
         if (useFullBuffer) daal::internal::MathInst<algorithmFPType, cpu>::vExp(nc * size, F + start * nc, buffer);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < size; i++)
         {

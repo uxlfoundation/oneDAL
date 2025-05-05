@@ -78,7 +78,7 @@ services::Status ComputeInvSigmas(NumericTable * pVariances, TArray<algorithmFPT
         DAAL_CHECK_BLOCK_STATUS(dataRows);
         const algorithmFPType * pRawVariances = dataRows.get();
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t varianceId = 0; varianceId < numFeatures; ++varianceId)
         {
@@ -181,14 +181,14 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
                 /* compute centering if numMeans != 0 */
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numMeans; ++colId)
                 {
                     pCopyBlock[rowId * numMeans + colId] = pDataBlock[rowId * numMeans + colId] - pRawMeans[colId];
                 }
                 /* compute normalization to unit variance if numInvSigmas!= 0 */
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numInvSigmas; ++colId)
                 {
@@ -203,7 +203,7 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
         {
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numComponents; ++colId)
                 {

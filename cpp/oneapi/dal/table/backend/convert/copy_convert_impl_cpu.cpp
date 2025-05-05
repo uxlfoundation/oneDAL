@@ -69,7 +69,7 @@ struct copy_converter_impl {
             backend::copy(out, inp, count);
         }
         else {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (std::int64_t i = 0l; i < count; ++i) {
                 out[i] = static_cast<out_t>(inp[i]);
@@ -81,7 +81,7 @@ struct copy_converter_impl {
                             std::int64_t out_stride,
                             const inp_t* inp,
                             std::int64_t count) {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (std::int64_t i = 0l; i < count; ++i) {
             const std::int64_t out_offset = i * out_stride;
@@ -94,7 +94,7 @@ struct copy_converter_impl {
                             const inp_t* inp,
                             std::int64_t inp_stride,
                             std::int64_t count) {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (std::int64_t i = 0l; i < count; ++i) {
             const std::int64_t inp_offset = i * inp_stride;
@@ -110,7 +110,7 @@ struct copy_converter_impl {
         // Let's trust compiler to decide if the loop should be
         // vectorized or not. It can be suboptimal if strides are
         // too large
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         for (std::int64_t i = 0l; i < count; ++i) {
             const std::int64_t out_offset = i * out_stride;
             const std::int64_t inp_offset = i * inp_stride;

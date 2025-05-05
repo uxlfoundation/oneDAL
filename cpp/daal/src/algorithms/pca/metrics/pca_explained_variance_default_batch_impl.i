@@ -75,7 +75,7 @@ Status ExplainedVarianceKernel<method, algorithmFPType, cpu>::compute(const Nume
         if (id >= nComponents) noiseSum += pEigenvalues[id];
     }
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t id = 0; id < nComponents; ++id)
     {

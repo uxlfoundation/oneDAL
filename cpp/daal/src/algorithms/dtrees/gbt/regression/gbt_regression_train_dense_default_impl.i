@@ -65,7 +65,7 @@ public:
             const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             if (sampleInd)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -75,7 +75,7 @@ public:
             }
             else
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
