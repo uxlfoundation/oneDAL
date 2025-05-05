@@ -18,7 +18,8 @@
 #ifndef __SERVICE_DELETERS_H__
 #define __SERVICE_DELETERS_H__
 
-#include "services/env_detect.h"
+#include <type_traits>
+#include "services/cpu_type.h"
 
 namespace daal
 {
