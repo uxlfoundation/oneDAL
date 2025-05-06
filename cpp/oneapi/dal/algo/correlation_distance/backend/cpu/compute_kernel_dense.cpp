@@ -55,14 +55,15 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_y);
 
     daal::algorithms::Parameter param;
-    const daal::data_management::NumericTable* daal_input_tables[2] = { daal_x.get(), daal_y.get() };
+    const daal::data_management::NumericTable* daal_input_tables[2] = { daal_x.get(),
+                                                                        daal_y.get() };
     daal::data_management::NumericTable* daal_result_table[1] = { daal_values.get() };
 
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_correlation_t>(ctx,
-		                                             2,
-							     daal_input_tables,
-							     1,
+                                                             2,
+                                                             daal_input_tables,
+                                                             1,
                                                              daal_result_table,
                                                              &param));
 
