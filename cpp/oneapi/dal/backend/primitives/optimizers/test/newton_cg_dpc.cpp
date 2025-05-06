@@ -24,7 +24,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include <math.h>
-#include <iostream>
+#include <iomanip>
 
 #include "oneapi/dal/backend/primitives/objective_function.hpp"
 
@@ -48,7 +48,6 @@ public:
             n_ = n;
             p_ = p;
         }
-        std::cout << n_ << " " << p_ << std::endl;
         std::int64_t bsz = GENERATE(-1, 1024);
         auto X_host =
             ndarray<float_t, 2>::empty(this->get_queue(), { n_, p_ }, sycl::usm::alloc::host);
@@ -59,7 +58,6 @@ public:
         auto params_host =
             ndarray<float_t, 1>::empty(this->get_queue(), { p_ + 1 }, sycl::usm::alloc::host);
 
-        std::cout << "data is on host" << std::endl;
         primitives::host_engine eng(2007 + n);
         primitives::uniform<float_t>(n_ * p_, X_host.get_mutable_data(), eng, -10.0, 10.0);
         primitives::uniform<float_t>(p_ + 1, params_host.get_mutable_data(), eng, -5.0, 5.0);
@@ -136,11 +134,14 @@ public:
 
     void gen_and_test_quadratic_function(std::int64_t n = -1) {
         if (n == -1) {
-            n_ = GENERATE(5, 14, 41, 100);
+            //n_ = GENERATE(5, 14, 41, 100);
+            n_ = 100;
         }
         else {
             n_ = n;
         }
+        // std::cout << n_ << std::endl;
+        std::cout.precision(15);
         auto A_host =
             ndarray<float_t, 2>::empty(this->get_queue(), { n_, n_ }, sycl::usm::alloc::host);
         solution_ = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
@@ -149,13 +150,20 @@ public:
         uniform<float_t>(n_, solution_.get_mutable_data(), eng, -1.0, 1.0);
 
         create_stable_matrix(this->get_queue(), A_host, float_t(0.1), float_t(5.0));
-
+        //std::cout << "Matrix: " << std::endl;
         for (std::int64_t i = 0; i < n_; ++i) {
             b_host.at(i) = 0;
             for (std::int64_t j = 0; j < n_; ++j) {
                 b_host.at(i) += A_host.at(i, j) * solution_.at(j);
+                //std::cout << A_host.at(i, j) << " ";
             }
+            //std::cout << std::endl;
         }
+        // std::cout << "Scalar: " << std::endl;
+        // for (std::int64_t i = 0; i < n_; ++i) {
+        //     std::cout << b_host.at(i) << " ";
+        // }
+        // std::cout << std::endl;
 
         A_ = A_host.to_device(this->get_queue());
         b_ = b_host.to_device(this->get_queue());
@@ -209,10 +217,22 @@ public:
         opt_event.wait_and_throw();
         auto x_host = x.to_host(this->get_queue());
         float_t tol = sizeof(float_t) == 4 ? 1e-4 : 1e-7;
+        std::cout << "Ground Truth" << std::endl;
+        for (int i = 0; i < n_; ++i) {
+            std::cout << solution_.at(i) << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "Found solution" << std::endl;
+        for (int i = 0; i < n_; ++i) {
+            std::cout << x_host.at(i) << " ";
+        }
+        std::cout << std::endl;
         for (std::int64_t i = 0; i < n_; ++i) {
             // check_val(solution_.at(i), x_host.at(i), tol, tol);
             IS_CLOSE(float_t, solution_.at(i), x_host.at(i), tol, tol)
         }
+
+        REQUIRE(1 < 0);
     }
 
 private:
@@ -225,6 +245,7 @@ private:
 };
 
 using newton_cg_types = COMBINE_TYPES((float, double));
+//using newton_cg_types = COMBINE_TYPES((double, float));
 
 TEMPLATE_LIST_TEST_M(newton_cg_test,
                      "test newton-cg with stable matrix",
@@ -236,13 +257,13 @@ TEMPLATE_LIST_TEST_M(newton_cg_test,
     this->test_newton_cg();
 }
 
-TEMPLATE_LIST_TEST_M(newton_cg_test,
-                     "test newton-cg with logloss function",
-                     "[newton-cg][gpu]",
-                     newton_cg_types) {
-    SKIP_IF(this->not_float64_friendly());
-    SKIP_IF(this->get_policy().is_cpu());
-    this->gen_and_test_logistic_loss();
-}
+// TEMPLATE_LIST_TEST_M(newton_cg_test,
+//                      "test newton-cg with logloss function",
+//                      "[newton-cg][gpu]",
+//                      newton_cg_types) {
+//     SKIP_IF(this->not_float64_friendly());
+//     SKIP_IF(this->get_policy().is_cpu());
+//     this->gen_and_test_logistic_loss();
+// }
 
 } // namespace oneapi::dal::backend::primitives::test

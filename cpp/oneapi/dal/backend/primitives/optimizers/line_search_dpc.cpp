@@ -18,6 +18,8 @@
 #include "oneapi/dal/backend/primitives/optimizers/common.hpp"
 #include "oneapi/dal/backend/primitives/element_wise.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+#include <iostream>
+#include <iomanip>
 
 namespace oneapi::dal::backend::primitives {
 
@@ -42,11 +44,19 @@ Float backtracking(sycl::queue queue,
     Float df0 = 0;
     dot_product(queue, grad_f0, direction, result.get_mutable_data(), &df0, deps + precompute)
         .wait_and_throw();
+    std::cerr.precision(20);
+    std::cerr << "Df0: " << df0 << std::endl;
     Float cur_val = 0;
     constexpr Float eps = std::numeric_limits<Float>::epsilon();
     bool is_first_iter = true;
-    while ((is_first_iter || cur_val > f0 + c1 * alpha * df0) && alpha > eps) {
+    std::cerr << "\nBactracking:" << std::endl; 
+    while ((is_first_iter || (double)cur_val - (double)f0 > (double)c1 * (double)alpha * (double)df0) && alpha > eps) {
         // TODO check that conditions are the same across diferent devices
+        std::cerr << "F0 : " << f0 << std::endl;
+        std::cerr << "Cur: " << cur_val << std::endl;
+        std::cerr << "thr: " << (double)c1 * (double)alpha * (double)df0 << std::endl;
+        std::cerr << std::endl;
+
         if (!is_first_iter) {
             alpha /= 2;
         }
@@ -62,6 +72,13 @@ Float backtracking(sycl::queue queue,
         wait_or_pass(func_event_vec).wait_and_throw();
         cur_val = f.get_value();
     }
+
+    std::cerr << "F0 : " << f0 << std::endl;
+    std::cerr << "Cur: " << cur_val << std::endl;
+    std::cerr << "thr: " << (double)c1 * (double)alpha * (double)df0 << std::endl;
+    std::cerr << std::endl;
+
+    std::cerr << "-------\n" << std::endl;
     return alpha;
 }
 

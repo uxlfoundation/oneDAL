@@ -23,6 +23,8 @@
 #include "oneapi/dal/backend/primitives/blas/gemv.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include <cmath>
+#include <iostream>
+#include <iomanip>
 
 namespace oneapi::dal::backend::primitives {
 
@@ -64,7 +66,9 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
         Float grad_norm = 0, grad_max_abs = 0;
         l1_norm(queue, gradient, tmp_gpu, &grad_norm, update_event_vec).wait_and_throw();
         max_abs(queue, gradient, tmp_gpu, &grad_max_abs, update_event_vec).wait_and_throw();
-
+        
+        std::cerr.precision(15);
+        std::cerr << "Iter: " << cur_iter_id << "grad abs max: " << grad_max_abs << " " << grad_norm << std::endl;
         if (grad_max_abs < tol) {
             // TODO check that conditions are the same across diferent devices
             break;
@@ -105,12 +109,13 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
             last_event = dot_product(queue, gradient, direction, tmp_gpu, &desc, { solve_event });
             last_event.wait_and_throw();
         }
-
+        std::cerr << "<grad, direction>: " << desc << std::endl;
         if (desc < 0) {
             // failed to find descent direction
             return make_tuple(last_event, cur_iter_id, inner_iter_sum);
         }
-
+        prepare_grad_event =
+            element_wise(queue, kernel_minus, gradient, Float(0), gradient, {last_event});
         Float alpha_opt = backtracking(queue,
                                        f,
                                        x,
@@ -119,13 +124,36 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
                                        Float(1),
                                        Float(1e-4),
                                        true,
-                                       { last_event });
+                                       { last_event, prepare_grad_event });
+        std::cerr << "Optimal alpha:" << alpha_opt << std::endl;
         update_norm = 0;
         dot_product(queue, direction, direction, tmp_gpu, &update_norm, { last_event })
             .wait_and_throw();
 
         update_norm = sqrt(update_norm) * alpha_opt;
+
+        std::cerr << "Update norm: " << update_norm << std::endl;
+
+        auto dir_host = direction.to_host(queue);
+        Float val = 0;
+        for (int i = 0; i < dir_host.get_dimension(0); ++i) {
+            val = std::max(val, std::abs(dir_host.at(i)));
+        }
+        std::cerr << "Max abs of direction: " << val << std::endl;
         // updated x is in buffer2
+        auto x_host = x.to_host(queue);
+        auto new_x_host = buffer2.to_host(queue);
+        std::cerr << "Previous x:" << std::endl;
+        for (int i = 0; i < x_host.get_dimension(0); ++i) {
+            std::cerr << x_host.at(i) << " ";
+        }
+        std::cerr << std::endl;
+        std::cerr << "New x:" << std::endl;
+        for (int i = 0; i < x_host.get_dimension(0); ++i) {
+            std::cerr << x_host.at(i) << " ";
+        }
+        std::cerr << std::endl;
+
         last = copy(queue, x, buffer2, {});
         last_iter_deps = { last };
     }
