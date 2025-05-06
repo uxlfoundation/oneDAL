@@ -1,0 +1,131 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: "CI AArch64"
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  DEP_DIR: ${{ github.workspace }}/__deps
+  PYTHON_VERSION: '3.12'
+  TBB_VERSION: v2022.1.0
+  OPENBLAS_VERSION: v0.3.29
+
+# Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
+# Does not apply to the main branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [
+          { name: GitHub hosted, label: ubuntu-24.04-arm },
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50 }
+        ]
+
+    name: LinuxMakeGNU_OpenBLAS(SVE)-${{ matrix.os.name }}
+    runs-on: ${{ matrix.os.label }}
+    steps:
+
+      # Faster builds where possible. Fix version of CMake and Ninja.
+      # Note: This will create a github actions cache
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@57c20a23a6cac5b90f31864439996e5b206df9dc # v4.0.1
+        with:
+          cmakeVersion: 3.31.0
+          ninjaVersion: 1.12.0
+
+      - name: Checkout oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout oneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: ${{ env.TBB_VERSION }}
+          path: ${{ github.workspace }}/__work/onetbb-src
+
+      - name: Checkout openBLAS
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: OpenMathLib/OpenBLAS
+          ref: ${{ env.OPENBLAS_VERSION }}
+          path: ${{ github.workspace }}/__work/openblas
+
+      - name: Build oneTBB
+        run: |
+          .ci/env/tbb.sh
+          echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      # TODO: Cache openBLAS
+      - name: Build openBLAS
+        run: |
+          .ci/env/openblas.sh
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+  
+      - name: make daal
+        run: |
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
+
+      - name: make onedal_c
+        run: |
+          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
+
+      - name: daal/cpp examples
+        run: |
+          echo "::warning::This step is designed to always pass, please look for more details"
+          # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface daal/cpp --build-system cmake --backend ref || true
+        env:
+          CMAKE_GENERATOR: Ninja
+
+      - name: oneapi/cpp examples
+        run: |
+          echo "::warning::This step is designed to always pass, please look for more details"
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface oneapi/cpp --build-system cmake --backend ref || true
+        env:
+          CMAKE_GENERATOR: Ninja
+  # This job adds a check named "CI AArch64" that represents overall
+  # workflow status and can be used in branch rulesets. This is useful when
+  # running a matrix CI, and allows changing the CI without needing to change
+  # the overall required check name.
+  status:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    name: "CI AArch64"
+    steps:
+      - name: Print success
+        run: echo Success

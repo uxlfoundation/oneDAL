@@ -41,6 +41,9 @@ namespace lbfgs
 {
 namespace internal
 {
+
+constexpr double min_curvature = 1e-8;
+
 template <CpuType cpu>
 bool getOptionalInputData(NumericTable * pCorrectionIndexInput, size_t & lastCorrectionIndex, size_t & lastIteration)
 {
@@ -577,7 +580,7 @@ void LBFGSTask<algorithmFPType, cpu>::computeCorrectionPairImpl(size_t correctio
         BlasInst<algorithmFPType, cpu>::xgemv(&trans, &n, &n, &one, const_cast<algorithmFPType *>(hessian), &n, s, &ione, &zero, y, &ione);
     }
     rho[correctionIndex] = dotProduct<algorithmFPType, cpu>(this->argumentSize, s, y);
-    if (rho[correctionIndex] != 0.0) // threshold
+    if (rho[correctionIndex] >= min_curvature) // threshold
     {
         rho[correctionIndex] = 1.0 / rho[correctionIndex];
     }
@@ -857,7 +860,7 @@ Status LBFGSTask<algorithmFPType, cpu>::initCorrectionPairs(NumericTable * corre
             auto s = correctionS + i * this->argumentSize;
             auto y = correctionY + i * this->argumentSize;
             rho[i] = dotProduct<algorithmFPType, cpu>(this->argumentSize, s, y);
-            if (rho[i] != 0.0) // threshold
+            if (rho[i] >= min_curvature) // threshold
             {
                 rho[i] = 1.0 / rho[i];
             }
