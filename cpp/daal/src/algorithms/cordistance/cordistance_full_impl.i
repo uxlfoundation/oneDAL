@@ -34,7 +34,7 @@ namespace internal
 template <typename algorithmFPType, CpuType cpu>
 services::Status corDistanceFull(const NumericTable * xTable, const NumericTable * yTable, NumericTable * rTable)
 {
-    size_t p = xTable->getNumberOfColumns(); /* Dimension of input feature vector */
+    size_t p         = xTable->getNumberOfColumns(); /* Dimension of input feature vector */
     size_t nVectors1 = xTable->getNumberOfRows();    /* Number of input vectors in X */
     size_t nVectors2 = yTable->getNumberOfRows();    /* Number of input vectors in Y */
 
@@ -62,9 +62,9 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
         algorithmFPType * r = rBlock.get();
 
         /* Compute means for rows in X block */
-        algorithmFPType* xMean = (algorithmFPType*)daal::services::daal_malloc(blockSize1 * sizeof(algorithmFPType));
+        algorithmFPType * xMean = (algorithmFPType *)daal::services::daal_malloc(blockSize1 * sizeof(algorithmFPType));
         DAAL_CHECK_MALLOC_THR(xMean)
-        
+
         for (size_t i = 0; i < blockSize1; i++)
         {
             xMean[i] = 0.0;
@@ -94,9 +94,9 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             const algorithmFPType * y = yBlock.get();
 
             /* Compute means for rows in Y block */
-            algorithmFPType* yMean = (algorithmFPType*)daal::services::daal_malloc(blockSize2 * sizeof(algorithmFPType));
+            algorithmFPType * yMean = (algorithmFPType *)daal::services::daal_malloc(blockSize2 * sizeof(algorithmFPType));
             DAAL_CHECK_MALLOC_THR(yMean)
-            
+
             for (size_t j = 0; j < blockSize2; j++)
             {
                 yMean[j] = 0.0;
@@ -112,14 +112,14 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                 for (size_t j = 0; j < blockSize2; j++)
                 {
                     algorithmFPType numerator = 0.0;
-                    algorithmFPType xNorm = 0.0;
-                    algorithmFPType yNorm = 0.0;
+                    algorithmFPType xNorm     = 0.0;
+                    algorithmFPType yNorm     = 0.0;
 
                     for (size_t k = 0; k < p; k++)
                     {
                         algorithmFPType x_centered = x[i * p + k] - xMean[i];
                         algorithmFPType y_centered = y[j * p + k] - yMean[j];
-                        
+
                         numerator += x_centered * y_centered;
                         xNorm += x_centered * x_centered;
                         yNorm += y_centered * y_centered;
@@ -128,9 +128,10 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                     algorithmFPType denominator = xNorm * yNorm;
                     if (denominator > 0.0)
                     {
-                        r[i * nVectors2 + shift2 + j] = 1.0 - numerator / 
-                            (daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(xNorm) * 
-                             daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(yNorm));
+                        r[i * nVectors2 + shift2 + j] = 1.0
+                                                        - numerator
+                                                              / (daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(xNorm)
+                                                                 * daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(yNorm));
                     }
                     else
                     {
@@ -138,10 +139,10 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                     }
                 }
             }
-            
+
             daal::services::daal_free(yMean);
         }
-        
+
         daal::services::daal_free(xMean);
     });
 
