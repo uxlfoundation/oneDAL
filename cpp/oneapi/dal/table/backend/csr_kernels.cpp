@@ -57,16 +57,12 @@ std::int64_t csr_get_non_zero_count(sycl::queue& queue,
     if (!is_device_friendly_usm(queue, row_offsets))
         return csr_get_non_zero_count(row_count, row_offsets);
 
-    std::vector<sycl::event> internal_events;
-
     std::int64_t first_row_offset{ 0L }, last_row_offset{ 0L };
     auto first_row_event = copy_usm2host(queue, &first_row_offset, row_offsets, 1, dependencies);
     auto last_row_event =
         copy_usm2host(queue, &last_row_offset, row_offsets + row_count, 1, dependencies);
 
-    internal_events.push_back(std::move(first_row_event));
-    internal_events.push_back(std::move(last_row_event));
-    sycl::event::wait_and_throw(internal_events);
+    sycl::event::wait_and_throw({ first_row_event, last_row_event });
 
     return (last_row_offset - first_row_offset);
 }

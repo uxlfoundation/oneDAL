@@ -97,7 +97,7 @@ public:
     table& operator=(table&&);
 
     /// Destroys the table instance and releases the associated implementation.
-    ~table() = default;
+    virtual ~table() = default;
 
     /// Indicates whether a table contains non-zero number of rows and columns.
     bool has_data() const noexcept;
