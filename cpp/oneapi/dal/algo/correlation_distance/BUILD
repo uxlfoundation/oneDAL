@@ -15,6 +15,7 @@ dal_module(
     ],
     extra_deps = [
 	"@onedal//cpp/daal/src/algorithms/cordistance:kernel",
+	"@onedal//cpp/daal:data_management",
     ]
 )
 

@@ -25,7 +25,8 @@ namespace te = dal::test::engine;
 namespace la = te::linalg;
 
 template <typename TestType>
-class correlation_distance_batch_test : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
+class correlation_distance_batch_test
+        : public te::float_algo_fixture<std::tuple_element_t<0, TestType>> {
 public:
     using Float = std::tuple_element_t<0, TestType>;
     using Method = std::tuple_element_t<1, TestType>;
@@ -65,9 +66,7 @@ public:
         check_result_values(x_data, y_data, result_values);
     }
 
-    void check_result_values(const table& x_data,
-                             const table& y_data,
-                             const table& result_values) {
+    void check_result_values(const table& x_data, const table& y_data, const table& result_values) {
         const auto reference = compute_reference(x_data, y_data);
 
         const auto col_count = reference.get_column_count();
@@ -79,8 +78,8 @@ public:
         for (std::int64_t row = 0; row < row_count; ++row) {
             auto row_arr = acc.pull({ row, row + 1 });
             for (std::int64_t col = 0; col < col_count; ++col) {
-                const auto res = row_arr[col];
-                const auto gtr = reference.get(row, col);
+                const Float res = row_arr[col];
+                const Float gtr = reference.get(row, col);
                 const auto rerr = std::abs(res - gtr) /
                                   std::max<double>({ double(1), std::abs(res), std::abs(gtr) });
                 CAPTURE(row_count, col_count, x_data.get_column_count(), row, col, res, gtr, rerr);
@@ -99,49 +98,47 @@ public:
         auto reference = la::matrix<double>::full({ row_count_x, row_count_y }, 0.0);
 
         // For each pair of vectors
-        for (std::int64_t i = 0; i < row_count_x; i++) {
-            for (std::int64_t j = 0; j < row_count_y; j++) {
-                // Calculate means
-                double mean_x = 0.0;
-                double mean_y = 0.0;
-                for (std::int64_t k = 0; k < column_count; k++) {
+        for (std::int64_t i = 0; i < row_count_x; ++i) {
+            for (std::int64_t j = 0; j < row_count_y; ++j) {
+                // Calculate sum of current row
+                Float mean_x = 0.0, mean_y = 0.0;
+                for (std::int64_t k = 0; k < column_count; ++k) {
                     mean_x += x_data_matrix.get(i, k);
                     mean_y += y_data_matrix.get(j, k);
                 }
+
+                // Calculate mean
                 mean_x /= column_count;
                 mean_y /= column_count;
 
                 // Calculate the numerator (covariance)
-                double numerator = 0.0;
-                double x_variance = 0.0;
-                double y_variance = 0.0;
+                Float numerator = 0.0, x_variance = 0.0, y_variance = 0.0;
+                for (std::int64_t k = 0; k < column_count; ++k) {
+                    const Float x_centered = x_data_matrix.get(i, k) - mean_x;
+                    const Float y_centered = y_data_matrix.get(j, k) - mean_y;
 
-                for (std::int64_t k = 0; k < column_count; k++) {
-                    double x_centered = x_data_matrix.get(i, k) - mean_x;
-                    double y_centered = y_data_matrix.get(j, k) - mean_y;
-                    numerator += x_centered * y_centered;
                     x_variance += x_centered * x_centered;
                     y_variance += y_centered * y_centered;
+                    numerator += x_centered * y_centered;
                 }
 
                 // Calculate correlation coefficient
-                double denominator = std::sqrt(x_variance * y_variance);
-                double correlation = 0.0;
-                
-                // Handle the case where one of the vectors has zero variance
-                if (denominator > 1e-10) {
-                    correlation = numerator / denominator;
+                Float denominator = std::sqrt(x_variance) * std::sqrt(y_variance);
+
+                if (denominator > 0.0) {
+                    reference.set(i, j) = Float(1.0) - (numerator / denominator);
                 }
-                
-                // Correlation distance is 1 - correlation coefficient
-                reference.set(i, j) = 1.0 - correlation;
+                else {
+                    reference.set(i, j) = Float(1.0);
+                }
             }
         }
         return reference;
     }
 };
 
-using correlation_distance_types = COMBINE_TYPES((float, double), (correlation_distance::method::dense));
+using correlation_distance_types = COMBINE_TYPES((float, double),
+                                                 (correlation_distance::method::dense));
 
 TEMPLATE_LIST_TEST_M(correlation_distance_batch_test,
                      "correlation_distance common flow",
