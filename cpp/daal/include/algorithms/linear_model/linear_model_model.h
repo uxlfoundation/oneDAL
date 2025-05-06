@@ -62,6 +62,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
     Parameter();
     Parameter(const Parameter & other);
+    Parameter & operator=(const Parameter & other);
     bool interceptFlag; /*!< Flag that indicates whether the intercept needs to be computed */
 };
 /* [Parameter source code] */

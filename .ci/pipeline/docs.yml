@@ -31,15 +31,21 @@ pool:
 
 steps:
 - script: |
+    set -euo pipefail
     cd docs
-    sudo apt-get install python3-setuptools
-    sudo pip3 install -r requirements.txt
     sudo apt-get update
+    sudo apt-get install python3-setuptools
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
     sudo apt-get install doxygen
   displayName: 'Install requirements'
 
 - script: |
+    set -euo pipefail
     cd docs
+    source venv/bin/activate
     make html
   displayName: 'Build documentation'
 

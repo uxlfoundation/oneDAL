@@ -15,7 +15,7 @@
 #===============================================================================
 
 MAJOR   =       2025
-MINOR   =       5
+MINOR   =       6
 UPDATE  =       0
 BUILD   =       $(shell date +'%Y%m%d')
 STATUS  =       P
@@ -63,7 +63,7 @@ update_headers_version:
 	@relfile=$(RELEASEDIR.include)/services/library_version_info.h && \
 	workfile=$(CPPDIR.daal)/include/services/library_version_info.h && \
 	file=$$relfile && \
-	if [ -a $$relfile ]; then file=$$file.tmp; fi && mark="#define __INTEL_DAAL" && \
+	if [ -a "$$relfile" ]; then file=$$file.tmp; fi && mark="#define __INTEL_DAAL" && \
         sed $(sed.-b) \
 		-e "s/_DAAL_BUILD_DATE.*/_DAAL_BUILD_DATE $(BUILD)$(sed.eol)/" \
 		-e "s/\($${mark}__\).*/\1 $(MAJOR)$(sed.eol)/" \
@@ -75,6 +75,6 @@ update_headers_version:
 	        $$workfile > $$file && \
 	if ! cmp -s $$file $$relfile; then \
 		mv $$file $$relfile; \
-	elif [ -a $$relfile.tmp ]; then \
+	elif [ -a "$$relfile.tmp" ]; then \
 		rm $$relfile.tmp; \
 	fi

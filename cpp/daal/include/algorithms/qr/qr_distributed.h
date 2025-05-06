@@ -267,7 +267,6 @@ public:
         {
             return services::Status(services::ErrorNullResult);
         }
-        return services::Status();
     }
 
     /**

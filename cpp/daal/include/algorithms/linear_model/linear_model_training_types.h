@@ -85,6 +85,7 @@ public:
      */
     Input(size_t nElements);
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 

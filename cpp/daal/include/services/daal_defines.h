@@ -203,6 +203,7 @@ struct IsSameType<U, U>
 };
 
 const size_t DAAL_MALLOC_DEFAULT_ALIGNMENT = 64;
+const size_t DAAL_DEFAULT_ALIGNMENT_MASK   = DAAL_MALLOC_DEFAULT_ALIGNMENT - 1;
 
 const int SERIALIZATION_HOMOGEN_NT_ID             = 1000;
 const int SERIALIZATION_AOS_NT_ID                 = 3000;

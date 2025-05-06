@@ -31,12 +31,20 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/tbb.+$"],
+      "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^\\.github\\/workflows\\/ci.+$"],
       "matchStrings": [
         "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "TBB_VERSION: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/openblas\\.sh$"],
+      "matchStrings": ["BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "OpenMathLib/OpenBLAS",
       "datasourceTemplate": "github-releases"
     }
   ]
