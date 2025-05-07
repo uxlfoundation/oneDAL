@@ -165,7 +165,6 @@ typedef void * (*_getThreadPinner_t)(bool create_pinner, void (*read_topo)(int &
 typedef void (*_daal_threader_reduce_t)(const size_t, const size_t, daal::Reducer & reducer);
 typedef void (*_daal_static_threader_reduce_t)(const size_t, const size_t, daal::Reducer & reducer);
 
-static _threaded_malloc_t _threaded_malloc_ptr = NULL;
 static _threaded_free_t _threaded_free_ptr     = NULL;
 
 static _daal_threader_for_t _daal_threader_for_ptr                                           = NULL;
@@ -237,10 +236,7 @@ static _daal_static_threader_reduce_t _daal_static_threader_reduce_ptr = NULL;
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
     load_daal_thr_dll();
-    if (_threaded_malloc_ptr == NULL)
-    {
-        _threaded_malloc_ptr = (_threaded_malloc_t)load_daal_thr_func("_threaded_scalable_malloc");
-    }
+    static _threaded_malloc_t _threaded_malloc_ptr = (_threaded_malloc_t)load_daal_thr_func("_threaded_scalable_malloc");
     return _threaded_malloc_ptr(size, alignment);
 }
 
