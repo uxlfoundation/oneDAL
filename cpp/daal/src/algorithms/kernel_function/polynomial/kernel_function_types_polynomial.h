@@ -51,6 +51,7 @@ class DAAL_EXPORT Input : public kernel_function::Input
 public:
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
     ~Input() override;
 
     services::Status check(const daal::algorithms::Parameter * par, int method) const override;
