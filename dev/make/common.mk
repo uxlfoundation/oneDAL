@@ -116,6 +116,27 @@ link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$
 link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
 link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 
+# Static library linking for DPC++
+DPC.LINK.STATIC = $(mkdir)$(call rm,$@)$(dpc.link.static.cmd)
+dpc.link.static.cmd = $(call dpc.link.static.$(_OS),$(or $1,$(^.no-mkdeps)))
+
+# Linux case
+dpc.link.static.lnx = $(if $(filter %.a,$1),$(dpc.link.static.lnx.script),$(dpc.link.static.lnx.cmdline))
+
+# Use ar directly for .o files
+dpc.link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.txt=@%_link.txt)
+
+# Use ar -M scripting when mixing .a and .o or using response files
+.dpc.addlib = $(foreach lib,$(filter %.a,$1),addlib $(lib)\n)
+.dpc.addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
+.dpc.addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))
+dpc.link.static.lnx.script = printf "create $@\n$(call .dpc.addlib,$1)\n$(call .dpc.addmod,$1)\n$(call .dpc.addlink,$1)\nsave\n" | $(if $(AR_is_command_line),${AR},ar) -M
+
+# Windows/mac left unchanged (if needed you can adjust similarly)
+dpc.link.static.win = $(if $(link.static.win.dpcpp),$(link.static.win.dpcpp),$(error link.static.win.dpcpp must be defined)) \
+                       -LD $(patsubst %_link.txt,@%_link.txt,$(filter %_link.txt,$1)) $(filter-out -IMPLIB:%,$(filter %.lib,$1)) -o$@ \
+                       -link $(secure.opts.link.win) $(filter -IMPLIB:%,$1) $(patsubst %.def,-DEF:%.def,$(filter %.def,$1)) -WX -nologo -map $(-DEBL)
+
 # Link dynamic lib
 LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
 link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
