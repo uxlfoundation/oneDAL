@@ -118,13 +118,13 @@ link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 
 # Static library linking for DPC++
 DPC.LINK.STATIC = $(mkdir)$(call rm,$@)$(dpc.link.static.cmd)
-dpc.link.static.cmd = $(call dpc.link.static.$(_OS),$(or $1,$(^.no-mkdeps)))
+dpc.link.static.cmd = $(call dpc.link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
 
 # Linux case
 dpc.link.static.lnx = $(if $(filter %.a,$1),$(dpc.link.static.lnx.script),$(dpc.link.static.lnx.cmdline))
 
 # Use ar directly for .o files
-dpc.link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.txt=@%_link.txt)
+dpc.link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.txt=@%_link.txt) && $(EXCLUDE_LIBS) && strip --strip-unneeded $@ && ranlib $@
 
 # Use ar -M scripting when mixing .a and .o or using response files
 .dpc.addlib = $(foreach lib,$(filter %.a,$1),addlib $(lib)\n)

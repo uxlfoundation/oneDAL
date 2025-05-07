@@ -74,7 +74,7 @@ elseif (NOT "${REF_BACKEND}" STREQUAL "OFF" AND NOT "${REF_BACKEND}" STREQUAL "O
 endif()
 
 if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
-    set(ONEDAL_LINK "dynamic")
+    set(ONEDAL_LINK "static")
     set(MKL_DEPENDENCY "no")
 elseif ("${ONEDAL_LINK}" STREQUAL "static")
     set(ONEDAL_LINK "static")
@@ -168,6 +168,7 @@ elseif (ONEDAL_USE_DPCPP STREQUAL "yes" AND ONEDAL_INTERFACE STREQUAL "yes")
 endif()
 
 list(APPEND DAL_LIBS onedal_core${DAL_DEBUG_SUFFIX})
+list(APPEND DAL_LIBS onedal_dpc${DAL_DEBUG_SUFFIX})
 
 set(THREADING_TYPE "parallel")
 set(DAL_THREAD_LIBRARY_NAME onedal_thread${DAL_DEBUG_SUFFIX})
