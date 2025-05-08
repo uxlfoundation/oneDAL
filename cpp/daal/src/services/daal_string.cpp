@@ -84,12 +84,6 @@ String::String(const char * str, size_t capacity) : _c_str(0)
     initialize(str, strLength);
 };
 
-String::String(String && str)
-{
-    _c_str     = str._c_str;
-    str._c_str = 0;
-}
-
 String::String(const String & str) : _c_str(0)
 {
     initialize(str.c_str(), str.length());
@@ -107,14 +101,6 @@ String & String::operator=(const String & other)
         reset();
         initialize(other.c_str(), other.length());
     }
-    return *this;
-}
-
-String & String::operator=(String && other)
-{
-    reset();
-    _c_str       = other._c_str;
-    other._c_str = 0;
     return *this;
 }
 

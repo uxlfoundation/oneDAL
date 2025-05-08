@@ -88,12 +88,6 @@ public:
     String(const String & str);
 
     /**
-     * Move constructor
-     * \param[in] str       The sequence of characters that forms the string
-     */
-    String(String && str);
-
-    /**
      * Destructor
      */
     ~String();
@@ -102,12 +96,6 @@ public:
      * Assigment operator
      */
     String & operator=(const String & other);
-
-    /**
-     * Move assignment operator
-     * \param[in] str       The sequence of characters that forms the string
-     */
-    String & operator=(String && str);
 
     /**
      * Comparison operators: equal to
