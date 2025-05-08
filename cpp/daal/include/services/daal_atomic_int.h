@@ -169,6 +169,9 @@ public:
      */
     Atomic(size_t value) : my_storage(value) {}
 
+    /** TODO: Make virtual */
+    ~Atomic() {}
+
 protected:
     size_t my_storage;
 
@@ -233,6 +236,9 @@ public:
      * \param[in] value The value to be assigned to the atomic object
      */
     Atomic(dataType value) : my_storage(value) {}
+
+    /** TODO: Make virtual */
+    ~Atomic() {}
 
 protected:
     dataType my_storage;

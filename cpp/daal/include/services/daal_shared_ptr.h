@@ -186,14 +186,23 @@ public:
 
     SharedPtr(const SharedPtr<T> & ptr);
 
+    SharedPtr(SharedPtr<T> && ptr);
+
     SharedPtr(const SharedPtr<T> & ptr, T * shiftedPtr);
 
     /**
-    * Constructs a shared pointer from another shared pointer of the same type
+    * Constructs a shared pointer from another shared pointer of the different type
     * \param[in] other   Input shared pointer
     */
     template <class U>
     SharedPtr(const SharedPtr<U> & other);
+
+    /**
+    * Move-constructs a shared pointer from another shared pointer of the different type
+    * \param[in] other   Input shared pointer
+    */
+    template <class U>
+    SharedPtr(SharedPtr<U> && other);
 
     /**
      * Aliasing constructor: constructs a SharedPtr that shares ownership information with r,
@@ -219,6 +228,12 @@ public:
      * \param[in] ptr   Shared pointer to copy
      */
     SharedPtr<T> & operator=(const SharedPtr<T> & ptr);
+
+    /**
+     * Makes a copy of an input shared pointer and increments the reference count
+     * \param[in] ptr   Shared pointer to copy
+     */
+    SharedPtr<T> & operator=(SharedPtr<T> && ptr);
 
     /**
      * Releases managed pointer
@@ -326,9 +341,26 @@ SharedPtr<T>::SharedPtr(const SharedPtr<U> & other) : _ownedPtr(other._ownedPtr)
 }
 
 template <class T>
+template <class U>
+SharedPtr<T>::SharedPtr(SharedPtr<U> && other) : _ownedPtr(other._ownedPtr), _ptr(other._ptr), _refCount(other._refCount)
+{
+    other._ownedPtr = nullptr;
+    other._ptr      = nullptr;
+    other._refCount = nullptr;
+}
+
+template <class T>
 SharedPtr<T>::SharedPtr(const SharedPtr<T> & other) : _ownedPtr(other._ownedPtr), _ptr(other._ptr), _refCount(other._refCount)
 {
     if (_refCount) _refCount->inc();
+}
+
+template <class T>
+SharedPtr<T>::SharedPtr(SharedPtr<T> && other) : _ownedPtr(other._ownedPtr), _ptr(other._ptr), _refCount(other._refCount)
+{
+    other._ownedPtr = nullptr;
+    other._ptr      = nullptr;
+    other._refCount = nullptr;
 }
 
 template <class T>
@@ -359,13 +391,30 @@ void SharedPtr<T>::_remove()
 template <class T>
 SharedPtr<T> & SharedPtr<T>::operator=(const SharedPtr<T> & ptr)
 {
-    if (&ptr != this || ptr._ownedPtr != this->_ownedPtr || ptr._ptr != this->_ptr)
+    if (&ptr == this) return *this;
+
+    if (ptr._ownedPtr != this->_ownedPtr || ptr._ptr != this->_ptr)
     {
         _remove();
         _ownedPtr = ptr._ownedPtr;
         _refCount = ptr._refCount;
         _ptr      = ptr._ptr;
         if (_refCount) _refCount->inc();
+    }
+    return *this;
+}
+
+template <class T>
+SharedPtr<T> & SharedPtr<T>::operator=(SharedPtr<T> && ptr)
+{
+    if (ptr._ownedPtr != this->_ownedPtr || ptr._ptr != this->_ptr)
+    {
+        _ownedPtr     = ptr._ownedPtr;
+        _refCount     = ptr._refCount;
+        _ptr          = ptr._ptr;
+        ptr._ownedPtr = nullptr;
+        ptr._refCount = nullptr;
+        ptr._ptr      = nullptr;
     }
     return *this;
 }
