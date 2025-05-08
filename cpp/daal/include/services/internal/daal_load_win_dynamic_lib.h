@@ -26,6 +26,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 
+    #define NOMINMAX // Prevents Windows.h from defining min and max macros
     #include <windows.h>
     #include "services/daal_defines.h"
 
