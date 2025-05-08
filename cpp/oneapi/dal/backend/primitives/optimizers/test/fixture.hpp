@@ -107,12 +107,6 @@ private:
 };
 
 template <typename Float>
-void check_val(const Float real, const Float expected, const Float rtol, const Float atol) {
-    REQUIRE(abs(real - expected) < atol);
-    REQUIRE(abs(real - expected) / std::max(std::abs(expected), Float(1.0)) < rtol);
-}
-
-template <typename Float>
 void gram_schmidt(ndview<Float, 2>& A) {
     const std::int64_t n = A.get_dimension(0);
     for (std::int64_t i = 0; i < n; ++i) {
