@@ -189,7 +189,7 @@ public:
     SharedPtr(const SharedPtr<T> & ptr, T * shiftedPtr);
 
     /**
-    * Constructs a shared pointer from another shared pointer of the same type
+    * Constructs a shared pointer from another shared pointer of the different type
     * \param[in] other   Input shared pointer
     */
     template <class U>
@@ -359,7 +359,9 @@ void SharedPtr<T>::_remove()
 template <class T>
 SharedPtr<T> & SharedPtr<T>::operator=(const SharedPtr<T> & ptr)
 {
-    if (&ptr != this || ptr._ownedPtr != this->_ownedPtr || ptr._ptr != this->_ptr)
+    if (&ptr == this) return *this;
+
+    if (ptr._ownedPtr != this->_ownedPtr || ptr._ptr != this->_ptr)
     {
         _remove();
         _ownedPtr = ptr._ownedPtr;

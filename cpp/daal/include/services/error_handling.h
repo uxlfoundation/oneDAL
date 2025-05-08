@@ -329,6 +329,16 @@ public:
      */
     ErrorCollection(const ErrorCollection & o) : _errors(o.getErrors()), _canThrow(o._canThrow) {}
 
+    ErrorCollection & operator=(const ErrorCollection & o)
+    {
+        if (this != &o)
+        {
+            _errors   = o.getErrors();
+            _canThrow = o._canThrow;
+        }
+        return *this;
+    }
+
     /**
     * Constructor for error collection
     * \param[in] errors  Error collection that will be kept by

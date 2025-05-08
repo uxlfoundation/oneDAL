@@ -47,6 +47,8 @@ class DAAL_EXPORT HostAppIface : public Base
 public:
     DAAL_NEW_DELETE();
     HostAppIface();
+    HostAppIface(const HostAppIface & other)             = delete;
+    HostAppIface & operator=(const HostAppIface & other) = delete;
     virtual ~HostAppIface();
     /**
      * This callback is called by compute() methods of the library algorithms.
