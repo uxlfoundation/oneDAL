@@ -306,11 +306,18 @@ class object_store : public base {
 public:
     using container_t = std::vector<base*>;
 
+    object_store() = default;
     ~object_store() {
         for (auto obj : container_) {
             delete obj;
         }
     }
+
+    object_store(const object_store&) = delete;
+    object_store& operator=(const object_store&) = delete;
+
+    object_store(object_store&&) noexcept = default;
+    object_store& operator=(object_store&&) noexcept = default;
 
     template <typename T>
     void add(T&& obj) {

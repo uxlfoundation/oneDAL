@@ -135,8 +135,6 @@ sycl::event copy_convert(sycl::queue& queue,
                          const std::int64_t* out_strides,
                          const shape_t& shape,
                          const std::vector<sycl::event>& deps) {
-    auto hpolicy = detail::host_policy::get_default();
-
     sycl::event::wait_and_throw(deps);
     const auto [row_count, col_count] = shape;
 
