@@ -24,7 +24,6 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include <math.h>
-#include <iomanip>
 
 #include "oneapi/dal/backend/primitives/objective_function.hpp"
 
