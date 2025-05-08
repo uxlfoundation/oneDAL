@@ -70,6 +70,6 @@ setenv          DALROOT            "$dalroot"
 
 prepend-path    LD_LIBRARY_PATH    "$dalroot/lib"
 prepend-path    LIBRARY_PATH       "$dalroot/lib"
-prepend-path    CPATH              "$dalroot/include/dal"
+prepend-path    CPLUS_INCLUDE_PATH "$dalroot/include/dal"
 prepend-path    CMAKE_PREFIX_PATH  "$dalroot"
 prepend-path    PKG_CONFIG_PATH    "$dalroot/lib/pkgconfig"

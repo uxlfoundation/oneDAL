@@ -33,7 +33,7 @@
 #include "src/services/service_data_utils.h"
 #include "src/algorithms/svm/svm_train_cache.h"
 #include "src/algorithms/svm/svm_train_common.h"
-#include "src/externals/service_profiler.h"
+#include "services/internal/service_profiler.h"
 #include "src/externals/service_math.h"
 #include "src/algorithms/svm/svm_train_kernel.h"
 
@@ -63,7 +63,7 @@ public:
 
     services::Status compute(const NumericTablePtr & xTable, Model & model, const algorithmFPType * cw) const
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(saveResult);
+        DAAL_PROFILER_TASK(saveResult);
 
         services::Status s;
 
