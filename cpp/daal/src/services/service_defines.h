@@ -26,7 +26,8 @@
 #define __SERVICE_DEFINES_H__
 
 #include <stdint.h>
-#include "services/env_detect.h"
+#include "services/daal_defines.h"
+#include "services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();

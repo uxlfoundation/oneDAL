@@ -41,6 +41,7 @@ Parameter::Parameter(double k, double b) : ParameterBase(), k(k), b(b) {}
 
 Input::Input() : kernel_function::Input() {}
 Input::Input(const Input & other) : kernel_function::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Checks input objects of the kernel function linear algorithm

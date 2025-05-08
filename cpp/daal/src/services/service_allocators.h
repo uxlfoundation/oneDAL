@@ -95,20 +95,6 @@ struct ScalableCalloc
     static void deallocate(T * ptr) { service_scalable_free<T, cpu>(ptr); }
 };
 
-/* CPU specific deleters */
-
-template <typename T, CpuType cpu>
-struct DefaultDeleter
-{
-    void operator()(T * ptr) { delete ptr; }
-};
-
-template <typename T, CpuType cpu>
-struct EmptyDeleter
-{
-    void operator()(T * ptr) {}
-};
-
 /* Construction policy that does call explicitly constructor/destructor for type T */
 template <typename T, CpuType cpu>
 struct DoConstruct
