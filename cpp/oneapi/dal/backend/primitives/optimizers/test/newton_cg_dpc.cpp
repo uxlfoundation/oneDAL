@@ -134,7 +134,7 @@ public:
         // Compute logloss at the optimal point
         sycl::event::wait_and_throw(logloss_func.update_x(solution_, false, false, {}));
         float_t pred_loss = logloss_func.get_value();
-        
+
         // Compute logloss at the original point
         auto params_gpu = params_host.to_device(this->get_queue());
         sycl::event::wait_and_throw(logloss_func.update_x(params_gpu, false, false, {}));
@@ -209,8 +209,7 @@ public:
     void test_newton_cg() {
         auto [x, x_event] =
             ndarray<float_t, 1>::zeros(this->get_queue(), { n_ }, sycl::usm::alloc::device);
-    
-        
+
         float_t conv_tol = sizeof(float_t) == 4 ? 1e-7 : 1e-14;
         auto [opt_event, num_iter, inner_iter] =
             newton_cg(this->get_queue(), *func_, x, conv_tol, 100, 200l, { x_event });

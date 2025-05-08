@@ -64,7 +64,7 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
         Float grad_norm = 0, grad_max_abs = 0;
         l1_norm(queue, gradient, tmp_gpu, &grad_norm, update_event_vec).wait_and_throw();
         max_abs(queue, gradient, tmp_gpu, &grad_max_abs, update_event_vec).wait_and_throw();
-        
+
         if (grad_max_abs < tol) {
             // TODO check that conditions are the same across diferent devices
             break;
@@ -102,7 +102,7 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
                                                       maxinner,
                                                       { last_event });
             inner_iter_sum += inner_iter;
-            // <-grad, direction> should be > 0 if direction is descent direction            
+            // <-grad, direction> should be > 0 if direction is descent direction
             last_event = dot_product(queue, gradient, direction, tmp_gpu, &desc, { solve_event });
             last_event.wait_and_throw();
         }
@@ -113,7 +113,7 @@ std::tuple<sycl::event, std::int64_t, std::int64_t> newton_cg(sycl::queue& queue
 
         // Change the sign of gradient back to reuse it in backtracking function
         prepare_grad_event =
-            element_wise(queue, kernel_minus, gradient, Float(0), gradient, {last_event});
+            element_wise(queue, kernel_minus, gradient, Float(0), gradient, { last_event });
         Float alpha_opt = backtracking(queue,
                                        f,
                                        x,

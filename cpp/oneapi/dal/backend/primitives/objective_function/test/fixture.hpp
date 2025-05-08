@@ -622,7 +622,7 @@ public:
                                                  L2 * 2,
                                                  fit_intercept,
                                                  bsz);
-        
+
         // Test the case when value, gradient and hessp are needed
         auto set_point_event = functor.update_x(params_gpu, true, true, {});
         wait_or_pass(set_point_event).wait_and_throw();
