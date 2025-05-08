@@ -29,8 +29,8 @@
 #include "services/env_detect.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
-DAAL_EXPORT int __daal_enabled_cpu_detect();
-DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect();
+DAAL_EXPORT int daal_enabled_cpu_detect();
+DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();

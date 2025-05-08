@@ -246,7 +246,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     return daal::sse2;
 }
 
-DAAL_EXPORT int __daal_enabled_cpu_detect()
+int __daal_internal_enabled_cpu_detect()
 {
     #ifdef DAAL_KERNEL_AVX512
     if (check_avx512_features() && daal_check_is_intel_cpu())
@@ -272,6 +272,13 @@ DAAL_EXPORT int __daal_enabled_cpu_detect()
     return daal::sse2;
 }
 
+DAAL_EXPORT int daal_enabled_cpu_detect()
+{
+    // We cache the result in a static variable here.
+    static const int result = __daal_internal_enabled_cpu_detect();
+    return result;
+}
+
     /// Check if the CPU supports the specified feature
     /// \param result   The result of the CPU feature detection of type DAAL_UINT64.
     ///                 A combination of CPU features.
@@ -287,10 +294,10 @@ DAAL_EXPORT int __daal_enabled_cpu_detect()
             result |= feature;                                             \
         }
 
-DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+DAAL_UINT64 __daal_internal_serv_cpu_feature_detect()
 {
     DAAL_UINT64 result = daal::CpuFeature::unknown;
-    if (!__daal_internal_is_intel_cpu())
+    if (!daal_check_is_intel_cpu())
     {
         return result;
     }
@@ -309,6 +316,13 @@ DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
 
     #undef DAAL_TEST_CPU_FEATURE
 
+DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
+{
+    // We cache the result in a static variable here.
+    static const DAAL_UINT64 result = __daal_internal_serv_cpu_feature_detect();
+    return result;
+}
+
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
 {
@@ -326,7 +340,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     return -1;
 }
 
-DAAL_EXPORT int __daal_enabled_cpu_detect()
+DAAL_EXPORT int daal_enabled_cpu_detect()
 {
     #ifdef DAAL_KERNEL_SVE
     if (check_sve_features())
@@ -347,7 +361,7 @@ bool daal_check_is_intel_cpu()
     return false;
 }
 
-DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
     return daal::CpuFeature::unknown;
 }
@@ -358,7 +372,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
     return daal::rv64;
 }
 
-DAAL_EXPORT int __daal_enabled_cpu_detect()
+DAAL_EXPORT int daal_enabled_cpu_detect()
 {
     return daal::rv64;
 }
@@ -373,7 +387,7 @@ bool daal_check_is_intel_cpu()
     return false;
 }
 
-DAAL_EXPORT DAAL_UINT64 __daal_serv_cpu_feature_detect()
+DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
     return daal::CpuFeature::unknown;
 }
