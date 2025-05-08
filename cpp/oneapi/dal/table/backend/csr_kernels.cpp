@@ -61,7 +61,6 @@ std::int64_t csr_get_non_zero_count(sycl::queue& queue,
     auto first_row_event = copy_usm2host(queue, &first_row_offset, row_offsets, 1, dependencies);
     auto last_row_event =
         copy_usm2host(queue, &last_row_offset, row_offsets + row_count, 1, dependencies);
-
     sycl::event::wait_and_throw({ first_row_event, last_row_event });
 
     return (last_row_offset - first_row_offset);
