@@ -85,6 +85,8 @@ struct compute_ops {
     void check_parameters_ranges(const param_t& params, const input_t& input) const {
         ONEDAL_ASSERT(params.get_cpu_macro_block() > 0);
         ONEDAL_ASSERT(params.get_cpu_macro_block() <= 0x10000l);
+        ONEDAL_ASSERT(params.get_cpu_grain_size() > 0);
+        ONEDAL_ASSERT(params.get_cpu_grain_size() <= 0x10000l);
     }
 
     template <typename Context>

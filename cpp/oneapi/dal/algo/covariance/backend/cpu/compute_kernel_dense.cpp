@@ -43,9 +43,11 @@ static daal_hyperparameters_t convert_parameters(const detail::compute_parameter
     using daal_covariance::internal::HyperparameterId;
 
     const std::int64_t block = params.get_cpu_macro_block();
+    const std::int64_t grain_size = params.get_cpu_grain_size();
 
     daal_hyperparameters_t daal_hyperparameter;
     auto status = daal_hyperparameter.set(HyperparameterId::denseUpdateStepBlockSize, block);
+    status |= daal_hyperparameter.set(HyperparameterId::denseUpdateStepGrainSize, grain_size);
     interop::status_to_exception(status);
 
     return daal_hyperparameter;
