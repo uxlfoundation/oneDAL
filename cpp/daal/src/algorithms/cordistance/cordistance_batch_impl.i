@@ -56,23 +56,24 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const size_t na, const NumericTable * const * a, const size_t nr,
                                                                        NumericTable * r[], const daal::algorithms::Parameter * par)
 {
-    NumericTable * xTable                          = const_cast<NumericTable *>(a[0]); /* Input data */
+    NumericTable * xTable                          = const_cast<NumericTable *>(a[0]); /* x Input data */
+    NumericTable * yTable                          = const_cast<NumericTable *>(a[1]); /* y Input data */
     NumericTable * rTable                          = const_cast<NumericTable *>(r[0]); /* Result */
     const NumericTableIface::StorageLayout rLayout = r[0]->getDataLayout();
 
     if (isFull<algorithmFPType, cpu>(rLayout))
     {
-        return corDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        return corDistanceFull<algorithmFPType, cpu>(xTable, yTable, rTable);
     }
     else
     {
         if (isLower<algorithmFPType, cpu>(rLayout))
         {
-            return corDistanceLowerPacked<algorithmFPType, cpu>(xTable, rTable);
+            return corDistanceLowerPacked<algorithmFPType, cpu>(xTable, yTable, rTable);
         }
         else if (isUpper<algorithmFPType, cpu>(rLayout))
         {
-            return corDistanceUpperPacked<algorithmFPType, cpu>(xTable, rTable);
+            return corDistanceUpperPacked<algorithmFPType, cpu>(xTable, yTable, rTable);
         }
         else
         {
