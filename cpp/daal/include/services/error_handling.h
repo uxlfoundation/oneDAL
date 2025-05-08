@@ -333,7 +333,7 @@ public:
     {
         if (this != &o)
         {
-            _errors = o.getErrors();
+            _errors   = o.getErrors();
             _canThrow = o._canThrow;
         }
         return *this;
