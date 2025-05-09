@@ -73,8 +73,6 @@ static compute_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
     const auto daal_nobs_matrix = interop::convert_to_daal_table<Float>(input.get_partial_n_rows());
 
     auto result = compute_result<Task>{}.set_result_options(desc.get_result_options());
-    auto rows_count_global =
-        row_accessor<const Float>(input.get_partial_n_rows()).pull({ 0, -1 })[0];
 
     const daal_hyperparameters_t& hp =
         convert_parameters<Float, Task>(detail::compute_parameters<Task>{});
