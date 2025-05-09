@@ -27,6 +27,10 @@
 
 namespace oneapi::dal::backend::primitives::test {
 
+#define IS_CLOSE(ftype, real, expected, rtol, atol) \
+    REQUIRE(abs(real - expected) < atol);           \
+    REQUIRE(abs(real - expected) / std::max(std::abs(expected), (ftype)1.0) < rtol);
+
 // f(x) = 1/2 x^t A x - b^t x
 // df / dx = Ax - b
 // df / d^2x = A
@@ -101,12 +105,6 @@ private:
     ndarray<Float, 1> gradient_;
     linear_matrix_operator<Float> hessp_;
 };
-
-template <typename Float>
-void check_val(const Float real, const Float expected, const Float rtol, const Float atol) {
-    REQUIRE(abs(real - expected) < atol);
-    REQUIRE(abs(real - expected) / std::max(std::abs(expected), Float(1.0)) < rtol);
-}
 
 template <typename Float>
 void gram_schmidt(ndview<Float, 2>& A) {

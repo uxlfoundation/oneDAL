@@ -472,7 +472,7 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
             }
             else {
                 compute_e = compute_logloss(q_,
-                                            labels_,
+                                            labels_batch,
                                             prob_batch,
                                             loss_batch,
                                             fit_intercept_,

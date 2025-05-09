@@ -45,7 +45,7 @@ Float backtracking(sycl::queue queue,
     Float cur_val = 0;
     constexpr Float eps = std::numeric_limits<Float>::epsilon();
     bool is_first_iter = true;
-    while ((is_first_iter || cur_val > f0 + c1 * alpha * df0) && alpha > eps) {
+    while ((is_first_iter || cur_val - f0 > c1 * alpha * df0) && alpha > eps) {
         // TODO check that conditions are the same across diferent devices
         if (!is_first_iter) {
             alpha /= 2;
@@ -61,6 +61,9 @@ Float backtracking(sycl::queue queue,
         auto func_event_vec = f.update_x(result, false, false, { update_x_event });
         wait_or_pass(func_event_vec).wait_and_throw();
         cur_val = f.get_value();
+    }
+    if (alpha <= eps) {
+        alpha = 0;
     }
     return alpha;
 }

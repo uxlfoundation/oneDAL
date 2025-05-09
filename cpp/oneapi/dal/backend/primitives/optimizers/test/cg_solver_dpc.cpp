@@ -96,7 +96,7 @@ public:
         REQUIRE(r_norm < 1e-4);
 
         for (std::int64_t i = 0; i < n_; ++i) {
-            check_val(x_host_.at(i), answer_host.at(i), (float_t)0.005, (float_t)0.005);
+            IS_CLOSE(float_t, x_host_.at(i), answer_host.at(i), (float_t)0.005, (float_t)0.005)
         }
     }
 
