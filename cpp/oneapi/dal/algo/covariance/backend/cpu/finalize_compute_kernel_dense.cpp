@@ -79,8 +79,6 @@ static compute_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
     const daal_hyperparameters_t& hp =
         convert_parameters<Float, Task>(detail::compute_parameters<Task>{});
 
-    interop::status_to_exception(
-        daal_hyperparameter.set(daal_covariance::internal::denseUpdateStepBlockSize, blockSize));
     if (desc.get_result_options().test(result_options::cov_matrix)) {
         daal_parameter.outputMatrixType = daal_covariance::covarianceMatrix;
         auto arr_cov_matrix = array<Float>::empty(component_count * component_count);
