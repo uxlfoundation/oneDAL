@@ -56,6 +56,7 @@ struct compute_parameters_impl : public base {
     /// To compute the variance-covariance matrix input data set is being split into blocks of rows.
     /// This value defines the default number of rows in the block on CPU.
     std::int64_t cpu_macro_block = 140l;
+    std::int64_t cpu_grain_size = 1l;
 };
 
 template <typename Task>
@@ -73,6 +74,20 @@ std::int64_t compute_parameters<Task>::get_cpu_macro_block() const {
 template <typename Task>
 void compute_parameters<Task>::set_cpu_macro_block_impl(std::int64_t val) {
     impl_->cpu_macro_block = val;
+}
+
+/// Choose the number of data blocks used by one thread in variance-covariance matrix computations on CPU.
+///
+/// @tparam Task    The variant of the computations.
+///                 Covariance algorithm supports only :expr:`compute`.
+template <typename Task>
+std::int64_t compute_parameters<Task>::get_cpu_grain_size() const {
+    return impl_->cpu_grain_size;
+}
+
+template <typename Task>
+void compute_parameters<Task>::set_cpu_grain_size_impl(std::int64_t val) {
+    impl_->cpu_grain_size = val;
 }
 
 template class ONEDAL_EXPORT compute_parameters<task::compute>;

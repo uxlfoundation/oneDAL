@@ -38,19 +38,22 @@ public:
     using descriptor_t = typename base_t::descriptor_t;
 
     void generate_parameters() {
-        this->block_ = GENERATE(140, 512, 1024);
+        this->block_ = GENERATE(140, 1024);
+        this->grain_size_ = GENERATE(1, 4);
         this->pack_as_struct_ = GENERATE(0, 1);
     }
 
     auto get_current_parameters() const {
         detail::compute_parameters res{};
         res.set_cpu_macro_block(this->block_);
+        res.set_cpu_grain_size(this->grain_size_);
         return res;
     }
 
     template <typename Desc, typename... Args>
     result_t compute_override(Desc&& desc, Args&&... args) {
         REQUIRE(this->block_ > 0);
+        REQUIRE(this->grain_size_ > 0);
         const auto params = this->get_current_parameters();
         if (this->pack_as_struct_) {
             return te::float_algo_fixture<Float>::compute(std::forward<Desc>(desc),
@@ -75,6 +78,7 @@ public:
 
 private:
     std::int64_t block_;
+    std::int64_t grain_size_;
     bool pack_as_struct_;
 };
 

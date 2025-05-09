@@ -350,11 +350,15 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
 
         /* Split rows by blocks */
         DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
+        DAAL_INT64 grainSize64    = 1;
         if (hyperparameter)
         {
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
             DAAL_CHECK_STATUS_VAR(status);
             DAAL_CHECK(0ll < numRowsInBlock, services::ErrorHyperparameterBadValue);
+            status = hyperparameter->find(denseUpdateStepGrainSize, grainSize64);
+            DAAL_CHECK_STATUS_VAR(status);
+            DAAL_CHECK(0ll < grainSize64, services::ErrorHyperparameterBadValue);
         }
         size_t numBlocks = nVectors / numRowsInBlock;
         if (numBlocks * numRowsInBlock < nVectors)
@@ -369,7 +373,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         }
 
         /* Reduce input matrix X into cross product Xt X and a vector of column sums */
-        const size_t grainSize = 1; // minimal number of data blocks to be processed by a thread
+        const size_t grainSize(grainSize64); // minimal number of data blocks to be processed by a thread
         daal::static_threader_reduce(numBlocks, grainSize, result);
         if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
         {
