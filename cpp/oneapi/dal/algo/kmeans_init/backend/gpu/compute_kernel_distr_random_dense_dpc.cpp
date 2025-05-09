@@ -82,7 +82,7 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     pr::device_engine engine_gpu = ::oneapi::dal::backend::primitives::device_engine(
         queue_,
         rseed,
-        ::oneapi::dal::backend::primitives::engine_type_internal::mt19937);
+        ::oneapi::dal::backend::primitives::engine_type_internal::philox4x32x10);
 
     ids_arr_t root_rand = ids_arr_t::empty(rank_count);
 

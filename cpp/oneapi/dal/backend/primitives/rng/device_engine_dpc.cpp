@@ -131,17 +131,53 @@ sycl::event uniform_without_replacement(sycl::queue& queue,
                                         Type a,
                                         Type b,
                                         const event_vector& deps) {
-    if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
-        sycl::usm::alloc::device) {
+    if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) == sycl::usm::alloc::host) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
-    void* state = engine_.get_host_engine_state();
-    engine_.skip_ahead_gpu(count);
-    uniform_dispatcher::uniform_without_replacement_by_cpu<Type>(count, dst, state, a, b);
-    auto event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
+    const std::int64_t n = b - a;
+    if (count > n) {
+        throw std::invalid_argument("Sample size exceeds population size");
+    }
+
+    // Allocate array for full population [a, b)
+    auto full_array = array<Type>::empty(queue, n);
+    Type* full_ptr = full_array.get_mutable_data();
+
+    // Fill array with [a, a+1, ..., b-1]
+    auto fill_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.parallel_for(sycl::range<1>(n), [=](sycl::id<1> i) {
+            full_ptr[i] = a + static_cast<Type>(i);
+        });
     });
-    return event;
+
+    // Generate random indices for Fisher-Yates shuffle
+    auto rand_array = array<Type>::empty(queue, count);
+    Type* rand_ptr = rand_array.get_mutable_data();
+
+    oneapi::mkl::rng::uniform<Type> distr(0, n);
+    engine_.skip_ahead_cpu(count);
+    auto rand_event = generate_rng(distr, engine_, count, rand_ptr, { fill_event });
+
+    // // Perform Fisher-Yates shuffle for first 'count' elements
+    auto shuffle_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(fill_event);
+        cgh.single_task([=]() {
+            for (std::int64_t idx = 0; idx < count; ++idx) {
+                // // Generate random index between idx and n-1 (inclusive)
+                std::int64_t j = idx + rand_ptr[idx] % (n - idx);
+                if (j != idx) {
+                    Type tmp = full_ptr[idx];
+                    full_ptr[idx] = full_ptr[j];
+                    full_ptr[j] = tmp;
+                }
+                // Copy the shuffled element to output
+                dst[idx] = full_ptr[idx];
+            }
+        });
+    });
+
+    return shuffle_event;
 }
 
 /// Shuffles an array using random swaps on the GPU.
@@ -157,22 +193,36 @@ sycl::event shuffle(sycl::queue& queue,
                     Type* dst,
                     device_engine& engine_,
                     const event_vector& deps) {
-    Type idx[2];
-    if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) ==
-        sycl::usm::alloc::device) {
+    // Check if destination pointer is on host, as device memory is not supported for dst here
+    if (sycl::get_pointer_type(dst, engine_.get_queue().get_context()) == sycl::usm::alloc::host) {
         throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
-    void* state = engine_.get_host_engine_state();
+
     engine_.skip_ahead_gpu(count);
 
-    for (std::int64_t i = 0; i < count; ++i) {
-        uniform_dispatcher::uniform_by_cpu<Type>(2, idx, state, 0, count);
-        std::swap(dst[idx[0]], dst[idx[1]]);
-    }
-    auto event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
+    // Array to store random indices for shuffling
+    auto idx_array = array<Type>::empty(queue, count);
+    Type* idx_ptr = idx_array.get_mutable_data();
+
+    // Generate random indices for shuffle
+    oneapi::mkl::rng::uniform<Type> distr(0, count);
+    auto rand_event = generate_rng(distr, engine_, count, idx_ptr, deps);
+
+    // Perform the shuffle by swapping values in dst based on the generated random indices
+    auto shuffle_event = queue.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(rand_event); // Depends on the RNG generation step
+        cgh.parallel_for(sycl::range<1>(count), [=](sycl::id<1> i) {
+            // Randomly select another index to swap with the current one
+            Type j = idx_ptr[i];
+            if (j != i) {
+                Type temp = dst[i];
+                dst[i] = dst[j];
+                dst[j] = temp;
+            }
+        });
     });
-    return event;
+
+    return shuffle_event;
 }
 
 /// Partially shuffles the first `top` elements of an array using the Fisher-Yates algorithm.

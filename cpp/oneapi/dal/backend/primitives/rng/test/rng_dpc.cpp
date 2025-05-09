@@ -159,7 +159,7 @@ TEMPLATE_LIST_TEST_M(rng_test, "uniform without replacement test", "[rng]", rng_
     std::int64_t elem_count = GENERATE_COPY(10, 777, 10000, 50000);
     std::int64_t seed = GENERATE_COPY(777, 999);
 
-    auto arr_gpu = this->allocate_array_host(elem_count);
+    auto arr_gpu = this->allocate_array_device(elem_count);
     auto arr_host = this->allocate_array_host(elem_count);
     auto arr_gpu_ptr = arr_gpu.get_mutable_data();
     auto arr_host_ptr = arr_host.get_mutable_data();
