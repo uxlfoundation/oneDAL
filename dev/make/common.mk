@@ -116,6 +116,27 @@ link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$
 link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
 link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 
+
+DPC.LINK.STATIC = $(mkdir)$(call rm,$@)$(dpc.link.static.cmd)
+dpc.link.static.cmd = $(call dpc.link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
+dpc.link.static.lnx = $(dpc.link.static.lnx.cmdline)
+dpc.link.static.lnx.cmdline = \
+    ld -r -o $@ \
+    $(filter %.o,$1) \
+    $(call ld_addlib,$1) \
+    $(call ld_addlink,$1) \
+    --no-whole-archive $(daaldep.math_backend.sycl) --no-whole-archive
+
+ld_addlib = $(foreach lib,$(filter %.a,$1),--no-whole-archive $(lib) --no-whole-archive)
+ld_addlink = $(if $(filter %_link.txt,$1),$(shell cat $(filter %_link.txt,$1)))
+dpc.link.static.win = \
+    ld -r -o $@ --output-def $(@:.a=.def) \
+    $(filter %.o,$1) \
+    $(call ld_addlib,$1) \
+    $(call ld_addlink,$1) \
+    --no-whole-archive $(daaldep.math_backend.sycl) --no-whole-archive
+dpc.link.static.mac = ld -r -o $@ $(filter %.o,$1) $(call ld_addlib,$1) $(call ld_addlink,$1)
+
 # Link dynamic lib
 LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
 link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
