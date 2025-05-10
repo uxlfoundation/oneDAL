@@ -116,6 +116,18 @@ link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$
 link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
 link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
 
+
+DPC.LINK.STATIC = $(mkdir)$(call rm,$@)$(dpc.link.static.cmd)
+dpc.link.static.cmd = $(call dpc.link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
+dpc.link.static.lnx = $(dpc.link.static.lnx.cmdline)
+dpc.link.static.lnx.cmdline = ld -r -o $@ $(filter %.o,$1) $(filter %.a,$1)
+.addlib = $(foreach lib,$(filter %.a,$1),addlib $(lib)\n)
+.addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
+.addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))
+dpc.link.static.lnx.script = printf "create $@\n$(call .addlib,$1)\n$(call .addmod,$1)\n$(call .addlink,$1)\nsave\n" | $(if $(AR_is_command_line),${AR},ar) -M
+dpc.link.static.win = lib $(link.static.win.$(COMPILER)) -nologo -out:$@ $(1:%_link.txt=@%_link.txt)
+dpc.link.static.mac = libtool -V -static -o $@ $(1:%_link.txt=-filelist %_link.txt)
+
 # Link dynamic lib
 LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(link.dynamic.cmd)
 link.dynamic.cmd = $(call link.dynamic.$(_OS),$(secure.opts.link.$(_OS)) $(or $1,$(^.no-mkdeps)) $(LOPT))
