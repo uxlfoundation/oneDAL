@@ -67,6 +67,26 @@ std::int64_t propose_grain_size(const context_cpu& ctx, const std::int64_t row_c
     return detail::train_parameters<task::dim_reduction>{}.get_cpu_grain_size();
 }
 
+template <typename Float, typename Method>
+struct train_parameters_cpu<Float, Method, task::dim_reduction> {
+    using params_t = detail::train_parameters<task::dim_reduction>;
+    params_t operator()(const context_cpu& ctx,
+                        const detail::descriptor_base<task::dim_reduction>& desc,
+                        const train_input<task::dim_reduction>& input) const {
+        return params_t{};
+    }
+    params_t operator()(const context_cpu& ctx,
+                        const detail::descriptor_base<task::dim_reduction>& desc,
+                        const partial_train_input<task::dim_reduction>& input) const {
+        return params_t{};
+    }
+    params_t operator()(const context_cpu& ctx,
+                        const detail::descriptor_base<task::dim_reduction>& desc,
+                        const partial_train_result<task::dim_reduction>& input) const {
+        return params_t{};
+    }
+};
+
 template <typename Float>
 struct train_parameters_cpu<Float, method::cov, task::dim_reduction> {
     using params_t = detail::train_parameters<task::dim_reduction>;
@@ -121,4 +141,9 @@ struct train_parameters_cpu<Float, method::cov, task::dim_reduction> {
 
 template struct ONEDAL_EXPORT train_parameters_cpu<float, method::cov, task::dim_reduction>;
 template struct ONEDAL_EXPORT train_parameters_cpu<double, method::cov, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::precomputed, task::dim_reduction>;
+template struct ONEDAL_EXPORT
+    train_parameters_cpu<double, method::precomputed, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_cpu<float, method::svd, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_cpu<double, method::svd, task::dim_reduction>;
 } // namespace oneapi::dal::pca::parameters
