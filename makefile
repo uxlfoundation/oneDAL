@@ -818,7 +818,7 @@ endif
 
 $(ONEAPI.tmpdir_a.dpc)/$(oneapi_a.dpc:%.$a=%_link.txt): \
     $(ONEAPI.objs_a.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_a.dpc)/dll.res,) | $(ONEAPI.tmpdir_a.dpc)/. ; $(WRITE.PREREQS) ; cat $@
-$(WORKDIR.lib)/$(oneapi_a.dpc): $(ONEAPI.tmpdir_a.dpc)/$(oneapi_a.dpc:%.$a=%_link.txt) ; $(DPC.LINK.STATIC)
+$(WORKDIR.lib)/$(oneapi_a.dpc): $(ONEAPI.tmpdir_a.dpc)/$(oneapi_a.dpc:%.$a=%_link.txt) ; $(LINK.STATIC)
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(--gc-sections -ffunction-sections -fdata-sections) 
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(daaldep.rt.dpc)
@@ -830,7 +830,7 @@ $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(--strip-unneeded)
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
-# $(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(daaldep.math_backend.sycl)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(daaldep.math_backend.sycl)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_a.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_a.dpc)
