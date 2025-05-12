@@ -14,7 +14,7 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/algo/covariance/backend/cpu/kernel_utils.hpp"
+#include "oneapi/dal/algo/covariance/backend/cpu/compute_kernel_common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 
 namespace oneapi::dal::covariance::backend {

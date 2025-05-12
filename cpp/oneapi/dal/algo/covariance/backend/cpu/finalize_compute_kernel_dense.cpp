@@ -20,7 +20,7 @@
 #include "daal/src/algorithms/covariance/covariance_kernel.h"
 
 #include "oneapi/dal/algo/covariance/backend/cpu/finalize_compute_kernel.hpp"
-#include "oneapi/dal/algo/covariance/backend/cpu/kernel_utils.hpp"
+#include "oneapi/dal/algo/covariance/backend/cpu/compute_kernel_common.hpp"
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
