@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,14 +19,20 @@
 #include "oneapi/dal/algo/pca/train_types.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
 
-namespace oneapi::dal::pca::backend {
+namespace oneapi::dal::pca::parameters {
 
 template <typename Float, typename Method, typename Task>
-struct train_kernel_cpu {
-    train_result<Task> operator()(const dal::backend::context_cpu& ctx,
-                                  const detail::descriptor_base<Task>& params,
-                                  const detail::train_parameters<Task>& params,
-                                  const train_input<Task>& input) const;
+struct ONEDAL_EXPORT train_parameters_cpu {
+    using params_t = detail::train_parameters<Task>;
+    params_t operator()(const dal::backend::context_cpu& ctx,
+                        const detail::descriptor_base<Task>& desc,
+                        const train_input<Task>& input) const;
+    params_t operator()(const dal::backend::context_cpu& ctx,
+                        const detail::descriptor_base<Task>& desc,
+                        const partial_train_input<Task>& input) const;
+    params_t operator()(const dal::backend::context_cpu& ctx,
+                        const detail::descriptor_base<Task>& desc,
+                        const partial_train_result<Task>& input) const;
 };
 
-} // namespace oneapi::dal::pca::backend
+} // namespace oneapi::dal::pca::parameters
