@@ -106,7 +106,7 @@ struct train_parameters_cpu<Float, method::cov, task::dim_reduction> {
         const auto& r_count_table = input.get_partial_n_rows();
 
         row_accessor<const std::int32_t> acc{ r_count_table };
-        const auto ary = acc.pull({0, 1});
+        const auto ary = acc.pull({ 0, 1 });
         const auto r_count = (ary.get_count() > 0 ? ary[0] : 0);
 
         const std::int64_t block = propose_block_size<Float>(ctx, r_count);

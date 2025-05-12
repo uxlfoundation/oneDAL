@@ -26,4 +26,4 @@ using daal_hyperparameters_t = daal::algorithms::covariance::internal::Hyperpara
 
 template <typename Float, typename Task>
 daal_hyperparameters_t convert_parameters(const detail::train_parameters<Task>& params);
-}
+} // namespace oneapi::dal::pca::backend

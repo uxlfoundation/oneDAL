@@ -34,6 +34,8 @@ daal_hyperparameters_t convert_parameters(const detail::train_parameters<Task>& 
     return daal_hyperparameter;
 }
 
-template daal_hyperparameters_t convert_parameters<double, task::dim_reduction>(const detail::train_parameters<task::dim_reduction>&);
-template daal_hyperparameters_t convert_parameters<float, task::dim_reduction>(const detail::train_parameters<task::dim_reduction>&);
-}
+template daal_hyperparameters_t convert_parameters<double, task::dim_reduction>(
+    const detail::train_parameters<task::dim_reduction>&);
+template daal_hyperparameters_t convert_parameters<float, task::dim_reduction>(
+    const detail::train_parameters<task::dim_reduction>&);
+} // namespace oneapi::dal::pca::backend

@@ -35,7 +35,6 @@ struct train_parameters_impl;
 template <typename Task>
 class partial_train_result_impl;
 
-
 template <typename Task = task::by_default>
 class train_parameters : public dal::detail::system_parameters {
 public:

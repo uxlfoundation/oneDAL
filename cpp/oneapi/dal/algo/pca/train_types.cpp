@@ -52,7 +52,6 @@ public:
     std::vector<table> auxiliary_tables;
 };
 
-
 template <typename Task>
 struct train_parameters_impl : public base {
     std::int64_t cpu_macro_block = 140l;
