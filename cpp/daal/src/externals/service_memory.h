@@ -28,7 +28,7 @@
 #include "services/daal_memory.h"
 #include "src/services/service_defines.h"
 #include "src/threading/threading.h"
-#include "src/services/service_profiler.h"
+#include "src/externals/service_profiler.h"
 
 #include <climits>     // UINT_MAX
 #include <type_traits> // is_trivially_default_constructible

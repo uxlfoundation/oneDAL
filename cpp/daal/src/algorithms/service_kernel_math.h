@@ -44,7 +44,7 @@
 #include "src/externals/service_lapack.h"
 #include "src/externals/service_memory.h"
 #include "src/externals/service_math.h"
-#include "src/services/service_profiler.h"
+#include "src/externals/service_profiler.h"
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include "immintrin.h"

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "src/services/service_profiler.h"
+#include "src/externals/service_profiler.h"
 
 // UTILS
 #define ONEDAL_PROFILER_MACRO_1(name)                       ONEDAL_PROFILER_START_TASK(name)

@@ -35,7 +35,7 @@
 #include "services/library_version_info.h"
 
 #ifdef _WIN32
-    #define PRETTY_FUNCTION __FUNCSIG__
+    #define PRETTY_FUNCTION
 #else
     #define PRETTY_FUNCTION __PRETTY_FUNCTION__
 #endif

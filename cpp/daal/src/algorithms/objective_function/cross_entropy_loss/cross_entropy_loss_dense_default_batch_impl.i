@@ -24,7 +24,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_environment.h"
-#include "src/services/service_profiler.h"
+#include "src/externals/service_profiler.h"
 
 #include "src/algorithms/objective_function/common/objective_function_utils.i"
 
