@@ -175,6 +175,16 @@ inline static std::string format_time_for_output(std::uint64_t time_ns)
     return out.str();
 }
 
+inline static std::string format_region_for_output(bool threading)
+{
+    std::ostringstream out;
+    if (threading == 0)
+        out << "threading";
+    else
+        out << "loop";
+    return out.str();
+}
+
 inline void profiler_log_named_args(const char * /*names*/) {}
 
 template <typename T, typename... Rest>
@@ -321,7 +331,7 @@ public:
                 prefix += is_last ? "|-- " : "|-- ";
                 std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
                           << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count << " times"
-                          << " in a " << entry.threading_task << " region" << '\n';
+                          << " in a " << format_region_for_output(entry.threading_task) << " region" << '\n';
             }
             std::cerr << "|---(end)" << '\n';
             std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';

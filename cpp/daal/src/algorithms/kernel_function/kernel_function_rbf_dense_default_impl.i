@@ -28,7 +28,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_blas.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/threading/threading.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_helper.h"
 
