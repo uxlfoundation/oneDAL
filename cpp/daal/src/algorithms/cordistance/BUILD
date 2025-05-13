@@ -6,5 +6,6 @@ daal_module(
     auto = True,
     deps = [
         "@onedal//cpp/daal:core",
+	"@onedal//cpp/daal:engines",
     ],
 )
