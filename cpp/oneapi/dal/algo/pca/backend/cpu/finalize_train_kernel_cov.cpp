@@ -84,7 +84,7 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
     const auto daal_explained_variances_ratio =
         interop::convert_to_daal_homogen_table(arr_explained_variances_ratio, 1, column_count);
 
-    auto hp = convert_parameters<Float>(detail::train_parameters<task_t>{});
+    auto hp = convert_parameters<Float>(detail::train_parameters<Task>{});
 
     auto daal_crossproduct =
         interop::convert_to_daal_table<Float>(input.get_partial_crossproduct());
