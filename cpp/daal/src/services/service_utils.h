@@ -23,7 +23,7 @@
 #ifndef __SERVICE_UTILS_H__
 #define __SERVICE_UTILS_H__
 
-#include "services/env_detect.h"
+#include "services/cpu_type.h"
 #include "src/services/service_type_traits.h"
 #include "src/services/service_defines.h"
 
