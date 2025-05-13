@@ -44,7 +44,7 @@ ParameterBase::ParameterBase(size_t rowIndexX, size_t rowIndexY, size_t rowIndex
 
 Input::Input() : daal::algorithms::Input(lastInputId + 1) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
-
+Input & Input::operator=(const Input & other) = default;
 /**
 * Returns the input object of the kernel function algorithm
 * \param[in] id    Identifier of the input object
