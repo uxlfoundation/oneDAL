@@ -45,10 +45,6 @@ namespace daal_cov = daal::algorithms::covariance;
 namespace interop = dal::backend::interop;
 
 template <typename Float, daal::CpuType Cpu>
-using daal_covariance_kernel_t =
-    daal_cov::internal::CovarianceDenseBatchKernel<Float, daal_cov::Method::defaultDense, Cpu>;
-
-template <typename Float, daal::CpuType Cpu>
 using daal_pca_cor_kernel_t = daal_pca::internal::PCACorrelationKernel<daal::batch, Float, Cpu>;
 
 template <typename Float>

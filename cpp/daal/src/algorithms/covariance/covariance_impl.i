@@ -349,8 +349,8 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
 
         /* Split rows by blocks */
-        DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
-        DAAL_INT64 grainSize      = 1;
+        DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors); // number of rows in a data block
+        DAAL_INT64 grainSize      = 1;                           // minimal number of data blocks to be processed by a thread
         if (hyperparameter)
         {
             services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
@@ -447,7 +447,6 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     }
 
     *nObservations += (algorithmFPType)nVectors;
-
     return services::Status();
 }
 
