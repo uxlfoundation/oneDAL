@@ -505,7 +505,7 @@ $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. 
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
-$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.ext) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
+$(WORKDIR.lib)/$(core_a):                   $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
@@ -814,7 +814,6 @@ endif
 $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
-    $(daaldep.math_backend.ext) \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
