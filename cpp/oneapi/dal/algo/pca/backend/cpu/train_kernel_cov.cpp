@@ -69,7 +69,6 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     auto result = train_result<task_t>{}.set_result_options(desc.get_result_options());
 
-    auto arr_cor_matrix = array<Float>::empty(component_count * component_count);
     auto arr_eigvec = array<Float>::empty(column_count * component_count);
     auto arr_eigval = array<Float>::empty(1 * component_count);
     auto arr_means = array<Float>::empty(1 * column_count);
@@ -77,8 +76,6 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     auto arr_singular_values = array<Float>::empty(1 * component_count);
     auto arr_explained_variances_ratio = array<Float>::empty(1 * component_count);
 
-    const auto daal_cor_matrix =
-        interop::convert_to_daal_homogen_table(arr_cor_matrix, component_count, component_count);
     const auto daal_eigenvectors =
         interop::convert_to_daal_homogen_table(arr_eigvec, component_count, column_count);
     const auto daal_eigenvalues =
@@ -90,10 +87,11 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     const auto daal_explained_variances_ratio =
         interop::convert_to_daal_homogen_table(arr_explained_variances_ratio, 1, component_count);
 
-    // daal_cov::Batch<Float, daal_cov::defaultDense> covariance_alg;
-    // covariance_alg.input.set(daal_cov::data, daal_data);
+    auto hp = convert_parameters<Float>(params);
 
-    daal_cov::internal::Hyperparameter hp = convert_parameters<Float>(params);
+    daal_cov::Batch<Float, daal_cov::defaultDense> covariance_alg;
+    covariance_alg.input.set(daal_cov::data, daal_data);
+    covariance_alg.setHyperparameter(&hp);
 
     daal::algorithms::pca::BaseBatchParameter daal_pca_parameter;
 
@@ -102,29 +100,16 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_pca_parameter.resultsToCompute = static_cast<DAAL_UINT64>(
         std::uint64_t(daal_pca::mean | daal_pca::variance | daal_pca::eigenvalue));
 
-    daal_pca_parameter.isCorrelation = true;
+    daal_pca_parameter.isCorrelation = false;
 
     if (desc.get_normalization_mode() == normalization::mean_center) {
         daal_pca_parameter.doScale = false;
     }
 
-    daal_cov::Parameter daal_cor_parameter;
-    daal_cor_parameter.outputMatrixType = daal_cov::correlationMatrix;
-    // daal_cor_parameter.bias = desc.get_bias();
-    // daal_cor_parameter.assumeCentered = desc.get_assume_centered();
-
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, daal_covariance_kernel_t>(ctx,
-                                                                   daal_data.get(),
-                                                                   daal_cor_matrix.get(),
-                                                                   daal_means.get(),
-                                                                   &daal_cor_parameter,
-                                                                   &hp));
-
     interop::status_to_exception(interop::call_daal_kernel<Float, daal_pca_cor_kernel_t>(
         ctx,
-        *daal_cor_matrix,
-        nullptr,
+        *daal_data,
+        &covariance_alg,
         *daal_eigenvectors,
         *daal_eigenvalues,
         *daal_means,
