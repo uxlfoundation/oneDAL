@@ -42,12 +42,16 @@ public:
     train_parameters(train_parameters&&) = default;
     train_parameters(const train_parameters&) = default;
 
+    /// Covariance-based method of PCA splits input data table into blocks of rows to speedup
+    /// the computations.
+    /// These API define the number of rows in the data block.
     std::int64_t get_cpu_macro_block() const;
     auto& set_cpu_macro_block(std::int64_t val) {
         set_cpu_macro_block_impl(val);
         return *this;
     }
 
+    /// Minimal number of data blocks to be processed by one thread in covariance-based method
     std::int64_t get_cpu_grain_size() const;
     auto& set_cpu_grain_size(std::int64_t val) {
         set_cpu_grain_size_impl(val);
