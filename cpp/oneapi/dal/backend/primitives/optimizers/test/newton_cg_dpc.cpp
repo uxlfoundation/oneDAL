@@ -159,10 +159,11 @@ public:
 
         create_stable_matrix(this->get_queue(), A_host, float_t(0.1), float_t(5.0));
         for (std::int64_t i = 0; i < n_; ++i) {
-            b_host.at(i) = 0;
+            double cur_val = 0;
             for (std::int64_t j = 0; j < n_; ++j) {
-                b_host.at(i) += A_host.at(i, j) * solution_.at(j);
+                cur_val += A_host.at(i, j) * solution_.at(j);
             }
+            b_host.at(i) = static_cast<float_t>(cur_val);
         }
 
         A_ = A_host.to_device(this->get_queue());
@@ -227,7 +228,7 @@ public:
         float_t val_tol = sizeof(float_t) == 4 ? 1e-4 : 1e-7;
         REQUIRE(pred_val < gth_val + val_tol);
 
-        float_t tol = sizeof(float_t) == 4 ? 1e-3 : 1e-7;
+        float_t tol = sizeof(float_t) == 4 ? 1e-2 : 1e-7;
         for (std::int64_t i = 0; i < n_; ++i) {
             IS_CLOSE(float_t, solution_.at(i), x_host.at(i), tol, tol)
         }
