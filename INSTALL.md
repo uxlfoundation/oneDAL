@@ -244,7 +244,7 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 
 ### Executing examples with ASAN
 
-When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assumiing a Linux system** (ASAN on Windows has not been tested):
+When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASAN on Windows has not been tested):
 
 * Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASAN - e.g. by setting these flags:
     ```shell
