@@ -34,7 +34,7 @@ There are several options available for installing |short_name|:
 
   - `NuGet <https://www.nuget.org/packages/inteldal.devel.linux-x64>`__
 
-- **Source Distribution**: Clone the `GitHub repository <https://github.com/uxlfoundation/oneDAL>`__ or `download a specific version of |short_name| <https://github.com/uxlfoundation/oneDAL/releases>`__ from the GitHub releases page and follow the instructions in the `INSTALL.md file <https://github.com/uxlfoundation/oneDAL/blob/main/INSTALL.md>`__.
+- **Source Distribution**: Clone the `GitHub repository <https://github.com/uxlfoundation/oneDAL>`__ or `download a specific version <https://github.com/uxlfoundation/oneDAL/releases>`__ of |short_name| from the GitHub releases page and follow the instructions in the `INSTALL.md file <https://github.com/uxlfoundation/oneDAL/blob/main/INSTALL.md>`__.
 
 .. seealso::
 
