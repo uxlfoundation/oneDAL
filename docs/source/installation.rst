@@ -21,7 +21,7 @@ There are several options available for installing oneDAL:
 
   - Intel® oneAPI:
 
-    - Download as Part of the `Intel® oneAPI Base Toolkit <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html>`__
+    - Download as Part of the `|base_tk| <https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html>`__
     - Download as the Stand-Alone `oneAPI Data Analytics Library <https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal-download.html>`__
   - Conda: ::
 
