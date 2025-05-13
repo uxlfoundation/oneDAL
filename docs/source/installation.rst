@@ -15,7 +15,7 @@
 Installation
 ============
 
-There are several options available for installing oneDAL:
+There are several options available for installing |short_name|:
 
 - **Binary Distribution**: pre-built binary packages are available from the following sources:
 
