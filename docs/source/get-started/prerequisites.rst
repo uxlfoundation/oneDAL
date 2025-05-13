@@ -28,7 +28,7 @@ SYCL is available for Linux\* and Windows\* 64-bit operating systems. The
 prebuilt |short_name| libraries can be found in the :file:`<install_dir>/dal/<version>/redist`
 directory.
 
-The dependencies needed to build examples with SYCL extensions:
+The following dependencies are required in order to build the |short_name| examples with SYCL extensions:
 
 - |dpcpp_comp|_ 2021.1 release or later (for support)
 - OpenCL™ runtime 1.2 or later (to run the SYCL runtime)
