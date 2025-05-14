@@ -366,12 +366,10 @@ Status SubTaskCSR<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures, 
         const size_t * colIndices         = _mtX.cols();
         const algorithmFPType * mtXValues = _mtX.values();
         algorithmFPType * subsetXData     = this->_subsetX.get();
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx)
+        for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx, ++dataIndex)
         {
-            subsetXData[dataIndex + jx]  = mtXValues[jx];
-            _colIndicesX[dataIndex + jx] = colIndices[jx];
+            subsetXData[dataIndex]  = mtXValues[jx];
+            _colIndicesX[dataIndex] = colIndices[jx];
         }
         _rowOffsetsX[nRows + 1] = _rowOffsetsX[nRows] + nNonZeroValuesInRow;
         this->_subsetY[nRows]   = label;
