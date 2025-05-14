@@ -705,6 +705,8 @@ $(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-sanitize) $(-DM
                               -D__TBB_NO_IMPLICIT_LINKAGE \
                               -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                               -DTBB_USE_ASSERT=0 \
+                              -flto \
+                              -ffunction-sections -fdata-sections \
                                @$(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a.dpc),.dpcpp))
@@ -763,7 +765,7 @@ $(foreach x,$(PARAMETERS.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$
 # Create Host and DPC++ oneapi libraries
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a.filtered)))
-$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc.filtered)))
+# $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc.filtered)))
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(PARAMETERS.objs_a.filtered)))
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a.dpc),$(PARAMETERS.objs_a.dpc.filtered)))
 else
@@ -811,10 +813,37 @@ ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)
 endif
 
+ONEAPI.objs_a.dpc.lib := $(ONEAPI.objs_a.dpc.filtered)
+ifeq ($(BUILD_PARAMETERS_LIB),no)
+  ONEAPI.objs_a.dpc.lib += $(PARAMETERS.objs_a.dpc.filtered)
+endif
+
+$(ONEAPI.tmpdir_a.dpc)/$(oneapi_a.dpc:%.$a=%_link.txt): \
+    $(ONEAPI.objs_a.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_a.dpc)/dll.res,) | $(ONEAPI.tmpdir_a.dpc)/. ; $(WRITE.PREREQS) ; cat $@
+$(WORKDIR.lib)/$(oneapi_a.dpc): \
+    $(daaldep.math_backend.sycl) \
+    $(ONEAPI.tmpdir_a.dpc)/$(oneapi_a.dpc:%.$a=%_link.txt) ; $(LINK.STATIC) ; $(LINK.DYNAMIC.POST)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(--gc-sections -ffunction-sections -fdata-sections) 
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(-fPIC)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(daaldep.rt.dpc)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(-lsanitize)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(-flto)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(-Wl,--trace)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(--strip-unneeded)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
+$(WORKDIR.lib)/$(oneapi_a.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
+
+ifdef OS_is_win
+$(WORKDIR.lib)/$(oneapi_a.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_a.dpc)
+endif
+
+
 $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
-    $(daaldep.math_backend.ext) \
+    $(daaldep.math_backend.sycl) \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
@@ -823,7 +852,6 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.math_backend.sycl)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
