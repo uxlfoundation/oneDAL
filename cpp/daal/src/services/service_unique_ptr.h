@@ -19,7 +19,7 @@
 #define __SERVICE_UNIQUE_PTR_H__
 
 #include "src/services/service_utils.h"
-#include "src/services/service_allocators.h"
+#include "src/services/service_deleters.h"
 
 namespace daal
 {
@@ -38,6 +38,10 @@ public:
 
     explicit UniquePtr(T * object) : _object(object) {}
 
+    template <typename UDeleter>
+    UniquePtr(T * object, const UDeleter & deleter) : _object(object), _deleter(deleter)
+    {}
+
     template <typename U, typename UDeleter>
     UniquePtr(UniquePtr<U, cpu, UDeleter> && other)
         : _object(other.release()), _deleter(services::internal::forward<cpu, UDeleter>(other.getDeleter()))
@@ -46,7 +50,7 @@ public:
     ~UniquePtr() { reset(); }
 
     inline T * get() const { return _object; }
-    inline bool operator()() const { return _object != nullptr; }
+    inline operator bool() const { return _object != nullptr; }
 
     inline T & operator*() const { return *_object; }
     inline T * operator->() const { return _object; }
@@ -91,7 +95,7 @@ template <typename T, CpuType cpu, typename... Args>
 UniquePtr<T, cpu> makeUnique(Args &&... args)
 {
     using namespace daal::services::internal;
-    return UniquePtr<T, cpu>(new T(forward<Args>(args)...));
+    return UniquePtr<T, cpu>(new T(services::internal::forward<cpu, Args>(args)...));
 }
 
 } // namespace internal

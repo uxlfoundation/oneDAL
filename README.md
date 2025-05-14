@@ -44,18 +44,18 @@ Check the [System Requirements](https://uxlfoundation.github.io/oneDAL/system-re
 
 There are several options available for installing oneDAL:
 
-- **Binary Distribution**: You can download pre-built binary packages from the following sources:
+- **Binary Distribution**: pre-built binary packages are available from the following sources:
     - Intel® oneAPI:
-        - Download as Part of the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html#gs.8xrue2)
-        - Download as the Stand-Alone [oneAPI Data Analytics Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html#gs.8xrue2)
-    - Anaconda:
+        - Download as Part of the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html)
+        - Download as the Stand-Alone [oneAPI Data Analytics Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal-download.html)
+    - Conda:
         | Channel | Version |
         |:-------:|:-------:|
         | conda-forge | [![Anaconda-Server Conda-forge Badge](https://anaconda.org/conda-forge/dal-devel/badges/version.svg)](https://anaconda.org/conda-forge/dal-devel) |
 
     - [NuGet](https://www.nuget.org/packages/inteldal.devel.linux-x64)
 
-- **Source Distribution**: You can build the library from source. To do this, [download the specific version of oneDAL](https://github.com/uxlfoundation/oneDAL/releases) from the official GitHub repository and follow the instructions in the [INSTALL.md](INSTALL.md).
+- **Source Distribution**: Clone this GitHub repository or [download a specific version of oneDAL](https://github.com/uxlfoundation/oneDAL/releases) from the GitHub releases page and follow the instructions in the [INSTALL.md](INSTALL.md) file.
 
 
 ## Examples
