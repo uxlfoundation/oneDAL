@@ -1040,7 +1040,7 @@ $4: $3/$2
 $3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MAJOR_BINARY__/$(MAJORBINARY)/' $3/$2)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MINOR_BINARY__/$(MINORBINARY)/' $3/$2)
-	$(if $(OS_is_win),sed -i 's/$$/\\r/' $3/$2)
+	$(if $(OS_is_win),sed -i 's/$/\r/' $3/$2)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach x,$(release.ENV),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
