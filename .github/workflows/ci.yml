@@ -23,6 +23,8 @@ on:
   push:
     branches:
       - main
+  # use workflow dispatch to regenerate cache
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,7 +35,7 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP
+    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: uxl-gpu-4xlarge
     timeout-minutes: 120
@@ -46,7 +48,7 @@ jobs:
       - name: Install MKL
         run: .ci/env/apt.sh mkl
       - name: Install Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: 3.9
       # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
@@ -56,24 +58,44 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
-      - name: Make daal
+      - name: Set environment variables
+        run: |
+          # reduce GPU driver/runner related memory issues
+          echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
+          echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
+          echo "DisableScratchPages=0" >> "$GITHUB_ENV"
+          echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
+      - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal
-      - name: Make onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols --jobs 20
+           cp -r __work __work_daal
+      - name: Make onedal debug
+        id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols --jobs 20
+          cp -r __release_lnx __release_lnx_main
+          echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Cache build
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.onedal-dbg.outputs.key }}
+          path: ./__release_lnx_main
       - name: Archive build
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: __release_lnx
-          path: ./__release_lnx
-      - name: Archive oneDAL environment
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: oneDAL_env
-          path: .ci/env
+          path: ./__release_lnx_main
+      - name: Make onedal
+        run: |
+          # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
+          source /opt/intel/oneapi/setvars.sh
+          rm -rf __work
+          mv __work_daal __work
+          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -90,3 +112,49 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+
+  LinuxABICheck:
+    name: ABI Conformance(AVX512)
+    needs: LinuxMakeDPCPP
+    if: |
+      github.repository == 'uxlfoundation/oneDAL' &&
+      github.event_name == 'pull_request' &&
+      ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
+    runs-on: uxl-xlarge
+    env:
+      LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@v4
+      - name: install ABI checking tools
+        run: .ci/env/apt.sh abigail
+      - name: Check Cache
+        id: get-cache-key
+        run: |
+          CACHE_KEY=`gh cache list --sort created_at --key __release_lnx --json key --jq .[0].key`
+          echo "key=${CACHE_KEY}" >> "$GITHUB_OUTPUT"
+          echo $CACHE_KEY
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download oneDAL main build
+        uses: actions/cache/restore@v4
+        with:
+          path: ./__release_lnx_main
+          key: ${{ steps.get-cache-key.outputs.key }}
+      - name: Download oneDAL build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: __release_lnx
+          path: ./__release_lnx
+      - name: Check ABI conformance
+        run: |
+          echo "Note: This check uses abidiff to verify ABI compliance of an SSE/AVX512 debug oneDAL build."
+          echo "It compares to the last completed main build, whose commit can be found in the 'Check Cache' step."
+          echo "The ABI for other ISAs are assumed to match the SSE or AVX512 version, any ISA-specific exported "
+          echo "information that is ISA unique must be manually checked. If no shared objects are found, then "
+          echo "please rerun the main 'CI' workflow via GitHub's workflow dispatch to regenerate the cache."
+          echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
+          echo "in the ABI that can lead to erroneous failures in the ABI check."
+          .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/

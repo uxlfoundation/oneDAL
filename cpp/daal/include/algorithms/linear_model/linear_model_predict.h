@@ -80,7 +80,7 @@ public:
  *      - \ref training::interface1::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public regression::prediction::Batch
+class DAAL_EXPORT Batch : public regression::prediction::Batch
 {
 public:
     typedef algorithms::linear_model::prediction::Input InputType;
@@ -98,6 +98,9 @@ public:
      * \return Structure that contains the result of the regression model-based prediction
      */
     ResultPtr getResult() { return ResultType::cast(_result); }
+
+protected:
+    void initialize();
 };
 /** @} */
 } // namespace interface1

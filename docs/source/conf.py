@@ -15,7 +15,7 @@
 #===============================================================================
 
 ##  Content:
-##     Intel(R) oneDAL configuration file for the Sphinx documentation builder
+##     oneDAL configuration file for the Sphinx documentation builder
 ##******************************************************************************
 
 # Configuration file for the Sphinx documentation builder.
@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'oneDAL'
-copyright = 'Intel Corporation' # pylint: disable=redefined-builtin
+copyright = 'contributors to the oneDAL project' # pylint: disable=redefined-builtin
 
 # The full version, including alpha/beta/rc tags
 # release = '2021'
@@ -96,7 +96,7 @@ extlinks = {
 html_static_path = ['_static']
 
 html_theme = 'sphinx_book_theme'
-html_logo = '_static/oneAPI-rgb-rev-100.png'
+html_logo = '_static/uxl-foundation-logo-horizontal-color.png'
 html_favicon = '_static/favicons.png'
 
 # Theme options
@@ -106,17 +106,11 @@ html_theme_options = {
     'use_issues_button': True,
     'use_edit_page_button': True,
     'repository_branch': 'master',
-}
-
-html_theme_options = {
     "logo": {
         "text": "oneDAL Documentation",
     }
 }
 
-html_theme_options = {
-    "extra_footer": "<div><a href='https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html' data-cookie-notice='true'>Cookies</a> <a href='https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html'>| Privacy</a> <a data-wap_ref='dns' id='wap_dns' href='https://www.intel.com/content/www/us/en/privacy/intel-cookie- notice.html'>| Do Not Share My Personal Information</a> </div><div>&copy; Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others. No license (express or implied, by estoppel or otherwise) to any intellectual property rights is granted by this document, with the sole exception that code included in this document is licensed subject to the Zero-Clause BSD open source license (OBSD), <a href='http://opensource.org/licenses/0BSD'>http://opensource.org/licenses/0BSD</a>. </div><br><div>oneDAL is licensed under Apache License Version 2.0. Refer to the <a href='https://github.com/uxlfoundation/oneDAL/blob/main/LICENSE'>LICENSE </a> file for the full license text and copyright notice.</div>"
-}
 
 # oneDAL project directory is needed for `dalapi` extension
 onedal_enable_listing = False

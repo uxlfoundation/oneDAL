@@ -51,6 +51,33 @@ One of the options is to use ``daal::threader_for`` as shown here:
 The iteration space here goes from ``0`` to ``n-1``.
 The last argument is a function object that performs a single iteration of the loop, given loop index ``i``.
 
+threader_reduce
+***************
+
+Consider you need to compute a dot product of two arrays.
+Here is a variant of sequential implementation:
+
+.. include:: ../includes/threading/dot-sequential.rst
+
+Parallel reduction primitives available in the threading layer of |short_name| allow to accumulate
+the partial results and combine them in parallel using multiple threads.
+One of the options is to use ``daal::threader_reduce`` as shown here:
+
+.. include:: ../includes/threading/dot-parallel-reduce.rst
+
+The iteration space here goes from ``0`` to ``n-1``.
+
+``grainSize`` controls the chunking of the input arrays.
+When ``n`` is big enough, each thread will get not less than ``[grainSize / 2]`` iterations.
+
+The last argument is a reducer object that implements ``daal::Reducer`` interface defining ``create``, ``update`` and ``join`` methods
+used to construct a new reducer object, update the partial result of the reduction, and join two partial reduction results respectively:
+
+.. include:: ../includes/threading/dot-parallel-reduce-body.rst
+
+**NOTE**: ``create`` method must be able to run concurrently with ``update`` and ``join`` methods,
+as ``create`` might be called simultaneously with ``update`` or ``join`` for the same reducer object.
+
 Blocking
 --------
 
@@ -102,6 +129,9 @@ as shown here:
 
 Local memory of the threads should be released when it is no longer needed.
 
+**NOTE**: The code above is executed sequentially, no parallelism is used. This might have a performance
+impact if the number of threads is large.
+
 The complete parallel version of dot product computations would look like:
 
 .. include:: ../includes/threading/dot-parallel.rst
@@ -121,7 +151,7 @@ In the cases when it is known that the iterations perform an equal amount of wor
 is more performant to use predefined mapping of the loop's iterations to threads.
 This is what static work scheduling does.
 
-``daal::static_threader_for`` and ``daal::static_tls`` allow implementation of static
+``daal::static_threader_for``, ``daal::static_parallel_reduce`` and ``daal::static_tls`` allow implementation of static
 work scheduling within |short_name|.
 
 Here is a variant of parallel dot product computation with static scheduling:

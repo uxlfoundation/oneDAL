@@ -78,7 +78,7 @@ enum VoteWeights
 };
 
 /**
- * \brief Contains version 3.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 3.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface3
 {
@@ -130,7 +130,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
 } // namespace interface3
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -153,7 +153,7 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     Model(size_t nFeatures = 0);
-
+    Model & operator=(const Model & other);
     /**
      * Constructs the model trained with the boosting algorithm
      * \param[in]  nFeatures Number of features in the dataset

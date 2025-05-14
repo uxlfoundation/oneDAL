@@ -53,7 +53,6 @@ Software Requirements
 - Linux*: Ubuntu* 18.04 or higher
 - Windows* 10 or higher
 - Windows Server 2019 or higher
-- macOS* 10.14 or higher
 
 To build examples with SYCL API extensions, you also need:
 

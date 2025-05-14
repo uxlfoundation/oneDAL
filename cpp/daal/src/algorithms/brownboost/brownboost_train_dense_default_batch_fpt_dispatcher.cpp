@@ -59,13 +59,11 @@ Batch<algorithmFPType, method>::Batch(const Batch & other) : classifier::trainin
     initialize();
 }
 
-template Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch();
-template Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch(size_t nClasses);
-template Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch(const Batch &);
-
+template DAAL_EXPORT Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch();
+template DAAL_EXPORT Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch(size_t nClasses);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, brownboost::training::defaultDense>::Batch(const Batch & other);
 } // namespace interface2
 } // namespace training
 } // namespace brownboost
-
 } // namespace algorithms
 } // namespace daal

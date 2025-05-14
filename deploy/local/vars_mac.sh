@@ -115,9 +115,9 @@ fi
 
 # ############################################################################
 
-# Prepend path segment(s) to path-like env vars (PATH, CPATH, etc.).
+# Prepend path segment(s) to path-like env vars (PATH, CPLUS_INCLUDE_PATH, etc.).
 
-# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPATH)
+# prepend_path() avoids dangling ":" that affects some env vars (PATH and CPLUS_INCLUDE_PATH)
 # prepend_manpath() includes dangling ":" needed by MANPATH.
 # PATH > https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
 # MANPATH > https://manpages.debian.org/stretch/man-db/manpath.1.en.html
@@ -237,7 +237,7 @@ fi
 export DAL_MAJOR_BINARY=__DAL_MAJOR_BINARY__
 export DAL_MINOR_BINARY=__DAL_MINOR_BINARY__
 export DALROOT=$__daal_tmp_dir
-export CPATH=$__daal_tmp_dir/include${CPATH+:${CPATH}}
+export CPLUS_INCLUDE_PATH=$__daal_tmp_dir/include${CPLUS_INCLUDE_PATH+:${CPLUS_INCLUDE_PATH}}
 export LIBRARY_PATH=$__daal_tmp_dir/lib${LIBRARY_PATH+:${LIBRARY_PATH}}
 export DYLD_LIBRARY_PATH=$__daal_tmp_dir/lib${DYLD_LIBRARY_PATH+:${DYLD_LIBRARY_PATH}}
 export CLASSPATH=$__daal_tmp_dir/lib/onedal.jar${CLASSPATH+:${CLASSPATH}}

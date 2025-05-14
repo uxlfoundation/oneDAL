@@ -93,7 +93,7 @@ public:
     typedef algorithms::correlation_distance::Input InputType;
     typedef algorithms::correlation_distance::Result ResultType;
 
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a correlation distance algorithm by copying input objects
@@ -101,7 +101,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns the method of the algorithm

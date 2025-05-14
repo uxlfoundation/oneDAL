@@ -91,7 +91,7 @@ public:
     InputType input;         /*!< Input object */
     ParameterType parameter; /*!< QR decomposition parameters */
 
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -99,7 +99,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm

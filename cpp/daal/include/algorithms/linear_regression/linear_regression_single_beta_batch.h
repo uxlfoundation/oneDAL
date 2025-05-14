@@ -95,7 +95,7 @@ public:
     ParameterType parameter; /*!< Parameters of the algorithm */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs an algorithm by copying input objects and parameters
@@ -103,13 +103,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : parameter(other.parameter)
-    {
-        initialize();
-        input.set(expectedResponses, other.input.get(expectedResponses));
-        input.set(predictedResponses, other.input.get(predictedResponses));
-        input.set(model, other.input.get(model));
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns the method of the algorithm

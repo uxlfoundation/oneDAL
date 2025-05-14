@@ -26,7 +26,8 @@
 #define __SERVICE_DEFINES_H__
 
 #include <stdint.h>
-#include "services/env_detect.h"
+#include "services/daal_defines.h"
+#include "services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 
@@ -272,60 +273,60 @@ typedef union
     double fp;
 } _daal_dp_union_t;
 
-#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag) \
-    int Class::serializationTag()              \
-    {                                          \
-        return Tag;                            \
-    }                                          \
-    int Class::getSerializationTag() const     \
-    {                                          \
-        return Class::serializationTag();      \
+#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag)         \
+    int DAAL_EXPORT Class::serializationTag()          \
+    {                                                  \
+        return Tag;                                    \
+    }                                                  \
+    int DAAL_EXPORT Class::getSerializationTag() const \
+    {                                                  \
+        return Class::serializationTag();              \
     }
 
 #define IMPLEMENT_SERIALIZABLE_TAG1T(Class, T1, Tag)            \
     template <>                                                 \
-    int Class<T1>::serializationTag()                           \
+    int DAAL_EXPORT Class<T1>::serializationTag()               \
     {                                                           \
         return features::internal::getIndexNumType<T1>() + Tag; \
     }                                                           \
     template <>                                                 \
-    int Class<T1>::getSerializationTag() const                  \
+    int DAAL_EXPORT Class<T1>::getSerializationTag() const      \
     {                                                           \
         return Class<T1>::serializationTag();                   \
     }
 
 #define IMPLEMENT_SERIALIZABLE_TAG1T_SPECIALIZATION(Class, TemplateClass, Tag) \
     template <>                                                                \
-    int Class<TemplateClass>::serializationTag()                               \
+    int DAAL_EXPORT Class<TemplateClass>::serializationTag()                   \
     {                                                                          \
         return Tag;                                                            \
     }                                                                          \
     template <>                                                                \
-    int Class<TemplateClass>::getSerializationTag() const                      \
+    int DAAL_EXPORT Class<TemplateClass>::getSerializationTag() const          \
     {                                                                          \
         return Class<TemplateClass>::serializationTag();                       \
     }
 
 #define IMPLEMENT_SERIALIZABLE_TAG2T(Class, T1, T2, Tag)        \
     template <>                                                 \
-    int Class<T1, T2>::serializationTag()                       \
+    int DAAL_EXPORT Class<T1, T2>::serializationTag()           \
     {                                                           \
         return features::internal::getIndexNumType<T2>() + Tag; \
     }                                                           \
     template <>                                                 \
-    int Class<T1, T2>::getSerializationTag() const              \
+    int DAAL_EXPORT Class<T1, T2>::getSerializationTag() const  \
     {                                                           \
         return Class<T1, T2>::serializationTag();               \
     }
 
-#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag) \
-    int Class<T1, Tag>::serializationTag()           \
-    {                                                \
-        return Tag;                                  \
-    }                                                \
-    int Class<T1, Tag>::getSerializationTag() const  \
-    {                                                \
-        return Class<T1, Tag>::serializationTag();   \
+#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag)            \
+    int DAAL_EXPORT Class<T1, Tag>::serializationTag()          \
+    {                                                           \
+        return Tag;                                             \
+    }                                                           \
+    int DAAL_EXPORT Class<T1, Tag>::getSerializationTag() const \
+    {                                                           \
+        return Class<T1, Tag>::serializationTag();              \
     }
 
 /* Maximal size of services::String */

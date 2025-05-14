@@ -76,7 +76,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface1
 {
@@ -90,6 +90,7 @@ public:
     /** Default constructor */
     Input(size_t nElements = 0);
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     /**
      * Returns an input object for making the regression model-based prediction

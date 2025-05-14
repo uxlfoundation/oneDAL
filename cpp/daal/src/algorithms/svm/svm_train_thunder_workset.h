@@ -73,7 +73,7 @@ struct TaskWorkingSet
 
     services::Status copyLastToFirst()
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(select.copyLastToFirst);
+        DAAL_PROFILER_TASK(select.copyLastToFirst);
 
         services::Status status;
         const size_t q = _nWS / 2;
@@ -91,7 +91,7 @@ struct TaskWorkingSet
 
     services::Status select(const algorithmFPType * y, const algorithmFPType * alpha, const algorithmFPType * f, const algorithmFPType * cw)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(select);
+        DAAL_PROFILER_TASK(select);
         services::Status status;
         IdxValType * sortedFIndices = _sortedFIndices.get();
 

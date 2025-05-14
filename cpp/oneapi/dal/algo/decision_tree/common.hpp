@@ -70,14 +70,14 @@ namespace v1 {
 
 /// Class containing base node info in decision tree
 template <typename Task = task::by_default>
-class node_info : public base {
+class ONEDAL_EXPORT node_info : public base {
     static_assert(detail::is_valid_task_v<Task>);
     friend dal::detail::pimpl_accessor;
 
 public:
     using task_t = Task;
     node_info();
-    virtual ~node_info();
+    ~node_info();
     node_info(const node_info<task_t>&);
     node_info(node_info<task_t>&&);
     node_info<task_t>& operator=(const node_info<task_t>&);

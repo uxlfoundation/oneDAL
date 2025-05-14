@@ -152,7 +152,7 @@ struct interface_selector<device_memory_access::usm> {
 
 /// Low-level MPI-like communicator
 template <typename MemoryAccessKind>
-class communicator : public base {
+class ONEDAL_EXPORT communicator : public base {
 private:
     template <typename T>
     static constexpr bool is_primitive_v = std::is_arithmetic_v<T>;

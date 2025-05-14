@@ -38,7 +38,7 @@ namespace svm
 namespace prediction
 {
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface2
 {
@@ -93,7 +93,7 @@ public:
  *      - \ref interface1::Result "Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public classifier::prediction::Batch
+class DAAL_EXPORT Batch : public classifier::prediction::Batch
 {
 public:
     typedef classifier::prediction::Batch super;
@@ -106,7 +106,7 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameter" of the algorithm */
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs an SVM prediction algorithm by copying input objects and parameters
@@ -114,10 +114,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 

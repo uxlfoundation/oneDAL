@@ -14,6 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
+
+
 load(
     "@rules_cc//cc/private/toolchain:lib_cc_configure.bzl",
     "auto_configure_fail",
@@ -87,7 +89,13 @@ def _find_tools(repo_ctx, reqs):
     dpcc_path, dpcpp_found = _find_tool(repo_ctx, reqs.dpc_compiler_id, mandatory = False)
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
+    if dpcpp_found:
+        #The llvm-ar tool is used because bazel prepended directory names with + 
+        #which caused issues with the default gnu ar tool on REHL. Since icx is clang based we can use the llvm-ar tool.
+        ar_path = cc_path[:-3] + "compiler/llvm-ar"
+    
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
+    
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,

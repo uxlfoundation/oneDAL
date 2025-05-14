@@ -87,7 +87,7 @@ public:
  *      - \ref training::interface2::Batch "training::Batch" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public classifier::prediction::Batch
+class DAAL_EXPORT Batch : public classifier::prediction::Batch
 {
 public:
     typedef classifier::prediction::Batch super;
@@ -100,7 +100,7 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of prediction */
 
     /** Default constructor */
-    Batch(size_t nClasses = 2) : classifier::prediction::Batch(), input(), parameter(nClasses) { initialize(); }
+    Batch(size_t nClasses = 2);
 
     /**
      * Constructs a Decision tree prediction algorithm by copying input objects and parameters
@@ -108,10 +108,7 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Get input objects for the Decision tree prediction algorithm
