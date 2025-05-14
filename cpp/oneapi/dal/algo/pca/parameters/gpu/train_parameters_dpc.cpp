@@ -29,8 +29,8 @@ namespace oneapi::dal::pca::parameters {
 
 using dal::backend::context_gpu;
 
-template <typename Float>
-struct train_parameters_gpu<Float, method::cov, task::dim_reduction> {
+template <typename Float, typename Method>
+struct train_parameters_gpu<Float, Method, task::dim_reduction> {
     using params_t = detail::train_parameters<task::dim_reduction>;
     params_t operator()(const context_gpu& ctx,
                         const detail::descriptor_base<task::dim_reduction>& desc,
@@ -51,5 +51,10 @@ struct train_parameters_gpu<Float, method::cov, task::dim_reduction> {
 
 template struct ONEDAL_EXPORT train_parameters_gpu<float, method::cov, task::dim_reduction>;
 template struct ONEDAL_EXPORT train_parameters_gpu<double, method::cov, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_gpu<float, method::precomputed, task::dim_reduction>;
+template struct ONEDAL_EXPORT
+    train_parameters_gpu<double, method::precomputed, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_gpu<float, method::svd, task::dim_reduction>;
+template struct ONEDAL_EXPORT train_parameters_gpu<double, method::svd, task::dim_reduction>;
 
 } // namespace oneapi::dal::pca::parameters
