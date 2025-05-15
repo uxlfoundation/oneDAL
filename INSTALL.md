@@ -26,7 +26,7 @@ Required Software:
 * oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
-* `make`tool; install these packages using MSYS2 on Windows\* as follows:
+* `make`; which can be installed using MSYS2 on Windows\* as follows:
 
         pacman -S msys/make
 
