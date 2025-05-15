@@ -27,7 +27,6 @@
 #include "services/daal_defines.h"
 #include "src/externals/service_memory.h"
 #include "src/externals/service_rng_common.h"
-#include <unordered_set>
 
 #include "src/externals/config.h"
 
@@ -126,43 +125,22 @@ public:
     int uniformWithoutReplacement(const SizeType n, DstType * r, Type * buffer, void * state, const Type a, const Type b,
                                   const int method = __DAAL_RNG_METHOD_UNIFORM_STD)
     {
-        if (n > static_cast<SizeType>(b - a + 1))
+        int errorcode = 0;
+        for (SizeType i = 0; i < n; i++)
         {
-            return -1;
-        }
-        if (n == 0)
-        {
-            return 0;
-        }
+            errorcode = uniform(1, buffer + i, state, a + i, b, method);
+            int value = buffer[i];
 
-        std::unordered_set<Type> selected;
-
-        for (SizeType i = b - n + 1; i <= b; ++i)
-        {
-            int errorcode = uniform(1, buffer, state, a, i, method);
-            if (errorcode != 0)
+            for (SizeType j = i; j > 0; j--)
             {
-                return errorcode;
+                if (value == buffer[j - 1])
+                {
+                    value = (DstType)(j - 1 + a);
+                }
             }
-            Type j = buffer[0];
-
-            if (selected.find(j) != selected.end())
-            {
-                selected.insert(i);
-            }
-            else
-            {
-                selected.insert(j);
-            }
+            r[i] = value;
         }
-
-        SizeType index = 0;
-        for (const Type value : selected)
-        {
-            r[index++] = static_cast<DstType>(value);
-        }
-
-        return 0;
+        return errorcode;
     }
 
     /* Draw a random sample of length k from the numbers that are provided in buffer of length n
