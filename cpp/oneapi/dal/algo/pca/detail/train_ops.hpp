@@ -77,9 +77,7 @@ struct train_ops {
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
     void check_parameters_ranges(const param_t& params, const input_t& input) const {
         ONEDAL_ASSERT(params.get_cpu_macro_block() > 0);
-        ONEDAL_ASSERT(params.get_cpu_macro_block() <= 0x10000l);
         ONEDAL_ASSERT(params.get_cpu_grain_size() > 0);
-        ONEDAL_ASSERT(params.get_cpu_grain_size() <= 0x100000l);
     }
 
     template <typename Context>
