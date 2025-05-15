@@ -27,6 +27,7 @@
 #include "services/env_detect.h"
 #include "data_management/data/numeric_table.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/externals/service_blas.h"
 
 #include "src/algorithms/linear_model/linear_model_hyperparameter_impl.h"
 
@@ -125,58 +126,307 @@ public:
     static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError);
 };
 
+
+template <typename algorithmFPType, CpuType cpu>
+class LinearModelReducer : public daal::Reducer {
+public:
+    enum ErrorCode
+    {
+        ok                  = 0, /// No error
+        memAllocationFailed = 1, /// Memory allocation failed
+        intOverflow         = 2, /// Integer overflow
+        badCast             = 3  /// Cannot cast base daal::Reducer to derived class
+    };
+    /// Status of the computation.
+    ErrorCode errorCode;
+
+    /// Get pointer to the array of partial sums.
+    inline algorithmFPType * xty() { return _xty.get(); }
+    /// Get pointer to the partial cross-product matrix.
+    inline algorithmFPType * xtx() { return _xtx.get(); }
+
+    /// Get pointer to the array of partial sums.
+    inline const algorithmFPType * xty() const { return _xty.get(); }
+    /// Get pointer to the partial cross-product matrix.
+    inline const algorithmFPType * xtx() const { return _xtx.get(); }
+
+    void * operator new(size_t size) { return service_scalable_malloc<unsigned char, cpu>(size); }
+
+    void operator delete(void * p) { service_scalable_free<unsigned char, cpu>((unsigned char *)p); }
+
+    virtual ReducerUniquePtr create() const override
+    {
+        return daal::internal::makeUnique<LinearModelReducer<algorithmFPType, cpu>, DAAL_BASE_CPU>(_xTable, 
+                                                                                                   _yTable, 
+                                                                                                   _nBetasIntercept,
+                                                                                                   _numRowsInBlock,
+                                                                                                   _numBlocks);
+    }
+
+    /// Construct and initialize the thread-local partial results
+    ///
+    /// @param[in] dataTable        Input data table that stores matrix X for which the cross-product matrix and sums are computed
+    /// @param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
+    /// @param[in] numBlocks        Number of blocks of rows in the input data table
+    LinearModelReducer(const NumericTable& xTable, const NumericTable& yTable, DAAL_INT nBetasIntercept, DAAL_INT numRowsInBlock, size_t numBlocks)
+        : _xTable(xTable),
+          _yTable(yTable),
+          _nBetasIntercept(nBetasIntercept),
+          _numRowsInBlock(numRowsInBlock),
+          _numBlocks(numBlocks),
+          _nFeatures(xTable.getNumberOfColumns()),
+          _nLabels(yTable.getNumberOfColumns())
+    {
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nBetasIntercept, _nBetasIntercept, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ErrorCode::intOverflow;
+            return;
+        }
+        if (!_xtx.reset(_nBetasIntercept * _nBetasIntercept))
+        {
+            errorCode = ErrorCode::memAllocationFailed;
+            return;
+        }
+
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _nBetasIntercept, _nLabels, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ErrorCode::intOverflow;
+            return;
+        }
+        if (!_xty.reset(_nBetasIntercept * _nLabels))
+        {
+            errorCode = ErrorCode::memAllocationFailed;
+            return;
+        }
+        errorCode = ErrorCode::ok;
+    }
+    virtual void update(size_t begin, size_t end) override
+    {
+        /* SYRK and GEMM parameters */
+        char up      = 'U';
+        char trans   = 'T';
+        char notrans = 'N';
+        algorithmFPType one = 1.0;
+        DAAL_PROFILER_THREADING_TASK(reducer.update);
+        if (errorCode != ErrorCode::ok)
+        {
+            return;
+        }
+        algorithmFPType * xtxPtr = xtx();
+        algorithmFPType * xtyPtr = xty();
+
+        if (!xtxPtr || !xtyPtr)
+        {
+            errorCode = ErrorCode::memAllocationFailed;
+            return;
+        }
+
+        bool isOverflow = false;
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nFeatures, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ErrorCode::intOverflow;
+            return;
+        }
+        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, _numRowsInBlock, _nLabels, isOverflow);
+        if (isOverflow)
+        {
+            errorCode = ErrorCode::intOverflow;
+            return;
+        }
+        const size_t numRowsInLastBlock = _numRowsInBlock + _xTable.getNumberOfRows() - _numBlocks * _numRowsInBlock;
+        
+
+        /// Process blocks of the input data table
+        for (size_t iBlock = begin; iBlock < end; ++iBlock)
+        {
+            size_t nRows    = ((iBlock + 1 < _numBlocks) ? _numRowsInBlock : numRowsInLastBlock);
+            size_t startRow = iBlock * _numRowsInBlock;
+
+            ReadRows<algorithmFPType, cpu, NumericTable> xTableBD(const_cast<NumericTable &>(_xTable), startRow, nRows);
+            ReadRows<algorithmFPType, cpu, NumericTable> yTableBD(const_cast<NumericTable &>(_yTable), startRow, nRows);
+            if (!xTableBD.get() || !yTableBD.get())
+            {
+                errorCode = ErrorCode::memAllocationFailed;
+                return;
+            }
+            algorithmFPType * xBlock = const_cast<algorithmFPType *>(xTableBD.get());
+            algorithmFPType * yBlock = const_cast<algorithmFPType *>(yTableBD.get());
+
+            /// Update the cross-product matrix with the data from the block
+            {
+                DAAL_PROFILER_THREADING_TASK(reducer.update.syrkXX);
+                BlasInst<algorithmFPType, cpu>::xsyrk(&up, &notrans, &_nFeatures, reinterpret_cast<DAAL_INT *>(&nRows), &one, xBlock, &_nFeatures, &one,
+                                                      xtxPtr, &_nBetasIntercept);
+            }
+
+            if (_nFeatures < _nBetasIntercept)
+            {
+                // TODO: Substitute this part with a call to gemv or reduce by column/row primitive
+                DAAL_PROFILER_THREADING_TASK(reducer.update.gemm1X);
+                algorithmFPType * xtxLastRowPtr = xtxPtr + _nFeatures * _nBetasIntercept;
+                const algorithmFPType * xPtr = xBlock;
+
+                for (DAAL_INT i = 0; i < nRows; i++, xPtr += _nFeatures)
+                {
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (DAAL_INT j = 0; j < _nFeatures; j++)
+                    {
+                        xtxLastRowPtr[j] += xPtr[j];
+                    }
+                }
+                xtxLastRowPtr[_nFeatures] += algorithmFPType(nRows);
+            }
+            {
+                DAAL_PROFILER_THREADING_TASK(reducer.update.gemmXY);
+                BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &trans, &_nFeatures, &_nLabels, reinterpret_cast<DAAL_INT *>(&nRows), &one, xBlock, &_nFeatures, yBlock, &_nLabels, &one,
+                                                xtyPtr, &_nBetasIntercept);
+            }
+            if (_nFeatures < _nBetasIntercept)
+            {
+                // TODO: Substitute this part with call to gemv or reduce by column/row primitive
+                DAAL_PROFILER_THREADING_TASK(reducer.update.gemm1Y);
+                const algorithmFPType * yPtr = yBlock;
+                for (DAAL_INT i = 0; i < nRows; i++, yPtr += _nLabels)
+                {
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (DAAL_INT j = 0; j < _nLabels; j++)
+                    {
+                        xtyPtr[j * _nBetasIntercept + _nFeatures] += yPtr[j];
+                    }
+                }
+            }     
+        }
+    }
+
+    /// Merge the partial result with the data from another thread.
+    ///
+    /// @param otherReducer Pointer to the other thread's partial result.
+    virtual void join(Reducer * otherReducer) override
+    {
+        if (errorCode != ErrorCode::ok)
+        {
+            return;
+        }
+        DAAL_PROFILER_THREADING_TASK(reducer.join);
+        LinearModelReducer<algorithmFPType, cpu> * other = dynamic_cast<LinearModelReducer<algorithmFPType, cpu> *>(otherReducer);
+        if (!other)
+        {
+            errorCode = ErrorCode::badCast;
+            return;
+        }
+        if (other->errorCode != ErrorCode::ok)
+        {
+            errorCode = other->errorCode;
+            return;
+        }
+        const algorithmFPType * otherXTX = other->xtx();
+        algorithmFPType * thisXTX        = xtx();
+
+        const algorithmFPType * otherXTY = other->xty();
+        algorithmFPType * thisXTY        = xty();
+
+        if (!otherXTX || !otherXTY || !thisXTX || !thisXTY)
+        {
+            errorCode = ErrorCode::memAllocationFailed;
+            return;
+        }
+        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_VECTOR_ALIGNED
+        for (size_t i = 0; i < (_nBetasIntercept * _nBetasIntercept); i++)
+        {
+            thisXTX[i] += otherXTX[i];
+        }
+
+        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_VECTOR_ALIGNED
+        for (size_t i = 0; i < (_nBetasIntercept * _nLabels); i++)
+        {
+            thisXTY[i] += otherXTY[i];
+        }
+    } 
+
+
+private:
+    /// Pointer to the input data table that stores matrix X for which the cross-product matrix and sums are computed.
+    const NumericTable & _xTable;
+
+    const NumericTable & _yTable;
+    /// Number of features in the input data table.
+    DAAL_INT _nFeatures;
+    DAAL_INT _nLabels;
+    DAAL_INT _nBetasIntercept;
+    /// Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread.
+    DAAL_INT _numRowsInBlock;
+    /// Number of blocks of rows in the input data table.
+    size_t _numBlocks;
+    /// Thread-local array of partial sums of size `_nFeatures`.
+    /// The array is used only if the input data is not normalized.
+    TArrayScalableCalloc<algorithmFPType, cpu> _xtx;
+    TArrayScalableCalloc<algorithmFPType, cpu> _xty;
+};
+
 /**
  * Thread local storage used on the partial results update stage
  */
-template <typename algorithmFPType, CpuType cpu>
-class ThreadingTask
-{
-    typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
+// template <typename algorithmFPType, CpuType cpu>
+// class ThreadingTask
+// {
+//     typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
 
-public:
-    DAAL_NEW_DELETE();
+// public:
+//     DAAL_NEW_DELETE();
 
-    /**
-     * Creates thread local storage of the requested size
-     * \param[in] nBetasIntercept   Number of colums in the partial result
-     * \param[in] nResponses        Number of responses
-     * \return Pointer on the thread local storage object if the object was created successfully, NULL otherwise
-     */
-    static ThreadingTask<algorithmFPType, cpu> * create(size_t nBetasIntercept, size_t nResponses);
-    virtual ~ThreadingTask();
+//     /**
+//      * Creates thread local storage of the requested size
+//      * \param[in] nBetasIntercept   Number of colums in the partial result
+//      * \param[in] nResponses        Number of responses
+//      * \return Pointer on the thread local storage object if the object was created successfully, NULL otherwise
+//      */
+//     static ThreadingTask<algorithmFPType, cpu> * create(size_t nBetasIntercept, size_t nResponses);
+//     virtual ~ThreadingTask();
 
-    /**
-     * Updates local partial result with the new block of data
-     * \param[in] startRow  Index of the starting row of the block
-     * \param[in] nRows     Number of rows in the block of data
-     * \param[in] xTable    Input data set of size N x P
-     * \param[in] yTable    Input array of responses of size N x Ny
-     * \return Status of the computations
-     */
-    Status update(DAAL_INT startRow, DAAL_INT nRows, const NumericTable & xTable, const NumericTable & yTable);
+//     /**
+//      * Updates local partial result with the new block of data
+//      * \param[in] startRow  Index of the starting row of the block
+//      * \param[in] nRows     Number of rows in the block of data
+//      * \param[in] xTable    Input data set of size N x P
+//      * \param[in] yTable    Input array of responses of size N x Ny
+//      * \return Status of the computations
+//      */
+//     Status update(DAAL_INT startRow, DAAL_INT nRows, const NumericTable & xTable, const NumericTable & yTable);
 
-    /**
-     * Reduces thread local partial results into global partial result
-     * \param[out] xtx Global partial result of size P' x P'
-     * \param[out] xty Global partial result of size Ny x P'
-     */
-    void reduce(algorithmFPType * xtx, algorithmFPType * xty);
+//     /**
+//      * Reduces thread local partial results into global partial result
+//      * \param[out] xtx Global partial result of size P' x P'
+//      * \param[out] xty Global partial result of size Ny x P'
+//      */
+//     void reduce(algorithmFPType * xtx, algorithmFPType * xty);
 
-protected:
-    /**
-     * Construct thread local storage of the requested size
-     * \param[in]  nBetasIntercept  Number of colums in the partial result
-     * \param[in]  nResponses       Number of responses
-     * \param[out] st               Status of the object construction
-     */
-    ThreadingTask(size_t nBetasIntercept, size_t nResponses, Status & st);
-    algorithmFPType * _xtx;    /*!< Partial result of size P' x P' */
-    algorithmFPType * _xty;    /*!< Partial result of size Ny x P' */
-    ReadRowsType _xBlock;      /*!< Object that manages memory block of the input data set */
-    ReadRowsType _yBlock;      /*!< Object that manages memory block of the input array of responses */
-    DAAL_INT _nBetasIntercept; /*!< P' - number of columns in the partial result */
-    DAAL_INT _nResponses;      /*!< Ny - number of responses */
-};
+// protected:
+//     /**
+//      * Construct thread local storage of the requested size
+//      * \param[in]  nBetasIntercept  Number of colums in the partial result
+//      * \param[in]  nResponses       Number of responses
+//      * \param[out] st               Status of the object construction
+//      */
+//     ThreadingTask(size_t nBetasIntercept, size_t nResponses, Status & st);
+//     algorithmFPType * _xtx;    /*!< Partial result of size P' x P' */
+//     algorithmFPType * _xty;    /*!< Partial result of size Ny x P' */
+//     ReadRowsType _xBlock;      /*!< Object that manages memory block of the input data set */
+//     ReadRowsType _yBlock;      /*!< Object that manages memory block of the input array of responses */
+//     DAAL_INT _nBetasIntercept; /*!< P' - number of columns in the partial result */
+//     DAAL_INT _nResponses;      /*!< Ny - number of responses */
+// };
 
 /**
  * Implements the common part of the partial results update with new block of input data
@@ -186,7 +436,7 @@ class UpdateKernel
 {
     typedef WriteRows<algorithmFPType, cpu> WriteRowsType;
     typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
-    typedef ThreadingTask<algorithmFPType, cpu> ThreadingTaskType;
+    // typedef ThreadingTask<algorithmFPType, cpu> ThreadingTaskType;
 
 public:
     typedef linear_model::internal::Hyperparameter HyperparameterType;
