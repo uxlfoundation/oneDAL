@@ -1035,12 +1035,13 @@ $(foreach x,$(release.ONEAPI.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEAS
 $(foreach x,$(release.EXAMPLES.CMAKE),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))
 
 #----- releasing environment scripts
+# Note: Requires GNU sed for -z support
 define .release.x
 $4: $3/$2
 $3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MAJOR_BINARY__/$(MAJORBINARY)/' $3/$2)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MINOR_BINARY__/$(MINORBINARY)/' $3/$2)
-	$(if $(OS_is_win),unix2dos $3/$2)
+	$(if $(OS_is_win),sed -i -n -z -e 's/\r*\n/\r\n/g;p' $3/$2)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach x,$(release.ENV),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
