@@ -96,8 +96,8 @@ jobs:
       - name: System Info
         run: .ci/scripts/describe_system.sh
 
-      - name: install compiler
-        if: ${{ matrix.os.cxx }} == 'clang'
+      - name: Install Compiler
+        if: matrix.os.cxx == 'clang'
         run: .ci/env/apt.sh llvm-version 18
   
       - name: make daal
