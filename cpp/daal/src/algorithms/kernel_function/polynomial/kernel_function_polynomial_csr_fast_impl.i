@@ -139,7 +139,7 @@ services::Status KernelImplPolynomial<fastCSR, algorithmFPType, cpu>::computeInt
         if (k != one || b != zero)
         {
             daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -158,7 +158,7 @@ services::Status KernelImplPolynomial<fastCSR, algorithmFPType, cpu>::computeInt
         }
 
         daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = i + 1; j < nVectors1; j++)
             {
