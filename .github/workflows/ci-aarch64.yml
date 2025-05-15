@@ -45,8 +45,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu},
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang}
+          { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu },
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang }
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
@@ -93,12 +93,12 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: System Info
-        run: .ci/scripts/describe_system.sh
-
-      - name: Install Compiler
+      - name: Install compiler
         if: matrix.os.cxx == 'clang'
         run: .ci/env/apt.sh llvm-version 18
+
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
   
       - name: make daal
         run: |
