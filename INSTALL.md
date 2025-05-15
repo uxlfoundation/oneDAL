@@ -26,9 +26,9 @@ Required Software:
 * oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
-* `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
+* `make`; which can be installed using MSYS2 on Windows\* as follows:
 
-        pacman -S msys/make msys/dos2unix
+        pacman -S msys/make
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
 
@@ -275,7 +275,7 @@ export TBBROOT="${CONDA_PREFIX}"
 export DPL_ROOT="${CONDA_PREFIX}"
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
-export CPATH="${CONDA_PREFIX}/include:${CPATH}"
+export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
 export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```
