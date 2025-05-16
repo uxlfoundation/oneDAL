@@ -115,7 +115,24 @@ public:
     int uniformWithoutReplacement(const SizeType n, DstType * r, void * state, const Type a, const Type b,
                                   const int method = __DAAL_RNG_METHOD_UNIFORM_STD)
     {
-        Type * buffer = (Type *)daal_malloc(sizeof(Type) * n);
+        if (n > (b - a))
+        {
+            return -1; // Error: n is greater than the range
+        }
+        if (n == 0)
+        {
+            return 0; // No numbers to generate
+        }
+
+        const SizeType range = b - a;
+        Type * buffer        = (Type *)daal_malloc(sizeof(Type) * range);
+        if (!buffer) return -2; // Allocation failure
+
+        for (SizeType i = 0; i < range; i++)
+        {
+            buffer[i] = i + a;
+        }
+
         int errorcode = uniformWithoutReplacement(n, r, buffer, state, a, b, method);
         daal_free(buffer);
         return errorcode;
@@ -128,17 +145,10 @@ public:
         int errorcode = 0;
         for (SizeType i = 0; i < n; i++)
         {
-            errorcode = uniform(1, buffer + i, state, a + i, b, method);
-            int value = buffer[i];
-
-            for (SizeType j = i; j > 0; j--)
-            {
-                if (value == buffer[j - 1])
-                {
-                    value = (DstType)(j - 1 + a);
-                }
-            }
-            r[i] = value;
+            int j;
+            errorcode = uniform(1, &j, state, a + i, b, method);
+            std::swap(buffer[i], buffer[j]);
+            r[i] = buffer[i];
         }
         return errorcode;
     }
