@@ -112,7 +112,7 @@ public:
             if (!s) return Status(ErrorMultiClassFailedToComputeTwoClassPrediction).add(s);
 
             /* Compute votes for the block of input observations */
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nRows; ++i)
             {

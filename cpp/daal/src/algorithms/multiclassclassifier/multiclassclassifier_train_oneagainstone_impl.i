@@ -337,7 +337,7 @@ Status SubTaskDense<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures
         originalIndicesMap[nRows] = ix;
         _mtX.next(ix, 1);
         DAAL_CHECK_BLOCK_STATUS(_mtX);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t jx = 0; jx < nFeatures; jx++) this->_subsetX.get()[nRows * nFeatures + jx] = _mtX.get()[jx];
         this->_subsetY[nRows] = label;
@@ -362,14 +362,14 @@ Status SubTaskCSR<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures, 
         originalIndicesMap[nRows] = ix;
         _mtX.next(ix, 1);
         DAAL_CHECK_BLOCK_STATUS(_mtX);
-        const size_t nNonZeroValuesInRow = _mtX.rows()[1] - _mtX.rows()[0];
-        const size_t * colIndices        = _mtX.cols();
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        const size_t nNonZeroValuesInRow  = _mtX.rows()[1] - _mtX.rows()[0];
+        const size_t * colIndices         = _mtX.cols();
+        const algorithmFPType * mtXValues = _mtX.values();
+        algorithmFPType * subsetXData     = this->_subsetX.get();
         for (size_t jx = 0; jx < nNonZeroValuesInRow; ++jx, ++dataIndex)
         {
-            this->_subsetX.get()[dataIndex] = _mtX.values()[jx];
-            _colIndicesX[dataIndex]         = colIndices[jx];
+            subsetXData[dataIndex]  = mtXValues[jx];
+            _colIndicesX[dataIndex] = colIndices[jx];
         }
         _rowOffsetsX[nRows + 1] = _rowOffsetsX[nRows] + nNonZeroValuesInRow;
         this->_subsetY[nRows]   = label;

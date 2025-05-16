@@ -178,7 +178,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
             for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
             {
                 algorithmFPType tp = 0;
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
@@ -198,7 +198,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
         {
             for (size_t j = 0; j < nFeatures; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
                 {
@@ -211,7 +211,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
             algorithmFPType addition = t.logAlpha[k] + t.logSqrtInvDetSigma[k];
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
             {
@@ -220,7 +220,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
             for (size_t j = 0; j < nFeatures; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
                 {
@@ -228,7 +228,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
                 }
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
             {
@@ -239,7 +239,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     t.partLogLikelyhood        = 0;
     algorithmFPType * maxInRow = t.rowSum;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
@@ -248,7 +248,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     for (size_t k = 1; k < nComponents; k++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
         {
@@ -261,7 +261,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     for (size_t k = 0; k < nComponents; k++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
         {
@@ -273,14 +273,14 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
         }
     }
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
         t.partLogLikelyhood += maxInRow[i];
     }
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
@@ -291,7 +291,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     for (size_t k = 0; k < nComponents; k++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
         {
@@ -301,7 +301,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     t.rowSumInv         = t.rowSum;
     algorithmFPType one = 1.0;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {
@@ -310,7 +310,7 @@ void EMKernelTask<algorithmFPType, method, cpu>::stepE(const size_t nVectorsInCu
 
     for (size_t k = 0; k < nComponents; k++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
         {
@@ -334,7 +334,7 @@ algorithmFPType EMKernelTask<algorithmFPType, method, cpu>::computePartialLogLik
     MathInst<algorithmFPType, cpu>::vLog(nVectorsInCurrentBlock, t.rowSumInv, logRowSumInv);
 
     algorithmFPType loglikPartial = t.partLogLikelyhood;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nVectorsInCurrentBlock; i++)
     {

@@ -106,7 +106,7 @@ Status MinMaxKernel<algorithmFPType, method, cpu>::processBlock(const NumericTab
 
     for (size_t i = 0; i < blockSize; i++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nColumns; j++)
         {
