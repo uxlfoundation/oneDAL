@@ -227,7 +227,7 @@ public:
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (DAAL_INT j = 0; j < _nFeatures; j++)
                     {
@@ -269,7 +269,7 @@ public:
         }
 
         /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         PRAGMA_VECTOR_ALIGNED
         for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
@@ -286,7 +286,7 @@ public:
                 return;
             }
             /// It is safe to use aligned loads and stores because the data is aligned
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_VECTOR_ALIGNED
             for (size_t i = 0; i < _nFeatures; i++)
@@ -341,7 +341,18 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
                                                 algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_PROFILER_TASK(Covariance::updateDenseCrossProductAndSums);
+    DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors); // number of rows in a data block
+    DAAL_INT64 grainSize      = 1;                           // minimal number of data blocks to be processed by a thread
+    if (hyperparameter)
+    {
+        services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
+        DAAL_CHECK_STATUS_VAR(status);
+        DAAL_CHECK(numRowsInBlock > 0ll, services::ErrorHyperparameterBadValue);
+        status = hyperparameter->find(denseUpdateStepGrainSize, grainSize);
+        DAAL_CHECK_STATUS_VAR(status);
+        DAAL_CHECK(grainSize > 0ll, services::ErrorHyperparameterBadValue);
+    }
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::updateDenseCrossProductAndSums, numRowsInBlock, grainSize);
     bool assumeCentered = parameter->assumeCentered;
     if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
     {
@@ -349,13 +360,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
 
         /* Split rows by blocks */
-        DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors);
-        if (hyperparameter)
-        {
-            services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
-            DAAL_CHECK_STATUS_VAR(status);
-            DAAL_CHECK(0ll < numRowsInBlock, services::ErrorHyperparameterBadValue);
-        }
+
         size_t numBlocks = nVectors / numRowsInBlock;
         if (numBlocks * numRowsInBlock < nVectors)
         {
@@ -369,7 +374,6 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         }
 
         /* Reduce input matrix X into cross product Xt X and a vector of column sums */
-        const size_t grainSize = 1; // minimal number of data blocks to be processed by a thread
         daal::static_threader_reduce(numBlocks, grainSize, result);
         if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
         {
@@ -407,7 +411,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             }
             for (size_t i = 0; i < nFeatures; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nFeatures; j++)
                 {
@@ -501,7 +505,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         if (nObsValue == 0)
         {
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -517,7 +521,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {

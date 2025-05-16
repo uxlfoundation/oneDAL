@@ -178,7 +178,7 @@ inline double KernelCSRImplBase<double, avx512>::computeDotProduct(const size_t 
         double partialSum[8];
         _mm512_storeu_pd(partialSum, vSum);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (int i = 0; i < 8; i++)
         {
@@ -289,7 +289,7 @@ inline float KernelCSRImplBase<float, avx512>::computeDotProduct(const size_t st
         double partialSum[8];
         _mm512_storeu_pd(partialSum, vSum);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (int i = 0; i < 8; i++)
         {

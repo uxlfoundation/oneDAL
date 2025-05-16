@@ -543,7 +543,7 @@ jobs:
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
       pip install cpufeature
-      pacman -S -y --noconfirm zip dos2unix tree
+      pacman -S -y --noconfirm zip tree
     displayName: 'pacman'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force

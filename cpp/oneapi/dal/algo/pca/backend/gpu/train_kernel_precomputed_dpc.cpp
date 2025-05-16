@@ -48,6 +48,7 @@ template <typename Float>
 struct train_kernel_gpu<Float, method::precomputed, task::dim_reduction> {
     result_t operator()(const context_gpu& ctx,
                         const descriptor_t& desc,
+                        const detail::train_parameters<task::dim_reduction>& params,
                         const input_t& input) const {
         return train<Float>(ctx, desc, input);
     }
