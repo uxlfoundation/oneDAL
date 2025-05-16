@@ -16,6 +16,7 @@
 
 #include <daal/src/algorithms/pca/pca_dense_correlation_batch_kernel.h>
 
+#include "oneapi/dal/algo/pca/train_types.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/algo/pca/backend/cpu/train_kernel.hpp"
 
@@ -117,6 +118,7 @@ template <typename Float>
 struct train_kernel_cpu<Float, method::precomputed, task::dim_reduction> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const detail::train_parameters<task_t>& params,
                         const input_t& input) const {
         return train<Float>(ctx, desc, input);
     }

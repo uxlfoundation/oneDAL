@@ -9,6 +9,7 @@ PARAMETRIZED_ALGOS = [
     "covariance",
     "decision_forest",
     "linear_regression",
+    "pca",
 ]
 
 ALGOS = [
@@ -30,7 +31,6 @@ ALGOS = [
     "louvain",
     "minkowski_distance",
     "objective_function",
-    "pca",
     "polynomial_kernel",
     "rbf_kernel",
     "sigmoid_kernel",
