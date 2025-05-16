@@ -242,6 +242,40 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
 
+### Executing examples with ASAN
+
+When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASAN on Windows has not been tested):
+
+* Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASAN - e.g. by setting these flags:
+    ```shell
+    export CC=icx
+    export CXX=icpx
+    export CXXFLAGS="-fsanitize=address"
+    export LDFLAGS="-shared-libasan"
+    ```
+* Create a symlink to the ASAN runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
+    ```shell
+    ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+    ```
+* Use the verbose mode in oneDAL when executing examples (otherwise ASAN won't produce prints):
+    ```shell
+    export ONEDAL_VERBOSE=1
+    ```
+
+Putting it all together, the earlier snippets for executing the examples but with ASAN enabled should look like this:
+
+```shell
+cd daal/latest/examples/daal/cpp
+mkdir -p build
+cd build
+CC=icx CXX=icpx CXXFLAGS="-fsanitize=address" LDFLAGS="-shared-libasan" cmake ..
+make -j$(nproc)
+ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+_Be aware that ASAN is known to generate many false-positive reports of memory leaks when used with oneDAL._
+
 ## Conda Development Environment Setup
 
 The previous instructions assumed system-wide installs of the necessary dependencies. On Linux*, these can also be installed at a user-level through the `conda` or [mamba](https://github.com/conda-forge/miniforge) ecosystems.
