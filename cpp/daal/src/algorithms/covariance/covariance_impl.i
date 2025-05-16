@@ -91,16 +91,6 @@ template <typename algorithmFPType, CpuType cpu>
 class CovarianceReducer : public daal::Reducer
 {
 public:
-    enum ErrorCode
-    {
-        ok                  = 0, /// No error
-        memAllocationFailed = 1, /// Memory allocation failed
-        intOverflow         = 2, /// Integer overflow
-        badCast             = 3  /// Cannot cast base daal::Reducer to derived class
-    };
-    /// Status of the computation.
-    ErrorCode errorCode;
-
     /// Get pointer to the array of partial sums.
     inline algorithmFPType * sums() { return _sumsArray.get(); }
     /// Get pointer to the partial cross-product matrix.
