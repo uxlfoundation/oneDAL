@@ -62,6 +62,11 @@ public:
 
     std::int64_t class_count = 2;
     std::int64_t neighbor_count = 1;
+    // The default engine has been switched from mt2203 to philox for GPU,
+    // as philox is more efficient in terms of performance on GPU architectures.
+    // Note: Due to this change, some conformance(not critical) tests might fail as a result.
+    engine_type df_engine_type = engine_type::philox4x32x10;
+    std::int64_t seed = 777;
     voting_mode voting_mode_value = voting_mode::uniform;
     detail::distance_ptr distance;
     result_option_id result_options = get_default_result_options<Task>();
@@ -83,11 +88,26 @@ std::int64_t descriptor_base<Task>::get_class_count() const {
 }
 
 template <typename Task>
+std::int64_t descriptor_base<Task>::get_seed() const {
+    return impl_->seed;
+}
+
+template <typename Task>
+engine_type descriptor_base<Task>::get_engine_type() const {
+    return impl_->df_engine_type;
+}
+
+template <typename Task>
 void descriptor_base<Task>::set_class_count_impl(std::int64_t value) {
     if (value < 2) {
         throw domain_error(dal::detail::error_messages::class_count_leq_one());
     }
     impl_->class_count = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_seed_impl(std::int64_t value) {
+    impl_->seed = value;
 }
 
 template <typename Task>

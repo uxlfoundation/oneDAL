@@ -54,7 +54,7 @@ compute_result<Task> compute_kernel_distr<Float, Method, Task>::operator()(
         pr::ndview<Float, 2>::wrap(resa.get_mutable_data(), { cluster_count, feature_count });
 
     const auto indices =
-        misc::generate_random_indices_distr(ctx, cluster_count, sample_count, seed);
+        misc::generate_random_indices_distr(ctx, params, cluster_count, sample_count, seed);
     const auto ndids =
         pr::ndarray<std::int64_t, 1>::wrap(indices.get_data(), { cluster_count }).to_device(queue);
 
@@ -72,17 +72,18 @@ template struct compute_kernel_distr<double, method::random_dense, task::init>;
 namespace misc {
 
 ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
+                                        const detail::descriptor_base<task::by_default>& params,
                                         std::int64_t count,
                                         std::int64_t scount,
                                         std::int64_t rseed) {
     auto& comm = ctx.get_communicator();
     auto& queue_ = ctx.get_queue();
     const auto rank_count = comm.get_rank_count();
-    //auto engine_type = pr::convert_engine_method(desc.get_engine_type());
-    pr::device_engine engine_gpu = ::oneapi::dal::backend::primitives::device_engine(
-        queue_,
-        rseed,
-        ::oneapi::dal::backend::primitives::engine_type_internal::philox4x32x10);
+
+    auto engine_type = pr::convert_engine_method(params.get_engine_type());
+
+    pr::device_engine engine_gpu =
+        ::oneapi::dal::backend::primitives::device_engine(queue_, params.get_seed(), engine_type);
 
     ids_arr_t root_rand = ids_arr_t::empty(rank_count);
 

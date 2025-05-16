@@ -240,31 +240,60 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
                                          std::int64_t seed,
                                          device_engine& engine_,
                                          const event_vector& deps) {
+    // Validate inputs
     const auto casted_top = dal::detail::integral_cast<std::size_t>(top);
     const std::int64_t count = result_array.get_count();
     const auto casted_count = dal::detail::integral_cast<std::size_t>(count);
-    ONEDAL_ASSERT(casted_count < casted_top);
-    auto indices_ptr = result_array.get_mutable_data();
+    ONEDAL_ASSERT(casted_count <= casted_top, "Sample size exceeds population size");
 
-    std::size_t value = 0;
-    auto state = engine_.get_host_engine_state();
-    for (std::size_t i = 0; i < casted_count; i++) {
-        uniform_dispatcher::uniform_by_cpu(1, &value, state, i, casted_top);
-        for (std::size_t j = i; j > 0; j--) {
-            if (value == dal::detail::integral_cast<std::size_t>(indices_ptr[j - 1])) {
-                value = j - 1;
-            }
-        }
-        if (value >= casted_top)
-            continue;
-        indices_ptr[i] = dal::detail::integral_cast<Type>(value);
+    // Check if result_array is in device memory
+    if (sycl::get_pointer_type(result_array.get_mutable_data(), queue_.get_context()) ==
+        sycl::usm::alloc::host) {
+        throw domain_error(dal::detail::error_messages::unsupported_data_type());
     }
-    auto event = queue_.submit([&](sycl::handler& h) {
-        h.depends_on(deps);
-    });
-    return event;
-}
 
+    // Allocate temporary array for the full population [0, top)
+    auto full_array = array<Type>::empty(queue_, casted_top);
+    Type* full_ptr = full_array.get_mutable_data();
+
+    // Initialize full_array with values [0, 1, ..., top-1]
+    auto fill_event = queue_.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(deps);
+        cgh.parallel_for(sycl::range<1>(casted_top), [=](sycl::id<1> i) {
+            full_ptr[i] = static_cast<Type>(i);
+        });
+    });
+
+    // Allocate array for random indices
+    auto rand_array = array<std::int32_t>::empty(queue_, casted_count);
+    std::int32_t* rand_ptr = rand_array.get_mutable_data();
+
+    // Generate random indices in range [0, top) for Fisher-Yates shuffle
+    oneapi::mkl::rng::uniform<std::int32_t> distr(0, casted_top);
+    engine_.skip_ahead_cpu(casted_count); // Adjust engine state
+    auto rand_event = generate_rng(distr, engine_, casted_count, rand_ptr, { fill_event });
+
+    // Perform Fisher-Yates shuffle for the first 'count' elements
+    auto* result_ptr = result_array.get_mutable_data();
+    auto shuffle_event = queue_.submit([&](sycl::handler& cgh) {
+        cgh.depends_on(rand_event);
+        cgh.single_task([=]() {
+            for (std::size_t idx = 0; idx < casted_count; ++idx) {
+                // Generate random index between idx and top-1 (inclusive)
+                std::size_t j = idx + static_cast<std::size_t>(rand_ptr[idx]) % (casted_top - idx);
+                if (j != idx) {
+                    Type tmp = full_ptr[idx];
+                    full_ptr[idx] = full_ptr[j];
+                    full_ptr[j] = tmp;
+                }
+                // Copy the shuffled element to the output
+                result_ptr[idx] = full_ptr[idx];
+            }
+        });
+    });
+
+    return shuffle_event;
+}
 #define INSTANTIATE_UNIFORM(F)                                         \
     template ONEDAL_EXPORT sycl::event uniform(sycl::queue& queue,     \
                                                std::int64_t count_,    \
