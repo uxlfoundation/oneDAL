@@ -198,7 +198,7 @@ public:
         for (size_t iRow = 0u; iRow < nRowsToProcess; iRow++)
         {
             algorithmFPType dist2 = algorithmFPType(0);
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0u; i < dim; i++)
             {
@@ -224,7 +224,7 @@ public:
         const algorithmFPType * pData = ntDataBD.get();
         algorithmFPType res(0.);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < dim; ++i)
         {

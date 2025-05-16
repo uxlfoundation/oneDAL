@@ -87,7 +87,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
 
     for (size_t i = 0; i < nRowsInR; ++i)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j <= i + jOffset; ++j)
         {
@@ -112,7 +112,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
         for (size_t i = 0; i < p - n; ++i)
         {
             r[i * p + i] = one;
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < i; ++j)
             {

@@ -71,7 +71,7 @@ Status ZScoreKernelBase<algorithmFPType, cpu>::common_compute(NumericTable & inp
 
                 for (size_t i = 0; i < _nRows; i++)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < _nFeatures; j++)
                     {
@@ -119,7 +119,7 @@ Status ZScoreKernelBase<algorithmFPType, cpu>::common_compute(NumericTable & inp
 
             for (size_t i = 0; i < _nRows; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _nFeatures; j++)
                 {
@@ -145,7 +145,7 @@ Status ZScoreKernelBase<algorithmFPType, cpu>::common_compute(NumericTable & inp
 
             for (size_t i = 0; i < _nRows; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _nFeatures; j++)
                 {

@@ -156,7 +156,7 @@ inline void normalizeData(const size_t nObservations, const size_t nFeatures, co
 {
     for (size_t i = 0; i < nObservations; i++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
