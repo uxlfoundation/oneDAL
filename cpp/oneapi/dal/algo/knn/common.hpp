@@ -22,6 +22,7 @@
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/common.hpp"
+#include "oneapi/dal/rng.hpp"
 
 namespace oneapi::dal::knn {
 
@@ -185,6 +186,8 @@ public:
     std::int64_t get_class_count() const;
     std::int64_t get_neighbor_count() const;
     voting_mode get_voting_mode() const;
+    engine_type get_engine_type() const;
+    std::int64_t get_seed() const;
     result_option_id get_result_options() const;
 
 protected:
@@ -195,6 +198,7 @@ protected:
     void set_voting_mode_impl(voting_mode value);
     void set_distance_impl(const detail::distance_ptr& distance);
     const detail::distance_ptr& get_distance_impl() const;
+    void set_seed_impl(std::int64_t value);
     void set_result_options_impl(const result_option_id& value);
 
 private:

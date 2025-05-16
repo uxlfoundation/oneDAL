@@ -25,6 +25,10 @@ class descriptor_impl : public base {
 public:
     std::int64_t local_trials_count = -1;
     std::int64_t cluster_count = 2;
+    // The default engine has been switched from mt2203 to philox for GPU,
+    // as philox is more efficient in terms of performance on GPU architectures.
+    // Note: Due to this change, some conformance(not critical) tests might fail as a result.
+    engine_type df_engine_type = engine_type::philox4x32x10;
     std::int64_t seed = 777;
 };
 
@@ -39,6 +43,11 @@ std::int64_t descriptor_base<Task>::get_cluster_count() const {
 template <typename Task>
 std::int64_t descriptor_base<Task>::get_seed() const {
     return impl_->seed;
+}
+
+template <typename Task>
+engine_type descriptor_base<Task>::get_engine_type() const {
+    return impl_->df_engine_type;
 }
 
 template <typename Task>
