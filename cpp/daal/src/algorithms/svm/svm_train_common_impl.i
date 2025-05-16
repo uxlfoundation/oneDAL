@@ -29,7 +29,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/algorithms/svm/svm_train_result.h"
 #include "src/algorithms/svm/svm_train_common.h"
 

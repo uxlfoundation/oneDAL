@@ -48,7 +48,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 

@@ -19,7 +19,7 @@
 #define __SVM_TRAIN_COMMON_H__
 
 #include "src/data_management/service_numeric_table.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/services/service_utils.h"
 #include "src/algorithms/service_hash_table.h"
 

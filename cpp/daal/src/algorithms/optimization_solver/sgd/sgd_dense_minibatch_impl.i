@@ -30,7 +30,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 using namespace daal::internal;
 using namespace daal::services;

@@ -28,7 +28,7 @@
 #include "data_management/data/numeric_table.h"
 #include "algorithms/algorithm_base_common.h"
 #include "algorithms/moments/low_order_moments_types.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 using namespace daal::services;
 using namespace daal::data_management;

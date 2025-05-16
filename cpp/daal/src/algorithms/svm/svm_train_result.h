@@ -33,7 +33,7 @@
 #include "src/services/service_data_utils.h"
 #include "src/algorithms/svm/svm_train_cache.h"
 #include "src/algorithms/svm/svm_train_common.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/externals/service_math.h"
 #include "src/algorithms/svm/svm_train_kernel.h"
 
