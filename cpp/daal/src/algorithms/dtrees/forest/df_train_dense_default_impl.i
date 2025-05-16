@@ -243,9 +243,12 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         }
         else
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
-            for (size_t i = 0; i < nVars; ++i) varImp[i] = 0;
+            for (size_t i = 0; i < nVars; ++i)
+            {
+                varImp[i] = 0;
+            }
         }
     }
     else if (mode == training::MDI)
@@ -363,7 +366,7 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
 
         for (size_t i = iStart; i < iEnd; ++i)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nCols; ++j)
             {
@@ -725,8 +728,6 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     DAAL_CHECK_MALLOC(_aSample.get() && _helper.reset(_nSamples) && _helper.resetWeights(_nSamples) && _aFeatureBuf.get() && _aFeatureIndexBuf.get()
                       && _aFeatureIdx.get());
 
-    PRAGMA_IVDEP
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < _nFeatureBufs; ++i)
     {
         _aFeatureBuf[i].reset(_data->getNumberOfRows());
@@ -745,17 +746,23 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     else
     {
         auto aSample = _aSample.get();
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < _nSamples; ++i) aSample[i] = i;
+        for (size_t i = 0; i < _nSamples; ++i)
+        {
+            aSample[i] = i;
+        }
     }
     //init responses buffer, keep _aSample values in it
     DAAL_CHECK_MALLOC(_helper.init(_data, _resp, _aSample.get(), _weights));
 
     //use _aSample as an array of response indices stored by helper from now on
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
-    for (size_t i = 0; i < _aSample.size(); ++i) _aSample[i] = i;
+    for (size_t i = 0; i < _aSample.size(); ++i)
+    {
+        _aSample[i] = i;
+    }
 
     setupHostApp();
 

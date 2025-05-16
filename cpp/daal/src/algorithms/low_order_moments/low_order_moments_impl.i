@@ -383,7 +383,7 @@ Status retrievePrecomputedStatsIfPossible(const size_t nFeatures, const size_t n
 
     const algorithmFPType invNVectors = 1.0 / (algorithmFPType)nVectors;
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {
@@ -408,7 +408,7 @@ Status computeSumAndVariance(size_t nFeatures, size_t nVectors, algorithmFPType 
 
     if (isOnline)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nFeatures; i++)
         {
@@ -488,7 +488,7 @@ Status computeMinMaxAndSumOfSquared(const size_t nFeatures, const size_t nVector
             max   = &_array[nfeatures * 1];
             sumSq = &_array[nfeatures * 2];
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nfeatures; j++)
             {
@@ -524,7 +524,7 @@ Status computeMinMaxAndSumOfSquared(const size_t nFeatures, const size_t nVector
 
         for (size_t i = startRows; i < startRows + chunkRows; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nFeatures; j++)
             {
@@ -538,7 +538,7 @@ Status computeMinMaxAndSumOfSquared(const size_t nFeatures, const size_t nVector
     });
 
     tslData.reduce([&](TslData * localTslData) {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {
@@ -569,7 +569,7 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
         const algorithmFPType nVectorsM1 = (algorithmFPType)(nVectors - 1);
         if (!isOnline)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nFeatures; i++)
             {
@@ -580,7 +580,7 @@ void computeSumOfSquaredDiffsFromMean(size_t nFeatures, size_t nVectors, size_t 
 
         if (prevNVectors == 0)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nFeatures; i++)
             {
@@ -860,7 +860,7 @@ void finalize(LowOrderMomentsFinalizeTask<algorithmFPType, cpu> & task)
 
     size_t nFeatures = task.nFeatures;
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {

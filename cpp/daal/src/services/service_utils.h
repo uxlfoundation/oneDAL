@@ -272,7 +272,7 @@ void transpose(const algorithmFPType * src, size_t rows, size_t cols, algorithmF
 {
     for (size_t j = 0; j < cols; j++)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < rows; i++)
         {
