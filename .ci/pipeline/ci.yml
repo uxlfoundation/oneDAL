@@ -510,7 +510,8 @@ jobs:
   steps:
   - checkout: none
   - script: |
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
+      git clone https://github.com/icfaust/scikit-learn-intelex.git .
+      git checkout dev/onedal_gnu_fix
     displayName: 'Clone sklearnex'
   - task: DownloadPipelineArtifact@2
     inputs:
