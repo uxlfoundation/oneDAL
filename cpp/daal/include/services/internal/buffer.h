@@ -46,7 +46,7 @@ namespace interface1
  *  or on host/device sides using SYCL* buffer
  */
 template <typename T>
-class Buffer : public Base
+class DAAL_DEPRECATED Buffer : public Base
 {
 public:
     /**
