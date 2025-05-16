@@ -96,7 +96,6 @@ extlinks = {
 html_static_path = ['_static']
 
 html_theme = 'sphinx_book_theme'
-html_logo = '_static/uxl-foundation-logo-horizontal-color.png'
 html_favicon = '_static/favicons.png'
 
 # Theme options
@@ -108,7 +107,9 @@ html_theme_options = {
     'repository_branch': 'master',
     "logo": {
         "text": "oneDAL Documentation",
-    }
+        "image_light": "_static/uxl-foundation-logo-horizontal-color.png",
+        "image_dark": "_static/uxl-foundation-logo-horizontal-white.png",
+    },
 }
 
 
