@@ -34,11 +34,11 @@
 
 #include "services/library_version_info.h"
 
-#ifdef _WIN32
-    #define PRETTY_FUNCTION __FUNCSIG__
-#else
-    #define PRETTY_FUNCTION __PRETTY_FUNCTION__
-#endif
+// #ifdef _WIN32
+//     #define PRETTY_FUNCTION __FUNCSIG__
+// #else
+//     #define PRETTY_FUNCTION __PRETTY_FUNCTION__
+// #endif
 
 #define __SERVICE_PROFILER_H__
 
@@ -58,7 +58,6 @@
         std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                                  \
         if (daal::internal::is_service_debug_enabled())                                                       \
         {                                                                                                     \
-            std::cerr << PRETTY_FUNCTION << '\n';                                                             \
         }                                                                                                     \
     } while (0)
 
