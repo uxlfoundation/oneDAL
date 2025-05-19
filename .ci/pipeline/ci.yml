@@ -36,7 +36,7 @@ resources:
     - repository: sklearnex
       type: github
       name: icfaust/scikit-learn-intelex
-      ref: main
+      ref: master
       endpoint: intel-daal-connection
 
 jobs:
