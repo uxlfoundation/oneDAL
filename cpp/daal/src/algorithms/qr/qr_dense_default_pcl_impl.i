@@ -339,7 +339,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
                     A_local[i * ncols + j] = a_local[i + j * local_tiles * ncols];
                 }
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -352,7 +352,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
             // If onlyV then no needs to save to A array (inplace)
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -406,7 +406,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
             // Reset area under upper triangle to 0. Just in case Intel(R) MKL set them.
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -418,14 +418,14 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
 
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < j + 1; i++)
             {
                 R_local[i + Rda * j] = a_local[i + local_tiles * ncols * j];
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < ncols; i++)
             {
@@ -456,7 +456,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
 
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < j + 1; i++)
                 {
@@ -470,7 +470,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
         // of only V required - save only upper part of R array
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < j + 1; i++)
             {
@@ -532,13 +532,13 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Copy triangles from A
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < j + 1; i++)
             {
                 R_local[i + Rda * j] = A_local[i * ncols + j];
             }
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < ncols; i++)
             {
@@ -591,13 +591,13 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Copy stacked triangle to top of "a" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < j + 1; i++)
             {
                 a[i + j * local_tiles * ncols] = R_local[i + Rda * j];
             }
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < local_tiles * ncols; i++)
             {
@@ -608,7 +608,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Zero out top of "b" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < ncols; i++)
             {
@@ -632,7 +632,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
             // Copy Q into bottom portion of "b" buffer
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < height; i++)
                 {
@@ -643,7 +643,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
             // Zero out bottom portion of "a" buffer
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < height; i++)
                 {
@@ -672,7 +672,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
             // Just in case Intel(R) MKL wrote something here
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -696,7 +696,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Copy entire Q factor into "b" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < first_height; i++)
             {
@@ -708,7 +708,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Only apply Q to upper triangle of "a".
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = ncols; i < first_height; i++)
             {
@@ -807,14 +807,14 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Fill "R_local" buffer with stacked upper triangular matrices
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < j + 1; i++)
             {
                 R_local[i + Rda * j] = A_local[i * ncols + j];
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < ncols; i++)
             {
@@ -827,7 +827,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
             // Fill "R2_local" top square with top square of matrix being multiplied
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < ncols; i++)
                 {
@@ -840,7 +840,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
             // memset 0
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < ncols; i++)
                 {
@@ -900,7 +900,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Copy my square of R2 to top of "a" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < ncols; i++)
             {
@@ -911,7 +911,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Zero out top of "b" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < ncols; i++)
             {
@@ -936,7 +936,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
             // Copy Q factor into bottom portion of "b" buffer
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < height; i++)
                 {
@@ -947,7 +947,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
             // Zero out bottom portion of "a" buffer
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < height; i++)
                 {
@@ -974,7 +974,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
             // Copy bottom portion of "a" buffer to output
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < height; i++)
                 {
@@ -987,7 +987,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Fill "b" buffer with entire Q factor
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = j + 1; i < first_height; i++)
             {
@@ -998,7 +998,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Zero out bottom portion of "a" buffer
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = ncols; i < first_height; i++)
             {
@@ -1023,7 +1023,7 @@ static void tsapplyq(algorithmFPType * A, const size_t nrows, const size_t ncols
         // Write result from "a" buffer to output
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < first_height; i++)
             {
@@ -1090,7 +1090,7 @@ static int qr_pcl(const algorithmFPType * A_in,                        /* nrows 
                 e = num;
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = b; i < e; i++)
             {
@@ -1109,14 +1109,14 @@ static int qr_pcl(const algorithmFPType * A_in,                        /* nrows 
 
         for (size_t i = 0; i < ncols; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < i; j++)
             {
                 R_out[i * ncols + j] = 0;
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = i; j < ncols; j++)
             {
@@ -1191,7 +1191,7 @@ static int svd_pcl(algorithmFPType * A_in,                                      
                 e = num;
             }
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = b; i < e; i++)
             {
@@ -1231,14 +1231,14 @@ static int svd_pcl(algorithmFPType * A_in,                                      
 
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < j + 1; i++)
                 {
                     R[j * ncols + i] = R_out[i * ncols + j];
                 }
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -1256,14 +1256,14 @@ static int svd_pcl(algorithmFPType * A_in,                                      
 
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < j + 1; i++)
                 {
                     R[j * ncols + i] = V[i * ncols + j];
                 }
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j + 1; i < ncols; i++)
                 {
@@ -1290,7 +1290,7 @@ static int svd_pcl(algorithmFPType * A_in,                                      
         {
             for (size_t i = 0; i < ncols; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < ncols; j++)
                 {

@@ -26,7 +26,8 @@
 #define __SERVICE_DEFINES_H__
 
 #include <stdint.h>
-#include "services/env_detect.h"
+#include "services/daal_defines.h"
+#include "services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 
@@ -44,7 +45,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
 
 #if defined(__INTEL_COMPILER)
-    #define PRAGMA_IVDEP            _Pragma("ivdep")
+    #define PRAGMA_FORCE_SIMD       _Pragma("ivdep")
     #define PRAGMA_NOVECTOR         _Pragma("novector")
     #define PRAGMA_VECTOR_ALIGNED   _Pragma("vector aligned")
     #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
@@ -54,8 +55,11 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_ICC_NO16(ARGS)   PRAGMA_ICC_TO_STR(ARGS)
     #define DAAL_TYPENAME           typename
 #elif defined(__GNUC__)
-    #define PRAGMA_IVDEP
-    #define PRAGMA_NOVECTOR
+    #if defined(TARGET_ARM)
+        #define PRAGMA_FORCE_SIMD _Pragma("omp simd")
+    #else
+        #define PRAGMA_FORCE_SIMD
+    #endif
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
@@ -64,7 +68,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_ICC_NO16(ARGS)
     #define DAAL_TYPENAME typename
 #elif defined(_MSC_VER)
-    #define PRAGMA_IVDEP
+    #define PRAGMA_FORCE_SIMD
     #define PRAGMA_NOVECTOR
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
@@ -74,7 +78,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_ICC_NO16(ARGS)
     #define DAAL_TYPENAME typename
 #else
-    #define PRAGMA_IVDEP
+    #define PRAGMA_FORCE_SIMD
     #define PRAGMA_NOVECTOR
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED

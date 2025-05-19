@@ -550,7 +550,7 @@ template <typename algorithmFPType, CpuType cpu>
 void LBFGSTask<algorithmFPType, cpu>::computeCorrectionPairImpl(size_t correctionIndex, const algorithmFPType * hessian, bool useWolfeConditions)
 {
     algorithmFPType * s = correctionS + correctionIndex * this->argumentSize;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t j = 0; j < this->argumentSize; j++)
     {
@@ -568,7 +568,7 @@ void LBFGSTask<algorithmFPType, cpu>::computeCorrectionPairImpl(size_t correctio
         algorithmFPType * gradientPrev = (algorithmFPType *)_gradientPrevPtr.get();
         algorithmFPType * gradientCurr = (algorithmFPType *)_gradientCurrPtr.get();
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < this->argumentSize; j++)
         {
