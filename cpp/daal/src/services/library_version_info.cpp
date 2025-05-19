@@ -29,7 +29,7 @@
 #include "src/services/service_profiler.h"
 
 // Initialize for DAAL INFO output in KERNEL_PROFILER
-static bool print_profiler_header = (daal::internal::print_header(), false);
+// static bool print_profiler_header = (daal::internal::print_header(), false);
 
 #ifndef DAAL_REF // temporary!!! should depend both on BACKEND and TARGETARCH
     #include <mkl.h>
