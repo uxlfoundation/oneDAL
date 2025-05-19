@@ -193,59 +193,6 @@ private:
 };
 
 /**
- * Thread local storage used on the partial results update stage
- */
-// template <typename algorithmFPType, CpuType cpu>
-// class ThreadingTask
-// {
-//     typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
-
-// public:
-//     DAAL_NEW_DELETE();
-
-//     /**
-//      * Creates thread local storage of the requested size
-//      * \param[in] nBetasIntercept   Number of colums in the partial result
-//      * \param[in] nResponses        Number of responses
-//      * \return Pointer on the thread local storage object if the object was created successfully, NULL otherwise
-//      */
-//     static ThreadingTask<algorithmFPType, cpu> * create(size_t nBetasIntercept, size_t nResponses);
-//     virtual ~ThreadingTask();
-
-//     /**
-//      * Updates local partial result with the new block of data
-//      * \param[in] startRow  Index of the starting row of the block
-//      * \param[in] nRows     Number of rows in the block of data
-//      * \param[in] xTable    Input data set of size N x P
-//      * \param[in] yTable    Input array of responses of size N x Ny
-//      * \return Status of the computations
-//      */
-//     Status update(DAAL_INT startRow, DAAL_INT nRows, const NumericTable & xTable, const NumericTable & yTable);
-
-//     /**
-//      * Reduces thread local partial results into global partial result
-//      * \param[out] xtx Global partial result of size P' x P'
-//      * \param[out] xty Global partial result of size Ny x P'
-//      */
-//     void reduce(algorithmFPType * xtx, algorithmFPType * xty);
-
-// protected:
-//     /**
-//      * Construct thread local storage of the requested size
-//      * \param[in]  nBetasIntercept  Number of colums in the partial result
-//      * \param[in]  nResponses       Number of responses
-//      * \param[out] st               Status of the object construction
-//      */
-//     ThreadingTask(size_t nBetasIntercept, size_t nResponses, Status & st);
-//     algorithmFPType * _xtx;    /*!< Partial result of size P' x P' */
-//     algorithmFPType * _xty;    /*!< Partial result of size Ny x P' */
-//     ReadRowsType _xBlock;      /*!< Object that manages memory block of the input data set */
-//     ReadRowsType _yBlock;      /*!< Object that manages memory block of the input array of responses */
-//     DAAL_INT _nBetasIntercept; /*!< P' - number of columns in the partial result */
-//     DAAL_INT _nResponses;      /*!< Ny - number of responses */
-// };
-
-/**
  * Implements the common part of the partial results update with new block of input data
  */
 template <typename algorithmFPType, CpuType cpu>
