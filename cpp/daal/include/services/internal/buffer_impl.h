@@ -42,9 +42,10 @@ class SyclBufferIface;
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__BUFFERVISITOR"></a>
  *  \brief Visitor pattern implementation for Buffer class
+ * \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED BufferVisitor : public Base
+class BufferVisitor : public Base
 {
 public:
     virtual Status operator()(const HostBuffer<T> &) { return Status(); }
@@ -55,9 +56,10 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__BUFFERIFACE"></a>
  *  \brief Common Buffer interface
+ * \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED BufferIface
+class BufferIface
 {
 public:
     virtual ~BufferIface() {}
@@ -70,9 +72,10 @@ public:
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__CONVERTABLETOHOSTIFACE"></a>
  *  \brief Interface that shall be implemented by any buffer which
  *         can be converted to host buffer (pointer)
+ * \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED ConvertableToHostIface
+class ConvertableToHostIface
 {
 public:
     virtual ~ConvertableToHostIface() {}
@@ -84,9 +87,10 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__USMBUFFERIFACE"></a>
  *  \brief Common interface for USM-backed buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED UsmBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
+class UsmBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
 {
 public:
     virtual const SharedPtr<T> & get() const = 0;
@@ -95,17 +99,19 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__SYCLBUFFERIFACE"></a>
  *  \brief Common interface for SYCL*-backed buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED SyclBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
+class SyclBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
 {};
 
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__HOSTBUFFER"></a>
  *  \brief BufferIface implementation based on host pointer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED HostBuffer : public Base, public BufferIface<T>
+class HostBuffer : public Base, public BufferIface<T>
 {
 public:
     static HostBuffer<T> * create(const SharedPtr<T> & data, size_t size, Status & status)
@@ -147,9 +153,10 @@ private:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__CONVERTTOHOST"></a>
  *  \brief BufferVisitor that converters any buffer to host pointer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED ConvertToHost : public BufferVisitor<T>
+class ConvertToHost : public BufferVisitor<T>
 {
 public:
     explicit ConvertToHost(const data_management::ReadWriteMode & rwFlag) : _rwFlag(rwFlag) {}
@@ -198,9 +205,10 @@ private:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__HOSTBUFFERCONVERTER"></a>
  *  \brief Groups high-level conversion methods for host memory
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
-class DAAL_DEPRECATED HostBufferConverter
+class HostBufferConverter
 {
 public:
     SharedPtr<T> toHost(const internal::BufferIface<T> & buffer, const data_management::ReadWriteMode & rwMode, Status & status)
