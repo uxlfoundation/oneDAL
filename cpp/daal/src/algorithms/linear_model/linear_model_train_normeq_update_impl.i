@@ -196,7 +196,7 @@ void LinearModelReducer<algorithmFPType, cpu>::update(size_t begin, size_t end)
 
             for (DAAL_INT i = 0; i < nRows; i++, xPtr += _nFeatures)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (DAAL_INT j = 0; j < _nFeatures; j++)
                 {
@@ -217,7 +217,7 @@ void LinearModelReducer<algorithmFPType, cpu>::update(size_t begin, size_t end)
             const algorithmFPType * yPtr = yBlock;
             for (DAAL_INT i = 0; i < nRows; i++, yPtr += _nResponses)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (DAAL_INT j = 0; j < _nResponses; j++)
                 {
@@ -259,7 +259,7 @@ void LinearModelReducer<algorithmFPType, cpu>::join(daal::Reducer * otherReducer
         return;
     }
     /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     PRAGMA_VECTOR_ALIGNED
     for (size_t i = 0; i < (_nBetasIntercept * _nBetasIntercept); i++)
@@ -268,7 +268,7 @@ void LinearModelReducer<algorithmFPType, cpu>::join(daal::Reducer * otherReducer
     }
 
     /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     PRAGMA_VECTOR_ALIGNED
     for (size_t i = 0; i < (_nBetasIntercept * _nResponses); i++)
@@ -453,14 +453,14 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     const algorithmFPType * resultXTX = result.xtx();
     const algorithmFPType * resultXTY = result.xty();
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < (nBetasIntercept * nBetasIntercept); i++)
     {
         xtx[i] += resultXTX[i];
     }
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < (nBetasIntercept * nResponses); i++)
     {

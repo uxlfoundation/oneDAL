@@ -284,7 +284,7 @@ services::Status SagaKernel<algorithmFPType, method, cpu>::compute(HostAppIface 
         result |= daal::services::internal::daal_memcpy_s(previous, sizeArgument * sizeof(algorithmFPType), workValue,
                                                           sizeArgument * sizeof(algorithmFPType));
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t k = 0; k < sizeArgument; k++)
         {
@@ -313,7 +313,7 @@ services::Status SagaKernel<algorithmFPType, method, cpu>::compute(HostAppIface 
             }
         }
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t k = 0; k < sizeArgument; k++)
         {

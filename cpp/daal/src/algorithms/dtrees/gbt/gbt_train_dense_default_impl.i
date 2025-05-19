@@ -177,7 +177,7 @@ protected:
         const auto nF    = nRows * _nTrees;
         //initialize f. TODO: input argument
         algorithmFPType * pf = f();
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nF; ++i) pf[i] = initValue;
     }
@@ -255,7 +255,7 @@ double TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::computeLeafWeight
     LoopHelper<cpu>::run(inParallel, nBlocks, [&](size_t iBlock) {
         const size_t start = iBlock + 1 > nSurplus ? nPerBlock * iBlock + nSurplus : (nPerBlock + 1) * iBlock;
         const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = start; i < end; i++) pf[idx[i] * this->_nTrees + iTree] += inc;
     });
@@ -463,7 +463,7 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
 
             for (size_t i = iStart; i < iEnd; ++i)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nCols; ++j)
                 {

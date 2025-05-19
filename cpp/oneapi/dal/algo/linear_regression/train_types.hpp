@@ -42,24 +42,34 @@ public:
     train_parameters(train_parameters&&) = default;
     train_parameters(const train_parameters&) = default;
 
+    /// Linear regression training algorithm splits input data table into blocks of rows
+    /// to speedup the computations.
+    /// These API define the number of rows in the data block to be processed on CPU.
     std::int64_t get_cpu_macro_block() const;
     auto& set_cpu_macro_block(std::int64_t val) {
         set_cpu_macro_block_impl(val);
         return *this;
     }
 
+    /// Linear regression training algorithm splits input data table into blocks of rows
+    /// to speedup the computations.
+    /// These API define the number of rows in the data block to be processed on GPU.
     std::int64_t get_gpu_macro_block() const;
     auto& set_gpu_macro_block(std::int64_t val) {
         set_gpu_macro_block_impl(val);
         return *this;
     }
 
+    /// Maximum number of columns in the dataset to use blocked data processing on CPU.
+    /// Otherwise, the whole dataset is processed at once to compute the coefficients.
     std::int64_t get_cpu_max_cols_batched() const;
     auto& set_cpu_max_cols_batched(std::int64_t val) {
         set_cpu_max_cols_batched_impl(val);
         return *this;
     }
 
+    /// Minimum number of rows in the dataset to use blocked data processing on CPU.
+    /// Otherwise, the whole dataset is processed at once to compute the coefficients.
     std::int64_t get_cpu_small_rows_threshold() const;
     auto& set_cpu_small_rows_threshold(std::int64_t val) {
         set_cpu_small_rows_threshold_impl(val);
