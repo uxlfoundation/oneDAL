@@ -27,6 +27,7 @@ variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2021.10.0'
   VM_IMAGE : 'ubuntu-24.04'
+  WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/487fd8c3-a3d8-4c22-a903-f8d54c2c57be/intel-oneapi-base-toolkit-2025.1.0.650_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
@@ -536,7 +537,7 @@ jobs:
     release.dir: '__release_win_vc'
     platform.type : 'win32e'
   pool:
-    vmImage: 'windows-2022'
+    vmImage: '$(WIN_VM_IMAGE)'
   steps:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: Install oneAPI Base Toolkit
@@ -603,7 +604,7 @@ jobs:
     DALROOT: '$(Pipeline.Workspace)\daal\latest'
     TBBROOT: '%TEMP%\oneapi\tbb\latest'
   pool:
-    vmImage: 'windows-2022'
+    vmImage: '$(WIN_VM_IMAGE)'
     maxParallel: 2
   strategy:
     matrix:
@@ -624,8 +625,8 @@ jobs:
     inputs:
       artifact: '$(platform.type) build'
       path: $(Pipeline.Workspace)
-  - script: .ci\env\install_basekit.bat 'intel.oneapi.win.tbb.devel'
-    displayName: 'tbb installation'
+  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) 'intel.oneapi.win.tbb.devel'
+    displayName: 'TBB installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
     inputs:
