@@ -35,8 +35,8 @@ resources:
   repositories:
     - repository: sklearnex
       type: github
-      name: uxlfoundation/scikit-learn-intelex
-      ref: main
+      name: icfaust/scikit-learn-intelex
+      ref: dev/generalize_win_ci
       endpoint: intel-daal-connection
 
 jobs:
@@ -585,4 +585,48 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Uploading on fail'
     condition: failed()
+    continueOnError: true 
+- task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL scripts'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
+    displayName: 'Upload environment artifacts'
     continueOnError: true
+
+- job: WindowsSklearnex
+  dependsOn: WindowsMakeVC
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win_vc'
+    platform.type: 'win32e'
+    DALROOT: '$(Pipeline.Workspace)\daal\latest'
+    TBBROOT: '%TEMP%\oneapi\tbb\latest'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+    maxParallel: 2
+  strategy:
+    matrix:
+      Python311:
+        PYTHON_VERSION: '3.11'
+        SKLEARN_VERSION: '1.5'
+  steps:
+  - checkout: none
+  - script: |
+      git clone https://github.com/icfaust/scikit-learn-intelex.git .
+      git checkout dev/generalize_win_ci
+    displayName: 'Clone sklearnex'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'oneDAL scripts'
+      path: '$(Build.Repository.LocalPath)\.ci\env'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: '$(platform.type) build'
+      path: $(Pipeline.Workspace)
+  - script: .ci\env\install_basekit.bat 'intel.oneapi.win.tbb.devel'
+    displayName: 'tbb installation'
+  - template: .ci/pipeline/build-and-test-win.yml@sklearnex
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) sklearnex build'
+      targetPath: '$(Build.Repository.LocalPath)/build'
