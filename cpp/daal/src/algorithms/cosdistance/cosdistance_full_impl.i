@@ -64,6 +64,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
         algorithmFPType * rr = r + k1 * blockSizeDefault;
 
         algorithmFPType buf[blockSizeDefault * blockSizeDefault];
+        algorithmFPType bufDiag[blockSizeDefault];
         algorithmFPType alpha = 1.0, beta = 0.0;
         char transa = 'T', transb = 'N';
         DAAL_INT m = blockSize1, k = p, nn = blockSize1;
@@ -71,27 +72,28 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
         BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, x, &lda, x, &ldb, &beta, buf, &ldc);
 
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < blockSize1; i++)
         {
             if (buf[i * blockSize1 + i] > (algorithmFPType)0.0)
             {
                 buf[i * blockSize1 + i] = (algorithmFPType)1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(buf[i * blockSize1 + i]);
             }
+            bufDiag[i] = buf[i * blockSize1 + i];
         }
 
         for (size_t i = 0; i < blockSize1; i++)
         {
-            PRAGMA_VECTOR_ALWAYS
+            // PRAGMA_FORCE_SIMD
+            // PRAGMA_VECTOR_ALWAYS
             for (size_t j = i + 1; j < blockSize1; j++)
             {
-                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * buf[i * blockSize1 + i] * buf[j * blockSize1 + j];
+                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * bufDiag[i] * bufDiag[j];
             }
         }
 
         for (size_t i = 0; i < blockSize1; i++)
         {
-            PRAGMA_VECTOR_ALWAYS
+            // PRAGMA_VECTOR_ALWAYS
             for (size_t j = i; j < blockSize1; j++)
             {
                 rr[i * n + j] = buf[i * blockSize1 + j];
@@ -158,7 +160,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
             for (size_t i = 0; i < blockSize1; i++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                // PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < blockSize2; j++)
                 {
                     buf[i * blockSize2 + j] = 1.0 - buf[i * blockSize2 + j] * r[i * nl + (shift1 + i)] * diag[j];
@@ -167,7 +169,7 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
 
             for (size_t i = 0; i < blockSize1; i++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                // PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < blockSize2; j++)
                 {
                     rr[i * nl + j] = buf[i * blockSize2 + j];

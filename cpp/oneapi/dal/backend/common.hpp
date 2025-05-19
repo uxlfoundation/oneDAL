@@ -25,7 +25,7 @@
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
-#if defined(__INTEL_COMPILER)
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
 #define PRAGMA_FORCE_SIMD    _Pragma("ivdep")
 #define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
 #else

@@ -77,7 +77,7 @@ services::Status BinaryConfusionMatrixKernel<method, algorithmFPType, cpu>::comp
 
     /* Compute confusion matrix for two-class classifier */
 
-    PRAGMA_VECTOR_ALWAYS
+    PRAGMA_FORCE_SIMD
     for (size_t i = 0; i < nVectors; i++)
     {
         const int predictedLabel   = ((predictedLabelsData[i] > zero) ? 0 : 1);

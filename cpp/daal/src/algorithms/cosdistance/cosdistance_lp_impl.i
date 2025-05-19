@@ -68,7 +68,6 @@ services::Status cosDistanceLowerPacked(const NumericTable * xTable, NumericTabl
         BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, x, &lda, x, &ldb, &beta, buf, &ldc);
 
         /* compute inverse of sqrt of gemm result and save for use in computation off-diagonal blocks */
-        PRAGMA_VECTOR_ALWAYS
         for (DAAL_INT i = 0; i < blockSize1; i++)
         {
             if (buf[i * blockSize1 + i] > (algorithmFPType)0.0)
@@ -80,10 +79,12 @@ services::Status cosDistanceLowerPacked(const NumericTable * xTable, NumericTabl
         /* compute cosine distance for k1 block of rows in the input dataset */
         for (DAAL_INT i = 0; i < blockSize1; i++)
         {
+            const algorithmFPType bufii = buf[i * blockSize1 + i];
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (DAAL_INT j = 0; j < i; j++)
             {
-                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * buf[i * blockSize1 + i] * buf[j * blockSize1 + j];
+                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * bufii * buf[j * blockSize1 + j];
             }
         }
 

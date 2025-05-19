@@ -101,7 +101,7 @@ struct localDataCollector<algorithmFPType, defaultDense, cpu>
         {
             int cl = predefClass[j];
             DAAL_ASSERT(cl < _c);
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_FORCE_SIMD
             for (size_t i = 0; i < _p; i++)
             {
                 n_ci[cl * _p + i] += data[j * _p + i];
@@ -149,7 +149,6 @@ struct localDataCollector<algorithmFPType, fastCSR, cpu>
             DAAL_ASSERT(cl < _c);
             size_t jn = rowIdx[j + 1] - rowIdx[j];
 
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < jn; i++)
             {
                 size_t col = colIdx[k + i] - 1;
@@ -197,16 +196,21 @@ Status collectCounters(const Parameter * nbPar, NumericTable * ntData, NumericTa
     tls_n_ci.reduce([=](algorithmFPType * v) {
         if (!v) return;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
         for (size_t j = 0; j < c; j++)
         {
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < p; i++)
             {
                 n_ci[j * p + i] += v[j * p + i];
-                n_c[j] += v[j * p + i];
             }
+            algorithmFPType sum(0);
+            PRAGMA_OMP_SIMD(reduction(+ : sum))
+            for (size_t i = 0; i < p; i++)
+            {
+                sum += v[j * p + i];
+            }
+            n_c[j] += sum;
         }
         _FREE_<algorithmFPType, cpu>(v);
     });

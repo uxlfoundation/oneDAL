@@ -183,8 +183,6 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                 BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &nRowsInBlock2, &nRowsInBlock1, (DAAL_INT *)&nFeatures, &alpha, dataA2,
                                                        (DAAL_INT *)&nFeatures, dataA1, (DAAL_INT *)&nFeatures, &beta, dataR, (DAAL_INT *)&nVectors2);
 
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsInBlock1; ++i)
                 {
                     for (size_t j = 0; j < nRowsInBlock2; ++j)
@@ -193,6 +191,8 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                         {
                             dataR[i * nVectors2 + j] += shift;
                             const algorithmFPType factor = dataR[i * nVectors2 + j];
+                            PRAGMA_FORCE_SIMD
+                            PRAGMA_VECTOR_ALWAYS
                             for (size_t k = 0; k < degree - 1; ++k)
                             {
                                 dataR[i * nVectors2 + j] *= factor;
@@ -218,14 +218,14 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                 BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &nRowsInBlock1, &nRowsInBlock2, (DAAL_INT *)&nFeatures, &alpha, dataA1,
                                                        (DAAL_INT *)&nFeatures, dataA2, (DAAL_INT *)&nFeatures, &beta, mklBuff, &ldc2);
 
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < blockSize * blockSize; ++i)
                 {
                     if (degree != 0)
                     {
                         mklBuff[i] += shift;
                         const algorithmFPType factor = mklBuff[i];
+                        PRAGMA_FORCE_SIMD
+                        PRAGMA_VECTOR_ALWAYS
                         for (size_t k = 0; k < degree - 1; ++k)
                         {
                             mklBuff[i] *= factor;

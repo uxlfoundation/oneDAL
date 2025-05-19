@@ -67,9 +67,8 @@ struct TaskKMeansLloyd
         {
             for (size_t k = 0; k < clNum; k++)
             {
-                algorithmFPType sum = algorithmFPType(0);
-                PRAGMA_FORCE_SIMD
-                PRAGMA_ICC_NO16(omp simd reduction(+ : sum))
+                algorithmFPType sum(0);
+                PRAGMA_OMP_SIMD(reduction(+ : sum))
                 for (size_t j = 0; j < dim; j++)
                 {
                     sum += cCenters[k * dim + j] * cCenters[k * dim + j] * 0.5;
@@ -195,7 +194,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
         BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, data, &lda, inClusters, &ldy, &beta, x_clusters, &ldaty);
 
-        PRAGMA_ICC_OMP(simd simdlen(16))
+        PRAGMA_OMP_SIMD(simdlen(16))
         for (algIntType i = 0; i < (algIntType)blockSize; i++)
         {
             algorithmFPType minGoalVal = x_clusters[i];
