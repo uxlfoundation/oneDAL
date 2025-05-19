@@ -97,7 +97,7 @@ public:
     table& operator=(table&&);
 
     /// Destroys the table instance and releases the associated implementation.
-    /// TODO: Enable ~table in next major release 
+    /// TODO: Enable ~table in next major release
     //virtual ~table() = default;
 
     /// Indicates whether a table contains non-zero number of rows and columns.
