@@ -32,13 +32,13 @@
 // #include <mutex>
 #include <algorithm>
 
-// #include "services/library_version_info.h"
+#include "services/library_version_info.h"
 
-// #ifdef _WIN32
-//     #define PRETTY_FUNCTION __FUNCSIG__
-// #else
-//     #define PRETTY_FUNCTION __PRETTY_FUNCTION__
-// #endif
+#ifdef _WIN32
+    #define PRETTY_FUNCTION __FUNCSIG__
+#else
+    #define PRETTY_FUNCTION __PRETTY_FUNCTION__
+#endif
 
 #define __SERVICE_PROFILER_H__
 
@@ -57,7 +57,9 @@
         std::cerr << "-----------------------------------------------------------------------------" << '\n'; \
         std::cerr << "File: " << __FILE__ << ", Line: " << __LINE__ << '\n';                                  \
         if (daal::internal::is_service_debug_enabled())                                                       \
-        {}                                                                                                    \
+        {                                                                                                     \
+            std::cerr << PRETTY_FUNCTION << '\n';                                                             \
+        }                                                                                                     \
     } while (0)
 
 // ARGS LOGGING
@@ -120,7 +122,7 @@
         return daal::internal::profiler::start_task(nullptr);                                                                                 \
     }()
 
-static int daal_verbose_val                         = -1;
+static volatile int daal_verbose_val                = -1;
 inline static constexpr int PROFILER_MODE_OFF       = 0;
 inline static constexpr int PROFILER_MODE_LOGGER    = 1;
 inline static constexpr int PROFILER_MODE_TRACER    = 2;
@@ -133,7 +135,7 @@ namespace daal
 namespace internal
 {
 
-inline void set_verbose_from_env()
+inline static void set_verbose_from_env()
 {
     // static std::mutex mutex;
     // std::lock_guard<std::mutex> lock(mutex);
@@ -150,13 +152,13 @@ inline void set_verbose_from_env()
     daal_verbose_val = newval;
 }
 
-inline int daal_verbose_mode()
+inline static int daal_verbose_mode()
 {
     if (daal_verbose_val == -1) set_verbose_from_env();
     return daal_verbose_val;
 }
 
-inline std::string format_time_for_output(std::uint64_t time_ns)
+inline static std::string format_time_for_output(std::uint64_t time_ns)
 {
     std::ostringstream out;
     double time = static_cast<double>(time_ns);
@@ -185,27 +187,27 @@ inline void profiler_log_named_args(const char * names, const T & value, Rest &&
     if (comma) profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
 }
 
-inline bool is_service_debug_enabled()
+inline static bool is_service_debug_enabled()
 {
-    const bool service_debug_value = [] {
+    static const bool service_debug_value = [] {
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_DEBUG;
     }();
     return service_debug_value;
 }
 
-inline bool is_logger_enabled()
+inline static bool is_logger_enabled()
 {
-    const bool logger_value = [] {
+    static const bool logger_value = [] {
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
     return logger_value;
 }
 
-inline bool is_tracer_enabled()
+inline static bool is_tracer_enabled()
 {
-    const bool verbose_value = [] {
+    static const bool verbose_value = [] {
         std::ios::sync_with_stdio(false);
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
@@ -213,9 +215,9 @@ inline bool is_tracer_enabled()
     return verbose_value;
 }
 
-inline bool is_profiler_enabled()
+inline static bool is_profiler_enabled()
 {
-    const bool profiler_value = [] {
+    static const bool profiler_value = [] {
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS
                || value == PROFILER_MODE_DEBUG;
@@ -223,9 +225,9 @@ inline bool is_profiler_enabled()
     return profiler_value;
 }
 
-inline bool is_analyzer_enabled()
+inline static bool is_analyzer_enabled()
 {
-    const bool profiler_value = [] {
+    static const bool profiler_value = [] {
         int value = daal_verbose_mode();
         return value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
     }();
@@ -236,16 +238,16 @@ inline void print_header()
 {
     if (is_profiler_enabled())
     {
-        // daal::services::LibraryVersionInfo ver;
-        // std::cerr << "Major version:          " << ver.majorVersion << '\n';
-        // std::cerr << "Minor version:          " << ver.minorVersion << '\n';
-        // std::cerr << "Update version:         " << ver.updateVersion << '\n';
-        // std::cerr << "Product status:         " << ver.productStatus << '\n';
-        // std::cerr << "Build:                  " << ver.build << '\n';
-        // std::cerr << "Build revision:         " << ver.build_rev << '\n';
-        // std::cerr << "Name:                   " << ver.name << '\n';
-        // std::cerr << "Processor optimization: " << ver.processor << '\n';
-        // std::cerr << '\n';
+        daal::services::LibraryVersionInfo ver;
+        std::cerr << "Major version:          " << ver.majorVersion << '\n';
+        std::cerr << "Minor version:          " << ver.minorVersion << '\n';
+        std::cerr << "Update version:         " << ver.updateVersion << '\n';
+        std::cerr << "Product status:         " << ver.productStatus << '\n';
+        std::cerr << "Build:                  " << ver.build << '\n';
+        std::cerr << "Build revision:         " << ver.build_rev << '\n';
+        std::cerr << "Name:                   " << ver.name << '\n';
+        std::cerr << "Processor optimization: " << ver.processor << '\n';
+        std::cerr << '\n';
     }
 }
 
