@@ -625,7 +625,7 @@ jobs:
     inputs:
       artifact: '$(platform.type) build'
       path: $(Pipeline.Workspace)
-  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) 'intel.oneapi.win.tbb.devel'
+  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'TBB installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
