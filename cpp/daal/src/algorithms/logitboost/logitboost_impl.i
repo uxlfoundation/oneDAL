@@ -110,7 +110,7 @@ void UpdateP(size_t nc, size_t n, algorithmFPType * F, algorithmFPType * P, algo
 
         algorithmFPType invs = (algorithmFPType)1.0 / s;
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nc; j++)
         {
