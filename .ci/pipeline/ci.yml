@@ -563,6 +563,12 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Upload build artifacts'
     continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL scripts'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib msvs cmake
@@ -586,9 +592,3 @@ jobs:
     displayName: 'Uploading on fail'
     condition: failed()
     continueOnError: true 
-- task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: 'oneDAL scripts'
-      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
-    displayName: 'Upload environment artifacts'
-    continueOnError: true
