@@ -603,7 +603,7 @@ jobs:
     DALROOT: '$(Pipeline.Workspace)\daal\latest'
     TBBROOT: '%TEMP%\oneapi\tbb\latest'
   pool:
-    vmImage: '$(VM_IMAGE)'
+    vmImage: 'windows-2022'
     maxParallel: 2
   strategy:
     matrix:
