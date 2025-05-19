@@ -28,7 +28,6 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 #include "services/internal/service_profiler.h"
-#include <iostream>
 
 namespace daal
 {
@@ -417,11 +416,11 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
         DAAL_CHECK_STATUS_VAR(status);
         nRowsInBlock = static_cast<size_t>(nRowsInBlockInt64);
 
-        // DAAL_INT64 grainSizeInt64 = 0l;
-        // services::Status status      = hyperparameter->find(denseGrainSize, grainSizeInt64);
-        // DAAL_CHECK(0l < grainSizeInt64, services::ErrorIncorrectDataRange);
-        // DAAL_CHECK_STATUS_VAR(status);
-        // grainSize = static_cast<size_t>(grainSizeInt64);
+        DAAL_INT64 grainSizeInt64 = 0l;
+        status                    = hyperparameter->find(denseGrainSize, grainSizeInt64);
+        DAAL_CHECK(0l < grainSizeInt64, services::ErrorIncorrectDataRange);
+        DAAL_CHECK_STATUS_VAR(status);
+        grainSize = static_cast<size_t>(grainSizeInt64);
     }
 
     size_t nBlocks = nRows / nRowsInBlock;

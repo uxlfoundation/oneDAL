@@ -58,6 +58,7 @@ public:
         this->max_cols_batched_ = GENERATE(50);
         this->small_rows_threshold_ = GENERATE(15, 70);
         this->small_rows_max_cols_batched_ = GENERATE(40);
+        this->grain_size_ = GENERATE(1, 10);
         this->pack_as_struct_ = GENERATE(0, 1);
     }
 
@@ -67,6 +68,7 @@ public:
         res.set_cpu_max_cols_batched(this->max_cols_batched_);
         res.set_cpu_small_rows_threshold(this->small_rows_threshold_);
         res.set_cpu_small_rows_max_cols_batched(this->small_rows_max_cols_batched_);
+        res.set_cpu_grain_size(this->grain_size_);
         return res;
     }
 
@@ -76,6 +78,7 @@ public:
         REQUIRE(this->max_cols_batched_ > 0);
         REQUIRE(this->small_rows_threshold_ > 0);
         REQUIRE(this->small_rows_max_cols_batched_ > 0);
+        REQUIRE(this->grain_size_ > 0);
         const auto params = this->get_current_parameters();
         if (this->pack_as_struct_) {
             return te::float_algo_fixture<float_t>::train(
@@ -95,6 +98,7 @@ private:
     std::int64_t max_cols_batched_;
     std::int64_t small_rows_threshold_;
     std::int64_t small_rows_max_cols_batched_;
+    std::int64_t grain_size_;
     bool pack_as_struct_;
 };
 

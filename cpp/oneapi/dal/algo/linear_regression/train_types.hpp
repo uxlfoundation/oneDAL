@@ -72,12 +72,19 @@ public:
         return *this;
     }
 
+    std::int64_t get_cpu_grain_size() const;
+    auto& set_cpu_grain_size(std::int64_t val) {
+        set_cpu_grain_size_impl(val);
+        return *this;
+    }
+
 private:
     void set_cpu_macro_block_impl(std::int64_t val);
     void set_gpu_macro_block_impl(std::int64_t val);
     void set_cpu_max_cols_batched_impl(std::int64_t val);
     void set_cpu_small_rows_threshold_impl(std::int64_t val);
     void set_cpu_small_rows_max_cols_batched_impl(std::int64_t val);
+    void set_cpu_grain_size_impl(std::int64_t val);
     dal::detail::pimpl<train_parameters_impl<Task>> impl_;
 };
 
