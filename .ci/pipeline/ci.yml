@@ -36,7 +36,7 @@ resources:
     - repository: sklearnex
       type: github
       name: icfaust/scikit-learn-intelex
-      ref: dev/generalize_win_ci
+      ref: main
       endpoint: intel-daal-connection
 
 jobs:
