@@ -55,8 +55,7 @@ compute_result<Task> compute_kernel_distr<Float, Method, Task>::operator()(
 
     const auto indices =
         misc::generate_random_indices_distr(ctx, params, cluster_count, sample_count, seed);
-    const auto ndids =
-        pr::ndarray<std::int64_t, 1>::wrap(indices.get_data(), { cluster_count }).to_device(queue);
+    const auto ndids = pr::ndarray<std::int64_t, 1>::wrap(indices.get_data(), { cluster_count });
 
     select_indexed_rows(queue, ndids, data, ress).wait_and_throw();
 
@@ -85,16 +84,17 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     pr::device_engine engine_gpu =
         ::oneapi::dal::backend::primitives::device_engine(queue_, params.get_seed(), engine_type);
 
-    ids_arr_t root_rand = ids_arr_t::empty(rank_count);
-
+    ids_arr_t root_rand = ids_arr_t::empty(queue_, rank_count);
+    // investigate why it fails with 1 rank(batch)
     if (comm.is_root_rank()) {
         const auto maxval = rank_count + 1;
         auto ndres_result_root =
             pr::ndview<std::int64_t, 1>::wrap(root_rand.get_mutable_data(), { count });
-        pr::partial_fisher_yates_shuffle(queue_, ndres_result_root, maxval, rseed, engine_gpu);
+        pr::partial_fisher_yates_shuffle(queue_, ndres_result_root, maxval, rseed, engine_gpu)
+            .wait_and_throw();
     }
 
-    {
+    if (rank_count > 1) {
         ONEDAL_PROFILER_TASK(bcast_root_rand);
         comm.bcast(root_rand).wait();
     }
@@ -102,9 +102,9 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     ONEDAL_ASSERT(root_rand.get_count() == rank_count);
 
     const auto seed = root_rand[comm.get_rank()];
-    ids_arr_t result = ids_arr_t::empty(count);
+    ids_arr_t result = ids_arr_t::empty(queue_, count);
     auto ndres_ = pr::ndview<std::int64_t, 1>::wrap(result.get_mutable_data(), { count });
-    pr::partial_fisher_yates_shuffle(queue_, ndres_, scount, seed, engine_gpu);
+    pr::partial_fisher_yates_shuffle(queue_, ndres_, scount, seed, engine_gpu).wait_and_throw();
     return result;
 }
 

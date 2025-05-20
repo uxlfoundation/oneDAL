@@ -56,7 +56,7 @@ public:
         pr::device_engine engine_gpu = ::oneapi::dal::backend::primitives::device_engine(
             queue,
             777,
-            ::oneapi::dal::backend::primitives::engine_type_internal::mt2203);
+            ::oneapi::dal::backend::primitives::engine_type_internal::philox4x32x10);
         auto generation_event = pr::uniform<Float>(queue,
                                                    std::min(shape[1], max_rnd_seq_size_),
                                                    rnd_seq_ptr,

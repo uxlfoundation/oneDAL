@@ -264,6 +264,8 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
         });
     });
 
+    auto* result_ptr = result_array.get_mutable_data();
+
     // Allocate array for random indices
     auto rand_array = array<std::int32_t>::empty(queue_, casted_count);
     std::int32_t* rand_ptr = rand_array.get_mutable_data();
@@ -274,7 +276,6 @@ sycl::event partial_fisher_yates_shuffle(sycl::queue& queue_,
     auto rand_event = generate_rng(distr, engine_, casted_count, rand_ptr, { fill_event });
 
     // Perform Fisher-Yates shuffle for the first 'count' elements
-    auto* result_ptr = result_array.get_mutable_data();
     auto shuffle_event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(rand_event);
         cgh.single_task([=]() {
