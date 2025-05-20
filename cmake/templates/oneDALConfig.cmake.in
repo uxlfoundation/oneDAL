@@ -141,7 +141,7 @@ endif()
 
 # The mkl_core part is required for compatibility with different MKL versions
 # at runtime and during the oneDAL build process. For more details on the
-# static build structure, search for 'static library build' in the 'common.mk'.
+# static build structure, search for 'Link static lib' in the 'common.mk'.
 if(MKL_DEPENDENCY STREQUAL "yes")
     set(MKL_THREADING "tbb_thread")
     set(MKL_SYCL_LINK "static")
