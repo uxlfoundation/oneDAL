@@ -43,7 +43,7 @@ enum HyperparameterId
 {
     denseUpdateStepBlockSize = 0,
     denseUpdateStepGrainSize = 1,
-    hyperparameterIdCount    = denseUpdateStepGrainSize + 1
+    hyperparameterIdCount    = 2
 };
 
 enum DoubleHyperparameterId
