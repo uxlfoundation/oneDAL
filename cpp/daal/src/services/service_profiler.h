@@ -29,7 +29,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
-// #include <mutex>
+#include <mutex>
 #include <algorithm>
 
 #include "services/library_version_info.h"
