@@ -44,6 +44,9 @@ class DistanceKernel : public Kernel
 public:
     services::Status compute(const size_t na, const NumericTable * const * a, const size_t nr, NumericTable * r[],
                              const daal::algorithms::Parameter * par);
+    
+    services::Status compute(const size_t na, const NumericTable * const a, const size_t nb, const NumericTable * const b,
+                             const size_t nr, NumericTable * r, const daal::algorithms::Parameter * par);
 };
 
 } // namespace internal
