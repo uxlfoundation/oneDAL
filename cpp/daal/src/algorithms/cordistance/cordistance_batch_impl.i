@@ -49,6 +49,13 @@ template <typename algorithmFPType, CpuType cpu>
 bool isUpper(NumericTableIface::StorageLayout layout);
 template <typename algorithmFPType, CpuType cpu>
 bool isLower(NumericTableIface::StorageLayout layout);
+template <typename algorithmFPType, Method method, CpuType cpu>
+services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const size_t na, const NumericTable * const * a, const size_t nr,
+                                                                       NumericTable * r[], const daal::algorithms::Parameter * par);
+template <typename algorithmFPType, Method method, CpuType cpu>
+services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const size_t na, const NumericTable * const a, const size_t nb,
+                                                                       const NumericTable * const b, const size_t nr, NumericTable * r,
+                                                                       const daal::algorithms::Parameter * par);
 /**
  *  \brief Kernel for Correlation distances calculation
  */
