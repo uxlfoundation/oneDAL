@@ -137,8 +137,6 @@ namespace internal
 
 inline static void set_verbose_from_env()
 {
-    static std::mutex mutex;
-    std::lock_guard<std::mutex> lock(mutex);
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval               = PROFILER_MODE_OFF;
     if (verbose_str)
