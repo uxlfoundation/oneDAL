@@ -23,7 +23,7 @@
 
 #include "src/externals/service_memory.h"
 #include "src/externals/service_service.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 void * daal::services::daal_malloc(size_t size, size_t alignment)
 {
