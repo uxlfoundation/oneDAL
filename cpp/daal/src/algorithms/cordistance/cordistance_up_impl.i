@@ -287,3 +287,4 @@ services::Status corDistanceUpperPacked(const NumericTable * xTable, NumericTabl
 } // namespace algorithms
 
 } // namespace daal
+
