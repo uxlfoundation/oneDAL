@@ -436,4 +436,3 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
 } // namespace algorithms
 
 } // namespace daal
-
