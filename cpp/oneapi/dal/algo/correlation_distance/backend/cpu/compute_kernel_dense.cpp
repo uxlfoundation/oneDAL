@@ -55,7 +55,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_y);
 
     daal::algorithms::Parameter param;
-    
+
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_correlation_t>(ctx,
                                                              1,
