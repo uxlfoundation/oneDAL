@@ -137,8 +137,6 @@ namespace internal
 
 inline static void set_verbose_from_env()
 {
-    // static std::mutex mutex;
-    // std::lock_guard<std::mutex> lock(mutex);
     const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
     int newval               = PROFILER_MODE_OFF;
     if (verbose_str)
@@ -364,7 +362,7 @@ public:
     /// as a threading task. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static profiler_task start_threading_task(const char * task_name)
     {
-        return profiler_task(nullptr, -1);
+        if (!task_name) return profiler_task(nullptr, -1);
         static std::mutex mutex;
 
         std::lock_guard<std::mutex> lock(mutex);
@@ -411,8 +409,8 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        // static std::mutex mutex;
-        // std::lock_guard<std::mutex> lock(mutex);
+        static std::mutex mutex;
+        std::lock_guard<std::mutex> lock(mutex);
         auto & entry          = tasks_info.kernels[idx_];
         auto duration         = ns_end - entry.duration;
         entry.duration        = duration;
@@ -432,7 +430,7 @@ public:
     /// Uses a mutex for thread safety. Invoked by the DAAL_PROFILER_THREADING_TASK macro.
     inline static void end_threading_task(const char * task_name, int idx_)
     {
-        return;
+        if (!task_name) return;
 
         static std::mutex mutex;
 
