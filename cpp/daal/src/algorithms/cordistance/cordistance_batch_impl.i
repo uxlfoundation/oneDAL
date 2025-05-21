@@ -139,3 +139,4 @@ bool isLower(NumericTableIface::StorageLayout layout)
 } // namespace algorithms
 
 } // namespace daal
+
