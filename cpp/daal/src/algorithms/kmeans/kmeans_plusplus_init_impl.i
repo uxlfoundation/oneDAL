@@ -290,12 +290,11 @@ public:
     // For each data point from the provided data block, calculate squared distance
     // from current trial center to the rows in the block and update min distance
 
-//tell compiler not to in-line this.
+//Temporary fix for KMeans conformance testing fix. Tell the compiler  not to in-line this. 
 #if defined(__INTEL_LLVM_COMPILER)
     __attribute__((noinline))
 #endif
-    algorithmFPType
-        updateMinDistForITrials(algorithmFPType * const pDistSq, size_t iTrials, size_t nRowsToProcess, const algorithmFPType * const pData,
+algorithmFPType updateMinDistForITrials(algorithmFPType * const pDistSq, size_t iTrials, size_t nRowsToProcess, const algorithmFPType * const pData,
                                 const size_t * const colIdx, const size_t * const rowIdx, const algorithmFPType * const pLastAddedCenter,
                                 const algorithmFPType * const aWeights, const algorithmFPType * const pDistSqBest)
     {
