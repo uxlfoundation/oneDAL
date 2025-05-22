@@ -44,6 +44,7 @@ namespace interface1
  *  \brief Wrapper for a SYCL* buffer
  *  Can hold data on the host side using shared pointer,
  *  or on host/device sides using SYCL* buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class Buffer : public Base

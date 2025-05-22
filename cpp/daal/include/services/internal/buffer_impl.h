@@ -42,6 +42,7 @@ class SyclBufferIface;
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__BUFFERVISITOR"></a>
  *  \brief Visitor pattern implementation for Buffer class
+ * \DAAL_DEPRECATED
  */
 template <typename T>
 class BufferVisitor : public Base
@@ -55,6 +56,7 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__BUFFERIFACE"></a>
  *  \brief Common Buffer interface
+ * \DAAL_DEPRECATED
  */
 template <typename T>
 class BufferIface
@@ -70,6 +72,7 @@ public:
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__CONVERTABLETOHOSTIFACE"></a>
  *  \brief Interface that shall be implemented by any buffer which
  *         can be converted to host buffer (pointer)
+ * \DAAL_DEPRECATED
  */
 template <typename T>
 class ConvertableToHostIface
@@ -84,6 +87,7 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__USMBUFFERIFACE"></a>
  *  \brief Common interface for USM-backed buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class UsmBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
@@ -95,6 +99,7 @@ public:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__SYCLBUFFERIFACE"></a>
  *  \brief Common interface for SYCL*-backed buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class SyclBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
@@ -103,6 +108,7 @@ class SyclBufferIface : public BufferIface<T>, public ConvertableToHostIface<T>
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__HOSTBUFFER"></a>
  *  \brief BufferIface implementation based on host pointer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class HostBuffer : public Base, public BufferIface<T>
@@ -147,6 +153,7 @@ private:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__CONVERTTOHOST"></a>
  *  \brief BufferVisitor that converters any buffer to host pointer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class ConvertToHost : public BufferVisitor<T>
@@ -198,6 +205,7 @@ private:
 /**
  *  <a name="DAAL-CLASS-SERVICES-INTERNAL__HOSTBUFFERCONVERTER"></a>
  *  \brief Groups high-level conversion methods for host memory
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class HostBufferConverter
