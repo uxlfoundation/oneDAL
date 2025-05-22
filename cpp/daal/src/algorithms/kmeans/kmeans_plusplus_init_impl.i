@@ -291,8 +291,10 @@ public:
     // from current trial center to the rows in the block and update min distance
     
    //tell compiler not to in-line this.     
-    __attribute__((noinline))
-    algorithmFPType updateMinDistForITrials(algorithmFPType * const pDistSq, size_t iTrials, size_t nRowsToProcess,
+   #if defined(__INTEL_LLVM_COMPILER)
+   __attribute__((noinline))
+   #endif 
+   algorithmFPType updateMinDistForITrials(algorithmFPType * const pDistSq, size_t iTrials, size_t nRowsToProcess,
                                             const algorithmFPType * const pData, const size_t * const colIdx, const size_t * const rowIdx,
                                             const algorithmFPType * const pLastAddedCenter, const algorithmFPType * const aWeights,
                                             const algorithmFPType * const pDistSqBest)
