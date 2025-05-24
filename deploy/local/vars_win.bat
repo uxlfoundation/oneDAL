@@ -35,7 +35,7 @@ if "%SCRIPT_PATH%"=="%DAAL%\env\" (
 ) else (
   set "DALROOT=%ONEAPI_ROOT%"
   set "INCLUDE=%ONEAPI_ROOT%\include\dal;%INCLUDE%"
-  set "CPATH=%ONEAPI_ROOT%\include;%CPATH%"
+  set "CPLUS_INCLUDE_PATH=%ONEAPI_ROOT%\include;%ONEAPI_ROOT%\include\dal;%CPLUS_INCLUDE_PATH%"
   goto :GoodArgs2024
 )
 
@@ -53,7 +53,7 @@ exit /b 0
 
 :GoodArgs
 set "DALROOT=%DAAL%"
-set "CPATH=%DAAL%\include;%CPATH%"
+set "CPLUS_INCLUDE_PATH=%DAAL%\include;%DAAL%\include\dal;%CPLUS_INCLUDE_PATH%"
 if exist "%DAAL%\include\dal" (
   set "INCLUDE=%DAAL%\include\dal;%INCLUDE%"
   set "LIB=%DAAL%\lib;%LIB%"
@@ -77,7 +77,7 @@ set DAL_MAJOR_BINARY=__DAL_MAJOR_BINARY__& ^
 set DAL_MINOR_BINARY=__DAL_MINOR_BINARY__& ^
 set DALROOT=%DALROOT%& ^
 set INCLUDE=%INCLUDE%& ^
-set CPATH=%CPATH%& ^
+set CPLUS_INCLUDE_PATH=%CPLUS_INCLUDE_PATH%& ^
 set LIB=%LIB%& ^
 set PATH=%PATH%& ^
 set LD_LIBRARY_PATH=%LD_LIBRARY_PATH%& ^
@@ -91,5 +91,5 @@ endlocal& ^
 set DALROOT=%DALROOT%& ^
 set CLASSPATH=%CLASSPATH%& ^
 set INCLUDE=%INCLUDE%& ^
-set CPATH=%CPATH%& ^
+set CPLUS_INCLUDE_PATH=%CPLUS_INCLUDE_PATH%& ^
 goto:eof

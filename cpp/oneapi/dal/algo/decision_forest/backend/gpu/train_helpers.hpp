@@ -39,6 +39,12 @@ inline void merge_stat(Float& dst_count,
                        Float src_s2c) {
     if (Float(0) == src_count)
         return;
+    if (!dst_count) {
+        dst_count = src_count;
+        dst_mean = src_mean;
+        dst_s2c = src_s2c;
+        return;
+    }
 
     Float sum_n1n2 = dst_count + src_count;
     Float mul_n1n2 = dst_count * src_count;

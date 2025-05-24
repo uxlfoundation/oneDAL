@@ -48,7 +48,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
-#include "src/externals/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/externals/service_blas.h"
 #include "src/externals/service_math.h"
 
@@ -74,7 +74,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
                                                                       NumericTable & yTable, daal::algorithms::Model * r,
                                                                       const KernelParameter & svmPar)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(COMPUTE);
+    DAAL_PROFILER_TASK(SVMTrainImpl::compute);
 
     services::Status status;
 
@@ -156,7 +156,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
         const uint32_t * const wsIndices = workSet.getIndices();
         algorithmFPType ** kernelSOARes  = nullptr;
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(getRowsBlock);
+            DAAL_PROFILER_TASK(SVMTrainImpl::getRowsBlock);
 
             DAAL_CHECK_STATUS(status, cachePtr->getRowsBlock(wsIndices, nWS, kernelSOARes));
         }
@@ -190,7 +190,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::classificationInit
     const size_t blockSize = 16384;
     const size_t nBlocks   = nVectors / blockSize + !!(nVectors % blockSize);
 
-    DAAL_ITTNOTIFY_SCOPED_TASK(init.set);
+    DAAL_PROFILER_TASK(SVMTrainImpl::init.set);
     TlsSum<size_t, cpu> weightsCounter(1);
     TlsSum<algorithmFPType, cpu> weightsSumTls(1);
     SafeStatus safeStat;
@@ -334,7 +334,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
     const size_t nWS, const algorithmFPType * cw, const double accuracyThreshold, const double tau, algorithmFPType * buffer, char * I,
     algorithmFPType * alpha, algorithmFPType * deltaAlpha, algorithmFPType & localDiff, SvmType svmType) const
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(SMOBlockSolver);
+    DAAL_PROFILER_TASK(SMOBlockSolver);
     services::Status status;
 
     const size_t innerMaxIterations(nWS * cInnerIterations);
@@ -348,7 +348,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
     algorithmFPType * const kernelLocal   = buffer + nWS * MemSmoId::latest;
 
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(SMOBlockSolver.init);
+        DAAL_PROFILER_TASK(SMOBlockSolver.init);
         SafeStatus safeStat;
 
         /* Gather data to local buffers */
@@ -357,7 +357,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
         daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
             const size_t startRow = iBlock * blockSizeWS;
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = startRow; i < startRow + blockSizeWS; ++i)
             {
@@ -375,7 +375,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
                 Ii |= (yLocal[i] > 0) ? positive : negative;
                 I[i] = Ii;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nWS; ++j)
                 {
@@ -508,7 +508,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
         const algorithmFPType * const KBjBlock = &kernelLocal[Bj * nWS];
 
         /* Update gradient */
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nWS; i++)
         {
@@ -521,7 +521,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
     localDiff = firstDiff;
 
     /* Compute diff and scatter to alpha vector */
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nWS; ++i)
     {
@@ -536,7 +536,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::updateGrad(algorit
                                                                          algorithmFPType * grad, const size_t nVectors, const size_t nTrainVectors,
                                                                          const size_t nWS)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(updateGrad);
+    DAAL_PROFILER_TASK(SVMTrainImpl::updateGrad);
 
     SafeStatus safeStat;
     const size_t blockSizeGrad = 64;
@@ -557,7 +557,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::updateGrad(algorit
 
             if (startRowGrad < nVectors && startRowGrad + nRowsInBlockGrad > nVectors)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nRowsInBlockGrad; ++j)
                 {
@@ -631,7 +631,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::initGrad(const Num
 
         algorithmFPType ** kernelSOARes = nullptr;
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(getRowsBlock);
+            DAAL_PROFILER_TASK(initGrad::getRowsBlock);
 
             status |= cachePtr->getRowsBlock(indices + startRow, nRowsInBlock, kernelSOARes);
         }

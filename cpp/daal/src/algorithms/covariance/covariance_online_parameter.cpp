@@ -41,7 +41,13 @@ OnlineParameter::OnlineParameter() : Parameter() {}
 *  Constructs parameters of the Covariance Online algorithm by copying another parameters of the Covariance Online algorithm
 *  \param[in] other    Parameters of the Covariance Online algorithm
 */
-OnlineParameter::OnlineParameter(const OnlineParameter & other) : Parameter(other) {}
+OnlineParameter::OnlineParameter(const OnlineParameter & other) = default;
+
+/**
+*  Copy-assignment operator for parameters of the Covariance Online algorithm
+*  \param[in] other    Parameters of the Covariance Online algorithm
+*/
+OnlineParameter & OnlineParameter::operator=(const OnlineParameter & other) = default;
 
 /**
  * Check the correctness of the %OnlineParameter object

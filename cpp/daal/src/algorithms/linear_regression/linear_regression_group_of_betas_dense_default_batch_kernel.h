@@ -47,7 +47,6 @@ template <Method method, typename algorithmFPType, CpuType cpu>
 class GroupOfBetasKernel : public daal::algorithms::Kernel
 {
 public:
-    virtual ~GroupOfBetasKernel() {}
     services::Status compute(const NumericTable * y, const NumericTable * z, const NumericTable * zReducedModel, size_t numBeta,
                              size_t numBetaReducedModel, algorithmFPType accuracyThreshold, NumericTable * out[]);
 

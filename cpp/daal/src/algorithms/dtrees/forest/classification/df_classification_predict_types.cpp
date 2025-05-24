@@ -41,7 +41,9 @@ namespace prediction
 namespace interface1
 {
 /** Default constructor */
-Input::Input() : classifier::prediction::Input() {}
+Input::Input()                                = default;
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object for making decision forest model-based prediction

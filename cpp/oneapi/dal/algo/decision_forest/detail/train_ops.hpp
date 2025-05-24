@@ -24,9 +24,17 @@ namespace v1 {
 
 template <typename Context, typename Float, typename Task, typename Method, typename... Options>
 struct train_ops_dispatcher {
+    using input_t = oneapi::dal::decision_forest::v2::train_input<Task>;
     train_result<Task> operator()(const Context&,
                                   const descriptor_base<Task>&,
-                                  const oneapi::dal::decision_forest::v2::train_input<Task>&) const;
+                                  const train_parameters<Task>&,
+                                  const input_t&) const;
+    train_result<Task> operator()(const Context&,
+                                  const descriptor_base<Task>&,
+                                  const input_t&) const;
+    train_parameters<Task> select_parameters(const Context&,
+                                             const descriptor_base<Task>&,
+                                             const input_t&) const;
 };
 
 template <typename Descriptor>
@@ -36,6 +44,7 @@ struct train_ops {
     using method_t = typename Descriptor::method_t;
     using input_t = train_input<task_t>;
     using result_t = train_result<task_t>;
+    using param_t = train_parameters<task_t>;
     using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
@@ -76,12 +85,32 @@ struct train_ops {
                               const result_t& result) const {}
 
     template <typename Context>
-    auto operator()(const Context& ctx, const Descriptor& desc, const input_t& input) const {
+    auto select_parameters(const Context& ctx, const Descriptor& desc, const input_t& input) const {
         check_preconditions(desc, input);
-        const auto result =
-            train_ops_dispatcher<Context, float_t, task_t, method_t>()(ctx, desc, input);
+        return train_ops_dispatcher<Context, float_t, task_t, method_t>{}.select_parameters(ctx,
+                                                                                            desc,
+                                                                                            input);
+    }
+
+    template <typename Context>
+    auto operator()(const Context& ctx,
+                    const Descriptor& desc,
+                    const param_t& params,
+                    const input_t& input) const {
+        /// Check that the hyperparameters of the algorithm belong to the expected ranges
+        params.check_ranges();
+        const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
+            ctx,
+            dynamic_cast<const descriptor_base_t&>(desc),
+            params,
+            input);
         check_postconditions(desc, input, result);
         return result;
+    }
+    template <typename Context>
+    auto operator()(const Context& ctx, const Descriptor& desc, const input_t& input) const {
+        const auto params = select_parameters(ctx, desc, input);
+        return this->operator()(ctx, desc, params, input);
     }
 };
 

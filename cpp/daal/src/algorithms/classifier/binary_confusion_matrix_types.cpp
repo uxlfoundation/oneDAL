@@ -42,6 +42,8 @@ namespace interface1
 {
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_CLASSIFIER_BINARY_CONFUSION_MATRIX_RESULT_ID);
 Parameter::Parameter(double beta) : beta(beta) {}
+Parameter::Parameter(const Parameter & other)             = default;
+Parameter & Parameter::operator=(const Parameter & other) = default;
 
 Status Parameter::check() const
 {
@@ -50,6 +52,8 @@ Status Parameter::check() const
 }
 
 Input::Input() : daal::algorithms::Input(lastInputId + 1) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
 
 /**
  * Returns an input object of the quality metric

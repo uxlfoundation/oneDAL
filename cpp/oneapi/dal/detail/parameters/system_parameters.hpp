@@ -30,7 +30,7 @@ namespace detail {
 ///
 /// `cpu_info` reports the parameters available in hardware, where `system_parameters`
 /// are the software-enabled parameters that can differ from `cpu_info`.
-class system_parameters : public base {
+class ONEDAL_EXPORT system_parameters : public base {
 public:
     /// Creates a new default `system_parameters` instance.
     explicit system_parameters();

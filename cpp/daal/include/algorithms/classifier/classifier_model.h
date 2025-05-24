@@ -51,7 +51,7 @@ enum ResultToComputeId
 };
 
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {
@@ -80,7 +80,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 using interface2::Parameter;
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -96,6 +96,10 @@ class DAAL_EXPORT Model : public daal::algorithms::Model
 {
 public:
     DAAL_CAST_OPERATOR(Model)
+
+    Model()                                = default;
+    Model(const Model & other)             = default;
+    Model & operator=(const Model & other) = default;
 
     virtual ~Model() DAAL_C11_OVERRIDE {}
 

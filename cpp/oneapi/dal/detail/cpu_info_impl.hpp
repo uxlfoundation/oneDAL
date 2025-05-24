@@ -25,8 +25,8 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-std::string to_string(cpu_vendor vendor);
-std::string to_string(cpu_extension extension);
+std::string ONEDAL_EXPORT to_string(cpu_vendor vendor);
+std::string ONEDAL_EXPORT to_string(cpu_extension extension);
 
 class cpu_info_impl : public cpu_info_iface {
 public:

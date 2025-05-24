@@ -115,8 +115,8 @@ public:
                 te::csr_table_builder<float_t>(test_size_, p_, 0.5, sparse_indexing::zero_based);
             this->X_test_ = builder_test.build_csr_table(this->get_policy());
 
-            table dense_train = builder_train.build_dense_table();
-            table dense_test = builder_test.build_dense_table();
+            table dense_train = builder_train.build_dense_table(this->get_policy());
+            table dense_test = builder_test.build_dense_table(this->get_policy());
 
             X_train_host_ = row_accessor<const float_t>(dense_train)
                                 .pull(this->get_queue(), { 0, -1 }, sycl::usm::alloc::host);

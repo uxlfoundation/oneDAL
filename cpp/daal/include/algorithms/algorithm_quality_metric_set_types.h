@@ -34,7 +34,7 @@ namespace algorithms
 namespace quality_metric_set
 {
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -56,6 +56,10 @@ public:
     InputAlgorithmsCollection(size_t n = 0);
 
     virtual ~InputAlgorithmsCollection();
+
+    InputAlgorithmsCollection(InputAlgorithmsCollection & other) = delete;
+
+    InputAlgorithmsCollection & operator=(InputAlgorithmsCollection & other) = delete;
 
     /**
      * Returns a reference to SharedPtr for a stored object with a given key if an object with such key is registered

@@ -46,7 +46,7 @@ namespace daal
 namespace algorithms
 {
 /**
- * \brief Contains version 1.0 of Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
 namespace interface1
 {
@@ -219,10 +219,16 @@ public:
 
 protected:
     /**
-    * Copy constructor
-    * \param[in] other Instance of the same class to copy
-    */
+     * Copy constructor
+     * \param[in] other Instance of the same class to copy
+     */
     Argument(const Argument & other);
+
+    /**
+     * Copy assignment operator
+     * \param[in] other Instance of the same class to copy
+     */
+    Argument & operator=(const Argument & other);
 
     /**
      * Retrieves specified element
@@ -326,6 +332,8 @@ protected:
     * \param[in] other Instance of the same class to copy
     */
     Input(const Input & other) : Argument(other) {}
+
+    Input & operator=(const Input & other) = default;
 };
 
 /**

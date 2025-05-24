@@ -148,7 +148,6 @@ struct ONEDAL_EXPORT caching_builder {
     /// Returns the pointer to the allocated memory of size block_max_size.
     ///
     /// @param [in]   block_max_size  The required size of memory
-    /// @param [in/out]  builder  The caching builder
     void* operator()(std::int64_t block_max_size);
 
     std::shared_ptr<byte_t> result_ptr;

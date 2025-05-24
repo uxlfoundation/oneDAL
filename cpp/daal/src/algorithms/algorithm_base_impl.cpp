@@ -55,6 +55,14 @@ algorithms::Argument::Argument(const algorithms::Argument & other)
     : _storage(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get())), idx(0)
 {}
 
+algorithms::Argument & algorithms::Argument::operator=(const algorithms::Argument & other)
+{
+    if (this == &other) return *this;
+    _storage = data_management::DataCollectionPtr(new internal::ArgumentStorage(*(internal::ArgumentStorage *)other._storage.get()));
+    idx      = 0;
+    return *this;
+}
+
 const data_management::SerializationIfacePtr & algorithms::Argument::get(size_t index) const
 {
     return (*_storage)[index];
@@ -146,6 +154,17 @@ void setHostApp(const services::SharedPtr<services::HostAppIface> & pHostApp, da
 
 namespace algorithms
 {
+namespace interface1
+{
+
+AlgorithmContainerIfaceImpl::AlgorithmContainerIfaceImpl() = default;
+AlgorithmContainer<batch>::AlgorithmContainer()            = default;
+
+template <ComputeMode mode>
+AlgorithmContainer<mode>::AlgorithmContainer() = default;
+
+} //namespace interface1
+
 template <ComputeMode mode>
 services::Status AlgorithmImpl<mode>::computeNoThrow()
 {
@@ -213,7 +232,7 @@ void AlgorithmImpl<mode>::setHostApp(const services::HostAppIfacePtr & pHost)
 /**
  * Computes final results of the algorithm in the %batch mode without possibility of throwing an exception.
  */
-services::Status AlgorithmImpl<batch>::computeNoThrow()
+services::Status DAAL_EXPORT AlgorithmImpl<batch>::computeNoThrow()
 {
     this->setParameter();
 
@@ -258,17 +277,17 @@ services::Status AlgorithmImpl<batch>::computeNoThrow()
     return s;
 }
 
-services::HostAppIfacePtr AlgorithmImpl<batch>::hostApp()
+services::HostAppIfacePtr DAAL_EXPORT AlgorithmImpl<batch>::hostApp()
 {
     return this->_in ? services::internal::getHostApp(*this->_in) : services::HostAppIfacePtr();
 }
 
-void AlgorithmImpl<batch>::setHostApp(const services::HostAppIfacePtr & pHost)
+void DAAL_EXPORT AlgorithmImpl<batch>::setHostApp(const services::HostAppIfacePtr & pHost)
 {
     if (this->_in) services::internal::setHostApp(pHost, *this->_in);
 }
 
-template class interface1::AlgorithmImpl<online>;
-template class interface1::AlgorithmImpl<distributed>;
+template class DAAL_EXPORT interface1::AlgorithmImpl<online>;
+template class DAAL_EXPORT interface1::AlgorithmImpl<distributed>;
 } // namespace algorithms
 } // namespace daal

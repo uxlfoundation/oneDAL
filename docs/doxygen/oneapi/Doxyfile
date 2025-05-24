@@ -902,8 +902,29 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = */backend/* \
-                         */detail/*
+EXCLUDE_PATTERNS       = */algo/*/backend/*                             \
+                         */backend/interop/*                            \
+                         */backend/primitives/blas/*                    \
+                         */backend/primitives/distance/*                \
+                         */backend/primitives/heap/*                    \
+                         */backend/primitives/intersection/*            \
+                         */backend/primitives/lapack/*                  \
+                         */backend/primitives/objective_function/*      \
+                         */backend/primitives/optimizers/*              \
+                         */backend/primitives/placement/*               \
+                         */backend/primitives/reduction/*               \
+                         */backend/primitives/regression/*              \
+                         */backend/primitives/rng/*                     \
+                         */backend/primitives/search/*                  \
+                         */backend/primitives/selection/*               \
+                         */backend/primitives/sort/*                    \
+                         */backend/primitives/sparse_blas/*             \
+                         */backend/primitives/stat/*                    \
+                         */backend/primitives/test/*                    \
+                         */backend/primitives/voting/*                  \
+                         */backend/memory*                              \
+                         */detail/*                                     \
+                         */table/backend/*
 
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -1127,13 +1148,6 @@ CLANG_DATABASE_PATH    =
 # The default value is: YES.
 
 ALPHABETICAL_INDEX     = YES
-
-# The COLS_IN_ALPHA_INDEX tag can be used to specify the number of columns in
-# which the alphabetical index list will be split.
-# Minimum value: 1, maximum value: 20, default value: 5.
-# This tag requires that the tag ALPHABETICAL_INDEX is set to YES.
-
-COLS_IN_ALPHA_INDEX    = 5
 
 # In case all classes in a project start with a common prefix, all classes will
 # be put under the same header in the alphabetical index. The IGNORE_PREFIX tag
@@ -2186,7 +2200,7 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             =
+PREDEFINED             = ONEDAL_DATA_PARALLEL
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

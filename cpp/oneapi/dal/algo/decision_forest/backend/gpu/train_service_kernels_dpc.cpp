@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021-2022 Intel Corporation
+* Copyright 2021 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -236,18 +236,14 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
     const pr::ndarray<Index, 1>& node_list,
     pr::ndarray<Index, 1>& tree_order,
     pr::ndarray<Index, 1>& tree_order_buf,
-    Index data_row_count,
-    Index data_selected_row_count,
-    Index data_column_count,
     Index node_count,
-    Index tree_count,
     const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(do_level_partition, queue_);
 
-    ONEDAL_ASSERT(data.get_count() == data_row_count * data_column_count);
+    ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
-    ONEDAL_ASSERT(tree_order.get_count() == data_selected_row_count * tree_count);
-    ONEDAL_ASSERT(tree_order_buf.get_count() == data_selected_row_count * tree_count);
+    ONEDAL_ASSERT(tree_order.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
+    ONEDAL_ASSERT(tree_order_buf.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
 
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
@@ -269,7 +265,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
         aux_node_buffer_prop_count_; // num of auxilliary attributes for node
     const Index max_block_count = partition_max_block_count_;
     const Index min_block_size = partition_min_block_size_;
-
+    const auto column_count = ctx.column_count_;
     const Bin* data_ptr = data.get_data();
     const Index* node_list_ptr = node_list.get_data();
     Index* node_aux_list_ptr = node_aux_list.get_mutable_data();
@@ -346,8 +342,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
                              i += sub_group_size) {
                             const Index id = tree_order_ptr[offset + i];
                             const Index to_right =
-                                Index(static_cast<Index>(
-                                          data_ptr[id * data_column_count + feat_id]) > feat_bin);
+                                Index(static_cast<Index>(data_ptr[id * column_count + feat_id]) >
+                                      feat_bin);
                             group_row_to_right_count +=
                                 sycl::reduce_over_group(sbg, to_right, plus<Index>());
                         }
@@ -367,9 +363,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
                     for (Index i = ind_start + sub_group_local_id; i < ind_end;
                          i += sub_group_size) {
                         const Index id = tree_order_ptr[offset + i];
-                        const Index to_right =
-                            Index(static_cast<Index>(data_ptr[id * data_column_count + feat_id]) >
-                                  feat_bin);
+                        const Index to_right = Index(
+                            static_cast<Index>(data_ptr[id * column_count + feat_id]) > feat_bin);
                         const Index boundary =
                             group_row_to_right_count +
                             sycl::exclusive_scan_over_group(sbg, to_right, plus<Index>());

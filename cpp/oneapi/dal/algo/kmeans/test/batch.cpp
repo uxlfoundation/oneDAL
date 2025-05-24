@@ -277,43 +277,74 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
 
+    using Float = std::tuple_element_t<0, TestType>;
+
     SECTION("cluster=5") {
-        auto input = oneapi::dal::test::engine::csr_make_blobs(5, 50, 20);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(5, 50, 20);
         bool init_centroids = true;
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=16") {
         bool init_centroids = true;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(16, 200, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(16, 200, 100);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=128") {
         SKIP_IF(this->get_policy().is_cpu());
         bool init_centroids = true;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(128, 100000, 200);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(128, 100000, 200);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=5") {
-        auto input = oneapi::dal::test::engine::csr_make_blobs(5, 50, 20);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(5, 50, 20);
         bool init_centroids = false;
         this->test_on_sparse_data(input, 20, 0.01, init_centroids);
     }
 
     SECTION("cluster=16") {
         bool init_centroids = false;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(16, 200, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(16, 200, 100);
         this->test_on_sparse_data(input, 10, 0.01, init_centroids);
     }
 
     SECTION("cluster=32") {
         SKIP_IF(this->get_policy().is_cpu());
         bool init_centroids = false;
-        auto input = oneapi::dal::test::engine::csr_make_blobs(32, 10000, 100);
+        auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(32, 10000, 100);
         this->test_on_sparse_data(input, 30, 0.01, init_centroids);
     }
 }
+
+#ifdef ONEDAL_DATA_PARALLEL
+
+TEMPLATE_LIST_TEST_M(kmeans_batch_test,
+                     "KMmeans sparse cases on large number of rows",
+                     "[kmeans][batch]",
+                     kmeans_types) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!this->is_sparse_method());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    // Check that algorithm does not crash on big number of rows
+    constexpr std::int64_t cluster_count = 5;
+    std::int64_t rows_count = 1000 * 1000;
+    auto device = this->get_queue().get_device();
+    std::string device_name = device.template get_info<sycl::info::device::name>();
+    if (device_name.find("Data Center GPU Max") != std::string::npos) {
+        rows_count = 100 * 1000 * 1000;
+    }
+    auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(cluster_count, rows_count, 20);
+
+    auto desc = this->get_descriptor(cluster_count, 10, 0.01);
+    const table initial_centroids = input.get_initial_centroids();
+    const table data = input.get_data(this->get_policy());
+    const auto train_result = this->train(desc, data, initial_centroids);
+}
+
+#endif
 
 } // namespace oneapi::dal::kmeans::test

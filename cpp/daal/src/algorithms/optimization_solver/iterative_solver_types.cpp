@@ -93,6 +93,11 @@ services::Status Parameter::check() const
 
 Input::Input() : daal::algorithms::Input(lastOptionalInputId + 1) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other)
+{
+    daal::algorithms::Input::operator=(other);
+    return *this;
+}
 
 data_management::NumericTablePtr Input::get(InputId id) const
 {

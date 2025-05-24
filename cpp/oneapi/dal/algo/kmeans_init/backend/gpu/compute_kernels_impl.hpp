@@ -18,7 +18,6 @@
 
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include "oneapi/dal/backend/primitives/rng/partial_shuffle.hpp"
 #include "oneapi/dal/backend/primitives/selection/select_indexed_rows.hpp"
 
 #include "oneapi/dal/algo/kmeans_init/common.hpp"

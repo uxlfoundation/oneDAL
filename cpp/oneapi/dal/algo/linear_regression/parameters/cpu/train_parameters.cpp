@@ -39,6 +39,21 @@ std::int64_t propose_block_size(const std::int64_t f, const std::int64_t r) {
 }
 
 template <typename Float, typename Task>
+std::int64_t propose_max_cols_batched(const std::int64_t f, const std::int64_t r) {
+    return detail::train_parameters<Task>{}.get_cpu_max_cols_batched();
+}
+
+template <typename Float, typename Task>
+std::int64_t propose_small_rows_threshold(const std::int64_t f, const std::int64_t r) {
+    return detail::train_parameters<Task>{}.get_cpu_small_rows_threshold();
+}
+
+template <typename Float, typename Task>
+std::int64_t propose_small_rows_max_cols_batched(const std::int64_t f, const std::int64_t r) {
+    return detail::train_parameters<Task>{}.get_cpu_small_rows_max_cols_batched();
+}
+
+template <typename Float, typename Task>
 struct train_parameters_cpu<Float, method::norm_eq, Task> {
     using params_t = detail::train_parameters<Task>;
     params_t operator()(const context_cpu& ctx,
@@ -50,9 +65,20 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
         const auto f_count = x_train.get_column_count();
         const auto r_count = y_train.get_column_count();
 
-        const auto block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t max_cols_batched =
+            propose_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_threshold =
+            propose_small_rows_threshold<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_max_cols_batched =
+            propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
 
-        return params_t{}.set_cpu_macro_block(block);
+        params_t out{};
+        out.set_cpu_macro_block(block);
+        out.set_cpu_max_cols_batched(max_cols_batched);
+        out.set_cpu_small_rows_threshold(small_rows_threshold);
+        out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        return out;
     }
     params_t operator()(const context_cpu& ctx,
                         const detail::descriptor_base<Task>& desc,
@@ -63,9 +89,20 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
         const auto f_count = x_train.get_column_count();
         const auto r_count = y_train.get_column_count();
 
-        const auto block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t max_cols_batched =
+            propose_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_threshold =
+            propose_small_rows_threshold<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_max_cols_batched =
+            propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
 
-        return params_t{}.set_cpu_macro_block(block);
+        params_t out{};
+        out.set_cpu_macro_block(block);
+        out.set_cpu_max_cols_batched(max_cols_batched);
+        out.set_cpu_small_rows_threshold(small_rows_threshold);
+        out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        return out;
     }
     params_t operator()(const context_cpu& ctx,
                         const detail::descriptor_base<Task>& desc,
@@ -76,9 +113,20 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
         const auto f_count = xtx.get_column_count();
         const auto r_count = xty.get_column_count();
 
-        const auto block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t block = propose_block_size<Float>(f_count, r_count);
+        const std::int64_t max_cols_batched =
+            propose_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_threshold =
+            propose_small_rows_threshold<Float, Task>(f_count, r_count);
+        const std::int64_t small_rows_max_cols_batched =
+            propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
 
-        return params_t{}.set_cpu_macro_block(block);
+        params_t out{};
+        out.set_cpu_macro_block(block);
+        out.set_cpu_max_cols_batched(max_cols_batched);
+        out.set_cpu_small_rows_threshold(small_rows_threshold);
+        out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        return out;
     }
 };
 template struct ONEDAL_EXPORT train_parameters_cpu<float, method::norm_eq, task::regression>;

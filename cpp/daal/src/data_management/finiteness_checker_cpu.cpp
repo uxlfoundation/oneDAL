@@ -35,7 +35,7 @@ namespace internal
 {
 using namespace daal::internal;
 
-#if defined(DAAL_INTEL_CPP_COMPILER)
+#if defined(DAAL_INTEL_CPP_COMPILER) || (__CPUID__(DAAL_CPU) == __sve__)
 
 const size_t BLOCK_SIZE       = 8192;
 const size_t THREADING_BORDER = 262144;
@@ -51,7 +51,7 @@ DataType getInf()
     return inf;
 }
 
-// These functions are used for both AVX2 and AVX512
+// These functions are used for AVX2, AVX512 and SVE
 // and are therefore outside of their separate
 // implementations
 
@@ -84,6 +84,7 @@ DataType computeSumSIMD(size_t nDataPtrs, size_t nElementsPerPtr, const DataType
         size_t end           = blockIdxInPtr == nBlocksPerPtr - 1 ? start + nPerBlock + nSurplus : start + nPerBlock;
 
         //sumWithSIMD defined for AVX2 and AVX512 in finiteness_checker_avx2_impl.i and finiteness_checker_avx512_impl.i
+        //sumWithSIMD defined for SVE in finiteness_checker_sve_impl.i
         pSums[iBlock] = sumWithSIMD<DataType, cpu>(end - start, dataPtrs[ptrIdx] + start);
     });
 
@@ -161,6 +162,17 @@ double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Sta
 
     return sum;
 }
+    #if defined(TARGET_ARM)
+        #if (__CPUID__(DAAL_CPU) == __sve__)
+
+            #include "finiteness_checker_sve_impl.i"
+
+        #endif // __CPUID__(DAAL_CPU) == __sve__
+    #endif
+
+#endif
+
+#if defined(DAAL_INTEL_CPP_COMPILER)
 
 template <daal::CpuType cpu>
 services::Status checkFinitenessInBlocks(const float ** dataPtrs, bool inParallel, size_t nTotalBlocks, size_t nBlocksPerPtr, size_t nPerBlock,
@@ -254,7 +266,6 @@ bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Statu
 
     return valuesAreFinite;
 }
-
     #if (__CPUID__(DAAL_CPU) == __avx512__)
 
         #include "finiteness_checker_avx512_impl.i"

@@ -61,6 +61,10 @@ services::Status Parameter::check() const
 
 Input::Input() {}
 Input::Input(const Input & other) {}
+Input & Input::operator=(const Input & other)
+{
+    return *this;
+};
 
 services::Status Input::check(const daal::algorithms::Parameter * par, int method) const
 {

@@ -26,9 +26,6 @@
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
 
-static const int leapfrogMethodErrcode  = -1002;
-static const int skipAheadMethodErrcode = -1003;
-
 namespace daal
 {
 namespace algorithms
@@ -67,7 +64,7 @@ public:
     {
         int errcode = baseRng.leapfrog(threadNum, nThreads);
         services::Status s;
-        if (errcode == leapfrogMethodErrcode)
+        if (errcode == __DAAL_LEAPFROG_METHOD_ERRCODE)
             s.add(ErrorLeapfrogUnsupported);
         else if (errcode)
             s.add(ErrorIncorrectErrorcodeFromGenerator);
@@ -78,7 +75,7 @@ public:
     {
         int errcode = baseRng.skipAhead(nSkip);
         services::Status s;
-        if (errcode == skipAheadMethodErrcode)
+        if (errcode == __DAAL_SKIP_AHEAD_METHOD_ERRCODE)
             s.add(ErrorSkipAheadUnsupported);
         else if (errcode)
             s.add(ErrorIncorrectErrorcodeFromGenerator);

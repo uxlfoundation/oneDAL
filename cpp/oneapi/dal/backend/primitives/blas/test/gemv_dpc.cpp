@@ -148,9 +148,6 @@ private:
 using gemv_types = COMBINE_TYPES((float, double), (c_order, f_order));
 
 TEMPLATE_LIST_TEST_M(gemv_test, "ones matrix gemv on small sizes", "[gemv][small]", gemv_types) {
-    // TODO: ensure gemv issue is resolved and remove skip
-    SKIP_IF(true);
-
     // DPC++ GEMV from micro MKL libs is not supported on GPU
     SKIP_IF(this->get_policy().is_cpu());
 
@@ -162,9 +159,6 @@ TEMPLATE_LIST_TEST_M(gemv_test, "ones matrix gemv on small sizes", "[gemv][small
 }
 
 TEMPLATE_LIST_TEST_M(gemv_test, "ones matrix gemv on medium sizes", "[gemv][small]", gemv_types) {
-    // TODO: ensure gemv issue is resolved and remove skip
-    SKIP_IF(true);
-
     // DPC++ GEMV from micro MKL libs is not supported on GPU
     SKIP_IF(this->get_policy().is_cpu());
 

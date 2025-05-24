@@ -103,7 +103,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface1
 {
@@ -139,6 +139,7 @@ public:
     /** Default constructor */
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 
@@ -284,7 +285,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step2Master> : public daal::algorithms::Input, public InputIface
 {
 public:
-    DistributedInput<step2Master>();
+    DistributedInput();
     /**
      * Gets an input object for linear regression model-based training
      * in the second step of the distributed processing mode

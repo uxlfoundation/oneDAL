@@ -35,7 +35,16 @@ namespace covariance
 {
 namespace interface1
 {
+
+InputIface::InputIface(size_t nElements) : daal::algorithms::Input(nElements) {}
+InputIface::InputIface(const InputIface & other)             = default;
+InputIface & InputIface::operator=(const InputIface & other) = default;
+InputIface::~InputIface()                                    = default;
+
 Input::Input() : InputIface(lastInputId + 1) {}
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
+Input::~Input() {}
 
 /**
  * Returns number of columns in the input data set

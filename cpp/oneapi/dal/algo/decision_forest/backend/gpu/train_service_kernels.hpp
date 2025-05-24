@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021-2022 Intel Corporation
+* Copyright 2021 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -63,11 +63,7 @@ public:
                                              const pr::ndarray<Index, 1>& node_list,
                                              pr::ndarray<Index, 1>& tree_order,
                                              pr::ndarray<Index, 1>& tree_order_buf,
-                                             Index data_row_count,
-                                             Index data_selected_row_count,
-                                             Index data_column_count,
                                              Index node_count,
-                                             Index tree_count,
                                              const bk::event_vector& deps = {});
 
     sycl::event initialize_tree_order(pr::ndarray<Index, 1>& tree_order,

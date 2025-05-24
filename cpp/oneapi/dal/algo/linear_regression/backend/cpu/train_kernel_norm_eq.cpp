@@ -30,6 +30,7 @@
 #include "oneapi/dal/algo/linear_regression/train_types.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/model_impl.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel.hpp"
+#include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel_common.hpp"
 
 namespace oneapi::dal::linear_regression::backend {
 
@@ -52,19 +53,6 @@ using batch_lr_kernel_t = daal_lr::training::internal::BatchKernel<Float, daal_l
 
 template <typename Float, daal::CpuType Cpu>
 using batch_rr_kernel_t = daal_rr::training::internal::BatchKernel<Float, daal_rr_method, Cpu>;
-
-template <typename Float, typename Task>
-static daal_lr_hyperparameters_t convert_parameters(const detail::train_parameters<Task>& params) {
-    using daal_lr::internal::HyperparameterId;
-
-    const std::int64_t block = params.get_cpu_macro_block();
-
-    daal_lr_hyperparameters_t daal_hyperparameter;
-    auto status = daal_hyperparameter.set(HyperparameterId::denseUpdateStepBlockSize, block);
-    interop::status_to_exception(status);
-
-    return daal_hyperparameter;
-}
 
 template <typename Float, typename Task>
 static train_result<Task> call_daal_kernel(const context_cpu& ctx,

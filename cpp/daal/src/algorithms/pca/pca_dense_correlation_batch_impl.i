@@ -30,7 +30,7 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 
-#include "src/externals/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 namespace daal
 {
@@ -65,12 +65,12 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
     DAAL_UINT64 resultsToCompute, data_management::NumericTable & eigenvectors, data_management::NumericTable & eigenvalues,
     data_management::NumericTable & means, data_management::NumericTable & variances, bool doScale)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute);
+    DAAL_PROFILER_TASK(PCACorrelationKernel::compute_all_args);
 
     services::Status status;
     if (isCorrelation)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.correlation);
+        DAAL_PROFILER_TASK(PCACorrelationKernel::correlation);
         if (resultsToCompute & mean)
         {
             DAAL_CHECK_STATUS(status, this->fillTable(means, (algorithmFPType)0));
@@ -82,17 +82,17 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
         }
 
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.correlation.computeEigenvalues);
+            DAAL_PROFILER_TASK(PCACorrelationKernel::computeEigenvalues);
             DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(dataTable, eigenvectors, eigenvalues));
         }
     }
     else
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.full);
+        DAAL_PROFILER_TASK(PCACorrelationKernel::compute_full);
 
         DAAL_CHECK(covarianceAlg, services::ErrorNullPtr);
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.covariance);
+            DAAL_PROFILER_TASK(PCACorrelationKernel::full_covariance);
             DAAL_CHECK_STATUS(status, covarianceAlg->computeNoThrow());
         }
 
@@ -100,30 +100,30 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
         NumericTable & covarianceTable = *pCovarianceTable;
         if (resultsToCompute & mean)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.copyMeans);
+            DAAL_PROFILER_TASK(PCACorrelationKernel::full_copyMeans);
             DAAL_CHECK_STATUS(status, this->copyTable(*covarianceAlg->getResult()->get(covariance::mean), means));
         }
 
         if (resultsToCompute & variance)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.copyVariances);
+            DAAL_PROFILER_TASK(compute.full.copyVariances);
             DAAL_CHECK_STATUS(status, this->copyVarianceFromCovarianceTable(covarianceTable, variances));
         }
         if (doScale)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.correlationFromCovariance);
+            DAAL_PROFILER_TASK(compute.full.correlationFromCovariance);
             DAAL_CHECK_STATUS(status, this->correlationFromCovarianceTable(covarianceTable));
         }
 
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.computeEigenvalues);
+            DAAL_PROFILER_TASK(compute.full.computeEigenvalues);
             DAAL_CHECK_STATUS(status, this->computeCorrelationEigenvalues(covarianceTable, eigenvectors, eigenvalues));
         }
     }
 
     if (isDeterministic)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.full.signFlipEigenvectors);
+        DAAL_PROFILER_TASK(compute.full.signFlipEigenvectors);
         DAAL_CHECK_STATUS(status, this->signFlipEigenvectors(eigenvectors));
     }
 
@@ -136,7 +136,7 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
     data_management::NumericTable & eigenvalues, data_management::NumericTable & means, data_management::NumericTable & variances,
     data_management::NumericTable * singular_values, data_management::NumericTable * explained_variances_ratio, const BaseBatchParameter * parameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(compute);
+    DAAL_PROFILER_TASK(PCACorrelationKernel::compute);
 
     services::Status status;
     this->compute(parameter->isCorrelation, parameter->isDeterministic, dataTable, covarianceAlg, parameter->resultsToCompute, eigenvectors,
@@ -144,12 +144,12 @@ services::Status PCACorrelationKernel<batch, algorithmFPType, cpu>::compute(
 
     if (singular_values != nullptr)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.correlation.computeSingularValues);
+        DAAL_PROFILER_TASK(PCACorrelationKernel::computeSingularValues);
         DAAL_CHECK_STATUS(status, this->computeSingularValues(eigenvalues, *singular_values, dataTable.getNumberOfRows()));
     }
     if (explained_variances_ratio != nullptr)
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(compute.correlation.computeExplainedVariancesRatio);
+        DAAL_PROFILER_TASK(PCACorrelationKernel::computeExplainedVariancesRatio);
         DAAL_CHECK_STATUS(status, this->computeExplainedVariancesRatio(eigenvalues, variances, *explained_variances_ratio));
     }
     return status;

@@ -160,7 +160,7 @@ enum ResultToComputeId
 };
 
 /**
-    * \brief Contains version 1.0 of Intel(R) oneAPI Data Analytics Library interface.
+    * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
     */
 namespace interface1
 {
@@ -200,6 +200,7 @@ class DAAL_EXPORT Input : public InputIface
 public:
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {};
 
@@ -556,6 +557,7 @@ class DistributedInput<correlationDense> : public InputIface
 public:
     DAAL_EXPORT DistributedInput();
     DAAL_EXPORT DistributedInput(const DistributedInput & other);
+    DAAL_EXPORT DistributedInput operator=(const DistributedInput & other);
 
     /**
         * Sets input objects for the PCA on the second step in the distributed processing mode
@@ -655,7 +657,7 @@ public:
 } // namespace interface1
 
 /**
-    * \brief Contains version 3.0 of Intel(R) oneAPI Data Analytics Library interface.
+    * \brief Contains version 3.0 of oneAPI Data Analytics Library interface.
     */
 namespace interface3
 {

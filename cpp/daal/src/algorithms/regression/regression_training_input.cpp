@@ -39,6 +39,7 @@ using namespace daal::data_management;
 using namespace daal::services;
 Input::Input(size_t nElements) : daal::algorithms::Input(nElements) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other) = default;
 
 data_management::NumericTablePtr Input::get(InputId id) const
 {

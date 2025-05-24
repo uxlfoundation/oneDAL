@@ -39,6 +39,9 @@ public:
         this->f_count_ = GENERATE(2, 17);
         this->r_count_ = GENERATE(2, 15);
         this->intercept_ = GENERATE(0, 1);
+        if (this->get_policy().is_cpu()) {
+            this->use_non_batched_route = GENERATE(false, true);
+        }
     }
 };
 
@@ -51,9 +54,10 @@ TEMPLATE_LIST_TEST_M(lr_batch_test, "LR common flow", "[lr][batch]", lr_types) {
 }
 
 TEMPLATE_LIST_TEST_M(lr_batch_test, "LR with non-PSD matrix", "[lr][batch-nonpsd]", lr_types) {
-    SKIP_IF(this->non_psd_system_not_supported_on_device());
+    SKIP_IF(this->not_float64_friendly());
 
     this->generate(777);
+
     this->run_and_check_linear_indefinite();
     this->run_and_check_linear_indefinite_multioutput();
 }

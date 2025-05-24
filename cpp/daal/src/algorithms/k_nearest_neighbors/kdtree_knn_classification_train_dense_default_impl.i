@@ -163,7 +163,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     auto oldThreads = services::Environment::getInstance()->getNumberOfThreads();
     DAAL_CHECK_STATUS(status, buildFirstPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
     // Temporary workaround for threading issues in `buildSecondPartOfKDTree()`
-    // Fix to be provided in https://github.com/oneapi-src/oneDAL/pull/2925
+    // Fix to be provided in https://github.com/uxlfoundation/oneDAL/pull/2925
     services::Environment::getInstance()->setNumberOfThreads(1);
     DAAL_CHECK_STATUS(status, buildSecondPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
     services::Environment::getInstance()->setNumberOfThreads(oldThreads);
@@ -350,7 +350,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                     size_t i = first;
                     b.upper  = dx[indexes[i]];
                     b.lower  = dx[indexes[i]];
-                    PRAGMA_IVDEP
+
                     for (++i; i < last; ++i)
                     {
                         if (b.lower > dx[indexes[i]])
@@ -416,7 +416,7 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             const_cast<NumericTable &>(x).getBlockOfColumnValues(j, 0, xRowCount, readOnly, columnBD);
             const algorithmFpType * const dx = columnBD.getBlockPtr();
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             for (size_t i = 0; i < elementCount; ++i)
             {
                 sampleValues[i] = dx[indexes[start + i]];
@@ -580,7 +580,7 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
     histTLS.reduce([=, &masterHist](Hist * v) -> void {
         if (v)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < sampleCount; ++j)
             {
@@ -734,8 +734,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
         size_t left  = first;
         size_t right = last - 1;
 
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         for (;;)
         {
             while ((left <= right) && (dx[indexes[left]] < median))

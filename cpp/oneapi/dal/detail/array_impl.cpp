@@ -141,15 +141,15 @@ deserialize_result_t deserialize_array(const Policy& policy,
     return deserialize_array_impl(policy, archive, expected_dtype);
 }
 
-#define INSTANTIATE(Policy)                                                 \
-    template void serialize_array(const Policy& policy,                     \
-                                  output_archive& archive,                  \
-                                  const byte_t* data,                       \
-                                  std::int64_t size_in_bytes,               \
-                                  data_type dtype);                         \
-    template deserialize_result_t deserialize_array(const Policy& policy,   \
-                                                    input_archive& archive, \
-                                                    data_type expected_dtype);
+#define INSTANTIATE(Policy)                                                               \
+    template void ONEDAL_EXPORT serialize_array(const Policy& policy,                     \
+                                                output_archive& archive,                  \
+                                                const byte_t* data,                       \
+                                                std::int64_t size_in_bytes,               \
+                                                data_type dtype);                         \
+    template deserialize_result_t ONEDAL_EXPORT deserialize_array(const Policy& policy,   \
+                                                                  input_archive& archive, \
+                                                                  data_type expected_dtype);
 
 INSTANTIATE(default_host_policy)
 

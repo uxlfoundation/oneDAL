@@ -20,7 +20,7 @@
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 #include <math.h>
 
 namespace oneapi::dal::backend::primitives::test {
@@ -43,9 +43,8 @@ public:
         x_host_ = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
         b_host_ = ndarray<float_t, 1>::empty(this->get_queue(), { n_ }, sycl::usm::alloc::host);
 
-        primitives::rng<float_t> rn_gen;
-        primitives::engine eng(4014 + n_);
-        rn_gen.uniform(n_, x_host_.get_mutable_data(), eng.get_state(), -1.0, 1.0);
+        primitives::host_engine eng(4014 + n_);
+        primitives::uniform<float_t>(n_, x_host_.get_mutable_data(), eng, -1.0, 1.0);
 
         create_stable_matrix(this->get_queue(), A_host_);
 
@@ -97,7 +96,7 @@ public:
         REQUIRE(r_norm < 1e-4);
 
         for (std::int64_t i = 0; i < n_; ++i) {
-            check_val(x_host_.at(i), answer_host.at(i), (float_t)0.005, (float_t)0.005);
+            IS_CLOSE(float_t, x_host_.at(i), answer_host.at(i), (float_t)0.005, (float_t)0.005)
         }
     }
 

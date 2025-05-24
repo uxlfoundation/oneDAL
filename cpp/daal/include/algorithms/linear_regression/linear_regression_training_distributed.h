@@ -111,7 +111,7 @@ public:
  *      - \ref prediction::interface1::Batch "prediction::Batch" class
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = normEqDense>
-class Distributed : public Training<distributed>
+class DAAL_EXPORT Distributed : public Training<distributed>
 {};
 
 /**
@@ -145,7 +145,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed<step1Local, algorithmFPType, method>() {}
+    Distributed() {}
 
     /**
      * Constructs a linear regression training algorithm in the first step of the distributed processing mode
@@ -203,7 +203,7 @@ public:
     typedef algorithms::linear_regression::training::PartialResult PartialResultType;
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs a linear regression training algorithm in the second step of the distributed processing mode
@@ -211,12 +211,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : parameter(other.parameter)
-    {
-        initialize();
-        input.set(partialModels, other.input.get(partialModels));
-    }
-
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
     ~Distributed() {}
 
     /**

@@ -47,7 +47,7 @@ namespace brownboost
 namespace prediction
 {
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {
@@ -60,9 +60,10 @@ class DAAL_EXPORT Input : public classifier::prediction::Input
     typedef classifier::prediction::Input super;
 
 public:
-    Input() : classifier::prediction::Input() {}
-    Input(const Input & other) : classifier::prediction::Input(other) {}
-    virtual ~Input() {}
+    Input();
+    Input(const Input & other);
+    Input & operator=(const Input & other);
+    virtual ~Input();
 
     using super::get;
     using super::set;

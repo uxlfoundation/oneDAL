@@ -26,6 +26,11 @@
 #include "src/services/service_defines.h"
 #include "services/env_detect.h"
 
+#include "src/services/service_profiler.h"
+
+// Initialize for DAAL INFO output in KERNEL_PROFILER
+static bool print_profiler_header = (daal::internal::print_header(), false);
+
 #ifndef DAAL_REF // temporary!!! should depend both on BACKEND and TARGETARCH
     #include <mkl.h>
 static const char * cpu_long_names[] = { "Generic",

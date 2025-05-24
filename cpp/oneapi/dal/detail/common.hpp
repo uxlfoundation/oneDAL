@@ -463,7 +463,9 @@ static constexpr auto allocate(Alloc& alloc, std::int64_t count) {
 }
 
 template <typename Alloc>
-static constexpr void deallocate(Alloc& alloc, typename Alloc::pointer ptr, std::int64_t count) {
+static constexpr void deallocate(Alloc& alloc,
+                                 typename std::allocator_traits<Alloc>::pointer ptr,
+                                 std::int64_t count) {
     using allocator_traits_t =
         typename std::allocator_traits<Alloc>::template rebind_traits<typename Alloc::value_type>;
     if (ptr != nullptr) {
@@ -472,7 +474,7 @@ static constexpr void deallocate(Alloc& alloc, typename Alloc::pointer ptr, std:
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
-void check_if_pointer_matches_queue(const sycl::queue& q, const void* ptr);
+void ONEDAL_EXPORT check_if_pointer_matches_queue(const sycl::queue& q, const void* ptr);
 #endif
 
 } // namespace oneapi::dal::preview::detail

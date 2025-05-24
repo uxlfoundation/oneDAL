@@ -38,6 +38,47 @@ Tree::~Tree() {}
 
 ModelImpl::ModelImpl() : _nTree(0) {}
 
+ModelImpl::ModelImpl(const ModelImpl & other)
+{
+    const size_t nTree = other._nTree.get();
+    resize(nTree); // sets _nTree = 0
+    _nTree.set(nTree);
+    // copy data if source and target pointers are valid
+    if (isValid() && other.isValid())
+    {
+        for (size_t i = 0; i < nTree; ++i)
+        {
+            (*_serializationData)[i] = (*other._serializationData)[i];
+            (*_impurityTables)[i]    = (*other._impurityTables)[i];
+            (*_nNodeSampleTables)[i] = (*other._nNodeSampleTables)[i];
+            (*_probTbl)[i]           = (*other._probTbl)[i];
+        }
+    }
+}
+
+ModelImpl & ModelImpl::operator=(const ModelImpl & other)
+{
+    if (this != &other)
+    {
+        destroy();
+        const size_t nTree = other._nTree.get();
+        resize(nTree); // sets _nTree = 0
+        _nTree.set(nTree);
+        // copy data if source and target pointers are valid
+        if (isValid() && other.isValid())
+        {
+            for (size_t i = 0; i < nTree; ++i)
+            {
+                (*_serializationData)[i] = (*other._serializationData)[i];
+                (*_impurityTables)[i]    = (*other._impurityTables)[i];
+                (*_nNodeSampleTables)[i] = (*other._nNodeSampleTables)[i];
+                (*_probTbl)[i]           = (*other._probTbl)[i];
+            }
+        }
+    }
+    return *this;
+}
+
 ModelImpl::~ModelImpl()
 {
     destroy();
@@ -56,18 +97,17 @@ bool ModelImpl::reserve(const size_t nTrees)
     if (_serializationData.get()) return false;
     _nTree.set(0);
     _serializationData.reset(new DataCollection());
-    _serializationData->resize(nTrees);
-
     _impurityTables.reset(new DataCollection());
-    _impurityTables->resize(nTrees);
-
     _nNodeSampleTables.reset(new DataCollection());
-    _nNodeSampleTables->resize(nTrees);
-
     _probTbl.reset(new DataCollection());
-    _probTbl->resize(nTrees);
 
-    return _serializationData.get();
+    // check for all pointers being non-null and successful resizing
+    if (!(isValid() && _serializationData->resize(nTrees) && _impurityTables->resize(nTrees) && _nNodeSampleTables->resize(nTrees)
+          && _probTbl->resize(nTrees)))
+    {
+        return false;
+    }
+    return true;
 }
 
 bool ModelImpl::resize(const size_t nTrees)
@@ -78,7 +118,12 @@ bool ModelImpl::resize(const size_t nTrees)
     _impurityTables.reset(new DataCollection(nTrees));
     _nNodeSampleTables.reset(new DataCollection(nTrees));
     _probTbl.reset(new DataCollection(nTrees));
-    return _serializationData.get();
+    return isValid();
+}
+
+bool ModelImpl::isValid() const
+{
+    return _serializationData.get() && _impurityTables.get() && _nNodeSampleTables.get() && _probTbl.get();
 }
 
 void ModelImpl::clear()

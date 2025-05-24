@@ -529,7 +529,7 @@ protected:
  *      - Result class
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Distributed : public DistributedIface<step>
+class DAAL_EXPORT Distributed : public DistributedIface<step>
 {};
 
 /**
@@ -564,7 +564,7 @@ public:
     typedef typename super::ResultType ResultType;
     typedef typename super::PartialResultType PartialResultType;
 
-    Distributed<step1Local, algorithmFPType, method>() : Online<algorithmFPType, method>() {}
+    Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -626,7 +626,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -635,7 +635,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : DistributedIface<step2Master>(other) { initialize(); }
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
 
     virtual ~Distributed() {}
 

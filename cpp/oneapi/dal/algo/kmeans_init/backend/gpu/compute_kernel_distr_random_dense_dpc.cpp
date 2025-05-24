@@ -75,7 +75,7 @@ ids_arr_t generate_random_indices(std::int64_t count, std::int64_t scount, std::
     ids_arr_t result = ids_arr_t::empty(count);
     auto ndres = pr::ndview<std::int64_t, 1>::wrap(result.get_mutable_data(), { count });
     ONEDAL_ASSERT(count < scount);
-    partial_fisher_yates_shuffle(ndres, scount, seed);
+    pr::partial_fisher_yates_shuffle(ndres, scount, seed);
     return result;
 }
 

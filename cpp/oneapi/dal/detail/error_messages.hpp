@@ -51,7 +51,7 @@ namespace v1 {
 // - If a new mathematical operator introduced, stick to LaTeX
 //   conventions as well.
 //
-// - For Intel(R) oneAPI Data Analytics Library (oneDAL) specific terms use the following shortening:
+// - For oneAPI Data Analytics Library (oneDAL) specific terms use the following shortening:
 //
 //   row count      rc
 //   column count   cc
@@ -242,6 +242,7 @@ public:
 
     /* Linear Regression */
     MSG(intercept_result_option_requires_intercept_flag);
+    MSG(too_small_singular_values);
 
     /* Logistic Regression */
     MSG(class_count_neq_two);

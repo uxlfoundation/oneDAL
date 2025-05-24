@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/algo/kmeans_init/compute_types.hpp"
 #include "oneapi/dal/backend/dispatcher.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 
 namespace oneapi::dal::kmeans_init::backend {
 

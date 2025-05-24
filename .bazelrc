@@ -1,7 +1,10 @@
 # Global options
+
+common  
+
 build -c opt \
       --incompatible_enable_cc_toolchain_resolution \
-      --incompatible_require_linker_input_cc_api
+      --incompatible_require_linker_input_cc_api 
 
 # Aliases for user-defined flags
 build --flag_alias=backend_config=@config//:backend_config

@@ -109,7 +109,7 @@ enum BinningStrategy
 };
 
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface2
 {

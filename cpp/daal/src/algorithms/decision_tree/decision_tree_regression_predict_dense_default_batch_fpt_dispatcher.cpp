@@ -30,6 +30,32 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_tree::regression::prediction::BatchContainer, batch, DAAL_FPTYPE,
                                       decision_tree::regression::prediction::defaultDense)
+namespace decision_tree
+{
+namespace regression
+{
+namespace prediction
+{
+namespace interface2
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, decision_tree::regression::prediction::defaultDense>::Batch()
+{
+    initialize();
+}
 
+using BatchType = Batch<DAAL_FPTYPE, decision_tree::regression::prediction::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other)
+    : algorithms::regression::prediction::Batch(other), input(other.input), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace interface2
+} // namespace prediction
+} // namespace regression
+} // namespace decision_tree
 } // namespace algorithms
 } // namespace daal

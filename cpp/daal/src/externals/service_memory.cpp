@@ -23,9 +23,11 @@
 
 #include "src/externals/service_memory.h"
 #include "src/externals/service_service.h"
+#include "src/services/service_profiler.h"
 
 void * daal::services::daal_malloc(size_t size, size_t alignment)
 {
+    // DAAL_PROFILER_SERVICE_TASK(daal_malloc);
     return daal::internal::ServiceInst::serv_malloc(size, alignment);
 }
 
@@ -39,10 +41,7 @@ void * daal::services::daal_calloc(size_t size, size_t alignment)
 
     char * cptr = (char *)ptr;
 
-    for (size_t i = 0; i < size; i++)
-    {
-        cptr[i] = '\0';
-    }
+    daal::services::internal::service_memset_seq<char, DAAL_BASE_CPU>(cptr, '\0', size);
 
     return ptr;
 }
@@ -70,6 +69,7 @@ void daal_free_buffers()
 
 void daal::services::daal_memcpy_s(void * dest, size_t destSize, const void * src, size_t srcSize)
 {
+    DAAL_PROFILER_SERVICE_TASK(daal_memcpy_s);
     size_t copySize = srcSize;
     if (destSize < srcSize)
     {

@@ -89,7 +89,8 @@ struct traverse_kernel_cpu<method::delta_stepping, task::one_to_all, Allocator, 
         const Graph& g) const {
         using topology_type = typename graph_traits<Graph>::impl_type::topology_type;
         using value_type = edge_user_value_type<Graph>;
-        const auto& t = dal::preview::detail::csr_topology_builder<Graph>()(g);
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+        const auto& t = topology_builder(g);
         const auto vals = dal::detail::get_impl(g).get_edge_values().get_data();
         alloc_connector<Allocator> alloc_con(alloc);
         if (desc.get_optional_results() & optional_results::predecessors) {

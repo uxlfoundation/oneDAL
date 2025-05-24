@@ -25,6 +25,7 @@
 #include "oneapi/dal/algo/linear_regression/train_types.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/model_impl.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/cpu/partial_train_kernel.hpp"
+#include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel_common.hpp"
 
 namespace oneapi::dal::linear_regression::backend {
 
@@ -41,19 +42,6 @@ constexpr auto daal_method = daal_lr::training::normEqDense;
 
 template <typename Float, daal::CpuType Cpu>
 using online_kernel_t = daal_lr::training::internal::OnlineKernel<Float, daal_method, Cpu>;
-
-template <typename Float, typename Task>
-static daal_hyperparameters_t convert_parameters(const detail::train_parameters<Task>& params) {
-    using daal_lr::internal::HyperparameterId;
-
-    const std::int64_t block = params.get_cpu_macro_block();
-
-    daal_hyperparameters_t daal_hyperparameter;
-    auto status = daal_hyperparameter.set(HyperparameterId::denseUpdateStepBlockSize, block);
-    interop::status_to_exception(status);
-
-    return daal_hyperparameter;
-}
 
 template <typename Float, typename Task>
 static partial_train_result<Task> call_daal_kernel(const context_cpu& ctx,

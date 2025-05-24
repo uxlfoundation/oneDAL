@@ -15,18 +15,27 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.0.3
-NAME=ec-linux-amd64
-ASSET=$NAME.tar.gz
+VERSION=v3.3.0
+UNPACKED=ec-linux-amd64
+ASSET=$UNPACKED.tar.gz
+CHECKSUMS=checksums.txt
+BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
 
-# Download
-export SHA256="fc698b0bf5bca0d42e28dd59d72e25487a51f645ca242c5f74bae975369f16aa  $ASSET"
-wget https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION/$ASSET
-echo "${SHA256}" | sha256sum --check
+# Download asset
+wget $BASE_LINK/$ASSET
+
+# Download checksum file
+wget $BASE_LINK/$CHECKSUMS
+
+# Verify checksum file
+if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
+    echo "Checksum verification failed"
+    exit 1
+fi
 
 # Install
-tar -xzf $ASSET
-mv bin/$NAME /usr/local/bin/editorconfig-checker
+mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
+mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
 
-# Clean up the downloaded archive
-rm $ASSET
+# Clean up the downloaded files
+rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"

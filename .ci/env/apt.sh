@@ -31,11 +31,21 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs=2025.0.0-406
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs
+}
+
+function install_tbb {
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
+}
+
+function install_dpl {
+    sudo apt-get install -y intel-oneapi-libdpstd-devel
 }
 
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0 intel-oneapi-tbb-devel-2022.0
+    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
+    install_tbb
+    install_dpl
 }
 
 function install_clang-format {
@@ -43,7 +53,7 @@ function install_clang-format {
 }
 
 function install_dev-base {
-    sudo apt-get install -y gcc-multilib g++-multilib dos2unix tree
+    sudo apt-get install -y gcc-multilib g++-multilib tree
 }
 
 function install_dev-base-conda {
@@ -56,6 +66,10 @@ function install_gnu-cross-compilers {
 
 function install_qemu_emulation_apt {
     sudo apt-get install -y qemu-user-static
+}
+
+function install_opencl_apt {
+    sudo apt-get install -y ocl-icd-opencl-dev
 }
 
 function install_qemu_emulation_deb {
@@ -94,12 +108,43 @@ function build_sysroot {
     popd || exit
 }
 
+function install_miniforge {
+    local platform
+    local version
+    local installer
+
+    platform="$(uname)-$(uname -m)"
+    version=$(curl -s https://api.github.com/repos/conda-forge/miniforge/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+    installer=Miniforge3-${version}-${platform}.sh
+
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}"
+    curl -LO "https://github.com/conda-forge/miniforge/releases/download/${version}/${installer}.sha256"
+
+    if ! sha256sum -c "${installer}.sha256"; then
+        echo "Error: SHA256 checksum verification failed."
+        exit 1
+    fi
+
+    sudo bash "${installer}" -b -p /usr/share/miniconda
+    source /usr/share/miniconda/etc/profile.d/conda.sh
+}
+
+function install_abigail {
+    sudo apt-get install -y abigail-tools
+}
+
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
+elif [ "${component}" == "tbb" ]; then
+    add_repo
+    install_tbb
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -124,8 +169,19 @@ elif [ "${component}" == "llvm-version" ] ; then
 elif [ "${component}" == "build-sysroot" ] ; then
     update
     build_sysroot "$2" "$3" "$4" "$5"
+elif [ "${component}" == "miniforge" ] ; then
+    if [ ! -f /usr/share/miniconda/etc/profile.d/conda.sh ] ; then
+        install_miniforge
+    fi
+    install_dev-base-conda
+elif [ "${component}" == "abigail" ] ; then
+    update
+    install_abigail
+elif [ "${component}" == "opencl" ]; then
+    update
+    install_opencl_apt
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
     exit 1
 fi

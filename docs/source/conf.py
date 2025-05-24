@@ -15,7 +15,7 @@
 #===============================================================================
 
 ##  Content:
-##     Intel(R) oneDAL configuration file for the Sphinx documentation builder
+##     oneDAL configuration file for the Sphinx documentation builder
 ##******************************************************************************
 
 # Configuration file for the Sphinx documentation builder.
@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'oneDAL'
-copyright = 'Intel Corporation' # pylint: disable=redefined-builtin
+copyright = 'contributors to the oneDAL project' # pylint: disable=redefined-builtin
 
 # The full version, including alpha/beta/rc tags
 # release = '2021'
@@ -81,10 +81,10 @@ exclude_patterns = ["opt-notice.rst", 'daal/data-management/numeric-tables/*.rst
                     'daal/includes/*', 'onedal/algorithms/.*/includes/*', 'index-toc.rst']
 
 extlinks = {
-    'cpp_example': ('https://github.com/oneapi-src/oneDAL/tree/main/examples/daal/cpp/source/%s', None),
-    'daal4py_example': ('https://github.com/intel/scikit-learn-intelex/tree/main/examples/daal4py/%s', None),
-    'daal4py_sklearnex_example': ('https://github.com/intel/scikit-learn-intelex/tree/main/examples/sklearnex/%s', None),
-    'cpp_sample': ('https://github.com/oneapi-src/oneDAL/tree/main/samples/daal/cpp/%s', None)
+    'cpp_example': ('https://github.com/uxlfoundation/oneDAL/tree/main/examples/daal/cpp/source/%s', None),
+    'daal4py_example': ('https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/daal4py/%s', None),
+    'daal4py_sklearnex_example': ('https://github.com/uxlfoundation/scikit-learn-intelex/tree/main/examples/sklearnex/%s', None),
+    'cpp_sample': ('https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/%s', None)
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -96,27 +96,22 @@ extlinks = {
 html_static_path = ['_static']
 
 html_theme = 'sphinx_book_theme'
-html_logo = '_static/oneAPI-rgb-rev-100.png'
 html_favicon = '_static/favicons.png'
 
 # Theme options
 html_theme_options = {
-    'repository_url': 'https://github.com/oneapi-src/oneDAL',
+    'repository_url': 'https://github.com/uxlfoundation/oneDAL',
     'path_to_docs': 'docs/source',
     'use_issues_button': True,
     'use_edit_page_button': True,
     'repository_branch': 'master',
-}
-
-html_theme_options = {
     "logo": {
         "text": "oneDAL Documentation",
-    }
+        "image_light": "_static/uxl-foundation-logo-horizontal-color.png",
+        "image_dark": "_static/uxl-foundation-logo-horizontal-white.png",
+    },
 }
 
-html_theme_options = {
-    "extra_footer": "<div><a href='https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html' data-cookie-notice='true'>Cookies</a> <a href='https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html'>| Privacy</a> <a data-wap_ref='dns' id='wap_dns' href='https://www.intel.com/content/www/us/en/privacy/intel-cookie- notice.html'>| Do Not Share My Personal Information</a> </div><div>&copy; Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others. No license (express or implied, by estoppel or otherwise) to any intellectual property rights is granted by this document, with the sole exception that code included in this document is licensed subject to the Zero-Clause BSD open source license (OBSD), <a href='http://opensource.org/licenses/0BSD'>http://opensource.org/licenses/0BSD</a>. </div><br><div>oneDAL is licensed under Apache License Version 2.0. Refer to the <a href='https://github.com/oneapi-src/oneDAL/blob/main/LICENSE'>LICENSE </a> file for the full license text and copyright notice.</div>"
-}
 
 # oneDAL project directory is needed for `dalapi` extension
 onedal_enable_listing = False
@@ -131,14 +126,18 @@ notfound_urls_prefix = '/oneDAL/'
 nitpick_ignore = [
     # top level namespace
     ('cpp:identifier', 'dal'),
+    ('cpp:identifier', 'base'),
     # method
     ('cpp:identifier', 'method'),
+    ('cpp:identifier', 'method::by_default'),
     ('cpp:identifier', 'Method'),
     # task
     ('cpp:identifier', 'task'),
     ('cpp:identifier', 'task::by_default'),
     ('cpp:identifier', 'Task'),
     # detail
+    ('cpp:identifier', 'dal::detail'),
+    ('cpp:identifier', 'dal::detail::empty_delete<T>'),
     ('cpp:identifier', 'detail'),
     ('cpp:identifier', 'detail::descriptor_base<>'),
     ('cpp:identifier', 'detail::descriptor_base<>::float_t'),
@@ -392,5 +391,32 @@ nitpick_ignore = [
     ('cpp:identifier', 'kind::induced'),
     ('cpp:identifier', 'kind::non_induced'),
     ('cpp:identifier', 'preview'),
-    ('cpp:identifier', 'connected_components')
+    ('cpp:identifier', 'connected_components'),
+
+    # sycl
+    ('cpp:identifier', 'event_vector'),
+    ('cpp:identifier', 'sycl'),
+    ('cpp:identifier', 'sycl::event'),
+    ('cpp:identifier', 'sycl::queue'),
+    ('cpp:identifier', 'sycl::range'),
+    ('cpp:identifier', 'sycl::usm'),
+    ('cpp:identifier', 'sycl::usm::alloc'),
+    ('cpp:identifier', 'sycl::usm::alloc::shared'),
+
+    # backend primitives - data management
+    ('cpp:identifier', 'array_t'),
+    ('cpp:identifier', 'axis_count'),
+    ('cpp:identifier', 'ndarray'),
+    ('cpp:identifier', 'ndindex<axis_count>'),
+    ('cpp:identifier', 'ndorder'),
+    ('cpp:identifier', 'ndorder::c'),
+    ('cpp:identifier', 'ndorder::f'),
+    ('cpp:identifier', 'ndshape'),
+    ('cpp:identifier', 'ndshape<new_axis_count>'),
+    ('cpp:identifier', 'ndview'),
+    ('cpp:identifier', 'order'),
+    ('cpp:identifier', 'sycl::range<1>'),
+    ('cpp:identifier', 'sycl::range<2>'),
+    ('cpp:identifier', 'shape_t'),
+    ('cpp:identifier', 'shared_t')
 ]

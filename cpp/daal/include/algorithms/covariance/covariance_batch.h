@@ -272,6 +272,20 @@ public:
     }
 
     /**
+     * Copy-assignment operator for an algorithm for correlation or variance-covariance matrix computation
+     * \param[in] other An algorithm to be used as the source to initialize the input objects
+     *                  and parameters of the algorithm
+     */
+    BatchImpl & operator=(const BatchImpl & other)
+    {
+        input     = other.input;
+        parameter = other.parameter;
+        initialize();
+        _hpar = other.daal::algorithms::Analysis<batch>::_hpar;
+        return *this;
+    }
+
+    /**
      * Returns the structure that contains correlation or variance-covariance matrix
      * \return Structure that contains the computed matrix
      */
@@ -344,7 +358,7 @@ public:
     typedef typename super::ResultType ResultType;
 
     /** Default constructor */
-    Batch() { initialize(); }
+    Batch();
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -353,7 +367,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : BatchImpl(other) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual ~Batch() {}
 

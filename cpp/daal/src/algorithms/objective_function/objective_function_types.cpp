@@ -42,9 +42,20 @@ Parameter::Parameter(const DAAL_UINT64 resultsToCompute) : resultsToCompute(resu
 
 Parameter::Parameter(const Parameter & other) : resultsToCompute(other.resultsToCompute) {}
 
+Parameter & Parameter::operator=(const Parameter & other)
+{
+    this->resultsToCompute = other.resultsToCompute;
+    return *this;
+}
+
 /** Default constructor */
 Input::Input(size_t n) : daal::algorithms::Input(n) {}
 Input::Input(const Input & other) : daal::algorithms::Input(other) {}
+Input & Input::operator=(const Input & other)
+{
+    daal::algorithms::Input::operator=(other);
+    return *this;
+}
 
 /**
  * Sets one input object for Objective function

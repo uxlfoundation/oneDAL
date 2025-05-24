@@ -42,6 +42,10 @@ namespace prediction
 {
 namespace interface1
 {
+Input::Input()                                = default;
+Input::Input(const Input & other)             = default;
+Input & Input::operator=(const Input & other) = default;
+
 /**
  * Returns an input object for making gradient boosted trees model-based prediction
  * \param[in] id    Identifier of the input object

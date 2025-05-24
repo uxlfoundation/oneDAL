@@ -19,27 +19,56 @@
 #include <variant>
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
-
+#include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::backend::primitives {
 
+/// Convert a table to a 2D ndarray
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param table Input table
+///
+/// @return The new 2D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 2> table2ndarray(const table& table) {
+    ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS(service::table2ndarray,
+                                           table.get_row_count(),
+                                           table.get_column_count());
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull({ 0, -1 });
     return ndarray<Type, 2>::wrap(data, { table.get_row_count(), table.get_column_count() });
 }
 
+/// Convert a table to a 1D ndarray
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param table Input table
+///
+/// @return The new 1D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 1> table2ndarray_1d(const table& table) {
+    ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS(service::table2ndarray_1d,
+                                           table.get_row_count(),
+                                           table.get_column_count());
     row_accessor<const Type> accessor{ table };
     const auto data = accessor.pull({ 0, -1 });
     return ndarray<Type, 1>::wrap(data, { data.get_count() });
 }
 
 #ifdef ONEDAL_DATA_PARALLEL
+/// Convert a table to a 2D ndarray with row-major data order.
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 2D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
                                                      const table& table,
@@ -51,6 +80,15 @@ inline ndarray<Type, 2, ndorder::c> table2ndarray_rm(sycl::queue& q,
     return arr_t::wrap(data, { table.get_row_count(), table.get_column_count() });
 }
 
+/// Convert a homogeneous table to a 2D ndarray with column-major data order.
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 2D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 2, ndorder::f> homogen_table2ndarray_cm(sycl::queue& q,
                                                              const table& table,
@@ -91,6 +129,15 @@ inline ndarray<Type, 2, ndorder::f> homogen_table2ndarray_cm(sycl::queue& q,
     }
 }
 
+/// Convert a table to a 2D ndarray with column-major data order.
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 2D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
                                                      const table& table,
@@ -115,10 +162,23 @@ inline ndarray<Type, 2, ndorder::f> table2ndarray_cm(sycl::queue& q,
     return cm;
 }
 
+/// Convert a table to a 2D ndarray
+///
+/// @tparam Type  The type of the memory block elements within the ndarray.
+/// @tparam order The order of the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 2D ndarray instance.
 template <typename Type, ndorder order = ndorder::c>
 inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
                                              const table& table,
                                              sycl::usm::alloc alloc = sycl::usm::alloc::shared) {
+    ONEDAL_PROFILER_SERVICE_TASK_WITH_ARGS_QUEUE(service::table2ndarray_queue,
+                                                 q,
+                                                 table.get_row_count());
     [[maybe_unused]] const auto layout = table.get_data_layout();
     if constexpr (order == ndorder::c) {
         ONEDAL_ASSERT(layout == decltype(layout)::row_major);
@@ -130,6 +190,17 @@ inline ndarray<Type, 2, order> table2ndarray(sycl::queue& q,
     }
 }
 
+/// Convert a table to a 2D ndarray with the data order determined by the table layout.
+///
+/// @tparam Type  The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 2D ndarray instance. If the table layout is row-major, the ndarray will have
+///         row-major data order. If the table layout is column-major, the ndarray will have
+///         column-major data order.
 template <typename Type>
 inline auto table2ndarray_variant(sycl::queue& q, const table& table, sycl::usm::alloc alloc) {
     ONEDAL_ASSERT(table.has_data());
@@ -146,6 +217,15 @@ inline auto table2ndarray_variant(sycl::queue& q, const table& table, sycl::usm:
     return result;
 }
 
+/// Convert a table to a 1D ndarray
+///
+/// @tparam Type The type of the memory block elements within the ndarray.
+///
+/// @param q     The SYCL* queue.
+/// @param table Input table.
+/// @param alloc The USM allocation type.
+///
+/// @return The new 1D ndarray instance.
 template <typename Type>
 inline ndarray<Type, 1> table2ndarray_1d(sycl::queue& q,
                                          const table& table,

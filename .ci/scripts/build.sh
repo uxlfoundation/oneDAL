@@ -37,6 +37,8 @@ show_help() {
 --use-openrng:Set this to yes if openrng is to be used as RNG backend. Use this only with the `ref` backend.
 --openrng-dir:The directory in which openrng is installed. Only to be used with `ref` backend and `--use-openrng yes`.
 --sysroot:The sysroot to use, in the case that clang is used as the cross-compiler
+--debug:Set build debug mode flag
+--jobs:The number of parallel threads to use for oneDAL building
 '
 }
 
@@ -79,6 +81,12 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --use-openrng)
         use_openrng="$2"
+        shift;;
+        --debug)
+        use_debug="$2"
+        shift;;
+        --jobs)
+        jobs="$2"
         shift;;
         --help)
         show_help
@@ -132,7 +140,9 @@ else
 fi
 
 #setting build parallelization based on number of threads
-if [ "$(uname)" == "Linux" ]; then
+if [[ -n "${jobs}" ]]; then
+    make_op="-j${jobs}"
+elif [ "$(uname)" == "Linux" ]; then
     make_op="-j$(nproc --all)"
 else
     make_op="-j$(sysctl -n hw.physicalcpu)"
@@ -261,6 +271,10 @@ fi
 
 if [ "${use_openrng}" == "yes" ]; then
     make_options+=(RNG_BACKEND=openrng)
+fi
+
+if [ -n "${use_debug}" ]; then
+    make_options+=(REQDBG="${use_debug}")
 fi
 
 echo "Calling make"

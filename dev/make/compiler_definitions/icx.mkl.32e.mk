@@ -32,10 +32,11 @@ CORE.SERV.COMPILER.icx = generic
 
 COMPILER.lnx.icx = icx -m64 \
                      -Werror -Wreturn-type -qopenmp-simd
-
+COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations
 
 link.dynamic.lnx.icx = icx -m64 -no-intel-lib
+link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \

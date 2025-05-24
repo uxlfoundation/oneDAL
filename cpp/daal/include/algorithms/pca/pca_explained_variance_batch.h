@@ -84,7 +84,7 @@ public:
  *      - \ref ResultId       %Result identifiers for the metric algorithm
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public daal::algorithms::quality_metric::Batch
+class DAAL_EXPORT Batch : public daal::algorithms::quality_metric::Batch
 {
 public:
     typedef algorithms::pca::quality_metric::explained_variance::Input InputType;
@@ -95,7 +95,7 @@ public:
     ParameterType parameter; /*!< Parameters of the algorithm */
 
     /** Default constructor */
-    Batch(size_t nFeatures = 0, size_t nComponents = 0) : parameter(nFeatures, nComponents) { initialize(); }
+    Batch(size_t nFeatures = 0, size_t nComponents = 0);
 
     /**
      * Constructs an algorithm by copying input objects and parameters
@@ -103,11 +103,9 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : parameter(other.parameter)
-    {
-        initialize();
-        input.set(eigenvalues, other.input.get(eigenvalues));
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
+
+    ~Batch() = default;
 
     /**
      * Returns the method of the algorithm

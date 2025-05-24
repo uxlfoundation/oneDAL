@@ -56,7 +56,7 @@ enum ResultToComputeId
 };
 
 /**
- * \brief Contains version 1.0 of Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {
@@ -126,6 +126,9 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     Model();
+
+    Model(const Model & other);
+    Model & operator=(const Model & other);
 
     /**
      * Constructs multi-class classifier model

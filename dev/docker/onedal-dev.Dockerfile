@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-FROM ubuntu:24.04@sha256:77d57fd89366f7d16615794a5b53e124d742404e20f035c22032233f1826bd6a
+FROM ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
 
 ARG workdirectory="/sources/oneDAL"
 WORKDIR ${workdirectory}

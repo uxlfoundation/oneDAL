@@ -70,7 +70,7 @@ enum OptionalDataId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface.
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface.
  */
 namespace interface2
 {
@@ -137,6 +137,7 @@ public:
     typedef optimization_solver::iterative_solver::Input super;
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     using super::set;
     using super::get;

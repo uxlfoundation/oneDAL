@@ -35,17 +35,19 @@ Float backtracking(sycl::queue queue,
     using dal::backend::operator+;
     event_vector precompute = {};
     if (!x0_initialized) {
-        precompute = f.update_x(x, false, deps);
+        precompute = f.update_x(x, true, false, deps);
     }
     Float f0 = f.get_value();
     auto grad_f0 = f.get_gradient();
     Float df0 = 0;
     dot_product(queue, grad_f0, direction, result.get_mutable_data(), &df0, deps + precompute)
         .wait_and_throw();
+    Float dir_inf_norm = 0;
+    max_abs(queue, direction, result.get_mutable_data(), &dir_inf_norm, deps).wait_and_throw();
     Float cur_val = 0;
     constexpr Float eps = std::numeric_limits<Float>::epsilon();
     bool is_first_iter = true;
-    while ((is_first_iter || cur_val > f0 + c1 * alpha * df0) && alpha > eps) {
+    while ((is_first_iter || cur_val - f0 > c1 * alpha * df0) && alpha * dir_inf_norm > eps) {
         // TODO check that conditions are the same across diferent devices
         if (!is_first_iter) {
             alpha /= 2;
@@ -58,9 +60,13 @@ Float backtracking(sycl::queue queue,
         };
 
         auto update_x_event = element_wise(queue, update_x_kernel, x, direction, result, {});
-        auto func_event_vec = f.update_x(result, false, { update_x_event });
+        auto func_event_vec = f.update_x(result, false, false, { update_x_event });
         wait_or_pass(func_event_vec).wait_and_throw();
         cur_val = f.get_value();
+    }
+    if (alpha * dir_inf_norm <= eps) {
+        // if we add alpha * dir the vector of weights will not change
+        alpha = 0;
     }
     return alpha;
 }

@@ -90,7 +90,7 @@ constexpr auto get_vertex_outward_neighbors(const Graph &g, vertex_type<Graph> u
 /// Returns the value of an edge (u, v)
 ///
 /// @tparam Graph  Type of the graph
-/// @param [in]   graph  Input graph object
+/// @param [in]   g Input graph object
 /// @param [in]   u Source vertex index
 /// @param [in]   v Destination vertex index
 ///

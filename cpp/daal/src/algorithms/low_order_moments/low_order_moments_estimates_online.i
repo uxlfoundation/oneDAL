@@ -283,13 +283,13 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
     const size_t numRowsBlocks      = _cd.nVectors / numRowsInBlock;
     const size_t numRowsInLastBlock = numRowsInBlock + (_cd.nVectors - numRowsBlocks * numRowsInBlock);
 
-    DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.compute);
+    DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.compute);
     /* TLS buffers initialization */
     daal::tls<tls_moments_data_t<algorithmFPType, cpu> *> tls_data([&]() { return new tls_moments_data_t<algorithmFPType, cpu>(_cd.nFeatures); });
 
     SafeStatus safeStat;
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.ProcessBlocks);
+        DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.ProcessBlocks);
         /* Compute partial results for each TLS buffer */
         daal::threader_for(numRowsBlocks, numRowsBlocks, [&](int iBlock) {
             struct tls_moments_data_t<algorithmFPType, cpu> * _td = tls_data.local();
@@ -311,7 +311,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
 #if defined _MEAN_ENABLE_ || defined _SORM_ENABLE_
                 const algorithmFPType _invN = algorithmFPType(1.0) / algorithmFPType(_td->nvectors + 1);
 #endif
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _cd.nFeatures; j++)
                 {
@@ -346,10 +346,10 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                 _td->nvectors++;
             }
         });
-    } // end for DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.ProcessBlocks);
+    } // end for DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.ProcessBlocks);
 
     {
-        DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.MergeBlocks);
+        DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.MergeBlocks);
         /* Number of already merged values */
         algorithmFPType n_current = 0;
 
@@ -376,7 +376,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             algorithmFPType mean_scale     = algorithmFPType(1.0) / (n1_p_n2);
             algorithmFPType variance_scale = algorithmFPType(1.0) / (n1_p_n2 - algorithmFPType(1.0));
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < _cd.nFeatures; j++)
             {
@@ -415,7 +415,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
         if (isOnline)
         {
 #if (defined _SUM_ENABLE_) || (defined _MEAN_ENABLE_)
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < _cd.nFeatures; i++)
             {
@@ -430,7 +430,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             algorithmFPType nVectorsM1 = (algorithmFPType)(_cd.nVectors - 1);
             if (!isOnline)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _cd.nFeatures; i++)
                 {
@@ -441,7 +441,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             {
                 if (nObs == 0)
                 {
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _cd.nFeatures; i++)
                     {
@@ -454,7 +454,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
                     algorithmFPType invNVectors     = 1.0 / (algorithmFPType)_cd.nVectors;
                     algorithmFPType coeff           = (algorithmFPType)(nObs * _cd.nVectors) / (algorithmFPType)(nObs + _cd.nVectors);
 
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _cd.nFeatures; i++)
                     {
@@ -469,7 +469,7 @@ Status compute_estimates(NumericTable * dataTable, PartialResult * partialResult
             }     /* isOnline */
         }         /* if (_cd.nVectors > 0) */
 #endif
-    } // end for DAAL_ITTNOTIFY_SCOPED_TASK(LowOrderMomentsOnlineTask.MergeBlocks);
+    } // end for DAAL_PROFILER_TASK(LowOrderMomentsOnlineTask.MergeBlocks);
 
     _cd.resultArray[(int)nObservations][0] += (algorithmFPType)(_cd.nVectors);
 

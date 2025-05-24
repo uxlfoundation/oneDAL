@@ -42,7 +42,7 @@ namespace oneapi::dal::detail {
 namespace v1 {
 
 // Inheritance from `access_provider_iface` is needed to support binary backward
-// compatibility with the Intel(R) oneAPI Data Analytics Library (oneDAL) 2021.1. This should be removed in 2022.1.
+// compatibility with the oneAPI Data Analytics Library (oneDAL) 2021.1. This should be removed in 2022.1.
 class table_iface : public access_provider_iface {
 public:
     virtual ~table_iface() = default;

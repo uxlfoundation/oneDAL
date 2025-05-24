@@ -151,11 +151,11 @@ def _dump_config_info_impl(ctx):
     config_file = ctx.actions.declare_file("config.json")
     flags_json = []
     for target in ctx.attr.flags:
-        json = "      {}: {},".format(target.label.name, target[ConfigFlagInfo].to_json())
-        flags_json.append(json)
+        target_json = "      {}: {},".format(target.label.name, json.encode(target[ConfigFlagInfo]))
+        flags_json.append(target_json)
     content = ("{\n" +
-    "   cpu: {},\n".format(ctx.attr.cpu_info[CpuInfo].to_json()) +
-    "   version: {},\n".format(ctx.attr.version_info[VersionInfo].to_json()) +
+    "   cpu: {},\n".format(json.encode(ctx.attr.cpu_info[CpuInfo])) +
+    "   version: {},\n".format(json.encode(ctx.attr.version_info[VersionInfo])) +
     "   flags: {\n" +
         "\n".join(flags_json) + "\n" +
     "   }\n" +
@@ -210,7 +210,7 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":         auto_cpu,
             "%{version_major}":    "2025",
-            "%{version_minor}":    "1",
+            "%{version_minor}":    "7",
             "%{version_update}":   "0",
             "%{version_build}":    utils.datestamp(repo_ctx),
             "%{version_buildrev}": "work",

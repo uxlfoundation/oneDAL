@@ -19,8 +19,8 @@
 //  Declaration of template function that calculate mt2203s.
 //--
 
-#ifndef __MCG59_KERNEL_H__
-#define __MCG59_KERNEL_H__
+#ifndef __MT2203_KERNEL_H__
+#define __MT2203_KERNEL_H__
 
 #include "algorithms/engines/mt2203/mt2203.h"
 #include "src/algorithms/kernel.h"

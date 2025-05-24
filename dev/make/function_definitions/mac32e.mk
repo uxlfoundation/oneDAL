@@ -27,7 +27,6 @@ define set_daal_rt_deps
   $$(eval daaldep.mac32e.rt.thr := -L$$(RELEASEDIR.tbb.soia) -ltbb -ltbbmalloc \
           $$(daaldep.mac32e.rt.$$(COMPILER)))
   $$(eval daaldep.mac32e.rt.seq := $$(daaldep.mac32e.rt.$$(COMPILER)))
-  $$(eval daaldep.mac32e.threxport := export_mac.def)
 
   $$(eval daaldep.mac.threxport.create = grep -v -E '^(EXPORTS|;|$$$$$$$$)' $$$$< $$$$(USECPUS.out.grep.filter) | sed -e 's/^/-u /')
 endef

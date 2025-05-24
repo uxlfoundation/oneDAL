@@ -1,18 +1,16 @@
-.. ******************************************************************************
-.. * Copyright 2020 Intel Corporation
-.. *
-.. * Licensed under the Apache License, Version 2.0 (the "License");
-.. * you may not use this file except in compliance with the License.
-.. * You may obtain a copy of the License at
-.. *
-.. *     http://www.apache.org/licenses/LICENSE-2.0
-.. *
-.. * Unless required by applicable law or agreed to in writing, software
-.. * distributed under the License is distributed on an "AS IS" BASIS,
-.. * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-.. * See the License for the specific language governing permissions and
-.. * limitations under the License.
-.. *******************************************************************************/
+.. Copyright 2020 Intel Corporation
+..
+.. Licensed under the Apache License, Version 2.0 (the "License");
+.. you may not use this file except in compliance with the License.
+.. You may obtain a copy of the License at
+..
+..     http://www.apache.org/licenses/LICENSE-2.0
+..
+.. Unless required by applicable law or agreed to in writing, software
+.. distributed under the License is distributed on an "AS IS" BASIS,
+.. WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+.. See the License for the specific language governing permissions and
+.. limitations under the License.
 
 .. highlight:: cpp
 
@@ -66,8 +64,8 @@ The :txtref:`graph` types are defined as templated classes:
   class [graph_name]_graph;
 
 
-.. list-table:: 
-   :widths: 20 40 40 
+.. list-table::
+   :widths: 20 40 40
    :header-rows: 1
 
    * - Type name
@@ -78,19 +76,19 @@ The :txtref:`graph` types are defined as templated classes:
      - :ref:`Empty value <api_empty_value>`
    * - ``EdgeValue``
      - The type of the edge :capterm:`attribute <Attribute>` values
-     - ``std::int32``, ``double``, :ref:`Empty value <api_empty_value>`  
+     - ``std::int32``, ``double``, :ref:`Empty value <api_empty_value>`
    * - ``GraphValue``
      - The type of the graph :capterm:`attribute <Attribute>` value
-     - :ref:`Empty value <api_empty_value>`  
+     - :ref:`Empty value <api_empty_value>`
    * - ``IndexType``
      - The type of the :capterm:`vertex indices <Vertex index>`
-     - ``std::int32`` 
+     - ``std::int32``
    * - ``Allocator``
      - The type of a graph allocator
      - C++17 (ISO/IEC 14882:2017) compliant allocator
 
 
-:ref:`Empty value <api_empty_value>` tag structure is used to define 
+:ref:`Empty value <api_empty_value>` tag structure is used to define
 the absence of a specified attribute of a graph.
 
 .. _api_empty_value:
@@ -100,25 +98,25 @@ the absence of a specified attribute of a graph.
 Graph class contains the default and the move constructor as well as the move assignment operator.
 The graph is accessed using the :ref:`service functions <api_graph_service>`.
 
-.. list-table:: 
-  :widths: 30 70 
+.. list-table::
+  :widths: 30 70
   :header-rows: 1
 
   * - ``graph_type`` method
     - Description
   * - Default constructor
-    - Constructs an empty graph object 
+    - Constructs an empty graph object
   * - Move constructor
-    - Creates a new graph instance and moves the implementation from another instance into this one  
+    - Creates a new graph instance and moves the implementation from another instance into this one
   * - Move assignment
-    - Swaps the implementation of this object and another one 
+    - Swaps the implementation of this object and another one
 
 
 .. _api_graph_traits:
 
 Graph traits
 ------------
-   
+
 Graph traits is a data type that defines the data model and a set of types
 associated with the graph. Graph traits are used by processing and :txtref:`service functionality <api_graph_service>`.
 
@@ -139,7 +137,7 @@ The full list of types defined in ``graph_traits<G>`` is in the table below:
 
 .. _graph_traits_types:
 
-.. list-table:: 
+.. list-table::
    :widths: 20 40 20 20
    :header-rows: 1
 
@@ -189,63 +187,63 @@ The full list of types defined in ``graph_traits<G>`` is in the table below:
      - ``std::int64_t``
    * - ``edge_iterator``
      - The type of the edge iterator in the graph ``G``
-     - *Not available* 
-     - *Not available*  
+     - *Not available*
+     - *Not available*
    * - ``const_edge_iterator``
      - The constant type of the edge iterator in the graph ``G``
-     - *Not available*  
-     - *Not available* 
+     - *Not available*
+     - *Not available*
    * - ``edge_size_type``
-     - The type of the edge indices in the graph ``G`` 
+     - The type of the edge indices in the graph ``G``
      - ``std::int64_t``
      - ``std::int64_t``
    * - ``edge_user_value_type``
-     - The type of edge :capterm:`attribute <Attribute>` 
+     - The type of edge :capterm:`attribute <Attribute>`
      - ``EdgeValue`` :ref:`[1] <GraphTemplateTypes>`
-     - ``EdgeValue`` :ref:`[1] <GraphTemplateTypes>`  
+     - ``EdgeValue`` :ref:`[1] <GraphTemplateTypes>`
    * - ``vertex_edge_size_type``
-     - The type of the vertex neighbors indices 
+     - The type of the vertex neighbors indices
      - ``std::int64_t``
-     - *Not available*     
+     - *Not available*
    * - ``vertex_outward_edge_size_type``
-     - The type of the vertex outward neighbors indices 
+     - The type of the vertex outward neighbors indices
      - *Not available*
      - ``std::int64_t``
    * - ``vertex_edge_iterator_type``
-     - The type of the vertex neighbors iterator 
+     - The type of the vertex neighbors iterator
      - ``IndexType*`` :ref:`[1] <GraphTemplateTypes>`
-     - *Not available*    
-   * - ``const_vertex_edge_iterator_type``
-     - The type of the vertex neighbors constant iterator 
-     - ``const IndexType*`` :ref:`[1] <GraphTemplateTypes>`
-     - *Not available*    
-   * - ``vertex_outward_edge_iterator_type``
-     - The type of the vertex outward neighbors iterator 
      - *Not available*
-     - ``IndexType*`` :ref:`[1] <GraphTemplateTypes>`    
+   * - ``const_vertex_edge_iterator_type``
+     - The type of the vertex neighbors constant iterator
+     - ``const IndexType*`` :ref:`[1] <GraphTemplateTypes>`
+     - *Not available*
+   * - ``vertex_outward_edge_iterator_type``
+     - The type of the vertex outward neighbors iterator
+     - *Not available*
+     - ``IndexType*`` :ref:`[1] <GraphTemplateTypes>`
    * - ``const_vertex_outward_edge_iterator_type``
-     - The type of the vertex outward neighbors constant iterator 
+     - The type of the vertex outward neighbors constant iterator
      - *Not available*
      - ``const IndexType*`` :ref:`[1] <GraphTemplateTypes>`
    * - ``vertex_edge_range``
-     - The type of the range of vertex neighbors 
+     - The type of the range of vertex neighbors
      - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`
-     - *Not available*    
-   * - ``const_vertex_edge_range``
-     - The type of the constant range of vertex neighbors 
-     - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`
-     - *Not available*    
-   * - ``vertex_outward_edge_range``
-     - The type of the range of vertex outward neighbors 
      - *Not available*
-     - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`    
+   * - ``const_vertex_edge_range``
+     - The type of the constant range of vertex neighbors
+     - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`
+     - *Not available*
+   * - ``vertex_outward_edge_range``
+     - The type of the range of vertex outward neighbors
+     - *Not available*
+     - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`
    * - ``const_vertex_outward_edge_range``
-     - The type of the constant range of vertex outward neighbors 
+     - The type of the constant range of vertex outward neighbors
      - *Not available*
      - ``std::pair<IndexType*, IndexType*>`` :ref:`[1] <GraphTemplateTypes>`
 
-     
-.. _GraphTemplateTypes:     
+
+.. _GraphTemplateTypes:
 
 [1] ``VertexValue``, ``EdgeValue``, ``GraphValue``, ``IndexType``, ``Allocator``
 -- :ref:`template parameters of graph G <api_graph_template_type>`.

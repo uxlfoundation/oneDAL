@@ -256,10 +256,6 @@ daal_dynamic_lib(
     deps = [
         ":threading_tbb",
     ],
-    def_file = select({
-        "@config//:backend_ref": "src/threading/export_lnx32e.ref.def",
-        "//conditions:default": "src/threading/export_lnx32e.mkl.def",
-        }),
 )
 
 daal_module(
@@ -306,21 +302,10 @@ filegroup(
     ],
 )
 
-dal_test_suite(
-    name = "unit_tests",
-    framework = "catch2",
-    srcs = glob([
-        "test/*.cpp",
-    ]),
-)
-
 dal_collect_test_suites(
     name = "tests",
     root = "@onedal//cpp/daal/src/algorithms",
     modules = [
         "dtrees/gbt/regression"
-    ],
-    tests = [
-        ":unit_tests",
     ],
 )

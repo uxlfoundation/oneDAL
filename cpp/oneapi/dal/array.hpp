@@ -139,7 +139,7 @@ public:
     /// @param queue   The SYCL* queue object.
     /// @param count   The number of elements of type :literal:`T` to allocate memory for.
     /// @param alloc   The kind of USM to be allocated.
-    /// @pre :expr:`count > 0`s
+    /// @pre :expr:`count > 0`
     static array<T> zeros(sycl::queue& queue,
                           std::int64_t count,
                           const sycl::usm::alloc& alloc = sycl::usm::alloc::shared) {
@@ -222,6 +222,9 @@ public:
         other.reset_data();
     }
 
+    // Add destructor
+    ~array() = default;
+
     /// Creates a new array instance which owns a memory block of externally-allocated mutable data.
     /// The ownership structure is created for a block, the input :literal:`deleter`
     /// is assigned to it.
@@ -253,6 +256,7 @@ public:
     /// @param data         The pointer to externally-allocated memory block.
     /// @param count        The number of elements of type :literal:`Data` in the memory block.
     /// @param deleter      The object used to free :literal:`Data`.
+    /// @param dependencies Events that indicate when :literal:`Data` becomes ready to be read or written.
     template <typename Deleter>
     explicit array(const sycl::queue& queue,
                    T* data,
@@ -334,7 +338,7 @@ public:
     /// @param queue        The SYCL* queue object.
     /// @param data         The shared pointer to externally-allocated memory block.
     /// @param count        The number of elements of type :literal:`Data` in the memory block.
-    /// @param dependencies Events that indicate when :literal:`Data` becomes ready to be read or written
+    /// @param dependencies Events that indicate when :literal:`Data` becomes ready to be read or written.
     explicit array(const sycl::queue& queue,
                    const std::shared_ptr<T>& data,
                    std::int64_t count,
@@ -400,7 +404,7 @@ public:
     /// @post :expr:`data == other.data`
     /// @post :expr:`mutable_data == other.mutable_data`
     /// @post :expr:`count == other.count`
-    array<T> operator=(const array<T>& other) {
+    array<T>& operator=(const array<T>& other) {
         array<T> tmp{ other };
         swap(*this, tmp);
         return *this;
@@ -408,7 +412,7 @@ public:
 
     /// Swaps the values of :literal:`data`, :literal:`mutable_data` pointers, :literal:`count`, and
     /// pointer to the ownership structure in the array instance and :literal:`other`.
-    array<T> operator=(array<T>&& other) {
+    array<T>& operator=(array<T>&& other) {
         swap(*this, other);
         return *this;
     }
@@ -589,6 +593,7 @@ public:
     /// @tparam ConstDeleter The type of a deleter used to free.
     ///                      The deleter implements `void operator()(const Data*)`` member function.
     ///
+    /// @param queue         The SYCL* queue object.
     /// @param data          The immutable memory block pointer to be assigned inside the array
     /// @param count         The number of elements of type :literal:`Data` into the block
     /// @param deleter       The object used to free :literal:`Data`.
