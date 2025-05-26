@@ -70,6 +70,12 @@ struct RefMath<double, cpu>
     // Not implemented
     static double sCdfNormInv(double in) { return std::numeric_limits<double>::quiet_NaN(); }
 
+    static void vAdd(SizeType n, const double * a, const double * b, double * y)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) y[i] = a[i] + b[i];
+    }
+
     static void vPowx(SizeType n, const double * in, double in1, double * out)
     {
 #pragma omp simd
@@ -100,10 +106,7 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static double vExpThreshold()
-    {
-        return -650.0;
-    }
+    static double vExpThreshold() { return -650.0; }
 
     static void vTanh(SizeType n, const double * in, double * out)
     {
@@ -115,6 +118,12 @@ struct RefMath<double, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vInvSqrtI(SizeType n, const double * a, const SizeType inca, double * b, const SizeType incb)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i * incb] = 1.0 / sqrt(a[i * inca]);
     }
 
     static void vLog(SizeType n, const double * in, double * out)
@@ -167,6 +176,12 @@ struct RefMath<float, cpu>
     // Not implemented
     static float sCdfNormInv(float in) { return std::numeric_limits<float>::quiet_NaN(); }
 
+    static void vAdd(SizeType n, const float * a, const float * b, float * y)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) y[i] = a[i] + b[i];
+    }
+
     static void vPowx(SizeType n, const float * in, float in1, float * out)
     {
 #pragma omp simd
@@ -197,10 +212,7 @@ struct RefMath<float, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static float vExpThreshold()
-    {
-        return -75.0f;
-    }
+    static float vExpThreshold() { return -75.0f; }
 
     static void vTanh(SizeType n, const float * in, float * out)
     {
@@ -212,6 +224,12 @@ struct RefMath<float, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) out[i] = sqrt(in[i]);
+    }
+
+    static void vInvSqrtI(SizeType n, const float * a, const SizeType inca, float * b, const SizeType incb)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) b[i * incb] = 1.0f / sqrtf(a[i * inca]);
     }
 
     static void vLog(SizeType n, const float * in, float * out)
