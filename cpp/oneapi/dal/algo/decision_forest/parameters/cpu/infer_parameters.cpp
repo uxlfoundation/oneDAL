@@ -29,7 +29,7 @@ namespace oneapi::dal::decision_forest::parameters {
 
 using dal::backend::context_cpu;
 
-std::int64_t propose_block_size(const context_cpu& ctx) {
+std::int64_t ONEDAL_EXPORT propose_block_size(const context_cpu& ctx) {
     std::int64_t block_size = 22l;
     if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
         /// Here if AVX512 extensions are available on CPU
@@ -42,6 +42,6 @@ using method::by_default;
 using task::classification;
 
 template struct ONEDAL_EXPORT infer_parameters_cpu<float, by_default, classification>;
-template struct ONEDAL_EXPORT infer_parameters_cpu<double, by_default, task::classification>;
+template struct ONEDAL_EXPORT infer_parameters_cpu<double, by_default, classification>;
 
 } // namespace oneapi::dal::decision_forest::parameters

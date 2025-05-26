@@ -44,7 +44,7 @@ namespace multi_class_classifier
 namespace prediction
 {
 /**
- * \brief Contains version 2.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 2.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface2
 {
@@ -104,7 +104,7 @@ public:
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, prediction::Method pmethod = defaultDense,
           training::Method tmethod = training::oneAgainstOne>
-class Batch : public classifier::prediction::Batch
+class DAAL_EXPORT Batch : public classifier::prediction::Batch
 {
 public:
     typedef classifier::prediction::Batch super;
@@ -120,13 +120,13 @@ public:
      * Default constructor
      * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch() : parameter(0) { initialize(); }
+    DAAL_DEPRECATED Batch();
 
     /**
      * Default constructor
      * \param[in] nClasses                         Number of classes
      */
-    Batch(size_t nClasses) : parameter(nClasses) { initialize(); }
+    Batch(size_t nClasses);
 
     /**
      * Constructs multi-class classifier prediction algorithm by copying input objects and parameters
@@ -134,11 +134,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, pmethod, tmethod> & other)
-        : classifier::prediction::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, pmethod, tmethod> & other);
 
     virtual ~Batch() {}
 

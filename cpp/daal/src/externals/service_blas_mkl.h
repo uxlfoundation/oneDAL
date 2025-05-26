@@ -50,14 +50,14 @@ struct MklBlas<double, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static void xsyrk(char * uplo, char * trans, DAAL_INT * p, DAAL_INT * n, double * alpha, double * a, DAAL_INT * lda, double * beta, double * ata,
-                      DAAL_INT * ldata)
+    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
+                      const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
         __DAAL_MKLFN_CALL_BLAS(dsyrk, (uplo, trans, (MKL_INT *)p, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, ata, (MKL_INT *)ldata));
     }
 
-    static void xxsyrk(char * uplo, char * trans, DAAL_INT * p, DAAL_INT * n, double * alpha, double * a, DAAL_INT * lda, double * beta, double * ata,
-                       DAAL_INT * ldata)
+    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const double * alpha, const double * a,
+                       const DAAL_INT * lda, const double * beta, double * ata, const DAAL_INT * ldata)
     {
         int old_nthr = mkl_set_num_threads_local(1);
         __DAAL_MKLFN_CALL_BLAS(dsyrk, (uplo, trans, (MKL_INT *)p, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, ata, (MKL_INT *)ldata));
@@ -155,14 +155,14 @@ struct MklBlas<float, cpu>
 {
     typedef DAAL_INT SizeType;
 
-    static void xsyrk(char * uplo, char * trans, DAAL_INT * p, DAAL_INT * n, float * alpha, float * a, DAAL_INT * lda, float * beta, float * ata,
-                      DAAL_INT * ldata)
+    static void xsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
+                      const DAAL_INT * lda, const float * beta, float * ata, const DAAL_INT * ldata)
     {
         __DAAL_MKLFN_CALL_BLAS(ssyrk, (uplo, trans, (MKL_INT *)p, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, ata, (MKL_INT *)ldata));
     }
 
-    static void xxsyrk(char * uplo, char * trans, DAAL_INT * p, DAAL_INT * n, float * alpha, float * a, DAAL_INT * lda, float * beta, float * ata,
-                       DAAL_INT * ldata)
+    static void xxsyrk(const char * uplo, const char * trans, const DAAL_INT * p, const DAAL_INT * n, const float * alpha, const float * a,
+                       const DAAL_INT * lda, const float * beta, float * ata, const DAAL_INT * ldata)
     {
         int old_nthr = mkl_set_num_threads_local(1);
         __DAAL_MKLFN_CALL_BLAS(ssyrk, (uplo, trans, (MKL_INT *)p, (MKL_INT *)n, alpha, a, (MKL_INT *)lda, beta, ata, (MKL_INT *)ldata));

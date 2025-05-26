@@ -89,7 +89,7 @@ enum ResultId
 };
 
 /**
- * \brief Contains version 1.0 of the Intel(R) oneAPI Data Analytics Library interface
+ * \brief Contains version 1.0 of the oneAPI Data Analytics Library interface
  */
 namespace interface1
 {
@@ -105,6 +105,9 @@ public:
 
     /** Copy constructor */
     Input(const Input & other);
+
+    /** Assign operator */
+    Input & operator=(const Input & other);
 
     /**
      * Returns an input object for making ridge regression model-based prediction

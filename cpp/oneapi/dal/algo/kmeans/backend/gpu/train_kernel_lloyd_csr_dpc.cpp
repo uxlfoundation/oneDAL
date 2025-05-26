@@ -177,6 +177,8 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             const std::int64_t empty_cluster_count =
                 count_empty_clusters(queue, cluster_count, cluster_counts, { count_event });
 
+            last_event = update_event;
+
             Float correction(0);
             sycl::event empty_cluster_event;
             if (empty_cluster_count > 0) {
@@ -191,11 +193,10 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
                                           cluster_counts,
                                           arr_closest_distances,
                                           { update_event });
+                last_event = empty_cluster_event;
             }
 
             objective_function += correction;
-
-            last_event = empty_cluster_event;
 
             if (accuracy_threshold > 0 &&
                 objective_function + accuracy_threshold > prev_objective_function) {

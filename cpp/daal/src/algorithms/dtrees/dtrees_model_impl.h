@@ -490,6 +490,8 @@ public:
     bool reserve(const size_t nTrees);
     bool resize(const size_t nTrees);
     void clear();
+    // check if all allocated memory is valid
+    bool isValid() const;
 
     const data_management::DataCollection * serializationData() const { return _serializationData.get(); }
 

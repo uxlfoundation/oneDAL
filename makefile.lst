@@ -15,7 +15,7 @@
 #===============================================================================
 
 ##  Content:
-##     Intel(R) oneAPI Data Analytics Library algorithms list
+##     oneAPI Data Analytics Library algorithms list
 ##******************************************************************************
 
 CORE.ALGORITHMS.CUSTOM.AVAILABLE := low_order_moments quantiles covariance cosdistance cordistance kmeans pca cholesky \
@@ -65,7 +65,7 @@ multiclassclassifier += classifier
 k_nearest_neighbors += engines classifier
 logistic_regression += classifier optimization_solver objective_function engines
 implicit_als += engines distributions
-engines += engines/mt19937 engines/mcg59 engines/mt2203
+engines += engines/mt19937 engines/mcg59 engines/mrg32k3a engines/philox4x32x10 engines/mt2203
 distributions += distributions/bernoulli distributions/normal distributions/uniform
 tsne +=
 
@@ -95,6 +95,8 @@ CORE.ALGORITHMS.FULL :=                                                       \
     elastic_net                                                               \
     engines                                                                   \
     engines/mcg59                                                             \
+    engines/mrg32k3a                                                          \
+    engines/philox4x32x10                                                     \
     engines/mt19937                                                           \
     engines/mt2203                                                            \
     em                                                                        \
@@ -254,165 +256,3 @@ ONEAPI.ALGOS :=          \
 
 ONEAPI.IO :=     \
     csv
-
-JJ.ALGORITHMS       := adaboost                                                  \
-                       adaboost/prediction                                       \
-                       adaboost/quality_metric_set                               \
-                       adaboost/training                                         \
-                       association_rules                                         \
-                       bacon_outlier_detection                                   \
-                       bf_knn_classification                                     \
-                       bf_knn_classification/prediction                          \
-                       bf_knn_classification/training                            \
-                       binary_adaboost                                           \
-                       binary_adaboost/prediction                                \
-                       binary_adaboost/quality_metric_set                        \
-                       binary_adaboost/training                                  \
-                       boosting                                                  \
-                       boosting/prediction                                       \
-                       boosting/training                                         \
-                       brownboost                                                \
-                       brownboost/prediction                                     \
-                       brownboost/quality_metric_set                             \
-                       brownboost/training                                       \
-                       cholesky                                                  \
-                       classifier                                                \
-                       classifier/prediction                                     \
-                       classifier/quality_metric                                 \
-                       classifier/quality_metric/binary_confusion_matrix         \
-                       classifier/quality_metric/multi_class_confusion_matrix    \
-                       classifier/training                                       \
-                       cordistance                                               \
-                       cosdistance                                               \
-                       covariance                                                \
-                       dbscan                                                    \
-                       decision_forest                                           \
-                       decision_forest/classification                            \
-                       decision_forest/classification/prediction                 \
-                       decision_forest/classification/training                   \
-                       decision_forest/regression                                \
-                       decision_forest/regression/prediction                     \
-                       decision_forest/regression/training                       \
-                       decision_tree                                             \
-                       decision_tree/classification                              \
-                       decision_tree/classification/prediction                   \
-                       decision_tree/classification/training                     \
-                       decision_tree/regression                                  \
-                       decision_tree/regression/prediction                       \
-                       decision_tree/regression/training                         \
-                       distributions                                             \
-                       distributions/bernoulli                                   \
-                       distributions/normal                                      \
-                       distributions/uniform                                     \
-                       elastic_net                                               \
-                       elastic_net/training                                      \
-                       elastic_net/prediction                                    \
-                       engines                                                   \
-                       engines/mcg59                                             \
-                       engines/mt19937                                           \
-                       engines/mt2203                                            \
-                       em_gmm                                                    \
-                       em_gmm/init                                               \
-                       gbt                                                       \
-                       gbt/classification                                        \
-                       gbt/classification/prediction                             \
-                       gbt/classification/training                               \
-                       gbt/regression                                            \
-                       gbt/regression/prediction                                 \
-                       gbt/regression/training                                   \
-                       gbt/training                                              \
-                       implicit_als                                              \
-                       implicit_als/prediction                                   \
-                       implicit_als/prediction/ratings                           \
-                       implicit_als/training                                     \
-                       implicit_als/training/init                                \
-                       kernel_function                                           \
-                       kernel_function/linear                                    \
-                       kernel_function/rbf                                       \
-                       kdtree_knn_classification                                 \
-                       kdtree_knn_classification/prediction                      \
-                       kdtree_knn_classification/training                        \
-                       kmeans                                                    \
-                       kmeans/init                                               \
-                       lasso_regression                                          \
-                       lasso_regression/training                                 \
-                       lasso_regression/prediction                               \
-                       linear_regression                                         \
-                       linear_regression/prediction                              \
-                       linear_regression/quality_metric                          \
-                       linear_regression/quality_metric_set                      \
-                       linear_regression/training                                \
-                       logistic_regression                                       \
-                       logistic_regression/prediction                            \
-                       logistic_regression/training                              \
-                       logitboost                                                \
-                       logitboost/prediction                                     \
-                       logitboost/quality_metric_set                             \
-                       logitboost/training                                       \
-                       low_order_moments                                         \
-                       multi_class_classifier                                    \
-                       multi_class_classifier/prediction                         \
-                       multi_class_classifier/quality_metric_set                 \
-                       multi_class_classifier/training                           \
-                       multinomial_naive_bayes                                   \
-                       multinomial_naive_bayes/prediction                        \
-                       multinomial_naive_bayes/quality_metric_set                \
-                       multinomial_naive_bayes/training                          \
-                       multivariate_outlier_detection                            \
-                       multivariate_outlier_detection/defaultdense               \
-                       multivariate_outlier_detection/bacondense                 \
-                       normalization/minmax                                      \
-                       normalization/zscore                                      \
-                       optimization_solver                                       \
-                       optimization_solver/cross_entropy_loss                    \
-                       optimization_solver/logistic_loss                         \
-                       optimization_solver/objective_function                    \
-                       optimization_solver/sum_of_functions                      \
-                       optimization_solver/mse                                   \
-                       optimization_solver/precomputed                           \
-                       optimization_solver/iterative_solver                      \
-                       optimization_solver/sgd                                   \
-                       optimization_solver/saga                                  \
-                       optimization_solver/coordinate_descent                    \
-                       optimization_solver/lbfgs                                 \
-                       optimization_solver/adagrad                               \
-                       pca                                                       \
-                       pca/quality_metric                                        \
-                       pca/quality_metric_set                                    \
-                       pca/transform                                             \
-                       pivoted_qr                                                \
-                       qr                                                        \
-                       quality_metric                                            \
-                       quality_metric_set                                        \
-                       quantiles                                                 \
-                       ridge_regression                                          \
-                       ridge_regression/prediction                               \
-                       ridge_regression/training                                 \
-                       regression                                                \
-                       regression/training                                       \
-                       regression/prediction                                     \
-                       sorting                                                   \
-                       stump                                                     \
-                       stump/prediction                                          \
-                       stump/training                                            \
-                       stump/classification                                      \
-                       stump/classification/training                             \
-                       stump/classification/prediction                           \
-                       stump/regression                                          \
-                       stump/regression/training                                 \
-                       stump/regression/prediction                               \
-                       svd                                                       \
-                       svm                                                       \
-                       svm/prediction                                            \
-                       svm/quality_metric_set                                    \
-                       svm/training                                              \
-                       tree_utils                                                \
-                       tree_utils/classification                                 \
-                       tree_utils/regression                                     \
-                       univariate_outlier_detection                              \
-                       weak_learner                                              \
-                       weak_learner/prediction                                   \
-                       weak_learner/training
-
-JJ.DATA_MANAGEMENT  := data                                                      \
-                       data_source

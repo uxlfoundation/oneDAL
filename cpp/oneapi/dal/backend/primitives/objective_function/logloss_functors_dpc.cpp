@@ -378,6 +378,7 @@ logloss_function<Float>::logloss_function(sycl::queue& q,
 
 template <typename Float>
 event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
+                                               bool need_grad,
                                                bool need_hessp,
                                                const event_vector& deps) {
     ONEDAL_PROFILER_TASK(logloss_function_update_weights, q_);
@@ -400,14 +401,25 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
 
         auto fill_loss_e = fill(q_, loss_batch, zero, deps);
 
-        sycl::event compute_e = compute_logloss_with_der_sparse(q_,
-                                                                *sp_handle_,
-                                                                labels_,
-                                                                probabilities_,
-                                                                loss_batch,
-                                                                grad_ndview,
-                                                                fit_intercept_,
-                                                                { fill_loss_e, prob_e });
+        sycl::event compute_e;
+        if (need_grad) {
+            compute_e = compute_logloss_with_der_sparse(q_,
+                                                        *sp_handle_,
+                                                        labels_,
+                                                        probabilities_,
+                                                        loss_batch,
+                                                        grad_ndview,
+                                                        fit_intercept_,
+                                                        { fill_loss_e, prob_e });
+        }
+        else {
+            compute_e = compute_logloss(q_,
+                                        labels_,
+                                        probabilities_,
+                                        loss_batch,
+                                        fit_intercept_,
+                                        { fill_loss_e, prob_e });
+        }
 
         value_ = loss_batch.at_device(q_, 0, { compute_e });
 
@@ -439,26 +451,36 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
 
             auto fill_buffer_e = fill(q_, buffer_, zero, last_iter_e);
 
-            sycl::event compute_e = compute_logloss_with_der(q_,
-                                                             data_batch,
-                                                             labels_batch,
-                                                             prob_batch,
-                                                             loss_batch,
-                                                             grad_batch,
-                                                             fit_intercept_,
-                                                             { fill_buffer_e, prob_e });
-
-            sycl::event update_grad_e = element_wise(q_,
-                                                     sycl::plus<>(),
-                                                     grad_ndview,
+            sycl::event compute_e;
+            if (need_grad) {
+                compute_e = compute_logloss_with_der(q_,
+                                                     data_batch,
+                                                     labels_batch,
+                                                     prob_batch,
+                                                     loss_batch,
                                                      grad_batch,
-                                                     grad_ndview,
-                                                     { compute_e });
+                                                     fit_intercept_,
+                                                     { fill_buffer_e, prob_e });
+
+                sycl::event update_grad_e = element_wise(q_,
+                                                         sycl::plus<>(),
+                                                         grad_ndview,
+                                                         grad_batch,
+                                                         grad_ndview,
+                                                         { compute_e });
+                last_iter_e = { update_grad_e };
+            }
+            else {
+                compute_e = compute_logloss(q_,
+                                            labels_batch,
+                                            prob_batch,
+                                            loss_batch,
+                                            fit_intercept_,
+                                            { fill_buffer_e, prob_e });
+                last_iter_e = { compute_e };
+            }
 
             value_ += loss_batch.at_device(q_, 0, { compute_e });
-
-            last_iter_e = { update_grad_e };
-
             if (need_hessp) {
                 auto raw_hessian_batch = raw_hessian.get_slice(first, first + cursize);
                 auto hess_e = compute_raw_hessian(q_, prob_batch, raw_hessian_batch, { prob_e });
@@ -471,7 +493,7 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
         }
     }
     if (comm_.get_rank_count() > 1) {
-        {
+        if (need_grad) {
             ONEDAL_PROFILER_TASK(gradient_allreduce);
             auto gradient_arr = dal::array<Float>::wrap(q_,
                                                         gradient_.get_mutable_data(),
@@ -497,11 +519,19 @@ event_vector logloss_function<Float>::update_x(const ndview<Float, 1>& x,
             const auto range = make_range_1d(p_);
             const std::int64_t st_id = fit_intercept_;
             auto sum_reduction = sycl::reduction(loss_ptr, sycl::plus<>());
-            cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
-                const Float param = w_ptr[st_id + idx];
-                grad_ptr[st_id + idx] += regularization_factor * param;
-                sum_v0 += regularization_factor * param * param / 2;
-            });
+            if (need_grad) {
+                cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
+                    const Float param = w_ptr[st_id + idx];
+                    grad_ptr[st_id + idx] += regularization_factor * param;
+                    sum_v0 += regularization_factor * param * param / 2;
+                });
+            }
+            else {
+                cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v0) {
+                    const Float param = w_ptr[st_id + idx];
+                    sum_v0 += regularization_factor * param * param / 2;
+                });
+            }
         });
 
         value_ += loss_batch.at_device(q_, 0, { regularization_e });

@@ -51,19 +51,31 @@ public:
     }
 
     void generate_parameters() {
+        /// Note: these are set in such a way that the upper end of 'max_cols_batched_'
+        /// would not trigger for the given test sizes, while the upper end for
+        /// 'small_rows_max_cols_batched_' would.
         this->block_ = GENERATE(512, 2048);
+        this->max_cols_batched_ = GENERATE(50);
+        this->small_rows_threshold_ = GENERATE(15, 70);
+        this->small_rows_max_cols_batched_ = GENERATE(40);
         this->pack_as_struct_ = GENERATE(0, 1);
     }
 
     auto get_current_parameters() const {
         detail::train_parameters res{};
         res.set_cpu_macro_block(this->block_), res.set_gpu_macro_block(this->block_);
+        res.set_cpu_max_cols_batched(this->max_cols_batched_);
+        res.set_cpu_small_rows_threshold(this->small_rows_threshold_);
+        res.set_cpu_small_rows_max_cols_batched(this->small_rows_max_cols_batched_);
         return res;
     }
 
     template <typename Desc, typename... Args>
     train_result_t train_override(Desc&& desc, Args&&... args) {
         REQUIRE(this->block_ > 0);
+        REQUIRE(this->max_cols_batched_ > 0);
+        REQUIRE(this->small_rows_threshold_ > 0);
+        REQUIRE(this->small_rows_max_cols_batched_ > 0);
         const auto params = this->get_current_parameters();
         if (this->pack_as_struct_) {
             return te::float_algo_fixture<float_t>::train(
@@ -80,6 +92,9 @@ public:
 
 private:
     std::int64_t block_;
+    std::int64_t max_cols_batched_;
+    std::int64_t small_rows_threshold_;
+    std::int64_t small_rows_max_cols_batched_;
     bool pack_as_struct_;
 };
 

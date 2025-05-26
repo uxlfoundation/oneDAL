@@ -38,6 +38,11 @@ daaldep.lnx32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a
 daaldep.lnx32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
 daaldep.lnx32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$a
 
+# List of oneMKL libraries to exclude from linking.
+# This list is used to generate the `--exclude-libs` linker options.
+# If you need to exclude additional libraries, extend this list by appending the library names.
+MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_intel_ilp64.$a $(plib)mkl_sycl.$a
+
 daaldep.win32e.mkl.thr := $(MKLDIR.libia)/mkl_tbb_thread$d.$a
 daaldep.win32e.mkl.seq := $(MKLDIR.libia)/mkl_sequential.$a
 daaldep.win32e.mkl.interfaces := $(MKLDIR.libia)/mkl_intel_ilp64.$a

@@ -181,7 +181,7 @@ public:
  *      - \ref Method     %Training methods of the implicit ALS algorithm in the first step of the distributed processing mode
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = fastCSR>
-class Distributed : public Training<distributed>
+class DAAL_EXPORT Distributed : public Training<distributed>
 {};
 
 /**
@@ -212,7 +212,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -220,7 +220,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step1Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step1Local, algorithmFPType, method> & other);
 
     /**
     * Returns the method of the algorithm
@@ -319,7 +319,7 @@ public:
     ParameterType parameter;             /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -327,7 +327,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step2Master, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step2Master, algorithmFPType, method> & other);
 
     /**
     * Returns the method of the algorithm
@@ -426,7 +426,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -434,7 +434,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step3Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step3Local, algorithmFPType, method> & other);
 
     /**
     * Returns the method of the algorithm
@@ -533,7 +533,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed() { initialize(); }
+    Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -541,7 +541,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Distributed(const Distributed<step4Local, algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
+    Distributed(const Distributed<step4Local, algorithmFPType, method> & other);
 
     /**
      * Returns the method of the algorithm

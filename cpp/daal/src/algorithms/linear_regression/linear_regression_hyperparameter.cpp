@@ -64,16 +64,39 @@ services::Status convert(const Hyperparameter * params, services::SharedPtr<Line
 
     if (params != nullptr)
     {
-        DAAL_INT64 denseUpdateStepBlockSize = 0l;
+        DAAL_INT64 denseUpdateStepBlockSize     = 0l;
+        DAAL_INT64 denseUpdateMaxColsBatched    = 0l;
+        DAAL_INT64 denseSmallRowsThreshold      = 0l;
+        DAAL_INT64 denseSmallRowsMaxColsBatched = 0l;
 
         auto * const resultPtr = new LinearModelHyperparameter();
         DAAL_CHECK_MALLOC(resultPtr);
         result.reset(resultPtr);
 
+        /// Getters
         st |= params->find(HyperparameterId::denseUpdateStepBlockSize, denseUpdateStepBlockSize);
         DAAL_CHECK(st, services::ErrorHyperparameterNotFound);
 
+        st |= params->find(HyperparameterId::denseUpdateMaxColsBatched, denseUpdateMaxColsBatched);
+        DAAL_CHECK(st, services::ErrorHyperparameterNotFound);
+
+        st |= params->find(HyperparameterId::denseSmallRowsThreshold, denseSmallRowsThreshold);
+        DAAL_CHECK(st, services::ErrorHyperparameterNotFound);
+
+        st |= params->find(HyperparameterId::denseSmallRowsMaxColsBatched, denseSmallRowsMaxColsBatched);
+        DAAL_CHECK(st, services::ErrorHyperparameterNotFound);
+
+        /// Setters
         st |= result->set(LinearModelHyperparameterId::denseUpdateStepBlockSize, denseUpdateStepBlockSize);
+        DAAL_CHECK(st, services::ErrorHyperparameterCanNotBeSet);
+
+        st |= result->set(LinearModelHyperparameterId::denseUpdateMaxColsBatched, denseUpdateMaxColsBatched);
+        DAAL_CHECK(st, services::ErrorHyperparameterCanNotBeSet);
+
+        st |= result->set(LinearModelHyperparameterId::denseSmallRowsThreshold, denseSmallRowsThreshold);
+        DAAL_CHECK(st, services::ErrorHyperparameterCanNotBeSet);
+
+        st |= result->set(LinearModelHyperparameterId::denseSmallRowsMaxColsBatched, denseSmallRowsMaxColsBatched);
         DAAL_CHECK(st, services::ErrorHyperparameterCanNotBeSet);
     }
     else

@@ -23,7 +23,7 @@
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
-#include "src/externals/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 #include "src/algorithms/objective_function/common/objective_function_utils.i"
 
@@ -61,7 +61,7 @@ static void applyBetaImpl(const algorithmFPType * x, const algorithmFPType * bet
     }
     if (bIntercept)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < n; ++i)
         {
@@ -81,7 +81,7 @@ template <typename algorithmFPType, CpuType cpu>
 static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 {
     const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -96,7 +96,7 @@ static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 template <typename algorithmFPType, CpuType cpu>
 static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
 {
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -112,7 +112,7 @@ void LogLossKernel<algorithmFPType, method, cpu>::sigmoid(const algorithmFPType 
     //s = exp(-f)
     vexp<algorithmFPType, cpu>(f, s, n);
     //s = sigm(f)
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -321,12 +321,12 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
             //f = X*b + b0
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(applyBeta);
+                DAAL_PROFILER_TASK(applyBeta);
                 applyBeta(xLocal, b, fPtrLocal, nRowsToProcess, p, parameter->interceptFlag);
             }
 
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(sigmoids);
+                DAAL_PROFILER_TASK(sigmoids);
                 //s = exp(-f)
                 vexp<algorithmFPType, cpu>(fPtrLocal, sgPtrLocal, nRowsToProcess);
 
@@ -336,7 +336,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
             if (valueNT)
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(logLoss.computeValueResult);
+                DAAL_PROFILER_TASK(logLoss.computeValueResult);
                 algorithmFPType * const ls = tlsData.local();
                 DAAL_CHECK_THR(ls, services::ErrorMemoryAllocationFailed);
                 algorithmFPType * const ls1 = ls + nRowsInBlock;
@@ -357,7 +357,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
             if (gradientNT)
             {
-                DAAL_ITTNOTIFY_SCOPED_TASK(applyGradient);
+                DAAL_PROFILER_TASK(applyGradient);
                 DAAL_ASSERT(gradientNT->getNumberOfRows() == nBeta);
 
                 const char notrans         = 'N';
@@ -370,7 +370,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 const DAAL_INT nN          = static_cast<DAAL_INT>(nRowsToProcess);
                 algorithmFPType * const pg = grads.get() + iBlock * p;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {
@@ -380,7 +380,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 daal::internal::BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &notrans, &dim, &yDim, &nN, &one, xLocal, &dim, sgPtrLocal, &nN,
                                                                        &zero, pg, &dim);
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {
@@ -403,7 +403,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
         if (valueNT)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(logLoss.computeValueResult);
+            DAAL_PROFILER_TASK(logLoss.computeValueResult);
 
             WriteRows<algorithmFPType, cpu> vr(valueNT, 0, 1);
             DAAL_CHECK_BLOCK_STATUS(vr);
@@ -441,7 +441,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
         if (gradientNT)
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(applyGradient);
+            DAAL_PROFILER_TASK(applyGradient);
             algorithmFPType * g;
             HomogenNumericTable<algorithmFPType> * const hmgGrad = dynamic_cast<HomogenNumericTable<algorithmFPType> *>(gradientNT);
             WriteRows<algorithmFPType, cpu> gr;
@@ -566,7 +566,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::compute(NumericTab
                                                                       NumericTable * proximalProjection, NumericTable * lipschitzConstant,
                                                                       Parameter * parameter)
 {
-    DAAL_ITTNOTIFY_SCOPED_TASK(LogLossKernel.compute);
+    DAAL_PROFILER_TASK(LogLossKernel.compute);
 
     const size_t nRows                                = dataNT->getNumberOfRows();
     const daal::data_management::NumericTable * ntInd = parameter->batchIndices.get();
@@ -596,7 +596,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::compute(NumericTab
         }
 
         {
-            DAAL_ITTNOTIFY_SCOPED_TASK(getXY);
+            DAAL_PROFILER_TASK(getXY);
             s |= objective_function::internal::getXY<algorithmFPType, cpu>(dataNT, dependentVariablesNT, ntInd, _aX.get(), _aY.get(), nRows, n, p);
         }
         auto internalDataNT = HomogenNumericTableCPU<algorithmFPType, cpu>::create(_aX.get(), p, n);

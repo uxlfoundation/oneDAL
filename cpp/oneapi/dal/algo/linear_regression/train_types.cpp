@@ -56,6 +56,9 @@ template <typename Task>
 struct train_parameters_impl : public base {
     std::int64_t cpu_macro_block = 8'192l;
     std::int64_t gpu_macro_block = 16'384l;
+    std::int64_t cpu_max_cols_batched = 4'096l;
+    std::int64_t cpu_small_rows_threshold = 10'000l;
+    std::int64_t cpu_small_rows_max_cols_batched = 1'024l;
 };
 
 template <typename Task>
@@ -79,6 +82,36 @@ std::int64_t train_parameters<Task>::get_gpu_macro_block() const {
 template <typename Task>
 void train_parameters<Task>::set_gpu_macro_block_impl(std::int64_t val) {
     impl_->gpu_macro_block = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_max_cols_batched() const {
+    return impl_->cpu_max_cols_batched;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_max_cols_batched = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_small_rows_threshold() const {
+    return impl_->cpu_small_rows_threshold;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_small_rows_threshold_impl(std::int64_t val) {
+    impl_->cpu_small_rows_threshold = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_small_rows_max_cols_batched() const {
+    return impl_->cpu_small_rows_max_cols_batched;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_small_rows_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_small_rows_max_cols_batched = val;
 }
 
 template class ONEDAL_EXPORT train_parameters<task::regression>;
@@ -252,8 +285,8 @@ void partial_train_result<Task>::set_partial_xty_impl(const table& value) {
 
 template class ONEDAL_EXPORT train_result<task::regression>;
 template class ONEDAL_EXPORT train_input<task::regression>;
-template class ONEDAL_EXPORT partial_train_input<task::regression>;
 template class ONEDAL_EXPORT partial_train_result<task::regression>;
+template class ONEDAL_EXPORT partial_train_input<task::regression>;
 
 } // namespace v1
 } // namespace oneapi::dal::linear_regression

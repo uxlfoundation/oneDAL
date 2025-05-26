@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2021 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/algo/covariance/compute_types.hpp"
 
-namespace oneapi::dal::backend::primitives {
+#include "daal/src/algorithms/covariance/covariance_kernel.h"
 
-void partial_fisher_yates_shuffle(ndview<std::int64_t, 1>& result_array,
-                                  std::int64_t top,
-                                  std::int64_t seed);
-void partial_fisher_yates_shuffle(ndview<std::int64_t, 1>& result_array, std::int64_t top);
+namespace oneapi::dal::covariance::backend {
 
-} // namespace oneapi::dal::backend::primitives
+using daal_hyperparameters_t = daal::algorithms::covariance::internal::Hyperparameter;
+
+template <typename Float, typename Task>
+daal_hyperparameters_t convert_parameters(const detail::compute_parameters<Task>& params);
+} // namespace oneapi::dal::covariance::backend

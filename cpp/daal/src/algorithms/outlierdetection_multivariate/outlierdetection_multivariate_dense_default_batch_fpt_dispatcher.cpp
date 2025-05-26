@@ -33,5 +33,30 @@ __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multivariate_outlier_detection::BatchConta
  * Added to support deprecated baconDense value
  */
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(multivariate_outlier_detection::BatchContainer, batch, DAAL_FPTYPE, multivariate_outlier_detection::baconDense);
+namespace multivariate_outlier_detection
+{
+namespace interface1
+{
+template <typename algorithmFPType, Method method>
+Batch<algorithmFPType, method>::Batch()
+{
+    initialize();
+}
+
+template <typename algorithmFPType, Method method>
+Batch<algorithmFPType, method>::Batch(const Batch<algorithmFPType, method> & other) : input(other.input)
+{
+    initialize();
+}
+
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>::Batch();
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>::Batch();
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense>::Batch(
+    const Batch<DAAL_FPTYPE, multivariate_outlier_detection::defaultDense> & other);
+template DAAL_EXPORT Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense>::Batch(
+    const Batch<DAAL_FPTYPE, multivariate_outlier_detection::baconDense> & other);
+
+} // namespace interface1
+} // namespace multivariate_outlier_detection
 } // namespace algorithms
 } // namespace daal

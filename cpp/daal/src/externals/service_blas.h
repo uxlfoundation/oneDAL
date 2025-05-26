@@ -103,14 +103,14 @@ struct Blas
 {
     typedef typename _impl<fpType, cpu>::SizeType SizeType;
 
-    static void xsyrk(char * uplo, char * trans, SizeType * p, SizeType * n, fpType * alpha, fpType * a, SizeType * lda, fpType * beta, fpType * ata,
-                      SizeType * ldata)
+    static void xsyrk(const char * uplo, const char * trans, const SizeType * p, const SizeType * n, const fpType * alpha, const fpType * a,
+                      const SizeType * lda, const fpType * beta, fpType * ata, const SizeType * ldata)
     {
         _impl<fpType, cpu>::xsyrk(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }
 
-    static void xxsyrk(char * uplo, char * trans, SizeType * p, SizeType * n, fpType * alpha, fpType * a, SizeType * lda, fpType * beta, fpType * ata,
-                       SizeType * ldata)
+    static void xxsyrk(const char * uplo, const char * trans, const SizeType * p, const SizeType * n, const fpType * alpha, const fpType * a,
+                       const SizeType * lda, const fpType * beta, fpType * ata, const SizeType * ldata)
     {
         _impl<fpType, cpu>::xxsyrk(uplo, trans, p, n, alpha, a, lda, beta, ata, ldata);
     }

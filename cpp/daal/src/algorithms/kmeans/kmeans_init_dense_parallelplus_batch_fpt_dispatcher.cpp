@@ -38,13 +38,13 @@ namespace interface2
 using BatchType = Batch<DAAL_FPTYPE, kmeans::init::parallelPlusDense>;
 
 template <>
-BatchType::Batch(size_t nClasses) : BatchBase(new ParameterType(nClasses)), parameter(*static_cast<ParameterType *>(_par))
+DAAL_EXPORT BatchType::Batch(size_t nClasses) : BatchBase(new ParameterType(nClasses)), parameter(*static_cast<ParameterType *>(_par))
 {
     initialize();
 }
 
 template <>
-BatchType::Batch(const BatchType & other)
+DAAL_EXPORT BatchType::Batch(const BatchType & other)
     : BatchBase(new ParameterType(other.parameter)), parameter(*static_cast<ParameterType *>(_par)), input(other.input)
 {
     initialize();

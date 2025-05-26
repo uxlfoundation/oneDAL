@@ -85,7 +85,7 @@ public:
     typedef algorithms::em_gmm::init::Parameter ParameterType;
     typedef algorithms::em_gmm::init::Result ResultType;
 
-    Batch(const size_t nComponents) : parameter(nComponents) { initialize(); }
+    Batch(const size_t nComponents);
 
     /**
      * Constructs an algorithm that computes initial values for the EM for GMM algorithm by copying input objects
@@ -93,8 +93,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : input(other.input), parameter(other.parameter) { initialize(); }
-
+    Batch(const Batch<algorithmFPType, method> & other);
     /**
     * Returns the method of the algorithm
     * \return Method of the algorithm

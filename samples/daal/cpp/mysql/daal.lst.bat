@@ -16,7 +16,7 @@ rem limitations under the License.
 rem ============================================================================
 
 ::  Content:
-::     Intel(R) oneAPI Data Analytics Library samples list
+::     oneAPI Data Analytics Library samples list
 ::******************************************************************************
 
 set MYSQL_SAMPLE_LIST=datasource_mysql ^

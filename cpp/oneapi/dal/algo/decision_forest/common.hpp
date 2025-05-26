@@ -23,6 +23,8 @@
 #include "oneapi/dal/detail/serialization.hpp"
 #include "oneapi/dal/detail/threading.hpp"
 
+#include "oneapi/dal/rng.hpp"
+
 namespace oneapi::dal::decision_forest {
 
 namespace task {
@@ -249,6 +251,7 @@ public:
         return get_voting_mode_impl();
     }
 
+    engine_type get_engine_type() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -277,6 +280,7 @@ protected:
     infer_mode get_infer_mode_impl() const;
     voting_mode get_voting_mode_impl() const;
 
+    void set_engine_type_impl(engine_type value);
     void set_seed_impl(std::int64_t value);
 
 private:
@@ -591,6 +595,17 @@ public:
     template <typename T = Task, typename = detail::enable_if_classification_t<T>>
     auto& set_voting_mode(voting_mode value) {
         base_t::set_voting_mode_impl(value);
+        return *this;
+    }
+
+    /// Engine method for the random numbers generator used by the algorithm
+    /// @remark default = engine_method::philox4x32x10
+    engine_type get_engine_type() const {
+        return base_t::get_engine_type();
+    }
+
+    auto& set_engine_type(engine_type value) {
+        base_t::set_engine_type_impl(value);
         return *this;
     }
 

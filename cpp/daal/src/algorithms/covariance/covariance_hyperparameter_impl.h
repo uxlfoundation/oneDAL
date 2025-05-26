@@ -42,7 +42,8 @@ namespace internal
 enum HyperparameterId
 {
     denseUpdateStepBlockSize = 0,
-    hyperparameterIdCount    = denseUpdateStepBlockSize + 1
+    denseUpdateStepGrainSize = 1,
+    hyperparameterIdCount    = 2
 };
 
 enum DoubleHyperparameterId

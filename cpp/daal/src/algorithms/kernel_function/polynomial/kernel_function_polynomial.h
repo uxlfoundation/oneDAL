@@ -57,9 +57,9 @@ public:
     ParameterType parameter; /*!< Parameter of the kernel function*/
     InputType input;         /*!< %Input data structure */
 
-    Batch() { initialize(); }
+    Batch();
 
-    Batch(const Batch<algorithmFPType, method> & other) : KernelIface(other), parameter(other.parameter), input(other.input) { initialize(); }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
 

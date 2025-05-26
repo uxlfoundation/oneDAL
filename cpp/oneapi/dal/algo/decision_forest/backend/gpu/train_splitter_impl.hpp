@@ -19,7 +19,7 @@
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
-#include "oneapi/dal/backend/primitives/rng/rng_engine_collection.hpp"
+
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_misc_structs.hpp"

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/algo/pca/common.hpp"
+#include "oneapi/dal/detail/parameters/system_parameters.hpp"
 
 namespace oneapi::dal::pca {
 
@@ -29,9 +30,42 @@ template <typename Task>
 class train_result_impl;
 
 template <typename Task>
+struct train_parameters_impl;
+
+template <typename Task>
 class partial_train_result_impl;
+
+template <typename Task = task::by_default>
+class train_parameters : public dal::detail::system_parameters {
+public:
+    explicit train_parameters();
+    train_parameters(train_parameters&&) = default;
+    train_parameters(const train_parameters&) = default;
+
+    /// Covariance-based method of PCA splits input data table into blocks of rows to speedup
+    /// the computations.
+    /// These API define the number of rows in the data block.
+    std::int64_t get_cpu_macro_block() const;
+    auto& set_cpu_macro_block(std::int64_t val) {
+        set_cpu_macro_block_impl(val);
+        return *this;
+    }
+
+    /// Minimal number of data blocks to be processed by one thread in covariance-based method
+    std::int64_t get_cpu_grain_size() const;
+    auto& set_cpu_grain_size(std::int64_t val) {
+        set_cpu_grain_size_impl(val);
+        return *this;
+    }
+
+private:
+    void set_cpu_macro_block_impl(std::int64_t val);
+    void set_cpu_grain_size_impl(std::int64_t val);
+    dal::detail::pimpl<train_parameters_impl<Task>> impl_;
+};
 } // namespace v1
 
+using v1::train_parameters;
 using v1::train_input_impl;
 using v1::train_result_impl;
 using v1::partial_train_result_impl;

@@ -94,6 +94,7 @@ public:
     base_matrix_operator<Float>& get_hessian_product() final;
 
     event_vector update_x(const ndview<Float, 1>& x,
+                          bool need_grad = true,
                           bool need_hessp = false,
                           const event_vector& deps = {}) final;
 

@@ -28,7 +28,7 @@ basic usage scenarios of |short_name| with DPCPP. Go to
    should not be run with the code.
 
 #. Set up the required environment for |short_name|
-   (variables such as ``CPATH``, ``LIBRARY_PATH``, and ``LD_LIBRARY_PATH``):
+   (variables such as ``CPLUS_INCLUDE_PATH``, ``LIBRARY_PATH``, and ``LD_LIBRARY_PATH``):
 
    .. tabs::
 

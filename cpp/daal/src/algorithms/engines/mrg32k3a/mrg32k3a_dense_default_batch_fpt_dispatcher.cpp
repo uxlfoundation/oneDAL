@@ -1,0 +1,53 @@
+/* file: mrg32k3a_dense_default_batch_fpt_dispatcher.cpp */
+/*******************************************************************************
+* Copyright contributors to the oneDAL project
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
+
+//++
+//  Implementation of mrg32k3a calculation algorithm dispatcher.
+//--
+
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a_batch_container.h"
+
+namespace daal
+{
+namespace algorithms
+{
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mrg32k3a::BatchContainer, batch, DAAL_FPTYPE, engines::mrg32k3a::defaultDense)
+namespace engines
+{
+namespace mrg32k3a
+{
+namespace interface1
+{
+template <>
+DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mrg32k3a::defaultDense>::Batch(size_t seed)
+{
+    initialize();
+}
+
+using BatchType = Batch<DAAL_FPTYPE, engines::mrg32k3a::defaultDense>;
+
+template <>
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+{
+    initialize();
+}
+
+} // namespace interface1
+} // namespace mrg32k3a
+} // namespace engines
+} // namespace algorithms
+} // namespace daal

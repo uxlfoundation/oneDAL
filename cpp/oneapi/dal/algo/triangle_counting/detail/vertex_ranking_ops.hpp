@@ -32,9 +32,12 @@ struct vertex_ranking_ops_dispatcher {
     vertex_ranking_result<task_t> operator()(const Policy &policy,
                                              const Descriptor &descriptor,
                                              vertex_ranking_input<Graph, task_t> &input) const {
-        const auto &t = dal::preview::detail::csr_topology_builder<Graph>()(input.get_graph());
+        auto topology_builder = dal::preview::detail::csr_topology_builder<Graph>();
+
+        const auto &t = topology_builder(input.get_graph());
 
         static auto impl = get_backend<Policy, Descriptor>(descriptor, t);
+
         return (*impl)(policy, descriptor, t);
     }
 };

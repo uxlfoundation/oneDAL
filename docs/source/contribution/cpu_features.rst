@@ -180,7 +180,7 @@ instruction set specific code. The implementation is located in the file `abc_cl
 
 Although the implementation of the ``method1`` does not contain any instruction set specific code, it is
 expected that the developers leverage SIMD related macros available in |short_name|.
-For example, ``PRAGMA_IVDEP``, ``PRAGMA_VECTOR_ALWAYS``, ``PRAGMA_VECTOR_ALIGNED`` and other pragmas defined in
+For example, ``PRAGMA_FORCE_SIMD``, ``PRAGMA_VECTOR_ALWAYS``, ``PRAGMA_VECTOR_ALIGNED`` and other pragmas defined in
 `service_defines.h <https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/src/services/service_defines.h>`_.
 This will guide the compiler to generate more efficient code for the target architecture.
 

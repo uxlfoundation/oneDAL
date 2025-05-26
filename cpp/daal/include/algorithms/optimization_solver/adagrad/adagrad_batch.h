@@ -100,7 +100,7 @@ public:
     ParameterType parameter; /*!< %Parameter data structure */
 
     /** Default constructor */
-    Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr()) : parameter(objectiveFunction) { initialize(); }
+    Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
      * Constructs a Adaptive gradient descent algorithm by copying input objects
@@ -108,10 +108,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns method of the algorithm

@@ -34,8 +34,8 @@ namespace interface1
 template <typename algorithmFPType, Method method>
 BaseParameter<algorithmFPType, method>::BaseParameter() {};
 
-template BaseParameter<DAAL_FPTYPE, correlationDense>::BaseParameter();
-template BaseParameter<DAAL_FPTYPE, svdDense>::BaseParameter();
+template DAAL_EXPORT BaseParameter<DAAL_FPTYPE, correlationDense>::BaseParameter();
+template DAAL_EXPORT BaseParameter<DAAL_FPTYPE, svdDense>::BaseParameter();
 
 } // namespace interface1
 } // namespace pca

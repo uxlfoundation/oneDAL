@@ -26,10 +26,10 @@ pr:
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2021.10.0'
-  VM_IMAGE : 'ubuntu-22.04'
-  SYSROOT_OS: 'jammy'
-  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b380d914-366b-4b77-a74a-05e3c38b3514/intel-oneapi-base-toolkit-2025.0.0.882_offline.exe'
-  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel'
+  VM_IMAGE : 'ubuntu-24.04'
+  SYSROOT_OS: 'noble'
+  WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/487fd8c3-a3d8-4c22-a903-f8d54c2c57be/intel-oneapi-base-toolkit-2025.1.0.650_offline.exe'
+  WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
 resources:
   repositories:
@@ -376,60 +376,6 @@ jobs:
     condition: failed()
     continueOnError: true
 
-- job: 'LinuxMakeDPCPP'
-  timeoutInMinutes: 0
-  variables:
-    release.dir: '__release_lnx'
-    platform.type : 'lnx32e'
-  pool:
-    vmImage: '$(VM_IMAGE)'
-  steps:
-  - script: |
-      .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
-  - script: |
-      .ci/env/apt.sh dpcpp
-    displayName: 'dpcpp installation'
-  - script: |
-      .ci/env/apt.sh mkl
-    displayName: 'mkl installation'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/describe_system.sh
-    displayName: 'System info'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target daal --conda-env ci-env
-    displayName: 'make daal'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal_dpc
-    displayName: 'make onedal_dpc'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) DPC build'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Upload build artifacts'
-    continueOnError: true
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake
-    displayName: 'daal/cpp examples'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake
-    displayName: 'oneapi/cpp examples'
-  - script: |
-      source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
-    displayName: 'daal/cpp/mpi samples'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) DPC fail'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Uploading on fail'
-    condition: failed()
-
 - job: 'LinuxBazel'
   timeoutInMinutes: 0
   pool:
@@ -440,6 +386,8 @@ jobs:
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
+  - script: |
+      .ci/env/apt.sh opencl
   - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
@@ -474,7 +422,7 @@ jobs:
       # Display oneDAL build configuration
       bazel build @config//:dump
       echo
-      cat bazel-bin/external/config/config.json
+      cat bazel-bin/external/+_repo_rules+config/config.json
       echo
     displayName: 'bazel-configure'
   - script: |
@@ -595,7 +543,7 @@ jobs:
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
       pip install cpufeature
-      pacman -S -y --noconfirm zip dos2unix tree
+      pacman -S -y --noconfirm zip tree
     displayName: 'pacman'
   - script: |
       call %TEMP%\oneapi\setvars.bat --force

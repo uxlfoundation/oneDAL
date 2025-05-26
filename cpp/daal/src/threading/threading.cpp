@@ -41,8 +41,6 @@
     #include <tbb/task.h>
 #endif
 
-using namespace daal::services;
-
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
     return scalable_aligned_malloc(size, alignment);
@@ -799,7 +797,7 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 {
     struct shared_task
     {
-        typedef Atomic<int> RefCounterType;
+        typedef daal::services::Atomic<int> RefCounterType;
 
         shared_task(daal::task & t) : _t(t), _nRefs(nullptr)
         {
@@ -833,6 +831,94 @@ DAAL_EXPORT void _daal_run_task_group(void * taskGroupPtr, daal::task * t)
 DAAL_EXPORT void _daal_wait_task_group(void * taskGroupPtr)
 {
     ((tbb::task_group *)taskGroupPtr)->wait();
+}
+
+/// Class to manage the lifetime of the daal::Reducer object.
+/// It uses a unique_ptr with default_deleter or empty deleter to ensure that the
+/// destructor of the daal::Reducer object is called when needed.
+class ReducerManagingPtr : public daal::internal::UniquePtr<daal::Reducer, DAAL_BASE_CPU, std::function<void(daal::Reducer *)> >
+{
+public:
+    using UniquePtr::UniquePtr;
+
+    /// Deprecate the constructors that do not provide a custom deleter.
+    /// This is to prevent the use of default_deleter, which may not be appropriate for daal::Reducer.
+    ReducerManagingPtr(daal::Reducer *) = delete;
+    ReducerManagingPtr()                = delete;
+    ReducerManagingPtr(std::nullptr_t)  = delete;
+};
+
+/// The class implements the body of the parallel reduce algorithm in compliance with
+/// oneTBB ParallelReduceBody requirements:
+/// https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/named_requirements/algorithms/par_reduce_body
+///
+/// The class uses pimpl idiom to hide the implementation details of the reducer.
+class ReductionBody
+{
+    using EmptyDeleterT = daal::services::internal::EmptyDeleter<daal::Reducer, DAAL_BASE_CPU>;
+
+public:
+    /// Constructs the body of the parallel reduce algorithm from the given reducer.
+    ///
+    /// @param reducer Pointer to the reducer object.
+    explicit ReductionBody(daal::Reducer & reducer) : _reducer(&reducer, EmptyDeleterT {}) {}
+
+    /// Splitting constructor.
+    /// Constructs the partial result initialized to identity value from the given partial result.
+    /// Must be able to run concurrently with `operator()` and `join()` methods.
+    ///
+    /// @param other The body to split.
+    /// @param split Split object.
+    ReductionBody(ReductionBody & other, tbb::split) : _reducer(other._reducer->create()) {}
+
+    /// Accumulate the partial results for a sub-range
+    ///
+    /// @param r The sub-range to process.
+    void operator()(const tbb::blocked_range<size_t> & r)
+    {
+        if (_reducer) _reducer->update(r.begin(), r.end());
+    }
+
+    /// Merge the partial results. The partial result from the given object is merged into this partial result.
+    ///
+    /// @param other The body to merge.
+    void join(ReductionBody & other)
+    {
+        if (_reducer) _reducer->join(other._reducer.get());
+    }
+
+private:
+    ReducerManagingPtr _reducer; // Pointer to the implementation
+};
+
+DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        ReductionBody body(reducer);
+        tbb::parallel_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body);
+    }
+    else
+    {
+        // If the number of threads is 1, we can use the reducer directly
+        // without creating a new instance.
+        reducer.update(0, n);
+    }
+}
+
+DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        ReductionBody body(reducer);
+        tbb::parallel_deterministic_reduce(tbb::blocked_range<size_t>(size_t { 0 }, n, grainSize), body, tbb::static_partitioner());
+    }
+    else
+    {
+        // If the number of threads is 1, we can use the reducer directly
+        // without creating a new instance.
+        reducer.update(0, n);
+    }
 }
 
 namespace daal
