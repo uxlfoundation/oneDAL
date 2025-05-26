@@ -35,7 +35,7 @@ function install_dpcpp {
 }
 
 function install_tbb {
-    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.1
 }
 
 function install_dpl {
