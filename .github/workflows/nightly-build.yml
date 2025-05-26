@@ -47,7 +47,7 @@ jobs:
   build_lnx:
     name: oneDAL Linux nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: uxl-gpu-4xlarge
+    runs-on: uxl-xlarge
     timeout-minutes: 120
 
     steps:
@@ -63,7 +63,6 @@ jobs:
         run: .ci/env/apt.sh mkl
       - name: System Info
         run: |
-          echo $CONDA
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/describe_system.sh
       - name: Make daal
