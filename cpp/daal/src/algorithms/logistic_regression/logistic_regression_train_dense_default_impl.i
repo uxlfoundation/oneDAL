@@ -33,7 +33,7 @@
 #include "algorithms/optimization_solver/objective_function/cross_entropy_loss_batch.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 using namespace daal::algorithms::logistic_regression::training::internal;
 using namespace daal::algorithms::optimization_solver;
