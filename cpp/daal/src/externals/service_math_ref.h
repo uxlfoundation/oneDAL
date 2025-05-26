@@ -106,7 +106,10 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static double vExpThreshold() { return -650.0; }
+    static double vExpThreshold()
+    {
+        return -650.0;
+    }
 
     static void vTanh(SizeType n, const double * in, double * out)
     {
@@ -212,7 +215,10 @@ struct RefMath<float, cpu>
         for (SizeType i = 0; i < n; ++i) out[i] = exp(in[i]);
     }
 
-    static float vExpThreshold() { return -75.0f; }
+    static float vExpThreshold()
+    {
+        return -75.0f;
+    }
 
     static void vTanh(SizeType n, const float * in, float * out)
     {
