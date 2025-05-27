@@ -207,7 +207,7 @@ void LinearModelReducer<algorithmFPType, cpu>::update(size_t begin, size_t end)
         }
         {
             DAAL_PROFILER_THREADING_TASK(reducer.update.gemmXY);
-            BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &trans, &_nFeatures, &_nResponses, reinterpret_cast<DAAL_INT *>(&nRows), &one, xBlock,
+            BlasInst<algorithmFPType, cpu>::xgemm(&notrans, &trans, &_nFeatures, &_nResponses, reinterpret_cast<DAAL_INT *>(&nRows), &one, xBlock,
                                                    &_nFeatures, yBlock, &_nResponses, &one, xtyPtr, &_nBetasIntercept);
         }
         if (_nFeatures < _nBetasIntercept)
