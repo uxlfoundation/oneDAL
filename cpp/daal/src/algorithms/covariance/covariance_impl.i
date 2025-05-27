@@ -263,7 +263,14 @@ public:
             return;
         }
 
-        daal::internal::MathInst<algorithmFPType, cpu>::vAdd(_nFeatures * _nFeatures, thisCrossProduct, otherCrossProduct, thisCrossProduct);
+        /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
+        PRAGMA_FORCE_SIMD
+        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_VECTOR_ALIGNED
+        for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
+        {
+            thisCrossProduct[i] += otherCrossProduct[i];
+        }
         if (!_isNormalized)
         {
             algorithmFPType * thisSums        = sums();
@@ -273,7 +280,14 @@ public:
                 errorCode = ErrorCode::memAllocationFailed;
                 return;
             }
-            daal::internal::MathInst<algorithmFPType, cpu>::vAdd(_nFeatures, thisSums, otherSums, thisSums);
+            /// It is safe to use aligned loads and stores because the data is aligned
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_VECTOR_ALIGNED
+            for (size_t i = 0; i < _nFeatures; i++)
+            {
+                thisSums[i] += otherSums[i];
+            }
         }
     }
 
@@ -386,7 +400,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
             {
                 return services::Status(services::ErrorMemoryAllocationFailed);
             }
-            daal::services::internal::daal_memcpy_s(sums, nFeatures, resultSums, nFeatures);
+            daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
             for (size_t i = 0; i < nFeatures; i++)
             {
                 PRAGMA_FORCE_SIMD
@@ -514,7 +528,11 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         nObservations[0] += partialNObservations[0];
 
         /* Merge sums */
-        daal::internal::MathInst<algorithmFPType, cpu>::vAdd(nFeatures, sums, partialSums, sums);
+        // daal::internal::MathInst<algorithmFPType, cpu>::vAdd(nFeatures, sums, partialSums, sums);
+        for (size_t i = 0; i < nFeatures; i++)
+        {
+            sums[i] += partialSums[i];
+        }
     }
 }
 
