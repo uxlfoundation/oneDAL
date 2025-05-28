@@ -498,7 +498,7 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
     DAAL_INT64 maxColsBatched     = 4096;
     DAAL_INT64 smallRowsThreshold = 10'000; DAAL_INT64 smallRowsMaxColsBatched = 1024;
 
-    if (hyperparameter)
+        if (hyperparameter)
     {
         services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
         DAAL_CHECK_STATUS_VAR(status);
