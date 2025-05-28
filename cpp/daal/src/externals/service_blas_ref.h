@@ -127,6 +127,8 @@ struct OpenBlas<double, cpu>
         double res = ddot_(n, x, incx, y, incy);
         return res;
     }
+
+    static void xscal(const DAAL_INT * n, const double * a, const double * x, const DAAL_INT * incx) { dscal_(n, a, x, incx); }
 };
 
 /*
@@ -219,6 +221,8 @@ struct OpenBlas<float, cpu>
         float res = sdot_(n, x, incx, y, incy);
         return res;
     }
+
+    static void xscal(const DAAL_INT * n, const float * a, const float * x, const DAAL_INT * incx) { sscal_(n, a, x, incx); }
 };
 
 } // namespace ref

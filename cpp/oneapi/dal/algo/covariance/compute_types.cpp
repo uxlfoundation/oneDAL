@@ -57,6 +57,9 @@ struct compute_parameters_impl : public base {
     /// This value defines the default number of rows in the block on CPU.
     std::int64_t cpu_macro_block = 140l;
     std::int64_t cpu_grain_size = 1l;
+    std::int64_t cpu_max_cols_batched = 4096;
+    std::int64_t cpu_small_rows_threshold = 10'000;
+    std::int64_t cpu_small_rows_max_cols_batched = 1024;
 };
 
 template <typename Task>
@@ -88,6 +91,36 @@ std::int64_t compute_parameters<Task>::get_cpu_grain_size() const {
 template <typename Task>
 void compute_parameters<Task>::set_cpu_grain_size_impl(std::int64_t val) {
     impl_->cpu_grain_size = val;
+}
+
+template <typename Task>
+std::int64_t compute_parameters<Task>::get_cpu_max_cols_batched() const {
+    return impl_->cpu_max_cols_batched;
+}
+
+template <typename Task>
+void compute_parameters<Task>::set_cpu_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_max_cols_batched = val;
+}
+
+template <typename Task>
+std::int64_t compute_parameters<Task>::get_cpu_small_rows_threshold() const {
+    return impl_->cpu_small_rows_threshold;
+}
+
+template <typename Task>
+void compute_parameters<Task>::set_cpu_small_rows_threshold_impl(std::int64_t val) {
+    impl_->cpu_small_rows_threshold = val;
+}
+
+template <typename Task>
+std::int64_t compute_parameters<Task>::get_cpu_small_rows_max_cols_batched() const {
+    return impl_->cpu_small_rows_max_cols_batched;
+}
+
+template <typename Task>
+void compute_parameters<Task>::set_cpu_small_rows_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_small_rows_max_cols_batched = val;
 }
 
 template class ONEDAL_EXPORT compute_parameters<task::compute>;
