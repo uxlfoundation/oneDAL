@@ -54,7 +54,7 @@ ifndef sample
 endif
 
 ifndef proc
-    proc = 4
+    proc = 2
 endif
 
 
