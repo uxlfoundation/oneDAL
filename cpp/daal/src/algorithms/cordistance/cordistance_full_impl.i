@@ -32,11 +32,6 @@ namespace correlation_distance
 namespace internal
 {
 template <typename algorithmFPType, CpuType cpu>
-services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTable);
-template <typename algorithmFPType, CpuType cpu>
-services::Status corDistanceFull(const NumericTable * xTable, const NumericTable * yTable, NumericTable * rTable);
-
-template <typename algorithmFPType, CpuType cpu>
 services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTable)
 {
     size_t p = xTable->getNumberOfColumns(); /* Dimension of input feature vector */
@@ -321,8 +316,42 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
     size_t nBlocks1 = nVectors1 / blockSizeDefault;
     nBlocks1 += (nBlocks1 * blockSizeDefault != nVectors1);
 
+    size_t nBlocks2 = nVectors2 / blockSizeDefault;
+    nBlocks2 += (nBlocks2 * blockSizeDefault != nVectors2);
+
     SafeStatus safeStat;
 
+    /* Allocate yMean for all Y vectors before the loop */
+    algorithmFPType * yMean = (algorithmFPType *)daal::services::daal_malloc(nVectors2 * sizeof(algorithmFPType));
+    DAAL_CHECK_MALLOC(yMean);
+
+    /* Compute means for all Y vectors before the loop */
+    for (size_t k2 = 0; k2 < nBlocks2; k2++)
+    {
+        DAAL_INT blockSize2 = blockSizeDefault;
+        if (k2 == nBlocks2 - 1)
+        {
+            blockSize2 = nVectors2 - k2 * blockSizeDefault;
+        }
+
+        size_t shift2 = k2 * blockSizeDefault;
+
+        /* read access to blockSize2 rows in input dataset Y */
+        ReadRows<algorithmFPType, cpu> yBlock(*const_cast<NumericTable *>(yTable), shift2, blockSize2);
+        DAAL_CHECK_BLOCK_STATUS(yBlock);
+        const algorithmFPType * y = yBlock.get();
+
+        for (size_t j = 0; j < blockSize2; j++)
+        {
+            yMean[shift2 + j] = 0.0;
+            for (size_t k = 0; k < p; k++)
+            {
+                yMean[shift2 + j] += y[j * p + k];
+            }
+            yMean[shift2 + j] /= p;
+        }
+    }
+    
     /* compute results for blocks of the distance matrix */
     daal::threader_for(nBlocks1, nBlocks1, [=, &safeStat](size_t k1) {
         DAAL_INT blockSize1 = blockSizeDefault;
@@ -333,17 +362,18 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
 
         /* read access to blockSize1 rows in input dataset X at k1*blockSizeDefault*p row */
         ReadRows<algorithmFPType, cpu> xBlock(*const_cast<NumericTable *>(xTable), k1 * blockSizeDefault, blockSize1);
-        DAAL_CHECK_BLOCK_STATUS_THR(xBlock)
+        DAAL_CHECK_BLOCK_STATUS_THR(xBlock);
         const algorithmFPType * x = xBlock.get();
 
         /* write access to blockSize1 rows in output dataset */
         WriteOnlyRows<algorithmFPType, cpu> rBlock(rTable, k1 * blockSizeDefault, blockSize1);
-        DAAL_CHECK_BLOCK_STATUS_THR(rBlock)
+        DAAL_CHECK_BLOCK_STATUS_THR(rBlock);
         algorithmFPType * r = rBlock.get();
 
         /* Compute means for rows in X block */
-        algorithmFPType * xMean = (algorithmFPType *)daal::services::daal_malloc(blockSize1 * sizeof(algorithmFPType));
-        DAAL_CHECK_MALLOC_THR(xMean)
+        TArrayScalable<algorithmFPType, cpu> xMeanArr(blockSize1);
+        algorithmFPType * xMean = xMeanArr.get();
+        DAAL_CHECK_THR(xMean, ErrorMemoryAllocationFailed);
 
         for (size_t i = 0; i < blockSize1; i++)
         {
@@ -354,9 +384,6 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             }
             xMean[i] /= p;
         }
-
-        size_t nBlocks2 = nVectors2 / blockSizeDefault;
-        nBlocks2 += (nBlocks2 * blockSizeDefault != nVectors2);
 
         for (size_t k2 = 0; k2 < nBlocks2; k2++)
         {
@@ -370,22 +397,8 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
 
             /* read access to blockSize2 rows in input dataset Y */
             ReadRows<algorithmFPType, cpu> yBlock(*const_cast<NumericTable *>(yTable), shift2, blockSize2);
-            DAAL_CHECK_BLOCK_STATUS_THR(yBlock)
+            DAAL_CHECK_BLOCK_STATUS_THR(yBlock);
             const algorithmFPType * y = yBlock.get();
-
-            /* Compute means for rows in Y block */
-            algorithmFPType * yMean = (algorithmFPType *)daal::services::daal_malloc(blockSize2 * sizeof(algorithmFPType));
-            DAAL_CHECK_MALLOC_THR(yMean)
-
-            for (size_t j = 0; j < blockSize2; j++)
-            {
-                yMean[j] = 0.0;
-                for (size_t k = 0; k < p; k++)
-                {
-                    yMean[j] += y[j * p + k];
-                }
-                yMean[j] /= p;
-            }
 
             for (size_t i = 0; i < blockSize1; i++)
             {
@@ -398,7 +411,7 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                     for (size_t k = 0; k < p; k++)
                     {
                         algorithmFPType x_centered = x[i * p + k] - xMean[i];
-                        algorithmFPType y_centered = y[j * p + k] - yMean[j];
+                        algorithmFPType y_centered = y[j * p + k] - yMean[shift2 + j];
 
                         numerator += x_centered * y_centered;
                         xNorm += x_centered * x_centered;
@@ -419,12 +432,12 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                     }
                 }
             }
-
-            daal::services::daal_free(yMean);
         }
 
         daal::services::daal_free(xMean);
     });
+
+    daal::services::daal_free(yMean);
 
     return safeStat.detach();
 }
