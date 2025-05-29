@@ -219,7 +219,9 @@ source env/vars.sh
 
 The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for more information.
 
-Examples of library usage will also be auto-generated as part of the build under path `daal/latest/examples/daal/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+Examples of library usage for both the DAAL and oneAPI interfaces will also be auto-generated as part of the build, under paths `daal/latest/examples/daal/cpp/source` and `daal/latest/examples/oneapi/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+
+* DAAL examples:
 
 ```shell
 cd daal/latest/examples/daal/cpp
@@ -229,7 +231,17 @@ cmake ..
 make -j$(nproc)
 ```
 
-This will generate executables under path `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data`), assuming that one starts from inside the `build` folder (as at the end of the previous step):
+* oneAPI examples:
+
+```shell
+cd daal/latest/examples/oneapi/cpp
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+This will generate executables under paths `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}` and `daal/latest/examples/oneapi/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data` and `daal/latest/examples/oneapi/data`), **assuming that one starts from inside the `build` folder** (as at the end of the previous steps):
 
 ```shell
 cd ..
