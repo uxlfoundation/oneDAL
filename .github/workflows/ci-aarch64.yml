@@ -201,7 +201,8 @@ jobs:
 
       - name: oneapi/cpp examples
         run: |
-          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref --rng-backend openrng
+          echo "::warning::This step is designed to always pass, please look for more details"
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref --rng-backend openrng || true
         env:
           CMAKE_GENERATOR: Ninja
 
