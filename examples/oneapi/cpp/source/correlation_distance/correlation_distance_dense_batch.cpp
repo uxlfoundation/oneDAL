@@ -28,7 +28,7 @@ int main(int argc, char const *argv[]) {
     const auto y = dal::read<dal::table>(dal::csv::data_source{ data_file_name });
     const auto distance_desc = dal::correlation_distance::descriptor{};
 
-    const auto result = dal::compute(kernel_desc, x, y);
+    const auto result = dal::compute(distance_desc, x, y);
 
     std::cout << "Values:\n" << result.get_values() << std::endl;
 

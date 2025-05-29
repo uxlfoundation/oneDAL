@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #define ONEDAL_DATA_PARALLEL
 #endif
 
-#include "oneapi/dal/algo/rbf_kernel.hpp"
+#include "oneapi/dal/algo/correlation_distance.hpp"
 #include "oneapi/dal/io/csv.hpp"
 
 #include "example_util/utils.hpp"
@@ -28,13 +28,13 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue &q) {
-    const auto data_file_name = get_data_path("kernel_function.csv");
+    const auto data_file_name = get_data_path("distance.csv");
 
     const auto x = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
     const auto y = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
 
-    const auto kernel_desc = dal::rbf_kernel::descriptor{}.set_sigma(1.0);
-    const auto result = dal::compute(q, kernel_desc, x, y);
+    const auto distance_desc = dal::correlation_distance::descriptor{};
+    const auto result = dal::compute(q, distance_desc, x, y);
 
     std::cout << "Values:\n" << result.get_values() << std::endl;
 }
