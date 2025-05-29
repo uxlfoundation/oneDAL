@@ -29,7 +29,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 #include <cstdio>
 
 using namespace daal;

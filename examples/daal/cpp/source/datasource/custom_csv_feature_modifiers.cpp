@@ -29,7 +29,7 @@
 #include <algorithm>
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 using namespace daal::data_management;
 

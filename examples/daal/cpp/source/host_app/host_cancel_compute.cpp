@@ -30,7 +30,7 @@
 
 #define DAAL_NOTHROW_EXCEPTIONS //it is required to get cancellation status as compute() return code rather than exception
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 #include <time.h>
 
 using namespace daal;

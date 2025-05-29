@@ -30,7 +30,7 @@
 */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 #include "algorithms/linear_regression/linear_regression_quality_metric_set_batch.h"
 #include "algorithms/linear_regression/linear_regression_quality_metric_set_types.h"
 #include "algorithms/linear_regression/linear_regression_single_beta_batch.h"

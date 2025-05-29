@@ -27,7 +27,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 /* Custom objective function declaration */
 #include "custom_obj_func.h"
