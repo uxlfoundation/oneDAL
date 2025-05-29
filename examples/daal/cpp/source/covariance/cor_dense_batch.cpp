@@ -39,8 +39,8 @@ const std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
-
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+    const auto input_file_name = get_data_path(datasetFileName);
+    FileDataSource<CSVFeatureManager> dataSource(input_file_name,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 

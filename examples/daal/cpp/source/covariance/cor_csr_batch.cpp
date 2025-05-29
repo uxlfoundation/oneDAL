@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     CSRNumericTablePtr dataTable(createSparseTable<float>(input_file_name));
 
     /* Create an algorithm to compute correlation matrix using the default method */
-    covariance::Batch<float, covariance::fastCSR> algorithm;
+    covariance::Batch<float, covariance::singlePassCSR> algorithm;
     algorithm.input.set(covariance::data, dataTable);
 
     /* Set the parameter to choose the type of the output matrix */
