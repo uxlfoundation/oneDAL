@@ -28,7 +28,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "example_util/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;
@@ -41,9 +41,10 @@ const std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
+    const auto input_file_name = get_data_path("batch/covcormoments_csr.csv");
 
     /* Read datasetFileName from a file and create a numeric table to store input data */
-    CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileName));
+    CSRNumericTablePtr dataTable(createSparseTable<float>(input_file_name));
 
     /* Create an algorithm to compute variance-covariance matrix using the default method */
     covariance::Batch<float, covariance::fastCSR> algorithm;

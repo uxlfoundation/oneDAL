@@ -69,8 +69,8 @@ struct MklSpBlas<double, cpu>
         {
             mkl_sparse_d_spmmd(SPARSE_OPERATION_TRANSPOSE, csrA, csrB, SPARSE_LAYOUT_COLUMN_MAJOR, c, (const MKL_INT)*ldc);
         }
-        mkl_sparse_destroy(csrA);
-        mkl_sparse_destroy(csrB);
+        // mkl_sparse_destroy(csrA);
+        // mkl_sparse_destroy(csrB);
     }
 
     static void xcsrmv(const char * transa, const DAAL_INT * m, const DAAL_INT * k, const double * alpha, const char * matdescra, const double * val,

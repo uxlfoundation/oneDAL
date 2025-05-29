@@ -28,19 +28,19 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "example_util/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
+const std::string datasetFileName = "data/batch/covcormoments_dense.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
-
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+    const auto input_file_name = get_data_path("batch/covcormoments_dense.csv");
+    FileDataSource<CSVFeatureManager> dataSource(input_file_name,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 

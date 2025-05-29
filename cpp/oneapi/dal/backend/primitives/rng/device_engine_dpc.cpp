@@ -159,12 +159,12 @@ sycl::event uniform_without_replacement(sycl::queue& queue,
     engine_.skip_ahead_cpu(count);
     auto rand_event = generate_rng(distr, engine_, count, rand_ptr, { fill_event });
 
-    // // Perform Fisher-Yates shuffle for first 'count' elements
+    // Perform Fisher-Yates shuffle for first 'count' elements
     auto shuffle_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(fill_event);
         cgh.single_task([=]() {
             for (std::int64_t idx = 0; idx < count; ++idx) {
-                // // Generate random index between idx and n-1 (inclusive)
+                // Generate random index between idx and n-1 (inclusive)
                 std::int64_t j = idx + rand_ptr[idx] % (n - idx);
                 if (j != idx) {
                     Type tmp = full_ptr[idx];

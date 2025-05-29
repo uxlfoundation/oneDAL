@@ -407,6 +407,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     DAAL_PROFILER_TASK(compute.finalizeCovariance);
 
     algorithmFPType invNObservations   = 1.0 / nObservations;
+    std::cout<<"nObservations"<< nObservations << std::endl;
     algorithmFPType invNObservationsM1 = 1.0;
     if (nObservations > 1.0)
     {
@@ -423,6 +424,9 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
+        std::cout<<invNObservations<<std::endl;
+        std::cout<<"sums[i]"<< sums[i] << std::endl;
+        std::cout<<"mean[i]"<< mean[i] << std::endl;
     }
 
     if (parameter->outputMatrixType == covariance::correlationMatrix)

@@ -117,7 +117,7 @@ public:
     {
         if (n > (b - a))
         {
-            return -1; // Error: n is greater than the range
+            return services::ErrorIncorrectSizeOfArray; // Error: n is greater than the range
         }
         if (n == 0)
         {
@@ -126,7 +126,7 @@ public:
 
         const SizeType range = b - a;
         Type * buffer        = (Type *)daal_malloc(sizeof(Type) * range);
-        if (!buffer) return -2; // Allocation failure
+        if (!buffer) return services::ErrorMemoryAllocationFailed; // Allocation failure
 
         for (SizeType i = 0; i < range; i++)
         {
@@ -143,6 +143,7 @@ public:
                                   const int method = __DAAL_RNG_METHOD_UNIFORM_STD)
     {
         int errorcode = 0;
+        //TODO: add Floyd-Yates shuffle algorithm reference
         for (SizeType i = 0; i < n; i++)
         {
             int j;
