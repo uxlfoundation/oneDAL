@@ -38,7 +38,7 @@ template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 namespace internal
 {
-template class DistanceKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+template class DAAL_EXPORT DistanceKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 } // namespace internal
 
