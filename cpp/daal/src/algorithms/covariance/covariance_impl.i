@@ -569,9 +569,9 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
-        std::cout<<invNObservations<<std::endl;
-        std::cout<<"sums[i]"<< sums[i] << std::endl;
-        std::cout<<"mean[i]"<< mean[i] << std::endl;
+        std::cout << invNObservations << std::endl;
+        std::cout << "sums[i]" << sums[i] << std::endl;
+        std::cout << "mean[i]" << mean[i] << std::endl;
     }
 
     if (parameter->outputMatrixType == covariance::correlationMatrix)

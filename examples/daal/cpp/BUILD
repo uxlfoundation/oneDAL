@@ -63,24 +63,103 @@ _DATA_DEPS = [
 #     extra_deps = _TEST_DEPS,
 # )
 
-# dal_example_suite(
-#     name = "jaccard",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/jaccard/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/oneapi/dal/algo:jaccard",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS + [
-#         "@tbb//:tbb",
-#     ],
-# )
+#"@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
+dal_example_suite(
+    name = "association_rules",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/association_rules/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/assocrules:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "boosting",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/boosting/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/adaboost:kernel",
+        "@onedal//cpp/daal/src/algorithms/brownboost:kernel",
+        "@onedal//cpp/daal/src/algorithms/logitboost:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "cholesky",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/cholesky/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/cholesky:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "decision_tree",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/decision_tree/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "distance",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/distance/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/cordistance:kernel",
+         "@onedal//cpp/daal/src/algorithms/cosdistance:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "distributions",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/distributions/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "elastic_net",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/elastic_net/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/elastic_net:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
 
 dal_algo_example_suite(
     algos = [
-        # "association_rules",
-        # "boosting",
-        # "cholesky",
         "covariance",
         "datasource",
         "dbscan",

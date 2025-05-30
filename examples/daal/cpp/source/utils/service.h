@@ -673,7 +673,7 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
 }
 
 inline bool check_file(const std::string &name) {
-    return std::ifstream{ name }.good();
+    return std::ifstream{name}.good();
 }
 
 inline std::string get_data_path(const std::string &name) {
@@ -690,50 +690,53 @@ inline std::string get_data_path(const std::string &name) {
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {
-    // std::string **filelist = new std::string *[count];
-    // va_list ap;
-    // va_start(ap, count);
-    // for (int i = 0; i < count; i++) {
-    //     filelist[i] = va_arg(ap, std::string *);
-    // }
-    // va_end(ap);
-    // if (argc == 1) {
-    //     for (int i = 0; i < count; i++) {
-    //         checkFileIsAvailable(*(filelist[i]), true);
-    //     }
-    // }
-    // else if (argc == (count + 1)) {
-    //     bool isAllCorrect = true;
-    //     for (int i = 0; i < count; i++) {
-    //         if (!checkFileIsAvailable(argv[i + 1])) {
-    //             isAllCorrect = false;
-    //             break;
-    //         }
-    //     }
-    //     if (isAllCorrect == true) {
-    //         for (int i = 0; i < count; i++) {
-    //             (*filelist[i]) = argv[i + 1];
-    //         }
-    //     }
-    //     else {
-    //         std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
-    //         for (int i = 0; i < count; i++) {
-    //             checkFileIsAvailable(*(filelist[i]), true);
-    //         }
-    //     }
-    // }
-    // else {
-    //     std::cout << "Usage: " << argv[0] << " [ ";
-    //     for (int i = 0; i < count; i++) {
-    //         std::cout << "<filename_" << i << "> ";
-    //     }
-    //     std::cout << "]" << std::endl;
-    //     std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
-    //     for (int i = 0; i < count; i++) {
-    //         checkFileIsAvailable(*(filelist[i]), true);
-    //     }
-    // }
-    // delete[] filelist;
+    std::string **filelist = new std::string *[count];
+
+    va_list ap;
+    va_start(ap, count);
+    for (int i = 0; i < count; i++) {
+        filelist[i] = va_arg(ap, std::string *);
+    }
+    va_end(ap);
+
+    if (argc == 1) {
+        for (int i = 0; i < count; i++) {
+            *(filelist[i]) = get_data_path(*(filelist[i]));
+        }
+    }
+    else if (argc == count + 1) {
+        bool all_exist = true;
+        for (int i = 0; i < count; i++) {
+            if (!check_file(argv[i + 1])) {
+                all_exist = false;
+                break;
+            }
+        }
+
+        if (all_exist) {
+            for (int i = 0; i < count; i++) {
+                *(filelist[i]) = argv[i + 1];
+            }
+        } else {
+            std::cout << "Warning: Some input files not found, trying default dataset filenames.\n";
+            for (int i = 0; i < count; i++) {
+                *(filelist[i]) = get_data_path(*(filelist[i]));
+            }
+        }
+    }
+    else {
+        std::cout << "Usage: " << argv[0] << " [ ";
+        for (int i = 0; i < count; i++) {
+            std::cout << "<filename_" << i << "> ";
+        }
+        std::cout << "]\n";
+        std::cout << "Warning: Try to open default dataset filenames.\n";
+        for (int i = 0; i < count; i++) {
+            *(filelist[i]) = get_data_path(*(filelist[i]));
+        }
+    }
+
+    delete[] filelist;
 }
 
 void copyBytes(daal::byte *dst, daal::byte *src, size_t size) {
