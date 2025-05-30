@@ -28,7 +28,7 @@
 * \example pca_metrics_dense_batch.cpp
 */
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 #include <iostream>
 
 using namespace daal;

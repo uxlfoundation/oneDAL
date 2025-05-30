@@ -30,7 +30,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 #include <stack>
 #include <map>
 

@@ -31,7 +31,7 @@ find_package(oneDAL REQUIRED)
 set_link_type()
 set_common_compiler_options()
 
-include_directories(source/utils)
+include_directories(source)
 
 option(REF_BACKEND "Exclude not supported files for non-MKL backend" OFF)
 

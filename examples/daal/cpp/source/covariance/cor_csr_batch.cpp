@@ -28,7 +28,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;
@@ -37,16 +37,16 @@ using namespace daal::data_management;
 /* Input data set parameters
    Input matrix is stored in the compressed sparse row format with one-based indexing
  */
-const std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
+std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &datasetFileName);
+    const auto input_file_name = get_data_path(datasetFileName);
 
     /* Read datasetFileName from a file and create a numeric table to store input data */
-    CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileName));
+    CSRNumericTablePtr dataTable(createSparseTable<float>(input_file_name));
 
     /* Create an algorithm to compute correlation matrix using the default method */
-    covariance::Batch<float, covariance::fastCSR> algorithm;
+    covariance::Batch<float, covariance::singlePassCSR> algorithm;
     algorithm.input.set(covariance::data, dataTable);
 
     /* Set the parameter to choose the type of the output matrix */

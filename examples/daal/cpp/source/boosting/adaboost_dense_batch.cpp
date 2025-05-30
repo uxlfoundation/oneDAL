@@ -24,10 +24,9 @@
  * <a name="DAAL-EXAMPLE-CPP-ADABOOST_BATCH"></a>
  * \example adaboost_dense_batch.cpp
  */
-#define DAAL_HIDE_DEPRECATED
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;

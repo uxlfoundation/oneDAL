@@ -27,7 +27,7 @@
  */
 
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;
@@ -38,10 +38,10 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
-                                         "../data/online/covcormoments_csr_2.csv",
-                                         "../data/online/covcormoments_csr_3.csv",
-                                         "../data/online/covcormoments_csr_4.csv" };
+std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
+                                   "../data/online/covcormoments_csr_2.csv",
+                                   "../data/online/covcormoments_csr_3.csv",
+                                   "../data/online/covcormoments_csr_4.csv" };
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,

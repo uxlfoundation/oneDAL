@@ -25,7 +25,7 @@
  * \example adaboost_sammer_two_class_batch.cpp
  */
 #include "daal.h"
-#include "service.h"
+#include "utils/service.h"
 
 using namespace daal;
 using namespace daal::algorithms;
