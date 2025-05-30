@@ -32,6 +32,7 @@ endif()
 # Internal variables:
 # ONEDAL_SET_TBB_MANUALLY: yes | no. Default is no
 # MKL_DEPENDENCY: yes | no. Default is no
+# REF_DEPENDENCY: yes | no. Default is no
 # MATH_BACKEND: mkl | ref. Default is mkl
 unset(DAL_LIBS)
 
@@ -76,12 +77,15 @@ endif()
 if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
     set(ONEDAL_LINK "dynamic")
     set(MKL_DEPENDENCY "no")
+    set(REF_DEPENDENCY "no")
 elseif ("${ONEDAL_LINK}" STREQUAL "static")
     set(ONEDAL_LINK "static")
     if("${MATH_BACKEND}" STREQUAL "mkl")
         set(MKL_DEPENDENCY "yes")
+        set(REF_DEPENDENCY "no")
     elseif("${MATH_BACKEND}" STREQUAL "ref")
         set(MKL_DEPENDENCY "no")
+        set(REF_DEPENDENCY "yes")
     endif()
 elseif (NOT "${ONEDAL_LINK}" STREQUAL "static" AND NOT "${ONEDAL_LINK}" STREQUAL "dynamic")
     message(FATAL_ERROR "ONEDAL_LINK must be 'static' or 'dynamic'")
@@ -115,6 +119,7 @@ message(STATUS "ONEDAL_SET_TBB_MANUALLY: ${ONEDAL_SET_TBB_MANUALLY}")
 message(STATUS "MATH_BACKEND:            ${MATH_BACKEND}")
 message(STATUS "REF_BACKEND:             ${REF_BACKEND}")
 message(STATUS "MKL_DEPENDENCY:          ${MKL_DEPENDENCY}")
+message(STATUS "REF_DEPENDENCY:          ${REF_DEPENDENCY}")
 message(STATUS "ONEDAL_USE_DPCPP:        ${ONEDAL_USE_DPCPP}")
 
 if (NOT DAL_LIBRARIES)
@@ -150,6 +155,12 @@ if(MKL_DEPENDENCY STREQUAL "yes")
     set(MKL_INTERFACE_FULL "intel_ilp64")
     find_package(MKL REQUIRED MKL::MKL_SYCL MKL::MKL_CORE)
     list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_core MKL::mkl_intel_ilp64 MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
+endif()
+
+if(REF_DEPENDENCY STREQUAL "yes")
+    find_package(OpenBLAS REQUIRED)
+    set(BLAS_INTERFACE "openblas")
+    list(APPEND oneDAL_IMPORTED_TARGETS OpenBLAS::OpenBLAS)
 endif()
 
 if (ONEDAL_USE_DPCPP STREQUAL "yes" AND ONEDAL_INTERFACE STREQUAL "no")
