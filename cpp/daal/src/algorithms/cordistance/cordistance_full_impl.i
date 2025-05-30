@@ -66,54 +66,10 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
         algorithmFPType sum[blockSizeDefault], buf[blockSizeDefault * blockSizeDefault];
 
         /* compute sums for elements in each row of the block */
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            algorithmFPType s = (algorithmFPType)0.0;
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < p; j++)
-            {
-                s += x[i * p + j];
-            }
-            sum[i] = s;
-        }
+        sumByRows<algorithmFPType, cpu>(blockSize1, p, x, sum);
 
-        /* calculate sum^t * sum */
-        const algorithmFPType one(1.0);
-        const algorithmFPType zero(0.0);
-        algorithmFPType alpha = one, beta = zero;
-        char transa = 'N', transb = 'T';
-        DAAL_INT m = blockSize1, k = 1, nn = blockSize1;
-        DAAL_INT lda = m, ldb = nn, ldc = m;
-
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, sum, &lda, sum, &ldb, &beta, buf, &ldc);
-
-        /* calculate x * x^t - 1/p * sum^t * sum */
-        alpha  = one;
-        beta   = -one / (algorithmFPType)p;
-        transa = 'T';
-        transb = 'N';
-        m = blockSize1, k = p, nn = blockSize1;
-        lda = k, ldb = k, ldc = m;
-
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, x, &lda, x, &ldb, &beta, buf, &ldc);
-
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            if (buf[i * blockSize1 + i] > (algorithmFPType)0.0)
-            {
-                buf[i * blockSize1 + i] = (algorithmFPType)1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(buf[i * blockSize1 + i]);
-            }
-        }
-
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = i + 1; j < blockSize1; j++)
-            {
-                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * buf[i * blockSize1 + i] * buf[j * blockSize1 + j];
-            }
-        }
+        /* compute upper triangle of diagonal block of the correlation distance elements */
+        computeDiagonalBlock<algorithmFPType, cpu, true>(blockSize1, p, x, sum, buf);
 
         for (size_t i = 0; i < blockSize1; i++)
         {
@@ -144,16 +100,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
         algorithmFPType sum1[blockSizeDefault];
 
         /* compute sums for elements in each row of the block x1 */
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            algorithmFPType s = (algorithmFPType)0.0;
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < p; j++)
-            {
-                s += x1[i * p + j];
-            }
-            sum1[i] = s;
-        }
+        sumByRows<algorithmFPType, cpu>(blockSize1, p, x1, sum1);
 
         daal::threader_for(nBlocks - k1 - 1, nBlocks - k1 - 1, [=, &safeStat, &sum1](size_t k3) {
             DAAL_INT blockSize2 = blockSizeDefault;
@@ -193,16 +140,7 @@ services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTa
             algorithmFPType sum2[blockSizeDefault];
 
             /* compute sums for elements in each row of the block x2 */
-            for (size_t i = 0; i < blockSize2; i++)
-            {
-                algorithmFPType s = (algorithmFPType)0.0;
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j < pl; j++)
-                {
-                    s += x2[i * pl + j];
-                }
-                sum2[i] = s;
-            }
+            sumByRows<algorithmFPType, cpu>(blockSize2, p, x2, sum2);
 
             /* calculate sum1^t * sum2 */
             const algorithmFPType one(1.0);

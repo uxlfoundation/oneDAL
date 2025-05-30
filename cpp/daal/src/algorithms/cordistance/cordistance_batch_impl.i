@@ -29,6 +29,7 @@
 #include "src/data_management/service_numeric_table.h"
 
 static const int blockSizeDefault = 128;
+#include "src/algorithms/cordistance/cordistance_impl.i"
 #include "src/algorithms/cordistance/cordistance_full_impl.i"
 #include "src/algorithms/cordistance/cordistance_up_impl.i"
 #include "src/algorithms/cordistance/cordistance_lp_impl.i"
