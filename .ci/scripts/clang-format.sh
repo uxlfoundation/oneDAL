@@ -15,12 +15,12 @@
 # limitations under the License.
 #===============================================================================
 
-echo "Using clang-format version: $(clang-format --version)"
-echo "Starting format check..."
-
 RETURN_CODE=0
 
 CLANG_FORMAT_EXE=${CLANG_FORMAT_EXE:-clang-format-14}
+
+echo "Using clang-format version: $(${CLANG_FORMAT_EXE} --version)"
+echo "Starting format check..."
 
 for sources_path in cpp/daal cpp/oneapi examples/oneapi examples/daal samples/oneapi samples/daal; do
     pushd ${sources_path} || exit 1
