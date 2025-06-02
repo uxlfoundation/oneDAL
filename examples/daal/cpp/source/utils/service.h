@@ -672,11 +672,11 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
-inline bool check_file(std::string &name) {
+inline bool check_file(const std::string &name) {
     return std::ifstream{name}.good();
 }
 
-inline std::string get_data_path(std::string &name) {
+inline std::string get_data_path(const std::string &name) {
     const std::vector<std::string> paths = { "../data", "examples/daal/data" };
 
     for (const auto &path : paths) {
@@ -688,6 +688,7 @@ inline std::string get_data_path(std::string &name) {
 
     return name;
 }
+
 
 void checkArguments(int argc, char *argv[], int count, ...) {
     std::string **filelist = new std::string *[count];
