@@ -7,7 +7,7 @@ load("@onedal//dev/bazel:dal.bzl",
 dal_module(
     name = "example_util",
     hdrs = glob(["source/utils/*.h"]),
-    includes = [ "source" ],
+    includes = [ "source/utils" ],
 )
 
 _TEST_DEPS = [

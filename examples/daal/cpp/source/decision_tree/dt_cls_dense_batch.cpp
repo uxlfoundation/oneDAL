@@ -26,7 +26,7 @@
  */
 
 #include "daal.h"
-#include "utils/service.h"
+#include "service.h"
 #include <cstdio>
 
 using namespace daal;

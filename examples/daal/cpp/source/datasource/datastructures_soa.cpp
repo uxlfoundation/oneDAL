@@ -26,7 +26,7 @@
  */
 
 #include "daal.h"
-#include "utils/service.h"
+#include "service.h"
 
 using namespace daal;
 using namespace daal::data_management;
