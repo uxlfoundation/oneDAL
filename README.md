@@ -29,7 +29,7 @@ oneAPI Data Analytics Library (oneDAL) is a powerful machine learning library th
 
 The library implements classical machine learning algorithms. The boost in their performance is achieved by leveraging the capabilities of Intel&reg; hardware.
 
-The oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://spec.oneapi.io) for oneDAL component.
+The oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://oneapi-spec.uxlfoundation.org) for oneDAL component.
 
 ## Usage
 
@@ -86,9 +86,8 @@ oneDAL documentation:
 
 Other related documentation:
 
-- [daal4py documentation](https://intelpython.github.io/daal4py/)
 - [Extension for Scikit-learn* documentation](https://uxlfoundation.github.io/scikit-learn-intelex/)
-- [oneDAL Specifications](https://spec.oneapi.com/versions/latest/elements/oneDAL/source/index.html)
+- [oneDAL Specifications](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onedal/source/#onedal-section)
 
 ## Apache Spark MLlib
 
