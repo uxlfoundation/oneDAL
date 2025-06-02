@@ -169,10 +169,10 @@ public:
         const FPType * const aa = normBufferA.get() + aOffset;
         const FPType * const bb = (&_a == &_b) ? normBufferA.get() + bOffset : normBufferB.get() + bOffset;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nRowsC; i++)
         {
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
                 res[i * nColsC + j] = aa[i] + bb[j] - 2 * res[i * nColsC + j];

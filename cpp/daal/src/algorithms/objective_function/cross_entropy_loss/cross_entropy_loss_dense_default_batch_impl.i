@@ -61,8 +61,6 @@ static void applyBetaImpl(const algorithmFPType * x, const algorithmFPType * bet
         BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &m, &n, &k, &one, beta + 1, &ldb, x, &k, &zero, xb, &m);
     if (bIntercept)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nRows; ++i)
         {
             for (size_t j = 0; j < nClasses; ++j)
@@ -86,6 +84,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
                                                                    const algorithmFPType * const yLocal)
 {
     DAAL_PROFILER_TASK(softmax);
+    constexpr algorithmFPType one(1.0);
 
     const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
     if (softmaxSums != nullptr)
@@ -97,11 +96,10 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD(reduction(max:maxArg))
         for (size_t i = 1; i < nCols; ++i)
         {
-            if (maxArg < pArg[i]) maxArg = pArg[i];
+            maxArg = (maxArg < pArg[i]) ? pArg[i] : maxArg;
         }
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
@@ -110,7 +108,8 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
             pRes[i] = pArg[i] - maxArg;
             /* make all values less than threshold as threshold value
             to fix slow work on vExp on large negative inputs */
-            if (pRes[i] < expThreshold) pRes[i] = expThreshold;
+            const algorithmFPType isLessThanThreshold(pRes[i] < expThreshold);
+            pRes[i] = isLessThanThreshold * expThreshold + (one - isLessThanThreshold) * pRes[i];
         }
     }
     daal::internal::MathInst<algorithmFPType, cpu>::vExp(nRows * nCols, res, res);
@@ -119,9 +118,8 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         for (size_t iRow = 0; iRow < nRows; ++iRow)
         {
             algorithmFPType * const pRes = res + iRow * nCols;
-            algorithmFPType sum(0.);
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            algorithmFPType sum(0.0);
+            PRAGMA_OMP_SIMD(reduction(+:sum))
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];
@@ -143,8 +141,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             algorithmFPType * const pRes = res + iRow * nCols;
             algorithmFPType sum(0.);
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD(reduction(+:sum))
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];

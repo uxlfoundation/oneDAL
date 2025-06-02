@@ -302,7 +302,6 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const gbt::reg
     _aTree.reset(nTreesTotal);
     DAAL_CHECK_MALLOC(_aTree.get());
 
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = m->at(i);
 
     return runInternal(pHostApp, this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);

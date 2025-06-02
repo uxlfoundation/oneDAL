@@ -364,13 +364,13 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
         const size_t iStart = iBlock * sizeOfBlock;
         const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > nRows) ? nRows : iStart + sizeOfBlock);
 
-        for (size_t i = iStart; i < iEnd; ++i)
+        for (size_t j = 0; j < nCols; ++j)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nCols; ++j)
+            BinIndexType * binIndexPtr = (*binIndex) + nRows * j;
+            const IndexType * featureIndexPtr = featureIndex + nRows * j;
+            for (size_t i = iStart; i < iEnd; ++i)
             {
-                (*binIndex)[nRows * j + i] = static_cast<BinIndexType>(featureIndex[nRows * j + i]);
+                binIndexPtr[i] = static_cast<BinIndexType>(featureIndexPtr[i]);
             }
         }
     });

@@ -155,7 +155,6 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
     imp.mean = this->_aResponse[aIdx[0]].val;
     if (noWeights)
     {
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
         {
             const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
@@ -168,7 +167,6 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
     else
     {
         totalWeights = this->_aWeights[aIdx[0]].val;
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
         {
             const double weights = this->_aWeights[aIdx[i]].val;
@@ -942,8 +940,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         }
         else
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD(reduction(+:nLeft,sumLeft))
             for (size_t i = minidx; i <= idx; ++i)
             {
                 nLeft += nFeatIdx[i];
@@ -962,8 +959,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         }
         else
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD(reduction(+:nLeft,sumLeft,leftWeights))
             for (size_t i = minidx; i <= idx; ++i)
             {
                 nLeft += nFeatIdx[i];
@@ -1054,7 +1050,6 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     right.mean = this->_aResponse[aIdx[r]].val;
     if (noWeights)
     {
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < r; ++i)
         {
             const double delta = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
@@ -1063,7 +1058,6 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
             DAAL_ASSERT(left.var >= 0);
         }
 
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = r + 1; i < n; ++i)
         {
             const double delta = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
@@ -1076,7 +1070,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     else
     {
         leftWeights = this->_aWeights[aIdx[0]].val;
-        PRAGMA_VECTOR_ALWAYS
+
         for (size_t i = 1; i < r; ++i)
         {
             const double weights = this->_aWeights[aIdx[i]].val;
@@ -1088,7 +1082,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
         }
 
         algorithmFPType rightWeights = this->_aWeights[aIdx[r]].val;
-        PRAGMA_VECTOR_ALWAYS
+
         for (size_t i = r + 1; i < n; ++i)
         {
             const double weights = this->_aWeights[aIdx[i]].val;
@@ -1263,8 +1257,7 @@ public:
         algorithmFPType sumMeanDiff        = 0;
         RegErr<algorithmFPType, cpu> * ptr = (RegErr<algorithmFPType, cpu> *)this->oobBuf;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD(reduction(+:yMean))
         for (size_t i = 0; i < nSamples; ++i)
         {
             yMean += py[i];
