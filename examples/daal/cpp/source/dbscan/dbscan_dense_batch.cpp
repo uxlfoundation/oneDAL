@@ -41,7 +41,7 @@ const size_t minObservations = 45;
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
-    const auto input_file_name = get_data_path("batch/dbscan_dense.csv");
+
     /* Initialize FileDataSource to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,

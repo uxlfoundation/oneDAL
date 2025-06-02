@@ -34,7 +34,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
+std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
 const size_t nObservations = 50;
 
 int main(int argc, char* argv[]) {

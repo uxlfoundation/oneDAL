@@ -38,7 +38,7 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
+std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
                                          "../data/online/covcormoments_csr_2.csv",
                                          "../data/online/covcormoments_csr_3.csv",
                                          "../data/online/covcormoments_csr_4.csv" };

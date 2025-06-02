@@ -37,12 +37,13 @@ using namespace daal::data_management;
 /* Input data set parameters
    Input matrix is stored in the compressed sparse row format with one-based indexing
  */
-const std::string datasetFileName = "batch/covcormoments_csr.csv";
+std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    const auto input_file_name = get_data_path(datasetFileName);
+    checkArguments(argc, argv, 1, &datasetFileName);
+  
     /* Read datasetFileName from a file and create a numeric table to store input data */
-    CSRNumericTablePtr dataTable(createSparseTable<float>(input_file_name));
+    CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileName));
 
     /* Create an algorithm to compute variance-covariance matrix using the default method */
     covariance::Batch<float, covariance::fastCSR> algorithm;

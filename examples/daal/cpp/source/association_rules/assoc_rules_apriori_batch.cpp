@@ -33,14 +33,14 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string datasetFileName = "./data/batch/apriori.csv";
+std::string datasetFileName = "../data/batch/apriori.csv";
 
 /* Apriori algorithm parameters */
 const double minSupport = 0.001; /* Minimum support */
 const double minConfidence = 0.7; /* Minimum confidence */
 
 int main(int argc, char* argv[]) {
-    const auto input_file_name = get_data_path(datasetFileName);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
