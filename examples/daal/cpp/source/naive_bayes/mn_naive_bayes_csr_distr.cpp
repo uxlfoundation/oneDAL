@@ -41,11 +41,11 @@ using namespace daal::algorithms::multinomial_naive_bayes;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[4] = { "../data/distributed/naivebayes_train_csr_1.csv",
+std::string trainDatasetFileNames[4] = { "../data/distributed/naivebayes_train_csr_1.csv",
                                                "../data/distributed/naivebayes_train_csr_2.csv",
                                                "../data/distributed/naivebayes_train_csr_3.csv",
                                                "../data/distributed/naivebayes_train_csr_4.csv" };
-const std::string trainGroundTruthFileNames[4] = {
+std::string trainGroundTruthFileNames[4] = {
     "../data/distributed/naivebayes_train_labels_1.csv",
     "../data/distributed/naivebayes_train_labels_2.csv",
     "../data/distributed/naivebayes_train_labels_3.csv",

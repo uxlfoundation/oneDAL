@@ -36,8 +36,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
-const std::string testDatasetFileName = "../data/batch/df_regression_test.csv";
+std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
+std::string testDatasetFileName = "../data/batch/df_regression_test.csv";
 const size_t categoricalFeaturesIndices[] = { 3 };
 const size_t nFeatures = 13; /* Number of features in training and testing data sets */
 
@@ -46,7 +46,7 @@ const size_t nTrees = 100;
 
 training::ResultPtr trainModel();
 void testModel(const training::ResultPtr& res);
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
+void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
@@ -116,7 +116,7 @@ void testModel(const training::ResultPtr& trainingResult) {
     printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
 }
 
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
+void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

@@ -40,7 +40,7 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 const size_t nVectorsInBlock = 2500;
 
-const std::string dataFileNames[] = { "../data/distributed/kmeans_dense_1.csv",
+std::string dataFileNames[] = { "../data/distributed/kmeans_dense_1.csv",
                                       "../data/distributed/kmeans_dense_2.csv",
                                       "../data/distributed/kmeans_dense_3.csv",
                                       "../data/distributed/kmeans_dense_4.csv" };

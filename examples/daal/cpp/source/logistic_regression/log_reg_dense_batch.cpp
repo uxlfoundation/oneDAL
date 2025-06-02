@@ -37,14 +37,14 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/logreg_train.csv";
-const std::string testDatasetFileName = "../data/batch/logreg_test.csv";
+std::string trainDatasetFileName = "../data/batch/logreg_train.csv";
+std::string testDatasetFileName = "../data/batch/logreg_test.csv";
 const size_t nFeatures = 6; /* Number of features in training and testing data sets */
 const size_t nClasses = 5; /* Number of classes */
 
 training::ResultPtr trainModel();
 void testModel(const training::ResultPtr& res);
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
+void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
@@ -120,7 +120,7 @@ void testModel(const training::ResultPtr& trainingResult) {
                       10);
 }
 
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
+void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

@@ -37,7 +37,7 @@
 
 #include "error_handling.h"
 
-size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
+size_t readTextFile(std::string &datasetFileName, daal::byte **data) {
     std::ifstream file(datasetFileName.c_str(), std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         fileOpenError(datasetFileName.c_str());
@@ -82,7 +82,7 @@ void readRowUnknownLength(char *line, std::vector<item_type> &data) {
 }
 
 template <typename item_type>
-daal::data_management::CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
+daal::data_management::CSRNumericTable *createSparseTable(std::string &datasetFileName) {
     std::ifstream file(datasetFileName.c_str());
 
     if (!file.is_open()) {
@@ -672,15 +672,15 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
-inline bool check_file(const std::string &name) {
+inline bool check_file(std::string &name) {
     return std::ifstream{name}.good();
 }
 
-inline std::string get_data_path(const std::string &name) {
+inline std::string get_data_path(std::string &name) {
     const std::vector<std::string> paths = { "../data", "examples/daal/data" };
 
     for (const auto &path : paths) {
-        const std::string try_path = path + "/" + name;
+        std::string try_path = path + "/" + name;
         if (check_file(try_path)) {
             return try_path;
         }

@@ -40,8 +40,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::gbt::regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
-const std::string testDatasetFileName = "../data/batch/df_regression_test.csv";
+std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
+std::string testDatasetFileName = "../data/batch/df_regression_test.csv";
 const size_t categoricalFeaturesIndices[] = { 3 };
 const size_t nFeatures = 13; /* Number of features in training and testing data sets */
 
@@ -163,7 +163,7 @@ public:
 
 training::ResultPtr trainModel();
 double testModel(ModelPtr modelPtr);
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
+void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
 ModelPtr buildModel(Tree *trees);
 Tree *traverseModel(ModelPtr m, BFSNodeVisitor &visitor);
 
@@ -319,7 +319,7 @@ training::ResultPtr trainModel() {
     return algorithm.getResult();
 }
 
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
+void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

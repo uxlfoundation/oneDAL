@@ -171,31 +171,57 @@ dal_example_suite(
     ],
 )
 
-# dal_example_suite(
-#     name = "enable_thread_pinning",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/enable_thread_pinning/*.cpp"]),
-#     # dal_deps = [
-#     #     "@onedal//cpp/daal/src/algorithms/em:kernel",
-#     # ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS + [
-#         "@tbb//:tbb",
-#     ],
-# )
+dal_example_suite(
+    name = "enable_thread_pinning",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/enable_thread_pinning/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
 
-# dal_example_suite(
-#     name = "enable_thread_pinning",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/enable_thread_pinning/*.cpp"]),
-#     # dal_deps = [
-#     #     "@onedal//cpp/daal/src/algorithms/em:kernel",
-#     # ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS + [
-#         "@tbb//:tbb",
-#     ],
-# )
+dal_example_suite(
+    name = "gradient_boosted_trees",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "implicit_als",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/implicit_als/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/implicit_als:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "k_nearest_neighbors",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/k_nearest_neighbors/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/k_nearest_neighbors:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
 
 dal_algo_example_suite(
     algos = [
@@ -204,8 +230,8 @@ dal_algo_example_suite(
         "dbscan",
         "decision_forest",
         "kmeans",
-        "k_nearest_neighbors",
-        "kernel_function",
+        # "k_nearest_neighbors",
+        # "kernel_function",
         "linear_regression",
         # "louvain",
         # "objective_function",
