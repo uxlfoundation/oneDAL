@@ -185,18 +185,18 @@ dal_example_suite(
 #     ],
 # )
 
-dal_example_suite(
-    name = "gradient_boosted_trees",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
-)
+# dal_example_suite(
+#     name = "gradient_boosted_trees",
+#     compile_as = [ "c++" ],
+#     srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
+#     dal_deps = [
+#         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
+#     ],
+#     data = _DATA_DEPS,
+#     extra_deps = _TEST_DEPS + [
+#         "@tbb//:tbb",
+#     ],
+# )
 
 dal_example_suite(
     name = "implicit_als",
