@@ -151,6 +151,7 @@ dal_example_suite(
     srcs = glob(["source/elastic_net/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/elastic_net:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
     ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS + [
