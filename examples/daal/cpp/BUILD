@@ -159,18 +159,18 @@ dal_example_suite(
 #     ],
 # )
 
-dal_example_suite(
-    name = "em",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/em/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/em:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
-)
+# dal_example_suite(
+#     name = "em",
+#     compile_as = [ "c++" ],
+#     srcs = glob(["source/em/*.cpp"]),
+#     dal_deps = [
+#         "@onedal//cpp/daal/src/algorithms/em:kernel",
+#     ],
+#     data = _DATA_DEPS,
+#     extra_deps = _TEST_DEPS + [
+#         "@tbb//:tbb",
+#     ],
+# )
 
 # dal_example_suite(
 #     name = "enable_thread_pinning",
