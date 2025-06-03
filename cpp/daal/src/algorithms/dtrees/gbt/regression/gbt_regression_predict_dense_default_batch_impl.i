@@ -396,8 +396,6 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
     algorithmFPType * contribsOn   = buffer + 2 * elementsInMatrix;
 
     // Copy nominal values (for bias term) to the condition = 0 buffer
-    PRAGMA_FORCE_SIMD
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0ul; i < nRowsData; ++i)
     {
         contribsDiag[i * nColumnsPhi + biasTermIndex] = nominal[i];

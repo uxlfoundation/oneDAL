@@ -312,7 +312,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
         size_t first_height = _MIN_(end - start, chunk_size + ncols);
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD()
             for (size_t i = 0; i < first_height; i++)
             {
                 a_local[i + j * local_tiles * ncols] = A_local[i * ncols + j];
@@ -333,7 +333,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
         {
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD()
                 for (size_t i = j + 1; i < first_height; i++)
                 {
                     A_local[i * ncols + j] = a_local[i + j * local_tiles * ncols];
@@ -373,7 +373,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
 
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD()
                 for (size_t i = 0; i < height; i++)
                 {
                     a_local[i + local_tiles * ncols * j + ncols] = A_tile[i * ncols + j];
@@ -395,7 +395,7 @@ static void tsqr(algorithmFPType * A, const size_t nrows, const size_t ncols, al
                 // only when Q (or U) is necessary - save to input array A (inplace)
                 for (size_t j = 0; j < ncols; j++)
                 {
-                    PRAGMA_VECTOR_ALWAYS
+                    PRAGMA_OMP_SIMD()
                     for (size_t i = 0; i < height; i++)
                     {
                         A_tile[i * ncols + j] = a_local[i + local_tiles * ncols * j + ncols];
@@ -683,7 +683,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
             // Copy reconstructed Q from lower portion of "a" buffer to output
             for (size_t j = 0; j < ncols; j++)
             {
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD()
                 for (size_t i = 0; i < height; i++)
                 {
                     A_tile[i * ncols + j] = a[i + local_tiles * ncols * j + ncols];
@@ -732,7 +732,7 @@ static void tsgetq(algorithmFPType * A, const size_t nrows, const size_t ncols, 
         // Copy reconstructed Q back
         for (size_t j = 0; j < ncols; j++)
         {
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD()
             for (size_t i = 0; i < first_height; i++)
             {
                 A_local[i * ncols + j] = a[i + j * local_tiles * ncols];

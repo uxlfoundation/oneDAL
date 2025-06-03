@@ -189,10 +189,9 @@ protected:
                 PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
-                    if (indexedFeature[aIdx[i]] != idxFeatureValueBestSplit)
-                        bestSplitIdxRight[iRight++] = aIdx[i];
-                    else
-                        bestSplitIdx[iLeft++] = aIdx[i];
+                    const RowIndexType isRight(indexedFeature[aIdx[i]] > idxFeatureValueBestSplit);
+                    bestSplitIdxRight[iRight++] = isRight * aIdx[i];
+                    bestSplitIdx[iLeft++] = (1 - isRight) * aIdx[i];
                 }
             }
             else
@@ -201,10 +200,9 @@ protected:
                 PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
-                    if (indexedFeature[aIdx[i]] > idxFeatureValueBestSplit)
-                        bestSplitIdxRight[iRight++] = aIdx[i];
-                    else
-                        bestSplitIdx[iLeft++] = aIdx[i];
+                    const RowIndexType isRight(indexedFeature[aIdx[i]] > idxFeatureValueBestSplit);
+                    bestSplitIdxRight[iRight++] = isRight * aIdx[i];
+                    bestSplitIdx[iLeft++] = (1 - isRight) * aIdx[i];
                 }
             }
 

@@ -339,7 +339,7 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
         addsPtr[3]      = 0.0f;
 
         RowIndexType i = iStart;
-        PRAGMA_FORCE_SIMD
+
         for (; i < iEndWithPrefetch; ++i)
         {
             DAAL_PREFETCH_READ_T0(pgh + 2 * aIdx[i + prefetchOffset]);
@@ -350,8 +350,6 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];
 
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
             for (IndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
@@ -361,14 +359,12 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
             }
         }
 
-        PRAGMA_FORCE_SIMD
         for (; i < iEnd; ++i)
         {
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];
 
-            PRAGMA_FORCE_SIMD
             for (IndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);

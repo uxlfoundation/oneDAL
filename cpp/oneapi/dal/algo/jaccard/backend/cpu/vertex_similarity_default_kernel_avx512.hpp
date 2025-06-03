@@ -411,11 +411,12 @@ vertex_similarity_result<task::all_vertex_pairs> jaccard_avx512(
 #endif
     }
 
-    PRAGMA_VECTOR_ALWAYS
+    PRAGMA_OMP_SIMD()
     for (int i = 0; i < nnz; i++) {
-        if (first_vertices[i] != second_vertices[i])
-            jaccard[i] = jaccard[i] / static_cast<float>(degrees[first_vertices[i]] +
-                                                         degrees[second_vertices[i]] - jaccard[i]);
+        const float notEqual(first_vertices[i] != second_vertices[i]);
+        jaccard[i] = notEqual * (jaccard[i] / static_cast<float>(degrees[first_vertices[i]] +
+                                                        degrees[second_vertices[i]] - jaccard[i])) +
+                                                        (1.0f - notEqual) * jaccard[i];
     }
 
     vertex_similarity_result res(

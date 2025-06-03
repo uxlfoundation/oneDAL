@@ -26,11 +26,15 @@
 #include "oneapi/dal/detail/common.hpp"
 
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#define PRAGMA_TO_STR(ARGS)     _Pragma(#ARGS)
+#define PRAGMA_OMP_SIMD(ARGS) PRAGMA_TO_STR(omp simd ARGS)
 #define PRAGMA_FORCE_SIMD    _Pragma("ivdep")
 #define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
 #else
 #if defined(TARGET_ARM)
+#define PRAGMA_TO_STR(ARGS)   _Pragma(#ARGS)
 #define PRAGMA_FORCE_SIMD _Pragma("omp simd")
+#define PRAGMA_OMP_SIMD(ARGS) PRAGMA_TO_STR(omp simd ARGS)
 #else
 #define PRAGMA_FORCE_SIMD
 #endif

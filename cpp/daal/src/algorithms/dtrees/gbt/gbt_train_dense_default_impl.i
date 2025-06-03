@@ -463,8 +463,6 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
 
             for (size_t i = iStart; i < iEnd; ++i)
             {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nCols; ++j)
                 {
                     newFI[nCols * i + j] = fi[nRows * j + i];

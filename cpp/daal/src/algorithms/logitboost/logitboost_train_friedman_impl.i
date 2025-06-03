@@ -172,16 +172,18 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
         /* Update additive function's values
            Step 2.b) of the Algorithm 6 from [1] */
         /* i-row contains Fi() for all classes in i-th point x */
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+
         for (size_t i = start; i < start + size; i++)
         {
             algorithmFPType s = 0.0;
+            PRAGMA_OMP_SIMD(reduction(+:s))
             for (size_t k = 0; k < nc; k++)
             {
                 s += pred[k * n + i];
             }
 
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nc; j++)
             {
                 F[i * nc + j] += coef * (pred[j * n + i] - s * inv_nc);
@@ -206,15 +208,14 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
            Step 2.c) of the Algorithm 6 from [1] */
         const bool useFullBuffer = size * nc <= n;
         if (useFullBuffer) daal::internal::MathInst<algorithmFPType, cpu>::vExp(nc * size, F + start * nc, buffer);
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+
         for (size_t i = 0; i < size; i++)
         {
             const size_t offset = useFullBuffer ? i * nc : 0;
             if (!useFullBuffer) daal::internal::MathInst<algorithmFPType, cpu>::vExp(nc, F + (i + start) * nc, buffer);
 
             algorithmFPType s = 0.0;
-
+            PRAGMA_OMP_SIMD(reduction(+:s))
             for (size_t j = 0; j < nc; j++)
             {
                 s += buffer[offset + j];
@@ -225,6 +226,8 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
             algorithmFPType invs = (algorithmFPType)1.0 / s;
 
             const size_t row = i + start;
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nc; j++)
             {
                 // Normalize probabilities

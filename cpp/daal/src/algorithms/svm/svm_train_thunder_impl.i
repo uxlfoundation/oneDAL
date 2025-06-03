@@ -357,8 +357,6 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
         daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
             const size_t startRow = iBlock * blockSizeWS;
 
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = startRow; i < startRow + blockSizeWS; ++i)
             {
                 const size_t wsIndex                       = wsIndices[i];

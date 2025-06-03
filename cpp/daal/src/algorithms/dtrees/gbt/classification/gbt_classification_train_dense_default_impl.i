@@ -160,10 +160,10 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD(reduction(max:maxArg))
         for (size_t i = 1; i < _nClasses; ++i)
         {
-            if (maxArg < arg[i]) maxArg = arg[i];
+            maxArg = (maxArg < arg[i]) ? arg[i] : maxArg;
         }
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
@@ -176,7 +176,7 @@ protected:
         }
         daal::internal::MathInst<algorithmFPType, cpu>::vExp(_nClasses, res, res);
         algorithmFPType sum(0.);
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD(reduction(+:sum))
         for (size_t i = 0; i < _nClasses; ++i) sum += res[i];
 
         sum = algorithmFPType(1.) / sum;

@@ -368,6 +368,8 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
         {
             BinIndexType * binIndexPtr = (*binIndex) + nRows * j;
             const IndexType * featureIndexPtr = featureIndex + nRows * j;
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t i = iStart; i < iEnd; ++i)
             {
                 binIndexPtr[i] = static_cast<BinIndexType>(featureIndexPtr[i]);
