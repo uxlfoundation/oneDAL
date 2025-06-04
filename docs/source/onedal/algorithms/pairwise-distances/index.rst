@@ -23,3 +23,7 @@ Pairwise Distances
    chebyshev-distance.rst
    cosine-distance.rst
    correlation-distance.rst
+
+.. rubric:: Examples: Correlation Distance
+
+.. include:: ../../../includes/pairwise-distances/correlation-distance-examples.rst
