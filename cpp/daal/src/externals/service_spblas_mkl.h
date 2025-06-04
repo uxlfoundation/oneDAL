@@ -79,8 +79,9 @@ struct MklSpBlas<double, cpu>
         sparse_matrix_t csrA = NULL;
         struct matrix_descr descrA;
         descrA.type = SPARSE_MATRIX_TYPE_GENERAL;
-        mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, (const MKL_INT)*m, (const MKL_INT)*k, (MKL_INT *)pntre, (MKL_INT *)pntrb,
+        mkl_sparse_d_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, (const MKL_INT)*m, (const MKL_INT)*k, (MKL_INT *)pntrb, (MKL_INT *)pntre,
                                 (MKL_INT *)indx, (double *)val);
+
         if (*transa == 'n' || *transa == 'N')
         {
             mkl_sparse_d_mv(SPARSE_OPERATION_NON_TRANSPOSE, *alpha, csrA, descrA, x, *beta, y);
@@ -184,7 +185,7 @@ struct MklSpBlas<float, cpu>
         sparse_matrix_t csrA = NULL;
         struct matrix_descr descrA;
         descrA.type = SPARSE_MATRIX_TYPE_GENERAL;
-        mkl_sparse_s_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, (const MKL_INT)*m, (const MKL_INT)*k, (MKL_INT *)pntre, (MKL_INT *)pntrb,
+        mkl_sparse_s_create_csr(&csrA, SPARSE_INDEX_BASE_ONE, (const MKL_INT)*m, (const MKL_INT)*k, (MKL_INT *)pntrb, (MKL_INT *)pntre,
                                 (MKL_INT *)indx, (float *)val);
 
         if (*transa == 'n' || *transa == 'N')
