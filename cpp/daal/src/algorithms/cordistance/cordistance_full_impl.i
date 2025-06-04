@@ -351,7 +351,7 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             yMean[shift2 + j] /= p;
         }
     }
-    
+
     /* compute results for blocks of the distance matrix */
     daal::threader_for(nBlocks1, nBlocks1, [=, &safeStat](size_t k1) {
         DAAL_INT blockSize1 = blockSizeDefault;
@@ -434,7 +434,6 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             }
         }
 
-        daal::services::daal_free(xMean);
     });
 
     daal::services::daal_free(yMean);
