@@ -433,7 +433,6 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
                 }
             }
         }
-
     });
 
     daal::services::daal_free(yMean);
