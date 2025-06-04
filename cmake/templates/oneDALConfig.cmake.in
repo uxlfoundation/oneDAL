@@ -161,7 +161,6 @@ if(REF_DEPENDENCY STREQUAL "yes")
     add_library(OpenBLAS::OpenBLAS STATIC IMPORTED)
     set_target_properties(OpenBLAS::OpenBLAS PROPERTIES
         IMPORTED_LOCATION "${OPENBLAS_CACHE_DIR}/lib/libopenblas.a"
-        INTERFACE_INCLUDE_DIRECTORIES "${OPENBLAS_CACHE_DIR}/include"
     )
     set(BLAS_INTERFACE "openblas")
     list(APPEND oneDAL_IMPORTED_TARGETS OpenBLAS::OpenBLAS)
