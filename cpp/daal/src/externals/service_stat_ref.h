@@ -100,8 +100,8 @@ struct RefStatistics<double, cpu>
 
     static int xmeansOnePass(const double * data, __int64 nFeatures, __int64 nVectors, double * means)
     {
-        daal::services::internal::TArray<double, cpu> tempRowMinusMeans(nFeatures);
-        daal::services::internal::service_memset<double, cpu>(means, 0.0, nFeatures);
+        daal::services::internal::TArrayCalloc<double, cpu> tempRowMinusMeans(nFeatures);
+        if (!tempRowMinusMeans.get()) return services::ErrorMemoryAllocationFailed;
         const DAAL_INT nFeatures_ = nFeatures;
         const DAAL_INT one        = 1;
         daal::internal::ref::OpenBlas<double, cpu> blasInst;
