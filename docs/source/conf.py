@@ -178,6 +178,11 @@ nitpick_ignore = [
     ('cpp:identifier', 'correlation_distance::descriptor'),
     ('cpp:identifier', 'correlation_distance::compute_result'),
     ('cpp:identifier', 'correlation_distance::compute_input'),
+    # cosine_distance
+    ('cpp:identifier', 'cosine_distance'),
+    ('cpp:identifier', 'cosine_distance::descriptor'),
+    ('cpp:identifier', 'cosine_distance::compute_result'),
+    ('cpp:identifier', 'cosine_distance::compute_input'),
     # kmeans
     ('cpp:identifier', 'kmeans'),
     ('cpp:identifier', 'kmeans::descriptor'),
