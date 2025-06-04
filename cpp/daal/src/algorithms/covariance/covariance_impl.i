@@ -432,11 +432,10 @@ services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatur
     {
         algorithmFPType * means = sums;
         StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
-        for (size_t vector = 0; vector < nVectors; vector++)
-        {
+        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
                                                                  dataCentered.get() + vector * nFeatures);
-        }
+        });
     }
 
     const DAAL_INT nCols         = nFeatures;
