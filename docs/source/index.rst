@@ -24,9 +24,11 @@
 |full_name| (|short_name|)
 ------------------------------------------------------
 
-|full_name| (|short_name|) is a library
-that helps speed up big data analysis by providing highly optimized
-algorithmic building blocks for all stages of data analytics
+|full_name| (|short_name|) is a C++ library (powering the `Extension for Scikit-learn in Python <https://github.com/uxlfoundation/scikit-learn-intelex>`__)
+which implements accelerated machine learning routines for tabular data (e.g. linear regression, K-means clustering, random forests, etc.) for CPUs, GPUs,
+and multi-node distributed setups.
+
+It provides highly optimized algorithmic building blocks for all stages of data analytics
 (preprocessing, transformation, analysis, modeling, validation, and
 decision making) in batch, online, and distributed processing modes of
 computation. The library provides two different sets of C++ interfaces: :ref:`oneAPI and DAAL <oneapi_vs_daal>`.
