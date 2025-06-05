@@ -25,7 +25,7 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/uxlfoundation/oneDAL/badge)](https://securityscorecards.dev/viewer/?uri=github.com/uxlfoundation/oneDAL)
 [![Join the community on GitHub Discussions](https://badgen.net/badge/join%20the%20discussion/on%20github/black?icon=github)](https://github.com/uxlfoundation/oneDAL/discussions)
 
-oneAPI Data Analytics Library (oneDAL) is a C++ library (powering the [Extension for Scikit-learn in Python](https://github.com/uxlfoundation/scikit-learn-intelex))
+oneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library (powering the [Extension for Scikit-learn in Python](https://github.com/uxlfoundation/scikit-learn-intelex))
 which implements accelerated machine learning routines for tabular data (e.g. linear regression, K-means clustering, random forests, etc.) for CPUs, GPUs, and
 multi-node distributed setups.
 
