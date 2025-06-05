@@ -60,33 +60,9 @@ services::Status cosDistanceUpperPacked(const NumericTable * xTable, NumericTabl
         const algorithmFPType * x = xBlock.get();
 
         algorithmFPType buf[blockSizeDefault * blockSizeDefault];
-        algorithmFPType alpha = 1.0, beta = 0.0;
-        char transa = 'T', transb = 'N';
-        DAAL_INT m = blockSize1, k = p, nn = blockSize1;
-        DAAL_INT lda = k, ldb = p, ldc = m;
 
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, x, &lda, x, &ldb, &beta, buf, &ldc);
-
-        /* compute inverse of sqrt of gemm result and save for use in computation off-diagonal blocks */
-        for (DAAL_INT i = 0; i < blockSize1; i++)
-        {
-            if (buf[i * blockSize1 + i] > (algorithmFPType)0.0)
-            {
-                buf[i * blockSize1 + i] = (algorithmFPType)1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(buf[i * blockSize1 + i]);
-            }
-        }
-
-        /* compute cosine distance for k1 block of rows in the input dataset */
-        for (DAAL_INT i = 0; i < blockSize1; i++)
-        {
-            const algorithmFPType bufii = buf[i * blockSize1 + i];
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            for (DAAL_INT j = i + 1; j < blockSize1; j++)
-            {
-                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * bufii * buf[j * blockSize1 + j];
-            }
-        }
+        /* compute upper triangle of diagonal block of the cosine distance elements */
+        computeDiagonalBlock<algorithmFPType, cpu, true>(blockSize1, p, x, buf);
 
         /* unpack the results into user's memory */
         size_t shift1 = k1 * blockSizeDefault;
