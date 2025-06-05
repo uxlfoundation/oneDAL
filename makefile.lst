@@ -225,6 +225,7 @@ ONEAPI.ALGOS.svm           := CORE.svm
 ONEAPI.ALGOS :=          \
     basic_statistics     \
     chebyshev_distance   \
+    correlation_distance \
     cosine_distance      \
     covariance           \
     dbscan               \
