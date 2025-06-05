@@ -31,7 +31,7 @@ multi-node distributed setups.
 
 Acceleration on CPUs is achieved by leveraging SIMD instructions and exploiting cache structures of modern hardware, while GPU acceleration leverages the SYCL framework and the oneMKL library.
 
-OneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://spec.oneapi.io) for the oneDAL component.
+oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://spec.oneapi.io) for the oneDAL component.
 
 ## Usage
 
