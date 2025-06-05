@@ -31,7 +31,7 @@ multi-node distributed setups.
 
 Acceleration on CPUs is achieved by leveraging SIMD instructions and exploiting cache structures of modern hardware, while GPU acceleration leverages the SYCL framework and the oneMKL library.
 
-oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://spec.oneapi.io) for the oneDAL component.
+OneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://oneapi-spec.uxlfoundation.org) for the oneDAL component.
 
 ## Usage
 
@@ -88,9 +88,8 @@ oneDAL documentation:
 
 Other related documentation:
 
-- [daal4py documentation](https://intelpython.github.io/daal4py/)
 - [Extension for Scikit-learn* documentation](https://uxlfoundation.github.io/scikit-learn-intelex/)
-- [oneDAL Specifications](https://spec.oneapi.com/versions/latest/elements/oneDAL/source/index.html)
+- [oneDAL Specifications](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onedal/source/#onedal-section)
 
 ## Apache Spark MLlib
 
