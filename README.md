@@ -25,17 +25,19 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/uxlfoundation/oneDAL/badge)](https://securityscorecards.dev/viewer/?uri=github.com/uxlfoundation/oneDAL)
 [![Join the community on GitHub Discussions](https://badgen.net/badge/join%20the%20discussion/on%20github/black?icon=github)](https://github.com/uxlfoundation/oneDAL/discussions)
 
-oneAPI Data Analytics Library (oneDAL) is a powerful machine learning library that helps you accelerate big data analysis at all stages: **preprocessing**, **transformation**, **analysis**, **modeling**, **validation**, and **decision making**.
+oneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library (powering the [Extension for Scikit-learn in Python](https://github.com/uxlfoundation/scikit-learn-intelex))
+which implements accelerated machine learning routines for tabular data (e.g. linear regression, K-means clustering, random forests, etc.) for CPUs, GPUs, and
+multi-node distributed setups.
 
-The library implements classical machine learning algorithms. The boost in their performance is achieved by leveraging the capabilities of Intel&reg; hardware.
+Acceleration on CPUs is achieved by leveraging SIMD instructions and exploiting cache structures of modern hardware, while GPU acceleration leverages the SYCL framework and the oneMKL library.
 
-The oneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://oneapi-spec.uxlfoundation.org) for oneDAL component.
+OneDAL is part of the [UXL Foundation](http://www.uxlfoundation.org) and is an implementation of the [oneAPI specification](https://oneapi-spec.uxlfoundation.org) for the oneDAL component.
 
 ## Usage
 
 There are different ways for you to build high-performance data science applications that use the advantages of oneDAL:
-- Use oneDAL C++ interfaces with or without SYCL support ([learn more](https://uxlfoundation.github.io/oneDAL/#oneapi-vs-daal-interfaces)).
 - Use [Extension for Scikit-learn*](https://uxlfoundation.github.io/scikit-learn-intelex/) to accelerate existing scikit-learn code by making it call oneDAL behind the scenes.
+- Use oneDAL C++ interfaces with or without SYCL support ([learn more](https://uxlfoundation.github.io/oneDAL/#oneapi-vs-daal-interfaces)).
 
 
 ## Installation
