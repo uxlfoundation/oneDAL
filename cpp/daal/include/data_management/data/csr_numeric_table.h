@@ -94,6 +94,9 @@ public:
         return _rows_ptr.get();
     }
 
+    /**
+     * \DAAL_DEPRECATED
+     */
     inline daal::services::internal::Buffer<DataType> getBlockValuesBuffer() const
     {
         if (_valuesBuffer)
@@ -116,6 +119,9 @@ public:
         }
     }
 
+    /**
+     * \DAAL_DEPRECATED
+     */
     inline daal::services::internal::Buffer<size_t> getBlockColumnIndicesBuffer() const
     {
         if (_colsBuffer)
@@ -131,6 +137,9 @@ public:
         }
     }
 
+    /**
+     * \DAAL_DEPRECATED
+     */
     inline daal::services::internal::Buffer<size_t> getBlockRowIndicesBuffer() const
     {
         if (_rowsBuffer)
@@ -288,6 +297,7 @@ public:
      *  \param[in] pPtr     Pointer to the buffer
      *  \param[in] rawPtr   Pointer to the buffer
      *  \param[in] nValues  Number of values
+     *  \DAAL_DEPRECATED
      */
     inline void setValuesPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nValues)
     {
@@ -325,6 +335,7 @@ public:
     /**
      *  Sets values buffer to the table
      *  \param[in] buffer Buffer object that contains the memory
+     *  \DAAL_DEPRECATED
      */
     inline void setValuesBuffer(const daal::services::internal::Buffer<DataType> & buffer)
     {
@@ -338,6 +349,7 @@ public:
     /**
      *  Sets cols indices buffer to the table
      *  \param[in] buffer Buffer object that contains the memory
+     *  \DAAL_DEPRECATED
      */
     inline void setColumnIndicesBuffer(const daal::services::internal::Buffer<size_t> & buffer)
     {
@@ -350,6 +362,7 @@ public:
     /**
      *  Sets row indices buffer to the table
      *  \param[in] buffer Buffer object that contains the memory
+     *  \DAAL_DEPRECATED
      */
     inline void setRowIndicesBuffer(const daal::services::internal::Buffer<size_t> & buffer)
     {
@@ -380,6 +393,7 @@ public:
 
     /**
      *  \param[in] nValues  Number of values
+     *  \DAAL_DEPRECATED
      */
     inline bool resizeValuesBuffer(size_t nValues)
     {
@@ -410,6 +424,7 @@ public:
 
     /**
      *  \param[in] nRows    Number of rows
+     *  \DAAL_DEPRECATED
      */
     inline bool resizeRowsBuffer(size_t nRows)
     {
@@ -455,6 +470,7 @@ public:
 protected:
     /**
      *  Frees the values buffer
+     *  \DAAL_DEPRECATED
      */
     void freeValuesBuffer()
     {
@@ -471,6 +487,7 @@ protected:
 
     /**
      *  Frees the rows buffer
+     *  \DAAL_DEPRECATED
      */
     void freeRowsBuffer()
     {
@@ -479,6 +496,9 @@ protected:
         _rowsBuffer.reset();
     }
 
+    /**
+     *  \DAAL_DEPRECATED
+     */
     inline services::SharedPtr<DataType> getValuesCachedHostSharedPtr() const
     {
         if (!_hostValuesSharedPtr)
@@ -490,6 +510,9 @@ protected:
         return _hostValuesSharedPtr;
     }
 
+    /**
+     *  \DAAL_DEPRECATED
+     */
     inline services::SharedPtr<size_t> getColsCachedHostSharedPtr() const
     {
         if (!_hostColsSharedPtr)
@@ -501,6 +524,9 @@ protected:
         return _hostColsSharedPtr;
     }
 
+    /**
+     *  \DAAL_DEPRECATED
+     */
     inline services::SharedPtr<size_t> getRowsCachedHostSharedPtr() const
     {
         if (!_hostRowsSharedPtr)
@@ -523,22 +549,22 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
-    services::SharedPtr<DataType> _valuesInternal; /*<! Pointer to the buffer */
-    size_t _values_capacity;                       /*<! Buffer size in bytes */
+    services::SharedPtr<DataType> _valuesInternal; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
+    size_t _values_capacity;                       /*<! Buffer size in bytes. \DAAL_DEPRECATED */
 
-    services::SharedPtr<size_t> _rowsInternal; /*<! Pointer to the buffer */
-    size_t _rows_capacity;                     /*<! Buffer size in bytes */
+    services::SharedPtr<size_t> _rowsInternal; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
+    size_t _rows_capacity;                     /*<! Buffer size in bytes. \DAAL_DEPRECATED */
 
-    services::SharedPtr<byte> * _pPtr;
-    byte * _rawPtr;
+    services::SharedPtr<byte> * _pPtr; /*<! \DAAL_DEPRECATED */
+    byte * _rawPtr;                    /*<! \DAAL_DEPRECATED */
 
-    daal::services::internal::Buffer<DataType> _valuesBuffer;
-    daal::services::internal::Buffer<size_t> _rowsBuffer;
-    daal::services::internal::Buffer<size_t> _colsBuffer;
+    daal::services::internal::Buffer<DataType> _valuesBuffer; /*<! \DAAL_DEPRECATED */
+    daal::services::internal::Buffer<size_t> _rowsBuffer;     /*<! \DAAL_DEPRECATED */
+    daal::services::internal::Buffer<size_t> _colsBuffer;     /*<! \DAAL_DEPRECATED */
 
-    mutable services::SharedPtr<DataType> _hostValuesSharedPtr;
-    mutable services::SharedPtr<size_t> _hostRowsSharedPtr;
-    mutable services::SharedPtr<size_t> _hostColsSharedPtr;
+    mutable services::SharedPtr<DataType> _hostValuesSharedPtr; /*<! \DAAL_DEPRECATED */
+    mutable services::SharedPtr<size_t> _hostRowsSharedPtr;     /*<! \DAAL_DEPRECATED */
+    mutable services::SharedPtr<size_t> _hostColsSharedPtr;     /*<! \DAAL_DEPRECATED */
 };
 
 /**
