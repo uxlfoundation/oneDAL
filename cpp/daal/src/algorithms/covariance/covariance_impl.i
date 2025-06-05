@@ -30,6 +30,7 @@
 #include "src/externals/service_memory.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_blas.h"
+#include "src/externals/service_lapack.h"
 #include "src/externals/service_spblas.h"
 #include "src/externals/service_stat.h"
 #include "src/data_management/service_numeric_table.h"
@@ -417,7 +418,8 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatures, const size_t nVectors, NumericTable * dataTable,
-                                                            algorithmFPType * crossProduct, algorithmFPType * sums, const bool computeSumsAndCenter)
+                                                            algorithmFPType * crossProduct, algorithmFPType * sums, const bool computeSumsAndCenter,
+                                                            bool useCurrentSums)
 {
     DAAL_PROFILER_TASK(Covariance::computeDenseCrossProductsAndSumsNonBatched);
     daal::services::internal::TArray<algorithmFPType, cpu> dataCentered(computeSumsAndCenter ? (nFeatures * nVectors) : 0);
@@ -434,6 +436,20 @@ services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatur
         StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
         threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
             daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
+                                                                 dataCentered.get() + vector * nFeatures);
+        });
+    }
+
+    else if (useCurrentSums)
+    {
+        daal::services::internal::TArray<algorithmFPType, cpu> means(nFeatures);
+        daal::services::internal::daal_memcpy_s(means.get(), nFeatures * sizeof(algorithmFPType), sums, nFeatures * sizeof(algorithmFPType));
+        const DAAL_INT one                = 1;
+        const DAAL_INT nCols              = nFeatures;
+        const algorithmFPType nVectors_fp = nVectors;
+        LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means.get(), &one);
+        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+            daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means.get(),
                                                                  dataCentered.get() + vector * nFeatures);
         });
     }
@@ -526,7 +542,8 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         if (method == sumDense || isNormalized || assumeCentered)
         {
             status = computeDenseCrossProductsAndSumsNonBatched<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums,
-                                                                                      !isNormalized && !assumeCentered);
+                                                                                      method == defaultDense && !isNormalized && !assumeCentered,
+                                                                                      method == sumDense && !isNormalized && !assumeCentered);
         }
         else
         {
