@@ -23,6 +23,7 @@
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
 
 namespace oneapi::dal::kmeans_init::backend {
 
@@ -54,7 +55,7 @@ compute_result<Task> compute_kernel_distr<Float, Method, Task>::operator()(
         pr::ndview<Float, 2>::wrap(resa.get_mutable_data(), { cluster_count, feature_count });
 
     const auto indices =
-        misc::generate_random_indices_distr(ctx, cluster_count, sample_count, seed);
+        misc::generate_random_indices_distr(ctx, params, cluster_count, sample_count, seed);
     const auto ndids =
         pr::ndarray<std::int64_t, 1>::wrap(indices.get_data(), { cluster_count }).to_device(queue);
 
@@ -71,15 +72,19 @@ template struct compute_kernel_distr<double, method::random_dense, task::init>;
 
 namespace misc {
 
-ids_arr_t generate_random_indices(std::int64_t count, std::int64_t scount, std::int64_t seed) {
+ids_arr_t generate_random_indices(std::int64_t count,
+                                  std::int64_t scount,
+                                  std::int64_t seed,
+                                  pr::host_engine host_engine) {
     ids_arr_t result = ids_arr_t::empty(count);
     auto ndres = pr::ndview<std::int64_t, 1>::wrap(result.get_mutable_data(), { count });
     ONEDAL_ASSERT(count < scount);
-    pr::partial_fisher_yates_shuffle(ndres, scount, seed);
+    pr::partial_fisher_yates_shuffle(ndres, scount, seed, host_engine);
     return result;
 }
 
 ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
+                                        const detail::descriptor_base<task::by_default>& params,
                                         std::int64_t count,
                                         std::int64_t scount,
                                         std::int64_t rseed) {
@@ -87,10 +92,12 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     const auto rank_count = comm.get_rank_count();
 
     ids_arr_t root_rand = ids_arr_t::empty(rank_count);
+    auto engine_type = pr::convert_engine_method(params.get_engine_type());
 
+    pr::host_engine eng_ = pr::host_engine(params.get_seed(), engine_type);
     if (comm.is_root_rank()) {
         const auto maxval = rank_count + 1;
-        root_rand = generate_random_indices(rank_count, maxval, rseed);
+        root_rand = generate_random_indices(rank_count, maxval, rseed, eng_);
     }
 
     {
@@ -101,7 +108,7 @@ ids_arr_t generate_random_indices_distr(const ctx_t& ctx,
     ONEDAL_ASSERT(root_rand.get_count() == rank_count);
 
     const auto seed = root_rand[comm.get_rank()];
-    return generate_random_indices(count, scount, seed);
+    return generate_random_indices(count, scount, seed, eng_);
 }
 
 } // namespace misc
