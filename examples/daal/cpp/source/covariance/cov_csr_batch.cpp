@@ -37,11 +37,11 @@ using namespace daal::data_management;
 /* Input data set parameters
    Input matrix is stored in the compressed sparse row format with one-based indexing
  */
-const std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
+std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
-
+  
     /* Read datasetFileName from a file and create a numeric table to store input data */
     CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileName));
 

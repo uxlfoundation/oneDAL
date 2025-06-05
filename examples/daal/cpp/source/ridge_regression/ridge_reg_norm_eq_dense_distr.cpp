@@ -36,7 +36,7 @@ using namespace daal;
 using namespace daal::data_management;
 using namespace daal::algorithms::ridge_regression;
 
-const std::string trainDatasetFileNames[] = { "../data/distributed/linear_regression_train_1.csv",
+std::string trainDatasetFileNames[] = { "../data/distributed/linear_regression_train_1.csv",
                                               "../data/distributed/linear_regression_train_2.csv",
                                               "../data/distributed/linear_regression_train_3.csv",
                                               "../data/distributed/linear_regression_train_4.csv" };
