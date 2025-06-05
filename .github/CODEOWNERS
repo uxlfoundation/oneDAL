@@ -20,8 +20,8 @@ make*          @Alexsandruss
 cmake/         @Alexsandruss
 deploy/        @Alexsandruss @homksei @ahuber21 @ethanglaser
 dev/           @Alexsandruss @homksei @ahuber21 @ethanglaser
-dev/bazel/     @kmcgrie @Alexandr-Solovev
-MODULE.bazel*  @kmcgrie @Alexandr-Solovev
+dev/bazel/     @KateBlueSky @Alexandr-Solovev
+MODULE.bazel*  @KateBlueSky @Alexandr-Solovev
 # Platform-specific build scripts
 dev/make/function_definitions/arm*        @rakshithgb-fujitsu
 dev/make/function_definitions/lnxarm*     @rakshithgb-fujitsu
