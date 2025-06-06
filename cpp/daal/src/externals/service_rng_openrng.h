@@ -244,22 +244,48 @@ template <CpuType cpu>
 class BaseRNG : public BaseRNGIface<cpu>
 {
 public:
-    BaseRNG(const unsigned int seed, const int brngId) : _stream(0)
+    BaseRNG(const unsigned int seed, const int brngId) : _stream(0), _seed(nullptr), _seedSize(0), _brngId(brngId)
     {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
+        services::Status s = allocSeeds(1);
+        if (s)
+        {
+            _seed[0]    = seed;
+            int errcode = 0;
+            errcode     = vslNewStreamEx(&_stream, (openrng_int_t)brngId, 1, &seed);
+        }
     }
 
-    BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937) : _stream(0)
+    BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937)
+        : _stream(0), _seed(nullptr), _seedSize(0), _brngId(brngId)
     {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
+        services::Status s = allocSeeds(n);
+        if (s)
+        {
+            if (seed)
+            {
+                for (size_t i = 0; i < n; i++)
+                {
+                    _seed[i] = seed[i];
+                }
+            }
+            int errcode = 0;
+            errcode     = vslNewStreamEx(&_stream, (openrng_int_t)brngId, (openrng_int_t)n, seed);
+        }
     }
 
-    BaseRNG(const BaseRNG<cpu> & other) : _stream(0)
+    BaseRNG(const BaseRNG<cpu> & other) : _stream(0), _seed(nullptr), _seedSize(other._seedSize), _brngId(other._brngId)
     {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
+        services::Status s = allocSeeds(_seedSize);
+        if (s)
+        {
+            for (size_t i = 0; i < _seedSize; i++)
+            {
+                _seed[i] = other._seed[i];
+            }
+            int errcode = 0;
+            errcode     = vslNewStreamEx(&_stream, _brngId, _seedSize, _seed);
+            if (!errcode) errcode = vslCopyStreamState(_stream, other._stream);
+        }
     }
 
     ~BaseRNG()
@@ -318,6 +344,9 @@ protected:
 
 private:
     void * _stream;
+    unsigned int * _seed;
+    size_t _seedSize;
+    const int _brngId;
 };
 
 /*
