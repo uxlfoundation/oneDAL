@@ -62,14 +62,13 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     algorithmFPType * dataR = mtR.get();
 
     //compute
-    dataR[0] = 0.0;
-    PRAGMA_FORCE_SIMD
-    PRAGMA_VECTOR_ALWAYS
+    algorithmFPType dotProduct(0.0);
+    PRAGMA_OMP_SIMD(reduction(+:dotProduct))
     for (size_t i = 0; i < nFeatures; i++)
     {
         dataR[0] += dataA1[i] * dataA2[i];
     }
-    dataR[0] = dataR[0] * par->scale + par->shift;
+    dataR[0] = dotProduct * par->scale + par->shift;
 
     return services::Status();
 }
@@ -102,13 +101,14 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     services::internal::service_memset_seq<algorithmFPType, cpu>(dataR, b, nVectors1);
     for (size_t i = 0; i < nVectors1; i++)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        algorithmFPType dotProduct(0.0);
+        PRAGMA_OMP_SIMD(reduction(+:dotProduct))
         for (size_t j = 0; j < nFeatures; j++)
         {
-            dataR[i] += dataA1[i * nFeatures + j] * dataA2[j];
+            dotProduct += dataA1[i * nFeatures + j] * dataA2[j];
         }
-        dataR[i] = k * dataR[i];
+        dataR[i] += dotProduct;
+        dataR[i] = k * dotProduct;
     }
 
     if (par->kernelType == KernelType::sigmoid)
@@ -191,7 +191,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                         {
                             dataR[i * nVectors2 + j] += shift;
                             const algorithmFPType factor = dataR[i * nVectors2 + j];
-                            PRAGMA_FORCE_SIMD
+                            PRAGMA_OMP_SIMD()
                             PRAGMA_VECTOR_ALWAYS
                             for (size_t k = 0; k < degree - 1; ++k)
                             {
@@ -224,7 +224,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                     {
                         mklBuff[i] += shift;
                         const algorithmFPType factor = mklBuff[i];
-                        PRAGMA_FORCE_SIMD
+                        PRAGMA_OMP_SIMD()
                         PRAGMA_VECTOR_ALWAYS
                         for (size_t k = 0; k < degree - 1; ++k)
                         {

@@ -45,46 +45,43 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
 
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-    #define PRAGMA_FORCE_SIMD       _Pragma("ivdep")
-    #define PRAGMA_NOVECTOR         _Pragma("novector")
-    #define PRAGMA_VECTOR_ALIGNED   _Pragma("vector aligned")
-    #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
-    #define PRAGMA_VECTOR_ALWAYS    _Pragma("vector always")
-    #define PRAGMA_TO_STR(ARGS)     _Pragma(#ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS)   PRAGMA_TO_STR(omp simd ARGS)
-    #define DAAL_TYPENAME           typename
+    #define PRAGMA_IVDEP                 _Pragma("ivdep")
+    #define PRAGMA_NOVECTOR              _Pragma("novector")
+    #define PRAGMA_VECTOR_ALIGNED        _Pragma("vector aligned")
+    #define PRAGMA_VECTOR_UNALIGNED      _Pragma("vector unaligned")
+    #define PRAGMA_VECTOR_ALWAYS         _Pragma("vector always")
+    #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
+    #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
+    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
+    #define DAAL_TYPENAME                typename
 #elif defined(__GNUC__)
-    #if defined(TARGET_ARM)
-        #define PRAGMA_FORCE_SIMD     _Pragma("omp simd")
-        #define PRAGMA_TO_STR(ARGS)   _Pragma(#ARGS)
-        #define PRAGMA_OMP_SIMD(ARGS) PRAGMA_TO_STR(omp simd ARGS)
-    #else
-        #define PRAGMA_FORCE_SIMD
-        #define PRAGMA_TO_STR(ARGS)
-        #define PRAGMA_OMP_SIMD(ARGS)
-    #endif
+    #define PRAGMA_IVDEP
+    #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
+    #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
+    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
-    #define DAAL_TYPENAME typename
+    #define DAAL_TYPENAME                typename
 #elif defined(_MSC_VER)
-    #define PRAGMA_FORCE_SIMD _Pragma("loop(ivdep)")
-    #define PRAGMA_NOVECTOR   _Pragma("loop(no_vector)")
+    #define PRAGMA_OMP_SIMD              _Pragma("loop(ivdep)")
+    #define PRAGMA_NOVECTOR              _Pragma("loop(no_vector)")
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_TO_STR(ARGS)   _Pragma(#ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS) PRAGMA_TO_STR(omp simd ARGS)
-    #define DAAL_TYPENAME         typename
+    #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
+    #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
+    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
+    #define DAAL_TYPENAME                typename
 #else
-    #define PRAGMA_FORCE_SIMD
+    #define PRAGMA_IVDEP
     #define PRAGMA_NOVECTOR
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
     #define PRAGMA_TO_STR(ARGS)
     #define PRAGMA_OMP_SIMD(ARGS)
-    #define DAAL_TYPENAME typename
+    #define DAAL_TYPENAME                typename
 #endif
 
 #ifdef DEBUG_ASSERT

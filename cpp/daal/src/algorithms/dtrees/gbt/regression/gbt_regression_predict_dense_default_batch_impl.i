@@ -554,7 +554,7 @@ void PredictRegressionTask<algorithmFPType, cpu>::predictByTreesVector(size_t iF
         gbt::prediction::internal::predictForTreeVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(
             *_aTree[iTree], _featHelper, x, v, dispatcher);
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t row = 0ul; row < vectorBlockSize; ++row)
         {

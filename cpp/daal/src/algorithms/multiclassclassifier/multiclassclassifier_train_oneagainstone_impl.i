@@ -339,7 +339,7 @@ Status SubTaskDense<algorithmFPType, cpu>::copyDataIntoSubtable(size_t nFeatures
         DAAL_CHECK_BLOCK_STATUS(_mtX);
         const algorithmFPType * x = _mtX.get();
         algorithmFPType * subsetX = this->_subsetX.get();
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t jx = 0; jx < nFeatures; jx++)
         {

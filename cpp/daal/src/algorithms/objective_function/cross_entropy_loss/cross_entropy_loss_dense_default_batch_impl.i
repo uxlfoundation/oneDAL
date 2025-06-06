@@ -101,7 +101,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             maxArg = (maxArg < pArg[i]) ? pArg[i] : maxArg;
         }
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nCols; ++i)
         {
@@ -125,7 +125,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -147,7 +147,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -288,7 +288,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
             {
                 curentNorm = 0;
 
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < p; j++)
                 {

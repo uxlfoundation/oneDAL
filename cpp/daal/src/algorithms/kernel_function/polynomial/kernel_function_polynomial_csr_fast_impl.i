@@ -144,7 +144,7 @@ services::Status KernelImplPolynomial<fastCSR, algorithmFPType, cpu>::computeInt
                 {
                     const algorithmFPType factor = dataR[i * nVectors1 + j] * k + b;
                     dataR[i * nVectors1 + j]     = factor;
-                    PRAGMA_FORCE_SIMD
+                    PRAGMA_OMP_SIMD()
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t k = 0; k < degree - 1; ++k)
                     {
@@ -159,7 +159,7 @@ services::Status KernelImplPolynomial<fastCSR, algorithmFPType, cpu>::computeInt
         }
 
         daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = i + 1; j < nVectors1; j++)
             {

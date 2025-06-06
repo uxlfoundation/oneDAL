@@ -373,7 +373,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
                 Ii |= (yLocal[i] > 0) ? positive : negative;
                 I[i] = Ii;
 
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nWS; ++j)
                 {
@@ -506,7 +506,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
         const algorithmFPType * const KBjBlock = &kernelLocal[Bj * nWS];
 
         /* Update gradient */
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nWS; i++)
         {
@@ -519,7 +519,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::SMOBlockSolver(
     localDiff = firstDiff;
 
     /* Compute diff and scatter to alpha vector */
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD()
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nWS; ++i)
     {
@@ -555,7 +555,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::updateGrad(algorit
 
             if (startRowGrad < nVectors && startRowGrad + nRowsInBlockGrad > nVectors)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < nRowsInBlockGrad; ++j)
                 {

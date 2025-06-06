@@ -115,7 +115,7 @@ struct MemoryCtxType
         const DataType * xInit = xInitDataBlock.get();
         const DataType * yInit = yInitDataBlock.get();
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < capacity; i++)
         {
@@ -133,7 +133,7 @@ struct MemoryCtxType
         DataType * xInit = xInitDataBlock.get();
         DataType * yInit = yInitDataBlock.get();
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _capacity; i++)
         {

@@ -184,7 +184,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
 
         for (size_t j = 0; j < nClusters; j++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < blockSize; i++)
             {
@@ -222,7 +222,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedDense(const Num
             const size_t minIdx        = *((algIntType *)&(x_clusters[i]));
             algorithmFPType minGoalVal = x_clusters[i + blockSize];
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             for (size_t j = 0; j < p; j++)
             {
                 cS1[minIdx * p + j] += data[i * p + j];
@@ -371,7 +371,7 @@ int TaskKMeansLloyd<algorithmFPType, cpu>::kmeansUpdateCluster(int jidx, centroi
 
     tls_task->reduce([=](TlsTask<algorithmFPType, cpu> * tt) -> void {
         int j;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         for (j = 0; j < dim; j++)
         {
             s1[j] += tt->cS1[idx * dim + j];
@@ -391,7 +391,7 @@ void TaskKMeansLloyd<algorithmFPType, cpu>::kmeansComputeCentroids(int * cluster
             service_memset_seq<double, cpu>(auxData, 0.0, dim);
             clusterS0[i] = kmeansUpdateCluster<double>(i, auxData);
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < dim; j++)
             {

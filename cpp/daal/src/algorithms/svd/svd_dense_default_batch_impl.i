@@ -365,7 +365,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Get transposed Q from A */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < brows_local; j++)
                 {
                     QT_local[i * brows_local + j] = A_block[i + j * cols_local];
@@ -383,7 +383,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose Q */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < brows_local; j++)
                 {
                     Q_block[i + j * cols_local] = QT_local[i * brows_local + j];
@@ -394,7 +394,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             for (size_t i = 0; i < cols_local; i++)
             {
                 size_t j;
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (j = 0; j <= i; j++)
                 {
                     RT_buff[k * cols_local + i * cols_local * blocks + j] = RT_local[i * cols_local + j];
@@ -443,7 +443,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose result R and save to V output */
             for (size_t i = 0; i < cols; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < nComponents; j++)
                 {
                     V_output[i + j * cols] = V_buff[i * cols + j];
@@ -481,7 +481,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose RB */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < cols_local; j++)
                 {
                     RT_block[i * cols_local + j] = R_buff[j * cols_local * blocks + k * cols_local + i];
@@ -491,7 +491,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose Q to QT */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < brows_local; j++)
                 {
                     QT_local[i * brows_local + j] = Q_block[i + j * cols_local];
@@ -501,7 +501,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose R to RT */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < cols_local; j++)
                 {
                     RT_local[i * cols_local + j] = RT_block[i + j * cols_local];
@@ -515,7 +515,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_thr(const size_t na
             /* Transpose result Q */
             for (size_t i = 0; i < cols_local; i++)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD()
                 for (size_t j = 0; j < brows_local; j++)
                 {
                     U_block[i + j * cols_local] = QT_result_local[i * brows_local + j];
@@ -591,7 +591,7 @@ Status SVDBatchKernel<algorithmFPType, method, cpu>::compute_pcl(const size_t na
         algorithmFPType * tV = vBlock.get();
         for (size_t i = 0; i < nComponents; i++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             for (size_t j = 0; j < n; j++)
             {
                 tV[i * n + j] = V[i * n + j];

@@ -150,7 +150,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 {
                     const algorithmFPType coeff = 1.0 / clusterS0[i];
 
-                    PRAGMA_FORCE_SIMD
+                    PRAGMA_OMP_SIMD()
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {
@@ -167,7 +167,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices[cPos], 1);
                     const algorithmFPType * row = mtRow.get();
 
-                    PRAGMA_FORCE_SIMD
+                    PRAGMA_OMP_SIMD()
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {

@@ -208,7 +208,7 @@ public:
         algorithmFPType * aGHSumPrevFP   = (algorithmFPType *)aGHSumPrev;
         algorithmFPType * aGHSumsOtherFP = (algorithmFPType *)aGHSumsOther;
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nUnique * 4; ++i)
         {
@@ -246,7 +246,7 @@ struct ComputeGHSumByRows
 
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
@@ -260,7 +260,7 @@ struct ComputeGHSumByRows
         {
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
@@ -284,19 +284,19 @@ struct MergeGHSums
         algorithmFPType * cur = (algorithmFPType *)res.ghSums;
         algorithmFPType * ptr = results[0] + 4 * iStart;
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < 4 * nUnique; i++) cur[i] = ptr[i];
 
         for (size_t iB = 1; iB < nBlocks; ++iB)
         {
             algorithmFPType * ptr = results[iB] + 4 * iStart;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < 4 * nUnique; i++) cur[i] += ptr[i];
         }
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD()
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nUnique; ++i)
         {

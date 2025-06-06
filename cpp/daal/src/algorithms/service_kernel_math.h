@@ -171,7 +171,7 @@ public:
 
         for (size_t i = 0; i < nRowsC; i++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
@@ -353,7 +353,7 @@ public:
 
         for (size_t i = 0; i < nRowsC; i++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
@@ -774,7 +774,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     DAAL_INT num_taken = static_cast<DAAL_INT>(n) - num_discarded;
     daal::internal::MathInst<FPType, cpu>::vSqrt(num_taken, eigenvalues.get() + num_discarded, eigenvalues.get() + num_discarded);
     DAAL_INT one = 1;
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD()
     for (size_t col = num_discarded; col < n; col++)
     {
         const FPType scale = eigenvalues[col];

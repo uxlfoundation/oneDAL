@@ -182,7 +182,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
                 s += pred[k * n + i];
             }
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nc; j++)
             {
@@ -226,7 +226,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
             algorithmFPType invs = (algorithmFPType)1.0 / s;
 
             const size_t row = i + start;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD()
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nc; j++)
             {
