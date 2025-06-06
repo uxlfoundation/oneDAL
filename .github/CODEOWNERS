@@ -33,7 +33,7 @@ dev/make/function_definitions/lnxriscv64* @keeranroth
 .github/workflows/*                        @icfaust
 
 # C++ code
-cpp/           @Alexsandruss @Alexandr-Solovev @KateBlueSky @icfaust @ethanglaser @david-cortes-intel
+cpp/           @Alexsandruss @Alexandr-Solovev @avolkov-intel @KateBlueSky @icfaust @ethanglaser @david-cortes-intel
 
 # Platform-specific code owners
 cpp/**/*arm*       @rakshithgb-fujitsu
