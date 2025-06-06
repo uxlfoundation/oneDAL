@@ -109,9 +109,7 @@ struct Statistics
 
             fpType wsum = 0;
 
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            PRAGMA_ICC_NO16(omp simd reduction(+ : wsum))
+            PRAGMA_OMP_SIMD(reduction(+ : wsum))
             for (size_t i = 0; i < nRows; i++)
             {
                 dataWeightCol[i] = weights[i] * dataCol[i];
@@ -122,7 +120,7 @@ struct Statistics
 
         // calculate W_all = sum of weights
         fpType sum_local = 0;
-        PRAGMA_ICC_NO16(omp simd reduction(+ : sum_local))
+        PRAGMA_OMP_SIMD(reduction(+ : sum_local))
         for (size_t i = 0; i < nRows; i++)
         {
             sum_local += weights[i];
