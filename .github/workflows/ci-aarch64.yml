@@ -50,6 +50,7 @@ jobs:
         ]
 
     name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ${{ matrix.os.label }}
     steps:
 
