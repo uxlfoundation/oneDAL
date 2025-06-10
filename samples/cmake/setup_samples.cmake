@@ -90,7 +90,7 @@ function(add_samples samples_paths)
         elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "aarch64")
             set(CPU_ARCHITECTURE "arm_aarch64")
         else()
-            message(FATAL_ERROR "Unkown architecture ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+            message(FATAL_ERROR "Unknown architecture ${CMAKE_HOST_SYSTEM_PROCESSOR}")
         endif()
 
         add_executable(${sample} ${sample_file_path})
