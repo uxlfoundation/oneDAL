@@ -41,7 +41,7 @@ services::Status CovarianceCSRBatchKernel<algorithmFPType, method, cpu>::compute
                                                                                  const Hyperparameter * hyperparameter)
 {
     algorithmFPType nObservations = 0.0;
-
+    DAAL_PROFILER_TASK(compute_csr);
     const size_t nFeatures              = dataTable->getNumberOfColumns();
     const size_t nVectors               = dataTable->getNumberOfRows();
     CSRNumericTableIface * csrDataTable = dynamic_cast<CSRNumericTableIface *>(dataTable);

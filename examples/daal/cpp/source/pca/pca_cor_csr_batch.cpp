@@ -35,7 +35,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string dataFileName = "../data/batch/covcormoments_csr.csv";
+std::string dataFileName = "../data/batch/covcormoments_csr.csv";
 
 typedef float algorithmFPType; /* Algorithm floating-point type */
 

@@ -35,7 +35,7 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string dataFileNames[nBlocks] = { "../data/distributed/dbscan_dense_1.csv",
+std::string dataFileNames[nBlocks] = { "../data/distributed/dbscan_dense_1.csv",
                                              "../data/distributed/dbscan_dense_2.csv",
                                              "../data/distributed/dbscan_dense_3.csv",
                                              "../data/distributed/dbscan_dense_4.csv" };
