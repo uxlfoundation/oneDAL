@@ -41,7 +41,7 @@ void sumByRows(const size_t nRows, const size_t nColumns, const algorithmFPType 
     for (size_t i = 0; i < nRows; i++)
     {
         algorithmFPType s = (algorithmFPType)0.0;
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:s))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : s))
         for (size_t j = 0; j < nColumns; j++)
         {
             s += x[i * nColumns + j];
@@ -68,14 +68,14 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     /* calculate sum^t * sum */
     const algorithmFPType one(1.0);
     const algorithmFPType zero(0.0);
-    const DAAL_INT bsz = blockSize;
+    const DAAL_INT bsz  = blockSize;
     const DAAL_INT ione = 1;
 
     BlasInst<algorithmFPType, cpu>::xxgemm("N", "T", &bsz, &bsz, &ione, &one, sum, &bsz, sum, &bsz, &zero, block, &bsz);
 
     /* calculate x * x^t - 1/p * sum^t * sum */
     const algorithmFPType beta = -one / (algorithmFPType)nColumns;
-    const DAAL_INT ncol = nColumns;
+    const DAAL_INT ncol        = nColumns;
 
     BlasInst<algorithmFPType, cpu>::xxgemm("T", "N", &bsz, &bsz, &ncol, &one, x, &ncol, x, &ncol, &beta, block, &bsz);
 
@@ -114,7 +114,7 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     }
 }
 
-}
-}
-}
-}
+} // namespace internal
+} // namespace correlation_distance
+} // namespace algorithms
+} // namespace daal

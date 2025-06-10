@@ -176,7 +176,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
         for (size_t i = start; i < start + size; i++)
         {
             algorithmFPType s = 0.0;
-            PRAGMA_OMP_SIMD_ARGS(reduction(+:s))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : s))
             for (size_t k = 0; k < nc; k++)
             {
                 s += pred[k * n + i];
@@ -215,7 +215,7 @@ services::Status UpdateFPNew(size_t nc, size_t n, algorithmFPType * F, algorithm
             if (!useFullBuffer) daal::internal::MathInst<algorithmFPType, cpu>::vExp(nc, F + (i + start) * nc, buffer);
 
             algorithmFPType s = 0.0;
-            PRAGMA_OMP_SIMD_ARGS(reduction(+:s))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : s))
             for (size_t j = 0; j < nc; j++)
             {
                 s += buffer[offset + j];

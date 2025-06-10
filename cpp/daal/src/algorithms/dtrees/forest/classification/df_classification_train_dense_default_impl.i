@@ -1183,7 +1183,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         {
             minidx++;
 
-            PRAGMA_OMP_SIMD_ARGS(reduction(+:thisNFeatIdx))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[minidx * K + iClass];
@@ -1198,7 +1198,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         while ((minidx < maxidx) && isZero<IndexType, cpu>(thisNFeatIdx)) thisNFeatIdx = nFeatIdx[++minidx];
         nLeft = thisNFeatIdx;
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:minWeights))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : minWeights))
         for (size_t iClass = 0; iClass < K; ++iClass)
         {
             minWeights += nSamplesPerClass[minidx * K + iClass];
@@ -1223,7 +1223,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         while ((minidx < maxidx) && isZero<algorithmFPType, cpu>(thisNFeatIdx))
         {
             maxidx--;
-            PRAGMA_OMP_SIMD_ARGS(reduction(+:thisNFeatIdx))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[maxidx * K + iClass];
@@ -1254,12 +1254,12 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         //iterate idx down to a bin with values for FinalizeBestSplit
         algorithmFPType thisNFeatIdx(0);
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:thisNFeatIdx))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
         for (size_t iC = 0; iC < K; ++iC) thisNFeatIdx += nSamplesPerClass[idx * K + iC];
         while ((minidx < idx) && isZero<algorithmFPType, cpu>(thisNFeatIdx))
         {
             idx--;
-            PRAGMA_OMP_SIMD_ARGS(reduction(+:thisNFeatIdx))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[idx * K + iClass];
@@ -1284,7 +1284,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
             }
         }
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:leftWeights))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : leftWeights))
         for (size_t iClass = 0; iClass < K; ++iClass)
         {
             leftWeights += histLeft[iClass]; //histleft is forced to float, and may cause issues with algorithmFPType = double
@@ -1317,7 +1317,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
             }
         }
 
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:leftWeights))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : leftWeights))
         for (size_t iClass = 0; iClass < K; ++iClass) leftWeights += histLeft[iClass];
     }
 

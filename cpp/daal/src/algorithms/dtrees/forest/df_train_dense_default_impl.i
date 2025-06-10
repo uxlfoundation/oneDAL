@@ -366,7 +366,7 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
 
         for (size_t j = 0; j < nCols; ++j)
         {
-            BinIndexType * binIndexPtr = (*binIndex) + nRows * j;
+            BinIndexType * binIndexPtr        = (*binIndex) + nRows * j;
             const IndexType * featureIndexPtr = featureIndex + nRows * j;
             PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS

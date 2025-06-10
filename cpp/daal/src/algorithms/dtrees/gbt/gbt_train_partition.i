@@ -191,7 +191,7 @@ protected:
                 {
                     const RowIndexType isRight(indexedFeature[aIdx[i]] > idxFeatureValueBestSplit);
                     bestSplitIdxRight[iRight++] = isRight * aIdx[i];
-                    bestSplitIdx[iLeft++] = (1 - isRight) * aIdx[i];
+                    bestSplitIdx[iLeft++]       = (1 - isRight) * aIdx[i];
                 }
             }
             else
@@ -202,7 +202,7 @@ protected:
                 {
                     const RowIndexType isRight(indexedFeature[aIdx[i]] > idxFeatureValueBestSplit);
                     bestSplitIdxRight[iRight++] = isRight * aIdx[i];
-                    bestSplitIdx[iLeft++] = (1 - isRight) * aIdx[i];
+                    bestSplitIdx[iLeft++]       = (1 - isRight) * aIdx[i];
                 }
             }
 

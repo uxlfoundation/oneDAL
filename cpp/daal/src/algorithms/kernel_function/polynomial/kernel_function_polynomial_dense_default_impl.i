@@ -63,7 +63,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
 
     //compute
     algorithmFPType dotProduct(0.0);
-    PRAGMA_OMP_SIMD_ARGS(reduction(+:dotProduct))
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : dotProduct))
     for (size_t i = 0; i < nFeatures; i++)
     {
         dataR[0] += dataA1[i] * dataA2[i];
@@ -102,7 +102,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     for (size_t i = 0; i < nVectors1; i++)
     {
         algorithmFPType dotProduct(0.0);
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:dotProduct))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : dotProduct))
         for (size_t j = 0; j < nFeatures; j++)
         {
             dotProduct += dataA1[i * nFeatures + j] * dataA2[j];

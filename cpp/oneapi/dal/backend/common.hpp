@@ -26,17 +26,17 @@
 #include "oneapi/dal/detail/common.hpp"
 
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-#define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
-#define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
-#define PRAGMA_OMP_SIMD_ARGS(ARGS)   PRAGMA_TO_STR_(omp simd ARGS)
-#define PRAGMA_OMP_SIMD              PRAGMA_TO_STR(omp simd)
-#define PRAGMA_IVDEP                 _Pragma("ivdep")
-#define PRAGMA_VECTOR_ALWAYS         _Pragma("vector always")
+#define PRAGMA_TO_STR(ARGS)        _Pragma(#ARGS)
+#define PRAGMA_TO_STR_(ARGS)       PRAGMA_TO_STR(ARGS)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_IVDEP               _Pragma("ivdep")
+#define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
 #else
-#define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
-#define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
-#define PRAGMA_OMP_SIMD_ARGS(ARGS)   PRAGMA_TO_STR_(omp simd ARGS)
-#define PRAGMA_OMP_SIMD              PRAGMA_TO_STR(omp simd)
+#define PRAGMA_TO_STR(ARGS)        _Pragma(#ARGS)
+#define PRAGMA_TO_STR_(ARGS)       PRAGMA_TO_STR(ARGS)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
 #define PRAGMA_VECTOR_ALWAYS
 #endif
 

@@ -139,7 +139,6 @@ services::Status KernelImplPolynomial<fastCSR, algorithmFPType, cpu>::computeInt
         if (k != one || b != zero)
         {
             daal::threader_for_optional(nVectors1, nVectors1, [=](size_t i) {
-
                 for (size_t j = 0; j <= i; j++)
                 {
                     const algorithmFPType factor = dataR[i * nVectors1 + j] * k + b;

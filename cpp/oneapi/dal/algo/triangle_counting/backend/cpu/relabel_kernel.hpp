@@ -64,7 +64,7 @@ void parallel_prefix_sum(const std::int32_t* degrees_relabel,
     dal::detail::threader_for(num_blocks, num_blocks, [&](std::int64_t block) {
         std::int64_t local_sum = 0;
         std::int64_t block_end = min((std::int64_t)((block + 1) * block_size), vertex_count);
-        PRAGMA_OMP_SIMD_ARGS(reduction(+:local_sum))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : local_sum))
         for (std::int64_t i = block * block_size; i < block_end; i++) {
             local_sum += degrees_relabel[i];
         }
@@ -72,7 +72,7 @@ void parallel_prefix_sum(const std::int32_t* degrees_relabel,
     });
 
     std::int64_t total = 0;
-    PRAGMA_OMP_SIMD_ARGS(reduction(+:total))
+    PRAGMA_OMP_SIMD_ARGS(reduction(+ : total))
     for (std::int64_t block = 0; block < num_blocks; block++) {
         part_prefix[block] = total;
         total += local_sums[block];

@@ -116,7 +116,7 @@ public:
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nRows; ++i)
             {
-                const int isIClass(y[i] >= 0);  // isIClass == 1 if y[i] >= 0; isIClass == 0 if y[i] < 0
+                const int isIClass(y[i] >= 0); // isIClass == 1 if y[i] >= 0; isIClass == 0 if y[i] < 0
                 votes[i * _nClasses + iClass] += isIClass;
                 votes[i * _nClasses + jClass] += (1 - isIClass);
             }
