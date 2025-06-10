@@ -96,6 +96,10 @@ public:
     /// Swaps the implementation of this object and another one.
     table& operator=(table&&);
 
+    /// Destroys the table instance and releases the associated implementation.
+    /// TODO: Enable ~table in next major release
+    //virtual ~table() = default;
+
     /// Indicates whether a table contains non-zero number of rows and columns.
     bool has_data() const noexcept;
 
