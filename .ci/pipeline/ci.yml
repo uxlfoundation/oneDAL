@@ -36,8 +36,8 @@ resources:
   repositories:
     - repository: sklearnex
       type: github
-      name: icfaust/scikit-learn-intelex
-      ref: dev/generalize_win_ci
+      name: uxlfoundation/scikit-learn-intelex
+      ref: main
       endpoint: intel-daal-connection
 
 jobs:
@@ -614,8 +614,7 @@ jobs:
   steps:
   - checkout: none
   - script: |
-      git clone https://github.com/icfaust/scikit-learn-intelex.git .
-      git checkout dev/generalize_win_ci
+      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
     displayName: 'Clone sklearnex'
   - task: DownloadPipelineArtifact@2
     inputs:
