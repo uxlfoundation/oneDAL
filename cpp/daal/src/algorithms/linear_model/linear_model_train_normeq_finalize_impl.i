@@ -127,7 +127,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     {
         for (size_t i = 0; i < nResponses; i++)
         {
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 1; j < nBetas; j++)
             {
@@ -140,7 +140,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     {
         for (size_t i = 0; i < nResponses; i++)
         {
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nBetas - 1; j++)
             {

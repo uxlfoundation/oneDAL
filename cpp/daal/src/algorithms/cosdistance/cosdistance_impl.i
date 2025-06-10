@@ -61,7 +61,7 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     {
         for (size_t i = 0; i < blockSize; i++)
         {
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             for (size_t j = i + 1; j < blockSize; j++)
             {
                 block[i * blockSize + j] = one - block[i * blockSize + j] * diag[i] * diag[j];

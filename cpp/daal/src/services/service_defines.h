@@ -52,13 +52,15 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_VECTOR_ALWAYS         _Pragma("vector always")
     #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
     #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)   PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD              PRAGMA_TO_STR(omp simd)
     #define DAAL_TYPENAME                typename
 #elif defined(__GNUC__)
     #define PRAGMA_IVDEP
     #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
     #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)   PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD              PRAGMA_TO_STR(omp simd)
     #define PRAGMA_VECTOR_ALIGNED
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
@@ -71,7 +73,8 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_VECTOR_ALWAYS
     #define PRAGMA_TO_STR(ARGS)          _Pragma(#ARGS)
     #define PRAGMA_TO_STR_(ARGS)         PRAGMA_TO_STR(ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS)        PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)   PRAGMA_TO_STR_(omp simd ARGS)
+    #define PRAGMA_OMP_SIMD              PRAGMA_TO_STR(omp simd)
     #define DAAL_TYPENAME                typename
 #else
     #define PRAGMA_IVDEP
@@ -80,7 +83,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_VECTOR_UNALIGNED
     #define PRAGMA_VECTOR_ALWAYS
     #define PRAGMA_TO_STR(ARGS)
-    #define PRAGMA_OMP_SIMD(ARGS)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
     #define DAAL_TYPENAME                typename
 #endif
 

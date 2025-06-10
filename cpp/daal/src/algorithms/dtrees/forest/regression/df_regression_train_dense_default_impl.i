@@ -940,7 +940,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         }
         else
         {
-            PRAGMA_OMP_SIMD(reduction(+:nLeft,sumLeft))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+:nLeft,sumLeft))
             for (size_t i = minidx; i <= idx; ++i)
             {
                 nLeft += nFeatIdx[i];
@@ -959,7 +959,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         }
         else
         {
-            PRAGMA_OMP_SIMD(reduction(+:nLeft,sumLeft,leftWeights))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+:nLeft,sumLeft,leftWeights))
             for (size_t i = minidx; i <= idx; ++i)
             {
                 nLeft += nFeatIdx[i];
@@ -1257,7 +1257,7 @@ public:
         algorithmFPType sumMeanDiff        = 0;
         RegErr<algorithmFPType, cpu> * ptr = (RegErr<algorithmFPType, cpu> *)this->oobBuf;
 
-        PRAGMA_OMP_SIMD(reduction(+:yMean))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+:yMean))
         for (size_t i = 0; i < nSamples; ++i)
         {
             yMean += py[i];

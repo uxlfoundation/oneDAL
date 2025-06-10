@@ -76,7 +76,7 @@ struct PostProcessing<lloydDense, algorithmFPType, cpu>
         for (size_t k = 0; k < nClusters; k++)
         {
             algorithmFPType sum(0);
-            PRAGMA_OMP_SIMD(reduction(+ : sum))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
             for (size_t j = 0; j < p; j++)
             {
                 sum += inClusters[k * p + j] * inClusters[k * p + j] * 0.5;
@@ -202,7 +202,7 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
         {
             clSq[k] = 0;
             algorithmFPType sum(0);
-            PRAGMA_OMP_SIMD(reduction(+ : sum))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
             for (size_t j = 0; j < p; j++)
             {
                 sum += inClusters[k * p + j] * inClusters[k * p + j] * 0.5;

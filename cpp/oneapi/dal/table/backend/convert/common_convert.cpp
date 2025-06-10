@@ -45,7 +45,7 @@ dal::array<Pointer> compute_pointers(const dal::array<dal::byte_t>& data,
     auto pointers = dal::array<ptr_t>::empty(count);
     ptr_t* raw_pointers = pointers.get_mutable_data();
 
-    PRAGMA_OMP_SIMD()
+    PRAGMA_OMP_SIMD
     for (std::int64_t row = 0l; row < count; ++row) {
         raw_pointers[row] = source + raw_offsets[row];
     }
@@ -68,7 +68,7 @@ dal::array<std::int64_t> compute_output_offsets(data_type output_type,
     /// pragma omp simd cannot use 'row_count' directly because of the following error:
     /// capturing a structured binding is not yet supported in OpenMP
     const std::int64_t row_count_(row_count);
-    PRAGMA_OMP_SIMD()
+    PRAGMA_OMP_SIMD
     for (std::int64_t row = 0l; row < row_count_; ++row) {
         raw_offsets[row] = row * row_stride_in_bytes;
     }

@@ -41,7 +41,7 @@ void sumByRows(const size_t nRows, const size_t nColumns, const algorithmFPType 
     for (size_t i = 0; i < nRows; i++)
     {
         algorithmFPType s = (algorithmFPType)0.0;
-        PRAGMA_OMP_SIMD(reduction(+:s))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+:s))
         for (size_t j = 0; j < nColumns; j++)
         {
             s += x[i * nColumns + j];
@@ -94,7 +94,7 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     {
         for (size_t i = 0; i < blockSize; i++)
         {
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             for (size_t j = i + 1; j < blockSize; j++)
             {
                 block[i * blockSize + j] = one - block[i * blockSize + j] * diag[i] * diag[j];

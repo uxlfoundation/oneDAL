@@ -578,7 +578,7 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
     histTLS.reduce([=, &masterHist](Hist * v) -> void {
         if (v)
         {
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < sampleCount; ++j)
             {

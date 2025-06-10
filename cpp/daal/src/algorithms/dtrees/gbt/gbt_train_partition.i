@@ -185,7 +185,7 @@ protected:
 
             if (featureUnordered)
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
@@ -196,7 +196,7 @@ protected:
             }
             else
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {

@@ -413,7 +413,7 @@ int doPartition(SizeType n, const IndexType * aIdx, const ResponseType * aRespon
     SizeType iRight  = 0;
     int iRowSplitVal = -1;
 
-    PRAGMA_OMP_SIMD()
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (SizeType i = 0; i < n; ++i)
     {
@@ -451,7 +451,7 @@ int doPartitionIdx(SizeType n, const IndexType * aIdx, const IndexType * aIdx2, 
 
     if (aIdx2)
     {
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (SizeType i = 0; i < n; ++i)
         {
@@ -472,7 +472,7 @@ int doPartitionIdx(SizeType n, const IndexType * aIdx, const IndexType * aIdx2, 
     }
     else
     {
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (SizeType i = 0; i < n; ++i)
         {

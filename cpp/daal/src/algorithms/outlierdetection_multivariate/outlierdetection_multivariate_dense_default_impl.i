@@ -64,7 +64,7 @@ inline void OutlierDetectionKernel<algorithmFPType, method, cpu>::mahalanobisDis
     algorithmFPType * dataCenPtr    = dataCen;
     for (size_t i = 0; i < nVectors; i++, dataPtr += nFeatures, dataCenPtr += nFeatures)
     {
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nFeatures; j++)
         {
             dataCenPtr[j] = dataPtr[j] - location[j];
@@ -78,7 +78,7 @@ inline void OutlierDetectionKernel<algorithmFPType, method, cpu>::mahalanobisDis
     for (size_t i = 0; i < nVectors; i++, dataCenPtr += nFeatures, dataCenInvScatterPtr += nFeatures)
     {
         algorithmFPType distanceValue = zero;
-        PRAGMA_OMP_SIMD(reduction(+ : distanceValue))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : distanceValue))
         for (size_t j = 0; j < nFeatures; j++)
         {
             distanceValue += dataCenPtr[j] * dataCenInvScatterPtr[j];

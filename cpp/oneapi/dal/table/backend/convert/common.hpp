@@ -39,7 +39,7 @@ inline dal::array<Type> extract_by_indices(const Index* indices,
     auto result = dal::array<Type>::empty(count);
     auto* const output = result.get_mutable_data();
 
-    PRAGMA_OMP_SIMD()
+    PRAGMA_OMP_SIMD
     for (std::int64_t i = 0l; i < count; ++i) {
         const Index idx = indices[i];
         output[i] = values[idx];

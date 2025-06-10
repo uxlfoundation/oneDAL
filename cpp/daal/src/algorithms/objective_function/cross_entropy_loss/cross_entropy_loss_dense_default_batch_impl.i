@@ -96,12 +96,12 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
-        PRAGMA_OMP_SIMD(reduction(max:maxArg))
+        PRAGMA_OMP_SIMD_ARGS(reduction(max:maxArg))
         for (size_t i = 1; i < nCols; ++i)
         {
             maxArg = (maxArg < pArg[i]) ? pArg[i] : maxArg;
         }
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nCols; ++i)
         {
@@ -119,13 +119,13 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             algorithmFPType * const pRes = res + iRow * nCols;
             algorithmFPType sum(0.0);
-            PRAGMA_OMP_SIMD(reduction(+:sum))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -141,13 +141,13 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             algorithmFPType * const pRes = res + iRow * nCols;
             algorithmFPType sum(0.);
-            PRAGMA_OMP_SIMD(reduction(+:sum))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -288,7 +288,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
             {
                 curentNorm = 0;
 
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < p; j++)
                 {

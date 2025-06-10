@@ -120,7 +120,7 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
         }
     }
 
-    PRAGMA_OMP_SIMD()
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
     {

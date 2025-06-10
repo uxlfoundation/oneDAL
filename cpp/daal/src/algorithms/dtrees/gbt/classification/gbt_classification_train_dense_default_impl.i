@@ -71,7 +71,7 @@ public:
             const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             if (sampleInd)
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -83,7 +83,7 @@ public:
             }
             else
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -96,7 +96,7 @@ public:
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(end - start, exp + start, exp + start);
             if (sampleInd)
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -107,7 +107,7 @@ public:
             }
             else
             {
-                PRAGMA_OMP_SIMD()
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -139,7 +139,7 @@ public:
             algorithmFPType * p  = bUseTLS ? lsData.local() : buf;
             const size_t iSample = (sampleInd ? sampleInd[i] : i);
             getSoftmax(f + _nClasses * iSample, p);
-            PRAGMA_OMP_SIMD()
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t k = 0; k < _nClasses; ++k)
             {
@@ -160,12 +160,12 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
-        PRAGMA_OMP_SIMD(reduction(max:maxArg))
+        PRAGMA_OMP_SIMD_ARGS(reduction(max:maxArg))
         for (size_t i = 1; i < _nClasses; ++i)
         {
             maxArg = (maxArg < arg[i]) ? arg[i] : maxArg;
         }
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i)
         {
@@ -176,11 +176,11 @@ protected:
         }
         daal::internal::MathInst<algorithmFPType, cpu>::vExp(_nClasses, res, res);
         algorithmFPType sum(0.);
-        PRAGMA_OMP_SIMD(reduction(+:sum))
+        PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
         for (size_t i = 0; i < _nClasses; ++i) sum += res[i];
 
         sum = algorithmFPType(1.) / sum;
-        PRAGMA_OMP_SIMD()
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i) res[i] *= sum;
     }
