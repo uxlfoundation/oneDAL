@@ -25,8 +25,6 @@
 #ifndef __GBT_TRAIN_PARTITION_I__
 #define __GBT_TRAIN_PARTITION_I__
 
-#include <iostream>
-
 #include "src/algorithms/dtrees/gbt/gbt_train_aux.i"
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
 #include "src/algorithms/dtrees/dtrees_train_data_helper.i"
