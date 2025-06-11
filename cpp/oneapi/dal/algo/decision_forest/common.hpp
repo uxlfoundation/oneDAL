@@ -232,7 +232,7 @@ public:
     std::int64_t get_min_bin_size() const;
     bool get_memory_saving_mode() const;
     bool get_bootstrap() const;
-    bool get_parallel_build() const;
+    bool get_local_trees_mode() const;
     splitter_mode get_splitter_mode() const;
     error_metric_mode get_error_metric_mode() const;
     variable_importance_mode get_variable_importance_mode() const;
@@ -272,7 +272,7 @@ protected:
     void set_bootstrap_impl(bool value);
     void set_splitter_mode_impl(splitter_mode value);
     void set_error_metric_mode_impl(error_metric_mode value);
-    void set_parallel_build_impl(bool value);
+    void set_local_trees_mode_impl(bool value);
     void set_variable_importance_mode_impl(variable_importance_mode value);
     void set_class_count_impl(std::int64_t value);
     void set_infer_mode_impl(infer_mode value);
@@ -518,12 +518,12 @@ public:
 
     /// The distributed trees build.
     /// @remark default = false
-    bool get_parallel_build() const {
-        return base_t::get_parallel_build();
+    bool get_local_trees_mode() const {
+        return base_t::get_local_trees_mode();
     }
 
-    auto& set_parallel_build(bool value) {
-        base_t::set_parallel_build_impl(value);
+    auto& set_local_trees_mode(bool value) {
+        base_t::set_local_trees_mode_impl(value);
         return *this;
     }
     /// The bootstrap mode, if true, the training set for a tree
