@@ -60,9 +60,7 @@ void service_memset_seq(T * const ptr, const T value, const size_t num)
     {
         /// Use aligned stores
         const unsigned int num32 = static_cast<unsigned int>(num);
-        PRAGMA_OMP_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(ptr : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (unsigned int i = 0; i < num32; i++)
         {
             ptr[i] = value;

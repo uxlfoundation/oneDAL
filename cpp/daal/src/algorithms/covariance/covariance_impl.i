@@ -269,9 +269,7 @@ public:
         }
 
         /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-        PRAGMA_OMP_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(thisCrossProduct, otherCrossProduct : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
         {
             thisCrossProduct[i] += otherCrossProduct[i];
@@ -286,9 +284,7 @@ public:
                 return;
             }
             /// It is safe to use aligned loads and stores because the data is aligned
-            PRAGMA_OMP_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            PRAGMA_VECTOR_ALIGNED
+            PRAGMA_OMP_SIMD_ARGS(aligned(thisSums, otherSums : DAAL_MALLOC_DEFAULT_ALIGNMENT))
             for (size_t i = 0; i < _nFeatures; i++)
             {
                 thisSums[i] += otherSums[i];

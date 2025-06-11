@@ -452,8 +452,7 @@ services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
     tlsHist1024.reduce([&](int * ptr) -> void {
         if (ptr == nullptr) return;
 
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(mHist, ptr : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (int i = 0; i < 1024; i++) mHist[i] += ptr[i];
 
         services::internal::service_free<int, cpu>(ptr);
