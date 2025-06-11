@@ -1,31 +1,47 @@
 # Documentation owners and reviewers
-/docs/         @Vika-F @maria-Petrova @Alexsandruss
-*.md           @Vika-F @maria-Petrova @Alexsandruss
+/docs/         @Vika-F @maria-Petrova @Alexsandruss @david-cortes-intel @yuejiaointel
+*.md           @Vika-F @maria-Petrova @Alexsandruss @david-cortes-intel @syakov-intel
 
 # TTP files
-third-party*   @maria-Petrova
+third-party*   @maria-Petrova @syakov-intel
 
 # Samples & examples
-samples/       @maria-Petrova @Alexsandruss @Alexandr-Solovev
-examples/      @maria-Petrova @Alexsandruss
+samples/       @maria-Petrova @Alexsandruss @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel
+examples/      @maria-Petrova @Alexsandruss @Alexandr-Solovev @Vika-F @ethanglaser @icfaust @david-cortes-intel
 
 # Infrastructure and tools
-.ci/           @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser
-.github/       @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser
-.bazelversion  @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser
-WORKSPACE      @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser
+.ci/           @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser @icfaust
+.github/       @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser @icfaust
+.bazelversion  @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser @icfaust
+WORKSPACE      @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser @icfaust
 
 # Build & dev infrastructure
 make*          @Alexsandruss
 cmake/         @Alexsandruss
-deploy/        @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser 
-dev/           @Alexsandruss @napetrov @homksei @ahuber21 @ethanglaser 
+deploy/        @Alexsandruss @homksei @ahuber21 @ethanglaser
+dev/           @Alexsandruss @homksei @ahuber21 @ethanglaser
+dev/bazel/     @KateBlueSky @Alexandr-Solovev
+MODULE.bazel*  @KateBlueSky @Alexandr-Solovev
+# Platform-specific build scripts
+dev/make/function_definitions/arm*        @rakshithgb-fujitsu
+dev/make/function_definitions/lnxarm*     @rakshithgb-fujitsu
+dev/make/function_definitions/riscv64*    @keeranroth
+dev/make/function_definitions/lnxriscv64* @keeranroth
+.ci/env/arm-*                              @rakshithgb-fujitsu
+.ci/env/*riscv*.cmake                      @keeranroth
+.github/workflows/ci-aarch64.yml           @rakshithgb-fujitsu
+.github/workflows/*                        @icfaust
 
 # C++ code
-cpp/           @Alexsandruss @Alexandr-Solovev
+cpp/           @Alexsandruss @Alexandr-Solovev @avolkov-intel @KateBlueSky @icfaust @ethanglaser @david-cortes-intel
+
+# Platform-specific code owners
+cpp/**/*arm*       @rakshithgb-fujitsu
+cpp/**/*aarch64*   @rakshithgb-fujitsu
+cpp/**/*riscv64*   @keeranroth
 
 # Tree based methods
-dtrees         @razdoburdin @ahuber21 @avolkov-intel @icfaust
+dtrees         @razdoburdin @ahuber21 @avolkov-intel @icfaust @david-cortes-intel
 
 # Governance and process
 /.github/CODEOWNERS @uxlfoundation/oneDAL-maintain

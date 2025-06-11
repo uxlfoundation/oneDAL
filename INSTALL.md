@@ -23,11 +23,12 @@ Required Software:
 * BLAS and LAPACK libraries - both provided by oneMKL
 * Python version 3.9 or higher
 * oneTBB library (repository contains script to download it)
+* oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
-* `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
+* `make`; which can be installed using MSYS2 on Windows\* as follows:
 
-        pacman -S msys/make msys/dos2unix
+        pacman -S msys/make
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
 
@@ -105,9 +106,24 @@ is available as an alternative to the manual setup.
 
             ./dev/download_tbb.sh
 
-6. Download and install Python (version 3.9 or higher).
+6. Set up oneDPL
+  _Note: if you used the general oneAPI setvars script from a Base Toolkit installation, this step will not be necessary as oneDPL will already have been set up._
 
-7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+    Download and install [Intel(R) oneDPL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-library.html).
+    Set the environment variables for for Intel(R) oneDPL. For example:
+
+    - oneDPL (Windows\*):
+
+            call "C:\Program Files (x86)\Intel\oneAPI\dpl\latest\env\vars.bat" intel64
+
+    - oneDPL (Linux\*):
+
+            source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
+
+
+7. Download and install Python (version 3.9 or higher).
+
+8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -151,9 +167,29 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=yes
 
-To build oneDAL to include only debug symbols, run:
+- To build oneDAL to include only debug symbols, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
+
+It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
+
+- To integrate [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) in a debug oneDAL build (recommended), run:
+
+    _Note: Windows support of REQSAN in oneDAL is experimental, static AddressSanitizer can be set with value: static_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=address REQDBG=yes
+
+- To integrate [MemorySanitizer](https://github.com/google/sanitizers/wiki/memorysanitizer) in a debug oneDAL build, run:
+
+    _Note: Clang and Clang-derived compilers (including the Intel DPC++ compiler) support additional sanitizers such MSan, TSan, and UBSan_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=memory REQDBG=yes
+  
+- To build oneDAL with gcov code coverage tool integration, run:
+
+    _Note: Only available when building with the Intel DPC++ compiler on Linux operating systems_
+
+            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
@@ -183,7 +219,9 @@ source env/vars.sh
 
 The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for more information.
 
-Examples of library usage will also be auto-generated as part of the build under path `daal/latest/examples/daal/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+Examples of library usage for both the DAAL and oneAPI interfaces will also be auto-generated as part of the build, under paths `daal/latest/examples/daal/cpp/source` and `daal/latest/examples/oneapi/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+
+* DAAL examples:
 
 ```shell
 cd daal/latest/examples/daal/cpp
@@ -193,7 +231,17 @@ cmake ..
 make -j$(nproc)
 ```
 
-This will generate executables under path `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data`), assuming that one starts from inside the `build` folder (as at the end of the previous step):
+* oneAPI examples:
+
+```shell
+cd daal/latest/examples/oneapi/cpp
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+This will generate executables under paths `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}` and `daal/latest/examples/oneapi/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data` and `daal/latest/examples/oneapi/data`), **assuming that one starts from inside the `build` folder** (as at the end of the previous steps):
 
 ```shell
 cd ..
@@ -205,6 +253,42 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ```shell
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
+
+DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
+
+### Executing examples with ASAN
+
+When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASAN on Windows has not been tested):
+
+* Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASAN - e.g. by setting these flags:
+    ```shell
+    export CC=icx
+    export CXX=icpx
+    export CXXFLAGS="-fsanitize=address"
+    export LDFLAGS="-shared-libasan"
+    ```
+* Create a symlink to the ASAN runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
+    ```shell
+    ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+    ```
+* Use the verbose mode in oneDAL when executing examples (otherwise ASAN won't produce prints):
+    ```shell
+    export ONEDAL_VERBOSE=1
+    ```
+
+Putting it all together, the earlier snippets for executing the examples but with ASAN enabled should look like this:
+
+```shell
+cd daal/latest/examples/daal/cpp
+mkdir -p build
+cd build
+CC=icx CXX=icpx CXXFLAGS="-fsanitize=address" LDFLAGS="-shared-libasan" cmake ..
+make -j$(nproc)
+ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+_Be aware that ASAN is known to generate many false-positive reports of memory leaks when used with oneDAL._
 
 ## Conda Development Environment Setup
 
@@ -226,6 +310,7 @@ conda install -y \
     make "python>=3.9" `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
+    onedpl-devel `# required oneDPL package` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
     cmake `# required to build the examples only`
 ```
@@ -233,15 +318,17 @@ conda install -y \
 Then modify the relevant environment variables to point to the conda-installed libraries:
 
 ```shell
-export MKLROOT=${CONDA_PREFIX}
-export TBBROOT=${CONDA_PREFIX}
+export MKLROOT="${CONDA_PREFIX}"
+export TBBROOT="${CONDA_PREFIX}"
+export DPL_ROOT="${CONDA_PREFIX}"
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
-export CPATH="${CONDA_PREFIX}/include:${CPATH}"
-export PATH="${CONDA_PREFIX}/bin:${PATH}"
+export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
 export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```
+
+_Note: variable `$PATH` is also required to contain `${CONDA_PREFIX}/bin`, but that should have been handled automatically by `conda activate`._
 
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.
 

@@ -151,13 +151,13 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
 
             for (size_t i = iBlock * blockSize; i < endBlock; i++)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
                     pL[i * dim + j] = pA[i * dim + j];
                 }
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = (i + 1); j < dim; j++)
                 {
@@ -176,13 +176,13 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
             {
                 const size_t ind = (i + 1) * i / 2;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
                     pL[i * dim + j] = pA[ind + j];
                 }
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = (i + 1); j < dim; j++)
                 {
@@ -201,13 +201,13 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
             {
                 const size_t ind = (2 * dim - j + 1) * j / 2;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < j; i++)
                 {
                     pL[i * dim + j] = algorithmFPType(0);
                 }
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = j; i < dim; i++)
                 {
@@ -247,7 +247,7 @@ services::Status CholeskyKernel<algorithmFPType, method, cpu>::copyToLowerTriang
             {
                 const size_t ind = (i + 1) * i / 2;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -276,7 +276,7 @@ services::Status CholeskyKernel<algorithmFPType, method, cpu>::copyToLowerTriang
             {
                 const size_t ind = (j + 1) * j / 2;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i <= j; i++)
                 {

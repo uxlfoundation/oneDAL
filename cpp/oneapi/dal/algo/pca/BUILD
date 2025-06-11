@@ -7,14 +7,12 @@ load(
 package(default_visibility = ["//visibility:public"])
 
 dal_module(
-    name = "pca",
+    name = "core",
     auto = True,
     dal_deps = [
         "@onedal//cpp/oneapi/dal:core",
-        "@onedal//cpp/oneapi/dal/backend/primitives:common",
-        "@onedal//cpp/oneapi/dal/backend/primitives:lapack",
-        "@onedal//cpp/oneapi/dal/backend/primitives:stat",
-        "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
+        "@onedal//cpp/oneapi/dal/algo/pca/backend:common",
+        "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
     extra_deps = [
         "@onedal//cpp/daal/src/algorithms/pca:kernel",
@@ -22,37 +20,28 @@ dal_module(
     ],
 )
 
-dal_test_suite(
-    name = "cpu_tests",
-    srcs = glob([
-        "backend/cpu/test/*.cpp",
-    ]),
-    compile_as = ["c++"],
+dal_module(
+    name = "parameters",
     dal_deps = [
-        ":pca",
+        "@onedal//cpp/oneapi/dal/algo/pca/parameters",
+        "@onedal//cpp/oneapi/dal/detail/parameters",
     ],
-    private = True,
 )
 
-dal_test_suite(
-    name = "gpu_tests",
-    srcs = glob([
-        "backend/gpu/test/*.cpp",
-    ]),
-    compile_as = ["dpc++"],
+dal_module(
+    name = "pca",
     dal_deps = [
-        ":pca",
-    ],
-    private = True,
+        ":core",
+        ":parameters",
+        "@onedal//cpp/oneapi/dal/algo/pca/detail",
+        "@onedal//cpp/oneapi/dal/algo/pca/backend",
+    ]
 )
 
 dal_test_suite(
     name = "backend_tests",
-    srcs = glob([
-        "backend/test/*.cpp",
-    ]),
     dal_deps = [
-        ":pca",
+        "@onedal//cpp/oneapi/dal/algo/pca/backend/test",
     ],
     private = True,
     framework = "catch2",
@@ -75,8 +64,6 @@ dal_test_suite(
 dal_test_suite(
     name = "tests",
     tests = [
-        ":cpu_tests",
-        ":gpu_tests",
         ":backend_tests",
         ":interface_tests",
     ],

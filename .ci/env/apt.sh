@@ -31,16 +31,21 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.0 intel-oneapi-runtime-libs=2025.0.0-406
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.1 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
-    sudo apt-get install -y intel-oneapi-tbb-devel-2022.0
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.1
+}
+
+function install_dpl {
+    sudo apt-get install -y intel-oneapi-libdpstd-devel
 }
 
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel-2025.0
+    sudo apt-get install -y intel-oneapi-mkl-devel-2025.1
     install_tbb
+    install_dpl
 }
 
 function install_clang-format {
@@ -48,7 +53,7 @@ function install_clang-format {
 }
 
 function install_dev-base {
-    sudo apt-get install -y gcc-multilib g++-multilib dos2unix tree
+    sudo apt-get install -y gcc-multilib g++-multilib tree
 }
 
 function install_dev-base-conda {
@@ -61,6 +66,10 @@ function install_gnu-cross-compilers {
 
 function install_qemu_emulation_apt {
     sudo apt-get install -y qemu-user-static
+}
+
+function install_opencl_apt {
+    sudo apt-get install -y ocl-icd-opencl-dev
 }
 
 function install_qemu_emulation_deb {
@@ -120,6 +129,10 @@ function install_miniforge {
     source /usr/share/miniconda/etc/profile.d/conda.sh
 }
 
+function install_abigail {
+    sudo apt-get install -y abigail-tools
+}
+
 if [ "${component}" == "dpcpp" ]; then
     add_repo
     install_dpcpp
@@ -129,6 +142,9 @@ elif [ "${component}" == "tbb" ]; then
 elif [ "${component}" == "mkl" ]; then
     add_repo
     install_mkl
+elif [ "${component}" == "dpl" ]; then
+    add_repo
+    install_dpl
 elif [ "${component}" == "gnu-cross-compilers" ]; then
     update
     install_gnu-cross-compilers "$2"
@@ -158,8 +174,14 @@ elif [ "${component}" == "miniforge" ] ; then
         install_miniforge
     fi
     install_dev-base-conda
+elif [ "${component}" == "abigail" ] ; then
+    update
+    install_abigail
+elif [ "${component}" == "opencl" ]; then
+    update
+    install_opencl_apt
 else
     echo "Usage:"
-    echo "   $0 [dpcpp|tbb|mkl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge]"
+    echo "   $0 [dpcpp|tbb|mkl|dpl|gnu-cross-compilers|clang-format|dev-base|qemu-apt|qemu-deb|llvm-version|build-sysroot|miniforge|abigail|opencl]"
     exit 1
 fi

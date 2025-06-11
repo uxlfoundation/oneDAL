@@ -139,6 +139,7 @@ public:
     /** Default constructor */
     Input();
     Input(const Input & other);
+    Input & operator=(const Input & other);
 
     virtual ~Input() {}
 

@@ -203,6 +203,7 @@ struct IsSameType<U, U>
 };
 
 const size_t DAAL_MALLOC_DEFAULT_ALIGNMENT = 64;
+const size_t DAAL_DEFAULT_ALIGNMENT_MASK   = DAAL_MALLOC_DEFAULT_ALIGNMENT - 1;
 
 const int SERIALIZATION_HOMOGEN_NT_ID             = 1000;
 const int SERIALIZATION_AOS_NT_ID                 = 3000;
@@ -485,6 +486,17 @@ const int SERIALIZATION_DBSCAN_DISTRIBUTED_PARTIAL_RESULT_STEP13_ID = 121310;
     #define DAAL_ASSERT(cond)
     #define DAAL_ASSERT_DECL(var)
 #endif
+
+#define DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(type, op1, op2, result) \
+    {                                                                      \
+        result = false;                                                    \
+        if (!(0 == (op1)) && !(0 == (op2)))                                \
+        {                                                                  \
+            volatile type r = (op1) * (op2);                               \
+            r /= (op1);                                                    \
+            if (!(r == (op2))) result = true;                              \
+        }                                                                  \
+    }
 
 #define DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(type, op1, op2)                                     \
     {                                                                                             \

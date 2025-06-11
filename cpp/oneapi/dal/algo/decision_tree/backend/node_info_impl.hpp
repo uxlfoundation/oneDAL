@@ -54,7 +54,7 @@ public:
         check_domain_cond((class_count_ > 1), dal::detail::error_messages::class_count_leq_one());
     }
     std::int64_t response = 0;
-    const double* prob;
+    const double* prob = nullptr;
     std::int64_t class_count;
 };
 

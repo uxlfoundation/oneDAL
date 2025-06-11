@@ -14,19 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
+load("@onedal//dev/bazel:repos.bzl", "repos")
 
-SET(MAKE_CROSS_COMPILING TRUE)
-SET(CMAKE_SYSTEM_NAME "Linux")
-SET(CMAKE_SYSTEM_PROCESSOR "aarch64")
-
-SET(CMAKE_SYSROOT $ENV{ONEDAL_SYSROOT})
-SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-
-find_program(CMAKE_C_COMPILER NAMES clang)
-SET(CMAKE_C_COMPILER_TARGET aarch64-linux-gnu)
-
-find_program(CMAKE_CXX_COMPILER NAMES clang++)
-SET(CMAKE_CXX_COMPILER_TARGET aarch64-linux-gnu)
-
+dpl_repo = repos.prebuilt_libs_repo_rule(
+    includes = [
+        "include",
+    ],
+    libs = [
+        "lib",
+    ],
+    build_template = "@onedal//dev/bazel/deps:dpl.tpl.BUILD",
+)

@@ -85,7 +85,7 @@ class DAAL_EXPORT Input : public kernel_function::Input
 public:
     Input();
     Input(const Input & other);
-
+    Input & operator=(const Input & other);
     virtual ~Input() {}
 
     /**

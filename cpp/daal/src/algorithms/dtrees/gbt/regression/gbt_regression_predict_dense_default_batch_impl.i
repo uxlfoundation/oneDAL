@@ -397,7 +397,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
     algorithmFPType * contribsOn   = buffer + 2 * elementsInMatrix;
 
     // Copy nominal values (for bias term) to the condition = 0 buffer
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0ul; i < nRowsData; ++i)
     {
@@ -557,7 +557,7 @@ void PredictRegressionTask<algorithmFPType, cpu>::predictByTreesVector(size_t iF
         gbt::prediction::internal::predictForTreeVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(
             *_aTree[iTree], _featHelper, x, v, dispatcher);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t row = 0ul; row < vectorBlockSize; ++row)
         {

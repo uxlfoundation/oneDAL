@@ -16,7 +16,7 @@
 
 module(name = "onedal")
 
-bazel_dep(name = "platforms", version = "0.0.11")
+bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "rules_cc", version = "0.1.1")
 
@@ -90,6 +90,21 @@ ccl_repo(
     ]
 )
 
+dpl_repo = use_repo_rule("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
+dpl_repo(
+    name = "dpl",
+    root_env_var = "DPL_ROOT",
+    urls = [
+        "https://files.pythonhosted.org/packages/95/f6/18f78cb933e01ecd9e99d37a10da4971a795fcfdd1d24640799b4050fdbb/onedpl_devel-2022.7.1-py2.py3-none-manylinux_2_28_x86_64.whl",
+    ],
+    sha256s = [
+        "3b270999d2464c5151aa0e7995dda9e896d072c75069ccee1efae9dc56bdc417",
+    ],
+    strip_prefixes = [
+        "onedpl_devel-2022.7.1.data/data",
+    ],
+)
+   
 mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
 mkl_repo(
     name = "mkl",

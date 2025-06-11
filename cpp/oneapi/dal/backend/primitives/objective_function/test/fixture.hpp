@@ -622,6 +622,8 @@ public:
                                                  L2 * 2,
                                                  fit_intercept,
                                                  bsz);
+
+        // Test the case when value, gradient and hessp are needed
         auto set_point_event = functor.update_x(params_gpu, true, true, {});
         wait_or_pass(set_point_event).wait_and_throw();
 
@@ -635,6 +637,22 @@ public:
         }
         base_matrix_operator<float_t>& hessp = functor.get_hessian_product();
         test_hessian_product(gth_hessian, hessp, fit_intercept, L2, rtol, atol);
+
+        // Test the case when value and gradient are needed
+        set_point_event = functor.update_x(params_gpu, true, false, {});
+        wait_or_pass(set_point_event).wait_and_throw();
+        IS_CLOSE(float_t, gth_logloss, functor.get_value(), rtol, atol);
+        grad_func = functor.get_gradient();
+        grad_func_host = grad_func.to_host(this->get_queue());
+
+        for (std::int64_t i = 0; i < dim; ++i) {
+            IS_CLOSE(float_t, gth_grad.at(i), grad_func_host.at(i), rtol, atol);
+        }
+
+        // Test the case when only value is needed
+        set_point_event = functor.update_x(params_gpu, false, false, {});
+        wait_or_pass(set_point_event).wait_and_throw();
+        IS_CLOSE(float_t, gth_logloss, functor.get_value(), rtol, atol);
     }
 
 protected:

@@ -109,7 +109,7 @@ struct Statistics
 
             fpType wsum = 0;
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_ICC_NO16(omp simd reduction(+ : wsum))
             for (size_t i = 0; i < nRows; i++)
