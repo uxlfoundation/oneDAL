@@ -139,13 +139,17 @@ elseif (@VERSIONS_SET@ STREQUAL "FALSE")
     string(REGEX REPLACE ".*#define __INTEL_DAAL_MINOR_BINARY__ ([0-9]+).*" "\\1" _dal_ver_minor_bin "${DAL_VERSION_INFO}")
 endif()
 
+# The mkl_core part is required for compatibility with different MKL versions
+# at runtime and during the oneDAL build process. For more details on the
+# static build structure, search for 'Link static lib' in the 'common.mk'.
 if(MKL_DEPENDENCY STREQUAL "yes")
     set(MKL_THREADING "tbb_thread")
     set(MKL_SYCL_LINK "static")
     set(MKL_LINK "static")
     set(MKL_SYCL_INTERFACE_FULL "intel_ilp64")
     set(MKL_INTERFACE_FULL "intel_ilp64")
-    find_package(MKL REQUIRED MKL::MKL_SYCL)
+    find_package(MKL REQUIRED MKL::MKL_SYCL MKL::MKL_CORE)
+    list(APPEND oneDAL_IMPORTED_TARGETS MKL::mkl_core MKL::mkl_intel_ilp64 MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
 endif()
 
 if (ONEDAL_USE_DPCPP STREQUAL "yes" AND ONEDAL_INTERFACE STREQUAL "no")

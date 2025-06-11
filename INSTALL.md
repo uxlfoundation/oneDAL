@@ -26,9 +26,9 @@ Required Software:
 * oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
 * [MSYS2](http://msys2.github.io) (Windows\* only)
-* `make` and `dos2unix` tools; install these packages using MSYS2 on Windows\* as follows:
+* `make`; which can be installed using MSYS2 on Windows\* as follows:
 
-        pacman -S msys/make msys/dos2unix
+        pacman -S msys/make
 
 For details, see [System Requirements for oneDAL](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/system-requirements-for-oneapi-data-analytics-library.html).
 
@@ -219,7 +219,9 @@ source env/vars.sh
 
 The provided unit tests for the library can be executed through the Bazel system - see the [Bazel docs](https://github.com/uxlfoundation/oneDAL/tree/main/dev/bazel) for more information.
 
-Examples of library usage will also be auto-generated as part of the build under path `daal/latest/examples/daal/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+Examples of library usage for both the DAAL and oneAPI interfaces will also be auto-generated as part of the build, under paths `daal/latest/examples/daal/cpp/source` and `daal/latest/examples/oneapi/cpp/source`. These can be built through CMake - assuming one starts from the release path `__release_{os_name}[_{compiler_name}]`, the following would do:
+
+* DAAL examples:
 
 ```shell
 cd daal/latest/examples/daal/cpp
@@ -229,7 +231,17 @@ cmake ..
 make -j$(nproc)
 ```
 
-This will generate executables under path `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data`), assuming that one starts from inside the `build` folder (as at the end of the previous step):
+* oneAPI examples:
+
+```shell
+cd daal/latest/examples/oneapi/cpp
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+This will generate executables under paths `daal/latest/examples/daal/cpp/_cmake_results/{platform_name}` and `daal/latest/examples/oneapi/cpp/_cmake_results/{platform_name}`. They can be executed as follows (note that they require access to the data files under `daal/latest/examples/daal/data` and `daal/latest/examples/oneapi/data`), **assuming that one starts from inside the `build` folder** (as at the end of the previous steps):
 
 ```shell
 cd ..
@@ -241,6 +253,42 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ```shell
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
+
+DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
+
+### Executing examples with ASAN
+
+When building oneDAL with ASAN (flags `REQSAN=address`, typically combined with `REQDBG=yes`), building and executing the generated examples requires additional steps - **assuming a Linux system** (ASAN on Windows has not been tested):
+
+* Configure CMake to build the examples with the same compiler as was one for oneDAL (ICX by default) and with dynamic linkage to ASAN - e.g. by setting these flags:
+    ```shell
+    export CC=icx
+    export CXX=icpx
+    export CXXFLAGS="-fsanitize=address"
+    export LDFLAGS="-shared-libasan"
+    ```
+* Create a symlink to the ASAN runtime in the same folder from where the examples are executed. ICX uses the same ASAN runtime as CLANG, so something like this should do:
+    ```shell
+    ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+    ```
+* Use the verbose mode in oneDAL when executing examples (otherwise ASAN won't produce prints):
+    ```shell
+    export ONEDAL_VERBOSE=1
+    ```
+
+Putting it all together, the earlier snippets for executing the examples but with ASAN enabled should look like this:
+
+```shell
+cd daal/latest/examples/daal/cpp
+mkdir -p build
+cd build
+CC=icx CXX=icpx CXXFLAGS="-fsanitize=address" LDFLAGS="-shared-libasan" cmake ..
+make -j$(nproc)
+ln -s $(clang -print-file-name=libclang_rt.asan-x86_64.so) libclang_rt.asan.so
+ONEDAL_VERBOSE=1 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
+```
+
+_Be aware that ASAN is known to generate many false-positive reports of memory leaks when used with oneDAL._
 
 ## Conda Development Environment Setup
 
@@ -275,7 +323,7 @@ export TBBROOT="${CONDA_PREFIX}"
 export DPL_ROOT="${CONDA_PREFIX}"
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
 export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
-export CPATH="${CONDA_PREFIX}/include:${CPATH}"
+export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
 export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```

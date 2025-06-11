@@ -27,7 +27,7 @@
 #include "src/externals/service_blas.h"
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 namespace daal
 {
@@ -101,7 +101,7 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
 
         for (DAAL_INT i = 0; i < nRows; i++, xPtr += nFeatures)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (DAAL_INT j = 0; j < nFeatures; j++)
             {
@@ -124,7 +124,7 @@ Status ThreadingTask<algorithmFPType, cpu>::update(DAAL_INT startRow, DAAL_INT n
         const algorithmFPType * yPtr = y;
         for (DAAL_INT i = 0; i < nRows; i++, yPtr += _nResponses)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (DAAL_INT j = 0; j < _nResponses; j++)
             {
@@ -140,7 +140,7 @@ void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorith
 {
     {
         DAAL_PROFILER_THREADING_TASK(reduce.syrkX);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nBetasIntercept); i++)
         {
@@ -150,7 +150,7 @@ void ThreadingTask<algorithmFPType, cpu>::reduce(algorithmFPType * xtx, algorith
 
     {
         DAAL_PROFILER_THREADING_TASK(reduce.gemmXY);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < (_nBetasIntercept * _nResponses); i++)
         {

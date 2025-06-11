@@ -23,7 +23,7 @@
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 #include "src/algorithms/objective_function/common/objective_function_utils.i"
 
@@ -61,7 +61,7 @@ static void applyBetaImpl(const algorithmFPType * x, const algorithmFPType * bet
     }
     if (bIntercept)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < n; ++i)
         {
@@ -81,7 +81,7 @@ template <typename algorithmFPType, CpuType cpu>
 static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 {
     const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -96,7 +96,7 @@ static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 template <typename algorithmFPType, CpuType cpu>
 static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
 {
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -112,7 +112,7 @@ void LogLossKernel<algorithmFPType, method, cpu>::sigmoid(const algorithmFPType 
     //s = exp(-f)
     vexp<algorithmFPType, cpu>(f, s, n);
     //s = sigm(f)
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -370,7 +370,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 const DAAL_INT nN          = static_cast<DAAL_INT>(nRowsToProcess);
                 algorithmFPType * const pg = grads.get() + iBlock * p;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {
@@ -380,7 +380,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 daal::internal::BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &notrans, &dim, &yDim, &nN, &one, xLocal, &dim, sgPtrLocal, &nN,
                                                                        &zero, pg, &dim);
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {

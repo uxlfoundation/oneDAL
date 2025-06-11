@@ -279,7 +279,7 @@ Status ImplicitALSInitDistrKernel<algorithmFPType, fastCSR, cpu>::computePartial
 
             algorithmFPType itemsSum = 0;
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t k = start; k < end; ++k)
             {

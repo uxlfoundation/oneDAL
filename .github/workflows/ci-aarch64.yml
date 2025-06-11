@@ -45,18 +45,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [
-          { name: GitHub hosted, label: ubuntu-24.04-arm },
-          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50 }
+          { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu },
+          { name: Arm hosted, label: ah-ubuntu_24_04-c6g_2x-50, cxx: clang }
         ]
 
-    name: LinuxMakeGNU_OpenBLAS(SVE)-${{ matrix.os.name }}
+    name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)-${{ matrix.os.name }}
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ${{ matrix.os.label }}
     steps:
 
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@57c20a23a6cac5b90f31864439996e5b206df9dc # v4.0.1
+        uses: lukka/get-cmake@ea004816823209b8d1211e47b216185caee12cc5 # v4.0.2
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -93,29 +94,33 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install compiler
+        if: matrix.os.cxx == 'clang'
+        run: .ci/env/apt.sh llvm-version 18
+
       - name: System Info
         run: .ci/scripts/describe_system.sh
   
       - name: make daal
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
+          .ci/scripts/build.sh --compiler ${{ matrix.os.cxx }} --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
 
       - name: make onedal_c
         run: |
-          .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
+          .ci/scripts/build.sh --compiler ${{ matrix.os.cxx }} --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64
 
       - name: daal/cpp examples
         run: |
           echo "::warning::This step is designed to always pass, please look for more details"
           # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
-          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface daal/cpp --build-system cmake --backend ref || true
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref || true
         env:
           CMAKE_GENERATOR: Ninja
 
       - name: oneapi/cpp examples
         run: |
           echo "::warning::This step is designed to always pass, please look for more details"
-          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_gnu --compiler gnu --interface oneapi/cpp --build-system cmake --backend ref || true
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref || true
         env:
           CMAKE_GENERATOR: Ninja
   # This job adds a check named "CI AArch64" that represents overall

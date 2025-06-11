@@ -26,7 +26,7 @@
 
 #include "src/algorithms/service_kernel_math.h"
 #include "src/externals/service_lapack.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 namespace daal
 {
@@ -127,7 +127,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     {
         for (size_t i = 0; i < nResponses; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 1; j < nBetas; j++)
             {
@@ -140,7 +140,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     {
         for (size_t i = 0; i < nResponses; i++)
         {
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nBetas - 1; j++)
             {
