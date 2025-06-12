@@ -32,6 +32,8 @@
 #include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel_common.hpp"
 
+#include <iostream>
+
 namespace oneapi::dal::linear_regression::backend {
 
 using daal::services::Status;
@@ -171,6 +173,9 @@ static train_result<Task> train(const context_cpu& ctx,
                                 const detail::descriptor_base<Task>& desc,
                                 const detail::train_parameters<Task>& params,
                                 const train_input<Task>& input) {
+    auto& comm = ctx.get_communicator();
+    auto rank_cnt = comm.get_rank_count();
+    std::cout << "Rank count: " << rank_cnt << std::endl;
     return call_daal_kernel<Float, Task>(ctx,
                                          desc,
                                          params,
