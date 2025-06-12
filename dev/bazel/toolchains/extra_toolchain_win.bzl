@@ -14,15 +14,15 @@
 # limitations under the License.
 #===============================================================================
 
-def configure_extra_toolchain_lnx(repo_ctx, compiler_id):
+def configure_extra_toolchain_win(repo_ctx, compiler_id):
     repo_ctx.template(
-        "patch_daal_kernel_defines.sh",
-        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.sh"),
+        "patch_daal_kernel_defines.bat",
+        Label("@onedal//dev/bazel/toolchains/tools:patch_daal_kernel_defines.bat"),
     )
-    patch_daal_kernel_defines_path = str(repo_ctx.path("patch_daal_kernel_defines.sh"))
+    patch_daal_kernel_defines_path = str(repo_ctx.path("patch_daal_kernel_defines.bat"))
     repo_ctx.template(
         "BUILD",
-        Label("@onedal//dev/bazel/toolchains:extra_toolchain_lnx.tpl.BUILD"),
+        Label("@onedal//dev/bazel/toolchains:extra_toolchain_win.tpl.BUILD"),
         {
             "%{patch_daal_kernel_defines}": patch_daal_kernel_defines_path,
         }

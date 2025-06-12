@@ -16,6 +16,8 @@
 
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler")
 load("@onedal//dev/bazel/toolchains:cc_toolchain_lnx.bzl", "configure_cc_toolchain_lnx", "find_tool")
+load("@onedal//dev/bazel/toolchains:cc_toolchain_win.bzl", "configure_cc_toolchain_win")
+
 
 def _detect_requirements(repo_ctx):
     os_id = detect_os(repo_ctx)
@@ -53,6 +55,7 @@ def _detect_compiler_version(repo_ctx, dpcc_path):
 def _configure_cc_toolchain(repo_ctx, reqs):
     configure_cc_toolchain_os = {
         "lnx": configure_cc_toolchain_lnx,
+        "win": configure_cc_toolchain_win,
     }[reqs.os_id]
     return configure_cc_toolchain_os(repo_ctx, reqs)
 
