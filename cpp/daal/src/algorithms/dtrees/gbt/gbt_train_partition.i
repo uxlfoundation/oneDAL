@@ -174,9 +174,6 @@ protected:
         RowIndexType part_high_left[maxNBlocks];
         RowIndexType part_high_right[maxNBlocks];
 
-        constexpr size_t unrollShift = 5;
-        constexpr size_t unrollFactor(1 << unrollShift); /// Unroll factor for SIMD
-
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t iBlock) {
             RowIndexType iLeft  = 0;
             RowIndexType iRight = 0;
@@ -186,8 +183,9 @@ protected:
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 
-            const IndexType nUnroll    = (iEnd - iStart) / unrollFactor; /// Number of unrolled iterations
-            const IndexType iEndUnroll = iStart + nUnroll * unrollFactor;
+            constexpr size_t unrollFactor = 32;                             /// Unroll factor for SIMD
+            const IndexType nUnroll       = (iEnd - iStart) / unrollFactor; /// Number of unrolled iterations
+            const IndexType iEndUnroll    = iStart + nUnroll * unrollFactor;
             bool isRight[unrollFactor];                     /// Array to store the results of the comparison for unrolled loop
                                                             /// isRight[j] = true if the corresponding observation falls into the right partition,
                                                             /// isRight[j] = false if it falls into the left partition
