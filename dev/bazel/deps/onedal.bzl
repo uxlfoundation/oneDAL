@@ -20,8 +20,26 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
     includes = [
         "include",
     ],
-    libs = [
-        # Static
+libs = select({
+    "@platforms//os:windows": [
+        # Static libraries
+        "lib/intel64/onedal_core.lib",
+        "lib/intel64/onedal_thread.lib",
+        "lib/intel64/onedal.lib",
+        "lib/intel64/onedal_dpc.lib",
+        "lib/intel64/onedal_parameters.lib",
+        "lib/intel64/onedal_parameters_dpc.lib",
+
+        # Dynamic import libraries (если есть .dll, нужна соответствующая .lib)
+        "lib/intel64/onedal_core_dll.lib",
+        "lib/intel64/onedal_thread_dll.lib",
+        "lib/intel64/onedal_dll.lib",
+        "lib/intel64/onedal_dpc_dll.lib",
+        "lib/intel64/onedal_parameters_dll.lib",
+        "lib/intel64/onedal_parameters_dpc_dll.lib",
+    ],
+    "//conditions:default": [
+        # Static libraries
         "lib/intel64/libonedal_core.a",
         "lib/intel64/libonedal_thread.a",
         "lib/intel64/libonedal.a",
@@ -29,7 +47,7 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_parameters.a",
         "lib/intel64/libonedal_parameters_dpc.a",
 
-        # Dynamic
+        # Dynamic libraries (optional, only if needed for runtime)
         "lib/intel64/libonedal_core.so",
         "lib/intel64/libonedal_thread.so",
         "lib/intel64/libonedal.so",
@@ -37,5 +55,6 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_parameters.so",
         "lib/intel64/libonedal_parameters_dpc.so",
     ],
+}),
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
 )

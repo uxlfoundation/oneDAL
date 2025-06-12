@@ -105,6 +105,7 @@ def _static(owner, name, actions, cc_toolchain,
                           "object file".format(name))
     static_lib = (linking_outputs.library_to_link.static_library or
                   linking_outputs.library_to_link.pic_static_library)
+    print("static_lib basename:", static_lib.basename)
     if unpacked_linking_context.static_libraries:
         static_lib = _merge_static_libs(
             filename = utils.remove_substring(static_lib.basename, "_no_deps"),
@@ -120,6 +121,7 @@ def _static(owner, name, actions, cc_toolchain,
         static_library = static_lib,
         pic_static_library = static_lib,
     )
+    print(static_lib)
     linker_input = cc_common.create_linker_input(
         owner = owner,
         libraries = depset([static_lib_to_link] +

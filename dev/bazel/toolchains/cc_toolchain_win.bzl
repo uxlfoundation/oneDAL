@@ -44,7 +44,7 @@ def _find_tool(repo_ctx, tool_name, mandatory = False):
     is_found = tool_path != None
     if not is_found:
         if mandatory:
-            auto_configure_fail("Cannot find {}; ensure it is in your %PATH%".format(tool_name))
+            auto_configure_fail("Cannot find {}; ensure it is in your PATH".format(tool_name))
         else:
             repo_ctx.template(
                 "tool_not_found.bat",
@@ -62,7 +62,7 @@ def _create_lib_merge_tool(repo_ctx, lib_path):
     repo_ctx.template(
         lib_merge_name,
         Label("@onedal//dev/bazel/toolchains/tools:merge_static_libs_win.tpl.bat"),
-        {"%{lib_path}": lib_path.replace("/", "\\")},
+        {"%{lib_path}": lib_path},
     )
     lib_merge_path = repo_ctx.path(lib_merge_name)
     return str(lib_merge_path)
@@ -72,7 +72,7 @@ def _create_dynamic_link_wrapper(repo_ctx, prefix, cc_path):
     repo_ctx.template(
         wrapper_name,
         Label("@onedal//dev/bazel/toolchains/tools:dynamic_link_win.tpl.bat"),
-        {"%{cc_path}": cc_path.replace("/", "\\")},
+        {"%{cc_path}": cc_path},
     )
     wrapper_path = repo_ctx.path(wrapper_name)
     return str(wrapper_path)
@@ -148,12 +148,12 @@ def _get_bin_search_flag(repo_ctx, cc_path):
 def _get_msvc_toolchain_path(repo_ctx):
     cl_path = repo_ctx.which("cl.exe")
     if not cl_path:
-        auto_configure_fail("Cannot find cl.exe; ensure MSVC is installed and in %PATH%")
+        auto_configure_fail("Cannot find cl.exe; ensure MSVC is installed and in PATH")
     return str(cl_path.dirname.dirname.realpath)
 
 def _add_msvc_toolchain_if_needed(repo_ctx, cc):
     if ("cl" in cc) or ("icx" in cc) or ("icpx" in cc):
-        return ["/I" + _get_msvc_toolchain_path(repo_ctx) + "\\include"]
+        return ["/I" + _get_msvc_toolchain_path(repo_ctx)]
     return []
 
 def _add_sycl_linkage(repo_ctx, cc):
@@ -200,21 +200,21 @@ def configure_cc_toolchain_win(repo_ctx, reqs):
             "%{compiler_deps}": get_starlark_list([
                 ":builtin_include_directory_paths",
             ]),
-            "%{ar_deps}": get_starlark_list([
-                ":" + paths.basename(tools.ar_merge),
+            "%{lib_deps}": get_starlark_list([
+                ":" + paths.basename(tools.lib_merge),
             ]),
             "%{linker_deps}": get_starlark_list([
                 ":" + paths.basename(tools.cc_link),
                 ":" + paths.basename(tools.dpcc_link),
             ]),
 
-            "%{cc_path}": tools.cc.replace("/", "\\"),
-            "%{dpcc_path}": tools.dpcc.replace("/", "\\"),
-            "%{cc_link_path}": tools.cc_link.replace("/", "\\"),
-            "%{dpcc_link_path}": tools.dpcc_link.replace("/", "\\"),
-            "%{lib_path}": tools.lib.replace("/", "\\"),
-            "%{lib_merge_path}": tools.lib_merge.replace("/", "\\"),
-            "%{strip_path}": tools.strip.replace("/", "\\"),
+            "%{cc_path}": tools.cc,
+            "%{dpcc_path}": tools.dpcc,
+            "%{cc_link_path}": tools.cc_link,
+            "%{dpcc_link_path}": tools.dpcc_link,
+            "%{lib_path}": tools.lib,
+            "%{lib_merge_path}": tools.lib_merge,
+            "%{strip_path}": tools.strip,
             "%{cxx_builtin_include_directories}": get_starlark_list(builtin_include_directories),
             "%{compile_flags_cc}": get_starlark_list(
                 _add_msvc_toolchain_if_needed(repo_ctx, tools.cc) +
@@ -276,11 +276,13 @@ def configure_cc_toolchain_win(repo_ctx, reqs):
                     repo_ctx,
                     tools.cc,
                     "/DYNAMICBASE",
+                    "/DYNAMICBASE"
                 ) +
                 add_linker_option_if_supported(
                     repo_ctx,
                     tools.cc,
                     "/NXCOMPAT",
+                    "/NXCOMPAT"
                 ) +
                 bin_search_flag_cc + link_opts,
             ),

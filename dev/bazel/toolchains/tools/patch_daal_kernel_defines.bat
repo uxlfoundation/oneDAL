@@ -1,22 +1,22 @@
 @echo off
-REM patch_daal_kernel_defines.bat
-REM %1 = input, %2 = output, %3 = cpu list
-
-IF "%~3"=="" (
-    copy "%~1" "%~2"
-    exit /b
-)
-
 setlocal enabledelayedexpansion
+
 set "input=%~1"
 set "output=%~2"
-set "cpus=%~3"
+set "cpus=%*"
+set "cpus=%cpus:*%~2 =%"
 
-copy "%input%" "%output%.tmp"
+copy /Y "%input%" "%output%.tmp"
 
 for %%c in (%cpus%) do (
-    powershell -Command "(Get-Content %output%.tmp) -replace '#define DAAL_KERNEL_%%c\b', '' | Set-Content %output%"
-    move /Y %output% %output%.tmp > nul
+    > "%output%" (
+        for /f "usebackq delims=" %%l in ("%output%.tmp") do (
+            echo %%l | findstr /r /c:"#define DAAL_KERNEL_%%c" >nul
+            if errorlevel 1 echo %%l
+        )
+    )
+    move /Y "%output%" "%output%.tmp" >nul
 )
 
-move /Y %output%.tmp %output%
+move /Y "%output%.tmp" "%output%"
+endlocal

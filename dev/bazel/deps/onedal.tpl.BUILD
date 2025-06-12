@@ -6,27 +6,29 @@ cc_library(
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
     ]),
-    includes = [ "include" ],
+    includes = ["include"],
 )
+
+# ===== STATIC LIBRARIES =====
 
 cc_library(
     name = "core_static",
-    srcs = [
-        "lib/intel64/libonedal_core.a",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_core.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_core.a"],
+    }),
     deps = [
         ":headers",
-        # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
-        #       Remove TBB from deps once problem with vml_ipp is resolved
         "@tbb//:tbb_binary",
     ],
 )
 
 cc_library(
     name = "thread_static",
-    srcs = [
-        "lib/intel64/libonedal_thread.a",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_thread.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_thread.a"],
+    }),
     deps = [
         ":headers",
         "@tbb//:tbb_binary",
@@ -36,19 +38,19 @@ cc_library(
 
 cc_library(
     name = "parameters_static",
-    srcs = [
-        "lib/intel64/libonedal_parameters.a",
-    ],
-    deps = [
-        ":headers",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_parameters.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_parameters.a"],
+    }),
+    deps = [":headers"],
 )
 
 cc_library(
     name = "onedal_static",
-    srcs = [
-        "lib/intel64/libonedal.a",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal.lib"],
+        "//conditions:default": ["lib/intel64/libonedal.a"],
+    }),
     deps = [
         ":headers",
         ":parameters_static",
@@ -57,19 +59,19 @@ cc_library(
 
 cc_library(
     name = "parameters_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_parameters_dpc.a",
-    ],
-    deps = [
-        ":headers",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_parameters_dpc.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_parameters_dpc.a"],
+    }),
+    deps = [":headers"],
 )
 
 cc_library(
     name = "onedal_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.a",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_dpc.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_dpc.a"],
+    }),
     deps = [
         ":headers",
         "@mkl//:mkl_dpc",
@@ -77,24 +79,26 @@ cc_library(
     ],
 )
 
+# ===== DYNAMIC LIBRARIES =====
+
 cc_library(
     name = "core_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_core.so",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_core.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_core.so"],
+    }),
     deps = [
         ":headers",
-        # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
-        #       Remove TBB from deps once problem with vml_ipp is resolved
         "@tbb//:tbb_binary",
     ],
 )
 
 cc_library(
     name = "thread_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_thread.so",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_thread.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_thread.so"],
+    }),
     deps = [
         ":headers",
         "@tbb//:tbb_binary",
@@ -104,19 +108,19 @@ cc_library(
 
 cc_library(
     name = "parameters_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_parameters.so",
-    ],
-    deps = [
-        ":headers",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_parameters.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_parameters.so"],
+    }),
+    deps = [":headers"],
 )
 
 cc_library(
     name = "onedal_dynamic",
-    srcs = [
-        "lib/intel64/libonedal.so",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal.lib"],
+        "//conditions:default": ["lib/intel64/libonedal.so"],
+    }),
     deps = [
         ":headers",
         ":parameters_dynamic",
@@ -125,19 +129,19 @@ cc_library(
 
 cc_library(
     name = "parameters_dynamic_dpc",
-    srcs = [
-        "lib/intel64/libonedal_parameters_dpc.so",
-    ],
-    deps = [
-        ":headers",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_parameters_dpc.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_parameters_dpc.so"],
+    }),
+    deps = [":headers"],
 )
 
 cc_library(
     name = "onedal_dynamic_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.so",
-    ],
+    srcs = select({
+        "@platforms//os:windows": ["lib/intel64/onedal_dpc.lib"],
+        "//conditions:default": ["lib/intel64/libonedal_dpc.so"],
+    }),
     deps = [
         ":headers",
         "@mkl//:mkl_dpc",
