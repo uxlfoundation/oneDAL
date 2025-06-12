@@ -13,7 +13,6 @@ This approach leads to bundling large static libraries into our own library arch
 - Improve compatibility with user applications that may want to choose or override the BLAS/LAPACK backend.
 - Better separation of concerns: the final application should own the linkage of external dependencies.
 
-Such dynamic linkage or delayed/static linkage via `target_link_libraries()` is already standard in CMake-based systems and used by popular ML/DS frameworks such as **TensorFlow**, **PyTorch**, and **scikit-learn** (via NumPy/Scipy). It aligns with modern C++ packaging best practices.
 
 ## Proposal
 
