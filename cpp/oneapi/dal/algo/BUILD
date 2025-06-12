@@ -16,7 +16,6 @@ ALGOS = [
     "basic_statistics",
     "chebyshev_distance",
     "connected_components",
-    "correlation_distance",
     "cosine_distance",
     "dbscan",
     "decision_tree",
