@@ -29,7 +29,6 @@ namespace oneapi::dal::detail {
 namespace v1 {
 
 class host_policy_impl;
-class host_spmd_policy_impl;
 class data_parallel_policy_impl;
 
 template <typename T>
@@ -80,7 +79,7 @@ public:
         return *this;
     }
 
-protected:
+private:
     void set_enabled_cpu_extensions_impl(const cpu_extension& extensions) noexcept;
 
     pimpl<host_policy_impl> impl_;
