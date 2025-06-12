@@ -23,8 +23,6 @@ namespace v1 {
 
 class global_context_impl : public global_context_iface {
 public:
-    global_context_impl();
-
     const cpu_info_iface &get_cpu_info() const {
         return cpu_info_;
     }
