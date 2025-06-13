@@ -24,4 +24,3 @@ This chapter describes programming interfaces of the pairwise distances implemen
    minkowski-distance.rst
    chebyshev-distance.rst
    cosine-distance.rst
-   correlation-distance.rst
