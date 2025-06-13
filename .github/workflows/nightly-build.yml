@@ -162,7 +162,7 @@ jobs:
           #              directory, so the artifacts there will be removed. To avoid this, we store these
           #              artifacts in a temporary directory and then copy them back later using `build_command`.
           path: "${{ runner.temp }}/${{ env.BUILD_FOLDER }}"
-      # Remove the `tbb`, as is is not part of the oneDAL library
+      # Remove the `tbb`, as it is not part of the oneDAL library
       - run: "find ${{ runner.temp }}/${{ env.BUILD_FOLDER }} -type d -name 'tbb' -exec rm -rf {} +"
       - uses: intel/cve-bin-tool-action@8783168b8d484b7cb7746cdba69176cc2a9f749d # untagged main
         with:
