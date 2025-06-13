@@ -173,7 +173,7 @@ services::Status methodSpecific<defaultDense, algorithmFPType, cpu>::getPredicti
         int max_c                 = 0;
         algorithmFPType max_c_val = -(services::internal::MaxVal<algorithmFPType>::get());
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         for (size_t cl = 0; cl < c; cl++)
         {
             algorithmFPType val = buff[j * c + cl];
@@ -221,7 +221,7 @@ services::Status methodSpecific<fastCSR, algorithmFPType, cpu>::getPredictionDat
         int max_c                 = 0;
         algorithmFPType max_c_val = -(services::internal::MaxVal<algorithmFPType>::get());
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         for (size_t cl = 0; cl < c; cl++)
         {
             algorithmFPType val = buff[j + cl * n];

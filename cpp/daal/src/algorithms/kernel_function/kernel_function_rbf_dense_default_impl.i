@@ -28,7 +28,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_blas.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/threading/threading.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_helper.h"
 
@@ -65,7 +65,7 @@ services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInter
     //compute
     const algorithmFPType invSqrSigma = (algorithmFPType)(1.0 / (par->sigma * par->sigma));
     algorithmFPType factor            = 0.0;
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {
@@ -102,7 +102,7 @@ services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInter
     for (size_t i = 0; i < nVectors1; i++)
     {
         algorithmFPType factor = 0.0;
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {

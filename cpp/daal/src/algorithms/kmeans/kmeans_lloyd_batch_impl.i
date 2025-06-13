@@ -32,7 +32,7 @@
 #include "src/algorithms/kmeans/kmeans_lloyd_impl.i"
 #include "src/algorithms/kmeans/kmeans_lloyd_postprocessing.h"
 
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -150,7 +150,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                 {
                     const algorithmFPType coeff = 1.0 / clusterS0[i];
 
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {
@@ -167,7 +167,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
                     ReadRows<algorithmFPType, cpu> mtRow(ntData, cIndices[cPos], 1);
                     const algorithmFPType * row = mtRow.get();
 
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = 0; j < p; j++)
                     {

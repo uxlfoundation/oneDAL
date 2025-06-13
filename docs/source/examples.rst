@@ -24,4 +24,4 @@ oneAPI Examples
    DPC++ <examples/dpc.rst>
    C++ <examples/cpp.rst>
 
-.. note:: Explore the complete list of oneAPI code samples in the `oneAPI Samples Catalog <https://oneapi-src.github.io/oneAPI-samples/>`_. These samples were designed to help you develop, offload, and optimize multiarchitecture applications targeting CPUs, GPUs, and FPGAs.
+.. note:: Explore the complete list of oneAPI code samples in the `oneAPI Samples Catalog <https://www.intel.com/content/www/us/en/developer/tools/oneapi/code-samples.html>`_. These samples were designed to help you develop, offload, and optimize multiarchitecture applications targeting CPUs, GPUs, and FPGAs.

@@ -17,24 +17,19 @@
 
 #include <daal/include/services/daal_defines.h>
 
+#include <daal/src/algorithms/covariance/covariance_kernel.h>
 #include <daal/src/algorithms/pca/pca_dense_correlation_batch_kernel.h>
 #include <daal/src/algorithms/covariance/covariance_hyperparameter_impl.h>
 
+#include "oneapi/dal/algo/pca/train_types.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/algo/pca/backend/cpu/train_kernel.hpp"
+#include "oneapi/dal/algo/pca/backend/cpu/train_kernel_common.hpp"
 
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
-
-#if defined(TARGET_X86_64)
-#define CPU_EXTENSION dal::detail::cpu_extension::avx512
-#elif defined(TARGET_ARM)
-#define CPU_EXTENSION dal::detail::cpu_extension::sve
-#elif defined(TARGET_RISCV64)
-#define CPU_EXTENSION dal::detail::cpu_extension::rv64
-#endif
 
 namespace oneapi::dal::pca::backend {
 
@@ -55,6 +50,7 @@ using daal_pca_cor_kernel_t = daal_pca::internal::PCACorrelationKernel<daal::bat
 template <typename Float>
 static result_t call_daal_kernel(const context_cpu& ctx,
                                  const descriptor_t& desc,
+                                 const detail::train_parameters<task_t>& params,
                                  const table& data) {
     const std::int64_t row_count = data.get_row_count();
     ONEDAL_ASSERT(row_count > 0);
@@ -87,23 +83,11 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     const auto daal_explained_variances_ratio =
         interop::convert_to_daal_homogen_table(arr_explained_variances_ratio, 1, component_count);
 
+    auto hp = convert_parameters<Float>(params);
+
     daal_cov::Batch<Float, daal_cov::defaultDense> covariance_alg;
     covariance_alg.input.set(daal_cov::data, daal_data);
-
-    daal_cov::internal::Hyperparameter daal_hyperparameter;
-    /// the logic of block size calculation is copied from DAAL,
-    /// to be changed to passing the values from the performance model
-    std::int64_t blockSize = 140;
-    if (ctx.get_enabled_cpu_extensions() == CPU_EXTENSION) {
-        const std::int64_t row_count = data.get_row_count();
-        if (5000 < row_count && row_count <= 50000) {
-            blockSize = 1024;
-        }
-    }
-
-    interop::status_to_exception(
-        daal_hyperparameter.set(daal_cov::internal::denseUpdateStepBlockSize, blockSize));
-    covariance_alg.setHyperparameter(&daal_hyperparameter);
+    covariance_alg.setHyperparameter(&hp);
 
     daal::algorithms::pca::BaseBatchParameter daal_pca_parameter;
 
@@ -159,16 +143,20 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float>
-static result_t train(const context_cpu& ctx, const descriptor_t& desc, const input_t& input) {
-    return call_daal_kernel<Float>(ctx, desc, input.get_data());
+static result_t train(const context_cpu& ctx,
+                      const descriptor_t& desc,
+                      const detail::train_parameters<task_t>& params,
+                      const input_t& input) {
+    return call_daal_kernel<Float>(ctx, desc, params, input.get_data());
 }
 
 template <typename Float>
 struct train_kernel_cpu<Float, method::cov, task::dim_reduction> {
     result_t operator()(const context_cpu& ctx,
                         const descriptor_t& desc,
+                        const detail::train_parameters<task_t>& params,
                         const input_t& input) const {
-        return train<Float>(ctx, desc, input);
+        return train<Float>(ctx, desc, params, input);
     }
 };
 

@@ -278,7 +278,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
 
                 const algorithmFPType * const argi = _dataArray_block + i * _cd.nFeatures;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _cd.nFeatures; j++)
                 {
@@ -373,7 +373,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
                     size_t _jstart = iFeatureBlock * numFeaturesInBlock;
                     size_t _jend   = _jstart + ((iFeatureBlock < (numFeatureBlocks - 1)) ? numFeaturesInBlock : numFeaturesInLastBlock);
 
-                    PRAGMA_IVDEP
+                    PRAGMA_FORCE_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (size_t j = _jstart; j < _jend; j++)
                     {
@@ -408,7 +408,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
             }    /* if(_cd.nFeatures >= _THREAD_REDUCTION_MIN_SIZE_) */
             else /* if(_cd.nFeatures < _THREAD_REDUCTION_MIN_SIZE_) */
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < _cd.nFeatures; j++)
                 {
@@ -458,7 +458,7 @@ Status compute_estimates(NumericTable * dataTable, Result * result)
 
 #if (defined _VART_ENABLE_ || defined _SORM_ENABLE_)
         const algorithmFPType _invN = algorithmFPType(1.0) / algorithmFPType(_cd.nVectors);
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _cd.nFeatures; j++)
         {

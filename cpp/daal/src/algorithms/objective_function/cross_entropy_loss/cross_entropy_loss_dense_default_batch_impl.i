@@ -24,7 +24,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_environment.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 
 #include "src/algorithms/objective_function/common/objective_function_utils.i"
 
@@ -61,7 +61,7 @@ static void applyBetaImpl(const algorithmFPType * x, const algorithmFPType * bet
         BlasInst<algorithmFPType, cpu>::xxgemm(&trans, &notrans, &m, &n, &k, &one, beta + 1, &ldb, x, &k, &zero, xb, &m);
     if (bIntercept)
     {
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nRows; ++i)
         {
@@ -97,13 +97,13 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < nCols; ++i)
         {
             if (maxArg < pArg[i]) maxArg = pArg[i];
         }
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nCols; ++i)
         {
@@ -120,14 +120,14 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             algorithmFPType * const pRes = res + iRow * nCols;
             algorithmFPType sum(0.);
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -143,14 +143,14 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         {
             algorithmFPType * const pRes = res + iRow * nCols;
             algorithmFPType sum(0.);
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
                 sum += pRes[i];
             }
             sum = static_cast<algorithmFPType>(1.) / sum;
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nCols; ++i)
             {
@@ -291,7 +291,7 @@ services::Status CrossEntropyLossKernel<algorithmFPType, method, cpu>::doCompute
             {
                 curentNorm = 0;
 
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < p; j++)
                 {

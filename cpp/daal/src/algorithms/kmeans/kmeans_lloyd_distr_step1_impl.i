@@ -180,7 +180,7 @@ Status KMeansDistributedStep1Kernel<method, algorithmFPType, cpu>::finalizeCompu
     DAAL_CHECK_BLOCK_STATUS(outBlock);
     int * outAssignments = outBlock.get();
 
-    PRAGMA_IVDEP
+    PRAGMA_FORCE_SIMD
     for (size_t i = 0; i < n; i++)
     {
         outAssignments[i] = inAssignments[i];
