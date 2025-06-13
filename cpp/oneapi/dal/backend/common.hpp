@@ -25,17 +25,37 @@
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
-#define PRAGMA_TO_STR(ARGS)        _Pragma(#ARGS)
-#define PRAGMA_TO_STR_(ARGS)       PRAGMA_TO_STR(ARGS)
-#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_TO_STR(ARGS)  _Pragma(#ARGS)
+#define PRAGMA_TO_STR_(ARGS) PRAGMA_TO_STR(ARGS)
 
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-#define PRAGMA_IVDEP         _Pragma("ivdep")
-#define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
+#define PRAGMA_IVDEP               _Pragma("ivdep")
+#define PRAGMA_NOVECTOR            _Pragma("novector")
+#define PRAGMA_VECTOR_UNALIGNED    _Pragma("vector unaligned")
+#define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#elif defined(__GNUC__)
+#define PRAGMA_IVDEP
+#define PRAGMA_NOVECTOR
+#define PRAGMA_VECTOR_UNALIGNED
+#define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#elif defined(_MSC_VER)
+#define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+#define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+#define PRAGMA_VECTOR_UNALIGNED
+#define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD
+#define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #else
 #define PRAGMA_IVDEP
+#define PRAGMA_NOVECTOR
+#define PRAGMA_VECTOR_UNALIGNED
 #define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD
+#define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #endif
 
 namespace oneapi::dal::backend {
