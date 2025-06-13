@@ -81,26 +81,6 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
     }
 }
 
-template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const size_t na, const NumericTable * const a, const size_t nb,
-                                                                       const NumericTable * const b, const size_t nr, NumericTable * r,
-                                                                       const daal::algorithms::Parameter * par)
-{
-    NumericTable * xTable                          = const_cast<NumericTable *>(a); /* x Input data */
-    NumericTable * yTable                          = const_cast<NumericTable *>(b); /* y Input data */
-    NumericTable * rTable                          = const_cast<NumericTable *>(r); /* Result */
-    const NumericTableIface::StorageLayout rLayout = r->getDataLayout();
-
-    if (isFull<algorithmFPType, cpu>(rLayout))
-    {
-        return corDistanceFull<algorithmFPType, cpu>(xTable, yTable, rTable);
-    }
-    else
-    {
-        return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
-    }
-}
-
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout)
 {
