@@ -26,7 +26,7 @@ namespace v2 {
 ///
 /// @pre :literal:`T` cannot be const-qualified.
 template <typename T>
-class array {
+class array : public oneapi::dal::base {
     static_assert(!std::is_const_v<T>, "array class cannot have const-qualified type of data");
 
     friend detail::pimpl_accessor;
