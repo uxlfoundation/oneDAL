@@ -58,7 +58,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     auto result = train_result<task_t>{}.set_result_options(desc.get_result_options());
 
     const auto nobs_host = pr::table2ndarray<Float>(q, input.get_partial_n_rows());
-    auto rows_count_global = nobs_host.get_data()[0];
+    std::int64_t rows_count_global = nobs_host.get_data()[0];
     auto sums = pr::table2ndarray_1d<Float>(q, input.get_partial_sum(), sycl::usm::alloc::device);
     auto xtx =
         pr::table2ndarray<Float>(q, input.get_partial_crossproduct(), sycl::usm::alloc::device);
@@ -116,10 +116,17 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     auto [eigvals, syevd_event] =
         syevd_computation(q, data_to_compute, { cov_event, corr_event, vars_event });
 
-    auto flipped_eigvals_host = flip_eigenvalues(q, eigvals, component_count, { syevd_event });
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto eigvals_host_tmp = eigvals.to_host(q);
+        auto range = std::min(rows_count_global, column_count) - component_count;
+        auto noise_variance =
+            compute_noise_variance_on_host(q, eigvals_host_tmp, range, { syevd_event });
+        result.set_noise_variance(noise_variance);
+    }
 
-    auto flipped_eigenvectors_host =
-        flip_eigenvectors(q, data_to_compute, component_count, { syevd_event });
+    auto [flipped_eigvals_host, flipped_eigenvectors_host] =
+        flip_eigen_data(q, eigvals, data_to_compute, component_count, { syevd_event });
+
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
             homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));
