@@ -50,6 +50,9 @@ ifeq ($(RNG_OPENRNG), yes)
 	MATH_LIBS_TO_EXCLUDE += libopenrng.$a
 
 	daaldep.math_backend.incdir += $(daaldep.rng_backend.incdir)
+	daaldep.math_backend_oneapi.incdir += $(daaldep.rng_backend.incdir)
+	daaldep.math_backend.seq += $(daaldep.rng_backend.lib)
+	daaldep.math_backend.thr += $(daaldep.rng_backend.lib)
 endif
 
 daaldep.math_backend.ext := $(daaldep.math_backend.thr)
