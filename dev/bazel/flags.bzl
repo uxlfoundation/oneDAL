@@ -56,13 +56,41 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         if compiler_id == "icpx":
             flags = flags + ["-fsycl"] + ["-fno-canonical-system-headers"]+["-no-canonical-prefixes"]
         if compiler_id == "icpx" and category == "pedantic":
-            # TODO: Consider removing
             flags = flags + ["-Wno-unused-command-line-argument"]
         if compiler_id == "gcc" or compiler_id == "icpx":
             flags = flags + ["-Wno-gnu-zero-variadic-macro-arguments"]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
         return flags
+
+    elif os_id == "win":
+        # Пример базовых флагов для Windows (MSVC или Intel Windows компиляторы)
+        win_common_flags = [
+            "/WX",             # treat warnings as errors
+            "/W3",             # warning level 3
+            "/GS",             # buffer security check
+            "/Zc:wchar_t",     # use standard wchar_t
+            "/EHsc",           # enable C++ exceptions
+        ]
+        if compiler_id == "icl":  # Intel Compiler for Windows
+            if category == "common":
+                win_common_flags += [
+                    "/Qopenmp",    # openmp support
+                    "/Qstd=c++17", # c++17 standard
+                ]
+            elif category == "pedantic":
+                win_common_flags += [
+                    "/permissive-", # stricter standard conformance
+                ]
+        elif compiler_id == "msvc":
+            # Можно добавить другие MSVC флаги для pedantic и common
+            if category == "pedantic":
+                win_common_flags += [
+                    "/W4",        # более строгие предупреждения
+                    "/permissive-", 
+                ]
+        return win_common_flags
+
     fail("Unsupported OS")
 
 def get_cpu_flags(arch_id, os_id, compiler_id):
@@ -85,6 +113,12 @@ def get_cpu_flags(arch_id, os_id, compiler_id):
         sse42 = ["-march=nehalem"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skx"]
+    elif compiler_id == "cl":
+        sse2 = ["/arch:SSE2"]
+        sse42 = ["/arch:SSE2"]  #
+        avx2 = ["/arch:AVX2"]
+        avx512 = ["/arch:AVX512"]  # 
+
     return {
         "sse2": sse2,
         "sse42": sse42,
