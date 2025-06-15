@@ -41,14 +41,14 @@ def _collect_default_files(deps):
     return utils.unique_files(files)
 
 def _copy(ctx, src_file, dst_path):
-    # TODO: Use extra toolchain
     dst_file = ctx.actions.declare_file(dst_path)
-    ctx.actions.run(
-        executable = "cp",
-        inputs = [ src_file ],
-        outputs = [ dst_file ],
-        use_default_shell_env = True,
-        arguments = [ src_file.path, dst_file.path ],
+    ctx.actions.run_shell(
+        inputs = [src_file],
+        outputs = [dst_file],
+        command = 'powershell -Command "Copy-Item -Path \'{0}\' -Destination \'{1}\'"'.format(
+            src_file.path,
+            dst_file.path,
+        ),
     )
     return dst_file
 
