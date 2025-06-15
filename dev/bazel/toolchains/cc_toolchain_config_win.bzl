@@ -1005,46 +1005,47 @@ def _impl(ctx):
     )
 
     archiver_flags_feature = feature(
-        name = "archiver_flags",
-        flag_sets = [
-            flag_set(
-                actions = [ACTION_NAMES.cpp_link_static_library],
-                flag_groups = [
-                    flag_group(flags = ["/OUT:%{output_execpath}"]),
-                    flag_group(
-                        flags = ["%{output_execpath}"],
-                        expand_if_available = "output_execpath",
-                    ),
-                ],
-            ),
-            flag_set(
-                actions = [ACTION_NAMES.cpp_link_static_library],
-                flag_groups = [
-                    flag_group(
-                        iterate_over = "libraries_to_link",
-                        flag_groups = [
-                            flag_group(
-                                flags = ["%{libraries_to_link.name}"],
-                                expand_if_equal = variable_with_value(
-                                    name = "libraries_to_link.type",
-                                    value = "object_file",
-                                ),
+    name = "archiver_flags",
+    flag_sets = [
+        flag_set(
+            actions = [ACTION_NAMES.cpp_link_static_library],
+            flag_groups = [
+                flag_group(flags = ["/OUT:%{output_execpath}"]),
+                # REMOVE THIS ENTIRE flag_group:
+                # flag_group(
+                #     flags = ["%{output_execpath}"],
+                #     expand_if_available = "output_execpath",
+                # ),
+            ],
+        ),
+        flag_set(
+            actions = [ACTION_NAMES.cpp_link_static_library],
+            flag_groups = [
+                flag_group(
+                    iterate_over = "libraries_to_link",
+                    flag_groups = [
+                        flag_group(
+                            flags = ["%{libraries_to_link.name}"],
+                            expand_if_equal = variable_with_value(
+                                name = "libraries_to_link.type",
+                                value = "object_file",
                             ),
-                            flag_group(
-                                flags = ["%{libraries_to_link.object_files}"],
-                                iterate_over = "libraries_to_link.object_files",
-                                expand_if_equal = variable_with_value(
-                                    name = "libraries_to_link.type",
-                                    value = "object_file_group",
-                                ),
+                        ),
+                        flag_group(
+                            flags = ["%{libraries_to_link.object_files}"],
+                            iterate_over = "libraries_to_link.object_files",
+                            expand_if_equal = variable_with_value(
+                                name = "libraries_to_link.type",
+                                value = "object_file_group",
                             ),
-                        ],
-                        expand_if_available = "libraries_to_link",
-                    ),
-                ],
-            ),
-        ],
-    )
+                        ),
+                    ],
+                    expand_if_available = "libraries_to_link",
+                ),
+            ],
+        ),
+    ],
+)
 
     dependency_file_feature = feature(
         name = "dependency_file",

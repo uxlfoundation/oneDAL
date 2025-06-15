@@ -64,7 +64,6 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
         return flags
 
     elif os_id == "win":
-        # Пример базовых флагов для Windows (MSVC или Intel Windows компиляторы)
         win_common_flags = [
             "/WX",             # treat warnings as errors
             "/W3",             # warning level 3
@@ -83,10 +82,9 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                     "/permissive-", # stricter standard conformance
                 ]
         elif compiler_id == "msvc":
-            # Можно добавить другие MSVC флаги для pedantic и common
             if category == "pedantic":
                 win_common_flags += [
-                    "/W4",        # более строгие предупреждения
+                    "/W4",
                     "/permissive-", 
                 ]
         return win_common_flags

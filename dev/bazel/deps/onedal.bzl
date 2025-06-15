@@ -30,7 +30,6 @@ libs = select({
         "lib/intel64/onedal_parameters.lib",
         "lib/intel64/onedal_parameters_dpc.lib",
 
-        # Dynamic import libraries (если есть .dll, нужна соответствующая .lib)
         "lib/intel64/onedal_core_dll.lib",
         "lib/intel64/onedal_thread_dll.lib",
         "lib/intel64/onedal_dll.lib",

@@ -48,7 +48,7 @@ cc_library(
 cc_library(
     name = "onedal_static",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal.lib"],
         "//conditions:default": ["lib/intel64/libonedal.a"],
     }),
     deps = [
@@ -60,7 +60,7 @@ cc_library(
 cc_library(
     name = "parameters_static_dpc",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_parameters_dpc.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_parameters_dpc.lib"],
         "//conditions:default": ["lib/intel64/libonedal_parameters_dpc.a"],
     }),
     deps = [":headers"],
@@ -69,7 +69,7 @@ cc_library(
 cc_library(
     name = "onedal_static_dpc",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_dpc.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_dpc.lib"],
         "//conditions:default": ["lib/intel64/libonedal_dpc.a"],
     }),
     deps = [
@@ -84,7 +84,7 @@ cc_library(
 cc_library(
     name = "core_dynamic",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_core.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_core.lib"],
         "//conditions:default": ["lib/intel64/libonedal_core.so"],
     }),
     deps = [
@@ -96,7 +96,7 @@ cc_library(
 cc_library(
     name = "thread_dynamic",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_thread.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_thread.lib"],
         "//conditions:default": ["lib/intel64/libonedal_thread.so"],
     }),
     deps = [
@@ -109,7 +109,7 @@ cc_library(
 cc_library(
     name = "parameters_dynamic",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_parameters.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_parameters.lib"],
         "//conditions:default": ["lib/intel64/libonedal_parameters.so"],
     }),
     deps = [":headers"],
@@ -118,7 +118,7 @@ cc_library(
 cc_library(
     name = "onedal_dynamic",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal.lib"],
         "//conditions:default": ["lib/intel64/libonedal.so"],
     }),
     deps = [
@@ -130,7 +130,7 @@ cc_library(
 cc_library(
     name = "parameters_dynamic_dpc",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_parameters_dpc.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_parameters_dpc.lib"],
         "//conditions:default": ["lib/intel64/libonedal_parameters_dpc.so"],
     }),
     deps = [":headers"],
@@ -139,7 +139,7 @@ cc_library(
 cc_library(
     name = "onedal_dynamic_dpc",
     srcs = select({
-        "@platforms//os:windows": ["lib/intel64/onedal_dpc.lib"],
+        "@platforms//os:windows": ["lib/intel64/libonedal_dpc.lib"],
         "//conditions:default": ["lib/intel64/libonedal_dpc.so"],
     }),
     deps = [

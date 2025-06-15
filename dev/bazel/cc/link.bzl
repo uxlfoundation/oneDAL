@@ -41,7 +41,9 @@ def _filter_user_link_flags(feature_configuration, user_link_flags):
 
 def _merge_static_libs(filename, actions, cc_toolchain,
                        feature_configuration, static_libs):
+    print("ouptufile")
     output_file = actions.declare_file(filename)
+    print(output_file)
     merger_path = cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
         action_name = CPP_MERGE_STATIC_LIBRARIES,
@@ -81,6 +83,8 @@ def _merge_static_libs(filename, actions, cc_toolchain,
 
 def _static(owner, name, actions, cc_toolchain,
             feature_configuration, linking_contexts):
+    print("[_static] Start for library:")
+    print(name)
     unpacked_linking_context = onedal_cc_common.unpack_linking_contexts(linking_contexts)
     if (unpacked_linking_context.objects and
         unpacked_linking_context.pic_objects):
@@ -91,6 +95,9 @@ def _static(owner, name, actions, cc_toolchain,
         objects = all_objects,
         pic_objects = all_objects,
     )
+    print("here")
+    print(name + ("_no_deps" if unpacked_linking_context.static_libraries else ""))
+    print(cc_toolchain)
     _, linking_outputs = cc_common.create_linking_context_from_compilation_outputs(
         name = name + ("_no_deps" if unpacked_linking_context.static_libraries else ""),
         actions = actions,
@@ -100,7 +107,10 @@ def _static(owner, name, actions, cc_toolchain,
         linking_contexts = linking_contexts,
         disallow_dynamic_library = True,
     )
+    print(name)
+    print(linking_outputs.library_to_link)
     if not linking_outputs.library_to_link:
+        print(name)
         return utils.warn("'{}' static library does not contain any " +
                           "object file".format(name))
     static_lib = (linking_outputs.library_to_link.static_library or
