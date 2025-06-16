@@ -28,7 +28,7 @@ CORE.SERV.COMPILER.vc = generic
 -DEBC.vc = -DEBUG -Z7
 
 # Disable C4661 because of false positives
-COMPILER.win.vc = cl $(if $(MSVC_RT_is_release),-MD, -MDd) -nologo -EHsc -wd4661 -WX -openmp:experimental
+COMPILER.win.vc = cl $(if $(MSVC_RT_is_release),-MD, -MDd) -nologo -EHsc -wd4661 -WX
 
 link.dynamic.win.vc = /DEPENDENTLOADFLAG:0x2000
 
