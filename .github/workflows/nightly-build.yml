@@ -164,7 +164,7 @@ jobs:
           path: "${{ runner.temp }}/${{ env.BUILD_FOLDER }}"
       # Remove the `tbb`, as it is not part of the oneDAL library
       - run: "find ${{ runner.temp }}/${{ env.BUILD_FOLDER }} -type d -name 'tbb' -exec rm -rf {} +"
-      - uses: intel/cve-bin-tool-action@8783168b8d484b7cb7746cdba69176cc2a9f749d # untagged main
+      - uses: intel/cve-bin-tool-action@dbccafa2c31e51271ab1cb996e51c6b91670d75b # untagged main
         with:
           scan_mode: repo-only
           exclude_dir: ".git"
