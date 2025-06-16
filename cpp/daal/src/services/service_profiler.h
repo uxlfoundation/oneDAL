@@ -415,14 +415,14 @@ public:
                 {
                     if (kernels[j]._name == kernels[k]._name)
                     {
-                        if (kernels[j].threading_task)
+                        if (kernels[j]._threading_task)
                             kernels[j]._duration = std::max(kernels[j]._duration, kernels[k]._duration);
                         else
                             kernels[j]._duration += kernels[k]._duration;
                         kernels.erase(kernels.begin() + k);
                         --k;
                         --end;
-                        kernels[j].count++;
+                        kernels[j]._count++;
                     }
                 }
             }
