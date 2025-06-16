@@ -135,43 +135,24 @@ namespace daal
 namespace internal
 {
 
-inline static void set_verbose_from_env()
-{
-    const char * verbose_str = std::getenv("ONEDAL_VERBOSE");
-    int newval               = PROFILER_MODE_OFF;
-    if (verbose_str)
-    {
-        char * endptr  = nullptr;
-        errno          = 0;
-        long val       = std::strtol(verbose_str, &endptr, 10);
-        bool parsed_ok = (errno == 0 && endptr != verbose_str && *endptr == '\0');
-        if (parsed_ok && val >= 0 && val <= 5) newval = static_cast<int>(val);
-    }
-    daal_verbose_val = newval;
-}
+// Env get
+static void set_verbose_from_env();
 
-inline static int daal_verbose_mode()
-{
-    if (daal_verbose_val == -1) set_verbose_from_env();
-    return daal_verbose_val;
-}
+static int daal_verbose_mode();
 
-inline static std::string format_time_for_output(std::uint64_t time_ns)
-{
-    std::ostringstream out;
-    double time = static_cast<double>(time_ns);
-    if (time <= 0)
-        out << "0.00s";
-    else if (time > 1e9)
-        out << std::fixed << std::setprecision(2) << time / 1e9 << "s";
-    else if (time > 1e6)
-        out << std::fixed << std::setprecision(2) << time / 1e6 << "ms";
-    else if (time > 1e3)
-        out << std::fixed << std::setprecision(2) << time / 1e3 << "us";
-    else
-        out << static_cast<std::uint64_t>(time) << "ns";
-    return out.str();
-}
+// Tools check
+static bool is_service_debug_enabled();
+
+static bool is_logger_enabled();
+
+static bool is_tracer_enabled();
+static bool is_profiler_enabled();
+
+static bool is_analyzer_enabled();
+
+// Output formatters
+void print_header();
+static std::string format_time_for_output(std::uint64_t time_ns);
 
 inline void profiler_log_named_args(const char * /*names*/) {}
 
@@ -185,83 +166,20 @@ inline void profiler_log_named_args(const char * names, const T & value, Rest &&
     if (comma) profiler_log_named_args(comma + 1, std::forward<Rest>(rest)...);
 }
 
-inline static bool is_service_debug_enabled()
-{
-    static const bool service_debug_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_DEBUG;
-    }();
-    return service_debug_value;
-}
 
-inline static bool is_logger_enabled()
+struct TaskEntry
 {
-    static const bool logger_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return logger_value;
-}
-
-inline static bool is_tracer_enabled()
-{
-    static const bool verbose_value = [] {
-        std::ios::sync_with_stdio(false);
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return verbose_value;
-}
-
-inline static bool is_profiler_enabled()
-{
-    static const bool profiler_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_LOGGER || value == PROFILER_MODE_TRACER || value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS
-               || value == PROFILER_MODE_DEBUG;
-    }();
-    return profiler_value;
-}
-
-inline static bool is_analyzer_enabled()
-{
-    static const bool profiler_value = [] {
-        int value = daal_verbose_mode();
-        return value == PROFILER_MODE_ANALYZER || value == PROFILER_MODE_ALL_TOOLS || value == PROFILER_MODE_DEBUG;
-    }();
-    return profiler_value;
-}
-
-inline void print_header()
-{
-    if (is_profiler_enabled())
-    {
-        daal::services::LibraryVersionInfo ver;
-        std::cerr << "Major version:          " << ver.majorVersion << '\n';
-        std::cerr << "Minor version:          " << ver.minorVersion << '\n';
-        std::cerr << "Update version:         " << ver.updateVersion << '\n';
-        std::cerr << "Product status:         " << ver.productStatus << '\n';
-        std::cerr << "Build:                  " << ver.build << '\n';
-        std::cerr << "Build revision:         " << ver.build_rev << '\n';
-        std::cerr << "Name:                   " << ver.name << '\n';
-        std::cerr << "Processor optimization: " << ver.processor << '\n';
-        std::cerr << '\n';
-    }
-}
-
-struct task_entry
-{
-    std::int64_t idx;
-    std::string name;
-    std::uint64_t duration;
-    std::int64_t level;
-    std::int64_t count;
-    bool threading_task;
+    std::int64_t _idx;
+    std::string _name;
+    std::uint64_t _duration;
+    std::int64_t _level;
+    std::int64_t _count;
+    bool _threading_task;
 };
 
-struct task
+struct Tasks
 {
-    std::vector<task_entry> kernels;
+    std::vector<TaskEntry> kernels;
 };
 
 class profiler_task
@@ -307,19 +225,19 @@ public:
             for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
             {
                 const auto & entry = tasks_info.kernels[i];
-                if (entry.level == 0) total_time += entry.duration;
+                if (entry._level == 0) total_time += entry._duration;
             }
 
             for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
             {
                 const auto & entry = tasks_info.kernels[i];
                 std::string prefix;
-                for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
-                bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
+                for (std::int64_t lvl = 0; lvl < entry._level; ++lvl) prefix += "|   ";
+                bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1]._level >= entry._level) ? false : true;
                 prefix += is_last ? "|-- " : "|-- ";
-                std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
-                          << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count << " times"
-                          << " in a " << entry.threading_task << " region" << '\n';
+                std::cerr << prefix << entry._name << " time: " << format_time_for_output(entry._duration) << " " << std::fixed << std::setprecision(2)
+                          << (total_time > 0 ? (double(entry._duration) / total_time) * 100 : 0.0) << "% " << entry._count << " times"
+                          << " in a " << entry._threading_task << " region" << '\n';
             }
             std::cerr << "|---(end)" << '\n';
             std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
@@ -412,8 +330,8 @@ public:
         static std::mutex mutex;
         std::lock_guard<std::mutex> lock(mutex);
         auto & entry          = tasks_info.kernels[idx_];
-        auto duration         = ns_end - entry.duration;
-        entry.duration        = duration;
+        auto duration         = ns_end - entry._duration;
+        entry._duration        = duration;
         auto & current_level_ = get_instance()->get_current_level();
         current_level_--;
         if (is_tracer_enabled()) std::cerr << task_name << " " << format_time_for_output(duration) << '\n';
@@ -441,8 +359,8 @@ public:
         if (idx_ < 0 || static_cast<std::size_t>(idx_) >= tasks_info.kernels.size()) return;
 
         auto & entry   = tasks_info.kernels[idx_];
-        auto duration  = ns_end - entry.duration;
-        entry.duration = duration;
+        auto duration  = ns_end - entry._duration;
+        entry._duration = duration;
 
         if (is_tracer_enabled())
         {
@@ -488,19 +406,19 @@ public:
         while (i < kernels.size())
         {
             size_t start      = i;
-            int current_level = kernels[i].level;
+            int current_level = kernels[i]._level;
             size_t end        = start;
-            while (end < kernels.size() && kernels[end].level == current_level) ++end;
+            while (end < kernels.size() && kernels[end]._level == current_level) ++end;
             for (size_t j = start; j < end; ++j)
             {
                 for (size_t k = j + 1; k < end; ++k)
                 {
-                    if (kernels[j].name == kernels[k].name)
+                    if (kernels[j]._name == kernels[k]._name)
                     {
                         if (kernels[j].threading_task)
-                            kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
+                            kernels[j]._duration = std::max(kernels[j]._duration, kernels[k]._duration);
                         else
-                            kernels[j].duration += kernels[k].duration;
+                            kernels[j]._duration += kernels[k]._duration;
                         kernels.erase(kernels.begin() + k);
                         --k;
                         --end;
@@ -512,14 +430,14 @@ public:
         }
     }
 
-    inline task & get_task() { return task_; }
+    inline Tasks & get_task() { return task_; }
     inline std::int64_t & get_current_level() { return current_level_; }
     inline std::int64_t & get_kernel_count() { return kernel_count_; }
 
 private:
     std::int64_t current_level_ = 0;
     std::int64_t kernel_count_  = 0;
-    task task_;
+    Tasks task_;
 };
 
 inline profiler_task::~profiler_task()
