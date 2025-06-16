@@ -136,23 +136,23 @@ namespace internal
 {
 
 // Env get
-static void set_verbose_from_env();
+void set_verbose_from_env();
 
-static int daal_verbose_mode();
+int daal_verbose_mode();
 
 // Tools check
-static bool is_service_debug_enabled();
+bool is_service_debug_enabled();
 
-static bool is_logger_enabled();
+bool is_logger_enabled();
 
-static bool is_tracer_enabled();
-static bool is_profiler_enabled();
+bool is_tracer_enabled();
+bool is_profiler_enabled();
 
-static bool is_analyzer_enabled();
+bool is_analyzer_enabled();
 
 // Output formatters
 void print_header();
-static std::string format_time_for_output(std::uint64_t time_ns);
+std::string format_time_for_output(std::uint64_t time_ns);
 
 inline void profiler_log_named_args(const char * /*names*/) {}
 
