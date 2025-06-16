@@ -158,7 +158,7 @@ result_t train_kernel_cov_impl<Float>::operator()(const descriptor_t& desc, cons
     }
 
     if (desc.get_deterministic()) {
-        sign_flip(q_, flipped_eigenvectors_host, {});
+        sign_flip_gpu(q_, flipped_eigenvectors_host, {});
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {

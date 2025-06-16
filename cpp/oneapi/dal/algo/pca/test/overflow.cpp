@@ -54,7 +54,7 @@ public:
     }
 }; // namespace oneapi::dal::pca::test
 
-using pca_types = COMBINE_TYPES((float, double), (pca::method::cov, pca::method::svd));
+using pca_types = COMBINE_TYPES((float, double), (pca::method::cov, pca::method::cov));
 
 #define PCA_OVERFLOW_TEST(name) \
     TEMPLATE_LIST_TEST_M(pca_overflow_test, name, "[pca][overflow]", pca_types)

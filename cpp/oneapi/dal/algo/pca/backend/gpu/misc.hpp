@@ -219,9 +219,9 @@ auto flip_eigen_data_gpu(sycl::queue& queue,
 }
 
 template <typename Float>
-void sign_flip(sycl::queue& queue,
-               pr::ndview<Float, 2>& eigvecs,
-               const bk::event_vector& deps = {}) {
+void sign_flip_gpu(sycl::queue& queue,
+                   pr::ndview<Float, 2>& eigvecs,
+                   const bk::event_vector& deps = {}) {
     ONEDAL_ASSERT(eigvecs.get_dimension(0) > 0);
     ONEDAL_ASSERT(eigvecs.get_dimension(1) > 0);
 

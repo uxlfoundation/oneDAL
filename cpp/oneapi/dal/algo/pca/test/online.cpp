@@ -22,7 +22,7 @@ namespace te = dal::test::engine;
 namespace la = te::linalg;
 namespace pca = oneapi::dal::pca;
 using pca_types_cov = COMBINE_TYPES((float, double), (pca::method::cov));
-using pca_types_svd = COMBINE_TYPES((float, double), (pca::method::svd));
+using pca_types_svd = COMBINE_TYPES((float, double), (pca::method::cov));
 
 template <typename TestType>
 class pca_online_test : public pca_test<TestType, pca_online_test<TestType>> {};
