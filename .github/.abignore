@@ -27,6 +27,16 @@
 [suppress_function]
   name_regexp = daal::internal::.*
 
+; deselect tbb::* namespaces
+[suppress_type]
+  name_regexp = tbb::.*
+
+[suppress_variable]
+  name_regexp = tbb::.*
+
+[suppress_function]
+  name_regexp = tbb::.*
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
