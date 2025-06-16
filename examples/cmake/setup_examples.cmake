@@ -111,7 +111,7 @@ function (add_examples examples_paths)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
             set(CPU_ARCHITECTURE "riscv64_riscv64")
         else()
-            message(FATAL_ERROR "Unkown architecture ${CMAKE_SYSTEM_PROCESSOR}")
+            message(FATAL_ERROR "Unknown architecture ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
 
         add_executable(${example} ${example_file_path})

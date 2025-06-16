@@ -23,7 +23,7 @@ if [ "${os}" = "Linux" ]; then
   elif [ "${ARCH}" = "aarch64" ]; then
     echo lnxarm
   else
-    echo "Unkown architecture: ${ARCH}"
+    echo "Unknown architecture: ${ARCH}"
     exit 1
   fi
 elif [ "${os}" = "Darwin" ]; then

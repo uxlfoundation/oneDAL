@@ -142,7 +142,3 @@ We welcome community contributions. Check our [contributing guidelines](CONTRIBU
 ## License <!-- omit in toc -->
 
 oneDAL is distributed under the Apache License 2.0 license. See [LICENSE](LICENSE) for more information.
-
-[oneMKL FPK microlibs](https://github.com/uxlfoundation/oneDAL/releases/tag/Dependencies)
-are distributed under Intel Simplified Software License.
-Refer to [third-party-programs-mkl.txt](third-party-programs-mkl.txt) for details.

@@ -18,6 +18,7 @@ concurrency:
 jobs:
   validate:
     name: Docker validation
+    if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
