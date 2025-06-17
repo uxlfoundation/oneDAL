@@ -574,16 +574,13 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     auto relative_block_offset = std::distance(nodes.begin(), it);
     ONEDAL_ASSERT(it != nodes.end());
 
+    pr::ndarray<res_t, 2> current_tresps;
+    
     for (std::int64_t relative_block_idx = 0; relative_block_idx < block_count;
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
         train_block_queue.pop_front();
         ONEDAL_ASSERT(current_block.has_data());
-        auto current_tresps = tresps_queue.front();
-        ONEDAL_ASSERT(current_tresps.has_data());
-        auto current_tresps_1d =
-            pr::ndview<res_t, 1>::wrap(current_tresps.get_data(), { current_tresps.get_count() });
-        tresps_queue.pop_front();
 
         auto absolute_block_idx = (relative_block_idx + relative_block_offset) % block_count;
         ONEDAL_ASSERT(absolute_block_idx + 1 < bounds_size);
@@ -594,10 +591,19 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         ONEDAL_ASSERT(sc >= actual_rows_in_block);
         auto curr_k = std::min(actual_rows_in_block, kcount);
         auto actual_current_block = current_block.get_row_slice(0, actual_rows_in_block);
-        auto actual_current_tresps = current_tresps_1d.get_slice(0, actual_rows_in_block);
+
+        if (ropts.test(result_options::responses)) {
+            current_tresps = tresps_queue.front();
+            ONEDAL_ASSERT(current_tresps.has_data());
+            auto current_tresps_1d =
+                pr::ndview<res_t, 1>::wrap(current_tresps.get_data(), { current_tresps.get_count() });
+            tresps_queue.pop_front();
+            auto actual_current_tresps = current_tresps_1d.get_slice(0, actual_rows_in_block);
+            callback.set_train_responses(actual_current_tresps);
+        }
 
         callback.set_global_index_offset(boundaries.at(absolute_block_idx));
-        callback.set_train_responses(actual_current_tresps);
+
         if (relative_block_idx == block_count - 1) {
             callback.set_last_iteration(true);
         }
@@ -650,12 +656,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                                                        { next_event });
             comm.sendrecv_replace(send_train_block, prev_node, next_node).wait();
             train_block_queue.emplace_back(current_block);
-            auto send_resps_block = array<res_t>::wrap(queue,
-                                                       current_tresps.get_mutable_data(),
-                                                       current_tresps.get_count(),
-                                                       { next_event });
-            comm.sendrecv_replace(send_resps_block, prev_node, next_node).wait();
-            tresps_queue.emplace_back(current_tresps);
+            if (ropts.test(result_options::responses)) {
+                auto send_resps_block = array<res_t>::wrap(queue,
+                                                        current_tresps.get_mutable_data(),
+                                                        current_tresps.get_count(),
+                                                        { next_event });
+                comm.sendrecv_replace(send_resps_block, prev_node, next_node).wait();
+                tresps_queue.emplace_back(current_tresps);
+            }
         }
     }
 
