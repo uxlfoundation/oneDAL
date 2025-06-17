@@ -165,7 +165,8 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
         if (total_rank_count >= num_trees) {
             ctx.tree_count_ = (comm_.get_rank() < num_trees) ? 1 : 0;
-        } else {
+        }
+        else {
             std::int64_t base_trees_per_gpu = num_trees / total_rank_count;
             std::int64_t extra_trees = num_trees % total_rank_count;
 
@@ -2102,7 +2103,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             homogen_table::wrap(res_var_imp_host.flatten(), 1, ctx.column_count_));
     }
 
-    if (comm_.get_rank_count() == 1 || !desc.get_local_trees_mode()) {
+    if (!desc.get_local_trees_mode()) {
         res.set_model(model_manager.get_model());
         return res;
     }
