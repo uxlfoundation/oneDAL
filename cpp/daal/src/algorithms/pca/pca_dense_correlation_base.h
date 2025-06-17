@@ -45,6 +45,7 @@ public:
 protected:
     services::Status computeCorrelationEigenvalues(const data_management::NumericTable & correlation, data_management::NumericTable & eigenvectors,
                                                    data_management::NumericTable & eigenvalues) DAAL_C11_OVERRIDE;
+    services::Status computeEigenvectorsInplace(size_t nFeatures, algorithmFPType * eigenvectors, algorithmFPType * eigenvalues);
     services::Status computeEigenvectorsInplace(size_t nFeatures, size_t nComponents, algorithmFPType * eigenvectors, algorithmFPType * eigenvalues);
     services::Status sortEigenvectorsDescending(size_t nFeatures, algorithmFPType * eigenvectors, algorithmFPType * eigenvalues);
     services::Status computeSingularValues(const data_management::NumericTable & eigenvalues, data_management::NumericTable & variances,

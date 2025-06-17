@@ -16,7 +16,7 @@
 
 #include "oneapi/dal/algo/pca/backend/gpu/train_kernel.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
+// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/detail/policy.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/gpu/train_kernel_svd_impl.hpp"

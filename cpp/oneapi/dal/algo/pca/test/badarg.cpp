@@ -62,7 +62,7 @@ private:
     };
 };
 
-using pca_types = COMBINE_TYPES((float, double), (pca::method::cov));
+using pca_types = COMBINE_TYPES((float, double), (pca::method::cov, pca::method::svd));
 
 #define PCA_BADARG_TEST(name) \
     TEMPLATE_LIST_TEST_M(pca_badarg_test, name, "[pca][badarg]", pca_types)

@@ -279,14 +279,14 @@ jobs:
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
-                 --test_link_mode=release_static --test_output=all \
+                 --test_link_mode=release_static \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-static'
 
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
-                 --test_link_mode=release_dynamic --test_output=all \
+                 --test_link_mode=release_dynamic \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-dynamic'
 
@@ -297,7 +297,7 @@ jobs:
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
-                 --test_link_mode=dev --test_output=all \
+                 --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-tests-thread-dev'
 

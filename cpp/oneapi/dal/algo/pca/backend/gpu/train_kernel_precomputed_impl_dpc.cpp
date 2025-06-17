@@ -18,7 +18,7 @@
 #include "oneapi/dal/algo/pca/backend/gpu/misc.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
+// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -78,11 +78,12 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
         }
 
         if (desc.get_deterministic()) {
-            sign_flip(flipped_eigenvectors_host);
+            sign_flip_gpu(q_, flipped_eigenvectors_host, {});
         }
+
         if (desc.get_result_options().test(result_options::eigenvectors)) {
             result.set_eigenvectors(
-                homogen_table::wrap(flipped_eigenvectors_host.flatten(),
+                homogen_table::wrap(flipped_eigenvectors_host.flatten(q_),
                                     flipped_eigenvectors_host.get_dimension(0),
                                     flipped_eigenvectors_host.get_dimension(1)));
         }

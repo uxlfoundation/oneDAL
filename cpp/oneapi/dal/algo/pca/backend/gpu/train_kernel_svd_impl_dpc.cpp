@@ -20,7 +20,7 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
+// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
@@ -159,19 +159,13 @@ result_t train_kernel_svd_impl<Float>::operator()(const descriptor_t& desc, cons
             homogen_table::wrap(explained_variances_ratio.flatten(), 1, component_count));
     }
 
-    auto U_host = U.to_host(q_);
+    auto eigenvectors_final =
+        prepare_eigenvectors_svd(q_, U, component_count, desc.get_deterministic(), { gesvd_event });
 
-    if (desc.get_deterministic()) {
-        sign_flip(U_host);
-    }
-
-    auto U_host_sign_flipped = U_host.to_device(q_);
     if (desc.get_result_options().test(result_options::eigenvectors)) {
-        auto [sliced_data, event] =
-            slice_data(q_, U_host_sign_flipped, component_count, column_count, { gesvd_event });
-        result.set_eigenvectors(homogen_table::wrap(sliced_data.flatten(q_, { event }),
-                                                    sliced_data.get_dimension(0),
-                                                    sliced_data.get_dimension(1)));
+        result.set_eigenvectors(homogen_table::wrap(eigenvectors_final.flatten(q_, {}),
+                                                    eigenvectors_final.get_dimension(0),
+                                                    eigenvectors_final.get_dimension(1)));
     }
 
     return result;

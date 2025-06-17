@@ -24,7 +24,7 @@
 #include "oneapi/dal/backend/primitives/stat.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
+// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -154,13 +154,13 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     }
 
     if (desc.get_deterministic()) {
-        sign_flip(flipped_eigenvectors_host);
+        sign_flip_gpu(q, flipped_eigenvectors_host, {});
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
-        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(),
-                                                    component_count,
-                                                    column_count));
+        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(q),
+                                                    flipped_eigenvectors_host.get_dimension(0),
+                                                    flipped_eigenvectors_host.get_dimension(1)));
     }
 
     return result;

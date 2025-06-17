@@ -168,6 +168,102 @@ auto flip_eigen_data(sycl::queue& queue,
 }
 
 template <typename Float>
+auto prepare_eigenvectors_svd(sycl::queue& queue,
+                              pr::ndview<Float, 2>& eigenvectors,
+                              std::int64_t component_count,
+                              bool flip_sign,
+                              const bk::event_vector& deps = {}) {
+    const std::int64_t row_count = eigenvectors.get_dimension(0);
+    const std::int64_t column_count = eigenvectors.get_dimension(1);
+
+    ONEDAL_ASSERT(component_count <= row_count);
+
+    auto eigenvectors_host = eigenvectors.to_host(queue, deps);
+    Float* data = eigenvectors_host.get_mutable_data();
+
+    for (std::int64_t i = 0; i < row_count; i++) {
+        Float* row = data + i * column_count;
+
+        Float max_val = row[0];
+        Float abs_max = std::abs(row[0]);
+        for (std::int64_t j = 1; j < column_count; j++) {
+            const Float val = row[j];
+            const Float abs_val = std::abs(val);
+            if (abs_val > abs_max) {
+                abs_max = abs_val;
+                max_val = val;
+            }
+        }
+
+        if (max_val < 0) {
+            for (std::int64_t j = 0; j < column_count; j++) {
+                row[j] = -row[j];
+            }
+        }
+    }
+
+    auto flipped_eigenvectors_gpu = eigenvectors_host.to_device(queue, deps);
+    auto trimmed =
+        pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
+    auto copy_event = queue.submit([&](sycl::handler& h) {
+        const Float* src = flipped_eigenvectors_gpu.get_data();
+        Float* dst = trimmed.get_mutable_data();
+
+        h.parallel_for(bk::make_range_2d(component_count, column_count), [=](sycl::id<2> id) {
+            const std::int64_t i = id[0];
+            const std::int64_t j = id[1];
+            dst[i * column_count + j] = src[i * column_count + j];
+        });
+    });
+
+    copy_event.wait_and_throw();
+
+    return trimmed;
+}
+
+template <typename Float>
+auto flip_eigenvectors_gpu(sycl::queue& queue,
+                           pr::ndview<Float, 2>& eigenvectors,
+                           std::int64_t component_count,
+                           const bk::event_vector& deps = {}) {
+    // Get dimensions
+    const std::int64_t row_count = eigenvectors.get_dimension(0);
+    const std::int64_t column_count = eigenvectors.get_dimension(1);
+
+    // Input pointers
+    auto eigvec_ptr = eigenvectors.get_data();
+
+    // Create output arrays
+    auto flipped_eigenvectors =
+        pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
+
+    // Output pointers
+
+    auto flipped_eigvec_ptr = flipped_eigenvectors.get_mutable_data();
+
+    auto flip_event = queue.submit([&](sycl::handler& h) {
+        // Use 2D range to handle both arrays
+        const auto range = bk::make_range_2d(component_count, column_count + 1);
+        h.depends_on(deps);
+
+        h.parallel_for(range, [=](sycl::id<2> id) {
+            const std::int64_t row = id[0];
+            const std::int64_t col = id[1];
+
+            // Process eigenvectors in columns 1 to column_count
+            if (col > 0 && col <= column_count) {
+                flipped_eigvec_ptr[row * column_count + (col - 1)] =
+                    eigvec_ptr[(row_count - 1 - row) * column_count + (col - 1)];
+            }
+        });
+    });
+
+    flip_event.wait_and_throw();
+
+    return std::make_tuple(flipped_eigenvectors);
+}
+
+template <typename Float>
 auto flip_eigen_data_gpu(sycl::queue& queue,
                          pr::ndview<Float, 1>& eigenvalues,
                          pr::ndview<Float, 2>& eigenvectors,
