@@ -168,60 +168,44 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     ReadRows<algorithmFPType, cpu> correlationBlock(const_cast<data_management::NumericTable &>(correlation), 0, nFeatures);
     DAAL_CHECK_BLOCK_STATUS(correlationBlock);
     const algorithmFPType * correlationArray = correlationBlock.get();
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, nFeatures);
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures * nFeatures, sizeof(algorithmFPType));
+    TArray<algorithmFPType, cpu> matrixCopy(nFeatures * nFeatures);
+    DAAL_CHECK_MALLOC(matrixCopy.get());
+
+    algorithmFPType * matrixArray = matrixCopy.get();
+    copyArray(nFeatures * nFeatures, correlationArray, matrixArray);
+
+    WriteOnlyRows<algorithmFPType, cpu> eigenvectorsBlock(eigenvectors, 0, nComponents);
+    DAAL_CHECK_BLOCK_STATUS(eigenvectorsBlock);
+    algorithmFPType * eigenvectorsArray = eigenvectorsBlock.get();
+    WriteOnlyRows<algorithmFPType, cpu> eigenvaluesBlock(eigenvalues, 0, 1);
+    DAAL_CHECK_BLOCK_STATUS(eigenvaluesBlock);
+    algorithmFPType * eigenvaluesArray = eigenvaluesBlock.get();
+
+    // SYEVR branch
+    // In this case, we compute only nComponents eigenvectors and then sort them in descending order
+    // and copy the first nComponents eigenvectors to the output.
     if (nComponents < nFeatures)
     {
-        TArray<algorithmFPType, cpu> matrixCopy(nFeatures * nFeatures);
-        DAAL_CHECK_MALLOC(matrixCopy.get());
-
-        algorithmFPType * matrixArray = matrixCopy.get();
-        copyArray(nFeatures * nFeatures, correlationArray, matrixArray);
-
-        WriteOnlyRows<algorithmFPType, cpu> eigenvectorsBlock(eigenvectors, 0, nComponents);
-        DAAL_CHECK_BLOCK_STATUS(eigenvectorsBlock);
-        algorithmFPType * eigenvectorsArray = eigenvectorsBlock.get();
-
-        WriteOnlyRows<algorithmFPType, cpu> eigenvaluesBlock(eigenvalues, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(eigenvaluesBlock);
-        algorithmFPType * eigenvaluesArray = eigenvaluesBlock.get();
-
         services::Status s = computeEigenvectorsInplace(nFeatures, nComponents, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
-        //  s = sortEigenvectorsDescending(nComponents, matrixArray, eigenvaluesArray);
         copyArray(nFeatures * nComponents, matrixArray, eigenvectorsArray);
         return s;
-        // DAAL_CHECK_STATUS_VAR(s);
     }
+    // SYEVD branch
+    // In this case, we compute all eigenvectors and then sort them in descending order
+    // and copy the first nComponents eigenvectors to the output
     else
     {
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, nFeatures);
-        DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures * nFeatures, sizeof(algorithmFPType));
-
-        TArray<algorithmFPType, cpu> fullEigenvectors(nFeatures * nFeatures);
-        DAAL_CHECK_MALLOC(fullEigenvectors.get());
-        algorithmFPType * fullEigenvectorsArray = fullEigenvectors.get();
-
-        TArray<algorithmFPType, cpu> fullEigenvalues(nFeatures);
-        DAAL_CHECK_MALLOC(fullEigenvalues.get());
-        algorithmFPType * fullEigenvaluesArray = fullEigenvalues.get();
-
-        copyArray(nFeatures * nFeatures, correlationArray, fullEigenvectorsArray);
-
-        services::Status s = computeEigenvectorsInplace(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
+        services::Status s = computeEigenvectorsInplace(nFeatures, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
 
-        s = sortEigenvectorsDescending(nFeatures, fullEigenvectorsArray, fullEigenvaluesArray);
+        s = sortEigenvectorsDescending(nFeatures, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
 
-        WriteOnlyRows<algorithmFPType, cpu> eigenvectorsBlock(eigenvectors, 0, nComponents);
-        DAAL_CHECK_BLOCK_STATUS(eigenvectorsBlock);
-        algorithmFPType * eigenvectorsArray = eigenvectorsBlock.get();
+        copyArray(nFeatures * nComponents, matrixArray, eigenvectorsArray);
 
-        WriteOnlyRows<algorithmFPType, cpu> eigenvaluesBlock(eigenvalues, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(eigenvaluesBlock);
-        algorithmFPType * eigenvaluesArray = eigenvaluesBlock.get();
-
-        copyArray(nFeatures * nComponents, fullEigenvectorsArray, eigenvectorsArray);
-        copyArray(nComponents, fullEigenvaluesArray, eigenvaluesArray);
         return s;
     }
 }
@@ -259,6 +243,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT iu = static_cast<DAAL_INT>(nFeatures);
     DAAL_INT m;
     DAAL_INT info;
+    // Could be modified to be a function parameter
     algorithmFPType abstol = 1e-8;
 
     DAAL_INT lwork  = 26 * nFeatures;
