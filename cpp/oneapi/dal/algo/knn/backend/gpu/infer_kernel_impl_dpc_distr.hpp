@@ -575,7 +575,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     ONEDAL_ASSERT(it != nodes.end());
 
     pr::ndarray<res_t, 2> current_tresps;
-    
+
     for (std::int64_t relative_block_idx = 0; relative_block_idx < block_count;
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
@@ -595,8 +595,8 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         if (ropts.test(result_options::responses)) {
             current_tresps = tresps_queue.front();
             ONEDAL_ASSERT(current_tresps.has_data());
-            auto current_tresps_1d =
-                pr::ndview<res_t, 1>::wrap(current_tresps.get_data(), { current_tresps.get_count() });
+            auto current_tresps_1d = pr::ndview<res_t, 1>::wrap(current_tresps.get_data(),
+                                                                { current_tresps.get_count() });
             tresps_queue.pop_front();
             auto actual_current_tresps = current_tresps_1d.get_slice(0, actual_rows_in_block);
             callback.set_train_responses(actual_current_tresps);
@@ -658,9 +658,9 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
             train_block_queue.emplace_back(current_block);
             if (ropts.test(result_options::responses)) {
                 auto send_resps_block = array<res_t>::wrap(queue,
-                                                        current_tresps.get_mutable_data(),
-                                                        current_tresps.get_count(),
-                                                        { next_event });
+                                                           current_tresps.get_mutable_data(),
+                                                           current_tresps.get_count(),
+                                                           { next_event });
                 comm.sendrecv_replace(send_resps_block, prev_node, next_node).wait();
                 tresps_queue.emplace_back(current_tresps);
             }
