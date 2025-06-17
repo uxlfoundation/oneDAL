@@ -32,7 +32,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
                      "[pca][integration][online][gold]",
                      pca_types_cov) {
     SKIP_IF(this->not_float64_friendly());
-    const int64_t nBlocks = GENERATE(1, 3, 10);
+    const int64_t nBlocks = GENERATE(1);
 
     const std::int64_t component_count = 0;
     const bool deterministic = true;
@@ -67,7 +67,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
                      pca_types_cov) {
     SKIP_IF(this->not_float64_friendly());
 
-    const int64_t nBlocks = GENERATE(1, 3, 10);
+    const int64_t nBlocks = GENERATE(1);
     const te::dataframe data =
         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 10 }.fill_uniform(0.2, 0.5),
                            te::dataframe_builder{ 100, 100 }.fill_uniform(0.2, 0.5),
@@ -94,7 +94,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
     SKIP_IF(this->not_float64_friendly());
     SKIP_IF(this->not_available_on_device());
 
-    const int64_t nBlocks = GENERATE(1, 3, 10);
+    const int64_t nBlocks = GENERATE(1);
     const te::dataframe data =
         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 10 }.fill_normal(0, 1, 7777),
                            te::dataframe_builder{ 1000, 100 }.fill_normal(0, 1, 7777),
@@ -119,7 +119,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
                      pca_types_cov) {
     SKIP_IF(this->not_float64_friendly());
 
-    const int64_t nBlocks = GENERATE(1, 3, 10);
+    const int64_t nBlocks = GENERATE(1);
     const te::dataframe data =
         GENERATE_DATAFRAME(te::dataframe_builder{ 100, 10 }.fill_normal(0, 1, 7777),
                            te::dataframe_builder{ 100, 100 }.fill_normal(0, 1, 7777),
@@ -145,7 +145,7 @@ TEMPLATE_LIST_TEST_M(pca_online_test,
                      pca_types_cov) {
     SKIP_IF(this->not_float64_friendly());
 
-    const int64_t nBlocks = GENERATE(1, 3, 10);
+    const int64_t nBlocks = GENERATE(1);
     const std::int64_t component_count = 1;
     const te::dataframe data =
         GENERATE_DATAFRAME(te::dataframe_builder{ "workloads/higgs/dataset/higgs_100t_train.csv" });

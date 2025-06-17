@@ -263,6 +263,70 @@ auto flip_eigenvectors_gpu(sycl::queue& queue,
     return std::make_tuple(flipped_eigenvectors);
 }
 
+/// @return The resulting 2d array of eigenvectors
+template <typename Float>
+auto flip_eigenvectors(sycl::queue& queue,
+                       pr::ndview<Float, 2>& data,
+                       std::int64_t component_count,
+                       const bk::event_vector& deps = {}) {
+    const std::int64_t column_count = data.get_dimension(1);
+    const std::int64_t row_count = data.get_dimension(0);
+    auto data_ptr = data.get_data();
+    auto eigenvectors =
+        pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
+    auto eigenvectors_ptr = eigenvectors.get_mutable_data();
+    auto flip_event = queue.submit([&](sycl::handler& h) {
+        const auto range = bk::make_range_2d(component_count, column_count);
+        h.depends_on(deps);
+        h.parallel_for(range, [=](sycl::id<2> id) {
+            const std::int64_t row = id[0];
+            const std::int64_t column = id[1];
+            eigenvectors_ptr[row * column_count + column] =
+                data_ptr[(row_count - 1 - row) * column_count + column];
+        });
+    });
+
+    flip_event.wait_and_throw();
+    auto flipped_eigenvectors_host = eigenvectors.to_host(queue);
+
+    return flipped_eigenvectors_host;
+}
+
+///  A wrapper that flips 1d array of eigenvalues from syevd result in descending order
+///
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in]  queue The SYCL queue
+/// @param[in]  eigenvalues  The input eigenvalues in ascending order of size `column_count`
+/// @param[in]  component_count  The number of `component_count` of the descriptor
+/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
+///
+/// @return The resulting 1d array of eigenvalues
+template <typename Float>
+auto flip_eigenvalues(sycl::queue& queue,
+                      pr::ndview<Float, 1>& eigenvalues,
+                      std::int64_t component_count,
+                      const bk::event_vector& deps = {}) {
+    auto column_count = eigenvalues.get_dimension(0);
+    auto data_ptr = eigenvalues.get_data();
+    auto flipped_eigenvalues =
+        pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
+    auto flipped_eigenvalues_ptr = flipped_eigenvalues.get_mutable_data();
+    auto flip_event = queue.submit([&](sycl::handler& h) {
+        const auto range = bk::make_range_1d(component_count);
+        h.depends_on(deps);
+        h.parallel_for(range, [=](sycl::id<1> id) {
+            const std::int64_t col = id[0];
+            flipped_eigenvalues_ptr[col] = data_ptr[(column_count - 1) - col];
+        });
+    });
+
+    flip_event.wait_and_throw();
+    auto flipped_eigenvalues_host = flipped_eigenvalues.to_host(queue);
+
+    return flipped_eigenvalues_host;
+}
+
 template <typename Float>
 auto flip_eigen_data_gpu(sycl::queue& queue,
                          pr::ndview<Float, 1>& eigenvalues,
