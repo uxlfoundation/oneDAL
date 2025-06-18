@@ -75,7 +75,7 @@ determines which PR was responsible for the failure.
    * Cases which require special consideration - CI failures/issues
    * Changes to public facing header files etc.
    * Changes to build structure (e.g. makefiles, bazel. etc.)
-11. Commits should follow commit message rules
+11. Commits should follow commit message rules.
 12. During a code-freeze period (before drop), PRs should only be pulled in by
 main maintainers.
 13. An approval should be given with the expectation to merge, use best
@@ -93,10 +93,9 @@ addresses their comment with code change
 19. To avoid overuse of "will save for follow-up PR"/"not in the scope of PR"
 the author is responsible resolving with reviewer the follow up steps in
 detail.
-20. Changes to these rules must be proposed and agreed to by unanimous vote of
-participants in an architecture meeting.
+20. Changes to these rules must be proposed following the RFC process.
 21. Additional private CI runs can be requested.
-22. While oneDAL is open source, hardware IP should be protected, especially in
+22. While oneDAL is open source, hardware IP should be protected especially in
 public forums like Slack and GitHub.
 23. An admin can wipe a review or otherwise change a PR as necessary. (Reviewer
 unavailable to re-review, etc.)
