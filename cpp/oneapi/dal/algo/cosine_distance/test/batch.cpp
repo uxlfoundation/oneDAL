@@ -123,8 +123,7 @@ public:
     }
 };
 
-using cosine_distance_types = COMBINE_TYPES((float, double),
-                                                 (cosine_distance::method::dense));
+using cosine_distance_types = COMBINE_TYPES((float, double), (cosine_distance::method::dense));
 
 TEMPLATE_LIST_TEST_M(cosine_distance_batch_test,
                      "cosine_distance common flow",

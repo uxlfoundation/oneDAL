@@ -35,8 +35,7 @@ namespace daal_cosine = daal::algorithms::cosine_distance;
 namespace interop = dal::backend::interop;
 
 template <typename Float, daal::CpuType Cpu>
-using daal_cosine_t =
-    daal_cosine::internal::DistanceKernel<Float, daal_cosine::defaultDense, Cpu>;
+using daal_cosine_t = daal_cosine::internal::DistanceKernel<Float, daal_cosine::defaultDense, Cpu>;
 
 template <typename Float>
 static result_t call_daal_kernel(const context_cpu& ctx,
@@ -56,15 +55,14 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     daal::algorithms::Parameter param;
 
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, daal_cosine_t>(ctx,
-                                                             1,
-                                                             daal_x.get(),
-                                                             1,
-                                                             daal_y.get(),
-                                                             1,
-                                                             daal_values.get(),
-                                                             &param));
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_cosine_t>(ctx,
+                                                                                 1,
+                                                                                 daal_x.get(),
+                                                                                 1,
+                                                                                 daal_y.get(),
+                                                                                 1,
+                                                                                 daal_values.get(),
+                                                                                 &param));
 
     return result_t().set_values(
         dal::detail::homogen_table_builder{}.reset(arr_values, row_count_x, row_count_y).build());

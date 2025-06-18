@@ -34,7 +34,7 @@ namespace pr = dal::backend::primitives;
 template <typename Float>
 static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const input_t& input) {
     ONEDAL_PROFILER_TASK(cosine_distance.compute, ctx.get_queue());
-    
+
     auto& queue = ctx.get_queue();
     const auto x = input.get_x();
     const auto y = input.get_y();
@@ -50,15 +50,14 @@ static result_t compute(const context_gpu& ctx, const descriptor_t& desc, const 
     const auto y_nd = pr::table2ndarray<Float>(queue, y, sycl::usm::alloc::device);
 
     // Create result array
-    auto res_nd = pr::ndarray<Float, 2>::empty(queue, 
-                                             { x_row_count, y_row_count }, 
-                                             sycl::usm::alloc::device);
+    auto res_nd =
+        pr::ndarray<Float, 2>::empty(queue, { x_row_count, y_row_count }, sycl::usm::alloc::device);
 
     // Use cosine distance primitive
     pr::cosine_distance<Float> distance(queue);
     auto distance_event = distance(x_nd, y_nd, res_nd);
     distance_event.wait_and_throw();
-    
+
     // Convert result back to table format
     const auto res_array = res_nd.flatten(queue);
     auto res_table = homogen_table::wrap(res_array, x_row_count, y_row_count);
@@ -92,7 +91,7 @@ struct compute_kernel_gpu<Float, method::dense, task::compute> {
 
         // Temporary workaround until the table_builder approach is ready
         auto res_nd = pr::ndarray<Float, 2>::wrap(const_cast<Float*>(res_ptr),
-                                                { res.get_row_count(), res.get_column_count() });
+                                                  { res.get_row_count(), res.get_column_count() });
 
         // Use cosine distance primitive
         pr::cosine_distance<Float> distance(queue);
