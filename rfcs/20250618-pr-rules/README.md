@@ -36,7 +36,7 @@ to enumerate the steps for better efficiency in oneDAL development.
      * All tasks in the checklist must be completed.
      * Features and changes must be fully implemented.
      * Both private and public CI pipelines must pass, or clear justification for any
-failing tests must be provided.
+       failing tests must be provided.
 4. Reverting a PR Back to Draft
    * Once a PR is converted from Draft to Ready for Review, it should only be
      reverted to Draft if:
