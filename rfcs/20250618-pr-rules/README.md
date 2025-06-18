@@ -47,7 +47,7 @@ to enumerate the steps for better efficiency in oneDAL development.
 
 ## Section 2: General Rules
 
-1. A PR cannot introduce new failures in Github checks (public CI) (i.e. stays
+1. A PR cannot introduce new failures in GitHub checks (public CI) (i.e. stays
 green) or new failures in private CI (pre-commit\*).
 2. Removal of CI tests can only be allowed with the written and documented
 consent\*\* of the code owners in extreme circumstances.
