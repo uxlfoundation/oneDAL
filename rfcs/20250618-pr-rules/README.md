@@ -1,4 +1,25 @@
-# Preamble:
+# oneDAL Pull Request Rules
+
+## Introduction
+
+Generating, reviewing and merging code in oneDAL are key pillars in providing
+a high quality and performant product.  The oneDAL codebase is both large and
+intricate requiring domain knowledge and precision.  In order to guarantee these
+qualitiies in oneDAL for all contributors, a set of rules should be added.
+
+
+## Proposal
+
+This enumerates in detail the aspects and proceedures necessary to getting a
+Pull Request (PR) merged into oneDAL.  This (as listed in the preamble below)
+will assist new developers as well as standardize for all developers in
+completing the necessary steps. The goal would be to add this to oneDAL's
+public documenation, and refer to it in the template (as a link) to all future
+Pull Requests to oneDAL.
+
+# Text to be added:
+
+## Preamble:
 
 This is the rules for merging PRs into the oneDAL code base on Github. This
 gives the minimum requirements for PR submitters and reviewers. The goal is
@@ -39,7 +60,7 @@ grounds for a reversion.
 scheduled code scan can be reverted.
 6. A designated person is assigned (for a determined period of time), who
 determines which PR was responsible for the failure.
-7. All PRs must have a label describing the purpose
+7. All PRs must have a label describing the purpose.
 8. Suggested labels are:
    * bug (Section 3: Bug Fix)
    * dependencies (Section 4: Dependencies)
@@ -173,3 +194,15 @@ can be used at reviewers discretion.
 
 \*\*\*\*\*\* direct links to the run should be modified to refer to
 http://intel-ci.intel.com/ and not internal Intel servers.
+
+# end of text
+
+## Open Questions
+How to relate to non-Intel parties in the case some of special requirements on
+impacts to this hardware.
+Additions or removals to the rules as per discussion.
+
+## Next steps:
+Upon acceptance, add to the oneDAL documents a web page under `contributing` for
+reference containing this text.  Secondly add to the PR template a link to this new
+page for easy access.
