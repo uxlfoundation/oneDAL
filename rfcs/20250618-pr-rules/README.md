@@ -14,7 +14,7 @@ This enumerates in detail the aspects and proceedures necessary to getting a
 Pull Request (PR) merged into oneDAL.  This (as listed in the preamble below)
 will assist new developers as well as standardize for all developers in
 completing the necessary steps. The goal would be to add this to oneDAL's
-public documenation, and refer to it in the template (as a link) to all future
+public documentation and refer to it in the template (as a link) to all future
 Pull Requests to oneDAL.
 
 # Text to be added:
