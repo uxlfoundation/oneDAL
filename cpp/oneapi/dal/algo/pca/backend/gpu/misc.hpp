@@ -382,6 +382,7 @@ template <typename Float>
 void sign_flip_gpu(sycl::queue& queue,
                    pr::ndview<Float, 2>& eigvecs,
                    const bk::event_vector& deps = {}) {
+    ONEDAL_PROFILER_TASK(sign_flip_gpu, queue);
     ONEDAL_ASSERT(eigvecs.get_dimension(0) > 0);
     ONEDAL_ASSERT(eigvecs.get_dimension(1) > 0);
 
@@ -976,7 +977,7 @@ auto init(sycl::queue& queue,
           const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(init_partial_results, queue);
 
-    auto result_nobs = pr::ndarray<Float, 1>::empty(queue, 1);
+    auto result_nobs = pr::ndarray<Float, 1>::empty(queue, 1, alloc::device);
 
     auto result_nobs_ptr = result_nobs.get_mutable_data();
 
