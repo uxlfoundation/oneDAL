@@ -49,39 +49,39 @@ determines which PR was responsible for the failure.
    * perf (Section 8: Performance)
    * testing (Section 9: Tests)
    * API/ABI breaking change (Section 10: API/ABI changes)
-9. Associated teams must be included in review based on the purpose/type of the
-PR (e.g. CI internal team, external infodev or infra teams)
+9. Associated reviewers from CODEOWNERS must be included in review based on the
+   purpose/type of the PR, for example:
    * Cases which require special consideration - CI failures/issues
-   * Changes to public facing header files etc. (infodev)
+   * Changes to public facing header files etc.
    * Changes to build structure (e.g. makefiles, bazel. etc.)
-10. Commits should follow commit message rules
-11. During a code-freeze period (before drop), PRs should only be pulled in by
+11. Commits should follow commit message rules
+12. During a code-freeze period (before drop), PRs should only be pulled in by
 main maintainers.
-12. An approval should be given with the expectation to merge, use best
+13. An approval should be given with the expectation to merge, use best
 judgement in reviewing and approving PRs (get help as when not confident).
-13. The submitter is responsible for the maintenance (including closing) of
+14. The submitter is responsible for the maintenance (including closing) of
 PRs.
-14. The submitter is responsible for guiding, answering, scheduling, and
+15. The submitter is responsible for guiding, answering, scheduling, and
 aligning the correct reviewers for a PR (setting up meetings, collecting
 information, etc.).
-15. The person who merges a PR is expected to understand the consequences,
+16. The person who merges a PR is expected to understand the consequences,
 especially with respect to approvals and review (e.g. a single approval may
 not be sufficient for merge).
-16. Let reviewer mark comment as resolved unless PR author directly addresses
+17. Let reviewer mark comment as resolved unless PR author directly addresses
 their comment with code change
-17. To avoid overuse of "will save for follow-up PR"/"not in the scope of PR"
+18. To avoid overuse of "will save for follow-up PR"/"not in the scope of PR"
 the author is responsible resolving with reviewer the follow up steps in
 detail.
-18. Changes to these rules must be proposed and agreed to by unanimous vote of
+19. Changes to these rules must be proposed and agreed to by unanimous vote of
 participants in an architecture meeting.
-19. Additional private CI runs can be requested.
-20. While oneDAL is open source, hardware IP should be protected, especially in
+20. Additional private CI runs can be requested.
+21. While oneDAL is open source, hardware IP should be protected, especially in
 public forums like Slack and GitHub.
-21. An admin can wipe a review or otherwise change a PR as necessary. (Reviewer
+22. An admin can wipe a review or otherwise change a PR as necessary. (Reviewer
 unavailable to re-review, etc.)
-22. Description must describe the change and reasoning behind it.
-23. These are not hard and fast and can be changed in cases that warrant it.
-24. When merging, use the title of the PR and not of the commit(s).
+23. Description must describe the change and reasoning behind it.
+24. These are not hard and fast and can be changed in cases that warrant it.
+25. When merging, use the title of the PR and not of the commit(s).
 
 # Section 3: Bug Fix
 
