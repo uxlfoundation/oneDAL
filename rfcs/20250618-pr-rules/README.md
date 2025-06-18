@@ -52,7 +52,7 @@ green) or new failures in private CI (pre-commit\*).
 2. Removal of CI tests can only be allowed with the written and documented
 consent\*\* of the code owners in extreme circumstances.
 3. Code which causes new CI failures or problems should apply additional
-fixes within a day, a PR should be reverted. 
+fixes within a day, otherwise the PR should be reverted. 
 4. Code scans often do not run with PRs, as such merged PRs should not increase
 the number of issues for the Intel internal code scans\*\*\*, and may be
 grounds for a reversion.
