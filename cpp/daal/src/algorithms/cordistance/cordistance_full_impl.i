@@ -22,6 +22,7 @@
 */
 #include "src/services/service_defines.h"
 using namespace daal::internal;
+using namespace daal::services;
 
 namespace daal
 {
@@ -322,8 +323,9 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
     SafeStatus safeStat;
 
     /* Allocate yMean for all Y vectors before the loop */
-    algorithmFPType * yMean = (algorithmFPType *)daal::services::daal_malloc(nVectors2 * sizeof(algorithmFPType));
-    DAAL_CHECK_MALLOC(yMean);
+    TArray<algorithmFPType, cpu> yMeanArr(nVectors2);
+    algorithmFPType * yMean = yMeanArr.get();
+    DAAL_CHECK(yMean, ErrorMemoryAllocationFailed);
 
     /* Compute means for all Y vectors before the loop */
     for (size_t k2 = 0; k2 < nBlocks2; k2++)
@@ -434,9 +436,7 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             }
         }
     });
-
-    daal::services::daal_free(yMean);
-
+    
     return safeStat.detach();
 }
 
