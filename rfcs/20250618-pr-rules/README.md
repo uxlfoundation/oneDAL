@@ -9,20 +9,20 @@ to enumerate the steps for better efficiency in oneDAL development.
 1. PR Template and Task Checklist
    * All PRs must use the provided template, including the task checklist.
 2. Draft PRs
-  * PRs should initially be opened as Draft.
+   * PRs should initially be opened as Draft.
 3. Marking PRs as Ready for Review
-  * Before marking a PR as Ready for Review:
-All tasks in the checklist must be completed.
-Features and changes must be fully implemented.
-Both private and public CI pipelines must pass, or clear justification for any
+   * Before marking a PR as Ready for Review:
+     * All tasks in the checklist must be completed.
+     * Features and changes must be fully implemented.
+     * Both private and public CI pipelines must pass, or clear justification for any
 failing tests must be provided.
 4. Reverting a PR Back to Draft
-  * Once a PR is converted from Draft to Ready for Review, it should only be
-reverted to Draft if:
-Significant changes or new feature requests arise during the review.
-The requested changes depend on future dependencies (e.g., waiting for a new
-release) or require substantial time to implement.
-Other blockers prevent the changes from being merged into the current main branch.
+   * Once a PR is converted from Draft to Ready for Review, it should only be
+     reverted to Draft if:
+     * Significant changes or new feature requests arise during the review.
+     * The requested changes depend on future dependencies (e.g., waiting for a new
+       release) or require substantial time to implement.
+     * Other blockers prevent the changes from being merged into the current main branch.
 
 # Section 2: General Rules
 
@@ -41,19 +41,19 @@ scheduled code scan can be reverted.
 determines which PR was responsible for the failure.
 7. All PRs must have a label describing the purpose
 8. Suggested labels are:
-  * bug (Section 3: Bug Fix)
-  * dependencies (Section 4: Dependencies)
-  * docs (Section 5: Documentation)
-  * enhancement (Section 6: Feature)
-  * infra (Section 7: Infrastructure)
-  * perf (Section 8: Performance)
+   * bug (Section 3: Bug Fix)
+   * dependencies (Section 4: Dependencies)
+   * docs (Section 5: Documentation)
+   * enhancement (Section 6: Feature)
+   * infra (Section 7: Infrastructure)
+   * perf (Section 8: Performance)
   * testing (Section 9: Tests)
-  * API/ABI breaking change (Section 10: API/ABI changes)
+   * API/ABI breaking change (Section 10: API/ABI changes)
 9. Associated teams must be included in review based on the purpose/type of the
 PR (e.g. CI internal team, external infodev or infra teams)
-  * Cases which require special consideration - CI failures/issues
-  * Changes to public facing header files etc. (infodev)
-  * Changes to build structure (e.g. makefiles, bazel. etc.)
+   * Cases which require special consideration - CI failures/issues
+   * Changes to public facing header files etc. (infodev)
+   * Changes to build structure (e.g. makefiles, bazel. etc.)
 10. Commits should follow commit message rules
 11. During a code-freeze period (before drop), PRs should only be pulled in by
 main maintainers.
