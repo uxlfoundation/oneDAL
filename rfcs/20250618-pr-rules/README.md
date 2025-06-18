@@ -9,7 +9,7 @@ to enumerate the steps for better efficiency in oneDAL development.
 1. PR Template and Task Checklist
   * All PRs must use the provided template, including the task checklist.
 2. Draft PRs
-  * PRs should initially be opened as Draft.
+ + PRs should initially be opened as Draft.
 3. Marking PRs as Ready for Review
   * Before marking a PR as Ready for Review:
 All tasks in the checklist must be completed.
