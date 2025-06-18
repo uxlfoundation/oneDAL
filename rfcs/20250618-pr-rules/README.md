@@ -4,7 +4,7 @@ This is the rules for merging PRs into the oneDAL code base on Github. This
 gives the minimum requirements for PR submitters and reviewers. The goal is
 to enumerate the steps for better efficiency in oneDAL development.
 
-# Section 1: Opening a PR, Ready for Review
+## Section 1: Opening a PR, Ready for Review
 
 1. PR Template and Task Checklist
    * All PRs must use the provided template, including the task checklist.
@@ -24,7 +24,7 @@ failing tests must be provided.
        release) or require substantial time to implement.
      * Other blockers prevent the changes from being merged into the current main branch.
 
-# Section 2: General Rules
+## Section 2: General Rules
 
 1. A PR cannot introduce new failures in Github checks (public CI) (i.e. stays
 green) or new failures in private CI (pre-commit\*).
@@ -83,7 +83,7 @@ unavailable to re-review, etc.)
 24. These are not hard and fast and can be changed in cases that warrant it.
 25. When merging, use the title of the PR and not of the commit(s).
 
-# Section 3: Bug Fix
+## Section 3: Bug Fix
 
 1. PR Title must include the associated algorithm or oneDAL code feature and
 the name of the bug.
@@ -96,19 +96,19 @@ should be closed.
 5. Fixes which solves a CI failure must be listed for verification by the
 reviewer.
 
-# Section 4: Dependencies
+## Section 4: Dependencies
 
 1. Dependency PRs not handled by automation should be handled per the
 guidance of reviewer with knowledge of the change (e.g. code owner).
 2. Questions about dependency changes can/should be addressed to the team at
 large.
 
-# Section 5: Documentation
+## Section 5: Documentation
 
 1. The PR title must include the related feature and/or DAAL/oneDAL component.
 2. The documentation must follow DAAL or oneDAL documentation guidelines.
 
-# Section 6: Feature
+## Section 6: Feature
 
 1. Features which change (not just add to) the user-facing API or ABI or change
 dependencies in a meaningful way should have an RFC (see section 10)
@@ -117,14 +117,14 @@ structure).
 3. Features in DAAL must follow DAAL conventions.
 4. New features must have associated new tests.
 
-# Section 7: Infrastructure
+## Section 7: Infrastructure
 
 1. As infra has wide-ranging impact, code review should be stricter and closely
 reviewed by those knowledgeable.  
 2. Those which impact a specific ISA should have a representative with domain
 knowledge review those changes.
 
-# Section 8: Performance
+## Section 8: Performance
 
 1. Performance benchmarks must include scikit-learn_bench\*\*\*\*\* if
 the algorithm is included or to be included in scikit-learn-intelex.
@@ -134,14 +134,14 @@ for associated GPU hardware.
 4. Relative improvements in performance should be listed in the PR description.
 5. Any degradation in performance should be discussed before merging.
 
-# Section 9: Tests
+## Section 9: Tests
 
 1. The PR title should include the related feature or components.
 2. Tests should be added for new features (ideally in the same PR).
 3. Ideally, the PR should refer to the feature introduction/or latest change
 to feature PR.
 
-# Section 10: API/ABI changes
+## Section 10: API/ABI changes
 
 1. Changes to the API/ABI should be specifically scheduled for merging at
 specific times determined by the main maintaners of oneDAL.
@@ -154,7 +154,7 @@ rules.
 5. In most cases, and API/ABI breaking change should first be discussed in an
 RFC process.
 
-# Notes:
+### Notes:
 
 \* Comment with text '/intelci: run' on the Github PR will automatically run
 the CI, labeled as 'pre-commit'.
