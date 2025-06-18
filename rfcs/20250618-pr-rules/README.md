@@ -88,21 +88,21 @@ information, etc.).
 16. The person who merges a PR is expected to understand the consequences,
 especially with respect to approvals and review (e.g. a single approval may
 not be sufficient for merge).
-17. Let reviewer mark comment as resolved unless PR author directly addresses
-their comment with code change
-18. To avoid overuse of "will save for follow-up PR"/"not in the scope of PR"
+17. The reviewer should mark comments as resolved unless PR author directly
+addresses their comment with code change
+19. To avoid overuse of "will save for follow-up PR"/"not in the scope of PR"
 the author is responsible resolving with reviewer the follow up steps in
 detail.
-19. Changes to these rules must be proposed and agreed to by unanimous vote of
+20. Changes to these rules must be proposed and agreed to by unanimous vote of
 participants in an architecture meeting.
-20. Additional private CI runs can be requested.
-21. While oneDAL is open source, hardware IP should be protected, especially in
+21. Additional private CI runs can be requested.
+22. While oneDAL is open source, hardware IP should be protected, especially in
 public forums like Slack and GitHub.
-22. An admin can wipe a review or otherwise change a PR as necessary. (Reviewer
+23. An admin can wipe a review or otherwise change a PR as necessary. (Reviewer
 unavailable to re-review, etc.)
-23. Description must describe the change and reasoning behind it.
-24. These are not hard and fast and can be changed in cases that warrant it.
-25. When merging, use the title of the PR and not of the commit(s).
+24. Description must describe the change and reasoning behind it.
+25. These are not hard and fast and can be changed in cases that warrant it.
+26. When merging, use the title of the PR and not of the commit(s).
 
 ## Section 3: Bug Fix
 
