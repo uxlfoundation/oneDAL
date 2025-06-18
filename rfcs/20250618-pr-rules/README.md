@@ -47,7 +47,7 @@ determines which PR was responsible for the failure.
    * enhancement (Section 6: Feature)
    * infra (Section 7: Infrastructure)
    * perf (Section 8: Performance)
-  * testing (Section 9: Tests)
+   * testing (Section 9: Tests)
    * API/ABI breaking change (Section 10: API/ABI changes)
 9. Associated teams must be included in review based on the purpose/type of the
 PR (e.g. CI internal team, external infodev or infra teams)
