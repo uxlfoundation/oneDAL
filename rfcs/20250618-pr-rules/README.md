@@ -5,7 +5,7 @@
 Generating, reviewing and merging code in oneDAL are key pillars in providing
 a high quality and performant product.  The oneDAL codebase is both large and
 intricate requiring domain knowledge and precision.  In order to guarantee these
-qualitiies in oneDAL for all contributors, a set of rules should be added.
+qualities in oneDAL for all contributors, a set of rules should be added.
 
 
 ## Proposal
