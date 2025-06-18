@@ -18,7 +18,6 @@
 #include "oneapi/dal/algo/pca/backend/gpu/misc.hpp"
 
 #include "oneapi/dal/backend/common.hpp"
-// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -71,20 +70,21 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
         auto [flipped_eigvals_host, flipped_eigenvectors_host] =
             flip_eigen_data_gpu(q_, eigvals, data_nd, component_count, { syevd_event });
 
-    if (desc.get_result_options().test(result_options::eigenvalues)) {
-        result.set_eigenvalues(
-            homogen_table::wrap(flipped_eigvals_host.flatten(q_, {}), 1, component_count));
-    }
+        if (desc.get_result_options().test(result_options::eigenvalues)) {
+            result.set_eigenvalues(
+                homogen_table::wrap(flipped_eigvals_host.flatten(q_, {}), 1, component_count));
+        }
 
-    if (desc.get_deterministic()) {
-        sign_flip_gpu(q_, flipped_eigenvectors_host, {});
-    }
+        if (desc.get_deterministic()) {
+            sign_flip_gpu(q_, flipped_eigenvectors_host, {});
+        }
 
-    if (desc.get_result_options().test(result_options::eigenvectors)) {
-        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(q_),
-                                                    flipped_eigenvectors_host.get_dimension(0),
-                                                    flipped_eigenvectors_host.get_dimension(1)));
-    }
+        if (desc.get_result_options().test(result_options::eigenvectors)) {
+            result.set_eigenvectors(
+                homogen_table::wrap(flipped_eigenvectors_host.flatten(q_),
+                                    flipped_eigenvectors_host.get_dimension(0),
+                                    flipped_eigenvectors_host.get_dimension(1)));
+        }
     }
 
     return result;

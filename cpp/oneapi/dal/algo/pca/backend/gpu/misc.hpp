@@ -977,7 +977,7 @@ auto init(sycl::queue& queue,
           const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(init_partial_results, queue);
 
-    auto result_nobs = pr::ndarray<Float, 1>::empty(queue, 1, alloc::device);
+    auto result_nobs = pr::ndarray<Float, 1>::empty(queue, 1);
 
     auto result_nobs_ptr = result_nobs.get_mutable_data();
 

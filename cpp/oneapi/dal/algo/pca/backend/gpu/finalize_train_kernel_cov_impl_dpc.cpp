@@ -24,7 +24,6 @@
 #include "oneapi/dal/backend/primitives/stat.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 
-// #include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -57,7 +56,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
 
     auto result = train_result<task_t>{}.set_result_options(desc.get_result_options());
 
-    const auto nobs_host = pr::table2ndarray<Float>(q, input.get_partial_n_rows());
+    const auto nobs_host = pr::table2ndarray<Float>(input.get_partial_n_rows());
     auto rows_count_global = nobs_host.get_data()[0];
     auto sums = pr::table2ndarray_1d<Float>(q, input.get_partial_sum(), sycl::usm::alloc::device);
     auto xtx =
@@ -91,14 +90,13 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
         }
     }
 
-    sycl::event means_event;
     if (desc.get_result_options().test(result_options::means)) {
         auto [means, means_event] = compute_means(q, sums, rows_count_global, {});
-        means_event.wait_and_throw();
         result.set_means(homogen_table::wrap(means.flatten(q, { means_event }), 1, column_count));
     }
+
     auto [cov, cov_event] = compute_covariance(q, rows_count_global, xtx, sums, {});
-    cov_event.wait_and_throw();
+
     auto [vars, vars_event] = compute_variances(q, cov, { cov_event });
 
     if (desc.get_result_options().test(result_options::vars)) {
@@ -113,7 +111,6 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
         corr_event =
             pr::correlation_from_covariance(q, rows_count_global, cov, corr, bias, { cov_event });
         data_to_compute = corr;
-        corr_event.wait_and_throw();
     }
 
     auto [eigvals, syevd_event] =
@@ -131,7 +128,6 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     auto [flipped_eigvals_host, flipped_eigenvectors_host] =
         flip_eigen_data_gpu(q, eigvals, data_to_compute, component_count, { syevd_event });
 
-
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
             homogen_table::wrap(flipped_eigvals_host.flatten(q, {}), 1, component_count));
@@ -148,7 +144,10 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
         auto explained_variances_ratio =
-            compute_explained_variances_on_gpu(q, flipped_eigvals_host, vars, { syevd_event, vars_event });
+            compute_explained_variances_on_gpu(q,
+                                               flipped_eigvals_host,
+                                               vars,
+                                               { syevd_event, vars_event });
         result.set_explained_variances_ratio(
             homogen_table::wrap(explained_variances_ratio.flatten(q), 1, component_count));
     }

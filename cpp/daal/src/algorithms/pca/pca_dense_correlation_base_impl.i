@@ -188,7 +188,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // and copy the first nComponents eigenvectors to the output.
     if (nComponents < nFeatures)
     {
-        services::Status s = computeEigenvectorsInplace(nFeatures, nComponents, matrixArray, eigenvaluesArray);
+        services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
         copyArray(nFeatures * nComponents, matrixArray, eigenvectorsArray);
         return s;
@@ -232,8 +232,9 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsInplace(size_t nFeatures, size_t nComponents,
-                                                                                      algorithmFPType * eigenvectors, algorithmFPType * eigenvalues)
+services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsInplaceSyevr(size_t nFeatures, size_t nComponents,
+                                                                                           algorithmFPType * eigenvectors,
+                                                                                           algorithmFPType * eigenvalues)
 {
     char jobz  = 'V';
     char range = 'I';
@@ -244,7 +245,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT m;
     DAAL_INT info;
     // Could be modified to be a function parameter
-    algorithmFPType abstol = 1e-8;
+    algorithmFPType abstol = -1;
 
     DAAL_INT lwork  = 26 * nFeatures;
     DAAL_INT liwork = 10 * nFeatures;
