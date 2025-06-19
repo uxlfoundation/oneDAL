@@ -436,7 +436,7 @@ services::Status corDistanceFull(const NumericTable * xTable, const NumericTable
             }
         }
     });
-    
+
     return safeStat.detach();
 }
 
