@@ -188,7 +188,7 @@ protected:
     {
         LoopHelper<cpu>::run(true, this->_data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME super::SplitTaskType task(iFeature, this->_data, this->_node, bestSplit, this->_result->res[i]);
+            typename super::SplitTaskType task(iFeature, this->_data, this->_node, bestSplit, this->_result->res[i]);
             task.execute();
         });
     }
@@ -214,7 +214,7 @@ protected:
         TlsGHSumMerge<GHSumForTLS<GHSumType, cpu>, algorithmFPType, cpu> * tls = this->_data.GH_SUMS_BUF->GHForCols.getBlockFromStorage();
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t i) {
-            DAAL_TYPENAME SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, this->_data, this->_node, tls);
+            typename SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, this->_data, this->_node, tls);
             task.execute();
         });
 
@@ -224,8 +224,7 @@ protected:
 
         LoopHelper<cpu>::run(true, this->_data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME SplitMode::FindBestSplitTask task(iFeature, nBlocks, this->_data, this->_node, bestSplit, this->_result->res[i], ptrs,
-                                                            size);
+            typename SplitMode::FindBestSplitTask task(iFeature, nBlocks, this->_data, this->_node, bestSplit, this->_result->res[i], ptrs, size);
             task.execute();
         });
 
@@ -341,7 +340,7 @@ protected:
         TlsGHSumMerge<GHSumForTLS<GHSumType, cpu>, algorithmFPType, cpu> * tls = _data.GH_SUMS_BUF->GHForCols.getBlockFromStorage();
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t i) {
-            DAAL_TYPENAME SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, _data, node1, tls);
+            typename SplitMode::ComputeGHSumsTask task(i, sizeOfBlock, _data, node1, tls);
             task.execute();
         });
 
@@ -351,8 +350,8 @@ protected:
 
         LoopHelper<cpu>::run(true, _data.ctx.nFeaturesPerNode(), [&](size_t i) {
             const DAAL_INT iFeature = featureSample ? featureSample[i] : i;
-            DAAL_TYPENAME SplitMode::FindBestSplitMergedTask task(iFeature, nBlocks, _data, node1, node2, bestSplit1, bestSplit2, _prevRes->res[i],
-                                                                  result1->res[i], result2->res[i], ptrs, size);
+            typename SplitMode::FindBestSplitMergedTask task(iFeature, nBlocks, _data, node1, node2, bestSplit1, bestSplit2, _prevRes->res[i],
+                                                             result1->res[i], result2->res[i], ptrs, size);
             task.execute();
         });
 
