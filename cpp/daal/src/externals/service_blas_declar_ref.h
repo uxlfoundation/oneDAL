@@ -62,6 +62,9 @@ extern "C"
 
     extern float sdot_(const DAAL_INT *, const float *, const DAAL_INT *, const float *, const DAAL_INT *);
     extern double ddot_(const DAAL_INT *, const double *, const DAAL_INT *, const double *, const DAAL_INT *);
+
+    extern void dscal_(const DAAL_INT *, const double *, double *, const DAAL_INT *);
+    extern void sscal_(const DAAL_INT *, const float *, float *, const DAAL_INT *);
 }
 
 } // namespace ref
