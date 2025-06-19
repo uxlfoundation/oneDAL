@@ -174,7 +174,7 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
         for (int64_t i = 0; i < component_count; i++) {
             noiseVariance -= eigvals[i];
         }
-        noiseVariance = noiseVariance / column_count;
+        noiseVariance = noiseVariance / (column_count - component_count);
         result.set_noise_variance(noiseVariance);
     }
 

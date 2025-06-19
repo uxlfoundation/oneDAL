@@ -125,19 +125,17 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
         result.set_noise_variance(noise_variance);
     }
 
-    auto [flipped_eigvals_host, flipped_eigenvectors_host] =
-        flip_eigen_data_gpu(q, eigvals, data_to_compute, component_count, { syevd_event });
+    auto [flipped_eigvals, flipped_eigenvectors] =
+        flip_eigen_data(q, eigvals, data_to_compute, component_count, { syevd_event });
 
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
-            homogen_table::wrap(flipped_eigvals_host.flatten(q, {}), 1, component_count));
+            homogen_table::wrap(flipped_eigvals.flatten(q, {}), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::singular_values)) {
-        auto singular_values = compute_singular_values_on_gpu(q,
-                                                              flipped_eigvals_host,
-                                                              rows_count_global,
-                                                              { syevd_event });
+        auto singular_values =
+            compute_singular_values_on_gpu(q, flipped_eigvals, rows_count_global, { syevd_event });
         result.set_singular_values(
             homogen_table::wrap(singular_values.flatten(q), 1, component_count));
     }
@@ -145,7 +143,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
         auto explained_variances_ratio =
             compute_explained_variances_on_gpu(q,
-                                               flipped_eigvals_host,
+                                               flipped_eigvals,
                                                vars,
                                                { syevd_event, vars_event });
         result.set_explained_variances_ratio(
@@ -153,13 +151,13 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     }
 
     if (desc.get_deterministic()) {
-        sign_flip_gpu(q, flipped_eigenvectors_host, {});
+        sign_flip_gpu(q, flipped_eigenvectors, {});
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
-        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(q),
-                                                    flipped_eigenvectors_host.get_dimension(0),
-                                                    flipped_eigenvectors_host.get_dimension(1)));
+        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors.flatten(q),
+                                                    flipped_eigenvectors.get_dimension(0),
+                                                    flipped_eigenvectors.get_dimension(1)));
     }
     return result;
 }

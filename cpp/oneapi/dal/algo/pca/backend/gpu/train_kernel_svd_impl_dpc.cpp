@@ -20,7 +20,6 @@
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/algo/pca/backend/common.hpp"
-
 #include "oneapi/dal/detail/profiler.hpp"
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"

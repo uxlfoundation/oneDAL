@@ -168,6 +168,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     ReadRows<algorithmFPType, cpu> correlationBlock(const_cast<data_management::NumericTable &>(correlation), 0, nFeatures);
     DAAL_CHECK_BLOCK_STATUS(correlationBlock);
     const algorithmFPType * correlationArray = correlationBlock.get();
+
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures, nFeatures);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nFeatures * nFeatures, sizeof(algorithmFPType));
     TArray<algorithmFPType, cpu> matrixCopy(nFeatures * nFeatures);
@@ -179,6 +180,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     WriteOnlyRows<algorithmFPType, cpu> eigenvectorsBlock(eigenvectors, 0, nComponents);
     DAAL_CHECK_BLOCK_STATUS(eigenvectorsBlock);
     algorithmFPType * eigenvectorsArray = eigenvectorsBlock.get();
+
     WriteOnlyRows<algorithmFPType, cpu> eigenvaluesBlock(eigenvalues, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(eigenvaluesBlock);
     algorithmFPType * eigenvaluesArray = eigenvaluesBlock.get();
