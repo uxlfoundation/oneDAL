@@ -27,6 +27,9 @@ CORE.SERV.COMPILER.vc = generic
 -Zl.vc = -Zl
 -DEBC.vc = -DEBUG -Z7
 
+-asanstatic.vc =
+-asanshared.vc =
+
 # Disable C4661 because of false positives
 COMPILER.win.vc = cl $(if $(MSVC_RT_is_release),-MD, -MDd) -nologo -EHsc -wd4661 -WX
 
