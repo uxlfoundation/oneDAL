@@ -246,11 +246,24 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT iu = static_cast<DAAL_INT>(nFeatures);
     DAAL_INT m;
     DAAL_INT info;
-    // Could be modified to be a function parameter
-    algorithmFPType abstol = -1;
 
-    DAAL_INT lwork  = 26 * nFeatures;
-    DAAL_INT liwork = 10 * nFeatures;
+    algorithmFPType abstol = 2.0 * std::numeric_limits<algorithmFPType>::min();
+
+    // Workspace query
+    algorithmFPType work_query;
+    DAAL_INT iwork_query;
+    DAAL_INT lwork  = -1;
+    DAAL_INT liwork = -1;
+
+    TArray<DAAL_INT, cpu> dummy_isuppz(2);
+    DAAL_CHECK_MALLOC(dummy_isuppz.get());
+
+    LapackInst<algorithmFPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)(&nFeatures), eigenvectors, (DAAL_INT *)(&nFeatures), nullptr, nullptr,
+                                             &il, &iu, &abstol, &m, nullptr, nullptr, (DAAL_INT *)(&nFeatures), dummy_isuppz.get(), &work_query,
+                                             &lwork, &iwork_query, &liwork, &info);
+
+    lwork  = static_cast<DAAL_INT>(work_query);
+    liwork = iwork_query;
 
     TArray<algorithmFPType, cpu> work(lwork);
     TArray<DAAL_INT, cpu> iwork(liwork);
@@ -272,10 +285,11 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
 
     for (size_t i = 0; i < nComponents; ++i)
     {
-        eigenvalues[i] = temp_eigenvalues[nComponents - 1 - i];
+        size_t idx     = nComponents - 1 - i;
+        eigenvalues[i] = temp_eigenvalues[idx];
         for (size_t j = 0; j < nFeatures; ++j)
         {
-            eigenvectors[j + i * nFeatures] = temp_eigenvectors[j + (nComponents - 1 - i) * nFeatures];
+            eigenvectors[j + i * nFeatures] = temp_eigenvectors[j + idx * nFeatures];
         }
     }
 
