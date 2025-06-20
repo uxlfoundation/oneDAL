@@ -35,7 +35,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string dataFileName = "../data/batch/pca_transform.csv";
+std::string dataFileName = "../data/batch/pca_transform.csv";
 const size_t nVectors = 4;
 const size_t nComponents = 2;
 

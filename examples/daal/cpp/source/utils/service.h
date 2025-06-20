@@ -37,7 +37,7 @@
 
 #include "error_handling.h"
 
-size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
+size_t readTextFile(std::string &datasetFileName, daal::byte **data) {
     std::ifstream file(datasetFileName.c_str(), std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         fileOpenError(datasetFileName.c_str());
@@ -82,7 +82,7 @@ void readRowUnknownLength(char *line, std::vector<item_type> &data) {
 }
 
 template <typename item_type>
-daal::data_management::CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
+daal::data_management::CSRNumericTable *createSparseTable(std::string &datasetFileName) {
     std::ifstream file(datasetFileName.c_str());
 
     if (!file.is_open()) {
@@ -672,36 +672,52 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
+inline std::string get_data_path(const std::string &name) {
+    const std::vector<std::string> paths = { "../data", "examples/daal/data" };
+
+    for (const auto &path : paths) {
+        std::string try_path = path + "/" + name;
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
+        }
+    }
+
+    return name;
+}
+
 void checkArguments(int argc, char *argv[], int count, ...) {
     std::string **filelist = new std::string *[count];
+
     va_list ap;
     va_start(ap, count);
     for (int i = 0; i < count; i++) {
         filelist[i] = va_arg(ap, std::string *);
     }
     va_end(ap);
+
     if (argc == 1) {
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
-    else if (argc == (count + 1)) {
-        bool isAllCorrect = true;
+    else if (argc == count + 1) {
+        bool all_exist = true;
         for (int i = 0; i < count; i++) {
-            if (!checkFileIsAvailable(argv[i + 1])) {
-                isAllCorrect = false;
+            if (!std::ifstream{ argv[i + 1] }.good()) {
+                all_exist = false;
                 break;
             }
         }
-        if (isAllCorrect == true) {
+
+        if (all_exist) {
             for (int i = 0; i < count; i++) {
-                (*filelist[i]) = argv[i + 1];
+                *(filelist[i]) = argv[i + 1];
             }
         }
         else {
             std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
             for (int i = 0; i < count; i++) {
-                checkFileIsAvailable(*(filelist[i]), true);
+                *(filelist[i]) = get_data_path(*(filelist[i]));
             }
         }
     }
@@ -710,12 +726,13 @@ void checkArguments(int argc, char *argv[], int count, ...) {
         for (int i = 0; i < count; i++) {
             std::cout << "<filename_" << i << "> ";
         }
-        std::cout << "]" << std::endl;
-        std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
+        std::cout << "]\n";
+        std::cout << "Warning: Try to open default dataset filenames.\n";
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
+
     delete[] filelist;
 }
 

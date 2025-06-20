@@ -40,8 +40,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::classification;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/df_classification_train.csv";
-const std::string testDatasetFileName = "../data/batch/df_classification_test.csv";
+std::string trainDatasetFileName = "../data/batch/df_classification_train.csv";
+std::string testDatasetFileName = "../data/batch/df_classification_test.csv";
 const size_t categoricalFeaturesIndices[] = { 2 };
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 
@@ -83,7 +83,7 @@ struct ParentPlace {
 
 training::ResultPtr trainModel();
 double testModel(daal::algorithms::decision_forest::classification::ModelPtr modelPtr);
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
+void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
 daal::algorithms::decision_forest::classification::ModelPtr buildModel(Tree *trees);
 Tree *traverseModel(daal::algorithms::decision_forest::classification::ModelPtr m);
 bool buildTree(size_t treeId,
@@ -246,7 +246,7 @@ training::ResultPtr trainModel() {
     return algorithm.getResult();
 }
 
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
+void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,
