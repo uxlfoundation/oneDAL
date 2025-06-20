@@ -26,7 +26,7 @@ int main(int argc, char const *argv[]) {
     const auto y_data_file_name = get_data_path("y_distance.csv");
 
     const auto x = dal::read<dal::table>(dal::csv::data_source{ x_data_file_name });
-    const auto y = dal::read<dal::table>(dal::csv : : data_source{ y_data_file_name });
+    const auto y = dal::read<dal::table>(dal::csv ::data_source{ y_data_file_name });
     const auto distance_desc = dal::correlation_distance::descriptor{};
 
     const auto result = dal::compute(distance_desc, x, y);
@@ -35,4 +35,3 @@ int main(int argc, char const *argv[]) {
 
     return 0;
 }
-
