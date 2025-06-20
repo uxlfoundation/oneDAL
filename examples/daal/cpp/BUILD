@@ -396,6 +396,35 @@ dal_example_suite(
     ],
 )
 
+dal_example_suite(
+    name = "outlier_detection",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/outlier_detection/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/outlierdetection_bacon:kernel",
+        "@onedal//cpp/daal/src/algorithms/outlierdetection_multivariate:kernel",
+        "@onedal//cpp/daal/src/algorithms/outlierdetection_univariate:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "pca_transform",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/pca_transform/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/pca:kernel",
+        "@onedal//cpp/daal/src/algorithms/pca/transform:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
 
 dal_algo_example_suite(
     algos = [
@@ -408,7 +437,7 @@ dal_algo_example_suite(
         "linear_regression",
         # "louvain",
         # "objective_function",
-        # "pca",
+        "pca",
         # "polynomial_kernel",
         # "rbf_kernel",
         # "shortest_paths",

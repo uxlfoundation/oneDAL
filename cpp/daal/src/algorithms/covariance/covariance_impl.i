@@ -464,7 +464,7 @@ services::Status updateCSRCrossProductAndSums(size_t nFeatures, size_t nVectors,
     if (method != sumCSR)
     {
         DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nVectors, sizeof(algorithmFPType));
-        DAAL_PROFILER_TASK(csr_sum_compute);
+
         TArray<algorithmFPType, cpu> onesArray(nVectors);
         DAAL_CHECK_MALLOC(onesArray.get());
 
@@ -569,9 +569,6 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
-        std::cout << invNObservations << std::endl;
-        std::cout << "sums[i]" << sums[i] << std::endl;
-        std::cout << "mean[i]" << mean[i] << std::endl;
     }
 
     if (parameter->outputMatrixType == covariance::correlationMatrix)
