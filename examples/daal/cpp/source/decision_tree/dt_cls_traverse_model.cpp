@@ -48,10 +48,11 @@ void printModel(const daal::algorithms::decision_tree::classification::Model& m)
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &pruneDatasetFileName);
-
+    std::cout << "here1" << std::endl;
     decision_tree::classification::training::ResultPtr trainingResult = trainModel();
+    std::cout << "here2" << std::endl;
     printModel(*trainingResult->get(classifier::training::model));
-
+    std::cout << "here3" << std::endl;
     return 0;
 }
 
