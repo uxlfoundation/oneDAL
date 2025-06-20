@@ -61,6 +61,33 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeExplainedVariancesRa
 }
 
 template <typename algorithmFPType, CpuType cpu>
+services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const data_management::NumericTable & eigenvalues,
+                                                                           const data_management::NumericTable & variances, double & noise_variance)
+{
+    const size_t nComponents = eigenvalues.getNumberOfColumns();
+    const size_t nColumns    = variances.getNumberOfColumns();
+
+    ReadRows<algorithmFPType, cpu> eigenValuesBlock(const_cast<data_management::NumericTable &>(eigenvalues), 0, 1);
+    DAAL_CHECK_BLOCK_STATUS(eigenValuesBlock);
+    const algorithmFPType * const eigenValuesArray = eigenValuesBlock.get();
+    ReadRows<algorithmFPType, cpu> variancesBlock(const_cast<data_management::NumericTable &>(variances), 0, 1);
+    DAAL_CHECK_BLOCK_STATUS(variancesBlock);
+    const algorithmFPType * const variancesBlockArray = variancesBlock.get();
+    double noiseVariance                              = 0.0;
+    for (size_t i = 0; i < nColumns; i++)
+    {
+        noiseVariance += variancesBlockArray[i];
+    }
+
+    for (size_t i = 0; i < nComponents; i++)
+    {
+        noiseVariance -= eigenValuesArray[i];
+    }
+    noise_variance = noiseVariance / (nColumns - nComponents);
+    return services::Status();
+}
+
+template <typename algorithmFPType, CpuType cpu>
 services::Status PCADenseBase<algorithmFPType, cpu>::copyTable(NumericTable & source, NumericTable & dest) const
 {
     size_t nElements = dest.getNumberOfColumns();

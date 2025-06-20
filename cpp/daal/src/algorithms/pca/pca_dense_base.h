@@ -45,6 +45,8 @@ public:
     services::Status computeExplainedVariancesRatio(const data_management::NumericTable & eigenvalues,
                                                     const data_management::NumericTable & variances,
                                                     data_management::NumericTable & explained_variances_ratio);
+    services::Status computeNoiseVariances(const data_management::NumericTable & eigenvalues, const data_management::NumericTable & variances,
+                                           double & noise_variance);
 
 private:
     void signFlipArray(size_t size, algorithmFPType * source) const;
