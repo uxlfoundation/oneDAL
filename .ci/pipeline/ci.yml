@@ -57,324 +57,324 @@ jobs:
       displayName: 'editorconfig-checker'
       failOnStderr: true
 
-# - job: 'LinuxMakeGNU_MKL'
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_lnx_gnu'
-#     platform.type : 'lnx32e'
-#   pool:
-#     vmImage: '$(VM_IMAGE)'
-#   steps:
-#   - script: |
-#       .ci/env/apt.sh dev-base
-#     displayName: 'apt-get and conda install'
-#   - script: |
-#       .ci/env/apt.sh mkl
-#     displayName: 'mkl installation'
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/describe_system.sh
-#     displayName: 'System info'
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
-#     displayName: 'make daal'
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c
-#     displayName: 'make onedal_c'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) build'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Upload build artifacts'
-#     continueOnError: true
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: 'oneDAL environment'
-#       targetPath: '$(Build.Repository.LocalPath)/.ci/env'
-#     displayName: 'Upload environment artifacts'
-#     continueOnError: true
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
-#     displayName: 'daal/cpp examples'
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
-#     displayName: 'oneapi/cpp examples'
-#   - script: |
-#       source /opt/intel/oneapi/setvars.sh
-#       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
-#     displayName: 'daal/cpp/mpi samples'
-#   - script: |
-#       deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
-#       tree -h -I include __nuget/inteldal*/
-#       ls -lh __nuget/inteldal*.nupkg
-#     displayName: 'nuget pkg'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) fail'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Uploading on fail'
-#     condition: failed()
-#     continueOnError: true
+- job: 'LinuxMakeGNU_MKL'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_gnu'
+    platform.type : 'lnx32e'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get and conda install'
+  - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+    displayName: 'make daal'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL environment'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/env'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
+  - script: |
+      deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
+      tree -h -I include __nuget/inteldal*/
+      ls -lh __nuget/inteldal*.nupkg
+    displayName: 'nuget pkg'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
-# - job: 'LinuxMakeGNU_OpenBLAS_ARM'
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_lnx_gnu'
-#     platform.type : 'lnxarm'
-#     OPENBLAS_CACHE_DIR: $(Pipeline.Workspace)/openblas-aarch64-gnu
-#     TBB_CACHE_DIR: $(Pipeline.Workspace)/tbb-aarch64-gnu
-#   pool:
-#     vmImage: '$(VM_IMAGE)'
-#   steps:
-#   - script: |
-#       .ci/env/apt.sh dev-base
-#     displayName: 'apt-get and conda install'
-#   - script: |
-#       .ci/env/apt.sh gnu-cross-compilers aarch64
-#     displayName: 'arm-compiler installation'
-#   - script: |
-#       .ci/env/apt.sh qemu-apt
-#     displayName: 'qemu-emulation installation'
-#   - script: |
-#       .ci/scripts/describe_system.sh
-#     displayName: 'System info'
-#   - task: Cache@2
-#     inputs:
-#       key: '"gcc" | "aarch64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
-#       path: $(OPENBLAS_CACHE_DIR)
-#       cacheHitVar: OPENBLAS_RESTORED
-#   - script: |
-#       .ci/env/openblas.sh --target ARMV8 --host-compiler gcc --compiler aarch64-linux-gnu-gcc --cflags -march=armv8-a+sve --cross-compile --target-arch aarch64 --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
-#     displayName: 'Build OpenBLAS'
-#     condition: ne(variables.OPENBLAS_RESTORED, 'true')
-#   - task: Cache@2
-#     inputs:
-#       key: '"gcc" | "aarch64" | "tbb" | "$(TBB_VERSION)" | "$(VM_IMAGE)"'
-#       path: $(TBB_CACHE_DIR)
-#       cacheHitVar: TBB_RESTORED
-#   - script: |
-#       .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/arm-gnu-crosscompile-toolchain.cmake --target-arch aarch64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
-#     displayName: 'Build oneTBB'
-#     condition: ne(variables.TBB_RESTORED, 'true')
-#   - script: |
-#       .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make daal'
-#   - script: |
-#       .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --cross-compile --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make onedal_c'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) ARM OpenBLAS gnu build'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Upload build artifacts'
-#     continueOnError: true
-#   - script: |
-#       export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
-#       export QEMU_CPU="max,sve-default-vector-length=256"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=aarch64
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
-#     displayName: 'daal/cpp examples'
-#   - script: |
-#       export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
-#       export QEMU_CPU="max,sve-default-vector-length=256"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=aarch64
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
-#     displayName: 'oneapi/cpp examples'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) fail'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Uploading on fail'
-#     condition: failed()
-#     continueOnError: true
+- job: 'LinuxMakeGNU_OpenBLAS_ARM'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_gnu'
+    platform.type : 'lnxarm'
+    OPENBLAS_CACHE_DIR: $(Pipeline.Workspace)/openblas-aarch64-gnu
+    TBB_CACHE_DIR: $(Pipeline.Workspace)/tbb-aarch64-gnu
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get and conda install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers aarch64
+    displayName: 'arm-compiler installation'
+  - script: |
+      .ci/env/apt.sh qemu-apt
+    displayName: 'qemu-emulation installation'
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"gcc" | "aarch64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      .ci/env/openblas.sh --target ARMV8 --host-compiler gcc --compiler aarch64-linux-gnu-gcc --cflags -march=armv8-a+sve --cross-compile --target-arch aarch64 --prefix $(OPENBLAS_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"gcc" | "aarch64" | "tbb" | "$(TBB_VERSION)" | "$(VM_IMAGE)"'
+      path: $(TBB_CACHE_DIR)
+      cacheHitVar: TBB_RESTORED
+  - script: |
+      .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/arm-gnu-crosscompile-toolchain.cmake --target-arch aarch64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
+    displayName: 'Build oneTBB'
+    condition: ne(variables.TBB_RESTORED, 'true')
+  - script: |
+      .ci/scripts/build.sh --compiler gnu --optimizations sve --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make daal'
+  - script: |
+      .ci/scripts/build.sh --compiler gnu --optimizations sve --target onedal_c --backend-config ref --cross-compile --plat lnxarm --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) ARM OpenBLAS gnu build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
+    displayName: 'daal/cpp examples'
+  - script: |
+      export QEMU_LD_PREFIX=/usr/aarch64-linux-gnu
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
+    displayName: 'oneapi/cpp examples'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
-# - job: 'LinuxMakeLLVM_OpenBLAS_ARM'
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_lnx_clang'
-#     platform.type : 'lnxarm'
-#     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-aarch64-clang
-#     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-aarch64-clang
-#     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-aarch64
-#   pool:
-#     vmImage: '$(VM_IMAGE)'
-#   steps:
-#   - script: |
-#       .ci/env/apt.sh dev-base
-#     displayName: 'apt-get and conda install'
-#   - script: |
-#       .ci/env/apt.sh gnu-cross-compilers aarch64
-#     displayName: 'arm-compiler installation'
-#   - script: |
-#       .ci/env/apt.sh llvm-version 18
-#     displayName: 'llvm 18 installation'
-#   - script: |
-#       .ci/env/apt.sh qemu-apt
-#     displayName: 'qemu-emulation installation'
-#   - task: Cache@2
-#     inputs:
-#       key: '"aarch64" | "sysroot" | "$(SYSROOT_OS)"'
-#       path: $(SYSROOT_CACHE_DIR)
-#       cacheHitVar: SYSROOT_RESTORED
-#   - script: |
-#       .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) arm64 $(SYSROOT_OS) sysroot-aarch64
-#     displayName: 'build aarch64 sysroot'
-#     condition: ne(variables.SYSROOT_RESTORED, 'true')
-#   - script: |
-#       .ci/scripts/describe_system.sh
-#     displayName: 'System info'
-#   - task: Cache@2
-#     inputs:
-#       key: '"clang" | "18" | "aarch64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
-#       path: $(OPENBLAS_CACHE_DIR)
-#       cacheHitVar: OPENBLAS_RESTORED
-#   - script: |
-#       .ci/env/openblas.sh --target ARMV8 --host-compiler gcc --compiler clang --target-arch arm --cflags -march=armv8-a+sve --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
-#     displayName: 'Build OpenBLAS'
-#     condition: ne(variables.OPENBLAS_RESTORED, 'true')
-#   - task: Cache@2
-#     inputs:
-#       key: '"clang" | "aarch64" | "tbb" | "$(TBB_VERSION)" | "$(VM_IMAGE)"'
-#       path: $(TBB_CACHE_DIR)
-#       cacheHitVar: TBB_RESTORED
-#   - script: |
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/arm-clang-crosscompile-toolchain.cmake --target-arch aarch64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
-#     displayName: 'Build oneTBB'
-#     condition: ne(variables.TBB_RESTORED, 'true')
-#   - script: |
-#       .ci/scripts/build.sh --compiler clang --optimizations sve --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxarm --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make daal'
-#   - script: |
-#       .ci/scripts/build.sh --compiler clang --optimizations sve --target onedal_c --backend-config ref --cross-compile --plat lnxarm --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make onedal_c'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) ARM OpenBLAS LLVM build'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Upload build artifacts'
-#     continueOnError: true
-#   - script: |
-#       export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
-#       export QEMU_CPU="max,sve-default-vector-length=256"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=aarch64
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
-#     displayName: 'daal/cpp examples'
-#   - script: |
-#       export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
-#       export QEMU_CPU="max,sve-default-vector-length=256"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=aarch64
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
-#     displayName: 'oneapi/cpp examples'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) fail'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Uploading on fail'
-#     condition: failed()
-#     continueOnError: true
+- job: 'LinuxMakeLLVM_OpenBLAS_ARM'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_clang'
+    platform.type : 'lnxarm'
+    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-aarch64-clang
+    TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-aarch64-clang
+    SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-aarch64
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get and conda install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers aarch64
+    displayName: 'arm-compiler installation'
+  - script: |
+      .ci/env/apt.sh llvm-version 18
+    displayName: 'llvm 18 installation'
+  - script: |
+      .ci/env/apt.sh qemu-apt
+    displayName: 'qemu-emulation installation'
+  - task: Cache@2
+    inputs:
+      key: '"aarch64" | "sysroot" | "$(SYSROOT_OS)"'
+      path: $(SYSROOT_CACHE_DIR)
+      cacheHitVar: SYSROOT_RESTORED
+  - script: |
+      .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) arm64 $(SYSROOT_OS) sysroot-aarch64
+    displayName: 'build aarch64 sysroot'
+    condition: ne(variables.SYSROOT_RESTORED, 'true')
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "18" | "aarch64" | "openblas" | "$(OPENBLAS_VERSION)" | "$(VM_IMAGE)" | "ILP64"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      .ci/env/openblas.sh --target ARMV8 --host-compiler gcc --compiler clang --target-arch arm --cflags -march=armv8-a+sve --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "aarch64" | "tbb" | "$(TBB_VERSION)" | "$(VM_IMAGE)"'
+      path: $(TBB_CACHE_DIR)
+      cacheHitVar: TBB_RESTORED
+  - script: |
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/arm-clang-crosscompile-toolchain.cmake --target-arch aarch64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
+    displayName: 'Build oneTBB'
+    condition: ne(variables.TBB_RESTORED, 'true')
+  - script: |
+      .ci/scripts/build.sh --compiler clang --optimizations sve --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxarm --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make daal'
+  - script: |
+      .ci/scripts/build.sh --compiler clang --optimizations sve --target onedal_c --backend-config ref --cross-compile --plat lnxarm --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) ARM OpenBLAS LLVM build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
+    displayName: 'daal/cpp examples'
+  - script: |
+      export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
+      export QEMU_CPU="max,sve-default-vector-length=256"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=aarch64
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxarm --cross-compile --backend ref
+    displayName: 'oneapi/cpp examples'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
-# - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_lnx_clang'
-#     platform.type : 'lnxriscv64'
-#     OPENBLAS_VERSION : 'v0.3.27'
-#     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
-#     TBB_VERSION : 'v2021.10.0'
-#     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
-#     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
-#   pool:
-#     vmImage: 'ubuntu-22.04'
-#   steps:
-#   - script: |
-#       .ci/env/apt.sh dev-base
-#     displayName: 'apt-get and conda install'
-#   - script: |
-#       .ci/env/apt.sh gnu-cross-compilers riscv64
-#     displayName: 'riscv64-compiler installation'
-#   - script: |
-#       .ci/env/apt.sh llvm-version 18
-#     displayName: 'llvm 18 installation'
-#   - script: |
-#       .ci/env/apt.sh qemu-deb
-#     displayName: 'qemu-emulation installation'
-#   - task: Cache@2
-#     inputs:
-#       key: '"riscv64" | "sysroot"'
-#       path: $(SYSROOT_CACHE_DIR)
-#       cacheHitVar: SYSROOT_RESTORED
-#   - script: |
-#       .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) riscv64 $(SYSROOT_OS) sysroot-riscv64
-#     displayName: 'Build riscv64 sysroot'
-#     condition: ne(variables.SYSROOT_RESTORED, 'true')
-#   - script: |
-#       .ci/scripts/describe_system.sh
-#     displayName: 'System info'
-#   - task: Cache@2
-#     inputs:
-#       key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64"'
-#       path: $(OPENBLAS_CACHE_DIR)
-#       cacheHitVar: OPENBLAS_RESTORED
-#   - script: |
-#       .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
-#     displayName: 'Build OpenBLAS'
-#     condition: ne(variables.OPENBLAS_RESTORED, 'true')
-#   - task: Cache@2
-#     inputs:
-#       key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)"'
-#       path: $(TBB_CACHE_DIR)
-#       cacheHitVar: TBB_RESTORED
-#   - script: |
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/riscv64-clang-crosscompile-toolchain.cmake --target-arch riscv64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
-#     displayName: 'Build oneTBB'
-#     condition: ne(variables.TBB_RESTORED, 'true')
-#   - script: |
-#       .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make daal'
-#   - script: |
-#       .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
-#     displayName: 'make onedal_c'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) RISCV64 OpenBLAS build'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Upload build artifacts'
-#     continueOnError: true
-#   - script: |
-#       export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
-#       export QEMU_CPU="max"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=riscv64
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
-#     displayName: 'daal/cpp examples'
-#   - script: |
-#       export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
-#       export QEMU_CPU="max"
-#       export TBBROOT=$(TBB_CACHE_DIR)
-#       export ARCH_ONEDAL=riscv64
-#       export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
-#       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
-#     displayName: 'oneapi/cpp examples'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) fail'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Uploading on fail'
-#     condition: failed()
-#     continueOnError: true
+- job: 'LinuxMakeLLVM_OpenBLAS_rv64'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_clang'
+    platform.type : 'lnxriscv64'
+    OPENBLAS_VERSION : 'v0.3.27'
+    OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
+    TBB_VERSION : 'v2021.10.0'
+    TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
+    SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
+  pool:
+    vmImage: 'ubuntu-22.04'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get and conda install'
+  - script: |
+      .ci/env/apt.sh gnu-cross-compilers riscv64
+    displayName: 'riscv64-compiler installation'
+  - script: |
+      .ci/env/apt.sh llvm-version 18
+    displayName: 'llvm 18 installation'
+  - script: |
+      .ci/env/apt.sh qemu-deb
+    displayName: 'qemu-emulation installation'
+  - task: Cache@2
+    inputs:
+      key: '"riscv64" | "sysroot"'
+      path: $(SYSROOT_CACHE_DIR)
+      cacheHitVar: SYSROOT_RESTORED
+  - script: |
+      .ci/env/apt.sh build-sysroot $(Pipeline.Workspace) riscv64 $(SYSROOT_OS) sysroot-riscv64
+    displayName: 'Build riscv64 sysroot'
+    condition: ne(variables.SYSROOT_RESTORED, 'true')
+  - script: |
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "riscv64" | "openblas" | "$(OPENBLAS_VERSION)" | "ILP64"'
+      path: $(OPENBLAS_CACHE_DIR)
+      cacheHitVar: OPENBLAS_RESTORED
+  - script: |
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
+    displayName: 'Build OpenBLAS'
+    condition: ne(variables.OPENBLAS_RESTORED, 'true')
+  - task: Cache@2
+    inputs:
+      key: '"clang" | "riscv64" | "tbb" | "$(TBB_VERSION)"'
+      path: $(TBB_CACHE_DIR)
+      cacheHitVar: TBB_RESTORED
+  - script: |
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/env/tbb.sh --cross-compile --toolchain-file $(Build.Repository.LocalPath)/.ci/env/riscv64-clang-crosscompile-toolchain.cmake --target-arch riscv64 --prefix $(TBB_CACHE_DIR) --version $(TBB_VERSION)
+    displayName: 'Build oneTBB'
+    condition: ne(variables.TBB_RESTORED, 'true')
+  - script: |
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make daal'
+  - script: |
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) RISCV64 OpenBLAS build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
+      export QEMU_CPU="max"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=riscv64
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface daal/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
+    displayName: 'daal/cpp examples'
+  - script: |
+      export QEMU_LD_PREFIX=$(SYSROOT_CACHE_DIR)
+      export QEMU_CPU="max"
+      export TBBROOT=$(TBB_CACHE_DIR)
+      export ARCH_ONEDAL=riscv64
+      export ONEDAL_SYSROOT=$(SYSROOT_CACHE_DIR)
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler clang --interface oneapi/cpp --build-system cmake --platform lnxriscv64 --cross-compile --backend ref
+    displayName: 'oneapi/cpp examples'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
 - job: 'LinuxBazel'
   timeoutInMinutes: 0
@@ -509,100 +509,100 @@ jobs:
       fi
     displayName: 'bazel-cache-limit'
 
-# - job: LinuxSklearnex
-#   dependsOn: LinuxMakeGNU_MKL
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_lnx_gnu'
-#     platform.type: 'lnx32e'
-#     DALROOT: '$(Pipeline.Workspace)/daal/latest'
-#     TBBROOT: '/opt/intel/oneapi/tbb/latest'
-#     NO_DPC: 1
-#     NO_DIST: 1
-#   pool:
-#     vmImage: '$(VM_IMAGE)'
-#     maxParallel: 2
-#   strategy:
-#     matrix:
-#       Python311:
-#         PYTHON_VERSION: '3.11'
-#         SKLEARN_VERSION: '1.5'
-#   steps:
-#   - checkout: none
-#   - script: |
-#       git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
-#     displayName: 'Clone sklearnex'
-#   - task: DownloadPipelineArtifact@2
-#     inputs:
-#       artifact: 'oneDAL environment'
-#       path: '$(Build.Repository.LocalPath)/.ci/env'
-#   - task: DownloadPipelineArtifact@2
-#     inputs:
-#       artifact: '$(platform.type) build'
-#       path: $(Pipeline.Workspace)
-#   - script: |
-#       chmod -R 755 .ci/env
-#       .ci/env/apt.sh tbb
-#     displayName: 'tbb installation'
-#   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) sklearnex build'
-#       targetPath: '$(Build.Repository.LocalPath)/build'
+- job: LinuxSklearnex
+  dependsOn: LinuxMakeGNU_MKL
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_gnu'
+    platform.type: 'lnx32e'
+    DALROOT: '$(Pipeline.Workspace)/daal/latest'
+    TBBROOT: '/opt/intel/oneapi/tbb/latest'
+    NO_DPC: 1
+    NO_DIST: 1
+  pool:
+    vmImage: '$(VM_IMAGE)'
+    maxParallel: 2
+  strategy:
+    matrix:
+      Python311:
+        PYTHON_VERSION: '3.11'
+        SKLEARN_VERSION: '1.5'
+  steps:
+  - checkout: none
+  - script: |
+      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
+    displayName: 'Clone sklearnex'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'oneDAL environment'
+      path: '$(Build.Repository.LocalPath)/.ci/env'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: '$(platform.type) build'
+      path: $(Pipeline.Workspace)
+  - script: |
+      chmod -R 755 .ci/env
+      .ci/env/apt.sh tbb
+    displayName: 'tbb installation'
+  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) sklearnex build'
+      targetPath: '$(Build.Repository.LocalPath)/build'
 
-# - job: 'WindowsMakeVC'
-#   timeoutInMinutes: 0
-#   variables:
-#     release.dir: '__release_win_vc'
-#     platform.type : 'win32e'
-#   pool:
-#     vmImage: 'windows-2022'
-#   steps:
-#   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
-#     displayName: Install oneAPI Base Toolkit
-#   - script: |
-#       set PATH=C:\msys64\usr\bin;%PATH%
-#       pip install cpufeature
-#       pacman -S -y --noconfirm zip tree
-#     displayName: 'pacman'
-#   - script: |
-#       call %TEMP%\oneapi\setvars.bat --force
-#       bash .ci/scripts/describe_system.sh
-#     displayName: 'System info'
-#   - script: |
-#       call %TEMP%\oneapi\setvars.bat --force
-#       .\.ci\scripts\build.bat daal vc avx2
-#     displayName: 'make daal'
-#   - script: |
-#       call %TEMP%\oneapi\setvars.bat --force
-#       .\.ci\scripts\build.bat onedal_c vc avx2
-#     displayName: 'make onedal_c'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) build'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Upload build artifacts'
-#     continueOnError: true
-#   - script: |
-#       call %TEMP%\oneapi\setvars.bat --force
-#       .\.ci\scripts\test.bat daal\cpp lib msvs cmake
-#       .\.ci\scripts\test.bat daal\cpp dll msvs cmake
-#     displayName: 'daal/cpp examples'
-#   - script: |
-#       call %TEMP%\oneapi\setvars.bat --force
-#       .\.ci\scripts\test.bat oneapi\cpp lib msvs cmake
-#       .\.ci\scripts\test.bat oneapi\cpp dll msvs cmake
-#     displayName: 'oneapi/cpp examples'
-#   - script: |
-#       set PATH=C:\msys64\usr\bin;%PATH%
-#       bash deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
-#       tree -h -I include __nuget/inteldal*/
-#       ls -lh __nuget/inteldal*.nupkg
-#     displayName: 'nuget pkg'
-#   - task: PublishPipelineArtifact@1
-#     inputs:
-#       artifactName: '$(platform.type) fail'
-#       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-#     displayName: 'Uploading on fail'
-#     condition: failed()
-#     continueOnError: true
+- job: 'WindowsMakeVC'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win_vc'
+    platform.type : 'win32e'
+  pool:
+    vmImage: 'windows-2022'
+  steps:
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: Install oneAPI Base Toolkit
+  - script: |
+      set PATH=C:\msys64\usr\bin;%PATH%
+      pip install cpufeature
+      pacman -S -y --noconfirm zip tree
+    displayName: 'pacman'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      bash .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\build.bat daal vc avx2
+    displayName: 'make daal'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\build.bat onedal_c vc avx2
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\test.bat daal\cpp lib msvs cmake
+      .\.ci\scripts\test.bat daal\cpp dll msvs cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      call %TEMP%\oneapi\setvars.bat --force
+      .\.ci\scripts\test.bat oneapi\cpp lib msvs cmake
+      .\.ci\scripts\test.bat oneapi\cpp dll msvs cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      set PATH=C:\msys64\usr\bin;%PATH%
+      bash deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
+      tree -h -I include __nuget/inteldal*/
+      ls -lh __nuget/inteldal*.nupkg
+    displayName: 'nuget pkg'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true

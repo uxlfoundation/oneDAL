@@ -41,7 +41,7 @@ std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
-  
+
     /* Read datasetFileName from a file and create a numeric table to store input data */
     CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileName));
 

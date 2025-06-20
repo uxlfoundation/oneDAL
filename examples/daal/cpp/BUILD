@@ -105,18 +105,18 @@ dal_example_suite(
     ],
 )
 
-dal_example_suite(
-    name = "decision_tree",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/decision_tree/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
-)
+# dal_example_suite(
+#     name = "decision_tree",
+#     compile_as = [ "c++" ],
+#     srcs = glob(["source/decision_tree/*.cpp"]),
+#     dal_deps = [
+#         "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
+#     ],
+#     data = _DATA_DEPS,
+#     extra_deps = _TEST_DEPS + [
+#         "@tbb//:tbb",
+#     ],
+# )
 
 dal_example_suite(
     name = "distance",
@@ -229,7 +229,7 @@ dal_algo_example_suite(
         "covariance",
         # "datasource",
         "dbscan",
-        "decision_forest",
+        # "decision_forest",
         "kmeans",
         # "k_nearest_neighbors",
         # "kernel_function",

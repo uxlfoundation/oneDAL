@@ -40,9 +40,9 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 const size_t nBlocks = 4;
 
 std::string datasetFileNames[] = { "../data/distributed/covcormoments_csr_1.csv",
-                                         "../data/distributed/covcormoments_csr_2.csv",
-                                         "../data/distributed/covcormoments_csr_3.csv",
-                                         "../data/distributed/covcormoments_csr_4.csv" };
+                                   "../data/distributed/covcormoments_csr_2.csv",
+                                   "../data/distributed/covcormoments_csr_3.csv",
+                                   "../data/distributed/covcormoments_csr_4.csv" };
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,

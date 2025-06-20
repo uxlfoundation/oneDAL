@@ -41,9 +41,9 @@ const size_t nBlocks = 4;
 const size_t nVectorsInBlock = 8000;
 
 std::string dataFileNames[] = { "../data/distributed/kmeans_csr_1.csv",
-                                      "../data/distributed/kmeans_csr_2.csv",
-                                      "../data/distributed/kmeans_csr_3.csv",
-                                      "../data/distributed/kmeans_csr_4.csv" };
+                                "../data/distributed/kmeans_csr_2.csv",
+                                "../data/distributed/kmeans_csr_3.csv",
+                                "../data/distributed/kmeans_csr_4.csv" };
 
 CSRNumericTablePtr dataTable[nBlocks];
 

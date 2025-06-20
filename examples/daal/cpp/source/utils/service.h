@@ -673,7 +673,7 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
 }
 
 inline bool check_file(const std::string &name) {
-    return std::ifstream{name}.good();
+    return std::ifstream{ name }.good();
 }
 
 inline std::string get_data_path(const std::string &name) {
@@ -688,7 +688,6 @@ inline std::string get_data_path(const std::string &name) {
 
     return name;
 }
-
 
 void checkArguments(int argc, char *argv[], int count, ...) {
     std::string **filelist = new std::string *[count];
@@ -718,7 +717,8 @@ void checkArguments(int argc, char *argv[], int count, ...) {
             for (int i = 0; i < count; i++) {
                 *(filelist[i]) = argv[i + 1];
             }
-        } else {
+        }
+        else {
             std::cout << "Warning: Some input files not found, trying default dataset filenames.\n";
             for (int i = 0; i < count; i++) {
                 *(filelist[i]) = get_data_path(*(filelist[i]));
