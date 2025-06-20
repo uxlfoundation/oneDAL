@@ -262,6 +262,10 @@ MSG(nothing_to_compute, "Invalid combination of optional results: nothing to com
 MSG(distances_are_uninitialized, "Distances are not set as an optional result")
 MSG(predecessors_are_uninitialized, "Predecessors are not set as an optional result")
 
+/*Spectral Embedding*/
+MSG(sp_emb_dense_batch_method_is_not_implemented_for_gpu,
+    "Spectral embedding algorithm is not implemented on GPU")
+
 /* SVM */
 MSG(c_leq_zero, "C is lower than or equal to zero")
 MSG(cache_size_lt_zero, "Cache size is lower than zero")

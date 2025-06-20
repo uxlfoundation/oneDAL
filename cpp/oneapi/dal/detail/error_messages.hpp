@@ -292,6 +292,9 @@ public:
     MSG(distances_are_uninitialized);
     MSG(predecessors_are_uninitialized);
 
+    /*Spectral Embedding*/
+    MSG(sp_emb_dense_batch_method_is_not_implemented_for_gpu);
+
     /* SVM */
     MSG(c_leq_zero);
     MSG(cache_size_lt_zero);
