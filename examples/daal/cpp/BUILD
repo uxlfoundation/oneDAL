@@ -425,26 +425,179 @@ dal_example_suite(
     ],
 )
 
+dal_example_suite(
+    name = "pivoted_qr",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/pivoted_qr/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/pivoted_qr:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "qr",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/qr/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/qr:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "quality_metrics",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/quality_metrics/*.cpp"]),
+    dal_deps = [
+        # "@onedal//cpp/daal/src/algorithms/quantiles:kernel",
+        "@onedal//cpp/daal/src/algorithms/svm:kernel",
+        "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
+        "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
+        "@onedal//cpp/daal/src/algorithms/pca:kernel",
+        "@onedal//cpp/daal/src/algorithms/pca/transform:kernel",
+        "@onedal//cpp/daal/src/algorithms/pca/metrics:kernel",
+        "@onedal//cpp/daal/src/algorithms/linear_regression:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "quantiles",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/quantiles/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/quantiles:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "ridge_regression",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/ridge_regression/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/ridge_regression:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "serialization_example",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/serialization/*.cpp"]),
+    dal_deps = [
+        # "@onedal//cpp/daal/src/algorithms/covariance:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "services_examples",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/services/*.cpp"]),
+    dal_deps = [
+        # "@onedal//cpp/daal/src/algorithms/covariance:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "set_number_of_threads_example",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/set_number_of_threads/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "sorting",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/sorting/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/sorting:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "stump",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/stump/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/stump:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "svd",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/svd/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/svd:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
+
+dal_example_suite(
+    name = "svm",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/svm/*.cpp"],
+    exclude = ["source/svm/svm_multi_class_model_builder.cpp"],),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/svm:kernel",
+        "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
+        "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS + [
+        "@tbb//:tbb",
+    ],
+)
 
 dal_algo_example_suite(
     algos = [
         "covariance",
         "dbscan",
-        # "decision_forest",
         "kmeans",
-        # "k_nearest_neighbors",
-        # "kernel_function",
         "linear_regression",
-        # "louvain",
-        # "objective_function",
         "pca",
-        # "polynomial_kernel",
-        # "rbf_kernel",
-        # "shortest_paths",
-        # "sigmoid_kernel",
-        # "subgraph_isomorphism",
-        # "svm",
-        # "triangle_counting",
     ],
     compile_as = [ "c++" ],
     data = _DATA_DEPS,
