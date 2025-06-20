@@ -11,59 +11,13 @@ dal_module(
 )
 
 _TEST_DEPS = [
-    ":example_util", "@opencl//:opencl_binary",
+    ":example_util", "@opencl//:opencl_binary", "@tbb//:tbb",
 ]
 
 _DATA_DEPS = [
     "@onedal//examples/daal:data",
 ]
 
-# dal_example_suite(
-#     name = "graph",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/graph/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/oneapi/dal/graph",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS,
-# )
-
-# dal_example_suite(
-#     name = "table",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/table/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/oneapi/dal/table",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS,
-# )
-
-# dal_example_suite(
-#     name = "kmeans_init",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/kmeans_init/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/oneapi/dal/algo:kmeans",
-#         "@onedal//cpp/oneapi/dal/algo:kmeans_init",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS,
-# )
-
-# dal_example_suite(
-#     name = "misc",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/misc/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/oneapi/dal:io",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS,
-# )
-
-#"@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
 dal_example_suite(
     name = "association_rules",
     compile_as = [ "c++" ],
@@ -72,9 +26,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/assocrules:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -87,9 +39,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/logitboost:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -100,9 +50,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/cholesky:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -113,9 +61,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -131,9 +77,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -150,9 +94,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -161,12 +103,10 @@ dal_example_suite(
     srcs = glob(["source/distance/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/cordistance:kernel",
-         "@onedal//cpp/daal/src/algorithms/cosdistance:kernel",
+        "@onedal//cpp/daal/src/algorithms/cosdistance:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -177,9 +117,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/distributions:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -188,18 +126,11 @@ dal_example_suite(
     srcs = glob(["source/elastic_net/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/elastic_net:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/adagrad:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/saga:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/sgd:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -211,9 +142,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/covariance:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -224,9 +153,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -236,19 +163,12 @@ dal_example_suite(
     exclude = ["source/gradient_boosted_trees/gbt_cls_traversed_model_builder.cpp",
     "source/gradient_boosted_trees/gbt_reg_traversed_model_builder.cpp"],),
     dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest/classification:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt/regression:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt/classification:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -259,9 +179,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/implicit_als:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -272,9 +190,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/k_nearest_neighbors:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -285,9 +201,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -296,18 +210,11 @@ dal_example_suite(
     srcs = glob(["source/lasso_regression/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/lasso_regression:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/adagrad:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/saga:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/sgd:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -316,18 +223,10 @@ dal_example_suite(
     srcs = glob(["source/logistic_regression/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/logistic_regression:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/adagrad:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/saga:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/sgd:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -338,9 +237,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -352,11 +249,10 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/naivebayes:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
+# Both examples are failing, its the reason of disabling this test
 # dal_example_suite(
 #     name = "normalization",
 #     compile_as = [ "c++" ],
@@ -388,12 +284,9 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -406,9 +299,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/outlierdetection_univariate:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -420,9 +311,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/pca/transform:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -433,9 +322,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/pivoted_qr:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -446,9 +333,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/qr:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -456,7 +341,6 @@ dal_example_suite(
     compile_as = [ "c++" ],
     srcs = glob(["source/quality_metrics/*.cpp"]),
     dal_deps = [
-        # "@onedal//cpp/daal/src/algorithms/quantiles:kernel",
         "@onedal//cpp/daal/src/algorithms/svm:kernel",
         "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
         "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
@@ -466,9 +350,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/linear_regression:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -479,9 +361,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/quantiles:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -492,35 +372,23 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/ridge_regression:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
     name = "serialization_example",
     compile_as = [ "c++" ],
     srcs = glob(["source/serialization/*.cpp"]),
-    dal_deps = [
-        # "@onedal//cpp/daal/src/algorithms/covariance:kernel",
-    ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
     name = "services_examples",
     compile_as = [ "c++" ],
     srcs = glob(["source/services/*.cpp"]),
-    dal_deps = [
-        # "@onedal//cpp/daal/src/algorithms/covariance:kernel",
-    ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -531,9 +399,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -544,9 +410,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/sorting:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -557,9 +421,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/stump:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -570,9 +432,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/svd:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_example_suite(
@@ -586,9 +446,7 @@ dal_example_suite(
         "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
     ],
     data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS + [
-        "@tbb//:tbb",
-    ],
+    extra_deps = _TEST_DEPS
 )
 
 dal_algo_example_suite(

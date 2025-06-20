@@ -51,13 +51,11 @@ void printResults();
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
-    std::cout << "here1" << std::endl;
+
     trainModel();
-    std::cout << "here2" << std::endl;
     testModel();
-    std::cout << "here3" << std::endl;
     printResults();
-    std::cout << "here4" << std::endl;
+
     return 0;
 }
 

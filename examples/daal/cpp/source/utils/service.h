@@ -672,16 +672,12 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
-inline bool check_file(const std::string &name) {
-    return std::ifstream{ name }.good();
-}
-
 inline std::string get_data_path(const std::string &name) {
     const std::vector<std::string> paths = { "../data", "examples/daal/data" };
 
     for (const auto &path : paths) {
         std::string try_path = path + "/" + name;
-        if (check_file(try_path)) {
+        if (std::ifstream{ try_path }.good()) {
             return try_path;
         }
     }
@@ -707,7 +703,7 @@ void checkArguments(int argc, char *argv[], int count, ...) {
     else if (argc == count + 1) {
         bool all_exist = true;
         for (int i = 0; i < count; i++) {
-            if (!check_file(argv[i + 1])) {
+            if (!std::ifstream{ argv[i + 1] }.good()) {
                 all_exist = false;
                 break;
             }
@@ -719,7 +715,7 @@ void checkArguments(int argc, char *argv[], int count, ...) {
             }
         }
         else {
-            std::cout << "Warning: Some input files not found, trying default dataset filenames.\n";
+            std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
             for (int i = 0; i < count; i++) {
                 *(filelist[i]) = get_data_path(*(filelist[i]));
             }
