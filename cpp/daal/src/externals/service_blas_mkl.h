@@ -144,6 +144,11 @@ struct MklBlas<double, cpu>
         mkl_set_num_threads_local(old_nthr);
         return res;
     }
+
+    static void xscal(const DAAL_INT * n, const double * a, double * x, const DAAL_INT * incx)
+    {
+        __DAAL_MKLFN_CALL_BLAS(dscal, ((const MKL_INT *)n, a, x, (const MKL_INT *)incx));
+    }
 };
 
 /*
@@ -248,6 +253,11 @@ struct MklBlas<float, cpu>
         __DAAL_MKLFN_CALL_RETURN_BLAS(sdot, ((MKL_INT *)n, x, (MKL_INT *)incx, y, (MKL_INT *)incy), res);
         mkl_set_num_threads_local(old_nthr);
         return res;
+    }
+
+    static void xscal(const DAAL_INT * n, const float * a, float * x, const DAAL_INT * incx)
+    {
+        __DAAL_MKLFN_CALL_BLAS(sscal, ((const MKL_INT *)n, a, x, (const MKL_INT *)incx));
     }
 };
 
