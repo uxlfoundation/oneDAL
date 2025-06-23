@@ -227,7 +227,12 @@ public:
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
-                    daal::internal::MathInst<algorithmFPType, cpu>::vAdd(_nFeatures, sumsPtr, dataBlock + i * _nFeatures, sumsPtr);
+                    PRAGMA_FORCE_SIMD
+                    PRAGMA_VECTOR_ALWAYS
+                    for (DAAL_INT j = 0; j < _nFeatures; j++)
+                    {
+                        sumsPtr[j] += dataBlock[i * _nFeatures + j];
+                    }
                 }
             }
         }
