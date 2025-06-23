@@ -658,20 +658,9 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
                                      interval);
 }
 
-bool checkFileIsAvailable(std::string filename, bool needExit = false) {
-    std::ifstream file(filename.c_str());
-    if (file.good()) {
-        return true;
-    }
-    else {
-        std::cout << "Can't open file " << filename << std::endl;
-        if (needExit) {
-            exit(fileError);
-        }
-        return false;
-    }
-}
-
+// The function tries to find the file `name` in several possible directories.
+// This is useful because CMake and Bazel may run the program from different working directories,
+// so relative paths to data files can differ.
 inline std::string get_data_path(const std::string &name) {
     const std::vector<std::string> paths = { "../data", "examples/daal/data" };
 
@@ -726,8 +715,8 @@ void checkArguments(int argc, char *argv[], int count, ...) {
         for (int i = 0; i < count; i++) {
             std::cout << "<filename_" << i << "> ";
         }
-        std::cout << "]\n";
-        std::cout << "Warning: Try to open default dataset filenames.\n";
+        std::cout << "]" << std::endl;
+        std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
         for (int i = 0; i < count; i++) {
             *(filelist[i]) = get_data_path(*(filelist[i]));
         }

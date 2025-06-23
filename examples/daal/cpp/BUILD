@@ -64,6 +64,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "decision_forest",
     compile_as = [ "c++" ],
@@ -80,6 +81,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "decision_tree",
     compile_as = [ "c++" ],
@@ -156,6 +158,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "gradient_boosted_trees",
     compile_as = [ "c++" ],
@@ -240,6 +243,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "naive_bayes",
     compile_as = [ "c++" ],
@@ -252,6 +256,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 # Both examples are failing, its the reason of disabling this test
 # dal_example_suite(
 #     name = "normalization",
@@ -268,6 +273,7 @@ dal_example_suite(
 #     ],
 # )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "optimization_solvers",
     compile_as = [ "c++" ],
@@ -289,6 +295,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "outlier_detection",
     compile_as = [ "c++" ],
@@ -435,6 +442,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
+# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "svm",
     compile_as = [ "c++" ],
