@@ -29,6 +29,7 @@ jobs:
 
   cve-bin-tool-scan:
     runs-on: ubuntu-24.04
+    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
     permissions:
       security-events: write
     env:
