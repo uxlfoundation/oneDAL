@@ -16,6 +16,9 @@
 
 name: Nightly-build
 
+# Note: This action is only for building oneDAL, implement tests in Nightly-test
+# It is a dependency of uxlfoundation/scikit-learn-intelex's `CI` GitHub action
+
 on:
   schedule:
     - cron: '0 21 * * *'
