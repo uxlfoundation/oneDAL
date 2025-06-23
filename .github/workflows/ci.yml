@@ -99,6 +99,8 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface daal/cpp --build-system cmake
+            more __release_lnx/daal/latest/examples/daal/cpp/_cmake_results/intel_intel64_so/set_number_of_threads.res
+            python -c "import os; print(len(os.sched_getaffinity(0)))"
       - name: oneapi/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
