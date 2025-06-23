@@ -22,6 +22,9 @@ on:
     types:
       - completed
 
+permissions:
+  contents: read
+
 jobs:
 
   cve-bin-tool-scan:
