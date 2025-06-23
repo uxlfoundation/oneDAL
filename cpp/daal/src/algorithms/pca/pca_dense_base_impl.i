@@ -83,6 +83,10 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const
     {
         noiseVariance -= eigenValuesArray[i];
     }
+    if(nColumns <= nComponents)
+        {
+            services::throwIfPossible(services::Status(services::ErrorIncorrectParameter));
+        }
     noise_variance = noiseVariance / (nColumns - nComponents);
     return services::Status();
 }

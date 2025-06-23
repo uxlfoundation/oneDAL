@@ -187,7 +187,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
 
     // SYEVR branch
     // In this case, we compute only nComponents eigenvectors and then sort them in descending order
-    // and copy the first nComponents eigenvectors to the output.
+    // inside the 'computeEigenvectorsInplaceSyevr' function
     if (nComponents < nFeatures)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, eigenvaluesArray);
@@ -196,7 +196,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
         return s;
     }
     // SYEVD branch
-    // In this case, we compute all eigenvectors and then sort them in descending order
+    // In this case, we compute all eigenvectors and then sort all of them in descending order
     // and copy the first nComponents eigenvectors to the output
     else
     {

@@ -116,6 +116,9 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     auto [eigvals, syevd_event] =
         syevd_computation(q, data_to_compute, { cov_event, corr_event, vars_event });
 
+    // Compute noise variance on the host (CPU) since it's a simple operation and
+    // doesn't benefit much from parallelization on the device (GPU/accelerator).
+    // This avoids unnecessary overhead from device-side execution.
     if (desc.get_result_options().test(result_options::noise_variance)) {
         auto eigvals_host_tmp = eigvals.to_host(q, { syevd_event });
         std::int64_t rows_count_ = rows_count_global;
