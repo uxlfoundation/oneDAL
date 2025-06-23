@@ -94,6 +94,7 @@ public:
         return _rows_ptr.get();
     }
 
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      * \DAAL_DEPRECATED
      */
@@ -162,6 +163,7 @@ public:
             return buffer;
         }
     }
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      *  Gets a pointer to the buffer
@@ -220,13 +222,19 @@ public:
      *  Returns the number of columns in the block
      *  \return Number of columns
      */
-    inline size_t getNumberOfColumns() const { return _ncols; }
+    inline size_t getNumberOfColumns() const
+    {
+        return _ncols;
+    }
 
     /**
      *  Returns the number of rows in the block
      *  \return Number of rows
      */
-    inline size_t getNumberOfRows() const { return _nrows; }
+    inline size_t getNumberOfRows() const
+    {
+        return _nrows;
+    }
 
     /**
      *  Returns number of elements in values array.
@@ -293,6 +301,7 @@ public:
         _nvalues    = nValues;
     }
 
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  \param[in] pPtr     Pointer to the buffer
      *  \param[in] rawPtr   Pointer to the buffer
@@ -307,6 +316,7 @@ public:
         _rawPtr  = rawPtr;
         _nvalues = nValues;
     }
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      *  \param[in] ptr      Pointer to the buffer
@@ -332,6 +342,7 @@ public:
         _nrows    = nRows;
     }
 
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  Sets values buffer to the table
      *  \param[in] buffer Buffer object that contains the memory
@@ -371,6 +382,7 @@ public:
         _rowsBuffer = buffer;
         _nrows      = buffer.size();
     }
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      * Reset internal values and pointers to zero values
@@ -391,6 +403,7 @@ public:
         _colsBuffer.reset();
     }
 
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  \param[in] nValues  Number of values
      *  \DAAL_DEPRECATED
@@ -453,6 +466,7 @@ public:
 
         return true;
     }
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     inline void setDetails(size_t nColumns, size_t rowIdx, int rwFlag)
     {
@@ -464,10 +478,17 @@ public:
         _hostColsSharedPtr.reset();
     }
 
-    inline size_t getRowsOffset() const { return _rowsOffset; }
-    inline size_t getRWFlag() const { return _rwFlag; }
+    inline size_t getRowsOffset() const
+    {
+        return _rowsOffset;
+    }
+    inline size_t getRWFlag() const
+    {
+        return _rwFlag;
+    }
 
 protected:
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  Frees the values buffer
      *  \DAAL_DEPRECATED
@@ -537,6 +558,7 @@ protected:
         }
         return _hostRowsSharedPtr;
     }
+#endif // if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
 private:
     services::SharedPtr<DataType> _values_ptr;
@@ -549,6 +571,7 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
+#if (INTEL_DAAL_VERSION < 202600000)               /// 2026.0.0
     services::SharedPtr<DataType> _valuesInternal; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
     size_t _values_capacity;                       /*<! Buffer size in bytes. \DAAL_DEPRECATED */
 
@@ -565,6 +588,7 @@ private:
     mutable services::SharedPtr<DataType> _hostValuesSharedPtr; /*<! \DAAL_DEPRECATED */
     mutable services::SharedPtr<size_t> _hostRowsSharedPtr;     /*<! \DAAL_DEPRECATED */
     mutable services::SharedPtr<size_t> _hostColsSharedPtr;     /*<! \DAAL_DEPRECATED */
+#endif                                                          // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 };
 
 /**

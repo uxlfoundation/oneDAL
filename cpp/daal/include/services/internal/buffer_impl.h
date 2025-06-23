@@ -18,9 +18,11 @@
 #ifndef __DAAL_SERVICES_INTERNAL_BUFFER_IMPL_H__
 #define __DAAL_SERVICES_INTERNAL_BUFFER_IMPL_H__
 
-#include "services/daal_shared_ptr.h"
-#include "data_management/data/numeric_types.h"
-#include "services/internal/error_handling_helpers.h"
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+
+    #include "services/daal_shared_ptr.h"
+    #include "data_management/data/numeric_types.h"
+    #include "services/internal/error_handling_helpers.h"
 
 namespace daal
 {
@@ -225,5 +227,7 @@ public:
 } // namespace internal
 } // namespace services
 } // namespace daal
+
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
 #endif
