@@ -18,7 +18,7 @@ name: Nightly-test
 
 on:
   workflow_run:
-    workflows: [nightly-build]
+    workflows: [Nightly-build]
     types:
       - completed
 
