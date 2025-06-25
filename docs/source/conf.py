@@ -61,7 +61,7 @@ substitutions = [
 
 # sys.path.insert(0, path_relative_to_repo_root('source/elements/oneDAL'))
 
-extensions = ['sphinx-prompt',
+extensions = ['sphinx_prompt',
               'sphinx_substitution_extensions',
               'sphinx.ext.extlinks',
               'sphinx_tabs.tabs',
