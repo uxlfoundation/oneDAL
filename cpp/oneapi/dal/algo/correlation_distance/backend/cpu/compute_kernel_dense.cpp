@@ -55,15 +55,16 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_homogen_table(arr_values, row_count_x, row_count_y);
 
     daal::algorithms::Parameter param;
+    const daal::data_management::NumericTable* daal_input_tables[2] = { daal_x.get(),
+                                                                        daal_y.get() };
+    daal::data_management::NumericTable* daal_result_table[1] = { daal_values.get() };
 
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_correlation_t>(ctx,
+                                                             2,
+                                                             daal_input_tables,
                                                              1,
-                                                             daal_x.get(),
-                                                             1,
-                                                             daal_y.get(),
-                                                             1,
-                                                             daal_values.get(),
+                                                             daal_result_table,
                                                              &param));
 
     return result_t().set_values(
@@ -86,9 +87,8 @@ struct compute_kernel_cpu<Float, method::dense, task::compute> {
 #ifdef ONEDAL_DATA_PARALLEL
     void operator()(const context_cpu& ctx,
                     const descriptor_t& desc,
-                    const table& x,
-                    const table& y,
-                    homogen_table& res) const {
+                    const table& data,
+                    bool& res) const {
         throw unimplemented(dal::detail::error_messages::method_not_implemented());
     }
 #endif
@@ -98,3 +98,4 @@ template struct compute_kernel_cpu<float, method::dense, task::compute>;
 template struct compute_kernel_cpu<double, method::dense, task::compute>;
 
 } // namespace oneapi::dal::correlation_distance::backend
+
