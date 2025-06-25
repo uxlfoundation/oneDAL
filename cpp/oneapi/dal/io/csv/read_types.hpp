@@ -21,6 +21,7 @@
 #include "oneapi/dal/graph/common.hpp"
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/memory.hpp"
+#include "oneapi/dal/table/csr.hpp"
 
 namespace oneapi::dal::csv {
 
@@ -46,6 +47,28 @@ public:
 
 private:
     dal::detail::pimpl<detail::read_args_impl<table>> impl_;
+};
+
+template <>
+class ONEDAL_EXPORT read_args<csr_table> : public base {
+public:
+    read_args(const int64_t feature_count = 0);
+
+    std::int64_t get_feature_count() const {
+        return get_feature_count_impl();
+    }
+
+    read_args& set_feature_count(const int64_t feature_count) {
+        set_feature_count_impl(feature_count);
+        return *this;
+    }
+
+protected:
+    std::int64_t get_feature_count_impl() const;
+
+    void set_feature_count_impl(const int64_t feature_count);
+
+    dal::detail::pimpl<detail::read_args_impl<csr_table>> impl_;
 };
 
 } // namespace v1
