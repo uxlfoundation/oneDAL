@@ -98,4 +98,3 @@ template struct compute_kernel_cpu<float, method::dense, task::compute>;
 template struct compute_kernel_cpu<double, method::dense, task::compute>;
 
 } // namespace oneapi::dal::correlation_distance::backend
-
