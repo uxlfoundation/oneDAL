@@ -101,6 +101,10 @@ struct MklMath<double, cpu>
         return r;
     }
 
+    static void vAdd(SizeType n, const double * a, const double * b, double * y) { __DAAL_MKLFN_CALL_MATH(vdAdd, (n, a, b, y)); }
+
+    static void vSub(SizeType n, const double * a, const double * b, double * y) { __DAAL_MKLFN_CALL_MATH(vdSub, ((int)n, a, b, y)); }
+
     static void vPowx(SizeType n, const double * in, double in1, double * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmdPowx, ((int)n, in, in1, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -136,6 +140,11 @@ struct MklMath<double, cpu>
     static void vSqrt(SizeType n, const double * in, double * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmdSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
+    static void vInvSqrtI(SizeType n, const double * a, const SizeType inca, double * b, const SizeType incb)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmdInvSqrtI, (n, a, inca, b, incb, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vLog(SizeType n, const double * in, double * out)
@@ -213,6 +222,10 @@ struct MklMath<float, cpu>
         return r;
     }
 
+    static void vAdd(SizeType n, const float * a, const float * b, float * y) { __DAAL_MKLFN_CALL_MATH(vsAdd, (n, a, b, y)); }
+
+    static void vSub(SizeType n, const float * a, const float * b, float * y) { __DAAL_MKLFN_CALL_MATH(vsSub, ((int)n, a, b, y)); }
+
     static void vPowx(SizeType n, const float * in, float in1, float * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmsPowx, ((int)n, in, in1, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -248,6 +261,11 @@ struct MklMath<float, cpu>
     static void vSqrt(SizeType n, const float * in, float * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmsSqrt, ((int)n, in, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
+    }
+
+    static void vInvSqrtI(SizeType n, const float * a, const SizeType inca, float * b, const SizeType incb)
+    {
+        __DAAL_MKLFN_CALL_MATH(vmsInvSqrtI, (n, a, inca, b, incb, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
     }
 
     static void vLog(SizeType n, const float * in, float * out)
