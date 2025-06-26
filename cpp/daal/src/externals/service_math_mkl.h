@@ -101,6 +101,8 @@ struct MklMath<double, cpu>
         return r;
     }
 
+    static void vSub(SizeType n, const double * a, const double * b, double * y) { __DAAL_MKLFN_CALL_MATH(vdSub, ((int)n, a, b, y)); }
+
     static void vPowx(SizeType n, const double * in, double in1, double * out)
     {
         __DAAL_MKLFN_CALL_MATH(vmdPowx, ((int)n, in, in1, out, (VML_HA | VML_FTZDAZ_ON | VML_ERRMODE_IGNORE)));
@@ -212,6 +214,8 @@ struct MklMath<float, cpu>
         vCdfNormInv(1, &in, &r);
         return r;
     }
+
+    static void vSub(SizeType n, const float * a, const float * b, float * y) { __DAAL_MKLFN_CALL_MATH(vsSub, ((int)n, a, b, y)); }
 
     static void vPowx(SizeType n, const float * in, float in1, float * out)
     {
