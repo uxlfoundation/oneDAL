@@ -76,6 +76,12 @@ struct RefMath<double, cpu>
         for (SizeType i = 0; i < n; ++i) y[i] = a[i] + b[i];
     }
 
+    static void vSub(SizeType n, const double * a, const double * b, double * y)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) y[i] = a[i] - b[i];
+    }
+
     static void vPowx(SizeType n, const double * in, double in1, double * out)
     {
 #pragma omp simd
@@ -183,6 +189,12 @@ struct RefMath<float, cpu>
     {
 #pragma omp simd
         for (SizeType i = 0; i < n; ++i) y[i] = a[i] + b[i];
+    }
+
+    static void vSub(SizeType n, const float * a, const float * b, float * y)
+    {
+#pragma omp simd
+        for (SizeType i = 0; i < n; ++i) y[i] = a[i] - b[i];
     }
 
     static void vPowx(SizeType n, const float * in, float in1, float * out)

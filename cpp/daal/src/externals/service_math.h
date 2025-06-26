@@ -62,6 +62,8 @@ struct Math
 
     static void vAdd(SizeType n, const fpType * a, const fpType * b, fpType * y) { _impl<fpType, cpu>::vAdd(n, a, b, y); }
 
+    static void vSub(SizeType n, const fpType * a, const fpType * b, fpType * y) { _impl<fpType, cpu>::vSub(n, a, b, y); }
+
     static void vPowx(SizeType n, const fpType * in, fpType in1, fpType * out) { _impl<fpType, cpu>::vPowx(n, in, in1, out); }
 
     static void vPowxAsLnExp(SizeType n, const fpType * in, fpType in1, fpType * out)
