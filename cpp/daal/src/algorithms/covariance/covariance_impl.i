@@ -391,10 +391,7 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         {
             return services::Status(services::ErrorMemoryAllocationFailed);
         }
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            sums[i] = resultSums[i];
-        }
+        daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
         for (size_t i = 0; i < nFeatures; i++)
         {
             PRAGMA_FORCE_SIMD
@@ -407,10 +404,8 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
     }
     else
     {
-        for (size_t i = 0; i < nFeatures * nFeatures; i++)
-        {
-            crossProduct[i] = resultCrossProduct[i];
-        }
+        daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType), resultCrossProduct,
+                                                nFeatures * nFeatures * sizeof(algorithmFPType));
     }
 
     return services::Status();
@@ -659,10 +654,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         nObservations[0] += partialNObservations[0];
 
         /* Merge sums */
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            sums[i] += partialSums[i];
-        }
+        daal::internal::MathInst<algorithmFPType, cpu>::vAdd(nFeatures, sums, partialSums, sums);
     }
 }
 
@@ -699,10 +691,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
         DAAL_CHECK_MALLOC(diagInvSqrtsArray.get());
 
         algorithmFPType * diagInvSqrts = diagInvSqrtsArray.get();
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            diagInvSqrts[i] = 1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(crossProduct[i * nFeatures + i]);
-        }
+        daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(nFeatures, crossProduct, nFeatures + 1, diagInvSqrts, 1);
 
         for (size_t i = 0; i < nFeatures; i++)
         {
