@@ -27,13 +27,6 @@ struct compute_kernel_cpu {
     compute_result<Task> operator()(const dal::backend::context_cpu& ctx,
                                     const detail::descriptor_base<Task>& params,
                                     const compute_input<Task>& input) const;
-
-#ifdef ONEDAL_DATA_PARALLEL
-    void operator()(const dal::backend::context_cpu& ctx,
-                    const detail::descriptor_base<Task>& params,
-                    const table& data,
-                    bool& res) const;
-#endif
 };
 
 } // namespace oneapi::dal::finiteness_checker::backend
