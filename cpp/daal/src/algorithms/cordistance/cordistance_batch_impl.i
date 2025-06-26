@@ -73,7 +73,7 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
         }
         else
         {
-            return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
+            return services::Status(services::ErrorIncorrectNumberOfInputNumericTables);
         }
     }
     else
