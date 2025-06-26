@@ -51,20 +51,14 @@ public:
         return std::string(get_file_name_impl());
     }
 
-    sparse_indexing get_sparse_indexing() const {
-        return get_sparse_indexing_impl();
-    }
-
 protected:
     char get_delimiter_impl() const;
     bool get_parse_header_impl() const;
     const char* get_file_name_impl() const;
-    sparse_indexing get_sparse_indexing_impl() const;
 
     void set_delimiter_impl(char value);
     void set_parse_header_impl(bool value);
     void set_file_name_impl(const char*);
-    void set_sparse_indexing_impl(sparse_indexing indexing);
 
     dal::detail::pimpl<data_source_impl> impl_;
 };
@@ -118,12 +112,6 @@ public:
     /// Sets the file name for the data source via the C++-style std::string.
     auto& set_file_name(const std::string& value) {
         set_file_name_impl(value.c_str());
-        return *this;
-    }
-
-    /// Sets the sparse indexing type for the data source.
-    auto& set_sparse_indexing(sparse_indexing indexing) {
-        set_sparse_indexing_impl(indexing);
         return *this;
     }
 };

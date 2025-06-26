@@ -85,7 +85,7 @@ struct read_kernel_cpu<csr_table, Float> {
 
         char delimiter = ds.get_delimiter();
         std::int64_t feature_count = args.get_feature_count();
-        sparse_indexing indexing = ds.get_sparse_indexing();
+        sparse_indexing indexing = args.get_sparse_indexing();
 
         // Read the first line (row offsets)
         if (std::getline(file, line)) {

@@ -52,10 +52,14 @@ private:
 template <>
 class ONEDAL_EXPORT read_args<csr_table> : public base {
 public:
-    read_args(const int64_t feature_count = 0);
+    read_args();
 
     std::int64_t get_feature_count() const {
         return get_feature_count_impl();
+    }
+
+    sparse_indexing get_sparse_indexing() const {
+        return get_sparse_indexing_impl();
     }
 
     read_args& set_feature_count(const int64_t feature_count) {
@@ -63,10 +67,17 @@ public:
         return *this;
     }
 
+    read_args& set_sparse_indexing(sparse_indexing indexing) {
+        set_sparse_indexing_impl(indexing);
+        return *this;
+    }
+
 protected:
     std::int64_t get_feature_count_impl() const;
+    sparse_indexing get_sparse_indexing_impl() const;
 
     void set_feature_count_impl(const int64_t feature_count);
+    void set_sparse_indexing_impl(sparse_indexing indexing);
 
     dal::detail::pimpl<detail::read_args_impl<csr_table>> impl_;
 };

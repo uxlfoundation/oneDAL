@@ -25,7 +25,6 @@ public:
     char delimiter = ',';
     bool parse_header = false;
     std::string file_name = "";
-    sparse_indexing indexing = sparse_indexing::zero_based;
 };
 
 data_source_base::data_source_base(const char* file_name) : impl_(new data_source_impl{}) {
@@ -44,10 +43,6 @@ const char* data_source_base::get_file_name_impl() const {
     return impl_->file_name.c_str();
 }
 
-sparse_indexing data_source_base::get_sparse_indexing_impl() const {
-    return impl_->indexing;
-}
-
 void data_source_base::set_delimiter_impl(char value) {
     impl_->delimiter = value;
 }
@@ -58,13 +53,6 @@ void data_source_base::set_parse_header_impl(bool value) {
 
 void data_source_base::set_file_name_impl(const char* value) {
     impl_->file_name = std::string(value);
-}
-
-void data_source_base::set_sparse_indexing_impl(sparse_indexing indexing) {
-    if (indexing != sparse_indexing::zero_based && indexing != sparse_indexing::one_based) {
-        throw dal::invalid_argument(dal::detail::error_messages::invalid_sparse_indexing());
-    }
-    impl_->indexing = indexing;
 }
 
 } // namespace v1
