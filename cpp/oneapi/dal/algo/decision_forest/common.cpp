@@ -67,7 +67,7 @@ public:
     engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
-    bool local_trees_mode = true;
+    bool local_trees_mode = false;
     splitter_mode splitter_mode_value = splitter_mode::best;
 
     variable_importance_mode variable_importance_mode_value = variable_importance_mode::none;

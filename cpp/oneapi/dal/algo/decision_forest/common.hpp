@@ -516,7 +516,9 @@ public:
         return *this;
     }
 
-    /// The distributed trees build.
+    /// Enables distributed local tree building on each GPU independently.
+    /// When enabled, each GPU constructs its own set of decision trees without synchronization or data exchange.
+    /// This feature is experimental and primarily designed to improve scalability on multi-GPU systems.
     /// @remark default = false
     bool get_local_trees_mode() const {
         return base_t::get_local_trees_mode();
@@ -526,6 +528,7 @@ public:
         base_t::set_local_trees_mode_impl(value);
         return *this;
     }
+
     /// The bootstrap mode, if true, the training set for a tree
     /// is a bootstrap of the whole training set, if False, the whole
     /// dataset is used to build each tree.
