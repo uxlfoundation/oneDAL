@@ -56,13 +56,25 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const size_t na, const NumericTable * const * a, const size_t nr,
                                                                        NumericTable * r[], const daal::algorithms::Parameter * par)
 {
-    NumericTable * xTable                          = const_cast<NumericTable *>(a[0]); /* Input data */
+    NumericTable * xTable                          = const_cast<NumericTable *>(a[0]); /* x Input data */
     NumericTable * rTable                          = const_cast<NumericTable *>(r[0]); /* Result */
     const NumericTableIface::StorageLayout rLayout = r[0]->getDataLayout();
 
     if (isFull<algorithmFPType, cpu>(rLayout))
     {
-        return corDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        if (na == 1)
+        {
+            return corDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        }
+        else if (na == 2)
+        {
+            NumericTable * yTable = const_cast<NumericTable *>(a[1]); /* y Input data */
+            return corDistanceFull<algorithmFPType, cpu>(xTable, yTable, rTable);
+        }
+        else
+        {
+            return services::Status(services::ErrorIncorrectNumberOfInputNumericTables);
+        }
     }
     else
     {
