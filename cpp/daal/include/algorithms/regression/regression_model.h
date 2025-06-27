@@ -67,30 +67,13 @@ class DAAL_EXPORT Model : public daal::algorithms::Model
 public:
     DAAL_CAST_OPERATOR(Model)
 
-    Model()                                = default;
-    Model(const Model & other)             = default;
-    Model & operator=(const Model & other) = default;
-
     virtual ~Model() {}
 
     /**
      * Returns the number of features in the training data set
      * \return Number of features in the training data set
      */
-    virtual size_t getNFeatures() const { return getNumberOfFeatures(); }
-
-    /**
-      *  Retrieves the number of features in the dataset was used on the training stage
-      *  \return Number of features in the dataset was used on the training stage
-      */
     virtual size_t getNumberOfFeatures() const = 0;
-
-    /**
-      *  Sets the number of features in the dataset was used on the training stage
-      *  \DAAL_DEPRECATED
-      *  \param[in]  nFeatures  Number of features in the dataset was used on the training stage
-      */
-    virtual void setNFeatures(size_t /*nFeatures*/) {}
 };
 typedef services::SharedPtr<Model> ModelPtr;
 typedef services::SharedPtr<const Model> ModelConstPtr;

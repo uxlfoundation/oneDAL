@@ -495,47 +495,6 @@ public:
 
     const data_management::DataCollection * serializationData() const { return _serializationData.get(); }
 
-    void copy_model_cls(const ModelImpl & other, size_t idx, size_t global_count)
-    {
-        if (idx == 0)
-        {
-            resize(global_count); // sets _nTree = 0
-            _nTree.set(global_count);
-        }
-        // copy data if source and target pointers are valid
-        if (isValid() && other.isValid())
-        {
-            for (size_t i = 0; i < other._nTree.get(); i++)
-            {
-                (*_serializationData)[idx + i] = (*other._serializationData)[i];
-                (*_impurityTables)[idx + i]    = (*other._impurityTables)[i];
-                (*_nNodeSampleTables)[idx + i] = (*other._nNodeSampleTables)[i];
-                (*_probTbl)[idx + i]           = (*other._probTbl)[i];
-            }
-        }
-    }
-
-    void copy_model_reg(const ModelImpl & other, size_t idx, size_t global_count)
-    {
-        if (idx == 0)
-        {
-            resize(global_count); // sets _nTree = 0
-            _nTree.set(global_count);
-        }
-        // copy data if source and target pointers are valid
-        if (isValid() && other.isValid())
-        {
-            for (size_t i = 0; i < other._nTree.get(); i++)
-            {
-                auto probtbl                   = new data_management::HomogenNumericTable<double>(0, 0, data_management::NumericTable::doAllocate);
-                (*_serializationData)[idx + i] = (*other._serializationData)[i];
-                (*_impurityTables)[idx + i]    = (*other._impurityTables)[i];
-                (*_nNodeSampleTables)[idx + i] = (*other._nNodeSampleTables)[i];
-                (*_probTbl)[idx + i].reset(probtbl);
-            }
-        }
-    }
-
     const DecisionTreeTable * at(const size_t i) const { return (const DecisionTreeTable *)(*_serializationData)[i].get(); }
 
     const double * getImpVals(size_t i) const

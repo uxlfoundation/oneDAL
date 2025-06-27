@@ -64,9 +64,6 @@ public:
     void setNumberOfFeatures(size_t nFeatures) { ImplType::setNumberOfFeatures(nFeatures); }
     size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return ImplType::getNumberOfFeatures(); }
 
-    void setNFeatures(size_t nFeatures) DAAL_C11_OVERRIDE { setNumberOfFeatures(nFeatures); }
-    size_t getNFeatures() const DAAL_C11_OVERRIDE { return getNumberOfFeatures(); }
-
 protected:
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
