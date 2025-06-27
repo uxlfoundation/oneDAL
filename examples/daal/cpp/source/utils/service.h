@@ -37,7 +37,7 @@
 
 #include "error_handling.h"
 
-size_t readTextFile(std::string &datasetFileName, daal::byte **data) {
+size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
     std::ifstream file(datasetFileName.c_str(), std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         fileOpenError(datasetFileName.c_str());
