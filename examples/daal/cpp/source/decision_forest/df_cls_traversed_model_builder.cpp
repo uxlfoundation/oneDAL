@@ -83,7 +83,7 @@ struct ParentPlace {
 
 training::ResultPtr trainModel();
 double testModel(daal::algorithms::decision_forest::classification::ModelPtr modelPtr);
-void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
+void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
 daal::algorithms::decision_forest::classification::ModelPtr buildModel(Tree *trees);
 Tree *traverseModel(daal::algorithms::decision_forest::classification::ModelPtr m);
 bool buildTree(size_t treeId,
@@ -246,7 +246,7 @@ training::ResultPtr trainModel() {
     return algorithm.getResult();
 }
 
-void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
+void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

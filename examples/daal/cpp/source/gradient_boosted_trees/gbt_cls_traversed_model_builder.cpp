@@ -164,7 +164,7 @@ public:
 
 training::ResultPtr trainModel();
 size_t testModel(ModelPtr modelPtr);
-void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
+void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
 ModelPtr buildModel(Tree *trees);
 Tree *traverseModel(ModelPtr m, BFSNodeVisitor &visitor);
 bool buildTree(size_t treeId,
@@ -324,7 +324,7 @@ training::ResultPtr trainModel() {
     return algorithm.getResult();
 }
 
-void loadData(std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
+void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,
