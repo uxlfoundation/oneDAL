@@ -24,7 +24,9 @@
 #ifndef __DAAL_SERVICES_BUFFER_H__
 #define __DAAL_SERVICES_BUFFER_H__
 
-#include "services/internal/buffer_impl.h"
+#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+
+    #include "services/internal/buffer_impl.h"
 
 namespace daal
 {
@@ -44,6 +46,7 @@ namespace interface1
  *  \brief Wrapper for a SYCL* buffer
  *  Can hold data on the host side using shared pointer,
  *  or on host/device sides using SYCL* buffer
+ *  \DAAL_DEPRECATED
  */
 template <typename T>
 class Buffer : public Base
@@ -60,7 +63,7 @@ public:
      */
     Buffer(T * data, size_t size, Status & status) : _impl(internal::HostBuffer<T>::create(data, size, status)) {}
 
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+    #ifndef DAAL_NOTHROW_EXCEPTIONS
     /**
      *   Creates a Buffer object from host-allocated raw pointer
      *   Buffer does not own this pointer
@@ -71,14 +74,14 @@ public:
         _impl.reset(internal::HostBuffer<T>::create(data, size, status));
         throwIfPossible(status);
     }
-#endif // DAAL_NOTHROW_EXCEPTIONS
+    #endif // DAAL_NOTHROW_EXCEPTIONS
 
     /**
      *   Creates a Buffer object referencing the shared pointer to the host-allocated data
      */
     Buffer(const SharedPtr<T> & data, size_t size, Status & status) : _impl(internal::HostBuffer<T>::create(data, size, status)) {}
 
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+    #ifndef DAAL_NOTHROW_EXCEPTIONS
     /**
      *   Creates a Buffer object referencing the shared pointer to the host-allocated data
      */
@@ -88,31 +91,22 @@ public:
         _impl.reset(internal::HostBuffer<T>::create(data, size, status));
         throwIfPossible(status);
     }
-#endif // DAAL_NOTHROW_EXCEPTIONS
+    #endif // DAAL_NOTHROW_EXCEPTIONS
 
     /**
      *  Returns true if Buffer points to any data
      */
-    operator bool() const
-    {
-        return _impl;
-    }
+    operator bool() const { return _impl; }
 
     /**
      *  Returns true if Buffer is equal to \p other
      */
-    bool operator==(const Buffer & other) const
-    {
-        return _impl.get() == other._impl.get();
-    }
+    bool operator==(const Buffer & other) const { return _impl.get() == other._impl.get(); }
 
     /**
      *  Returns true if Buffer is not equal to \p other
      */
-    bool operator!=(const Buffer & other) const
-    {
-        return _impl.get() != other._impl.get();
-    }
+    bool operator!=(const Buffer & other) const { return _impl.get() != other._impl.get(); }
 
     /**
      *  Converts data inside the buffer to the host side
@@ -130,7 +124,7 @@ public:
         return internal::HostBufferConverter<T>().toHost(*_impl, rwFlag, status);
     }
 
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+    #ifndef DAAL_NOTHROW_EXCEPTIONS
     /**
      *  Converts data inside the buffer to the host side, throws exception if conversion fails
      *  \param[in]  rwFlag  Access flag to the data
@@ -143,7 +137,7 @@ public:
         throwIfPossible(status);
         return ptr;
     }
-#endif // DAAL_NOTHROW_EXCEPTIONS
+    #endif // DAAL_NOTHROW_EXCEPTIONS
 
     /**
      *   Returns the total number of elements in the buffer
@@ -160,10 +154,7 @@ public:
     /**
      *   Drops underlying reference to the data from the buffer and makes it empty
      */
-    void reset()
-    {
-        _impl.reset();
-    }
+    void reset() { _impl.reset(); }
 
     /**
      *  Creates Buffer object that points to the same memory as a parent but with offset
@@ -182,7 +173,7 @@ public:
         return Buffer<T>(_impl->getSubBuffer(offset, size, status));
     }
 
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+    #ifndef DAAL_NOTHROW_EXCEPTIONS
     /**
      *  Creates Buffer object that points to the same memory as a parent but with offset,
      *  throws exception if conversion fails
@@ -197,7 +188,7 @@ public:
         throwIfPossible(status);
         return suBuffer;
     }
-#endif // DAAL_NOTHROW_EXCEPTIONS
+    #endif // DAAL_NOTHROW_EXCEPTIONS
 
 private:
     explicit Buffer(internal::BufferIface<T> * impl) : _impl(impl) {}
@@ -214,5 +205,7 @@ using interface1::Buffer;
 } // namespace internal
 } // namespace services
 } // namespace daal
+
+#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
 #endif

@@ -28,7 +28,7 @@
 #include "src/externals/service_memory.h"
 #include "src/data_management/service_micro_table.h"
 #include "src/data_management/service_numeric_table.h"
-#include "services/internal/service_profiler.h"
+#include "src/services/service_profiler.h"
 #include "src/algorithms/svm/svm_train_cache.h"
 
 namespace daal

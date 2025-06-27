@@ -47,6 +47,7 @@ void String::reset()
     {
         daal_free(_c_str);
     }
+    _c_str = nullptr;
 }
 
 String::String() : _c_str(0) {}
