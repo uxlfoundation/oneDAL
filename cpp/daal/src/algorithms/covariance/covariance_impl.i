@@ -30,6 +30,7 @@
 #include "src/externals/service_memory.h"
 #include "src/externals/service_math.h"
 #include "src/externals/service_blas.h"
+#include "src/externals/service_lapack.h"
 #include "src/externals/service_spblas.h"
 #include "src/externals/service_stat.h"
 #include "src/data_management/service_numeric_table.h"
@@ -335,15 +336,179 @@ inline size_t getBlockSize<DAAL_CPU_TYPE>(size_t nrows)
     return (nrows > 5000 && nrows <= 50000) ? 1024 : 140;
 }
 
+template <typename algorithmFPType, CpuType cpu>
+services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures, const size_t nVectors, NumericTable * dataTable,
+                                                         algorithmFPType * crossProduct, algorithmFPType * sums, const bool isNormalized,
+                                                         const bool assumeCentered, const DAAL_INT64 numRowsInBlock, const DAAL_INT64 grainSize)
+{
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::computeDenseCrossProductsAndSumsBatched, numRowsInBlock, grainSize);
+    /* Inverse number of rows (for normalization) */
+    const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
+
+    /* Split rows by blocks */
+
+    size_t numBlocks = nVectors / numRowsInBlock;
+    if (numBlocks * numRowsInBlock < nVectors)
+    {
+        numBlocks++;
+    }
+
+    CovarianceReducer<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
+    if (!result.crossProduct() || !result.sums())
+    {
+        return services::Status(services::ErrorMemoryAllocationFailed);
+    }
+
+    /* Reduce input matrix X into cross product Xt X and a vector of column sums */
+    daal::static_threader_reduce(numBlocks, grainSize, result);
+    if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
+    {
+        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::memAllocationFailed)
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
+        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::intOverflow)
+        {
+            return services::Status(services::ErrorBufferSizeIntegerOverflow);
+        }
+        if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::badCast)
+        {
+            return services::Status(services::ErrorCovarianceInternal);
+        }
+    }
+
+    const algorithmFPType * resultCrossProduct = result.crossProduct();
+    if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok || !resultCrossProduct)
+    {
+        return services::Status(services::ErrorMemoryAllocationFailed);
+    }
+
+    /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
+    if (!isNormalized && !assumeCentered)
+    {
+        const algorithmFPType * resultSums = result.sums();
+        if (!resultSums)
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
+        daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
+        for (size_t i = 0; i < nFeatures; i++)
+        {
+            PRAGMA_FORCE_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = 0; j < nFeatures; j++)
+            {
+                crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
+            }
+        }
+    }
+    else
+    {
+        daal::services::internal::daal_memcpy_s(crossProduct, nFeatures * nFeatures * sizeof(algorithmFPType), resultCrossProduct,
+                                                nFeatures * nFeatures * sizeof(algorithmFPType));
+    }
+
+    return services::Status();
+}
+
+template <typename algorithmFPType, CpuType cpu>
+services::Status computeDenseCrossProductsAndSumsNonBatched(const size_t nFeatures, const size_t nVectors, NumericTable * dataTable,
+                                                            algorithmFPType * crossProduct, algorithmFPType * sums, const bool computeSumsAndCenter,
+                                                            bool useCurrentSums)
+{
+    DAAL_PROFILER_TASK(Covariance::computeDenseCrossProductsAndSumsNonBatched);
+    daal::services::internal::TArray<algorithmFPType, cpu> dataCentered(computeSumsAndCenter ? (nFeatures * nVectors) : 0);
+    ReadRows<algorithmFPType, cpu, NumericTable> dataReader(dataTable, 0, nVectors);
+    const algorithmFPType * dataPointer = dataReader.get();
+    if (!dataPointer)
+    {
+        return services::Status(services::ErrorMemoryAllocationFailed);
+    }
+
+    if (computeSumsAndCenter)
+    {
+        algorithmFPType * means = sums;
+        StatisticsInst<algorithmFPType, cpu>::xmeansOnePass(dataPointer, nFeatures, nVectors, means);
+        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+            daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means,
+                                                                 dataCentered.get() + vector * nFeatures);
+        });
+    }
+
+    else if (useCurrentSums)
+    {
+        daal::services::internal::TArray<algorithmFPType, cpu> means(nFeatures);
+        daal::services::internal::daal_memcpy_s(means.get(), nFeatures * sizeof(algorithmFPType), sums, nFeatures * sizeof(algorithmFPType));
+        const DAAL_INT one                = 1;
+        const DAAL_INT nCols              = nFeatures;
+        const algorithmFPType nVectors_fp = nVectors;
+        LapackInst<algorithmFPType, cpu>::xxrscl(&nCols, &nVectors_fp, means.get(), &one);
+        threader_for(nVectors, 0, [&dataCentered, &dataPointer, &nFeatures, &means](const int vector) {
+            daal::internal::MathInst<algorithmFPType, cpu>::vSub(nFeatures, dataPointer + vector * nFeatures, means.get(),
+                                                                 dataCentered.get() + vector * nFeatures);
+        });
+    }
+
+    const DAAL_INT nCols         = nFeatures;
+    const DAAL_INT nRows         = nVectors;
+    const algorithmFPType zero   = 0.0;
+    const algorithmFPType one_fp = 1.0;
+    BlasInst<algorithmFPType, cpu>::xsyrk("U", "N", &nCols, &nRows, &one_fp, computeSumsAndCenter ? dataCentered.get() : dataPointer, &nCols, &zero,
+                                          crossProduct, &nCols);
+
+    const algorithmFPType nVectors_ = nVectors;
+    const DAAL_INT one              = 1;
+    if (computeSumsAndCenter)
+    {
+        BlasInst<algorithmFPType, cpu>::xscal(&nCols, &nVectors_, sums, &one);
+    }
+
+    return services::Status();
+}
+
+template <typename algorithmFPType, CpuType cpu>
+services::Status computeDenseCrossProductsAndSumsServiceStats(const size_t nFeatures, const size_t nVectors, NumericTable * dataTable,
+                                                              algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
+                                                              const DAAL_INT64 method)
+{
+    __int64 mklMethod = __DAAL_VSL_SS_METHOD_FAST;
+    switch (method)
+    {
+    case defaultDense: mklMethod = __DAAL_VSL_SS_METHOD_FAST; break;
+    case singlePassDense: mklMethod = __DAAL_VSL_SS_METHOD_1PASS; break;
+    case sumDense: mklMethod = __DAAL_VSL_SS_METHOD_FAST_USER_MEAN; break;
+    default: break;
+    }
+
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::computeDenseCrossProductsAndSumsServiceStats, mklMethod);
+
+    DEFINE_TABLE_BLOCK(ReadRows, dataBlock, dataTable);
+    algorithmFPType * dataBlockPtr = const_cast<algorithmFPType *>(dataBlock.get());
+
+    int errcode =
+        StatisticsInst<algorithmFPType, cpu>::xcp(dataBlockPtr, (__int64)nFeatures, (__int64)nVectors, nObservations, sums, crossProduct, mklMethod);
+    if (errcode)
+    {
+        return services::Status(services::ErrorCovarianceInternal);
+    }
+    else
+    {
+        return services::Status();
+    }
+}
+
 /********************* updateDenseCrossProductAndSums ********************************************/
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatures, size_t nVectors, NumericTable * dataTable,
                                                 algorithmFPType * crossProduct, algorithmFPType * sums, algorithmFPType * nObservations,
                                                 const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
-    DAAL_INT64 numRowsInBlock = getBlockSize<cpu>(nVectors); // number of rows in a data block
-    DAAL_INT64 grainSize      = 1;                           // minimal number of data blocks to be processed by a thread
-    if (hyperparameter)
+    DAAL_INT64 numRowsInBlock     = getBlockSize<cpu>(nVectors); // number of rows in a data block
+    DAAL_INT64 grainSize          = 1;                           // minimal number of data blocks to be processed by a thread
+    DAAL_INT64 maxColsBatched     = 4096;
+    DAAL_INT64 smallRowsThreshold = 10'000; DAAL_INT64 smallRowsMaxColsBatched = 1024;
+
+        if (hyperparameter)
     {
         services::Status status = hyperparameter->find(denseUpdateStepBlockSize, numRowsInBlock);
         DAAL_CHECK_STATUS_VAR(status);
@@ -351,103 +516,54 @@ services::Status updateDenseCrossProductAndSums(bool isNormalized, size_t nFeatu
         status = hyperparameter->find(denseUpdateStepGrainSize, grainSize);
         DAAL_CHECK_STATUS_VAR(status);
         DAAL_CHECK(grainSize > 0ll, services::ErrorHyperparameterBadValue);
+        status = hyperparameter->find(denseUpdateMaxColsBatched, maxColsBatched);
+        DAAL_CHECK_STATUS_VAR(status);
+        DAAL_CHECK(maxColsBatched >= 0ll, services::ErrorHyperparameterBadValue);
+        status = hyperparameter->find(denseUpdateSmallRowsThreshold, smallRowsThreshold);
+        DAAL_CHECK_STATUS_VAR(status);
+        DAAL_CHECK(smallRowsThreshold >= 0ll, services::ErrorHyperparameterBadValue);
+        status = hyperparameter->find(denseUpdateSmallRowsMaxColsBatched, smallRowsMaxColsBatched);
+        DAAL_CHECK_STATUS_VAR(status);
+        DAAL_CHECK(smallRowsMaxColsBatched >= 0ll, services::ErrorHyperparameterBadValue);
     }
-    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::updateDenseCrossProductAndSums, numRowsInBlock, grainSize);
     bool assumeCentered = parameter->assumeCentered;
-    if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
+    DAAL_PROFILER_TASK_WITH_ARGS(Covariance::updateDenseCrossProductAndSums, numRowsInBlock, grainSize, maxColsBatched, smallRowsThreshold,
+                                 smallRowsMaxColsBatched, assumeCentered, isNormalized);
+
+    services::Status status;
+    const bool prefer_non_batched = (nFeatures >= maxColsBatched) || (nVectors <= smallRowsThreshold && nFeatures >= smallRowsMaxColsBatched);
+    if (prefer_non_batched)
     {
-        /* Inverse number of rows (for normalization) */
-        const algorithmFPType nVectorsInv = 1.0 / (double)(nVectors);
-
-        /* Split rows by blocks */
-
-        size_t numBlocks = nVectors / numRowsInBlock;
-        if (numBlocks * numRowsInBlock < nVectors)
+        if (method == sumDense || isNormalized || assumeCentered)
         {
-            numBlocks++;
-        }
-
-        CovarianceReducer<algorithmFPType, cpu> result(dataTable, numRowsInBlock, numBlocks, isNormalized);
-        if (!result.crossProduct() || !result.sums())
-        {
-            return services::Status(services::ErrorMemoryAllocationFailed);
-        }
-
-        /* Reduce input matrix X into cross product Xt X and a vector of column sums */
-        daal::static_threader_reduce(numBlocks, grainSize, result);
-        if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok)
-        {
-            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::memAllocationFailed)
-            {
-                return services::Status(services::ErrorMemoryAllocationFailed);
-            }
-            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::intOverflow)
-            {
-                return services::Status(services::ErrorBufferSizeIntegerOverflow);
-            }
-            if (result.errorCode == CovarianceReducer<algorithmFPType, cpu>::badCast)
-            {
-                return services::Status(services::ErrorCovarianceInternal);
-            }
-        }
-
-        const algorithmFPType * resultCrossProduct = result.crossProduct();
-        if (result.errorCode != CovarianceReducer<algorithmFPType, cpu>::ok || !resultCrossProduct)
-        {
-            return services::Status(services::ErrorMemoryAllocationFailed);
-        }
-
-        /* If data is not normalized, perform subtractions of(sums[i]*sums[j])/n */
-        if (!isNormalized && !assumeCentered)
-        {
-            const algorithmFPType * resultSums = result.sums();
-            if (!resultSums)
-            {
-                return services::Status(services::ErrorMemoryAllocationFailed);
-            }
-            for (size_t i = 0; i < nFeatures; i++)
-            {
-                sums[i] = resultSums[i];
-            }
-            for (size_t i = 0; i < nFeatures; i++)
-            {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j < nFeatures; j++)
-                {
-                    crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
-                }
-            }
+            status = computeDenseCrossProductsAndSumsNonBatched<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums,
+                                                                                      method == defaultDense && !isNormalized && !assumeCentered,
+                                                                                      method == sumDense && !isNormalized && !assumeCentered);
         }
         else
         {
-            for (size_t i = 0; i < nFeatures * nFeatures; i++)
-            {
-                crossProduct[i] = resultCrossProduct[i];
-            }
+            status = computeDenseCrossProductsAndSumsServiceStats<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums,
+                                                                                        nObservations, method);
         }
     }
     else
     {
-        __int64 mklMethod = __DAAL_VSL_SS_METHOD_FAST;
-        switch (method)
+        if (((isNormalized) || ((!isNormalized) && ((method == defaultDense) || (method == sumDense)))))
         {
-        case defaultDense: mklMethod = __DAAL_VSL_SS_METHOD_FAST; break;
-        case singlePassDense: mklMethod = __DAAL_VSL_SS_METHOD_1PASS; break;
-        case sumDense: mklMethod = __DAAL_VSL_SS_METHOD_FAST_USER_MEAN; break;
-        default: break;
+            status = computeDenseCrossProductsAndSumsBatched<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums, isNormalized,
+                                                                                   assumeCentered, numRowsInBlock, grainSize);
         }
-
-        DEFINE_TABLE_BLOCK(ReadRows, dataBlock, dataTable);
-        algorithmFPType * dataBlockPtr = const_cast<algorithmFPType *>(dataBlock.get());
-
-        int errcode = StatisticsInst<algorithmFPType, cpu>::xcp(dataBlockPtr, (__int64)nFeatures, (__int64)nVectors, nObservations, sums,
-                                                                crossProduct, mklMethod);
-        DAAL_CHECK(errcode == 0, services::ErrorCovarianceInternal);
+        else
+        {
+            status = computeDenseCrossProductsAndSumsServiceStats<algorithmFPType, cpu>(nFeatures, nVectors, dataTable, crossProduct, sums,
+                                                                                        nObservations, method);
+        }
     }
 
+    if (status != services::Status()) return status;
+
     *nObservations += (algorithmFPType)nVectors;
-    return services::Status();
+    return status;
 }
 
 /********************** updateCSRCrossProductAndSums *********************************************/
@@ -538,10 +654,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         nObservations[0] += partialNObservations[0];
 
         /* Merge sums */
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            sums[i] += partialSums[i];
-        }
+        daal::internal::MathInst<algorithmFPType, cpu>::vAdd(nFeatures, sums, partialSums, sums);
     }
 }
 
@@ -578,10 +691,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
         DAAL_CHECK_MALLOC(diagInvSqrtsArray.get());
 
         algorithmFPType * diagInvSqrts = diagInvSqrtsArray.get();
-        for (size_t i = 0; i < nFeatures; i++)
-        {
-            diagInvSqrts[i] = 1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(crossProduct[i * nFeatures + i]);
-        }
+        daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(nFeatures, crossProduct, nFeatures + 1, diagInvSqrts, 1);
 
         for (size_t i = 0; i < nFeatures; i++)
         {
