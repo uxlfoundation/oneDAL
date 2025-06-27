@@ -131,7 +131,10 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
                                                                   const table& data,
                                                                   const table& responses,
                                                                   const table& weights) {
-    ctx.distr_mode_ = (comm_.get_rank_count() > 1);
+    std::int64_t total_rank_count = comm_.get_rank_count();
+    // In case of building trees locally, distributed communicartions will be
+    // called only in model merging step.
+    ctx.distr_mode_ = (total_rank_count > 1) && !desc.get_local_trees_mode();
 
     ctx.use_private_mem_buf_ = true;
 
@@ -157,7 +160,22 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     ctx.global_row_offset_ = get_global_row_offset(ctx.distr_mode_, ctx.row_count_);
 
     ctx.tree_count_ = de::integral_cast<Index>(desc.get_tree_count());
+    if (total_rank_count > 1 && desc.get_local_trees_mode()) {
+        std::int64_t num_trees = ctx.tree_count_;
 
+        if (total_rank_count >= num_trees) {
+            ctx.tree_count_ = (comm_.get_rank() < num_trees) ? 1 : 0;
+        }
+        else {
+            std::int64_t base_trees_per_gpu = num_trees / total_rank_count;
+            std::int64_t extra_trees = num_trees % total_rank_count;
+
+            ctx.tree_count_ = base_trees_per_gpu;
+            if (comm_.get_rank() < extra_trees) {
+                ctx.tree_count_ += 1;
+            }
+        }
+    }
     ctx.bootstrap_ = desc.get_bootstrap();
     ctx.max_tree_depth_ = desc.get_max_tree_depth();
 
@@ -2085,7 +2103,75 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             homogen_table::wrap(res_var_imp_host.flatten(), 1, ctx.column_count_));
     }
 
-    return res.set_model(model_manager.get_model());
+    if (!desc.get_local_trees_mode()) {
+        res.set_model(model_manager.get_model());
+        return res;
+    }
+    else {
+        // Get local tree model on each gpu
+        auto onedal_model = model_manager.get_model();
+
+        // Compute total number of trees
+        std::int64_t local_tree_count = onedal_model.get_tree_count();
+        std::int64_t total_tree_count = local_tree_count;
+        comm_.allreduce(total_tree_count).wait();
+
+        // Serialize local models for communicator calls
+        ::oneapi::dal::detail::binary_output_archive output_archive;
+        ::oneapi::dal::detail::serialize(onedal_model, output_archive);
+
+        // Compute total model size
+        auto data_array = output_archive.to_array();
+        std::int64_t send_size = output_archive.get_size();
+        std::int64_t total_send_size = send_size;
+        comm_.allreduce(total_send_size).wait();
+
+        // Compute displacements for allgatherv call
+        auto rank_count = comm_.get_rank_count();
+        auto rank = comm_.get_rank();
+        auto recv_counts = dal::array<std::int64_t>::zeros(rank_count);
+        recv_counts.get_mutable_data()[rank] = send_size;
+        comm_.allreduce(recv_counts, spmd::reduce_op::sum).wait();
+        auto displs = array<std::int64_t>::zeros(rank_count);
+        auto displs_ptr = displs.get_mutable_data();
+        std::int64_t total_count = 0;
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            displs_ptr[i] = total_count;
+            total_count += recv_counts.get_data()[i];
+        }
+
+        // Combine local models from each gpu to global model
+        auto arr_total = oneapi::dal::array<byte_t>::empty(total_send_size);
+        {
+            ONEDAL_PROFILER_TASK(allgather_model_data);
+            comm_.allgatherv(data_array, arr_total, recv_counts.get_data(), displs.get_data())
+                .wait();
+        }
+
+        // Deserialize global models array into a vector of models
+        // Note: For now, it is not possible to deserialize a global model
+        // without first extracting individual models. Due to the complex
+        // structure of the serialized model, it is not feasible to simply
+        // merge all data into a single array and deserialize it into a
+        // unified global model.
+        std::vector<model<Task>> onedal_models(rank_count);
+        std::int64_t offset = 0;
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            onedal_models[i] = model<Task>();
+            auto sub_array = arr_total.get_slice(offset, offset + recv_counts.get_data()[i]);
+            ::oneapi::dal::detail::binary_input_archive sub_archive(sub_array);
+            ::oneapi::dal::detail::deserialize(onedal_models[i], sub_archive);
+            offset += recv_counts.get_data()[i];
+        }
+
+        // Allocate and fill global model
+        model_manager_t model_manager_global(ctx, total_tree_count, ctx.column_count_);
+        for (std::int64_t i = 0; i < rank_count; i++) {
+            model_manager_global.copy_trees(onedal_models[i]);
+        }
+
+        return res.set_model(model_manager_global.get_model());
+    }
 }
 
 #define INSTANTIATE(F, B, I, T) template class train_kernel_hist_impl<F, B, I, T>;

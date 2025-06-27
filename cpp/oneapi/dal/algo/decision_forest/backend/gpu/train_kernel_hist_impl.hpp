@@ -17,10 +17,12 @@
 #pragma once
 
 #include "oneapi/dal/table/common.hpp"
+
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
-
+#include "oneapi/dal/detail/archives.hpp"
+#include "oneapi/dal/backend/serialization.hpp"
 #include "oneapi/dal/backend/primitives/rng/device_engine.hpp"
 
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_misc_structs.hpp"
