@@ -36,10 +36,10 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-std::string datasetFileNames[] = { "../data/distributed/qr_1.csv",
-                                   "../data/distributed/qr_2.csv",
-                                   "../data/distributed/qr_3.csv",
-                                   "../data/distributed/qr_4.csv" };
+const std::string datasetFileNames[] = { "../data/distributed/qr_1.csv",
+                                         "../data/distributed/qr_2.csv",
+                                         "../data/distributed/qr_3.csv",
+                                         "../data/distributed/qr_4.csv" };
 
 void computestep1Local(size_t block);
 void computeOnMasterNode();

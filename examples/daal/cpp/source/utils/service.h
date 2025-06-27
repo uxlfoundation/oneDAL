@@ -82,7 +82,7 @@ void readRowUnknownLength(char *line, std::vector<item_type> &data) {
 }
 
 template <typename item_type>
-daal::data_management::CSRNumericTable *createSparseTable(std::string &datasetFileName) {
+daal::data_management::CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
     std::ifstream file(datasetFileName.c_str());
 
     if (!file.is_open()) {
@@ -661,11 +661,10 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
 // The function tries to find the file `name` in several possible directories.
 // This is useful because CMake and Bazel may run the program from different working directories,
 // so relative paths to data files can differ.
-inline std::string get_data_path(const std::string &name) {
+inline const std::string get_data_path(const std::string &name) {
     const std::vector<std::string> paths = { "../data", "examples/daal/data" };
-
     for (const auto &path : paths) {
-        std::string try_path = path + "/" + name;
+        const std::string try_path = path + "/" + name;
         if (std::ifstream{ try_path }.good()) {
             return try_path;
         }
@@ -675,7 +674,7 @@ inline std::string get_data_path(const std::string &name) {
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {
-    std::string **filelist = new std::string *[count];
+    std::string **const filelist = new std::string *[count];
 
     va_list ap;
     va_start(ap, count);

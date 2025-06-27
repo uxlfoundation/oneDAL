@@ -41,10 +41,10 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-std::string datasetFileNames[] = { "../data/distributed/covcormoments_csr_1.csv",
-                                   "../data/distributed/covcormoments_csr_2.csv",
-                                   "../data/distributed/covcormoments_csr_3.csv",
-                                   "../data/distributed/covcormoments_csr_4.csv" };
+const std::string datasetFileNames[] = { "../data/distributed/covcormoments_csr_1.csv",
+                                         "../data/distributed/covcormoments_csr_2.csv",
+                                         "../data/distributed/covcormoments_csr_3.csv",
+                                         "../data/distributed/covcormoments_csr_4.csv" };
 
 low_order_moments::PartialResultPtr partialResult[nBlocks];
 low_order_moments::ResultPtr result;
