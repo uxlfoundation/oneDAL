@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/binary_cls_train.csv";
-std::string testDatasetFileName = "../data/batch/binary_cls_test.csv";
+const std::string trainDatasetFileName = "../data/batch/binary_cls_train.csv";
+const std::string testDatasetFileName = "../data/batch/binary_cls_test.csv";
 const size_t nFeatures = 20; /* Number of features in training and testing data sets */
 
 /* Logistic regression training parameters */
@@ -46,7 +46,7 @@ const size_t nClasses = 2; /* Number of classes */
 
 training::ResultPtr trainModel();
 void testModel(const training::ResultPtr& res);
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
@@ -112,7 +112,7 @@ void testModel(const training::ResultPtr& trainingResult) {
     printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
 }
 
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

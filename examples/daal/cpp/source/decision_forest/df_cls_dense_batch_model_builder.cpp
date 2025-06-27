@@ -37,7 +37,7 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::classification;
 
 /* Input data set parameters */
-std::string testDatasetFileName = "../data/batch/df_classification_model_builder_test.csv";
+const std::string testDatasetFileName = "../data/batch/df_classification_model_builder_test.csv";
 const size_t categoricalFeaturesIndices[] = { 2 };
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 
@@ -47,7 +47,7 @@ const size_t nClasses = 5; /* Number of classes */
 
 void testModel(decision_forest::classification::ModelPtr& model);
 decision_forest::classification::ModelPtr buildModel();
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &testDatasetFileName);
@@ -128,7 +128,7 @@ void testModel(decision_forest::classification::ModelPtr& model) {
     printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
 }
 
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,

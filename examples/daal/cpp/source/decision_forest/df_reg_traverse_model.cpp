@@ -36,7 +36,7 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::regression;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
+const std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
 const size_t categoricalFeaturesIndices[] = { 3 };
 const size_t nFeatures = 13; /* Number of features in training and testing data sets */
 
@@ -44,7 +44,7 @@ const size_t nFeatures = 13; /* Number of features in training and testing data 
 const size_t nTrees = 2;
 
 training::ResultPtr trainModel();
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 void printModel(const daal::algorithms::decision_forest::regression::Model& m);
 
 int main(int argc, char* argv[]) {
@@ -79,7 +79,7 @@ training::ResultPtr trainModel() {
     return algorithm.getResult();
 }
 
-void loadData(std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
+void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(fileName,
                                                       DataSource::notAllocateNumericTable,
