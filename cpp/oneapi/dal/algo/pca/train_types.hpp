@@ -43,7 +43,7 @@ public:
     train_parameters(const train_parameters&) = default;
 
     /// Covariance-based method of PCA splits input data table into blocks of rows to speedup
-    /// the computations.
+    /// the computations when below the thresholds controlled by the other parameters here.
     /// These API define the number of rows in the data block.
     std::int64_t get_cpu_macro_block() const;
     auto& set_cpu_macro_block(std::int64_t val) {
@@ -58,9 +58,39 @@ public:
         return *this;
     }
 
+    /// Maximum number of columns of the input data for which the route splitting data into
+    /// blocks will be used. If there are more than this number of columns, it will use a
+    /// different route that does not divide the data into blocks.
+    std::int64_t get_cpu_max_cols_batched() const;
+    auto& set_cpu_max_cols_batched(std::int64_t val) {
+        set_cpu_max_cols_batched_impl(val);
+        return *this;
+    }
+
+    /// Maximum number of rows below which the criterion 'small_rows_max_cols_batched' will
+    /// apply. If the data has more than this number of rows, then 'small_rows_max_cols_batched'
+    /// will not apply to it.
+    std::int64_t get_cpu_small_rows_threshold() const;
+    auto& set_cpu_small_rows_threshold(std::int64_t val) {
+        set_cpu_small_rows_threshold_impl(val);
+        return *this;
+    }
+
+    /// Same criterion as 'max_cols_batched' controlling whether to use the non-batched route,
+    /// but applying only to cases where the number of rows is below 'small_rows_threshold'.
+    /// Note that the earlier 'max_cols_batched' always applies regardless of the number of rows.
+    std::int64_t get_cpu_small_rows_max_cols_batched() const;
+    auto& set_cpu_small_rows_max_cols_batched(std::int64_t val) {
+        set_cpu_small_rows_max_cols_batched_impl(val);
+        return *this;
+    }
+
 private:
     void set_cpu_macro_block_impl(std::int64_t val);
     void set_cpu_grain_size_impl(std::int64_t val);
+    void set_cpu_max_cols_batched_impl(std::int64_t val);
+    void set_cpu_small_rows_threshold_impl(std::int64_t val);
+    void set_cpu_small_rows_max_cols_batched_impl(std::int64_t val);
     dal::detail::pimpl<train_parameters_impl<Task>> impl_;
 };
 } // namespace v1
