@@ -33,6 +33,9 @@ typedef void (*func_type)(DAAL_INT, DAAL_INT, DAAL_INT, void *);
 
 #undef __DAAL_VSLFN_CALL
 #define __DAAL_VSLFN_CALL(f_name, f_args, errcode) errcode = f_name f_args;
+#define __DAAL_VSLFN_CALL_WITH_CLEANUP(f_name, f_args, errcode) \
+    errcode = f_name f_args;                                    \
+    if (errcode) goto cleanup;
 
 #if defined(_WIN64) || defined(__x86_64__)
     #define __SS_ILP_FLAG__ 1
@@ -143,16 +146,16 @@ struct MklStatistics<double, cpu>
 
         double weight[2] = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-
         daal::services::daal_free(mean);
         mean = NULL;
         return errcode;
@@ -171,19 +174,19 @@ struct MklStatistics<double, cpu>
 
         double accumWeightsAll[2] = { 0, 0 };
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_MEAN, method), errcode);
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_MEAN, method), errcode);
 
         *accumWeight = accumWeightsAll[0];
-
+    cleanup:
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         daal::services::daal_free(sum);
         sum = NULL;
         return errcode;
@@ -202,19 +205,19 @@ struct MklStatistics<double, cpu>
 
         double accumWeightsAll[2] = { 0, 0 };
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_SUM, sampleVariance), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, rawSecond), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_2C_SUM | __DAAL_VSL_SS_MEAN, method), errcode);
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_SUM, sampleVariance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, rawSecond), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_2C_SUM | __DAAL_VSL_SS_MEAN, method), errcode);
 
         *accumWeight = accumWeightsAll[0];
-
+    cleanup:
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         daal::services::internal::service_scalable_free<double, cpu>(sum);
         daal::services::internal::service_scalable_free<double, cpu>(rawSecond);
 
@@ -231,14 +234,14 @@ struct MklStatistics<double, cpu>
         double * mean                 = (double *)daal::services::daal_malloc(nFeatures * sizeof(double));
         double * secondOrderRawMoment = (double *)daal::services::daal_malloc(nFeatures * sizeof(double));
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_2C_MOM, method), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_2C_MOM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-
         daal::services::daal_free(mean);
         daal::services::daal_free(secondOrderRawMoment);
         mean                 = NULL;
@@ -254,10 +257,11 @@ struct MklStatistics<double, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditOutliersDetection, (task, (const MKL_INT *)&nParams, baconParams, baconWeights), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_OUTLIERS, __DAAL_VSL_SS_METHOD_BACON), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditOutliersDetection, (task, (const MKL_INT *)&nParams, baconParams, baconWeights), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_OUTLIERS, __DAAL_VSL_SS_METHOD_BACON), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -270,17 +274,18 @@ struct MklStatistics<double, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
 
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_VARIATION, variation), errcode);
-        __DAAL_VSLFN_CALL(
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_VARIATION, variation), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
             vsldSSCompute,
             (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM | __DAAL_VSL_SS_VARIATION, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -293,18 +298,19 @@ struct MklStatistics<double, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-
         double weight[2] = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM, method),
-                          errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute,
+                                       (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -317,40 +323,13 @@ struct MklStatistics<double, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        if (errcode)
-        {
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER_N, (const MKL_INT *)&quantOrderN), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER, quantOrder), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_QUANTILES, quants), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_QUANTS, __DAAL_VSL_SS_METHOD_FAST), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER_N, (const MKL_INT *)&quantOrderN), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER, quantOrder), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_QUANTILES, quants), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_QUANTS, __DAAL_VSL_SS_METHOD_FAST), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -363,34 +342,12 @@ struct MklStatistics<double, cpu>
         __int64 inputStorage  = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
         __int64 outputStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&inputStorage, data, 0, 0),
-                          errcode);
-        if (errcode)
-        {
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, (const MKL_INT *)&outputStorage), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_SORTED_OBSERV, __DAAL_VSL_SS_METHOD_RADIX), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&inputStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, (const MKL_INT *)&outputStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_SORTED_OBSERV, __DAAL_VSL_SS_METHOD_RADIX), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -444,16 +401,16 @@ struct MklStatistics<float, cpu>
 
         float weight[2] = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-
         daal::services::daal_free(mean);
         mean = NULL;
         return errcode;
@@ -472,19 +429,19 @@ struct MklStatistics<float, cpu>
 
         float accumWeightsAll[2] = { 0, 0 };
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_MEAN, method), errcode);
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_MEAN, method), errcode);
 
         *accumWeight = accumWeightsAll[0];
-
+    cleanup:
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         daal::services::daal_free(sum);
         sum = NULL;
         return errcode;
@@ -503,19 +460,19 @@ struct MklStatistics<float, cpu>
 
         float accumWeightsAll[2] = { 0, 0 };
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_SUM, sampleVariance), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, rawSecond), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_2C_SUM | __DAAL_VSL_SS_MEAN, method), errcode);
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_WEIGHTS, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_SUM, sampleVariance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, rawSecond), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_2C_SUM | __DAAL_VSL_SS_MEAN, method), errcode);
 
         *accumWeight = accumWeightsAll[0];
-
+    cleanup:
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         daal::services::internal::service_scalable_free<float, cpu>(sum);
         daal::services::internal::service_scalable_free<float, cpu>(rawSecond);
         return errcode;
@@ -531,14 +488,14 @@ struct MklStatistics<float, cpu>
         float * mean                 = (float *)daal::services::daal_malloc(nFeatures * sizeof(float));
         float * secondOrderRawMoment = (float *)daal::services::daal_malloc(nFeatures * sizeof(float));
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_2C_MOM, method), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_2C_MOM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-
         daal::services::daal_free(mean);
         daal::services::daal_free(secondOrderRawMoment);
         mean                 = NULL;
@@ -555,10 +512,11 @@ struct MklStatistics<float, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditOutliersDetection, (task, (const MKL_INT *)&nParams, baconParams, baconWeights), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_OUTLIERS, __DAAL_VSL_SS_METHOD_BACON), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditOutliersDetection, (task, (const MKL_INT *)&nParams, baconParams, baconWeights), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_OUTLIERS, __DAAL_VSL_SS_METHOD_BACON), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -571,17 +529,18 @@ struct MklStatistics<float, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
 
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_VARIATION, variation), errcode);
-        __DAAL_VSLFN_CALL(
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_VARIATION, variation), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
             vslsSSCompute,
             (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM | __DAAL_VSL_SS_VARIATION, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -593,19 +552,19 @@ struct MklStatistics<float, cpu>
         int errcode = 0;
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
+        float weight[2]     = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
 
-        float weight[2] = { *nPreviousObservations, *nPreviousObservations };
-
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM, method),
-                          errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2R_MOM, secondOrderRawMoment), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_2C_MOM, variance), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute,
+                                       (task, __DAAL_VSL_SS_SUM | __DAAL_VSL_SS_MEAN | __DAAL_VSL_SS_2R_MOM | __DAAL_VSL_SS_2C_MOM, method), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -618,41 +577,13 @@ struct MklStatistics<float, cpu>
 
         __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
-                          errcode);
-        if (errcode)
-        {
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER_N, (const MKL_INT *)&quantOrderN), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER, quantOrder), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_QUANTILES, quants), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_QUANTS, __DAAL_VSL_SS_METHOD_FAST), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER_N, (const MKL_INT *)&quantOrderN), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_ORDER, quantOrder), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_QUANT_QUANTILES, quants), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_QUANTS, __DAAL_VSL_SS_METHOD_FAST), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
@@ -665,34 +596,12 @@ struct MklStatistics<float, cpu>
         __int64 inputStorage  = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
         __int64 outputStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
 
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&inputStorage, data, 0, 0),
-                          errcode);
-        if (errcode)
-        {
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, (const MKL_INT *)&outputStorage), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
-        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_SORTED_OBSERV, __DAAL_VSL_SS_METHOD_RADIX), errcode);
-        if (errcode)
-        {
-            __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-            return errcode;
-        }
-
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(
+            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&inputStorage, data, 0, 0), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, (const MKL_INT *)&outputStorage), errcode);
+        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_SORTED_OBSERV, __DAAL_VSL_SS_METHOD_RADIX), errcode);
+    cleanup:
         __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
         return errcode;
     }
