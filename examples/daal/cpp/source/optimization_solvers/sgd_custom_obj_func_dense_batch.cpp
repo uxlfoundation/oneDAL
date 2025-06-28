@@ -36,7 +36,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-std::string datasetFileName = "../data/batch/custom.csv";
+const std::string datasetFileName = "../data/batch/custom.csv";
 
 const size_t nIterations = 1000;
 const size_t nFeatures = 4;

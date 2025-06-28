@@ -35,8 +35,8 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/k_nearest_neighbors_train.csv";
-std::string testDatasetFileName = "../data/batch/k_nearest_neighbors_test.csv";
+const std::string trainDatasetFileName = "../data/batch/k_nearest_neighbors_train.csv";
+const std::string testDatasetFileName = "../data/batch/k_nearest_neighbors_test.csv";
 
 size_t nFeatures = 5;
 size_t nClasses = 5;

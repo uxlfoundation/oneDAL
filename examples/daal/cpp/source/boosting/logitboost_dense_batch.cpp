@@ -36,9 +36,9 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/logitboost_train.csv";
+const std::string trainDatasetFileName = "../data/batch/logitboost_train.csv";
 
-std::string testDatasetFileName = "../data/batch/logitboost_test.csv";
+const std::string testDatasetFileName = "../data/batch/logitboost_test.csv";
 
 const size_t nFeatures = 20;
 const size_t nClasses = 5;
