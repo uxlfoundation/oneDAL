@@ -173,6 +173,11 @@ nitpick_ignore = [
     # chebyshev_distance
     ('cpp:identifier', 'chebyshev_distance'),
     ('cpp:identifier', 'chebyshev_distance::descriptor'),
+    # cosine_distance
+    ('cpp:identifier', 'cosine_distance'),
+    ('cpp:identifier', 'cosine_distance::descriptor'),
+    ('cpp:identifier', 'cosine_distance::compute_result'),
+    ('cpp:identifier', 'cosine_distance::compute_input'),
     # kmeans
     ('cpp:identifier', 'kmeans'),
     ('cpp:identifier', 'kmeans::descriptor'),
