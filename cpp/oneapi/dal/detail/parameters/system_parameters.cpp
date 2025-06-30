@@ -21,7 +21,7 @@ namespace oneapi::dal {
 namespace detail {
 
 system_parameters::system_parameters()
-        : impl_(detail::pimpl<system_parameters_impl>(std::make_unique<system_parameters_impl>())) {
+        : impl_(new system_parameters_impl())) {
 }
 
 cpu_extension system_parameters::get_top_enabled_cpu_extension() const {
