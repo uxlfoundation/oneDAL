@@ -31,11 +31,11 @@ namespace v1 {
 
 cpu_info::cpu_info() {
 #if defined(TARGET_X86_64)
-    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_x86>());
+    impl_ = detail::pimpl<cpu_info_iface>(new cpu_info_x86);
 #elif defined(TARGET_ARM)
-    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_arm>());
+    impl_ = detail::pimpl<cpu_info_iface>(new cpu_info_arm);
 #elif defined(TARGET_RISCV64)
-    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_riscv64>());
+    impl_ = detail::pimpl<cpu_info_iface>(new cpu_info_riscv64);
 #endif
 }
 
