@@ -98,6 +98,43 @@ template <typename fpType, CpuType cpu>
 struct MklStatistics
 {};
 
+template <class fpType>
+struct XcpHelper
+{
+    VSLSSTaskPtr task;
+    fpType * mean;
+
+    XcpHelper(__int64 nFeatures, __int64 nVectors, fpType * data, int & errcode)
+    {
+        __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
+        this->mean          = (double *)daal::services::daal_malloc(nFeatures * sizeof(fpType));
+        if (!this->mean) return;
+
+        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
+                          errcode);
+    }
+
+    ~XcpHelper()
+    {
+        int errcode = 0;
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+        daal::services::daal_free(this->mean);
+    }
+
+    void calcMeanFromSum(const fpType * sum, const __int64 nVectors, const __int64 nFeatures)
+    {
+        const fpType invNVectors = 1.0 / static_cast<double>(nVectors);
+        for (__int64 i = 0; i < nFeatures; i++)
+        {
+            this->mean[i] = sum[i] * invNVectors;
+        }
+    }
+
+    //  rule of three
+    XcpHelper(const XcpHelper &)             = delete;
+    XcpHelper & operator=(const XcpHelper &) = delete;
+};
+
 /*
 // Double precision functions definition
 */
@@ -127,37 +164,24 @@ struct MklStatistics<double, cpu>
     static int xcp(double * data, __int64 nFeatures, __int64 nVectors, double * nPreviousObservations, double * sum, double * crossProduct,
                    __int64 method)
     {
-        VSLSSTaskPtr task;
-        int errcode = 0;
-
-        __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
-        __int64 cpStorage   = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
-
-        double * mean = (double *)daal::services::daal_malloc(nFeatures * sizeof(double));
-
+        int errcode       = 0;
+        __int64 cpStorage = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
+        XcpHelper<double> xcpHelper(nFeatures, nVectors, data, errcode);
+        if (!xcpHelper.mean) return VSL_SS_ERROR_ALLOCATION_FAILURE;
+        if (errcode != 0) return errcode;
         if (method == __DAAL_VSL_SS_METHOD_FAST_USER_MEAN)
         {
-            double invNVectors = 1.0 / (double)nVectors;
-            for (size_t i = 0; i < nFeatures; i++)
-            {
-                mean[i] = sum[i] * invNVectors;
-            }
+            xcpHelper.calcMeanFromSum(sum, nVectors, nFeatures);
         }
 
         double weight[2] = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(
-            vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsldSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
-    cleanup:
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-        daal::services::daal_free(mean);
-        mean = NULL;
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_MEAN, xcpHelper.mean), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsliSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSCompute, (xcpHelper.task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
         return errcode;
     }
 
@@ -382,37 +406,24 @@ struct MklStatistics<float, cpu>
     static int xcp(float * data, __int64 nFeatures, __int64 nVectors, float * nPreviousObservations, float * sum, float * crossProduct,
                    __int64 method)
     {
-        VSLSSTaskPtr task;
-        int errcode = 0;
-
-        __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
-        __int64 cpStorage   = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
-
-        float * mean = (float *)daal::services::daal_malloc(nFeatures * sizeof(float));
-
+        int errcode       = 0;
+        __int64 cpStorage = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
+        XcpHelper<float> xcpHelper(nFeatures, nVectors, data, errcode);
+        if (!xcpHelper.mean) return VSL_SS_ERROR_ALLOCATION_FAILURE;
+        if (errcode != 0) return errcode;
         if (method == __DAAL_VSL_SS_METHOD_FAST_USER_MEAN)
         {
-            float invNVectors = 1.0 / (float)nVectors;
-            for (size_t i = 0; i < nFeatures; i++)
-            {
-                mean[i] = sum[i] * invNVectors;
-            }
+            xcpHelper.calcMeanFromSum(sum, nVectors, nFeatures);
         }
 
         float weight[2] = { *nPreviousObservations, *nPreviousObservations };
 
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(
-            vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (MKL_INT *)&dataStorage, data, 0, 0), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, mean), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vsliSSEditTask, (task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
-        __DAAL_VSLFN_CALL_WITH_CLEANUP(vslsSSCompute, (task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
-    cleanup:
-        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
-        daal::services::daal_free(mean);
-        mean = NULL;
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_SUM, sum), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_MEAN, xcpHelper.mean), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_CP, crossProduct), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsliSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_CP_STORAGE, (const MKL_INT *)&cpStorage), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSEditTask, (xcpHelper.task, __DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight), errcode);
+        __DAAL_VSLFN_CALL_AND_CHECK_ERROR(vsldSSCompute, (xcpHelper.task, __DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method), errcode);
         return errcode;
     }
 
