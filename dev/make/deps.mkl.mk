@@ -38,10 +38,16 @@ daaldep.lnx32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a
 daaldep.lnx32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
 daaldep.lnx32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$a
 
+daaldep.lnx32e.mkl.thr_y := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$y
+daaldep.lnx32e.mkl.seq_y := $(MKLDIR.libia)/$(plib)mkl_sequential.$y
+daaldep.lnx32e.mkl.core_y := $(MKLDIR.libia)/$(plib)mkl_core.$y
+daaldep.lnx32e.mkl.interfaces_y := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$y
+daaldep.lnx32e.mkl.sycl_y := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$y
 # List of oneMKL libraries to exclude from linking.
 # This list is used to generate the `--exclude-libs` linker options.
 # If you need to exclude additional libraries, extend this list by appending the library names.
 MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_intel_ilp64.$a $(plib)mkl_sycl.$a
+MATH_LIBS_TO_EXCLUDE_Y := $(plib)mkl_tbb_thread.$y $(plib)mkl_core.$y $(plib)mkl_intel_ilp64.$y $(plib)mkl_sycl.$y
 
 daaldep.win32e.mkl.thr := $(MKLDIR.libia)/mkl_tbb_thread$d.$a
 daaldep.win32e.mkl.seq := $(MKLDIR.libia)/mkl_sequential.$a
@@ -61,6 +67,12 @@ daaldep.math_backend.thr := $(daaldep.$(PLAT).mkl.thr)
 daaldep.math_backend.seq := $(daaldep.$(PLAT).mkl.seq)
 daaldep.math_backend.sycl := $(daaldep.$(PLAT).mkl.sycl)
 
+daaldep.math_backend.core_y     := $(daaldep.$(PLAT).mkl.core_y)
+daaldep.math_backend.interfaces_y     := $(daaldep.$(PLAT).mkl.interfaces_y)
+daaldep.math_backend.thr_y := $(daaldep.$(PLAT).mkl.thr_y)
+daaldep.math_backend.seq_y := $(daaldep.$(PLAT).mkl.seq_y)
+daaldep.math_backend.sycl_y := $(daaldep.$(PLAT).mkl.sycl_y)
+
 daaldep.lnx32e.vml :=
 daaldep.lnx32e.ipp := $(if $(COV.libia),$(COV.libia)/libcov.a)
 
@@ -78,3 +90,5 @@ daaldep.ipp     := $(daaldep.$(PLAT).ipp)
 
 daaldep.math_backend.ext := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
 daaldep.math_backend.sycl := $(daaldep.math_backend.sycl)
+daaldep.math_backend.ext_y := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces_y) $(daaldep.math_backend.thr_y) $(daaldep.math_backend.core_y)
+daaldep.math_backend.sycl_y := $(daaldep.math_backend.sycl_y)
