@@ -63,7 +63,9 @@ struct compute_parameters_impl : public base {
 };
 
 template <typename Task>
-compute_parameters<Task>::compute_parameters() : impl_(new compute_parameters_impl<Task>{}) {}
+compute_parameters<Task>::compute_parameters()
+        : dal::detail::system_parameters(),
+          impl_(new compute_parameters_impl<Task>{}) {}
 
 /// Choose the number of rows in the data block used in variance-covariance matrix computations on CPU.
 ///

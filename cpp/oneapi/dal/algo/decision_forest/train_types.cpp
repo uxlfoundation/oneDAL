@@ -34,7 +34,8 @@ struct train_parameters_impl<task::classification> : public base {
 };
 
 train_parameters<task::classification>::train_parameters()
-        : impl_(new train_parameters_impl<task::classification>{}) {}
+        : dal::detail::system_parameters(),
+          impl_(new train_parameters_impl<task::classification>{}) {}
 
 std::int64_t train_parameters<task::classification>::get_small_classes_threshold() const {
     return impl_->small_classes_threshold;
