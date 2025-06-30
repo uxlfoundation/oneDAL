@@ -50,7 +50,7 @@ const std::string trainGroundTruthFileNames[4] = { "../data/online/naivebayes_tr
                                                    "../data/online/naivebayes_train_labels_4.csv" };
 
 const std::string testDatasetFileName = "../data/online/naivebayes_test_csr.csv";
-std::string testGroundTruthFileName = "../data/online/naivebayes_test_labels.csv";
+const std::string testGroundTruthFileName = "../data/online/naivebayes_test_labels.csv";
 
 const size_t nTrainVectorsInBlock = 8000;
 const size_t nTestObservations = 2000;

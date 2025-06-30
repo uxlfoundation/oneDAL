@@ -41,10 +41,10 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
 const std::string trainDatasetFileName = "../data/batch/naivebayes_train_csr.csv";
-std::string trainGroundTruthFileName = "../data/batch/naivebayes_train_labels.csv";
+const std::string trainGroundTruthFileName = "../data/batch/naivebayes_train_labels.csv";
 
 const std::string testDatasetFileName = "../data/batch/naivebayes_test_csr.csv";
-std::string testGroundTruthFileName = "../data/batch/naivebayes_test_labels.csv";
+const std::string testGroundTruthFileName = "../data/batch/naivebayes_test_labels.csv";
 
 const size_t nTrainObservations = 8000;
 const size_t nTestObservations = 2000;

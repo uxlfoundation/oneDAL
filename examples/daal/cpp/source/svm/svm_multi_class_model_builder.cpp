@@ -34,7 +34,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainedModelsFileNames[] = { "../data/batch/svm_multi_class_trained_model_01.csv",
+const std::string trainedModelsFileNames[] = { "../data/batch/svm_multi_class_trained_model_01.csv",
                                          "../data/batch/svm_multi_class_trained_model_02.csv",
                                          "../data/batch/svm_multi_class_trained_model_12.csv" };
 float biases[] = { -0.774F, -1.507F, -7.559F };
