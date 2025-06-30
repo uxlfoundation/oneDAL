@@ -36,6 +36,7 @@
 #include "src/algorithms/service_error_handling.h"
 #include "src/threading/threading.h"
 #include "src/services/service_profiler.h"
+#include <iostream>
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -550,6 +551,7 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservations, algorithmFPType * crossProduct, algorithmFPType * sums,
                                     algorithmFPType * cov, algorithmFPType * mean, const Parameter * parameter, const Hyperparameter * hyperparameter)
 {
+    std::cout << "finalizeCovariance 1 1" << std::endl;
     DAAL_PROFILER_TASK(compute.finalizeCovariance);
 
     algorithmFPType invNObservations   = 1.0 / nObservations;
@@ -558,31 +560,31 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     {
         invNObservationsM1 = 1.0 / (nObservations - 1.0);
     }
-
+    std::cout << "finalizeCovariance 1 2" << std::endl;
     algorithmFPType multiplier = invNObservationsM1;
     if (parameter->bias)
     {
         multiplier = invNObservations;
     }
-
+    std::cout << "finalizeCovariance 1 3" << std::endl;
     /* Calculate resulting mean vector */
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
     }
-
+    std::cout << "finalizeCovariance 1 4" << std::endl;
     if (parameter->outputMatrixType == covariance::correlationMatrix)
     {
         /* Calculate resulting correlation matrix */
         TArray<algorithmFPType, cpu> diagInvSqrtsArray(nFeatures);
         DAAL_CHECK_MALLOC(diagInvSqrtsArray.get());
-
+        std::cout << "finalizeCovariance 1 5" << std::endl;
         algorithmFPType * diagInvSqrts = diagInvSqrtsArray.get();
         for (size_t i = 0; i < nFeatures; i++)
         {
             diagInvSqrts[i] = 1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(crossProduct[i * nFeatures + i]);
         }
-
+        std::cout << "finalizeCovariance 1 6" << std::endl;
         for (size_t i = 0; i < nFeatures; i++)
         {
             for (size_t j = 0; j < i; j++)
@@ -591,9 +593,11 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
             }
             cov[i * nFeatures + i] = 1.0; //diagonal element
         }
+        std::cout << "finalizeCovariance 1 7" << std::endl;
     }
     else
     {
+        std::cout << "finalizeCovariance 1 8" << std::endl;
         /* Calculate resulting covariance matrix */
         for (size_t i = 0; i < nFeatures; i++)
         {
@@ -602,6 +606,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
                 cov[i * nFeatures + j] = crossProduct[i * nFeatures + j] * multiplier;
             }
         }
+        std::cout << "finalizeCovariance 1 9" << std::endl;
     }
 
     /* Copy results into symmetric upper triangle */
@@ -612,7 +617,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
             cov[j * nFeatures + i] = cov[i * nFeatures + j];
         }
     }
-
+    std::cout << "finalizeCovariance 1 10" << std::endl;
     return services::Status();
 }
 
@@ -622,19 +627,19 @@ services::Status finalizeCovariance(NumericTable * nObservationsTable, NumericTa
                                     const Hyperparameter * hyperparameter)
 {
     const size_t nFeatures = covTable->getNumberOfColumns();
-
+    std::cout << "finalizeCovariance 2 1" << std::endl;
     DEFINE_TABLE_BLOCK(ReadRows, sumBlock, sumTable);
     DEFINE_TABLE_BLOCK(ReadRows, crossProductBlock, crossProductTable);
     DEFINE_TABLE_BLOCK(ReadRows, nObservationsBlock, nObservationsTable);
     DEFINE_TABLE_BLOCK(WriteOnlyRows, covBlock, covTable);
     DEFINE_TABLE_BLOCK(WriteOnlyRows, meanBlock, meanTable);
-
+    std::cout << "finalizeCovariance 2 2" << std::endl;
     algorithmFPType * cov           = covBlock.get();
     algorithmFPType * mean          = meanBlock.get();
     algorithmFPType * sums          = const_cast<algorithmFPType *>(sumBlock.get());
     algorithmFPType * crossProduct  = const_cast<algorithmFPType *>(crossProductBlock.get());
     algorithmFPType * nObservations = const_cast<algorithmFPType *>(nObservationsBlock.get());
-
+    std::cout << "finalizeCovariance 2 3" << std::endl;
     return finalizeCovariance<algorithmFPType, cpu>(nFeatures, *nObservations, crossProduct, sums, cov, mean, parameter, hyperparameter);
 }
 
