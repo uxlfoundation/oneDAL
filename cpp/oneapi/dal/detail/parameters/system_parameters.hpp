@@ -63,7 +63,7 @@ public:
 #endif
 
 private:
-    detail::pimpl<system_parameters_impl> impl_;
+    detail::unique<system_parameters_impl> impl_;
 };
 
 } // namespace detail
