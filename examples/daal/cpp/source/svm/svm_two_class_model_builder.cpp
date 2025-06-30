@@ -34,9 +34,9 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainedModelsFileName = "../data/batch/svm_two_class_trained_model.csv";
+const std::string trainedModelsFileName = "../data/batch/svm_two_class_trained_model.csv";
 
-std::string testDatasetFileName = "../data/batch/svm_two_class_test_dense.csv";
+const std::string testDatasetFileName = "../data/batch/svm_two_class_test_dense.csv";
 
 const size_t nFeatures = 20;
 const float bias = -0.562F;

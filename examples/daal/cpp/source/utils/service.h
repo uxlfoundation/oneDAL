@@ -658,50 +658,54 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
                                      interval);
 }
 
-bool checkFileIsAvailable(std::string filename, bool needExit = false) {
-    std::ifstream file(filename.c_str());
-    if (file.good()) {
-        return true;
-    }
-    else {
-        std::cout << "Can't open file " << filename << std::endl;
-        if (needExit) {
-            exit(fileError);
+// The function tries to find the file `name` in several possible directories.
+// This is useful because CMake and Bazel may run the program from different working directories,
+// so relative paths to data files can differ.
+inline const std::string get_data_path(const std::string &name) {
+    const std::vector<std::string> paths = { "../data", "examples/daal/data" };
+    for (const auto &path : paths) {
+        const std::string try_path = path + "/" + name;
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
         }
-        return false;
     }
+
+    return name;
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {
-    std::string **filelist = new std::string *[count];
+    std::string **const filelist = new std::string *[count];
+
     va_list ap;
     va_start(ap, count);
     for (int i = 0; i < count; i++) {
         filelist[i] = va_arg(ap, std::string *);
     }
     va_end(ap);
+
     if (argc == 1) {
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
-    else if (argc == (count + 1)) {
-        bool isAllCorrect = true;
+    else if (argc == count + 1) {
+        bool all_exist = true;
         for (int i = 0; i < count; i++) {
-            if (!checkFileIsAvailable(argv[i + 1])) {
-                isAllCorrect = false;
+            if (!std::ifstream{ argv[i + 1] }.good()) {
+                all_exist = false;
                 break;
             }
         }
-        if (isAllCorrect == true) {
+
+        if (all_exist) {
             for (int i = 0; i < count; i++) {
-                (*filelist[i]) = argv[i + 1];
+                *(filelist[i]) = argv[i + 1];
             }
         }
         else {
             std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
             for (int i = 0; i < count; i++) {
-                checkFileIsAvailable(*(filelist[i]), true);
+                *(filelist[i]) = get_data_path(*(filelist[i]));
             }
         }
     }
@@ -713,9 +717,10 @@ void checkArguments(int argc, char *argv[], int count, ...) {
         std::cout << "]" << std::endl;
         std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
+
     delete[] filelist;
 }
 

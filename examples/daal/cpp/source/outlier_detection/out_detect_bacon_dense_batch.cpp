@@ -35,7 +35,7 @@ using namespace daal::data_management;
 typedef double algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-std::string datasetFileName = "../data/batch/outlierdetection.csv";
+const std::string datasetFileName = "../data/batch/outlierdetection.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);

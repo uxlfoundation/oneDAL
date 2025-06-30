@@ -244,30 +244,16 @@ template <CpuType cpu>
 class BaseRNG : public BaseRNGIface<cpu>
 {
 public:
-    BaseRNG(const unsigned int seed, const int brngId) : _stream(0)
-    {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)1, &seed), errcode);
-    }
+    BaseRNG(const unsigned int seed, const int brngId) : _stream(0) { vslNewStreamEx(&_stream, (openrng_int_t)brngId, 1, &seed); }
 
     BaseRNG(const size_t n, const unsigned int * seed, const int brngId = __DAAL_BRNG_MT19937) : _stream(0)
     {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslNewStreamEx, (&_stream, (const MKL_INT)brngId, (const MKL_INT)n, seed), errcode);
+        vslNewStreamEx(&_stream, (openrng_int_t)brngId, (openrng_int_t)n, seed);
     }
 
-    BaseRNG(const BaseRNG<cpu> & other) : _stream(0)
-    {
-        int errcode = 0;
-        __DAAL_VSLFN_CALL_NR(vslCopyStream, (&_stream, other._stream), errcode);
-    }
+    BaseRNG(const BaseRNG<cpu> & other) : _stream(0) { vslCopyStream(&_stream, other._stream); }
 
-    ~BaseRNG()
-    {
-        daal::services::daal_free((void *)_seed);
-        int errcode = 0;
-        errcode     = vslDeleteStream(&_stream);
-    }
+    ~BaseRNG() { vslDeleteStream(&_stream); }
 
     int getStateSize() const
     {
@@ -306,15 +292,6 @@ public:
     }
 
     void * getState() { return _stream; }
-
-protected:
-    services::Status allocSeeds(const size_t n)
-    {
-        _seedSize = n;
-        _seed     = (unsigned int *)daal::services::daal_malloc(sizeof(unsigned int) * n);
-        DAAL_CHECK_MALLOC(_seed);
-        return services::Status();
-    }
 
 private:
     void * _stream;

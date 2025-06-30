@@ -28,6 +28,9 @@ CORE.SERV.COMPILER.gnu = generic
 -Zl.gnu =
 -DEBC.gnu = -g
 
+-asanstatic.gnu = -static-libasan
+-asanshared.gnu =
+
 pedantic.opts.all.gnu = -pedantic \
                         -Wall \
                         -Wextra \

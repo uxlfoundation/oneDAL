@@ -34,8 +34,8 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string leftDatasetFileName = "../data/batch/kernel_function_csr.csv";
-std::string rightDatasetFileName = "../data/batch/kernel_function_csr.csv";
+const std::string leftDatasetFileName = "../data/batch/kernel_function_csr.csv";
+const std::string rightDatasetFileName = "../data/batch/kernel_function_csr.csv";
 
 /* Kernel algorithm parameters */
 const double sigma = 1.0; /* RBF kernel coefficient */

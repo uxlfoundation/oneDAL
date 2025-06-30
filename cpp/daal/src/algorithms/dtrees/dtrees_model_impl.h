@@ -532,6 +532,7 @@ protected:
         {
             arch->setSharedPtrObj(_impurityTables);
             arch->setSharedPtrObj(_nNodeSampleTables);
+            arch->setSharedPtrObj(_probTbl);
         }
 
         if (onDeserialize) _nTree.set(_serializationData->size());
