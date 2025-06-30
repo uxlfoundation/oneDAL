@@ -1,0 +1,57 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: Nightly-test
+
+on:
+  workflow_run:
+    workflows: [Nightly-build]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+
+  cve-bin-tool-scan:
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository == 'uxlfoundation/oneDAL' && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      security-events: write
+    env:
+      BUILD_FOLDER: "builds"
+    steps:
+      - name: Download oneDAL build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          pattern: "__release*"
+          # W/A (Pt. 1): The `cve-bin-tool-action` uses `actions/checkout`, which cleans up the working
+          #              directory, so the artifacts there will be removed. To avoid this, we store these
+          #              artifacts in a temporary directory and then copy them back later using `build_command`.
+          path: "${{ runner.temp }}/${{ env.BUILD_FOLDER }}"
+      # Remove the `tbb`, as it is not part of the oneDAL library
+      - run: "find ${{ runner.temp }}/${{ env.BUILD_FOLDER }} -type d -name 'tbb' -exec rm -rf {} +"
+      - uses: intel/cve-bin-tool-action@dbccafa2c31e51271ab1cb996e51c6b91670d75b # untagged main
+        with:
+          scan_mode: repo-only
+          exclude_dir: ".git"
+          alerts_based_on_file: true
+          # W/A (Pt. 2): This is not the actual 'build_command'; it just copies the artifacts
+          #              downloaded in the previous step to the working directory
+          build_command: "mv ${{ runner.temp }}/${{ env.BUILD_FOLDER }} ./"
