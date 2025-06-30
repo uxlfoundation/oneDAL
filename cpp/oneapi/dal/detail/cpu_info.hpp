@@ -33,7 +33,7 @@ public:
     std::string dump() const override;
 
 private:
-    detail::unique<cpu_info_iface> impl_;
+    detail::pimpl<cpu_info_iface> impl_;
 };
 
 } // namespace v1
