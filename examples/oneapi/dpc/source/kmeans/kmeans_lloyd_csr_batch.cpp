@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2025 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ void run(sycl::queue &q) {
 
     const auto x_train =
         dal::read<dal::csr_table>(q,
-                                  dal::csv::data_source{ train_data_file_name },
+                                  dal::csv::data_source<double>{ train_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));
@@ -46,20 +46,19 @@ void run(sycl::queue &q) {
 
     const auto x_test =
         dal::read<dal::csr_table>(q,
-                                  dal::csv::data_source{ test_data_file_name },
+                                  dal::csv::data_source<double>{ test_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));
     const auto y_test = dal::read<dal::table>(q, dal::csv::data_source{ test_response_file_name });
 
-    std::cout << "RATATUI 11" << std::endl;
     const auto kmeans_desc = dal::kmeans::descriptor<float, dal::kmeans::method::lloyd_csr>()
                                  .set_cluster_count(20)
                                  .set_max_iteration_count(5)
                                  .set_accuracy_threshold(0.001);
-    std::cout << "RATATUI 12" << std::endl;
+
     const auto result_train = dal::train(q, kmeans_desc, x_train, initial_centroids);
-    std::cout << "RATATUI 13" << std::endl;
+
     std::cout << "Iteration count: " << result_train.get_iteration_count() << std::endl;
     std::cout << "Objective function value: " << result_train.get_objective_function_value()
               << std::endl;

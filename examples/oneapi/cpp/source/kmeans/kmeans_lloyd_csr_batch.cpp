@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2025 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ int main(int argc, char const *argv[]) {
     const auto test_response_file_name = get_data_path("kmeans_dense_test_label.csv");
 
     const auto x_train =
-        dal::read<dal::csr_table>(dal::csv::data_source{ train_data_file_name },
+        dal::read<dal::csr_table>(dal::csv::data_source<double>{ train_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));
@@ -35,13 +35,13 @@ int main(int argc, char const *argv[]) {
         dal::read<dal::table>(dal::csv::data_source{ initial_centroids_file_name });
 
     const auto x_test =
-        dal::read<dal::csr_table>(dal::csv::data_source{ test_data_file_name },
+        dal::read<dal::csr_table>(dal::csv::data_source<double>{ test_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));
     const auto y_test = dal::read<dal::table>(dal::csv::data_source{ test_response_file_name });
 
-    const auto kmeans_desc = dal::kmeans::descriptor<float, dal::kmeans::method::lloyd_csr>()
+    const auto kmeans_desc = dal::kmeans::descriptor<double, dal::kmeans::method::lloyd_csr>()
                                  .set_cluster_count(20)
                                  .set_max_iteration_count(5)
                                  .set_accuracy_threshold(0.001);
