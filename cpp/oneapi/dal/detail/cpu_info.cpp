@@ -32,11 +32,11 @@ namespace v1 {
 cpu_info::cpu_info()
         :
 #if defined(TARGET_X86_64)
-          impl_(std::make_shared<cpu_info_x86>())
+          impl_(new cpu_info_x86)
 #elif defined(TARGET_ARM)
-          impl_(std::make_shared<cpu_info_arm>())
+          impl_(new cpu_info_arm)
 #elif defined(TARGET_RISCV64)
-          impl_(std::make_shared<cpu_info_riscv64>())
+          impl_(new cpu_info_riscv64)
 #endif
 {
 }
@@ -44,11 +44,11 @@ cpu_info::cpu_info()
 cpu_info::cpu_info(const cpu_extension cpu_extension_)
         :
 #if defined(TARGET_X86_64)
-          impl_(std::make_shared<cpu_info_x86>(cpu_extension_))
+          impl_(new cpu_info_x86(cpu_extension_))
 #elif defined(TARGET_ARM)
-          impl_(std::make_shared<cpu_info_arm>(cpu_extension_))
+          impl_(new cpu_info_arm(cpu_extension_))
 #elif defined(TARGET_RISCV64)
-          impl_(std::make_shared<cpu_info_riscv64>(cpu_extension_))
+          impl_(new cpu_info_riscv64(cpu_extension_))
 #endif
 {
 }
