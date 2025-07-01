@@ -32,5 +32,3 @@ Pairwise Distances
 .. rubric:: Examples: Cosine Distance
 
 .. include:: ../../../includes/pairwise-distances/cosine-distance-examples.rst
-   
-
