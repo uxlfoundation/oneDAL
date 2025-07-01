@@ -1,4 +1,4 @@
-.. Copyright 2021 Intel Corporation
+.. Copyright contributors to the oneDAL project
 ..
 .. Licensed under the Apache License, Version 2.0 (the "License");
 .. you may not use this file except in compliance with the License.
@@ -12,16 +12,16 @@
 .. See the License for the specific language governing permissions and
 .. limitations under the License.
 
-==================
-Pairwise Distances
-==================
+.. tabs::
 
-This chapter describes programming interfaces of the pairwise distances implemented in |short_name|:
+  .. group-tab:: oneAPI DPC++
 
-.. toctree::
-   :titlesonly:
+    Batch Processing:
 
-   minkowski-distance.rst
-   chebyshev-distance.rst
-   cosine-distance.rst
-   correlation-distance.rst
+    - :ref:`dpc_correlation_distance_dense_batch.cpp`
+
+  .. group-tab:: oneAPI C++
+
+    Batch Processing:
+
+    - :ref:`cpp_correlation_distance_dense_batch.cpp`
