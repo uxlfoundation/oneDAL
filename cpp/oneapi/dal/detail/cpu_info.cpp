@@ -32,11 +32,11 @@ namespace v1 {
 cpu_info::cpu_info()
         :
 #if defined(TARGET_X86_64)
-          impl_(new cpu_info_x86)
+          impl_(new cpu_info_x86())
 #elif defined(TARGET_ARM)
-          impl_(new cpu_info_arm)
+          impl_(new cpu_info_arm())
 #elif defined(TARGET_RISCV64)
-          impl_(new cpu_info_riscv64)
+          impl_(new cpu_info_riscv64())
 #endif
 {
 }
