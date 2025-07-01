@@ -32,7 +32,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-std::string datasetFileName = "../data/batch/mse.csv";
+const std::string datasetFileName = "../data/batch/mse.csv";
 
 const size_t nIterations = 400;
 const size_t nFeatures = 3;
