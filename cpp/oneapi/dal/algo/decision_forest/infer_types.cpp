@@ -23,9 +23,7 @@ namespace oneapi::dal::decision_forest {
 namespace detail::v1 {
 
 template <typename Task>
-infer_parameters<Task>::infer_parameters()
-        : dal::detail::system_parameters(),
-          impl_(new infer_parameters_impl<Task>{}) {}
+infer_parameters<Task>::infer_parameters() : impl_(new infer_parameters_impl<Task>{}) {}
 
 template <typename Task>
 std::int64_t infer_parameters<Task>::get_block_size() const {

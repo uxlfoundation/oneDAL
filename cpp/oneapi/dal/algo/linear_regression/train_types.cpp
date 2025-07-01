@@ -62,9 +62,7 @@ struct train_parameters_impl : public base {
 };
 
 template <typename Task>
-train_parameters<Task>::train_parameters()
-        : dal::detail::system_parameters(),
-          impl_(new train_parameters_impl<Task>{}) {}
+train_parameters<Task>::train_parameters() : impl_(new train_parameters_impl<Task>{}) {}
 
 template <typename Task>
 std::int64_t train_parameters<Task>::get_cpu_macro_block() const {
