@@ -106,6 +106,21 @@ struct MklStatistics<double, cpu>
     typedef __int64 MethodType;
     typedef int ErrorType;
 
+    static int xmeansOnePass(const double * data, __int64 nFeatures, __int64 nVectors, double * means)
+    {
+        VSLSSTaskPtr task;
+        int errcode = 0;
+
+        __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
+        __DAAL_VSLFN_CALL(vsldSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
+                          errcode);
+        __DAAL_VSLFN_CALL(vsldSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, means), errcode);
+        __DAAL_VSLFN_CALL(vsldSSCompute, (task, __DAAL_VSL_SS_MEAN, VSL_SS_METHOD_1PASS), errcode);
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+
+        return errcode;
+    }
+
     static int xcp(double * data, __int64 nFeatures, __int64 nVectors, double * nPreviousObservations, double * sum, double * crossProduct,
                    __int64 method)
     {
@@ -391,6 +406,21 @@ struct MklStatistics<float, cpu>
     typedef __int64 SizeType;
     typedef __int64 MethodType;
     typedef int ErrorType;
+
+    static int xmeansOnePass(const float * data, __int64 nFeatures, __int64 nVectors, float * means)
+    {
+        VSLSSTaskPtr task;
+        int errcode = 0;
+
+        __int64 dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
+        __DAAL_VSLFN_CALL(vslsSSNewTask, (&task, (const MKL_INT *)&nFeatures, (const MKL_INT *)&nVectors, (const MKL_INT *)&dataStorage, data, 0, 0),
+                          errcode);
+        __DAAL_VSLFN_CALL(vslsSSEditTask, (task, __DAAL_VSL_SS_ED_MEAN, means), errcode);
+        __DAAL_VSLFN_CALL(vslsSSCompute, (task, __DAAL_VSL_SS_MEAN, VSL_SS_METHOD_1PASS), errcode);
+        __DAAL_VSLFN_CALL(vslSSDeleteTask, (&task), errcode);
+
+        return errcode;
+    }
 
     static int xcp(float * data, __int64 nFeatures, __int64 nVectors, float * nPreviousObservations, float * sum, float * crossProduct,
                    __int64 method)

@@ -25,10 +25,19 @@ daal_hyperparameters_t convert_parameters(const detail::train_parameters<Task>& 
 
     const std::int64_t block = params.get_cpu_macro_block();
     const std::int64_t grain_size = params.get_cpu_grain_size();
+    const std::int64_t max_cols_batched = params.get_cpu_max_cols_batched();
+    const std::int64_t small_rows_threshold = params.get_cpu_small_rows_threshold();
+    const std::int64_t small_rows_max_cols_batched = params.get_cpu_small_rows_max_cols_batched();
 
     daal_hyperparameters_t daal_hyperparameter;
     auto status = daal_hyperparameter.set(HyperparameterId::denseUpdateStepBlockSize, block);
     status |= daal_hyperparameter.set(HyperparameterId::denseUpdateStepGrainSize, grain_size);
+    status |=
+        daal_hyperparameter.set(HyperparameterId::denseUpdateMaxColsBatched, max_cols_batched);
+    status |= daal_hyperparameter.set(HyperparameterId::denseUpdateSmallRowsThreshold,
+                                      small_rows_threshold);
+    status |= daal_hyperparameter.set(HyperparameterId::denseUpdateSmallRowsMaxColsBatched,
+                                      small_rows_max_cols_batched);
     dal::backend::interop::status_to_exception(status);
 
     return daal_hyperparameter;

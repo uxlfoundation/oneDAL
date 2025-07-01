@@ -37,8 +37,8 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/decision_tree_train.csv";
-std::string pruneDatasetFileName = "../data/batch/decision_tree_prune.csv";
+const std::string trainDatasetFileName = "../data/batch/decision_tree_train.csv";
+const std::string pruneDatasetFileName = "../data/batch/decision_tree_prune.csv";
 
 const size_t nFeatures = 5; /* Number of features in training and testing data sets */
 

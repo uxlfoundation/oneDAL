@@ -80,7 +80,8 @@ dal_algo_example_suite(
     algos = [
         "basic_statistics",
         "connected_components",
-        "cosine_distance",
+        "correlation_distance",
+        "cosine_distance",      
         "covariance",
         "dbscan",
         "decision_forest",
