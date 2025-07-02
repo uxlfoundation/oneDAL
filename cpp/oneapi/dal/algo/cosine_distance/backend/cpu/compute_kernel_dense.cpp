@@ -62,7 +62,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
                                                                                  2,
                                                                                  daal_input_tables,
                                                                                  1,
-                                                                                 daal_result_table,                                                                                
+                                                                                 daal_result_table,
                                                                                  &param));
 
     return result_t().set_values(
