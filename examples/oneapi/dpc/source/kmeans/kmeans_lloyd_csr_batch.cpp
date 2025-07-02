@@ -37,7 +37,7 @@ void run(sycl::queue &q) {
 
     const auto x_train =
         dal::read<dal::csr_table>(q,
-                                  dal::csv::data_source<double>{ train_data_file_name },
+                                  dal::csv::data_source<float>{ train_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));
@@ -46,7 +46,7 @@ void run(sycl::queue &q) {
 
     const auto x_test =
         dal::read<dal::csr_table>(q,
-                                  dal::csv::data_source<double>{ test_data_file_name },
+                                  dal::csv::data_source<float>{ test_data_file_name },
                                   dal::csv::read_args<dal::csr_table>()
                                       .set_sparse_indexing(dal::sparse_indexing::one_based)
                                       .set_feature_count(20));

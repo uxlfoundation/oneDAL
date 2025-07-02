@@ -23,10 +23,6 @@
 
 #endif
 
-#include <fstream>
-#include <sstream>
-#include <vector>
-
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"

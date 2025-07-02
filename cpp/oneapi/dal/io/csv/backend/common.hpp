@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <fstream>
+#include <sstream>
+#include <vector>
+
 #include "oneapi/dal/io/csv/common.hpp"
 
 namespace oneapi::dal::csv::backend {
