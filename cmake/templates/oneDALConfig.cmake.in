@@ -48,7 +48,7 @@ else()
     set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
 endif()
 
-#Backward compatibility section to be removed with next major version
+# TODO Backward compatibility section to be removed with next major version
 if(NOT DEFINED ONEDAL_LINK AND DEFINED TARGET_LINK)
   message(STATUS "TARGET_LINK is deprecated. Please use ONEDAL_LINK instead.")
   set(ONEDAL_LINK ${TARGET_LINK})
@@ -64,6 +64,16 @@ endif()
 if(NOT DEFINED ONEDAL_SET_TBB_MANUALLY AND DEFINED SET_TBB_MANUALLY)
   message(STATUS "SET_TBB_MANUALLY is deprecated. Please use ONEDAL_SET_TBB_MANUALLY instead.")
   set(ONEDAL_SET_TBB_MANUALLY ${SET_TBB_MANUALLY})
+endif()
+
+if(NOT DEFINED OPENBLAS_LIB_PATH)
+    set(OPENBLAS_LIB_PATH "$ENV{OPENBLASROOT}/lib/libopenblas.a" CACHE FILEPATH "Path to OpenBLAS static library")
+endif()
+
+if(REF_DEPENDENCY STREQUAL "yes")
+    if(NOT EXISTS "${OPENBLAS_LIB_PATH}")
+        message(FATAL_ERROR "OpenBLAS static library not found at ${OPENBLAS_LIB_PATH}")
+    endif()
 endif()
 
 if ("${REF_BACKEND}" STREQUAL "" OR "${REF_BACKEND}" STREQUAL "OFF")
@@ -158,9 +168,10 @@ if(MKL_DEPENDENCY STREQUAL "yes")
 endif()
 
 if(REF_DEPENDENCY STREQUAL "yes")
-    add_library(OpenBLAS::OpenBLAS STATIC IMPORTED)
+    add_library(OpenBLAS::OpenBLAS STATIC IMPORTED GLOBAL)
     set_target_properties(OpenBLAS::OpenBLAS PROPERTIES
-        IMPORTED_LOCATION "${OPENBLAS_CACHE_DIR}/lib/libopenblas.a"
+        IMPORTED_LOCATION "${OPENBLAS_LIB_PATH}"
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OPENBLASROOT}/include"
     )
     set(BLAS_INTERFACE "openblas")
     list(APPEND oneDAL_IMPORTED_TARGETS OpenBLAS::OpenBLAS)

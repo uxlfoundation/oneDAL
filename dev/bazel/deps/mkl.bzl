@@ -21,9 +21,9 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "include",
     ],
     libs = [
-        "lib/libmkl_core.a",
-        "lib/libmkl_intel_ilp64.a",
-        "lib/libmkl_tbb_thread.a",
+        "lib/libmkl_core.so",
+        "lib/libmkl_intel_ilp64.so",
+        "lib/libmkl_tbb_thread.so",
         "lib/libmkl_sycl.so",
         "lib/libmkl_sycl_blas.so",
         "lib/libmkl_sycl_lapack.so",
