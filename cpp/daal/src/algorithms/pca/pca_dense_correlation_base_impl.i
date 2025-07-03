@@ -188,10 +188,14 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // SYEVR branch
     // In this case, we compute only nComponents eigenvectors and then sort them in descending order
     // inside the 'computeEigenvectorsInplaceSyevr' function
-    if (nComponents < nFeatures)
+    if (nComponents < 0.5 * nFeatures)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
+
+        s = sortEigenvectorsDescending(nFeatures, nComponents, matrixArray, eigenvaluesArray);
+        DAAL_CHECK_STATUS_VAR(s);
+
         copyArray(nFeatures * nComponents, matrixArray, eigenvectorsArray);
         return s;
     }
@@ -203,11 +207,10 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
         services::Status s = computeEigenvectorsInplace(nFeatures, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
 
-        s = sortEigenvectorsDescending(nFeatures, matrixArray, eigenvaluesArray);
+        s = sortEigenvectorsDescending(nFeatures, nFeatures, matrixArray, eigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
 
         copyArray(nFeatures * nComponents, matrixArray, eigenvectorsArray);
-
         return s;
     }
 }
@@ -255,11 +258,11 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT lwork  = -1;
     DAAL_INT liwork = -1;
 
-    TArray<DAAL_INT, cpu> dummy_isuppz(2);
-    DAAL_CHECK_MALLOC(dummy_isuppz.get());
+    TArray<DAAL_INT, cpu> isuppz(2 * nComponents);
+    DAAL_CHECK_MALLOC(isuppz.get());
 
     LapackInst<algorithmFPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)(&nFeatures), eigenvectors, (DAAL_INT *)(&nFeatures), nullptr, nullptr,
-                                             &il, &iu, &abstol, &m, nullptr, nullptr, (DAAL_INT *)(&nFeatures), dummy_isuppz.get(), &work_query,
+                                             &il, &iu, &abstol, &m, nullptr, nullptr, (DAAL_INT *)(&nFeatures), isuppz.get(), &work_query,
                                              &lwork, &iwork_query, &liwork, &info);
 
     lwork  = static_cast<DAAL_INT>(work_query);
@@ -267,15 +270,10 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
 
     TArray<algorithmFPType, cpu> work(lwork);
     TArray<DAAL_INT, cpu> iwork(liwork);
-    TArray<DAAL_INT, cpu> isuppz(2 * nComponents);
-    DAAL_CHECK_MALLOC(work.get() && iwork.get() && isuppz.get());
-
-    TArray<algorithmFPType, cpu> temp_eigenvalues(nFeatures);
-    TArray<algorithmFPType, cpu> temp_eigenvectors(nFeatures * nFeatures);
-    DAAL_CHECK_MALLOC(temp_eigenvalues.get() && temp_eigenvectors.get());
+    DAAL_CHECK_MALLOC(work.get() && iwork.get());
 
     LapackInst<algorithmFPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)(&nFeatures), eigenvectors, (DAAL_INT *)(&nFeatures), nullptr, nullptr,
-                                             &il, &iu, &abstol, &m, temp_eigenvalues.get(), temp_eigenvectors.get(), (DAAL_INT *)(&nFeatures),
+                                             &il, &iu, &abstol, &m, eigenvalues, eigenvectors, (DAAL_INT *)(&nFeatures),
                                              isuppz.get(), work.get(), &lwork, iwork.get(), &liwork, &info);
 
     if (info != 0 || m != static_cast<DAAL_INT>(nComponents))
@@ -283,37 +281,28 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
         return services::Status(services::ErrorPCAFailedToComputeCorrelationEigenvalues);
     }
 
-    for (size_t i = 0; i < nComponents; ++i)
-    {
-        size_t idx     = nComponents - 1 - i;
-        eigenvalues[i] = temp_eigenvalues[idx];
-        for (size_t j = 0; j < nFeatures; ++j)
-        {
-            eigenvectors[j + i * nFeatures] = temp_eigenvectors[j + idx * nFeatures];
-        }
-    }
-
     return services::Status();
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDescending(size_t nFeatures, algorithmFPType * eigenvectors,
+services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDescending(size_t nFeatures, size_t nComponents,
+                                                                                      algorithmFPType * eigenvectors,
                                                                                       algorithmFPType * eigenvalues)
 {
-    for (size_t i = 0; i < nFeatures / 2; i++)
+    for (size_t i = 0; i < nComponents / 2; i++)
     {
         const algorithmFPType tmp      = eigenvalues[i];
-        eigenvalues[i]                 = eigenvalues[nFeatures - 1 - i];
-        eigenvalues[nFeatures - 1 - i] = tmp;
+        eigenvalues[i]                 = eigenvalues[nComponents - 1 - i];
+        eigenvalues[nComponents - 1 - i] = tmp;
     }
 
     TArray<algorithmFPType, cpu> eigenvectorTmp(nFeatures);
     DAAL_CHECK_MALLOC(eigenvectorTmp.get());
-    for (size_t i = 0; i < nFeatures / 2; i++)
+    for (size_t i = 0; i < nComponents / 2; i++)
     {
         copyArray(nFeatures, eigenvectors + i * nFeatures, eigenvectorTmp.get());
-        copyArray(nFeatures, eigenvectors + nFeatures * (nFeatures - 1 - i), eigenvectors + i * nFeatures);
-        copyArray(nFeatures, eigenvectorTmp.get(), eigenvectors + nFeatures * (nFeatures - 1 - i));
+        copyArray(nFeatures, eigenvectors + nFeatures * (nComponents - 1 - i), eigenvectors + i * nFeatures);
+        copyArray(nFeatures, eigenvectorTmp.get(), eigenvectors + nFeatures * (nComponents - 1 - i));
     }
     return services::Status();
 }
