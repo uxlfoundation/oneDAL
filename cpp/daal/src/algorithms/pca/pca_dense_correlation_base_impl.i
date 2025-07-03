@@ -247,7 +247,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT m;
     DAAL_INT info;
 
-    algorithmFPType abstol = 2.0 * std::numeric_limits<algorithmFPType>::min();
+    algorithmFPType abstol = -1;
 
     // Workspace query
     algorithmFPType work_query;

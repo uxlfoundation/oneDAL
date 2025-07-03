@@ -73,16 +73,19 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const
     ReadRows<algorithmFPType, cpu> variancesBlock(const_cast<data_management::NumericTable &>(variances), 0, 1);
     DAAL_CHECK_BLOCK_STATUS(variancesBlock);
     const algorithmFPType * const variancesBlockArray = variancesBlock.get();
-    double noiseVariance                              = 0.0;
+    double totalVariance = 0.0;
     for (size_t i = 0; i < nColumns; i++)
     {
-        noiseVariance += variancesBlockArray[i];
+        totalVariance += variancesBlockArray[i];
     }
 
+    double explainedVariance = 0.0;
     for (size_t i = 0; i < nComponents; i++)
     {
-        noiseVariance -= eigenValuesArray[i];
+        explainedVariance += eigenValuesArray[i];
     }
+
+    double noiseVariance = totalVariance - explainedVariance;
     if(nColumns <= nComponents)
         {
             services::throwIfPossible(services::Status(services::ErrorIncorrectParameter));
