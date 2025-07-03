@@ -49,7 +49,21 @@ sycl::event distance<Float, correlation_metric<Float>>::operator()(
     const ndview<Float, 1>& inp2_norms,
     const event_vector& deps) const {
     auto ip_event = compute_cosine_inner_product(q_, inp1, inp2, out, deps);
-    return finalize_cosine(q_, inp1_norms, inp2_norms, out, { ip_event });
+    auto correlation_event = finalize_cosine(q_, inp1_norms, inp2_norms, out, { ip_event });
+    const auto n = out.get_dimension(0);
+    const auto p = out.get_dimension(1);
+    auto* out_ptr = out.get_mutable_data();
+    auto out_stride = out.get_leading_stride();
+    auto out_range = make_range_2d(n, p);
+    return q_.submit([&](sycl::handler& h) {
+        h.depends_on({ correlation_event });
+        h.parallel_for(out_range, [=](sycl::id<2> idx) {
+            const auto offset = idx[0] * out_stride + idx[1];
+            if (std::isnan(out_ptr[offset]) ||
+                (std::isnan(out_ptr[offset]) && std::signbit(out_ptr[offset])))
+                out_ptr[offset] = 1.0;
+        });
+    });
 }
 
 template <typename Float>

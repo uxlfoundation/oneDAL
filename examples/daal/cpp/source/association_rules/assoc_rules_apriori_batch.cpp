@@ -33,7 +33,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string datasetFileName = "../data/batch/apriori.csv";
+const std::string datasetFileName = "../data/batch/apriori.csv";
 
 /* Apriori algorithm parameters */
 const double minSupport = 0.001; /* Minimum support */
