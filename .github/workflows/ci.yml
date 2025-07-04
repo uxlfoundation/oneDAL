@@ -35,9 +35,16 @@ concurrency:
 
 jobs:
   LinuxMakeDPCPP:
-    name: LinuxMakeDPCPP(AVX512)
     if: github.repository == 'uxlfoundation/oneDAL'
-    runs-on: uxl-gpu-4xlarge
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ISA: avx2
+            runner: ubuntu-24.04
+
+    runs-on: ${{ matrix.runner }}
+    name: LinuxMakeDPCPP(${{ matrix.ISA }})
     timeout-minutes: 120
 
     steps:
@@ -67,34 +74,42 @@ jobs:
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target daal --debug symbols --jobs 20
-           cp -r __work __work_daal
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
+          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
       - name: Make onedal debug
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --debug symbols --jobs 20
-          cp -r __release_lnx __release_lnx_main
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
+          # clean up build directory due to space limitations
+          rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Prepare Cache build
+        if: github.event_name != 'pull_request'
+        run: cp -r __release_lnx __release_lnx_main
       - name: Cache build
         if: github.event_name != 'pull_request'
         uses: actions/cache/save@v4
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
           path: ./__release_lnx_main
+      - name: Remove Cache build
+        if: github.event_name != 'pull_request'
+        run: rm -rf __release_lnx_main
       - name: Archive build
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: __release_lnx
-          path: ./__release_lnx_main
+          path: ./__release_lnx
       - name: Make onedal
+        if: matrix.runner != 'ubuntu-24.04'
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
           rm -rf __work
           mv __work_daal __work
-          .ci/scripts/build.sh --compiler icx  --optimizations avx512 --target onedal --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -104,6 +119,7 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/cpp --build-system cmake
       - name: oneapi/dpc examples
+        if: matrix.runner != 'ubuntu-24.04'
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
@@ -113,13 +129,13 @@ jobs:
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
   LinuxABICheck:
-    name: ABI Conformance(AVX512)
+    name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
     if: |
       github.repository == 'uxlfoundation/oneDAL' &&
       github.event_name == 'pull_request' &&
       ! contains(toJson(github.event.pull_request.labels.*.name), '"API/ABI breaking change"')
-    runs-on: uxl-xlarge
+    runs-on: ubuntu-24.04
     env:
       LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE: ${{ github.workspace }}/.github/.abignore
     timeout-minutes: 20
