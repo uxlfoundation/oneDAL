@@ -153,6 +153,9 @@ public:
     /* I/O */
     MSG(file_not_found);
     MSG(unsupported_read_mode);
+    MSG(invalid_sparse_indexing);
+    MSG(invalid_csr_format);
+    MSG(invalid_feature_count);
 
     /* Serialization */
     MSG(object_is_not_serializable);
