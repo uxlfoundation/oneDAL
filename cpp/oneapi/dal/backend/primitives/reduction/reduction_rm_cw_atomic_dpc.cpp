@@ -147,6 +147,11 @@ sycl::event reduction_rm_cw_atomic<Float, BinaryOp, UnaryOp>::operator()(
     const UnaryOp& unary,
     const event_vector& deps,
     const bool override_init) const {
+    throw unimplemented(dal::detail::error_messages::method_not_implemented());
+
+    /*
+    TODO: This implementation contains a bug that prevents it from working correctly.
+          It is commented out to avoid compilation errors, but it should be fixed in the future.
     event_vector new_deps{ deps };
     if (override_init) {
         auto view = ndview<Float, 1>::wrap(output, { width });
@@ -162,6 +167,7 @@ sycl::event reduction_rm_cw_atomic<Float, BinaryOp, UnaryOp>::operator()(
                                                                                  unary,
                                                                                  new_deps);
     return res;
+    */
 }
 
 template <typename Float, typename BinaryOp, typename UnaryOp>
