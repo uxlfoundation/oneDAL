@@ -20,6 +20,7 @@
 #define __SERVICE_TOPO_H__
 
 #include "services/daal_defines.h"
+
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
     #if defined(__linux__) || defined(__FreeBSD__)
@@ -202,11 +203,12 @@ struct CPUIDinfox
     unsigned __int32 subleaf_max = 0;
 };
 
-typedef struct
+struct GenericAffinityMask
 {
+    GenericAffinityMask() : AffinityMask(nullptr), maxByteLength(0) {}
     unsigned maxByteLength;
     unsigned char * AffinityMask;
-} GenericAffinityMask;
+};
 // The width of affinity mask in legacy Windows API is 32 or 64, depending on
 // 32-bit or 64-bit OS.
 // Linux abstract its equivalent bitmap cpumask_t from direct programmer access,
@@ -229,22 +231,25 @@ typedef struct
 
 struct Dyn2Arr_str
 {
-    unsigned dim[2];        // xdim and ydim
-    unsigned * data = NULL; // data array to be malloc'd
+    Dyn2Arr_str() : data(nullptr) {}
+    unsigned dim[2]; // xdim and ydim
+    unsigned * data; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
-    unsigned dim[1];        // xdim
-    unsigned * data = NULL; // data array to be malloc'd
+    Dyn1Arr_str() : data(nullptr) {}
+    unsigned dim[1]; // xdim
+    unsigned * data; // data array to be malloc'd
 };
 
-typedef struct
+struct DynCharBuf_str
 {
+    DynCharBuf_str() : size(0), used(0), buffer(nullptr) {}
     int size;
     int used;
     char * buffer;
-} DynCharBuf_str;
+};
 
 typedef struct
 {
@@ -284,7 +289,7 @@ typedef struct
 struct glktsn
 { // for each logical processor we need spaces to store APIC ID,
     // sub IDs, affinity mappings, etc.
-    idAffMskOrdMapping_t * pApicAffOrdMapping = NULL;
+    idAffMskOrdMapping_t * pApicAffOrdMapping;
 
     // workspace for storing hierarchical counts of each level
     Dyn1Arr_str perPkg_detectedCoresCount;
@@ -334,6 +339,7 @@ struct glktsn
 
     void FreeArrays();
 
+    glktsn() : pApicAffOrdMapping(nullptr), cpuid_values(nullptr) {}
     ~glktsn() { FreeArrays(); }
 };
 
