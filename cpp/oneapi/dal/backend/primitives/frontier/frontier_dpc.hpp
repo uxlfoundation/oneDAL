@@ -54,9 +54,10 @@ struct frontier_view {
 template <typename ElementType = std::uint32_t, sycl::usm::alloc Alloc = sycl::usm::alloc::shared>
 class frontier {
     using bitmap_t = ElementType;
+    using buffer_t = std::uint32_t;
 
 public:
-    frontier(sycl::queue& queue, std::size_t num_items) : _queue(queue) {
+    frontier(sycl::queue& queue, std::size_t num_items) : _queue(queue), _num_items(num_items) {
         auto array_size =
             (num_items + bitset<bitmap_t>::element_bitsize - 1) / bitset<bitmap_t>::element_bitsize;
         auto mlb_size = (array_size + bitset<bitmap_t>::element_bitsize - 1) /
@@ -80,24 +81,19 @@ public:
         _offsets = std::move(offsets);
     }
 
-    frontier_view<bitmap_t> get_device_view() {
+    frontier_view<bitmap_t> get_device_view() const {
+        auto offsets_size_pointer = _offsets.get_mutable_data();
+        auto offsets_pointer = _offsets.get_mutable_data() + 1;
+
         return frontier_view<bitmap_t>(this->get_data_layer(),
                                        this->get_mlb_layer(),
-                                       this->get_offsets(),
-                                       this->get_offsets_size(),
+                                       offsets_pointer,
+                                       offsets_size_pointer,
                                        _data_layer.get_count());
     }
 
     bitmap_t* get_data_layer() const {
         return _data_layer.get_mutable_data();
-    }
-
-    size_t get_data_layer_size() const {
-        return _data_layer.get_count();
-    }
-
-    size_t get_mlb_layer_size() const {
-        return _mlb_layer.get_count();
     }
 
     bitmap_t* get_mlb_layer() const {
@@ -108,13 +104,25 @@ public:
         return _offsets.get_mutable_data() + 1;
     }
 
-    std::uint32_t* get_offsets_size() const {
-        return _offsets.get_mutable_data();
+    size_t get_data_layer_size() const {
+        return _data_layer.get_count();
+    }
+
+    size_t get_mlb_layer_size() const {
+        return _mlb_layer.get_count();
+    }
+
+    size_t get_offsets_size() const {
+        return _offsets.get_count() - 1;
+    }
+
+    size_t get_num_items() const {
+        return _num_items;
     }
 
     bool empty() const {
         auto empty_buff = _buffer.slice(0, 1);
-        fill(_queue, empty_buff, bitmap_t(0)).wait();
+        fill(_queue, empty_buff, buffer_t(0)).wait();
         auto empty_buff_ptr = empty_buff.get_mutable_data();
 
         auto e = _queue.submit([&](sycl::handler& cgh) {
@@ -140,16 +148,42 @@ public:
             .single_task([=]() {
                 view.insert(idx);
             })
-            .wait();
+            .wait_and_throw();
+    }
+
+    bool check(bitmap_t idx) const {
+        auto check_buff = _buffer.slice(0, 1);
+        fill(_queue, check_buff, buffer_t(0)).wait();
+        auto check_buff_ptr = check_buff.get_mutable_data();
+
+        auto e = _queue.submit([&](sycl::handler& cgh) {
+            auto view = this->get_device_view();
+
+            cgh.single_task([=]() {
+                check_buff_ptr[0] = view.check(idx) ? buffer_t(1) : buffer_t(0);
+            });
+        });
+        auto check_res = check_buff.at_device(_queue, 0, { e });
+        return check_res == buffer_t(1);
+    }
+
+    void clear() {
+        auto e = fill(_queue, _data_layer, bitmap_t(0));
+        auto e1 = fill(_queue, _mlb_layer, bitmap_t(0));
+        auto e2 = fill(_queue, _offsets, buffer_t(0));
+        e.wait_and_throw();
+        e1.wait_and_throw();
+        e2.wait_and_throw();
     }
 
 private:
     sycl::queue& _queue;
+    size_t _num_items;
 
     ndarray<bitmap_t, 1> _data_layer;
     ndarray<bitmap_t, 1> _mlb_layer;
     ndarray<std::uint32_t, 1> _offsets;
-    ndarray<std::uint32_t, 1> _buffer;
+    ndarray<buffer_t, 1> _buffer;
 };
 
 } // namespace oneapi::dal::backend::primitives

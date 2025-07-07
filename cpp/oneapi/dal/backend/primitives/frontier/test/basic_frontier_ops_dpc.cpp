@@ -36,9 +36,6 @@ TEST("frontier basic operations", "[frontier]") {
         auto data_layer = f.get_data_layer();
         auto mlb_layer = f.get_mlb_layer();
 
-        std::cout << "Data layer size: " << data_layer[0] << std::endl;
-        std::cout << "MLB layer size: " << mlb_layer[0] << std::endl;
-
         REQUIRE(data_layer[0] == static_cast<uint32_t>(5));
         REQUIRE(data_layer[1] == static_cast<uint32_t>(1));
         REQUIRE(mlb_layer[0] == static_cast<uint32_t>(3));
@@ -64,7 +61,7 @@ TEST("frontier basic operations", "[frontier]") {
 
 } // TEST "frontier basic operations"
 
-TEST("frontier queue operations", "[frontier]") {
+TEST("frontier queue basic operations", "[frontier]") {
     sycl::queue queue{ sycl::default_selector_v };
 
     const std::size_t num_items = 100;
@@ -91,6 +88,21 @@ TEST("frontier queue operations", "[frontier]") {
         REQUIRE(data_layer[0] == static_cast<uint32_t>(5));
         REQUIRE(data_layer[1] == static_cast<uint32_t>(1));
         REQUIRE(mlb_layer[0] == static_cast<uint32_t>(3));
+    }
+
+    SECTION("check function", "[frontier]") {
+        f.insert(0);
+        REQUIRE(f.check(0) == true);
+        REQUIRE(f.check(1) == false);
+    }
+
+    SECTION("clear function", "[frontier]") {
+        f.insert(0);
+        f.insert(2);
+        f.insert(bitset<std::uint32_t>::element_bitsize);
+        REQUIRE(f.empty() == false);
+        f.clear();
+        REQUIRE(f.empty() == true);
     }
 
 } // TEST "frontier queue operations"
