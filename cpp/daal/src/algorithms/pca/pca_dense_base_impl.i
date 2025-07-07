@@ -62,7 +62,7 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeExplainedVariancesRa
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const data_management::NumericTable & eigenvalues,
-                                                                           const data_management::NumericTable & variances, double & noise_variance)
+                                                                           const data_management::NumericTable & variances, double & noiseVariance)
 {
     const size_t nComponents = eigenvalues.getNumberOfColumns();
     const size_t nColumns    = variances.getNumberOfColumns();
@@ -73,7 +73,7 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const
     ReadRows<algorithmFPType, cpu> variancesBlock(const_cast<data_management::NumericTable &>(variances), 0, 1);
     DAAL_CHECK_BLOCK_STATUS(variancesBlock);
     const algorithmFPType * const variancesBlockArray = variancesBlock.get();
-    double totalVariance = 0.0;
+    double totalVariance                              = 0.0;
     for (size_t i = 0; i < nColumns; i++)
     {
         totalVariance += variancesBlockArray[i];
@@ -85,12 +85,7 @@ services::Status PCADenseBase<algorithmFPType, cpu>::computeNoiseVariances(const
         explainedVariance += eigenValuesArray[i];
     }
 
-    double noiseVariance = totalVariance - explainedVariance;
-    if(nColumns <= nComponents)
-        {
-            services::throwIfPossible(services::Status(services::ErrorIncorrectParameter));
-        }
-    noise_variance = noiseVariance / (nColumns - nComponents);
+    noiseVariance = (totalVariance - explainedVariance) / (nColumns - nComponents);
     return services::Status();
 }
 
