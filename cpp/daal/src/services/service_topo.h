@@ -194,20 +194,19 @@ typedef struct dcache_str
 
 typedef struct
 {
-    unsigned __int32 EAX, EBX, ECX, EDX;
+    unsigned __int32 EAX = 0, EBX = 0, ECX = 0, EDX = 0;
 } CPUIDinfo;
 
 struct CPUIDinfox
 {
-    CPUIDinfo * subleaf[MAX_CACHE_SUBLEAFS];
-    unsigned __int32 subleaf_max = 0;
+    CPUIDinfo * subleaf[MAX_CACHE_SUBLEAFS] = {};
+    unsigned __int32 subleaf_max            = 0;
 };
 
 struct GenericAffinityMask
 {
-    GenericAffinityMask() : AffinityMask(nullptr), maxByteLength(0) {}
-    unsigned maxByteLength;
-    unsigned char * AffinityMask;
+    unsigned maxByteLength       = 0;
+    unsigned char * AffinityMask = nullptr;
 };
 // The width of affinity mask in legacy Windows API is 32 or 64, depending on
 // 32-bit or 64-bit OS.
@@ -231,24 +230,21 @@ typedef struct
 
 struct Dyn2Arr_str
 {
-    Dyn2Arr_str() : data(nullptr) {}
-    unsigned dim[2]; // xdim and ydim
-    unsigned * data; // data array to be malloc'd
+    unsigned dim[2] = { 0 };   // xdim and ydim
+    unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
-    Dyn1Arr_str() : data(nullptr) {}
-    unsigned dim[1]; // xdim
-    unsigned * data; // data array to be malloc'd
+    unsigned dim[1] = { 0 };   // xdim
+    unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct DynCharBuf_str
 {
-    DynCharBuf_str() : size(0), used(0), buffer(nullptr) {}
-    int size;
-    int used;
-    char * buffer;
+    int size      = 0;
+    int used      = 0;
+    char * buffer = nullptr; // buffer to be malloc'd
 };
 
 typedef struct
@@ -289,7 +285,7 @@ typedef struct
 struct glktsn
 { // for each logical processor we need spaces to store APIC ID,
     // sub IDs, affinity mappings, etc.
-    idAffMskOrdMapping_t * pApicAffOrdMapping;
+    idAffMskOrdMapping_t * pApicAffOrdMapping = nullptr;
 
     // workspace for storing hierarchical counts of each level
     Dyn1Arr_str perPkg_detectedCoresCount;
@@ -328,7 +324,7 @@ struct glktsn
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    CPUIDinfox * cpuid_values;
+    CPUIDinfox * cpuid_values = nullptr;
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
@@ -339,7 +335,6 @@ struct glktsn
 
     void FreeArrays();
 
-    glktsn() : pApicAffOrdMapping(nullptr), cpuid_values(nullptr) {}
     ~glktsn() { FreeArrays(); }
 };
 
