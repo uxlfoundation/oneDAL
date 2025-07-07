@@ -151,9 +151,8 @@ result_t train_kernel_svd_impl<Float>::operator()(const descriptor_t& desc, cons
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
-        auto vars_host = vars.to_host(q_);
         auto explained_variances_ratio =
-            compute_explained_variances_on_host(q_, eigenvalues, vars_host, { gesvd_event });
+            compute_explained_variances(q_, eigenvalues, vars, { gesvd_event });
         result.set_explained_variances_ratio(
             homogen_table::wrap(explained_variances_ratio.flatten(), 1, component_count));
     }

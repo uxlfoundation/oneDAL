@@ -76,7 +76,7 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
         }
 
         if (desc.get_deterministic()) {
-            sign_flip_gpu(q_, flipped_eigenvectors, {});
+            sign_flip(q_, flipped_eigenvectors, {}).wait_and_throw();
         }
 
         if (desc.get_result_options().test(result_options::eigenvectors)) {

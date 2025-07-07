@@ -128,10 +128,8 @@ result_t train_kernel_cov_impl<Float>::operator()(const descriptor_t& desc, cons
     // doesn't benefit much from parallelization on the device (GPU/accelerator).
     // This avoids unnecessary overhead from device-side execution.
     if (desc.get_result_options().test(result_options::noise_variance)) {
-        auto eigvals_host_tmp = eigvals.to_host(q_, { syevd_event });
         auto range = std::min(row_count, column_count) - component_count;
-        auto noise_variance =
-            compute_noise_variance_on_host(q_, eigvals_host_tmp, range, { syevd_event });
+        auto noise_variance = compute_noise_variance(q_, eigvals, range, { syevd_event });
         result.set_noise_variance(noise_variance);
     }
 
@@ -145,20 +143,20 @@ result_t train_kernel_cov_impl<Float>::operator()(const descriptor_t& desc, cons
 
     if (desc.get_result_options().test(result_options::singular_values)) {
         auto singular_values =
-            compute_singular_values_on_gpu(q_, flipped_eigvals, rows_count_global, { syevd_event });
+            compute_singular_values(q_, flipped_eigvals, rows_count_global, { syevd_event });
         result.set_singular_values(
             homogen_table::wrap(singular_values.flatten(q_), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
         auto explained_variances_ratio =
-            compute_explained_variances_on_gpu(q_, flipped_eigvals, vars, { syevd_event });
+            compute_explained_variances(q_, flipped_eigvals, vars, { syevd_event });
         result.set_explained_variances_ratio(
             homogen_table::wrap(explained_variances_ratio.flatten(q_), 1, component_count));
     }
 
     if (desc.get_deterministic()) {
-        sign_flip_gpu(q_, flipped_eigenvectors, {});
+        sign_flip(q_, flipped_eigenvectors, {}).wait_and_throw();
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
