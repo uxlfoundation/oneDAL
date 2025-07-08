@@ -20,9 +20,9 @@
 
 #include "src/externals/service_math.h"
 #if defined(TARGET_ARM)
-#if (__CPUID__(DAAL_CPU) == __sve__)
-#include <arm_sve.h>  
-#endif
+    #if (__CPUID__(DAAL_CPU) == __sve__)
+        #include <arm_sve.h>
+    #endif
 #endif
 namespace daal
 {
@@ -94,16 +94,14 @@ services::Status HelperKernelRBF<algorithmFPType, cpu>::postGemmPart(algorithmFP
 
 // SVE implementation for RBF kernel post-GEMM part
 #if defined(TARGET_ARM)
-#if (__CPUID__(DAAL_CPU) == __sve__)
-
+    #if (__CPUID__(DAAL_CPU) == __sve__)
 
 //SVE implementation for RBF kernel post-GEMM part double data type
 template <>
 inline services::Status HelperKernelRBF<double, sve>::postGemmPart(double * const mklBuff, const double * const sqrA1i, const double sqrA2i,
-                                                                  const double coeff, const double expExpThreshold, const size_t n,
-                                                                  double * const dataRBlock)
-{   
-
+                                                                   const double coeff, const double expExpThreshold, const size_t n,
+                                                                   double * const dataRBlock)
+{
     const size_t step = svcntd();
 
     svfloat64_t negTwoVec    = svdup_f64(-2.0);
@@ -111,62 +109,48 @@ inline services::Status HelperKernelRBF<double, sve>::postGemmPart(double * cons
     svfloat64_t coeffVec     = svdup_f64(coeff);
     svfloat64_t thresholdVec = svdup_f64(expExpThreshold);
 
-    svbool_t pg = svptrue_b64(); 
-    size_t i = 0;
+    svbool_t pg = svptrue_b64();
+    size_t i    = 0;
 
     // Unrolled loop - 3x
-    for (; i + 3 * step <= n; i += 3 * step) {
+    for (; i + 3 * step <= n; i += 3 * step)
+    {
         // Block 1
-        svfloat64_t mklVec = svld1(pg, &mklBuff[i]);
+        svfloat64_t mklVec   = svld1(pg, &mklBuff[i]);
         svfloat64_t sqrA1Vec = svld1(pg, &sqrA1i[i]);
-        svfloat64_t tmp = svmul_f64_x(pg,
-                              svadd_f64_x(pg,
-                                          svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec),
-                                          sqrA2iVec),
-                              coeffVec);
-        svbool_t mask = svcmpgt_f64(pg, tmp, thresholdVec);
-        tmp = svsel_f64(mask, tmp, thresholdVec);
+        svfloat64_t tmp      = svmul_f64_x(pg, svadd_f64_x(pg, svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
+        svbool_t mask        = svcmpgt_f64(pg, tmp, thresholdVec);
+        tmp                  = svsel_f64(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i], tmp);
 
         // Block 2
-        mklVec = svld1(pg, &mklBuff[i + step]);
+        mklVec   = svld1(pg, &mklBuff[i + step]);
         sqrA1Vec = svld1(pg, &sqrA1i[i + step]);
-        tmp = svmul_f64_x(pg,
-                  svadd_f64_x(pg,
-                              svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec),
-                              sqrA2iVec),
-                  coeffVec);
-        mask = svcmpgt_f64(pg, tmp, thresholdVec);
-        tmp = svsel_f64(mask, tmp, thresholdVec);
+        tmp      = svmul_f64_x(pg, svadd_f64_x(pg, svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
+        mask     = svcmpgt_f64(pg, tmp, thresholdVec);
+        tmp      = svsel_f64(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + step], tmp);
 
         // Block 3
-        mklVec = svld1(pg, &mklBuff[i + 2 * step]);
+        mklVec   = svld1(pg, &mklBuff[i + 2 * step]);
         sqrA1Vec = svld1(pg, &sqrA1i[i + 2 * step]);
-        tmp = svmul_f64_x(pg,
-                  svadd_f64_x(pg,
-                              svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec),
-                              sqrA2iVec),
-                  coeffVec);
-        mask = svcmpgt_f64(pg, tmp, thresholdVec);
-        tmp = svsel_f64(mask, tmp, thresholdVec);
+        tmp      = svmul_f64_x(pg, svadd_f64_x(pg, svmla_f64_x(pg, sqrA1Vec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
+        mask     = svcmpgt_f64(pg, tmp, thresholdVec);
+        tmp      = svsel_f64(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + 2 * step], tmp);
     }
 
-    // Tail loop 
-    for (; i < n; i += step) {
-        svbool_t tail_pg = svwhilelt_b64(i, n);
-        svfloat64_t mklVec = svld1(tail_pg, &mklBuff[i]);
+    // Tail loop
+    for (; i < n; i += step)
+    {
+        svbool_t tail_pg     = svwhilelt_b64(i, n);
+        svfloat64_t mklVec   = svld1(tail_pg, &mklBuff[i]);
         svfloat64_t sqrA1Vec = svld1(tail_pg, &sqrA1i[i]);
 
-        svfloat64_t tmp = svmul_f64_x(tail_pg,
-                              svadd_f64_x(tail_pg,
-                                          svmla_f64_x(tail_pg, sqrA1Vec, mklVec, negTwoVec),
-                                          sqrA2iVec),
-                              coeffVec);
+        svfloat64_t tmp = svmul_f64_x(tail_pg, svadd_f64_x(tail_pg, svmla_f64_x(tail_pg, sqrA1Vec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
 
         svbool_t mask = svcmpgt_f64(tail_pg, tmp, thresholdVec);
-        tmp = svsel_f64(mask, tmp, thresholdVec);
+        tmp           = svsel_f64(mask, tmp, thresholdVec);
         svst1(tail_pg, &mklBuff[i], tmp);
     }
 
@@ -178,81 +162,62 @@ inline services::Status HelperKernelRBF<double, sve>::postGemmPart(double * cons
 //SVE implementation for RBF kernel post-GEMM part float data type
 template <>
 inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const mklBuff, const float * const sqrA1i, const float sqrA2i,
-                                                                 const float coeff, const float expExpThreshold, const size_t n,
-                                                                 float * const dataRBlock)
+                                                                  const float coeff, const float expExpThreshold, const size_t n,
+                                                                  float * const dataRBlock)
 {
-
-    const size_t step = svcntw();
+    const size_t step        = svcntw();
     svfloat32_t negTwoVec    = svdup_f32(-2.0f);
     svfloat32_t sqrA2iVec    = svdup_f32(sqrA2i);
     svfloat32_t coeffVec     = svdup_f32(coeff);
     svfloat32_t thresholdVec = svdup_f32(expExpThreshold);
-    svbool_t pg = svptrue_b32();  
-    size_t i = 0;
+    svbool_t pg              = svptrue_b32();
+    size_t i                 = 0;
     // Unrolled loop - 3x
-    for (; i + 3 * step <= n; i += 3 * step) {
+    for (; i + 3 * step <= n; i += 3 * step)
+    {
         // Block 1
         svfloat32_t mklVec = svld1(pg, &mklBuff[i]);
         svfloat32_t sqrVec = svld1(pg, &sqrA1i[i]);
 
-        svfloat32_t tmp = svmul_f32_x(pg,
-                             svadd_f32_x(pg,
-                                         svmla_f32_x(pg, sqrVec, mklVec, negTwoVec),
-                                         sqrA2iVec),
-                             coeffVec);
+        svfloat32_t tmp = svmul_f32_x(pg, svadd_f32_x(pg, svmla_f32_x(pg, sqrVec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
 
         svbool_t mask = svcmpgt_f32(pg, tmp, thresholdVec);
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i], tmp);
-        
 
         // Block 2
         mklVec = svld1(pg, &mklBuff[i + step]);
         sqrVec = svld1(pg, &sqrA1i[i + step]);
 
-        tmp = svmul_f32_x(pg,
-                svadd_f32_x(pg,
-                            svmla_f32_x(pg, sqrVec, mklVec, negTwoVec),
-                            sqrA2iVec),
-                coeffVec);
+        tmp = svmul_f32_x(pg, svadd_f32_x(pg, svmla_f32_x(pg, sqrVec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
 
         mask = svcmpgt_f32(pg, tmp, thresholdVec);
         tmp  = svsel_f32(mask, tmp, thresholdVec);
-        svst1(pg, &mklBuff[i+step], tmp);
-        
+        svst1(pg, &mklBuff[i + step], tmp);
 
         // Block 3
         mklVec = svld1(pg, &mklBuff[i + 2 * step]);
         sqrVec = svld1(pg, &sqrA1i[i + 2 * step]);
 
-        tmp = svmul_f32_x(pg,
-                svadd_f32_x(pg,
-                            svmla_f32_x(pg, sqrVec, mklVec, negTwoVec),
-                            sqrA2iVec),
-                coeffVec);
+        tmp = svmul_f32_x(pg, svadd_f32_x(pg, svmla_f32_x(pg, sqrVec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
 
         mask = svcmpgt_f32(pg, tmp, thresholdVec);
         tmp  = svsel_f32(mask, tmp, thresholdVec);
-        svst1(pg, &mklBuff[i+2*step], tmp);
-       
+        svst1(pg, &mklBuff[i + 2 * step], tmp);
     }
 
     // Tail loop
-    for (; i < n; i += step) {
-        svbool_t tail_pg = svwhilelt_b32(i, n);
+    for (; i < n; i += step)
+    {
+        svbool_t tail_pg   = svwhilelt_b32(i, n);
         svfloat32_t mklVec = svld1(tail_pg, &mklBuff[i]);
         svfloat32_t sqrVec = svld1(tail_pg, &sqrA1i[i]);
 
-        svfloat32_t tmp = svmul_f32_x(tail_pg,
-                             svadd_f32_x(tail_pg,
-                                         svmla_f32_x(tail_pg, sqrVec, mklVec, negTwoVec),
-                                         sqrA2iVec),
-                             coeffVec);
+        svfloat32_t tmp = svmul_f32_x(tail_pg, svadd_f32_x(tail_pg, svmla_f32_x(tail_pg, sqrVec, mklVec, negTwoVec), sqrA2iVec), coeffVec);
 
         svbool_t mask = svcmpgt_f32(tail_pg, tmp, thresholdVec);
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(tail_pg, &mklBuff[i], tmp);
-        
     }
     //exponential function
     MathInst<float, sve>::vExp(n, mklBuff, dataRBlock);
@@ -260,11 +225,8 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
     return services::Status();
 }
 
-
+    #endif
 #endif
-#endif
-
-
 
 #if defined(__AVX512F__) && defined(DAAL_INTEL_CPP_COMPILER)
 
