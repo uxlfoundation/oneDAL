@@ -105,6 +105,11 @@ public:
         return _data;
     }
 
+    /// override operator []
+    inline element_t& operator[](std::size_t index) {
+        return _data[index];
+    }
+
 private:
     element_t* _data;
 };
