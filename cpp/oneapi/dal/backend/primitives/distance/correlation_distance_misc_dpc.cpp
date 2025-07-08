@@ -40,8 +40,8 @@ sycl::event compute_deviation(sycl::queue& q,
     auto* out_ptr = out.get_mutable_data();
     auto out_stride = out.get_leading_stride();
     auto out_range = make_range_2d(n, p);
-    auto inp_sum = ndarray<Float, 1>::empty(q, { n });
-    auto inp_mean = ndarray<Float, 1>::empty(q, { n });
+    auto inp_sum = ndarray<Float, 1>::empty(q, { n }, sycl::usm::alloc::device);
+    auto inp_mean = ndarray<Float, 1>::empty(q, { n }, sycl::usm::alloc::device);
 
     // Collect sums of each row of input matrix
     auto sums_event = reduce_by_rows(q, inp, inp_sum, sum<Float>{}, identity<Float>{}, deps);

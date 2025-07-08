@@ -33,7 +33,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
+const std::string datasetFileName = "../data/batch/covcormoments_dense.csv";
 
 void printResults(const low_order_moments::ResultPtr& res);
 

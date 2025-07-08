@@ -29,6 +29,9 @@ CORE.SERV.COMPILER.clang = generic
 -Zl.clang =
 -DEBC.clang = -g
 
+-asanstatic.clang = -static-libasan
+-asanshared.clang = -shared-libasan
+
 pedantic.opts.clang = -pedantic \
                       -Wall \
                       -Wextra \

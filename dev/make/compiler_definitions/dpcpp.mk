@@ -28,6 +28,9 @@ CORE.SERV.COMPILER.dpcpp = generic
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
 -DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
+-asanstatic.dpcpp = -static-libasan
+-asanshared.dpcpp = -shared-libasan
+
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
                      -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
