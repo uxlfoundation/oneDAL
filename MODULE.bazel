@@ -112,19 +112,19 @@ mkl_repo(
     name = "mkl",
     root_env_var = "MKLROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/95/d8/76f53cde7c1df06fcd153b4f6fdf0516aafbfc3239ba8d5a8c354e20bbb2/mkl_static-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/b1/91/b76ab204c03f90d5ce008ba7cf6efd77168059866e96b70277fec959b940/mkl_include-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/b8/d7/ea82194db165d83e22dfedee4d45423477441202e2c321b9e96809d36e63/mkl_devel_dpcpp-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/b5/a7/157e11a96161091807f0f8f519591d3f9c227702d1390037ffd6d08d4d9a/mkl_static-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/11/58/6f583b3bac7d3952a89a00ab34e61baa17f6d6de3454a8005958289bef22/mkl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/08/30/a28cfc8f9a982a5998940b808288f58f4ba2607e50a18f97207b7428f602/mkl_devel_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "706f92fcd6e00cc94155097a87528da52b4c3dda4616c8c334963251773a0d13",
-        "cf19e274bdd1449ef7285671576c545510bebff669363ee1926779192f618cdd",
-        "455281a590920fb58628dbc06ac007f2618c7315e4c04748c2a1b62efa01afb3",
+        "1a44d6a330a26df7ce05e4dd0fb13a5c92c2e3885cb32637fa4920aaa757aa81",
+        "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
+        "44ceb849a99f9bbe3ad89dac9dcdedb540b3996c69e699a40047d62d51934a0c",
     ],
     strip_prefixes = [
-        "mkl_static-2025.0.0.data/data",
-        "mkl_include-2025.0.0.data/data",
-        "mkl_devel_dpcpp-2025.0.0.data/data",
+        "mkl_static-2025.2.0.data/data",
+        "mkl_include-2025.2.0.data/data",
+        "mkl_devel_dpcpp-2025.2.0.data/data",
     ],
 )
 
