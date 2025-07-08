@@ -2014,17 +2014,17 @@ void glktsn::FreeArrays()
     _INTERNAL_DAAL_FREE(perCache_detectedCoreCount.data);
     _INTERNAL_DAAL_FREE(perEachCache_detectedThreadCount.data);
 
-    if (glbl_obj.cpuid_values)
+    if (cpuid_values)
     {
-        for (unsigned int i = 0; i <= glbl_obj.OSProcessorCount; i++)
+        for (unsigned int i = 0; i <= OSProcessorCount; i++)
         {
-            _INTERNAL_DAAL_FREE(glbl_obj.cpuid_values[i].subleaf[0]);
+            _INTERNAL_DAAL_FREE(cpuid_values[i].subleaf[0]);
 
             if ((i == 0x4 || i == 0xb))
             {
-                for (unsigned int j = 1; j < glbl_obj.cpuid_values[i].subleaf_max; j++)
+                for (unsigned int j = 1; j < cpuid_values[i].subleaf_max; j++)
                 {
-                    _INTERNAL_DAAL_FREE(glbl_obj.cpuid_values[i].subleaf[j]);
+                    _INTERNAL_DAAL_FREE(cpuid_values[i].subleaf[j]);
                 }
             }
         }

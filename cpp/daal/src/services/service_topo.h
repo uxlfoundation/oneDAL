@@ -323,7 +323,7 @@ struct glktsn
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    CPUIDinfox * cpuid_values;
+    CPUIDinfox * cpuid_values = nullptr;
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
