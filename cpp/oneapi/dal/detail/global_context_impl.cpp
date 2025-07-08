@@ -14,32 +14,21 @@
 * limitations under the License.
 *******************************************************************************/
 
-#pragma once
+#include "oneapi/dal/detail/cpu.hpp"
+#include "oneapi/dal/detail/global_context_impl.hpp"
 
-#include "oneapi/dal/detail/cpu_info_impl.hpp"
-
-#include <daal/src/services/service_defines.h>
+#include "daal/include/services/env_detect.h"
 
 namespace oneapi::dal::detail {
 namespace v1 {
 
-class cpu_info_x86 : public cpu_info_impl {
-public:
-    cpu_info_x86() {
-        info_["top_cpu_extension"] = detect_top_cpu_extension();
-        info_["onedal_cpu_extension"] = detect_onedal_cpu_extension();
-        info_["vendor"] = (daal_check_is_intel_cpu() ? cpu_vendor::intel : cpu_vendor::amd);
-        info_["cpu_features"] = detect_cpu_features();
-    }
-
-    explicit cpu_info_x86(const cpu_extension cpu_extension) {
-        info_["top_cpu_extension"] = detect_top_cpu_extension();
-        info_["onedal_cpu_extension"] = cpu_extension;
-        info_["vendor"] = (daal_check_is_intel_cpu() ? cpu_vendor::intel : cpu_vendor::amd);
-        info_["cpu_features"] = detect_cpu_features();
-    }
-};
+global_context_impl::global_context_impl() {
+    using daal::services::Environment;
+    // Call to `getCpuId` changes global settings, in particular,
+    // changes default number of threads in the threading layer
+    auto cpuid = daal::services::Environment::getInstance()->getCpuId();
+    cpu_info_ = cpu_info(from_daal_cpu_type(cpuid));
+}
 
 } // namespace v1
-using v1::cpu_info_iface;
 } // namespace oneapi::dal::detail

@@ -29,6 +29,13 @@ public:
         info_["vendor"] = cpu_vendor::riscv64;
         info_["cpu_features"] = detect_cpu_features();
     }
+
+    explicit cpu_info_riscv64(const cpu_extension cpu_extension) {
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = cpu_extension;
+        info_["vendor"] = cpu_vendor::riscv64;
+        info_["cpu_features"] = detect_cpu_features();
+    }
 };
 
 } // namespace v1

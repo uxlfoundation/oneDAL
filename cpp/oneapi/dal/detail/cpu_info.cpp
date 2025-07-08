@@ -39,6 +39,16 @@ cpu_info::cpu_info() {
 #endif
 }
 
+cpu_info::cpu_info(const cpu_extension cpu_extension_) {
+#if defined(TARGET_X86_64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_x86>(cpu_extension_));
+#elif defined(TARGET_ARM)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_arm>(cpu_extension_));
+#elif defined(TARGET_RISCV64)
+    impl_ = detail::pimpl<cpu_info_iface>(std::make_unique<cpu_info_riscv64>(cpu_extension_));
+#endif
+}
+
 detail::cpu_vendor cpu_info::get_cpu_vendor() const {
     return impl_->get_cpu_vendor();
 }
