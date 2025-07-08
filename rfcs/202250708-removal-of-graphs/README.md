@@ -18,10 +18,10 @@ compiler pragmas, intrinsics, blocking optimized for certain cache sizes, calls
 to MKL functions that aren't in NetLib BLAS, etc.), and have no SYCL-based
 implementations to run on GPUs or in SPMD mode.
 
-These graph algorithms have been in preview mode for a while, and have never
-been exposed from the Python side in daal4py, nor in sklearnex - should be noted
-that scikit-learn itself does not offer this type of functionalities, so there
-is no analog to patch from the sklearnex side either.
+These graph algorithms have been in preview mode for a while, and have not been
+planned to be exposed from the Python side in daal4py, nor in sklearnex - should
+be noted that scikit-learn itself does not offer this type of functionalities,
+so there is no analog to patch from the sklearnex side either.
 
 In their current state, it's unclear whether they are helpful at all. No
 profiling experiments have been conducted so far, but given that they do not
