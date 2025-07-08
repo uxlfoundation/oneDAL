@@ -1,4 +1,4 @@
-# Removal of Graph functionalities from oneDAL
+# Removal of current Graph functionalities from oneDAL
 
 ## Introduction
 
@@ -41,8 +41,8 @@ machine-learning-oriented library.
 
 ## Proposal
 
-Proposal here is to remove everything related to graphs algorithms from the
-oneDAL library.
+Proposal here is to remove the current implementations of graph data structures
+and algorithms from the oneDAL library.
 
 Since they are in the preview namespace, it should even be possible to remove
 them in a minor version update, although it could wait for a major release if
