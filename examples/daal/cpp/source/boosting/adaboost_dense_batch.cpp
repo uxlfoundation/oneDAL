@@ -24,7 +24,6 @@
  * <a name="DAAL-EXAMPLE-CPP-ADABOOST_BATCH"></a>
  * \example adaboost_dense_batch.cpp
  */
-#define DAAL_HIDE_DEPRECATED
 
 #include "daal.h"
 #include "service.h"
@@ -34,9 +33,9 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-std::string trainDatasetFileName = "../data/batch/adaboost_train.csv";
+const std::string trainDatasetFileName = "../data/batch/adaboost_train.csv";
 
-std::string testDatasetFileName = "../data/batch/adaboost_test.csv";
+const std::string testDatasetFileName = "../data/batch/adaboost_test.csv";
 
 const size_t nFeatures = 20;
 
