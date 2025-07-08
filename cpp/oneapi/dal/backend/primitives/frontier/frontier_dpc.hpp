@@ -68,7 +68,7 @@ public:
             ndarray<bitmap_t, 1>::zeros(queue, { static_cast<std::int64_t>(mlb_size) }, Alloc);
         auto [offsets, e3] = ndarray<std::uint32_t, 1>::zeros(
             queue,
-            { static_cast<std::int64_t>(mlb_size + 1) },
+            { static_cast<std::int64_t>(array_size + 1) },
             sycl::usm::alloc::shared); /// First offset is to keep the size of the frontier
         _buffer = ndarray<std::uint32_t, 1>::empty(queue, { static_cast<std::int64_t>(10) }, Alloc);
 
@@ -85,39 +85,35 @@ public:
         auto offsets_size_pointer = _offsets.get_mutable_data();
         auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
-        return frontier_view<bitmap_t>(this->get_data_layer(),
-                                       this->get_mlb_layer(),
+        return frontier_view<bitmap_t>(this->get_data_ptr(),
+                                       this->get_mlb_ptr(),
                                        offsets_pointer,
                                        offsets_size_pointer,
                                        _data_layer.get_count());
     }
 
-    bitmap_t* get_data_layer() const {
+    inline bitmap_t* get_data_ptr() const {
         return _data_layer.get_mutable_data();
     }
 
-    bitmap_t* get_mlb_layer() const {
+    inline bitmap_t* get_mlb_ptr() const {
         return _mlb_layer.get_mutable_data();
     }
 
-    std::uint32_t* get_offsets() const {
-        return _offsets.get_mutable_data() + 1;
+    inline std::uint32_t* get_offsets_ptr() const {
+        return &_offsets.get_mutable_data()[1];
     }
 
-    size_t get_data_layer_size() const {
+    inline std::uint32_t* get_offsets_size_ptr() const {
+        return _offsets.get_mutable_data();
+    }
+
+    inline size_t get_data_size() const {
         return _data_layer.get_count();
     }
 
-    size_t get_mlb_layer_size() const {
+    inline size_t get_mlb_size() const {
         return _mlb_layer.get_count();
-    }
-
-    size_t get_offsets_size() const {
-        return _offsets.get_count() - 1;
-    }
-
-    size_t get_num_items() const {
-        return _num_items;
     }
 
     bool empty() const {
@@ -128,7 +124,7 @@ public:
         auto e = _queue.submit([&](sycl::handler& cgh) {
             const auto range = make_range_1d(_mlb_layer.get_count());
             auto sum_reduction = sycl::reduction(empty_buff_ptr, sycl::plus<>());
-            auto* f_ptr = this->get_mlb_layer();
+            auto* f_ptr = this->get_mlb_ptr();
 
             cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v) {
                 sum_v += f_ptr[idx];
@@ -174,6 +170,101 @@ public:
         e.wait_and_throw();
         e1.wait_and_throw();
         e2.wait_and_throw();
+    }
+
+    sycl::event compute_active_frontier() const {
+        auto bitmap = this->get_device_view();
+
+        uint32_t range = decltype(bitmap._mlb_layer)::element_bitsize;
+        size_t local_range = 1024; // Adjust as needed
+        size_t global_range =
+            _mlb_layer.get_count() + local_range - (_mlb_layer.get_count() % local_range);
+
+        bool use_local_mem =
+            device_local_mem_size(this->_queue) >= (local_range * range * sizeof(uint32_t));
+
+        auto e = this->_queue.submit([&](sycl::handler& cgh) {
+            sycl::local_accessor<uint32_t, 1> local_offsets(local_range * range, cgh);
+            sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
+
+            if (use_local_mem) {
+                cgh.parallel_for(
+                    make_multiple_nd_range_1d(global_range, local_range),
+                    [=,
+                     offsets = this->get_offsets_ptr(),
+                     offsets_size = this->get_offsets_size_ptr(),
+                     data_layer = this->get_mlb_ptr(),
+                     size = this->_num_items](sycl::nd_item<1> item) {
+                        if (offsets_size[0] > 0) {
+                            return;
+                        }
+
+                        auto group = item.get_group();
+                        sycl::atomic_ref<uint32_t,
+                                         sycl::memory_order::relaxed,
+                                         sycl::memory_scope::work_group>
+                            local_size_ref{ local_size[0] };
+                        sycl::atomic_ref<uint32_t,
+                                         sycl::memory_order::relaxed,
+                                         sycl::memory_scope::device>
+                            offsets_size_ref{ offsets_size[0] };
+
+                        if (group.leader()) {
+                            local_size_ref.store(0);
+                        }
+                        sycl::group_barrier(group);
+                        for (uint32_t gid = item.get_global_linear_id(); gid < size;
+                             gid += local_range) {
+                            bitmap_t data = data_layer[gid];
+                            for (size_t i = 0; i < range; i++) {
+                                if (data & (static_cast<bitmap_t>(1) << i)) {
+                                    local_offsets[local_size_ref++] = i + gid * range;
+                                }
+                            }
+                        }
+
+                        sycl::group_barrier(group);
+
+                        size_t data_offset = 0;
+                        if (group.leader()) {
+                            data_offset = offsets_size_ref.fetch_add(local_size_ref.load());
+                        }
+                        data_offset = sycl::group_broadcast(group, data_offset, 0);
+                        for (size_t i = item.get_local_linear_id(); i < local_size_ref.load();
+                             i += item.get_local_range(0)) {
+                            offsets[data_offset + i] = local_offsets[i];
+                        }
+                    });
+            }
+            else {
+                cgh.parallel_for(make_multiple_nd_range_1d(global_range, 256),
+                                 [=,
+                                  offsets = this->get_offsets_ptr(),
+                                  offsets_size = this->get_offsets_size_ptr(),
+                                  data_layer = this->get_mlb_ptr(),
+                                  size = this->_num_items](sycl::nd_item<1> item) {
+                                     if (offsets_size[0] > 0) {
+                                         return;
+                                     }
+
+                                     sycl::atomic_ref<uint32_t,
+                                                      sycl::memory_order::relaxed,
+                                                      sycl::memory_scope::device>
+                                         offsets_size_ref{ offsets_size[0] };
+                                     auto gid = item.get_global_linear_id();
+                                     if (gid >= size)
+                                         return;
+
+                                     bitmap_t data = data_layer[gid];
+                                     for (size_t i = 0; i < range; i++) {
+                                         if (data & (static_cast<bitmap_t>(1) << i)) {
+                                             offsets[offsets_size_ref++] = i + gid * range;
+                                         }
+                                     }
+                                 });
+            }
+        });
+        return e;
     }
 
 private:
