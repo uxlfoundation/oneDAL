@@ -53,15 +53,8 @@ cc_library(
 )
 
 cc_library(
-    name = "mkl_dpc",
-    # TODO: add a mechanism to get attr from bazel command(it's not available for now)
-    linkopts = [
-        # Currently its hardcoded to 16 to get the best trade-off between linking speedup and resources used.
-        # If the number of processors on machine is below 16 it will be defaulted to `nproc`.
-        "-fsycl-max-parallel-link-jobs=16",
-    ],
+    name = "mkl_dpc_utils",
     srcs = [
-        "lib/libmkl_sycl.so",
         "lib/libmkl_sycl_blas.so",
         "lib/libmkl_sycl_lapack.so",
         "lib/libmkl_sycl_sparse.so",
@@ -71,7 +64,21 @@ cc_library(
         "lib/libmkl_sycl_stats.so",
         "lib/libmkl_sycl_data_fitting.so",
     ],
+)
+
+cc_library(
+    name = "mkl_dpc",
+    # TODO: add a mechanism to get attr from bazel command(it's not available for now)
+    linkopts = [
+        # Currently its hardcoded to 16 to get the best trade-off between linking speedup and resources used.
+        # If the number of processors on machine is below 16 it will be defaulted to `nproc`.
+        "-fsycl-max-parallel-link-jobs=16",
+    ],
+    srcs = [
+        "lib/libmkl_sycl.so",
+    ],
     deps = [
         ":headers",
+        ":mkl_dpc_utils",
     ],
 )

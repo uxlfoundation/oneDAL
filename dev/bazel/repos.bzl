@@ -71,15 +71,15 @@ def _normalize_download_info(repo_ctx):
 
 def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
     for entry in entries:
-        entry_fmt = utils.substitude(entry, substitutions)
-        src_entry_path = utils.substitude(paths.join(root, entry_fmt), mapping)
+        print("before mapping")
+        print(entry)
+        entry_fmt = utils.substitute(entry, substitutions)
+        print(entry_fmt)
+        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
+        print(src_entry_path)
         dst_entry_path = entry_fmt
-
+        print(dst_entry_path)
         repo_ctx.symlink(src_entry_path, dst_entry_path)
-
-        if dst_entry_path.endswith(".so.5"):
-            so_dst = dst_entry_path[:-2]
-            repo_ctx.symlink(dst_entry_path, so_dst)
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
@@ -114,6 +114,7 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         if repo_ctx.attr.url or repo_ctx.attr.urls:
             root = _download(repo_ctx)
             mapping = repo_ctx.attr._download_mapping
+            print(mapping)
         elif repo_ctx.attr.fallback_root:
             root = repo_ctx.attr.fallback_root
         else:

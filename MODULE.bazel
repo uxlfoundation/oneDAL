@@ -117,17 +117,38 @@ mkl_repo(
         #mkl inmclude folder without oneapi
         "https://files.pythonhosted.org/packages/11/58/6f583b3bac7d3952a89a00ab34e61baa17f6d6de3454a8005958289bef22/mkl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
         "https://files.pythonhosted.org/packages/b5/a7/157e11a96161091807f0f8f519591d3f9c227702d1390037ffd6d08d4d9a/mkl_static-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        # oneapi folder include
+        # oneMKL SYCL C++ headers
+        # Provides headers for oneAPI-style programming using SYCL (e.g., dpc++/onemkl/*.hpp)
         "https://files.pythonhosted.org/packages/67/60/183badc2d807be1abb95a20315e84a2075cb44a1d1ede104d42cb1ed3092/onemkl_sycl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # Development package for MKL SYCL (DPC++ linkage)
+        # Contains symlinks and additional files for building with SYCL-enabled MKL
         "https://files.pythonhosted.org/packages/08/30/a28cfc8f9a982a5998940b808288f58f4ba2607e50a18f97207b7428f602/mkl_devel_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: Data Fitting domain
+        # Provides libmkl_sycl_data_fitting.so.5 (regression, spline fitting, etc.)
         "https://files.pythonhosted.org/packages/4b/fb/7e4adb1e85107d06c06dd674f09a106dd3996c63f457bada18546489c87b/onemkl_sycl_datafitting-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: BLAS domain
+        # Provides libmkl_sycl_blas.so.5 for SYCL-based BLAS routines (e.g., gemm, dot)
         "https://files.pythonhosted.org/packages/ce/c2/b37cf1963b73a3c971efc36d53b97efccaa30f52f1f523a5452d582dbe08/onemkl_sycl_blas-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: DFT (Discrete Fourier Transform)
+        # Provides libmkl_sycl_dft.so.5
         "https://files.pythonhosted.org/packages/f2/5b/5d26447da4cf01abab3020c82924b1661684adb0286a99c692cd1c08461d/onemkl_sycl_dft-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: LAPACK domain
+        # Provides libmkl_sycl_lapack.so.5 (eigenvalue solvers, linear systems, etc.)
         "https://files.pythonhosted.org/packages/db/2e/6e87e5a96bb16fe757d82de185b2706b2e4d3eb372f5eaa266508fb3c1ed/onemkl_sycl_lapack-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # Main DPC++ MKL runtime (SYCL dispatcher)
+        # Provides libmkl_sycl.so.5 — the core dispatcher that dynamically loads specific domain libraries.
         "https://files.pythonhosted.org/packages/25/f4/e57232bf293e1a88cd9e48c347030bb6d95a29cdeb9e264822eed595e989/mkl_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: Sparse domain
+        # Provides libmkl_sycl_sparse.so.5 (sparse BLAS, sparse solvers)
         "https://files.pythonhosted.org/packages/51/68/af04fa6a7d8fa5c9c3af4055abab86ed04af24b2cf316dd00f2f16694557/onemkl_sycl_sparse-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: RNG (Random Number Generator)
+        # Provides libmkl_sycl_rng.so.5
         "https://files.pythonhosted.org/packages/bb/c8/81bab1b7838a9229ed078b9628c8e05ce8073045b64c642971bc5ce0cce8/onemkl_sycl_rng-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: VM (Vector Math)
+        # Provides libmkl_sycl_vm.so.5 (vectorized math operations)
         "https://files.pythonhosted.org/packages/49/b8/827dae990d26d6571dd9b21f7146b2bafc80716365e39cfc89fbde0004c9/onemkl_sycl_vm-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # oneMKL SYCL: Statistics domain
+        # Provides libmkl_sycl_stats.so.5
         "https://files.pythonhosted.org/packages/07/2e/b89f220ee0d405582c6b7e088618f1dbc1e7695307f9f7319b2bff4408ca/onemkl_sycl_stats-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
