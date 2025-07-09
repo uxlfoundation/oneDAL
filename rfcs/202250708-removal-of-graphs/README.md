@@ -31,13 +31,10 @@ optimized graph libraries for CPU. And in the case of GPU, there is the
 SyGraph library on which we might focus our efforts on in the future instead:
 https://github.com/unisa-hpc/SYgraph
 
-None of the current team members from Intel side have been involved in the
-development of these graph submodules within oneDAL, so there isn't a good
-understanding of how they came to be, how the algorithms are implemented, what
-remains to be done, etc.; and there are no plans to develop them further to
-reach the point where they could be taken out of preview, nor does there appear
-to be much user demand for having such kind of algorithms in a
-machine-learning-oriented library.
+There are no plans to develop these graph algorithms further to reach the point
+where they could be taken out of preview, nor to produce SYCL versions of them
+that would make them more useful. It doesn't make much sense to have things in
+a state like this in oneDAL.
 
 ## Proposal
 
