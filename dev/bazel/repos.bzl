@@ -74,7 +74,12 @@ def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
         entry_fmt = utils.substitude(entry, substitutions)
         src_entry_path = utils.substitude(paths.join(root, entry_fmt), mapping)
         dst_entry_path = entry_fmt
+
         repo_ctx.symlink(src_entry_path, dst_entry_path)
+
+        if dst_entry_path.endswith(".so.5"):
+            so_dst = dst_entry_path[:-2]  # отбрасываем '.5'
+            repo_ctx.symlink(dst_entry_path, so_dst)
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
