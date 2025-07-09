@@ -78,7 +78,7 @@ def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
         repo_ctx.symlink(src_entry_path, dst_entry_path)
 
         if dst_entry_path.endswith(".so.5"):
-            so_dst = dst_entry_path[:-2]  # отбрасываем '.5'
+            so_dst = dst_entry_path[:-2]
             repo_ctx.symlink(dst_entry_path, so_dst)
 
 def _download(repo_ctx):
