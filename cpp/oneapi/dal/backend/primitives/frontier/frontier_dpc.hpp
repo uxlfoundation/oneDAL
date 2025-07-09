@@ -42,6 +42,18 @@ struct frontier_view {
         return _data_layer.atomic_test(idx);
     }
 
+    inline size_t get_element_bitsize() const {
+        return bitset<bitmap_t>::element_bitsize;
+    }
+
+    inline std::uint32_t* get_offsets() const {
+        return _offsets_size;
+    }
+
+    inline std::uint32_t* get_offsets_size() const {
+        return _offsets;
+    }
+
     size_t _num_items;
 
     bitset<bitmap_t> _data_layer;
@@ -66,10 +78,8 @@ public:
             ndarray<bitmap_t, 1>::zeros(queue, { static_cast<std::int64_t>(array_size) }, Alloc);
         auto [mlb_layer, e2] =
             ndarray<bitmap_t, 1>::zeros(queue, { static_cast<std::int64_t>(mlb_size) }, Alloc);
-        auto [offsets, e3] = ndarray<std::uint32_t, 1>::zeros(
-            queue,
-            { static_cast<std::int64_t>(array_size + 1) },
-            sycl::usm::alloc::shared); /// First offset is to keep the size of the frontier
+        auto [offsets, e3] = 
+            ndarray<std::uint32_t, 1>::zeros(queue, { static_cast<std::int64_t>(array_size + 1) }, Alloc); /// First offset is to keep the size of the frontier
         _buffer = ndarray<std::uint32_t, 1>::empty(queue, { static_cast<std::int64_t>(10) }, Alloc);
 
         e1.wait_and_throw();
@@ -101,7 +111,7 @@ public:
     }
 
     inline std::uint32_t* get_offsets_ptr() const {
-        return &_offsets.get_mutable_data()[1];
+        return &(_offsets.get_mutable_data()[1]);
     }
 
     inline std::uint32_t* get_offsets_size_ptr() const {
@@ -175,96 +185,101 @@ public:
     sycl::event compute_active_frontier() const {
         auto bitmap = this->get_device_view();
 
-        uint32_t range = decltype(bitmap._mlb_layer)::element_bitsize;
+        uint32_t element_bitsize = decltype(bitmap._mlb_layer)::element_bitsize;
         size_t local_range = 1024; // Adjust as needed
         size_t global_range =
             _mlb_layer.get_count() + local_range - (_mlb_layer.get_count() % local_range);
 
         bool use_local_mem =
-            device_local_mem_size(this->_queue) >= (local_range * range * sizeof(uint32_t));
+            device_local_mem_size(this->_queue) >= (local_range * element_bitsize * sizeof(uint32_t));
 
-        auto e = this->_queue.submit([&](sycl::handler& cgh) {
-            sycl::local_accessor<uint32_t, 1> local_offsets(local_range * range, cgh);
-            sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
+        auto e0 = _queue.submit([&](sycl::handler& cgh) {
+            cgh.single_task([=, offsets_size = this->get_offsets_size_ptr(), buffer_ptr = this->_buffer.get_mutable_data(), CAF_FLAG = this->_CAF_FLAG]() {
+                buffer_ptr[CAF_FLAG] = offsets_size[0] == 0 ? 1 : 0;
+            });
+        });
 
-            if (use_local_mem) {
+        auto e1 = this->_queue.submit([&](sycl::handler& cgh) {
+            cgh.depends_on(e0);
+
+            if (!use_local_mem || true) { // Force to use global memory for simplicity
+                cgh.parallel_for(make_range_1d(_mlb_layer.get_count()),
+                    [=,
+                    offsets = this->get_offsets_ptr(),
+                    offsets_size = this->get_offsets_size_ptr(),
+                    data_layer = this->get_mlb_ptr(),
+                    buffer = this->_buffer.get_mutable_data(),
+                    CAF_FLAG = this->_CAF_FLAG](sycl::id<1> idx) {
+    
+                        if (!buffer[CAF_FLAG]) return;
+    
+                        sycl::atomic_ref<uint32_t,
+                                        sycl::memory_order::relaxed,
+                                        sycl::memory_scope::device>
+                            offsets_size_ref{ offsets_size[0] };
+    
+                        bitmap_t data = data_layer[idx];
+                        for (size_t i = 0; i < element_bitsize; i++) {
+                            if (data & (static_cast<bitmap_t>(1) << i)) {
+                                offsets[offsets_size_ref++] = i + idx * element_bitsize;
+                            }
+                        }
+                });
+            } else {
+                sycl::local_accessor<uint32_t, 1> local_offsets(local_range * element_bitsize, cgh);
+                sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
+
                 cgh.parallel_for(
                     make_multiple_nd_range_1d(global_range, local_range),
                     [=,
-                     offsets = this->get_offsets_ptr(),
-                     offsets_size = this->get_offsets_size_ptr(),
-                     data_layer = this->get_mlb_ptr(),
-                     size = this->_num_items](sycl::nd_item<1> item) {
-                        if (offsets_size[0] > 0) {
-                            return;
-                        }
-
+                    offsets = this->get_offsets_ptr(),
+                    offsets_size = this->get_offsets_size_ptr(),
+                    data_layer = this->get_mlb_ptr(),
+                    size = this->_num_items,
+                    buffer = this->_buffer.get_mutable_data(),
+                    CAF_FLAG = this->_CAF_FLAG](sycl::nd_item<1> item) {
+                        if (!buffer[CAF_FLAG]) return;
+    
                         auto group = item.get_group();
                         sycl::atomic_ref<uint32_t,
-                                         sycl::memory_order::relaxed,
-                                         sycl::memory_scope::work_group>
+                                            sycl::memory_order::relaxed,
+                                            sycl::memory_scope::work_group>
                             local_size_ref{ local_size[0] };
                         sycl::atomic_ref<uint32_t,
-                                         sycl::memory_order::relaxed,
-                                         sycl::memory_scope::device>
+                                            sycl::memory_order::relaxed,
+                                            sycl::memory_scope::device>
                             offsets_size_ref{ offsets_size[0] };
-
+    
                         if (group.leader()) {
                             local_size_ref.store(0);
                         }
                         sycl::group_barrier(group);
                         for (uint32_t gid = item.get_global_linear_id(); gid < size;
-                             gid += local_range) {
+                                gid += local_range) {
                             bitmap_t data = data_layer[gid];
-                            for (size_t i = 0; i < range; i++) {
+                            for (size_t i = 0; i < element_bitsize; i++) {
                                 if (data & (static_cast<bitmap_t>(1) << i)) {
-                                    local_offsets[local_size_ref++] = i + gid * range;
+                                    local_offsets[local_size_ref++] = i + gid * element_bitsize;
                                 }
                             }
                         }
-
+    
                         sycl::group_barrier(group);
-
+    
                         size_t data_offset = 0;
                         if (group.leader()) {
                             data_offset = offsets_size_ref.fetch_add(local_size_ref.load());
                         }
                         data_offset = sycl::group_broadcast(group, data_offset, 0);
                         for (size_t i = item.get_local_linear_id(); i < local_size_ref.load();
-                             i += item.get_local_range(0)) {
+                                i += item.get_local_range(0)) {
                             offsets[data_offset + i] = local_offsets[i];
                         }
                     });
             }
-            else {
-                cgh.parallel_for(make_multiple_nd_range_1d(global_range, 256),
-                                 [=,
-                                  offsets = this->get_offsets_ptr(),
-                                  offsets_size = this->get_offsets_size_ptr(),
-                                  data_layer = this->get_mlb_ptr(),
-                                  size = this->_num_items](sycl::nd_item<1> item) {
-                                     if (offsets_size[0] > 0) {
-                                         return;
-                                     }
 
-                                     sycl::atomic_ref<uint32_t,
-                                                      sycl::memory_order::relaxed,
-                                                      sycl::memory_scope::device>
-                                         offsets_size_ref{ offsets_size[0] };
-                                     auto gid = item.get_global_linear_id();
-                                     if (gid >= size)
-                                         return;
-
-                                     bitmap_t data = data_layer[gid];
-                                     for (size_t i = 0; i < range; i++) {
-                                         if (data & (static_cast<bitmap_t>(1) << i)) {
-                                             offsets[offsets_size_ref++] = i + gid * range;
-                                         }
-                                     }
-                                 });
-            }
         });
-        return e;
+        return e1;
     }
 
 private:
@@ -275,6 +290,8 @@ private:
     ndarray<bitmap_t, 1> _mlb_layer;
     ndarray<std::uint32_t, 1> _offsets;
     ndarray<buffer_t, 1> _buffer;
+    const size_t _TMP_VAR = 0;
+    const size_t _CAF_FLAG = 0; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
 
 } // namespace oneapi::dal::backend::primitives
