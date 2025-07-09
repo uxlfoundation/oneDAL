@@ -11,7 +11,7 @@
 namespace oneapi::dal::backend::primitives::test {
 
 TEST("frontier basic operations", "[frontier]") {
-    sycl::queue queue{ sycl::default_selector_v };
+    sycl::queue queue{ sycl::cpu_selector_v };
 
     const std::size_t num_items = 100;
     auto f = frontier<std::uint32_t>(queue, num_items);
@@ -62,7 +62,7 @@ TEST("frontier basic operations", "[frontier]") {
 } // TEST "frontier basic operations"
 
 TEST("frontier queue basic operations", "[frontier]") {
-    sycl::queue queue{ sycl::default_selector_v };
+    sycl::queue queue{ sycl::gpu_selector_v };
 
     const std::size_t num_items = 100;
     auto f = frontier<std::uint32_t>(queue, num_items);
@@ -105,7 +105,7 @@ TEST("frontier queue basic operations", "[frontier]") {
 } // TEST "frontier queue operations"
 
 TEST("compute active frontier", "[frontier]") {
-    sycl::queue queue{ sycl::default_selector_v };
+    sycl::queue queue{ sycl::gpu_selector_v };
 
     const std::size_t num_items = 100000;
     auto f = frontier<std::uint32_t>(queue, num_items);
@@ -114,15 +114,18 @@ TEST("compute active frontier", "[frontier]") {
     view.insert(0);
     view.insert(2);
     view.insert(32);
-    view.insert(1024);
+    view.insert(33);
+    view.insert(64);
+    view.insert(65);
+    view.insert(95);
 
     auto e = f.compute_active_frontier();
     e.wait();
 
-    // auto offsets = f.get_offsets_ptr();
     auto offsets_size = f.get_offsets_size_ptr();
 
-    REQUIRE(offsets_size[0] == 2);
+    REQUIRE(offsets_size[0] == 3);
+    f.clear();
 } // TEST "compute active frontier"
 
 } // namespace oneapi::dal::backend::primitives::test
