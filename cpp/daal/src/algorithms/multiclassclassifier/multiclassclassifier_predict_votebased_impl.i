@@ -112,14 +112,13 @@ public:
             if (!s) return Status(ErrorMultiClassFailedToComputeTwoClassPrediction).add(s);
 
             /* Compute votes for the block of input observations */
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nRows; ++i)
             {
-                if (y[i] >= 0)
-                    votes[i * _nClasses + iClass]++;
-                else
-                    votes[i * _nClasses + jClass]++;
+                const int isIClass(y[i] >= 0); // isIClass == 1 if y[i] >= 0; isIClass == 0 if y[i] < 0
+                votes[i * _nClasses + iClass] += isIClass;
+                votes[i * _nClasses + jClass] += (1 - isIClass);
             }
         }
 

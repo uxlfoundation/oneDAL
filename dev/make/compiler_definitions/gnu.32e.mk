@@ -26,7 +26,7 @@ include dev/make/compiler_definitions/gnu.mk
 PLATs.gnu = lnx32e mac32e
 
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
-                    -Werror -Wreturn-type
+                    -Werror -Wreturn-type -fopenmp-simd
 
 link.dynamic.all.gnu = ${CXX} -m64
 
