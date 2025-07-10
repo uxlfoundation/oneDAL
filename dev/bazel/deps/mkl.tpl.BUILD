@@ -17,21 +17,11 @@ cc_library(
 cc_library(
     name = "mkl_core",
     srcs = [
-        "lib/libmkl_core.a",
-        "lib/libmkl_intel_ilp64.a",
-        "lib/libmkl_tbb_thread.a",
-    ],
-    linkopts = [
-        # The source libraries have circular symbol dependencies. To successfully build this cc_library,
-        # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
-        "-Wl,--start-group",
-        "$(location lib/libmkl_core.a)",
-        "$(location lib/libmkl_intel_ilp64.a)",
-        "$(location lib/libmkl_tbb_thread.a)",
-        "-Wl,--end-group",
-        "-lpthread",
-        "-lm",
-        "-ldl",
+        "lib/libmkl_core.so.2",
+        "lib/libmkl_intel_ilp64.so.2",
+        "lib/libmkl_tbb_thread.so.2",
+        "lib/libmkl_vml_avx512.so.2",
+        "lib/libmkl_vml_def.so.2",
     ],
     deps = [
         ":headers",
@@ -53,6 +43,20 @@ cc_library(
 )
 
 cc_library(
+    name = "mkl_dpc_utils",
+    srcs = [
+        "lib/libmkl_sycl_blas.so",
+        "lib/libmkl_sycl_lapack.so",
+        "lib/libmkl_sycl_sparse.so",
+        "lib/libmkl_sycl_dft.so",
+        "lib/libmkl_sycl_vm.so",
+        "lib/libmkl_sycl_rng.so",
+        "lib/libmkl_sycl_stats.so",
+        "lib/libmkl_sycl_data_fitting.so",
+    ],
+)
+
+cc_library(
     name = "mkl_dpc",
     # TODO: add a mechanism to get attr from bazel command(it's not available for now)
     linkopts = [
@@ -61,9 +65,10 @@ cc_library(
         "-fsycl-max-parallel-link-jobs=16",
     ],
     srcs = [
-        "lib/libmkl_sycl.a",
+        "lib/libmkl_sycl.so",
     ],
     deps = [
         ":headers",
+        ":mkl_dpc_utils",
     ],
 )
