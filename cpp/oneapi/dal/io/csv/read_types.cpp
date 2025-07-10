@@ -18,6 +18,7 @@
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/detail/memory.hpp"
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/table/csr.hpp"
 
 namespace oneapi::dal::csv {
 
@@ -27,9 +28,43 @@ public:
     read_args_impl() {}
 };
 
+template <>
+class detail::v1::read_args_impl<csr_table> : public base {
+public:
+    read_args_impl() {}
+
+    // Used for csr_table to specify the number of features in the original table
+    std::int64_t feature_count = 0;
+    sparse_indexing indexing = sparse_indexing::one_based;
+};
+
 namespace v1 {
 
 read_args<table>::read_args() : impl_(new detail::read_args_impl<table>()) {}
+
+read_args<csr_table>::read_args() : impl_(new detail::read_args_impl<csr_table>()) {}
+
+std::int64_t read_args<csr_table>::get_feature_count_impl() const {
+    return impl_->feature_count;
+}
+
+sparse_indexing read_args<csr_table>::get_sparse_indexing_impl() const {
+    return impl_->indexing;
+}
+
+void read_args<csr_table>::set_feature_count_impl(std::int64_t feature_count) {
+    if (feature_count < 0) {
+        throw dal::invalid_argument(dal::detail::error_messages::invalid_feature_count());
+    }
+    impl_->feature_count = feature_count;
+}
+
+void read_args<csr_table>::set_sparse_indexing_impl(sparse_indexing indexing) {
+    if (indexing != sparse_indexing::zero_based && indexing != sparse_indexing::one_based) {
+        throw dal::invalid_argument(dal::detail::error_messages::invalid_sparse_indexing());
+    }
+    impl_->indexing = indexing;
+}
 
 } // namespace v1
 } // namespace oneapi::dal::csv

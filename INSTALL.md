@@ -133,6 +133,10 @@ is available as an alternative to the manual setup.
 
             make -f makefile daal PLAT=lnx32e COMPILER=gnu
 
+    - DAAL interfaces on **Linux\*** using **Clang\***:
+
+            make -f makefile daal PLAT=lnx32e COMPILER=clang
+
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
             make -f makefile oneapi PLAT=win32e

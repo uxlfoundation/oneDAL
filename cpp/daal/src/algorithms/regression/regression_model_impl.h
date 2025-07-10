@@ -68,8 +68,10 @@ protected:
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {
-        auto s = regression::Model::serialImpl<Archive, onDeserialize>(arch);
-        return s.add(ModelInternal::serialImpl<Archive, onDeserialize>(arch));
+        regression::Model::serialImpl<Archive, onDeserialize>(arch);
+        arch->set(ImplType::_nFeatures);
+
+        return services::Status();
     }
 };
 

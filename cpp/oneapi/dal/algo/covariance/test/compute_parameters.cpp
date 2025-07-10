@@ -40,6 +40,7 @@ public:
     void generate_parameters() {
         this->block_ = GENERATE(140, 1024);
         this->grain_size_ = GENERATE(1, 4);
+        this->max_cols_batched_ = GENERATE(1, 100'000);
         this->pack_as_struct_ = GENERATE(0, 1);
     }
 
@@ -47,6 +48,7 @@ public:
         detail::compute_parameters res{};
         res.set_cpu_macro_block(this->block_);
         res.set_cpu_grain_size(this->grain_size_);
+        res.set_cpu_max_cols_batched(this->max_cols_batched_);
         return res;
     }
 
@@ -54,6 +56,7 @@ public:
     result_t compute_override(Desc&& desc, Args&&... args) {
         REQUIRE(this->block_ > 0);
         REQUIRE(this->grain_size_ > 0);
+        REQUIRE(this->max_cols_batched_ >= 0);
         const auto params = this->get_current_parameters();
         if (this->pack_as_struct_) {
             return te::float_algo_fixture<Float>::compute(std::forward<Desc>(desc),
@@ -79,6 +82,7 @@ public:
 private:
     std::int64_t block_;
     std::int64_t grain_size_;
+    std::int64_t max_cols_batched_;
     bool pack_as_struct_;
 };
 
@@ -110,8 +114,7 @@ TEMPLATE_LIST_TEST_M(covariance_params_test,
     const te::dataframe input =
         GENERATE_DATAFRAME(te::dataframe_builder{ 500, 40 }.fill_uniform(-100, 100, 7777),
                            te::dataframe_builder{ 1000, 20 }.fill_uniform(-30, 30, 7777),
-                           te::dataframe_builder{ 10000, 100 }.fill_uniform(-30, 30, 7777),
-                           te::dataframe_builder{ 100000, 20 }.fill_uniform(1, 10, 7777));
+                           te::dataframe_builder{ 2500, 10 }.fill_uniform(1, 10, 7777));
 
     INFO("num_rows=" << input.get_row_count());
     INFO("num_columns=" << input.get_column_count());

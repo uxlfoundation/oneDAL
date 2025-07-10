@@ -137,6 +137,13 @@ MSG(edge_values_are_empty, "Edge values are empty")
 /* IO */
 MSG(file_not_found, "File not found")
 MSG(unsupported_read_mode, "Unsupported read mode")
+MSG(invalid_sparse_indexing,
+    "Invalid sparse indexing type. "
+    "Supported values are zero_based and one_based")
+MSG(invalid_csr_format,
+    "Invalid CSR format. "
+    "Expected three lines: row offsets, column indices, and non-zero elements")
+MSG(invalid_feature_count, "Invalid feature count")
 
 /* Serialization */
 MSG(object_is_not_serializable, "Object is not serializable")
