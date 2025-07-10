@@ -390,8 +390,7 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
         for (size_t i = 0; i < nFeatures; i++)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j < nFeatures; j++)
             {
                 crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
