@@ -76,7 +76,7 @@ endif
 optimizations.opts.$(_OS) = $(OPTFLAG_PREFIX)$(OPTFLAG)
 # Enable compiler-provided defences as recommended by Intel Security Development Lifecycle document (SW.01)
 secure.opts.icc.win = -GS
-secure.opts.icc.lnx = -Wformat -Wformat-security $(optimizations.opts.$(_OS)) -D_FORTIFY_SOURCE=2 -fstack-protector-strong
+secure.opts.icc.lnx = -Wformat -Wformat-security -$(OPTFLAG) -D_FORTIFY_SOURCE=2 -fstack-protector-strong
 secure.opts.icc.mac = -Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fstack-protector
 
 
