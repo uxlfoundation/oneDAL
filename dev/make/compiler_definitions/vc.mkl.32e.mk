@@ -24,6 +24,14 @@ CMPLRDIRSUFF.vc = _vc
 
 CORE.SERV.COMPILER.vc = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ot Ox
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+-optlevel.vc = /$(OPTFLAG)
 -Zl.vc = -Zl
 -DEBC.vc = -DEBUG -Z7
 

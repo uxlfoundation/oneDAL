@@ -26,7 +26,27 @@ CMPLRDIRSUFF.clang = _clang
 
 CORE.SERV.COMPILER.clang = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Og Oz Os
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(OS_is_win),true)
+    -optlevel.clang = /$(OPTFLAG)
+else
+    -optlevel.clang = -$(OPTFLAG)
+endif
+
+# Check if OPTFLAG is valid
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+    -optlevel.clang = -$(OPTFLAG)
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
+endif
 -Zl.clang =
+
 -DEBC.clang = -g
 
 -asanstatic.clang = -static-libasan

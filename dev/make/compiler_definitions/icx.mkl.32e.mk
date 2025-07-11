@@ -25,6 +25,19 @@ CMPLRDIRSUFF.icx =
 CORE.SERV.COMPILER.icx = generic
 
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(OS_is_win),true)
+    -optlevel.icx = /$(OPTFLAG)
+else
+    -optlevel.icx = -$(OPTFLAG)
+endif
+
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
 -DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
