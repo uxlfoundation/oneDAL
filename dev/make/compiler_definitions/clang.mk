@@ -33,18 +33,8 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
-ifeq ($(OS_is_win),true)
-    -optlevel.clang = /$(OPTFLAG)
-else
-    -optlevel.clang = -$(OPTFLAG)
-endif
+-optlevel.clang = -$(OPTFLAG)
 
-# Check if OPTFLAG is valid
-ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
-    -optlevel.clang = -$(OPTFLAG)
-else
-    $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
-endif
 -Zl.clang =
 
 -DEBC.clang = -g

@@ -25,6 +25,17 @@ CMPLRDIRSUFF.dpcpp = _dpcpp
 
 CORE.SERV.COMPILER.dpcpp = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+
+-optlevel.dpcpp = -$(OPTFLAG)
+
+
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
 -DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
