@@ -184,6 +184,7 @@ def _detect_cpu_extension(repo_ctx):
     cpudetect_src = repo_ctx.path(repo_ctx.attr._cpudetect_src)
     cpudetect_exe = repo_ctx.path("cpudetect")
     repo_ctx.report_progress("Compile cpu-detector")
+    #todo: add win support
     compile_result = repo_ctx.execute([
         "g++", "-pedantic", "-Wall", "-std=c++11",
         cpudetect_src, "-o{}".format(cpudetect_exe),

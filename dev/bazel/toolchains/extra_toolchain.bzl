@@ -17,6 +17,8 @@
 load("@onedal//dev/bazel/toolchains:common.bzl", "detect_os", "detect_compiler")
 load("@onedal//dev/bazel/toolchains:extra_toolchain_lnx.bzl",
     "configure_extra_toolchain_lnx")
+load("@onedal//dev/bazel/toolchains:extra_toolchain_win.bzl",
+    "configure_extra_toolchain_win")
 
 ExtraToolchainInfo = provider(
     fields = [
@@ -41,9 +43,12 @@ extra_toolchain = rule(
 
 def _onedal_extra_toolchain_impl(repo_ctx):
     os_id = detect_os(repo_ctx)
+    print(os_id)
+    repo_ctx.report_progress("Detected OS: {}".format(os_id))
     compiler_id = detect_compiler(repo_ctx, os_id)
     configure_extra_toolchain_os = {
         "lnx": configure_extra_toolchain_lnx,
+        "win": configure_extra_toolchain_win,
     }[os_id]
     configure_extra_toolchain_os(repo_ctx, compiler_id)
 
