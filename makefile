@@ -39,6 +39,7 @@ include dev/make/common.mk
 include dev/make/function_definitions/$(PLAT).mk
 
 $(if $(filter $(COMPILERs),$(COMPILER)),,$(error COMPILER must be one of $(COMPILERs)))
+$(if $(filter $(OPTFLAGs),$(OPTFLAG)),,$(error COMPILER must be one of $(OPTFLAGs)))
 
 MSVC_RUNTIME_VERSIONs = release debug
 MSVC_RUNTIME_VERSION ?= release
@@ -1132,6 +1133,7 @@ Targets:
   cleanall - clean both working and release directories
 Flags:
   COMPILER   - compiler to use ($(COMPILERs)) [default: $(COMPILER)]
+  OPTFLAG    - optimization flags to use ($(OPTFLAGs)) [default: $(OPTFLAG)]
   WORKDIR    - directory for intermediate results [default: $(WORKDIR)]
   RELEASEDIR - directory for release [default: $(RELEASEDIR)]
   CORE.ALGORITHMS.CUSTOM - list of algorithms to be included into library

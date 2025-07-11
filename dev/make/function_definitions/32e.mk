@@ -23,6 +23,8 @@ COMPILERs = icc icx gnu clang vc
 COMPILER ?= icx
 CPUs := sse2 sse42 avx2 avx512
 CPUs.files := nrh neh hsw skx
+OPTFLAGs     := O0 O1 O2 O3 Ofast
+OPTFLAG ?= O2
 
 ONEAPI.dispatcher_tag.nrh := -D__CPU_TAG__=__CPU_TAG_SSE2__
 ONEAPI.dispatcher_tag.neh := -D__CPU_TAG__=__CPU_TAG_SSE42__
