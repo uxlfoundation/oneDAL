@@ -66,7 +66,7 @@ md5sum.cmd.lnx = md5sum
 md5sum.cmd.win = md5sum
 md5sum.cmd.mac = md5 -q
 
-# Optimization level
+# Optimization level will be fixed
 ifeq ($(_OS),win)
   OPTFLAG_PREFIX := /
 else
