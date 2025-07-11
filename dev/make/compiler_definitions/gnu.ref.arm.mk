@@ -22,6 +22,15 @@ include dev/make/compiler_definitions/gnu.mk
 
 PLATs.gnu = lnxarm
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+-optlevel.gnu = -$(OPTFLAG)
+
 COMPILER.all.gnu =  ${CXX} -march=armv8-a+sve -fopenmp-simd -ftree-vectorize -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wreturn-type $(if $(RNG_OPENRNG), -DOPENRNG_BACKEND)
 

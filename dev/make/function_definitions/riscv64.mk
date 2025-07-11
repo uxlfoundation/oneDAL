@@ -23,6 +23,7 @@ COMPILERs = clang
 COMPILER ?= clang
 CPUs := rv64
 CPUs.files := rv64
+OPTFLAG ?= O2
 
 ONEAPI.dispatcher_tag.rv64 := -D__CPU_TAG__=__CPU_TAG_RISCV64GC__
 

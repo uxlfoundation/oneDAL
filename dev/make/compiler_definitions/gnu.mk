@@ -25,6 +25,15 @@ CMPLRDIRSUFF.gnu = _gnu
 
 CORE.SERV.COMPILER.gnu = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+-optlevel.gnu = -$(OPTFLAG)
+
 -Zl.gnu =
 -DEBC.gnu = -g
 

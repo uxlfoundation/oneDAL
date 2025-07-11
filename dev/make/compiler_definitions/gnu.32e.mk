@@ -25,6 +25,19 @@ include dev/make/compiler_definitions/gnu.mk
 
 PLATs.gnu = lnx32e mac32e
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(OS_is_win),true)
+    -optlevel.gnu = /$(OPTFLAG)
+else
+    -optlevel.gnu = -$(OPTFLAG)
+endif
+
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
                     -Werror -Wreturn-type
 
