@@ -417,10 +417,13 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
 
             if (bL2)
             {
+                algorithmFPType sumSquaresBeta = 0;
+                PRAGMA_FORCE_SIMD
                 for (size_t i = 1; i < nBeta; ++i)
                 {
-                    value += b[i] * b[i] * parameter->penaltyL2;
+                    sumSquaresBeta += b[i] * b[i];
                 }
+                value += parameter->penaltyL2 * sumSquaresBeta;
             }
 
             if (bL1)
@@ -431,10 +434,13 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 }
                 else
                 {
+                    algorithmFPType l1NormBeta = 0;
+                    PRAGMA_FORCE_SIMD
                     for (size_t i = 1; i < nBeta; ++i)
                     {
-                        value += (b[i] < 0 ? -b[i] : b[i]) * parameter->penaltyL1;
+                        l1NormBeta += b[i] < 0 ? -b[i] : b[i];
                     }
+                    value += parameter->parameter->penaltyL1 * l1NormBeta;
                 }
             }
         }
