@@ -24,7 +24,7 @@ CMPLRDIRSUFF.vc = _vc
 
 CORE.SERV.COMPILER.vc = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ot Ox
+OPTFLAGS_SUPPORTED := O1 O2 Ob Od Oi Os Ot Ox Oy
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else

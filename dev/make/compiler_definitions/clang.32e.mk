@@ -26,7 +26,7 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnx32e mac32e
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og O4
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else

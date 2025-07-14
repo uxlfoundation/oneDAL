@@ -26,7 +26,7 @@ CMPLRDIRSUFF.clang = _clang
 
 CORE.SERV.COMPILER.clang = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Og Oz Os
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og O4
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else

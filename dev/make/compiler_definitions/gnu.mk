@@ -25,7 +25,7 @@ CMPLRDIRSUFF.gnu = _gnu
 
 CORE.SERV.COMPILER.gnu = generic
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else

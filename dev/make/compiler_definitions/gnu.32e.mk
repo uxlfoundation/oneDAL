@@ -25,7 +25,7 @@ include dev/make/compiler_definitions/gnu.mk
 
 PLATs.gnu = lnx32e mac32e
 
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
