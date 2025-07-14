@@ -43,7 +43,7 @@ ifeq ($(OS_is_win),true)
     endif
 else
     ifeq ($(OPTFLAG),Ofast)
-        -optlevel.dpcpp = -O3 -ffast-math
+        -optlevel.dpcpp = -O3 -ffast-math -D_FORTIFY_SOURCE=2
     else ifeq ($(OPTFLAG),O0)
         -optlevel.dpcpp = -$(OPTFLAG)
     else

@@ -35,7 +35,7 @@ ifeq ($(OS_is_win),true)
     -optlevel.icx = -$(OPTFLAG)
 else
     ifeq ($(OPTFLAG),Ofast)
-        -optlevel.icx = -O3 -ffast-math
+        -optlevel.icx = -O3 -ffast-math -D_FORTIFY_SOURCE=2
     else ifeq ($(OPTFLAG),O0)
         -optlevel.icx = -$(OPTFLAG)
     else

@@ -35,6 +35,8 @@ endif
 
 ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.clang = -$(OPTFLAG)
+else ifeq ($(OPTFLAG),Ofast)
+    -optlevel.clang = -O3 -ffast-math -D_FORTIFY_SOURCE=2
 else
     -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
 endif
