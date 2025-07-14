@@ -29,7 +29,7 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
-ifeq ($(OPTFLAG),O0)
+ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.gnu = -$(OPTFLAG)
 else
     -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2

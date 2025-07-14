@@ -33,7 +33,7 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)'. Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
-ifeq ($(OPTFLAG),O0)
+ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
     -optlevel.clang = -$(OPTFLAG)
 else
     -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
