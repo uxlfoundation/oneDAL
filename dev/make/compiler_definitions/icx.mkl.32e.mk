@@ -33,7 +33,7 @@ else
 endif
 
 ifeq ($(OS_is_win),true)
-    -optlevel.icx = /$(OPTFLAG)
+    -optlevel.icx = -$(OPTFLAG)
 else
     -optlevel.icx = -$(OPTFLAG)
 endif
