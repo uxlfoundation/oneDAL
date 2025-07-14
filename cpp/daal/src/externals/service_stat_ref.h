@@ -27,6 +27,8 @@
 
 #include "src/externals/service_memory.h"
 #include "src/externals/service_blas_ref.h"
+#include "src/externals/service_math_ref.h"
+#include "src/services/service_arrays.h"
 
 typedef void (*func_type)(DAAL_INT, DAAL_INT, DAAL_INT, void *);
 extern "C"
@@ -95,6 +97,24 @@ struct RefStatistics<double, cpu>
     typedef __int64 SizeType;
     typedef __int64 MethodType;
     typedef int ErrorType;
+
+    static int xmeansOnePass(const double * data, __int64 nFeatures, __int64 nVectors, double * means)
+    {
+        daal::services::internal::TArrayCalloc<double, cpu> tempRowMinusMeans(nFeatures);
+        if (!tempRowMinusMeans.get()) return services::ErrorMemoryAllocationFailed;
+        const DAAL_INT nFeatures_ = nFeatures;
+        const DAAL_INT one        = 1;
+        daal::internal::ref::OpenBlas<double, cpu> blasInst;
+        daal::internal::ref::RefMath<double, cpu> mathInst;
+        for (__int64 vector = 0; vector < nVectors; vector++)
+        {
+            const double coef = 1.0 / static_cast<double>(vector + 1);
+            mathInst.vSub(nFeatures, data + vector * nFeatures, means, tempRowMinusMeans.get());
+            blasInst.xxaxpy(&nFeatures_, &coef, tempRowMinusMeans.get(), &one, means, &one);
+        }
+
+        return 0;
+    }
 
     static int xcp(double * data, __int64 nFeatures, __int64 nVectors, double * nPreviousObservations, double * sum, double * crossProduct,
                    __int64 method)
@@ -262,6 +282,24 @@ struct RefStatistics<float, cpu>
     typedef __int64 SizeType;
     typedef __int64 MethodType;
     typedef int ErrorType;
+
+    static int xmeansOnePass(const float * data, __int64 nFeatures, __int64 nVectors, float * means)
+    {
+        daal::services::internal::TArray<float, cpu> tempRowMinusMeans(nFeatures);
+        daal::services::internal::service_memset<float, cpu>(means, 0.0f, nFeatures);
+        const DAAL_INT nFeatures_ = nFeatures;
+        const DAAL_INT one        = 1;
+        daal::internal::ref::OpenBlas<float, cpu> blasInst;
+        daal::internal::ref::RefMath<float, cpu> mathInst;
+        for (__int64 vector = 0; vector < nVectors; vector++)
+        {
+            const float coef = 1.0f / static_cast<float>(vector + 1);
+            mathInst.vSub(nFeatures, data + vector * nFeatures, means, tempRowMinusMeans.get());
+            blasInst.xxaxpy(&nFeatures_, &coef, tempRowMinusMeans.get(), &one, means, &one);
+        }
+
+        return 0;
+    }
 
     static int xcp(float * data, __int64 nFeatures, __int64 nVectors, float * nPreviousObservations, float * sum, float * crossProduct,
                    __int64 method)

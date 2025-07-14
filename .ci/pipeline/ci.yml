@@ -27,7 +27,10 @@ variables:
   OPENBLAS_VERSION : 'v0.3.27'
   TBB_VERSION : 'v2021.10.0'
   VM_IMAGE : 'ubuntu-24.04'
+  WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
+  PY_VERSION: '3.11'
+  SKL_VERSION: '1.5'
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/487fd8c3-a3d8-4c22-a903-f8d54c2c57be/intel-oneapi-base-toolkit-2025.1.0.650_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
@@ -271,6 +274,12 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
     displayName: 'Upload build artifacts'
   - script: |
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=dev \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-dev'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
@@ -278,10 +287,24 @@ jobs:
 
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=release_static \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-release-static'
+
+  - script: |
+      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-static'
+
+  - script: |
+      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=release_dynamic \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
@@ -342,12 +365,12 @@ jobs:
   strategy:
     matrix:
       Python311:
-        PYTHON_VERSION: '3.11'
-        SKLEARN_VERSION: '1.5'
+        PYTHON_VERSION: '$(PY_VERSION)'
+        SKLEARN_VERSION: '$(SKL_VERSION)'
   steps:
   - checkout: none
   - script: |
-      git clone https://github.com/uxlfoundation/scikit-learn-intelex.git .
+      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
     displayName: 'Clone sklearnex'
   - task: DownloadPipelineArtifact@2
     inputs:
@@ -373,7 +396,7 @@ jobs:
     release.dir: '__release_win_vc'
     platform.type : 'win32e'
   pool:
-    vmImage: 'windows-2022'
+    vmImage: '$(WIN_VM_IMAGE)'
   steps:
   - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: Install oneAPI Base Toolkit
@@ -400,6 +423,12 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Upload build artifacts'
     continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL scripts'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib msvs cmake
@@ -423,3 +452,41 @@ jobs:
     displayName: 'Uploading on fail'
     condition: failed()
     continueOnError: true
+
+  
+- job: WindowsSklearnex
+  dependsOn: WindowsMakeVC
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_win_vc'
+    platform.type: 'win32e'
+    DALROOT: '$(Pipeline.Workspace)\daal\latest'
+    TBBROOT: '%TEMP%\oneapi\tbb\latest'
+  pool:
+    vmImage: '$(WIN_VM_IMAGE)'
+    maxParallel: 2
+  strategy:
+    matrix:
+      Python311:
+        PYTHON_VERSION: '$(PY_VERSION)'
+        SKLEARN_VERSION: '$(SKL_VERSION)'
+  steps:
+  - checkout: none
+  - script: |
+      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
+    displayName: 'Clone sklearnex'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'oneDAL scripts'
+      path: '$(Build.Repository.LocalPath)\.ci\env'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: '$(platform.type) build'
+      path: $(Pipeline.Workspace)
+  - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+    displayName: 'TBB installation'
+  - template: .ci/pipeline/build-and-test-win.yml@sklearnex
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) sklearnex build'
+      targetPath: '$(Build.Repository.LocalPath)/build'

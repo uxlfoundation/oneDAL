@@ -20,6 +20,7 @@
 #define __SERVICE_TOPO_H__
 
 #include "services/daal_defines.h"
+
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
     #if defined(__linux__) || defined(__FreeBSD__)
@@ -180,7 +181,7 @@ namespace services
 {
 namespace internal
 {
-typedef struct dcache_str
+struct leaf2_cache_struct
 {
     int L1;       // L1Data size
     int L1i;      // L1 instruction size
@@ -189,24 +190,24 @@ typedef struct dcache_str
     int L3;       // L3 size
     int cl;       // cache line size
     int sectored; // cache lines sectored
-} leaf2_cache_struct;
+};
 
-typedef struct
+struct CPUIDinfo
 {
-    unsigned __int32 EAX, EBX, ECX, EDX;
-} CPUIDinfo;
+    unsigned __int32 EAX = 0, EBX = 0, ECX = 0, EDX = 0;
+};
 
 struct CPUIDinfox
 {
-    CPUIDinfo * subleaf[MAX_CACHE_SUBLEAFS];
-    unsigned __int32 subleaf_max = 0;
+    CPUIDinfo * subleaf[MAX_CACHE_SUBLEAFS] = {};
+    unsigned __int32 subleaf_max            = 0;
 };
 
-typedef struct
+struct GenericAffinityMask
 {
-    unsigned maxByteLength;
-    unsigned char * AffinityMask;
-} GenericAffinityMask;
+    unsigned maxByteLength       = 0;
+    unsigned char * AffinityMask = nullptr;
+};
 // The width of affinity mask in legacy Windows API is 32 or 64, depending on
 // 32-bit or 64-bit OS.
 // Linux abstract its equivalent bitmap cpumask_t from direct programmer access,
@@ -216,37 +217,37 @@ typedef struct
 // for topology analysis, we use an unsigned char buffer that can
 // map to different OS implementation's affinity mask data structure
 
-typedef struct
+struct cacheDetail_str
 {
-    char description[256];
-    char descShort[64];
+    char description[256] = {};
+    char descShort[64]    = {};
     unsigned level; // start at 1
     unsigned type;  // cache type (instruction, data, combined)
     unsigned sizeKB;
     unsigned how_many_threads_share_cache;
     unsigned how_many_caches_share_level;
-} cacheDetail_str;
+};
 
 struct Dyn2Arr_str
 {
-    unsigned dim[2];        // xdim and ydim
-    unsigned * data = NULL; // data array to be malloc'd
+    unsigned dim[2] = { 0 };   // xdim and ydim
+    unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
-    unsigned dim[1];        // xdim
-    unsigned * data = NULL; // data array to be malloc'd
+    unsigned dim[1] = { 0 };   // xdim
+    unsigned * data = nullptr; // data array to be malloc'd
 };
 
-typedef struct
+struct DynCharBuf_str
 {
-    int size;
-    int used;
-    char * buffer;
-} DynCharBuf_str;
+    int size      = 0;
+    int used      = 0;
+    char * buffer = nullptr; // buffer to be malloc'd
+};
 
-typedef struct
+struct idAffMskOrdMapping_t
 {
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
@@ -266,25 +267,25 @@ typedef struct
     unsigned __int32 coreORD;    // a zero-based numbering scheme for each core in the same package
     unsigned __int32 threadORD;  // a zero-based numbering scheme for each thread in the same core
     // Next two members are the sub IDs for cache topology enumeration
-    unsigned __int32 EaCacheSMTIDAPIC[MAX_CACHE_SUBLEAFS]; // SMT_ID field, subset of APICID bits
-                                                           // to distinguish different logical processors sharing the same cache level
-    unsigned __int32 EaCacheIDAPIC[MAX_CACHE_SUBLEAFS];    // sub ID to enumerate different cache entities
-                                                           // of the cache level corresponding to the array index/cpuid leaf 4 subleaf index
+    unsigned __int32 EaCacheSMTIDAPIC[MAX_CACHE_SUBLEAFS] = {}; // SMT_ID field, subset of APICID bits
+                                                                // to distinguish different logical processors sharing the same cache level
+    unsigned __int32 EaCacheIDAPIC[MAX_CACHE_SUBLEAFS] = {};    // sub ID to enumerate different cache entities
+                                                                // of the cache level corresponding to the array index/cpuid leaf 4 subleaf index
     // the next three members stores a numbering scheme of ordinal index
     // for enumerating different cache entities of a cache level, and enumerating
     // logical processors sharing the same cache entity.
-    unsigned __int32 EachCacheORD[MAX_CACHE_SUBLEAFS];        // a zero-based numbering scheme
-                                                              // for each cache entity of the specified cache level in the system
-    unsigned __int32 threadPerEaCacheORD[MAX_CACHE_SUBLEAFS]; // a zero-based numbering scheme
-                                                              // for each logical processor sharing the same cache of the specified cache level
-} idAffMskOrdMapping_t;
+    unsigned __int32 EachCacheORD[MAX_CACHE_SUBLEAFS] = {};        // a zero-based numbering scheme
+                                                                   // for each cache entity of the specified cache level in the system
+    unsigned __int32 threadPerEaCacheORD[MAX_CACHE_SUBLEAFS] = {}; // a zero-based numbering scheme
+                                                                   // for each logical processor sharing the same cache of the specified cache level
+};
 
 // we are going to put an assortment of global variable, 1D and 2D arrays into
 // a data structure. This is the declaration
 struct glktsn
 { // for each logical processor we need spaces to store APIC ID,
     // sub IDs, affinity mappings, etc.
-    idAffMskOrdMapping_t * pApicAffOrdMapping = NULL;
+    idAffMskOrdMapping_t * pApicAffOrdMapping = nullptr;
 
     // workspace for storing hierarchical counts of each level
     Dyn1Arr_str perPkg_detectedCoresCount;
@@ -307,7 +308,7 @@ struct glktsn
     unsigned EnumeratedCoreCount;
     unsigned EnumeratedThreadCount;
     // CPUID ID leaf 4 can report data for several cache levels, we'll keep track of each cache level
-    unsigned EnumeratedEachCacheCount[MAX_CACHE_SUBLEAFS];
+    unsigned EnumeratedEachCacheCount[MAX_CACHE_SUBLEAFS] = {};
     // the following global variables are parameters related to
     //  extracting sub IDs from an APIC ID, common to all processors in the system
     unsigned SMTSelectMask;
@@ -316,19 +317,19 @@ struct glktsn
     unsigned PkgSelectMaskShift;
     unsigned SMTMaskWidth;
     // We'll do sub ID extractions using parameters from each cache level
-    unsigned EachCacheSelectMask[MAX_CACHE_SUBLEAFS];
-    unsigned EachCacheMaskWidth[MAX_CACHE_SUBLEAFS];
+    unsigned EachCacheSelectMask[MAX_CACHE_SUBLEAFS] = {};
+    unsigned EachCacheMaskWidth[MAX_CACHE_SUBLEAFS]  = {};
 
     // the following global variables are used for product capability identification
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    CPUIDinfox * cpuid_values;
+    CPUIDinfox * cpuid_values = nullptr;
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
     // workspeace to assist text display of cache topology information
-    cacheDetail_str cacheDetail[MAX_CACHE_SUBLEAFS];
+    cacheDetail_str cacheDetail[MAX_CACHE_SUBLEAFS] = {};
 
     unsigned isInit = 0;
 

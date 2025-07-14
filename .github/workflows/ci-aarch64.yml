@@ -27,8 +27,9 @@ on:
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
   PYTHON_VERSION: '3.12'
-  TBB_VERSION: v2022.1.0
+  TBB_VERSION: v2022.2.0
   OPENBLAS_VERSION: v0.3.29
+  OPENRNG_VERSION: 'v24.04'
 
 # Stop stale workflows when pull requests are updated: https://stackoverflow.com/a/70972844
 # Does not apply to the main branch.
@@ -57,7 +58,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@ea004816823209b8d1211e47b216185caee12cc5 # v4.0.2
+        uses: lukka/get-cmake@6b3e96a9bc9976b8b546346fdd102effedae0ca8 # v4.0.3
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -123,12 +124,96 @@ jobs:
           .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref || true
         env:
           CMAKE_GENERATOR: Ninja
+
+  openrng-build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [
+          { name: GitHub hosted, label: ubuntu-24.04-arm, cxx: gnu }
+        ]
+
+    name: LinuxMake${{ matrix.os.cxx }}_OpenBLAS(SVE)_OpenRNG_${{ matrix.os.name }}
+    runs-on: ${{ matrix.os.label }}
+    steps:
+
+      # Faster builds where possible. Fix version of CMake and Ninja.
+      # Note: This will create a github actions cache
+      - name: Get CMake and Ninja
+        uses: lukka/get-cmake@6b3e96a9bc9976b8b546346fdd102effedae0ca8 # v4.0.3
+        with:
+          cmakeVersion: 3.31.0
+          ninjaVersion: 1.12.0
+
+      - name: Checkout oneDAL
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout oneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: uxlfoundation/oneTBB
+          ref: ${{ env.TBB_VERSION }}
+          path: ${{ github.workspace }}/__work/onetbb-src
+
+      - name: Checkout openBLAS
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: OpenMathLib/OpenBLAS
+          ref: ${{ env.OPENBLAS_VERSION }}
+          path: ${{ github.workspace }}/__work/openblas
+
+      - name: Build oneTBB
+        run: |
+          .ci/env/tbb.sh
+          echo "TBBROOT=${{ github.workspace }}/__deps/tbb-aarch64" >> "$GITHUB_ENV"
+
+      # TODO: Cache openBLAS
+      - name: Build openBLAS
+        run: |
+          .ci/env/openblas.sh
+
+      - name: Build openRNG
+        run: |
+          .ci/env/openrng.sh --version ${{ env.OPENRNG_VERSION }}
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+
+      - name: make daal
+        run: |
+          .ci/scripts/build.sh --compiler ${{ matrix.os.cxx }} --optimizations sve --target daal --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64 --use-openrng yes
+
+      - name: make onedal_c
+        run: |
+          .ci/scripts/build.sh --compiler ${{ matrix.os.cxx }} --optimizations sve --target onedal_c --backend-config ref --tbb-dir $TBBROOT --blas-dir ./__deps/openblas_aarch64 --use-openrng yes
+
+      - name: daal/cpp examples
+        run: |
+          echo "::warning::This step is designed to always pass, please check logs for more details"
+          # timeout added due to hanging enable_thread_pinning example, and should be removed when fixed
+          timeout 12m .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface daal/cpp --build-system cmake --backend ref --rng-backend openrng || true
+        env:
+          CMAKE_GENERATOR: Ninja
+
+      - name: oneapi/cpp examples
+        run: |
+          echo "::warning::This step is designed to always pass, please check logs for more details"
+          # excludes examples from EXCLUDE_LIST present in examples/daal/cpp/CMakeLists.txt
+          .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx_${{ matrix.os.cxx }} --compiler ${{ matrix.os.cxx }} --interface oneapi/cpp --build-system cmake --backend ref --rng-backend openrng || true
+        env:
+          CMAKE_GENERATOR: Ninja
+
   # This job adds a check named "CI AArch64" that represents overall
   # workflow status and can be used in branch rulesets. This is useful when
   # running a matrix CI, and allows changing the CI without needing to change
   # the overall required check name.
   status:
-    needs: build-and-test
+    needs: [build-and-test, openrng-build-and-test]
     runs-on: ubuntu-latest
     name: "CI AArch64"
     steps:

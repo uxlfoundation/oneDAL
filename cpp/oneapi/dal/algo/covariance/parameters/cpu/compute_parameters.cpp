@@ -65,6 +65,19 @@ std::int64_t propose_block_size(const context_cpu& ctx, const std::int64_t row_c
     return block_size;
 }
 
+std::int64_t propose_max_cols_batched(const context_cpu& ctx, const std::int64_t row_count) {
+    return 4096;
+}
+
+std::int64_t propose_small_rows_threshold(const context_cpu& ctx, const std::int64_t row_count) {
+    return 10'000;
+}
+
+std::int64_t propose_small_rows_max_cols_batched(const context_cpu& ctx,
+                                                 const std::int64_t row_count) {
+    return 1024;
+}
+
 template <typename Float, typename Task>
 struct compute_parameters_cpu<Float, method::dense, Task> {
     using params_t = detail::compute_parameters<Task>;
@@ -76,8 +89,16 @@ struct compute_parameters_cpu<Float, method::dense, Task> {
         const auto row_count = x.get_row_count();
 
         const auto block = propose_block_size<Float>(ctx, row_count);
+        const auto max_cols_batched = propose_max_cols_batched(ctx, row_count);
+        const auto small_rows_threshold = propose_small_rows_threshold(ctx, row_count);
+        const auto small_rows_max_cols_batched =
+            propose_small_rows_max_cols_batched(ctx, row_count);
 
-        return params_t{}.set_cpu_macro_block(block);
+        return params_t{}
+            .set_cpu_macro_block(block)
+            .set_cpu_max_cols_batched(max_cols_batched)
+            .set_cpu_small_rows_threshold(small_rows_threshold)
+            .set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
     }
 };
 
