@@ -33,7 +33,15 @@ else
 endif
 
 
--optlevel.dpcpp = -$(OPTFLAG)
+ifeq ($(OS_is_win),true)
+    -optlevel.dpcpp = -$(OPTFLAG)
+else
+    ifeq ($(OPTFLAG),O0)
+        -optlevel.dpcpp = -$(OPTFLAG)
+    else
+        -optlevel.dpcpp = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
+endif
 
 
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib

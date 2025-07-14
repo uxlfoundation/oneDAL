@@ -33,9 +33,13 @@ else
 endif
 
 ifeq ($(OS_is_win),true)
-    -optlevel.icc = /$(OPTFLAG)
-else
     -optlevel.icc = -$(OPTFLAG)
+else
+    ifeq ($(OPTFLAG),O0)
+        -optlevel.icc = -$(OPTFLAG)
+    else
+        -optlevel.icc = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
 endif
 
 -Zl.icc = $(if $(OS_is_win),-Zl,) -mGLOB_freestanding=TRUE -mCG_no_libirc=TRUE

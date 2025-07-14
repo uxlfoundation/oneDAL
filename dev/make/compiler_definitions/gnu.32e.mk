@@ -32,10 +32,10 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
-ifeq ($(OS_is_win),true)
-    -optlevel.gnu = /$(OPTFLAG)
-else
+ifeq ($(OPTFLAG),O0)
     -optlevel.gnu = -$(OPTFLAG)
+else
+    -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
 endif
 
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \

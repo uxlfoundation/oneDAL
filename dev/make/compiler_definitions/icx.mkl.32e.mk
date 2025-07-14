@@ -35,7 +35,11 @@ endif
 ifeq ($(OS_is_win),true)
     -optlevel.icx = -$(OPTFLAG)
 else
-    -optlevel.icx = -$(OPTFLAG)
+    ifeq ($(OPTFLAG),O0)
+        -optlevel.icx = -$(OPTFLAG)
+    else
+        -optlevel.icx = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib

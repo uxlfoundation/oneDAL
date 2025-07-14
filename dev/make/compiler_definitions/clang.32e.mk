@@ -34,7 +34,11 @@ else
 endif
 
 
--optlevel.clang = -$(OPTFLAG)
+ifeq ($(OPTFLAG),O0)
+    -optlevel.clang = -$(OPTFLAG)
+else
+    -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+endif
 
 COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
                      -Werror -Wreturn-type
