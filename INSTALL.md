@@ -135,7 +135,7 @@ is available as an alternative to the manual setup.
 
     - DAAL interfaces on **Linux\*** using **Clang\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTLEVEL=01
+            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTLEVEL=O1
 
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
