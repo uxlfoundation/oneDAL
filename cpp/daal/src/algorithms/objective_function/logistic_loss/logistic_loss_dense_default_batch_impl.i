@@ -20,6 +20,8 @@
 //  Implementation of logloss algorithm
 //--
 */
+#include <type_traits>
+
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
@@ -323,6 +325,20 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             {
                 DAAL_PROFILER_TASK(applyBeta);
                 applyBeta(xLocal, b, fPtrLocal, nRowsToProcess, p, parameter->interceptFlag);
+            }
+
+            // Note: due to the way the function is calculated here, it needs to avoid sigmoid
+            // and '1-sigmoid' values from being exactly zero or exactly one. They could in
+            // theory be calculated to a larger precision by using a different numerical route,
+            // but in order to avoid slow row-by-row exp/log calls, this just clips symmetrically
+            // to the nearest integer value that would avoid running into zeros and ones.
+            const algorithmFPType maxSigmoidInput = std::is_same<algorithmFPType, double>::value ? 35 : 16;
+            const algorithmFPType minSigmoidInput = -maxSigmoidInput;
+
+            PRAGMA_FORCE_SIMD
+            for (size_t row = 0; row < nRowsToProcess; row++)
+            {
+                fPtrLocal[row] = std::fmax(std::fmin(fPtrLocal[row], maxSigmoidInput), minSigmoidInput);
             }
 
             {
