@@ -440,7 +440,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                     {
                         l1NormBeta += b[i] < 0 ? -b[i] : b[i];
                     }
-                    value += parameter->parameter->penaltyL1 * l1NormBeta;
+                    value += parameter->penaltyL1 * l1NormBeta;
                 }
             }
         }
