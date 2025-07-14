@@ -24,8 +24,7 @@ CMPLRDIRSUFF.icx =
 
 CORE.SERV.COMPILER.icx = generic
 
-
-OPTFLAGS_SUPPORTED := O0 O1 O2 O3
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
@@ -35,7 +34,9 @@ endif
 ifeq ($(OS_is_win),true)
     -optlevel.icx = -$(OPTFLAG)
 else
-    ifeq ($(OPTFLAG),O0)
+    ifeq ($(OPTFLAG),Ofast)
+        -optlevel.icx = -O3 -ffast-math
+    else ifeq ($(OPTFLAG),O0)
         -optlevel.icx = -$(OPTFLAG)
     else
         -optlevel.icx = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
