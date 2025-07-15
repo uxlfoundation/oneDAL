@@ -18,6 +18,7 @@
 #include "oneapi/dal/io/csv/backend/cpu/read_kernel.hpp"
 #include "oneapi/dal/io/csv/backend/gpu/read_kernel.hpp"
 #include "oneapi/dal/io/csv/detail/read_ops.hpp"
+#include "oneapi/dal/table/csr.hpp"
 
 namespace oneapi::dal::csv::detail {
 namespace v1 {
@@ -34,10 +35,26 @@ table read_ops_dispatcher<table, Float, data_parallel_policy>::operator()(
     return kernel_dispatcher_t{}(ctx, ds, args);
 }
 
+template <typename Float>
+csr_table read_ops_dispatcher<csr_table, Float, data_parallel_policy>::operator()(
+    const data_parallel_policy& ctx,
+    const data_source_base& ds,
+    const read_args<csr_table>& args) const {
+    using kernel_dispatcher_t = dal::backend::kernel_dispatcher<
+        KERNEL_SINGLE_NODE_CPU(backend::read_kernel_cpu<csr_table, Float>),
+        KERNEL_SINGLE_NODE_GPU(backend::read_kernel_gpu<csr_table, Float>)>;
+    return kernel_dispatcher_t{}(ctx, ds, args);
+}
+
 #define INSTANTIATE(F) \
     template struct ONEDAL_EXPORT read_ops_dispatcher<table, F, data_parallel_policy>;
 INSTANTIATE(float)
 INSTANTIATE(double)
+
+#define INSTANTIATE_CSR(F) \
+    template struct ONEDAL_EXPORT read_ops_dispatcher<csr_table, F, data_parallel_policy>;
+INSTANTIATE_CSR(float)
+INSTANTIATE_CSR(double)
 
 } // namespace v1
 } // namespace oneapi::dal::csv::detail

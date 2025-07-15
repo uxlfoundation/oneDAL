@@ -34,15 +34,14 @@ public:
 
     cpu_extension get_top_cpu_extension() const override;
 
+    cpu_extension get_onedal_cpu_extension() const override;
+
+    uint64_t get_cpu_features() const override;
+
     std::string dump() const override;
 
 protected:
     std::map<std::string, std::any> info_;
-
-    template <typename T>
-    void print(const std::any& value, std::ostringstream& ss) const;
-
-    void print_any(const std::any& value, std::ostringstream& ss) const;
 };
 
 } // namespace v1

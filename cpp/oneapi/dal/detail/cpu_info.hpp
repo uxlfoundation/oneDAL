@@ -29,6 +29,8 @@ public:
 
     cpu_vendor get_cpu_vendor() const override;
     cpu_extension get_top_cpu_extension() const override;
+    cpu_extension get_onedal_cpu_extension() const override;
+    uint64_t get_cpu_features() const override;
 
     std::string dump() const override;
 

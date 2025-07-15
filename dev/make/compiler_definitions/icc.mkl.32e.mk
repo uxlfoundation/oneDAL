@@ -25,6 +25,25 @@ CMPLRDIRSUFF.icc =
 CORE.SERV.COMPILER.icc = generic
 -DEBC.icc = $(if $(OS_is_win),-debug:all -Z7,-g)
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(OS_is_win),true)
+    -optlevel.icx = -$(OPTFLAG)
+else
+    ifeq ($(OPTFLAG),Ofast)
+        -optlevel.icc = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+    else ifeq ($(OPTFLAG),O0)
+        -optlevel.icc = -$(OPTFLAG)
+    else
+        -optlevel.icc = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
+endif
+
 -Zl.icc = $(if $(OS_is_win),-Zl,) -mGLOB_freestanding=TRUE -mCG_no_libirc=TRUE
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 

@@ -123,7 +123,7 @@ is available as an alternative to the manual setup.
 
 7. Download and install Python (version 3.9 or higher).
 
-8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, and the compiler you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -131,11 +131,11 @@ is available as an alternative to the manual setup.
 
     - DAAL interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=gnu
+            make -f makefile daal PLAT=lnx32e COMPILER=gnu OPTLEVEL=O0
 
     - DAAL interfaces on **Linux\*** using **Clang\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=clang
+            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTLEVEL=O1
 
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
@@ -143,11 +143,11 @@ is available as an alternative to the manual setup.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 
-            make -f makefile oneapi_c PLAT=win32e COMPILER=vc
+            make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTLEVEL=O2
 
     - DAAL and oneAPI C++ interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu
+            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu OPTLEVEL=O3
 
 It is possible to build oneDAL libraries with selected set of algorithms and/or CPU optimizations. `CORE.ALGORITHMS.CUSTOM` and `REQCPUS` makefile defines are used for it.
 

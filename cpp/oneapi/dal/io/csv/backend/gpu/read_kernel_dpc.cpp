@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2020 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 #include "oneapi/dal/detail/memory.hpp"
 #include "oneapi/dal/io/csv/backend/gpu/read_kernel.hpp"
+#include "oneapi/dal/io/csv/backend/common.hpp"
 #include "oneapi/dal/table/common.hpp"
 #include "oneapi/dal/table/detail/table_builder.hpp"
 
@@ -79,7 +80,50 @@ struct read_kernel_gpu<table, Float> {
     }
 };
 
+template <typename Float>
+struct read_kernel_gpu<csr_table, Float> {
+    csr_table operator()(const dal::backend::context_gpu& ctx,
+                         const detail::data_source_base& ds,
+                         const read_args<csr_table>& args) const {
+        // Read CSR data from the CSV file
+        auto [row_offsets, col_indices, values] = read_csr_data<Float>(ds, args);
+        std::int64_t feature_count = args.get_feature_count();
+        sparse_indexing indexing = args.get_sparse_indexing();
+
+        // moving to device memory
+        auto& queue = ctx.get_queue();
+        auto data_arr = array<Float>::empty(queue, values.size(), sycl::usm::alloc::device);
+        auto col_indices_arr =
+            array<std::int64_t>::empty(queue, col_indices.size(), sycl::usm::alloc::device);
+        auto row_offsets_arr =
+            array<std::int64_t>::empty(queue, row_offsets.size(), sycl::usm::alloc::device);
+
+        dal::detail::memcpy_host2usm(queue,
+                                     data_arr.get_mutable_data(),
+                                     values.data(),
+                                     sizeof(Float) * values.size());
+        dal::detail::memcpy_host2usm(queue,
+                                     col_indices_arr.get_mutable_data(),
+                                     col_indices.data(),
+                                     sizeof(std::int64_t) * col_indices.size());
+        dal::detail::memcpy_host2usm(queue,
+                                     row_offsets_arr.get_mutable_data(),
+                                     row_offsets.data(),
+                                     sizeof(std::int64_t) * row_offsets.size());
+
+        return csr_table::wrap(data_arr,
+                               col_indices_arr,
+                               row_offsets_arr,
+                               feature_count,
+                               indexing // sparse indexing
+        );
+    }
+};
+
 template struct read_kernel_gpu<table, float>;
 template struct read_kernel_gpu<table, double>;
+
+template struct read_kernel_gpu<csr_table, float>;
+template struct read_kernel_gpu<csr_table, double>;
 
 } // namespace oneapi::dal::csv::backend
