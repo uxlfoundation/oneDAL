@@ -57,7 +57,8 @@ function install_dev-base {
 }
 
 function install_dev-base-conda {
-    conda config --remove channels https://repo.anaconda.com/pkgs/main https://repo.anaconda.com/pkgs/r
+    conda config --remove channels https://repo.anaconda.com/pkgs/main 
+    conda config --remove channels https://repo.anaconda.com/pkgs/r
     conda env create -f .ci/env/environment.yml
 }
 
