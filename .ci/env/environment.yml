@@ -1,6 +1,5 @@
 name: ci-env
 channels:
   - conda-forge
-channel_priority: strict
 dependencies:
   - impi-devel=2021.12.0
