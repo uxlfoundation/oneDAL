@@ -350,7 +350,7 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: LinuxSklearnex
-  #dependsOn: LinuxMakeGNU_MKL (temporary for quick experimentation)
+  dependsOn: LinuxMakeGNU_MKL
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu'
