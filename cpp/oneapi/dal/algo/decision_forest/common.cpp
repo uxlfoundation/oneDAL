@@ -67,6 +67,7 @@ public:
     engine_type df_engine_type = engine_type::philox4x32x10;
     bool memory_saving_mode = false;
     bool bootstrap = true;
+    bool local_trees_mode = false;
     splitter_mode splitter_mode_value = splitter_mode::best;
 
     variable_importance_mode variable_importance_mode_value = variable_importance_mode::none;
@@ -146,6 +147,11 @@ error_metric_mode descriptor_base<Task>::get_error_metric_mode() const {
 template <typename Task>
 bool descriptor_base<Task>::get_memory_saving_mode() const {
     return impl_->memory_saving_mode;
+}
+
+template <typename Task>
+bool descriptor_base<Task>::get_local_trees_mode() const {
+    return impl_->local_trees_mode;
 }
 
 template <typename Task>
@@ -270,6 +276,11 @@ void descriptor_base<Task>::set_error_metric_mode_impl(error_metric_mode value) 
 template <typename Task>
 void descriptor_base<Task>::set_infer_mode_impl(infer_mode value) {
     impl_->infer_mode_value = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_local_trees_mode_impl(bool value) {
+    impl_->local_trees_mode = value;
 }
 
 template <typename Task>

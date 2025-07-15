@@ -27,12 +27,16 @@ class cpu_info_x86 : public cpu_info_impl {
 public:
     cpu_info_x86() {
         info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = detect_onedal_cpu_extension();
         info_["vendor"] = (daal_check_is_intel_cpu() ? cpu_vendor::intel : cpu_vendor::amd);
+        info_["cpu_features"] = detect_cpu_features();
     }
 
     explicit cpu_info_x86(const cpu_extension cpu_extension) {
-        info_["top_cpu_extension"] = cpu_extension;
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = cpu_extension;
         info_["vendor"] = (daal_check_is_intel_cpu() ? cpu_vendor::intel : cpu_vendor::amd);
+        info_["cpu_features"] = detect_cpu_features();
     }
 };
 

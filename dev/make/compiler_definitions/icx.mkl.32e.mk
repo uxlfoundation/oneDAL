@@ -24,9 +24,30 @@ CMPLRDIRSUFF.icx =
 
 CORE.SERV.COMPILER.icx = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(OS_is_win),true)
+    -optlevel.icx = -$(OPTFLAG)
+else
+    ifeq ($(OPTFLAG),Ofast)
+        -optlevel.icx = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+    else ifeq ($(OPTFLAG),O0)
+        -optlevel.icx = -$(OPTFLAG)
+    else
+        -optlevel.icx = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
+endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
 -DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+
+-asanstatic.icx = -static-libasan
+-asanshared.icx = -shared-libasan
 
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 

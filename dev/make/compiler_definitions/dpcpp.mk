@@ -25,8 +25,38 @@ CMPLRDIRSUFF.dpcpp = _dpcpp
 
 CORE.SERV.COMPILER.dpcpp = generic
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+
+ifeq ($(OS_is_win),true)
+    ifeq ($(filter $(OPTFLAG),Ob Od Oi Os Ot Ox Oy),$(OPTFLAG))
+        -optlevel.dpcpp = -O2
+    else ifeq ($(OPTFLAG),Ofast)
+        -optlevel.dpcpp = -O3 -ffast-math
+    else
+        -optlevel.dpcpp = -$(OPTFLAG)
+    endif
+else
+    ifeq ($(OPTFLAG),Ofast)
+        -optlevel.dpcpp = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+    else ifeq ($(OPTFLAG),O0)
+        -optlevel.dpcpp = -$(OPTFLAG)
+    else
+        -optlevel.dpcpp = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+    endif
+endif
+
+
 -Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
 -DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+
+-asanstatic.dpcpp = -static-libasan
+-asanshared.dpcpp = -shared-libasan
 
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
                      -Werror -Wreturn-type -fsycl-device-code-split=per_kernel

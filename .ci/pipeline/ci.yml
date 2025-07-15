@@ -274,6 +274,12 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
     displayName: 'Upload build artifacts'
   - script: |
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=dev \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-dev'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
@@ -281,10 +287,24 @@ jobs:
 
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=release_static \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-release-static'
+
+  - script: |
+      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-static'
+
+  - script: |
+      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      bazel test //examples/daal/cpp:all \
+                 --test_link_mode=release_dynamic \
+                 --test_thread_mode=par
+    displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
