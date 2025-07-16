@@ -153,7 +153,7 @@ struct MklBlas<double, cpu>
     static double xasum(const DAAL_INT * n, const double * x, const DAAL_INT * incx)
     {
         double res;
-        __DAAL_MKLFN_CALL_BLAS(dasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx), res);
+        __DAAL_MKLFN_CALL_RETURN_BLAS(dasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx), res);
         return res;
     }
 };
@@ -270,7 +270,7 @@ struct MklBlas<float, cpu>
     static float xasum(const DAAL_INT * n, const float * x, const DAAL_INT * incx)
     {
         float res;
-        __DAAL_MKLFN_CALL_BLAS(sasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx), res);
+        __DAAL_MKLFN_CALL_RETURN_BLAS(sasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx), res);
         return res;
     }
 };
