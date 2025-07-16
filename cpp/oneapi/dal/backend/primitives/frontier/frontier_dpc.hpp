@@ -63,6 +63,8 @@ struct frontier_view {
     std::uint32_t* _offsets_size;
 };
 
+#ifdef ONEDAL_DATA_PARALLEL
+
 template <typename ElementType = std::uint32_t, sycl::usm::alloc Alloc = sycl::usm::alloc::shared>
 class frontier {
     using bitmap_t = ElementType;
@@ -127,11 +129,12 @@ public:
     }
 
     bool empty() const {
-        auto empty_buff = _buffer.slice(0, 1);
-        fill(_queue, empty_buff, buffer_t(0)).wait();
-        auto empty_buff_ptr = empty_buff.get_mutable_data();
+        ndview<std::uint32_t, 1> empty_buff = _buffer.slice(0, 1);
+        auto copy_e = fill(_queue, empty_buff, buffer_t(0));
+        auto* const empty_buff_ptr = empty_buff.get_mutable_data();
 
         auto e = _queue.submit([&](sycl::handler& cgh) {
+            cgh.depends_on(copy_e);
             const auto range = make_range_1d(_mlb_layer.get_count());
             auto sum_reduction = sycl::reduction(empty_buff_ptr, sycl::plus<>());
             auto* f_ptr = this->get_mlb_ptr();
@@ -140,7 +143,6 @@ public:
                 sum_v += f_ptr[idx];
             });
         });
-        e.wait_and_throw();
         auto empty_sum = empty_buff.at_device(_queue, 0, { e });
         return empty_sum == 0;
     }
@@ -293,5 +295,7 @@ private:
     const size_t _TMP_VAR = 0;
     const size_t _CAF_FLAG = 0; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
+
+#endif
 
 } // namespace oneapi::dal::backend::primitives
