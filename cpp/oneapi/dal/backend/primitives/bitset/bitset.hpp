@@ -21,7 +21,7 @@ public:
     }
 
     /// Clears the bit at the specified index to 0.
-    inline void clear(std::uint32_t index) const {
+    inline void unset(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
         _data[element_index] &= ~(element_t(1) << bit_index);
@@ -34,36 +34,26 @@ public:
         return (_data[element_index] & (element_t(1) << bit_index)) != 0;
     }
 
-    inline bool gas(std::uint32_t index) const {
-        element_t element_index = index / element_bitsize;
-        element_t bit_index = index % element_bitsize;
-        bool set = (_data[element_index] & (element_t(1) << bit_index)) != 0;
-        if (!set) {
-            _data[element_index] &= ~(element_t(1) << bit_index); // Clear
-        }
-        return set;
-    }
-
     /// Sets the bit at the specified index using atomic operations.
     template <sycl::memory_order mem_order = sycl::memory_order::relaxed,
               sycl::memory_scope mem_scope = sycl::memory_scope::device>
     inline void atomic_set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
-        sycl::atomic_ref<element_t, mem_order, mem_scope, sycl::access::address_space::local_space>
+        sycl::atomic_ref<element_t, mem_order, mem_scope>
             atomic_element(_data[element_index]);
-        atomic_element.fetch_or(element_t(1) << bit_index);
+        atomic_element.store(atomic_element.load() | (element_t(1) << bit_index));
     }
 
     /// Clears the bit at the specified index using atomic operations.
     template <sycl::memory_order mem_order = sycl::memory_order::relaxed,
               sycl::memory_scope mem_scope = sycl::memory_scope::device>
-    inline void atomic_clear(std::uint32_t index) {
+    inline void atomic_unset(std::uint32_t index) {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
-        sycl::atomic_ref<element_t, mem_order, mem_scope, sycl::access::address_space::local_space>
+        sycl::atomic_ref<element_t, mem_order, mem_scope>
             atomic_element(_data[element_index]);
-        atomic_element.fetch_and(~(element_t(1) << bit_index));
+        atomic_element.store(atomic_element.load() & ~(element_t(1) << bit_index));
     }
 
     /// Checks if the bit at the specified index is set using atomic operations.
@@ -72,23 +62,9 @@ public:
     inline bool atomic_test(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
-        sycl::atomic_ref<element_t, mem_order, mem_scope, sycl::access::address_space::local_space>
+        sycl::atomic_ref<element_t, mem_order, mem_scope>
             atomic_element(_data[element_index]);
         return (atomic_element.load() & (element_t(1) << bit_index)) != 0;
-    }
-
-    template <sycl::memory_order mem_order = sycl::memory_order::relaxed,
-              sycl::memory_scope mem_scope = sycl::memory_scope::device>
-    inline bool atomic_gas(std::uint32_t index) const {
-        element_t element_index = index / element_bitsize;
-        element_t bit_index = index % element_bitsize;
-        sycl::atomic_ref<element_t, mem_order, mem_scope, sycl::access::address_space::local_space>
-            atomic_element(_data[element_index]);
-        bool set = (atomic_element.load() & (element_t(1) << bit_index)) != 0;
-        if (!set) {
-            atomic_element.fetch_and(~(element_t(1) << bit_index)); // Clear
-        }
-        return set;
     }
 
     /// Returns the pointer to the underlying data.
