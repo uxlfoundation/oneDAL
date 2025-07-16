@@ -276,7 +276,7 @@ jobs:
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par --test_output=all
     displayName: 'daal-cpp-examples-thread-dev'
 
   - script: |
