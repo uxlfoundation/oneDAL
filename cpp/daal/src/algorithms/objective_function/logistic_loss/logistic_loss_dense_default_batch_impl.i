@@ -334,12 +334,14 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             // to the nearest integer value that would avoid running into zeros and ones.
             const algorithmFPType maxSigmoidInput = std::is_same<algorithmFPType, double>::value ? 35 : 16;
             const algorithmFPType minSigmoidInput = -maxSigmoidInput;
-            const daal::internal::MathInst<algorithmFPType, cpu> MathInst;
 
             PRAGMA_FORCE_SIMD
             for (size_t row = 0; row < nRowsToProcess; row++)
             {
-                fPtrLocal[row] = MathInst.sMax(MathInst.sMin(fPtrLocal[row], maxSigmoidInput), minSigmoidInput);
+                algorithmFPType valueRow = fPtrLocal[row];
+                if (valueRow < minSigmoidInput) valueRow = minSigmoidInput;
+                if (valueRow > maxSigmoidInput) valueRow = maxSigmoidInput;
+                fPtrLocal[row] = valueRow;
             }
 
             {
