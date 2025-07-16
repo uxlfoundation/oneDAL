@@ -339,7 +339,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             PRAGMA_FORCE_SIMD
             for (size_t row = 0; row < nRowsToProcess; row++)
             {
-                fPtrLocal[row] = MathInst::sMax(MathInst::sMin(fPtrLocal[row], maxSigmoidInput), minSigmoidInput);
+                fPtrLocal[row] = MathInst.sMax(MathInst.sMin(fPtrLocal[row], maxSigmoidInput), minSigmoidInput);
             }
 
             {
