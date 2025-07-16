@@ -436,7 +436,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 {
                     DAAL_INT nBeta_int               = nBeta;
                     DAAL_INT one                     = 1;
-                    const algorithmFPType l1NormBeta = BlasInst<algorithmFPType, cpu>::xasum(&nBeta_int, b, 1);
+                    const algorithmFPType l1NormBeta = BlasInst<algorithmFPType, cpu>::xasum(&nBeta_int, b, &one);
                     value += parameter->penaltyL1 * l1NormBeta;
                 }
             }
