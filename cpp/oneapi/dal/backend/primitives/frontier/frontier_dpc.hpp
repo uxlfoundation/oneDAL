@@ -20,8 +20,8 @@ struct frontier_view {
                   std::uint32_t* offsets_size,
                   size_t num_items)
             : _num_items(num_items),
-              _data_layer(data_layer),
-              _mlb_layer(mlb_layer),
+              _data_layer(bitset<bitmap_t>{data_layer}),
+              _mlb_layer(bitset<bitmap_t>{mlb_layer}),
               _offsets(offsets),
               _offsets_size(offsets_size) {}
 
@@ -31,7 +31,7 @@ struct frontier_view {
         }
         if (!_mlb_layer.test(idx / divide_factor)) {
             _mlb_layer.atomic_set(idx / divide_factor);
-        };
+        }
     }
 
     inline void remove(std::uint32_t idx) const {
@@ -65,67 +65,60 @@ struct frontier_view {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-template <typename ElementType = std::uint32_t, sycl::usm::alloc Alloc = sycl::usm::alloc::shared>
+template <typename ElementType = std::uint32_t>
 class frontier {
     using bitmap_t = ElementType;
     using buffer_t = std::uint32_t;
 
 public:
-    frontier(sycl::queue& queue, std::size_t num_items) : _queue(queue), _num_items(num_items) {
-        auto array_size =
+    frontier(sycl::queue& queue, std::size_t num_items, sycl::usm::alloc alloc = sycl::usm::alloc::shared) : _queue(queue), _num_items(num_items) {
+        std::int64_t array_size =
             (num_items + bitset<bitmap_t>::element_bitsize - 1) / bitset<bitmap_t>::element_bitsize;
-        auto mlb_size = (array_size + bitset<bitmap_t>::element_bitsize - 1) /
+        std::int64_t mlb_size = (array_size + bitset<bitmap_t>::element_bitsize - 1) /
                         bitset<bitmap_t>::element_bitsize;
-        auto [data_layer, e1] =
-            ndarray<bitmap_t, 1>::zeros(queue, { static_cast<std::int64_t>(array_size) }, Alloc);
-        auto [mlb_layer, e2] =
-            ndarray<bitmap_t, 1>::zeros(queue, { static_cast<std::int64_t>(mlb_size) }, Alloc);
-        auto [offsets, e3] = 
-            ndarray<std::uint32_t, 1>::zeros(queue, { static_cast<std::int64_t>(array_size + 1) }, Alloc); /// First offset is to keep the size of the frontier
-        _buffer = ndarray<std::uint32_t, 1>::empty(queue, { static_cast<std::int64_t>(10) }, Alloc);
+        _data_layer =
+            ndarray<bitmap_t, 1>::empty(_queue, { array_size }, alloc);
+        _mlb_layer =
+            ndarray<bitmap_t, 1>::empty(_queue, { mlb_size }, alloc);
+        _offsets =
+            ndarray<std::uint32_t, 1>::empty(_queue, { array_size + 1 }, alloc); /// First offset is to keep the size of the frontier
+        _buffer = ndarray<std::uint32_t, 1>::empty(_queue, { 10 }, alloc);
+
+        sycl::event e1, e2, e3;
+        e1 = _data_layer.fill(_queue, bitmap_t(0));
+        e2 = _mlb_layer.fill(_queue, bitmap_t(0));
+        e3 = _offsets.fill(_queue, buffer_t(0));
 
         e1.wait_and_throw();
         e2.wait_and_throw();
         e3.wait_and_throw();
-
-        _data_layer = std::move(data_layer);
-        _mlb_layer = std::move(mlb_layer);
-        _offsets = std::move(offsets);
     }
 
-    frontier_view<bitmap_t> get_device_view() const {
+    const frontier_view<bitmap_t> get_device_view() const {
         auto offsets_size_pointer = _offsets.get_mutable_data();
         auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
-        return frontier_view<bitmap_t>(this->get_data_ptr(),
-                                       this->get_mlb_ptr(),
+        return frontier_view<bitmap_t>(_data_layer.get_mutable_data(),
+                                       _mlb_layer.get_mutable_data(),
                                        offsets_pointer,
                                        offsets_size_pointer,
                                        _data_layer.get_count());
     }
 
-    inline bitmap_t* get_data_ptr() const {
-        return _data_layer.get_mutable_data();
+    inline ndview<bitmap_t, 1> get_data() const {
+        return _data_layer;
     }
 
-    inline bitmap_t* get_mlb_ptr() const {
-        return _mlb_layer.get_mutable_data();
+    inline ndview<bitmap_t, 1> get_mlb() const {
+        return _mlb_layer;
     }
 
-    inline std::uint32_t* get_offsets_ptr() const {
-        return &(_offsets.get_mutable_data()[1]);
+    inline ndview<std::uint32_t, 1> get_offsets() const {
+        return _offsets.slice(1, _offsets.get_count());
     }
 
-    inline std::uint32_t* get_offsets_size_ptr() const {
-        return _offsets.get_mutable_data();
-    }
-
-    inline size_t get_data_size() const {
-        return _data_layer.get_count();
-    }
-
-    inline size_t get_mlb_size() const {
-        return _mlb_layer.get_count();
+    inline ndview<std::uint32_t, 1> get_offsets_size() const {
+        return _offsets.slice(0, 1);
     }
 
     bool empty() const {
@@ -137,7 +130,7 @@ public:
             cgh.depends_on(copy_e);
             const auto range = make_range_1d(_mlb_layer.get_count());
             auto sum_reduction = sycl::reduction(empty_buff_ptr, sycl::plus<>());
-            auto* f_ptr = this->get_mlb_ptr();
+            auto* const f_ptr = _mlb_layer.get_mutable_data();
 
             cgh.parallel_for(range, sum_reduction, [=](sycl::id<1> idx, auto& sum_v) {
                 sum_v += f_ptr[idx];
@@ -148,31 +141,19 @@ public:
     }
 
     void insert(bitmap_t idx) {
-        if (idx >= _data_layer.get_count() * bitset<bitmap_t>::element_bitsize) {
-            throw dal::domain_error("Index is out of range");
-        }
         auto view = this->get_device_view();
-        _queue
-            .single_task([=]() {
-                view.insert(idx);
-            })
-            .wait_and_throw();
+        _queue.submit(
+            [&](sycl::handler& cgh) {
+                cgh.single_task([=]() {
+                    view.insert(idx);
+                });
+            }
+        ).wait_and_throw();
     }
 
     bool check(bitmap_t idx) const {
-        auto check_buff = _buffer.slice(0, 1);
-        fill(_queue, check_buff, buffer_t(0)).wait();
-        auto check_buff_ptr = check_buff.get_mutable_data();
-
-        auto e = _queue.submit([&](sycl::handler& cgh) {
-            auto view = this->get_device_view();
-
-            cgh.single_task([=]() {
-                check_buff_ptr[0] = view.check(idx) ? buffer_t(1) : buffer_t(0);
-            });
-        });
-        auto check_res = check_buff.at_device(_queue, 0, { e });
-        return check_res == buffer_t(1);
+        bitmap_t tmp_data = _data_layer.at_device(_queue, idx / bitset<bitmap_t>::element_bitsize);
+        return (tmp_data & (static_cast<bitmap_t>(1) << (idx % bitset<bitmap_t>::element_bitsize))) != 0;
     }
 
     void clear() {
@@ -187,16 +168,19 @@ public:
     sycl::event compute_active_frontier() const {
         auto bitmap = this->get_device_view();
 
+        auto offsets_size_pointer = _offsets.get_mutable_data();
+        auto offsets_pointer = _offsets.get_mutable_data() + 1;
+
         uint32_t element_bitsize = decltype(bitmap._mlb_layer)::element_bitsize;
         size_t local_range = 1024; // Adjust as needed
         size_t global_range =
             _mlb_layer.get_count() + local_range - (_mlb_layer.get_count() % local_range);
 
         bool use_local_mem =
-            device_local_mem_size(this->_queue) >= (local_range * element_bitsize * sizeof(uint32_t));
+            device_local_mem_size(this->_queue) >= static_cast<std::int64_t>(local_range * element_bitsize * sizeof(uint32_t));
 
         auto e0 = _queue.submit([&](sycl::handler& cgh) {
-            cgh.single_task([=, offsets_size = this->get_offsets_size_ptr(), buffer_ptr = this->_buffer.get_mutable_data(), CAF_FLAG = this->_CAF_FLAG]() {
+            cgh.single_task([=, offsets_size = this->get_offsets_size().get_mutable_data(), buffer_ptr = this->_buffer.get_mutable_data(), CAF_FLAG = this->_CAF_FLAG]() {
                 buffer_ptr[CAF_FLAG] = offsets_size[0] == 0 ? 1 : 0;
             });
         });
@@ -207,9 +191,9 @@ public:
             if (!use_local_mem || true) { // Force to use global memory for simplicity
                 cgh.parallel_for(make_range_1d(_mlb_layer.get_count()),
                     [=,
-                    offsets = this->get_offsets_ptr(),
-                    offsets_size = this->get_offsets_size_ptr(),
-                    data_layer = this->get_mlb_ptr(),
+                    offsets = offsets_pointer,
+                    offsets_size = offsets_size_pointer,
+                    data_layer = this->_mlb_layer.get_mutable_data(),
                     buffer = this->_buffer.get_mutable_data(),
                     CAF_FLAG = this->_CAF_FLAG](sycl::id<1> idx) {
     
@@ -234,9 +218,9 @@ public:
                 cgh.parallel_for(
                     make_multiple_nd_range_1d(global_range, local_range),
                     [=,
-                    offsets = this->get_offsets_ptr(),
-                    offsets_size = this->get_offsets_size_ptr(),
-                    data_layer = this->get_mlb_ptr(),
+                    offsets = offsets_pointer,
+                    offsets_size = offsets_size_pointer,
+                    data_layer = this->_mlb_layer.get_mutable_data(),
                     size = this->_num_items,
                     buffer = this->_buffer.get_mutable_data(),
                     CAF_FLAG = this->_CAF_FLAG](sycl::nd_item<1> item) {
@@ -293,7 +277,7 @@ private:
     ndarray<std::uint32_t, 1> _offsets;
     ndarray<buffer_t, 1> _buffer;
     const size_t _TMP_VAR = 0;
-    const size_t _CAF_FLAG = 0; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
+    const size_t _CAF_FLAG = 1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
 
 #endif
