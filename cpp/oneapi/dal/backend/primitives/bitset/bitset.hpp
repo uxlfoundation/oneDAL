@@ -14,14 +14,14 @@ public:
     bitset(element_t* data) : _data(data) {}
 
     /// Sets the bit at the specified index to 1.
-    inline void set(std::uint32_t index) {
+    inline void set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
         _data[element_index] |= (element_t(1) << bit_index);
     }
 
     /// Clears the bit at the specified index to 0.
-    inline void clear(std::uint32_t index) {
+    inline void clear(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
         _data[element_index] &= ~(element_t(1) << bit_index);
