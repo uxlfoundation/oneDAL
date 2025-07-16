@@ -28,7 +28,6 @@ def _opencl_repo_impl(repo_ctx):
         libs = [
             "libOpenCL.so",
             "libOpenCL.so.1",
-            "libOpenCL.so.1.2",
         ]
         repos.create_symlinks(repo_ctx, lib_dir, libs)
     repo_ctx.template(

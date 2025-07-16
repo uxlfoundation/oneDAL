@@ -113,7 +113,7 @@ mkl_repo(
     root_env_var = "MKLROOT",
     urls = [
         #core libs .so.2
-        "https://files.pythonhosted.org/packages/46/7b/f5b1b84eb0a2a6e145fc31b4e6b1c59690dcb088734197da8f299caf7c67/mkl-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/mkl/2025.2.0/download/linux-64/mkl-2025.2.0-h901ac74_628.conda",
         #mkl inmclude folder without oneapi
         "https://files.pythonhosted.org/packages/11/58/6f583b3bac7d3952a89a00ab34e61baa17f6d6de3454a8005958289bef22/mkl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
         "https://files.pythonhosted.org/packages/b5/a7/157e11a96161091807f0f8f519591d3f9c227702d1390037ffd6d08d4d9a/mkl_static-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
@@ -125,47 +125,47 @@ mkl_repo(
         "https://files.pythonhosted.org/packages/08/30/a28cfc8f9a982a5998940b808288f58f4ba2607e50a18f97207b7428f602/mkl_devel_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
         # oneMKL SYCL: Data Fitting domain
         # Provides libmkl_sycl_data_fitting.so.5 (regression, spline fitting, etc.)
-        "https://files.pythonhosted.org/packages/4b/fb/7e4adb1e85107d06c06dd674f09a106dd3996c63f457bada18546489c87b/onemkl_sycl_datafitting-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-datafitting/2025.2.0/download/linux-64/onemkl-sycl-datafitting-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: BLAS domain
         # Provides libmkl_sycl_blas.so.5 for SYCL-based BLAS routines (e.g., gemm, dot)
-        "https://files.pythonhosted.org/packages/ce/c2/b37cf1963b73a3c971efc36d53b97efccaa30f52f1f523a5452d582dbe08/onemkl_sycl_blas-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-blas/2025.2.0/download/linux-64/onemkl-sycl-blas-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: DFT (Discrete Fourier Transform)
         # Provides libmkl_sycl_dft.so.5
-        "https://files.pythonhosted.org/packages/f2/5b/5d26447da4cf01abab3020c82924b1661684adb0286a99c692cd1c08461d/onemkl_sycl_dft-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-dft/2025.2.0/download/linux-64/onemkl-sycl-dft-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: LAPACK domain
         # Provides libmkl_sycl_lapack.so.5 (eigenvalue solvers, linear systems, etc.)
-        "https://files.pythonhosted.org/packages/db/2e/6e87e5a96bb16fe757d82de185b2706b2e4d3eb372f5eaa266508fb3c1ed/onemkl_sycl_lapack-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-lapack/2025.2.0/download/linux-64/onemkl-sycl-lapack-2025.2.0-haf5e11a_628.conda",
         # Main DPC++ MKL runtime (SYCL dispatcher)
         # Provides libmkl_sycl.so.5 — the core dispatcher that dynamically loads specific domain libraries.
         "https://files.pythonhosted.org/packages/25/f4/e57232bf293e1a88cd9e48c347030bb6d95a29cdeb9e264822eed595e989/mkl_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
         # oneMKL SYCL: Sparse domain
         # Provides libmkl_sycl_sparse.so.5 (sparse BLAS, sparse solvers)
-        "https://files.pythonhosted.org/packages/51/68/af04fa6a7d8fa5c9c3af4055abab86ed04af24b2cf316dd00f2f16694557/onemkl_sycl_sparse-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-sparse/2025.2.0/download/linux-64/onemkl-sycl-sparse-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: RNG (Random Number Generator)
         # Provides libmkl_sycl_rng.so.5
-        "https://files.pythonhosted.org/packages/bb/c8/81bab1b7838a9229ed078b9628c8e05ce8073045b64c642971bc5ce0cce8/onemkl_sycl_rng-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-rng/2025.2.0/download/linux-64/onemkl-sycl-rng-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: VM (Vector Math)
         # Provides libmkl_sycl_vm.so.5 (vectorized math operations)
-        "https://files.pythonhosted.org/packages/49/b8/827dae990d26d6571dd9b21f7146b2bafc80716365e39cfc89fbde0004c9/onemkl_sycl_vm-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-vm/2025.2.0/download/linux-64/onemkl-sycl-vm-2025.2.0-haf5e11a_628.conda",
         # oneMKL SYCL: Statistics domain
         # Provides libmkl_sycl_stats.so.5
-        "https://files.pythonhosted.org/packages/07/2e/b89f220ee0d405582c6b7e088618f1dbc1e7695307f9f7319b2bff4408ca/onemkl_sycl_stats-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://anaconda.org/conda-forge/onemkl-sycl-stats/2025.2.0/download/linux-64/onemkl-sycl-stats-2025.2.0-haf5e11a_628.conda",
     ],
     sha256s = [
-        "974b4e222cc94e8d3b67213a361c8ac25d432cc4fccc5f2f00aa15c4e67cc203",
+        "758999601fa924a29e4967edc1e5ec257633e55caecf21f0eaa8daa52dfb5c4e",
         "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
         "1a44d6a330a26df7ce05e4dd0fb13a5c92c2e3885cb32637fa4920aaa757aa81",
         "4e995c02e5f43265aa830a06e538b2e5ada76b7c2785c26b788d6073ba605b0f",
         "44ceb849a99f9bbe3ad89dac9dcdedb540b3996c69e699a40047d62d51934a0c",
-        "f607bdabcc33cb86d868b9c6945249f8a0d048be93a7ecaceb2a392da201509b",
-        "28ad1e49c821f34b57ba217dc64ab6f95d5f8f262b582296d8551d298408fd72",
-        "1f05b0b8315d7b59867ad512e7e06297b24778d0dcb9deac5201c1982bc8af57",
-        "2b2395fd1c267db2719b8fff59486b478568f61567b596b6f8c1f7008c4aba4d",
+        "84c196a6e243a6f275aa0f040ba02f12d8e9e9bfb5b02f5e58c3160f9bf52887",
+        "0748e4f91e328f4ae995013b10ae79966f80cf62a72e76495dfe1841cd022235",
+        "3580e30db302602e89e54a0296457dbdafbccd86fe79975f3bf84be0d3ce57c1",
+        "e56ec1e4e0fbfa28783a28e99337ca541934cb3aaaa0ecca469a27dab2f3a762",
         "704ecf4872d958806d8c9157f016a4e7588285b111a4c3efe6e6d4110a7d7931",
-        "b122f08aa80d0bc4330b5e218fcf810123c0efbf029b4460912e638b3cd75c5a",
-        "2fb7f8978a26e089cc29d862776cd4acdb66bbc5614cc59fa992d55e073ac093",
-        "0a55fa2c4542c785bc95dce04b6872cae297921600f16078e123d589a2e4b9c5",
-        "a0c5becfb10a88200d5f2477f9af4a0b4f1238a08365099789e89904cd15ce4a",
+        "b2cdba1894464927a05115c04bcc1a5b64e25c116c45ae44c75990c101162b35",
+        "e5664adaca1c2e15a771b0d67ec7691137c8ba8e0a5a6af6fdffece9ae37692e",
+        "ed782c632d4851f98303ab34f47437cbb77d4b9f705b36b62d4b05123c629604",
+        "ebf80b94fad4483124c62686b00552b4024e4ec987c83483b4533902a7b854a4",
     ],
     strip_prefixes = [
         "mkl-2025.2.0.data/data",

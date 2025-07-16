@@ -17,18 +17,42 @@
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    # Workaround Python wheel extraction. Bazel cannot determine file
-    # type automatically as does not support wheels out-of-the-box.
-    archive_type = ""
-    if url.endswith(".whl"):
-        archive_type = "zip"
-    repo_ctx.download_and_extract(
+    filename = url.split("/")[-1]
+    downloaded_path = repo_ctx.path(filename)
+
+    repo_ctx.download(
         url = url,
+        output = downloaded_path,
         sha256 = sha256,
-        output = output,
-        stripPrefix = strip_prefix,
-        type = archive_type,
     )
+
+    if filename.endswith(".conda"):
+        repo_ctx.execute(["unzip", downloaded_path, "-d", output])
+
+        for entry in repo_ctx.path(output).readdir():
+            if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
+                tarfile_path = output.get_child("pkg.tar")
+
+                repo_ctx.execute(["bash", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
+
+    elif filename.endswith(".whl") or filename.endswith(".zip"):
+        repo_ctx.download_and_extract(
+            url = url,
+            sha256 = sha256,
+            output = output,
+            stripPrefix = strip_prefix,
+            type = "zip",
+        )
+
+    else:
+        repo_ctx.download_and_extract(
+            url = url,
+            sha256 = sha256,
+            output = output,
+            stripPrefix = strip_prefix,
+        )
+
+
 
 def _create_download_info(repo_ctx):
     if repo_ctx.attr.url and repo_ctx.attr.urls:
@@ -71,15 +95,17 @@ def _normalize_download_info(repo_ctx):
 
 def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
     for entry in entries:
-        print("before mapping")
-        print(entry)
         entry_fmt = utils.substitute(entry, substitutions)
-        print(entry_fmt)
         src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-        print(src_entry_path)
         dst_entry_path = entry_fmt
-        print(dst_entry_path)
-        repo_ctx.symlink(src_entry_path, dst_entry_path)
+
+        src_entry_path = paths.normalize(src_entry_path)
+
+
+        real_src_path = repo_ctx.path(src_entry_path).realpath
+
+        print("Symlinking %s -> %s" % (dst_entry_path, real_src_path))
+        repo_ctx.symlink(real_src_path, dst_entry_path)
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
@@ -114,7 +140,6 @@ def _prebuilt_libs_repo_impl(repo_ctx):
         if repo_ctx.attr.url or repo_ctx.attr.urls:
             root = _download(repo_ctx)
             mapping = repo_ctx.attr._download_mapping
-            print(mapping)
         elif repo_ctx.attr.fallback_root:
             root = repo_ctx.attr.fallback_root
         else:
