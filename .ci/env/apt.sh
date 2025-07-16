@@ -57,6 +57,7 @@ function install_dev-base {
 }
 
 function install_dev-base-conda {
+    conda config --remove channels defaults
     conda env create -f .ci/env/environment.yml
 }
 
