@@ -10,8 +10,26 @@
 
 namespace oneapi::dal::backend::primitives::test {
 
+void print_device_name(sycl::queue& queue) {
+    const auto device = queue.get_device();
+    const auto device_name = device.get_info<sycl::info::device::name>();
+    std::cout << "Running on device: " << device_name << std::endl;
+}
+
+template<typename T>
+void print_frontier(const T* data, size_t num_items) {
+    size_t element_bitsize = sizeof(T) * 8;
+    for (size_t i = 0; i < num_items; ++i) {
+        size_t offset = num_items / element_bitsize;
+        size_t bit = i % element_bitsize;
+        std::cout << ((data[offset] & (static_cast<T>(1) << bit)) ? "1" : "0");
+    }       
+}
+
 TEST("frontier basic operations", "[frontier]") {
-    sycl::queue queue{ sycl::cpu_selector_v };
+    DECLARE_TEST_POLICY(policy);
+    auto& queue = policy.get_queue();
+    print_device_name(queue);
 
     const std::size_t num_items = 100;
     auto f = frontier<std::uint32_t>(queue, num_items);
@@ -62,15 +80,20 @@ TEST("frontier basic operations", "[frontier]") {
 } // TEST "frontier basic operations"
 
 TEST("frontier queue basic operations", "[frontier]") {
-    sycl::queue queue{ sycl::gpu_selector_v };
+    DECLARE_TEST_POLICY(policy);
+    auto& queue = policy.get_queue();
+    print_device_name(queue);
 
     const std::size_t num_items = 100;
-    auto f = frontier<std::uint32_t>(queue, num_items);
+    auto f = frontier<std::uint32_t, sycl::usm::alloc::device>(queue, num_items);
 
     SECTION("empty function", "[frontier]") {
         REQUIRE(f.empty() == true);
-        auto view = f.get_device_view();
-        view.insert(0);
+        queue.single_task([=, view = f.get_device_view()]() {
+            view.insert(0);
+        }).wait_and_throw();
+        std::cout << (f.check(0) ? "Frontier is not empty" : "Frontier is empty") << std::endl;
+        std::vector<std::uint32_t> data_layer_cpy(f.get_data_size());
         REQUIRE(f.empty() == false);
     }
 
@@ -79,12 +102,19 @@ TEST("frontier queue basic operations", "[frontier]") {
         f.insert(2);
         f.insert(bitset<std::uint32_t>::element_bitsize);
 
-        auto data_layer = f.get_data_ptr();
-        auto mlb_layer = f.get_mlb_ptr();
+        auto* data_layer = f.get_data_ptr();
+        auto* mlb_layer = f.get_mlb_ptr();
 
-        REQUIRE(data_layer[0] == static_cast<uint32_t>(5));
-        REQUIRE(data_layer[1] == static_cast<uint32_t>(1));
-        REQUIRE(mlb_layer[0] == static_cast<uint32_t>(3));
+        bool* check = sycl::malloc_device<bool>(1, queue);
+        queue.single_task([=, view = f.get_device_view()]() {
+            check[0] = data_layer[0] == static_cast<uint32_t>(5);
+            check[0] &= data_layer[1] == static_cast<uint32_t>(1);
+            check[0] &= mlb_layer[0] == static_cast<uint32_t>(3);
+        }).wait_and_throw();
+        bool tmp_check;
+        queue.copy(check, &tmp_check, 1).wait_and_throw();
+        REQUIRE(tmp_check == true);
+        sycl::free(check, queue);
     }
 
     SECTION("check function", "[frontier]") {
@@ -105,19 +135,21 @@ TEST("frontier queue basic operations", "[frontier]") {
 } // TEST "frontier queue operations"
 
 TEST("compute active frontier", "[frontier]") {
-    sycl::queue queue{ sycl::gpu_selector_v };
+    DECLARE_TEST_POLICY(policy);
+    auto& queue = policy.get_queue();
 
     const std::size_t num_items = 100000;
-    auto f = frontier<std::uint32_t>(queue, num_items);
-    auto view = f.get_device_view();
+    auto f = frontier<std::uint32_t, sycl::usm::alloc::host>(queue, num_items);
 
-    view.insert(0);
-    view.insert(2);
-    view.insert(32);
-    view.insert(33);
-    view.insert(64);
-    view.insert(65);
-    view.insert(95);
+    queue.single_task([=, view = f.get_device_view()]() {
+        view.insert(0);
+        view.insert(2);
+        view.insert(32);
+        view.insert(33);
+        view.insert(64);
+        view.insert(65);
+        view.insert(95);
+    }).wait_and_throw();
 
     auto e = f.compute_active_frontier();
     e.wait();
