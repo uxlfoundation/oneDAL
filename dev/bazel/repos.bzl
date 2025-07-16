@@ -100,12 +100,7 @@ def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
         dst_entry_path = entry_fmt
 
         src_entry_path = paths.normalize(src_entry_path)
-
-
-        real_src_path = repo_ctx.path(src_entry_path).realpath
-
-        print("Symlinking %s -> %s" % (dst_entry_path, real_src_path))
-        repo_ctx.symlink(real_src_path, dst_entry_path)
+        repo_ctx.symlink(src_entry_path, dst_entry_path)
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
