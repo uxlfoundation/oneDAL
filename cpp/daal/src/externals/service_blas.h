@@ -182,6 +182,8 @@ struct Blas
 
     static void xscal(const SizeType * n, const fpType * a, fpType * x, const SizeType * incx) { _impl<fpType, cpu>::xscal(n, a, x, incx); }
 
+    static fpType xasum(const SizeType * n, const fpType * x, const SizeType * incx) { _impl<fpType, cpu>::xasum(n, x, incx); }
+
     static services::Status xgemm_blocked(const char * transa, const char * transb, const SizeType * na, const SizeType * nb, const SizeType * cols,
                                           const fpType * alpha, const NumericTable * ta, const SizeType * lda, const NumericTable * tb,
                                           const SizeType * ldb, const fpType * beta, NumericTable * tc, const SizeType * ldc, int reqBlockSizeA = -1,

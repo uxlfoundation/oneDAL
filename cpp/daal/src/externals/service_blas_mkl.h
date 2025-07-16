@@ -149,6 +149,11 @@ struct MklBlas<double, cpu>
     {
         __DAAL_MKLFN_CALL_BLAS(dscal, ((const MKL_INT *)n, a, x, (const MKL_INT *)incx));
     }
+
+    static double xasum(const DAAL_INT * n, const double * x, const DAAL_INT * incx)
+    {
+        __DAAL_MKLFN_CALL_BLAS(dasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx));
+    }
 };
 
 /*
@@ -258,6 +263,11 @@ struct MklBlas<float, cpu>
     static void xscal(const DAAL_INT * n, const float * a, float * x, const DAAL_INT * incx)
     {
         __DAAL_MKLFN_CALL_BLAS(sscal, ((const MKL_INT *)n, a, x, (const MKL_INT *)incx));
+    }
+
+    static float xasum(const DAAL_INT * n, const float * x, const DAAL_INT * incx)
+    {
+        __DAAL_MKLFN_CALL_BLAS(sasum, ((const MKL_INT *)n, x, (const MKL_INT *)incx));
     }
 };
 

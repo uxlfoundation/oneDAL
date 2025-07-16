@@ -434,13 +434,10 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 }
                 else
                 {
-                    algorithmFPType l1NormBeta = 0;
-                    PRAGMA_FORCE_SIMD
-                    for (size_t i = 1; i < nBeta; ++i)
-                    {
-                        l1NormBeta += b[i] < 0 ? -b[i] : b[i];
-                    }
-                    value += parameter->penaltyL1 * l1NormBeta;
+                    DAAL_INT nBeta_int               = nBeta;
+                    DAAL_INT one                     = 1;
+                    const algorithmFPType l1NormBeta = BlasInst<algorithmFPType, cpu>::xasum(&nBeta_int, b, 1);
+                    value += parameter->parameter->penaltyL1 * l1NormBeta;
                 }
             }
         }
