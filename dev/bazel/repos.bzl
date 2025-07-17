@@ -17,6 +17,8 @@
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
+    # Workaround Python wheel extraction. Bazel cannot determine file
+    # type automatically as does not support wheels out-of-the-box.
     filename = url.split("/")[-1]
     downloaded_path = repo_ctx.path(filename)
 
@@ -98,8 +100,6 @@ def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
         entry_fmt = utils.substitute(entry, substitutions)
         src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
         dst_entry_path = entry_fmt
-
-        src_entry_path = paths.normalize(src_entry_path)
         repo_ctx.symlink(src_entry_path, dst_entry_path)
 
 def _download(repo_ctx):
