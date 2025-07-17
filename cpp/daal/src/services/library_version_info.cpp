@@ -28,12 +28,14 @@
 
 #include "src/services/service_profiler.h"
 
+#define DAAL_CPU_LONG_NAME_MAX_SIZE 256
+
 // Initialize for DAAL INFO output in KERNEL_PROFILER
 static bool print_profiler_header = (daal::internal::print_header(), false);
 
 #ifndef DAAL_REF // temporary!!! should depend both on BACKEND and TARGETARCH
     #include <mkl.h>
-static const char * cpu_long_names[] = { "Generic",
+static const char cpu_long_names[][DAAL_CPU_LONG_NAME_MAX_SIZE] = { "Generic",
                                          "Supplemental Streaming SIMD Extensions 3",
                                          "Intel(R) Streaming SIMD Extensions 4.2",
                                          "Intel(R) Advanced Vector Extensions",
@@ -43,7 +45,7 @@ static const char * cpu_long_names[] = { "Generic",
                                          "Intel(R) Xeon Phi(TM) processors based on Intel(R) Advanced Vector Extensions 512 with support of "
                                          "AVX512_4FMAPS and AVX512_4VNNIW instruction groups" };
 #else
-static const char * cpu_long_names[] = { "Generic" };
+static const char cpu_long_names[][DAAL_CPU_LONG_NAME_MAX_SIZE] = { "Generic" };
 #endif
 
 DAAL_EXPORT daal::services::LibraryVersionInfo::LibraryVersionInfo()
@@ -59,6 +61,9 @@ DAAL_EXPORT daal::services::LibraryVersionInfo::LibraryVersionInfo()
 #else
       processor(cpu_long_names[0])
 #endif
-{}
+{
+      std::cout << "LibraryVersionInfo constructor called" << std::endl;
+      std::cout << "processor = " << processor << std::endl;
+}
 
 DAAL_EXPORT daal::services::LibraryVersionInfo::~LibraryVersionInfo() {}

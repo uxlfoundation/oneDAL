@@ -67,6 +67,12 @@ struct MklService
     static int serv_get_ncpus()
     {
         unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        if (!ncores) {
+            std::cout << "!!!!!!!!!serv_get_ncpus: no cores detected, returning 1" << std::endl;
+        }
+        else {
+            std::cout << "serv_get_ncpus: ncores = " << ncores << std::endl;
+        }
         return (ncores ? ncores : 1);
     }
 

@@ -29,6 +29,9 @@
 
 #include <cstddef> // for size_t
 
+
+#include <iostream>
+
 #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
     #define TARGET_X86_64
 #endif

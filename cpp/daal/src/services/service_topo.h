@@ -221,7 +221,7 @@ struct cacheDetail_str
 {
     char description[256] = {};
     char descShort[64]    = {};
-    unsigned level; // start at 1
+    unsigned level = 1; // start at 1
     unsigned type;  // cache type (instruction, data, combined)
     unsigned sizeKB;
     unsigned how_many_threads_share_cache;
@@ -230,7 +230,7 @@ struct cacheDetail_str
 
 struct Dyn2Arr_str
 {
-    unsigned dim[2] = { 0 };   // xdim and ydim
+    unsigned dim[2] = { 0, 0 };   // xdim and ydim
     unsigned * data = nullptr; // data array to be malloc'd
 };
 
@@ -279,6 +279,23 @@ struct idAffMskOrdMapping_t
     unsigned __int32 threadPerEaCacheORD[MAX_CACHE_SUBLEAFS] = {}; // a zero-based numbering scheme
                                                                    // for each logical processor sharing the same cache of the specified cache level
 };
+
+
+unsigned _internal_daal_GetMaxCPUSupportedByOS();
+unsigned _internal_daal_GetOSLogicalProcessorCount();
+unsigned _internal_daal_GetSysProcessorPackageCount();
+unsigned _internal_daal_GetProcessorCoreCount();
+unsigned _internal_daal_GetLogicalProcessorCount();
+unsigned _internal_daal_GetCoresPerPackageProcessorCount();
+unsigned _internal_daal_GetProcessorPackageCount();
+unsigned _internal_daal_GetEnumerateAPICID(unsigned processor);
+unsigned _internal_daal_GetLogicalPerCoreProcessorCount();
+unsigned _internal_daal_GetCoreCount(unsigned long package_ordinal);
+unsigned _internal_daal_GetThreadCount(unsigned long package_ordinal, unsigned long core_ordinal);
+unsigned _internal_daal_GetLogicalProcessorQueue(int * queue);
+unsigned _internal_daal_GetStatus();
+
+unsigned _internal_daal_GetSysLogicalProcessorCount();
 
 // we are going to put an assortment of global variable, 1D and 2D arrays into
 // a data structure. This is the declaration
@@ -335,36 +352,35 @@ struct glktsn
 
     void FreeArrays();
 
+    glktsn() : isInit(0), error(0) {
+        std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl;
+        Alert_BiosCPUIDmaxLimitSetting = 0;
+        OSProcessorCount = _internal_daal_GetMaxCPUSupportedByOS();
+        allocArrays(OSProcessorCount);
+        if (error != 0) {
+            std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl;
+            return;
+        }
+        hasLeafB = 0;
+        maxCacheSubleaf = -1; // -1 means no cache topology is detected
+        EnumeratedPkgCount = 0;
+        EnumeratedCoreCount = 0;
+        EnumeratedThreadCount = 0;
+        for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++) {
+            EnumeratedEachCacheCount[i] = 0;
+            EachCacheSelectMask[i] = 0;
+            EachCacheMaskWidth[i] = 0;
+            cacheDetail[i] = cacheDetail_str{};
+        }
+        HWMT_SMTperCore = 0;
+        HWMT_SMTperPkg = 0;
+        std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl;
+    }
     ~glktsn() { FreeArrays(); }
+private:
+    int allocArrays(unsigned cpus);
 };
 
-[[maybe_unused]] static unsigned long __internal_daal_getBitsFromDWORD(const unsigned int val, const char from, const char to);
-[[maybe_unused]] static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskLength);
-[[maybe_unused]] static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core, unsigned logical);
-[[maybe_unused]] static unsigned __internal_daal_getAPICID(unsigned processor);
-[[maybe_unused]] static void __internal_daal_initCpuTopology();
-[[maybe_unused]] static int __internal_daal_bindContext(unsigned cpu, void * prevAffinity);
-[[maybe_unused]] static void __internal_daal_restoreContext(void * prevAffinity);
-[[maybe_unused]] static void __internal_daal_setChkProcessAffinityConsistency(unsigned lcl_OSProcessorCount);
-[[maybe_unused]] static void __internal_daal_setGenericAffinityBit(GenericAffinityMask * pAffinityMap, unsigned cpu);
-[[maybe_unused]] static void __internal_daal_getCpuidInfo(CPUIDinfo * info, const unsigned int func, const unsigned int subfunc);
-[[maybe_unused]] static int __internal_daal_countBits(DWORD_PTR x);
-
-unsigned _internal_daal_GetMaxCPUSupportedByOS();
-unsigned _internal_daal_GetOSLogicalProcessorCount();
-unsigned _internal_daal_GetSysProcessorPackageCount();
-unsigned _internal_daal_GetProcessorCoreCount();
-unsigned _internal_daal_GetLogicalProcessorCount();
-unsigned _internal_daal_GetCoresPerPackageProcessorCount();
-unsigned _internal_daal_GetProcessorPackageCount();
-unsigned _internal_daal_GetEnumerateAPICID(unsigned processor);
-unsigned _internal_daal_GetLogicalPerCoreProcessorCount();
-unsigned _internal_daal_GetCoreCount(unsigned long package_ordinal);
-unsigned _internal_daal_GetThreadCount(unsigned long package_ordinal, unsigned long core_ordinal);
-unsigned _internal_daal_GetLogicalProcessorQueue(int * queue);
-unsigned _internal_daal_GetStatus();
-
-unsigned _internal_daal_GetSysLogicalProcessorCount();
 } // namespace internal
 } // namespace services
 } // namespace daal
