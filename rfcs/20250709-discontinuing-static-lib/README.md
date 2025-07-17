@@ -13,7 +13,7 @@ Some of those distributions include only the shared library - for example, there
 are no static-link oneDAL libraries distributed in PyPI and NuGet due to file
 size constraints, nor in Spack.
 
-Most usage of oneDAL happens through the Python bindings with the extension for
+Most usage of oneDAL happens through the Python bindings with the Extension for
 Scikit-Learn, which only uses the shared library of oneDAL. Other known public
 consumers of oneDAL, such as
 [OAP MLlib](https://github.com/oap-project/oap-mllib) and
