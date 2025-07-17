@@ -17,6 +17,9 @@ cc_library(
 cc_library(
     name = "mkl_core",
     srcs = [
+        "lib/libmkl_core.so",
+        "lib/libmkl_intel_ilp64.so",
+        "lib/libmkl_tbb_thread.so",
         "lib/libmkl_core.so.2",
         "lib/libmkl_intel_ilp64.so.2",
         "lib/libmkl_tbb_thread.so.2",
@@ -28,7 +31,6 @@ cc_library(
         ":headers",
         "@opencl//:opencl_binary",
     ],
-    alwayslink = 1,
 )
 
 cc_library(
