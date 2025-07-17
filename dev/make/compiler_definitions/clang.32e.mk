@@ -26,6 +26,22 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnx32e mac32e
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+
+ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
+    -optlevel.clang = -$(OPTFLAG)
+else ifeq ($(OPTFLAG),Ofast)
+    -optlevel.clang = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+else
+    -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+endif
+
 COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
                      -Werror -Wreturn-type
 COMPILER.lnx.clang = clang++ -m64 \
