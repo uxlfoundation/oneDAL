@@ -88,6 +88,7 @@ cc_library(
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
         #       Remove TBB from deps once problem with vml_ipp is resolved
         "@tbb//:tbb_binary",
+        "@mkl//:mkl_thr",
     ],
 )
 
