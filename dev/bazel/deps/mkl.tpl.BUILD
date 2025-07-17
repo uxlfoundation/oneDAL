@@ -46,6 +46,9 @@ cc_library(
 
 cc_library(
     name = "mkl_dpc_utils",
+    linkopts = [
+        "-fsycl-max-parallel-link-jobs=16",
+    ],
     srcs = [
         "lib/libmkl_sycl_blas.so",
         "lib/libmkl_sycl_lapack.so",

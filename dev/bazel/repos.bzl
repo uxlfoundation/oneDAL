@@ -33,8 +33,6 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
 
         for entry in repo_ctx.path(output).readdir():
             if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
-                tarfile_path = output.get_child("pkg.tar")
-
                 repo_ctx.execute(["bash", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
 
     elif filename.endswith(".whl") or filename.endswith(".zip"):
