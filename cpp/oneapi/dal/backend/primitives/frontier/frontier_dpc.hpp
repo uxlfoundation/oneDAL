@@ -47,11 +47,11 @@ struct frontier_view {
     }
 
     inline std::uint32_t* get_offsets() const {
-        return _offsets_size;
+        return _offsets;
     }
 
     inline std::uint32_t* get_offsets_size() const {
-        return _offsets;
+        return _offsets_size;
     }
 
     size_t _num_items;

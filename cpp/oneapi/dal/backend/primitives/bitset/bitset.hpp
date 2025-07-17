@@ -1,3 +1,5 @@
+#pragma once
+
 #include "oneapi/dal/backend/memory.hpp"
 
 namespace oneapi::dal::backend::primitives {
