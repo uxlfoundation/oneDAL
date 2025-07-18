@@ -54,6 +54,11 @@ std::int64_t propose_small_rows_max_cols_batched(const std::int64_t f, const std
 }
 
 template <typename Float, typename Task>
+std::int64_t propose_grain_size(const std::int64_t f, const std::int64_t r) {
+    return detail::train_parameters<Task>{}.get_cpu_grain_size();
+}
+
+template <typename Float, typename Task>
 struct train_parameters_cpu<Float, method::norm_eq, Task> {
     using params_t = detail::train_parameters<Task>;
     params_t operator()(const context_cpu& ctx,
@@ -72,12 +77,14 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
             propose_small_rows_threshold<Float, Task>(f_count, r_count);
         const std::int64_t small_rows_max_cols_batched =
             propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t grain_size = propose_grain_size<Float, Task>(f_count, r_count);
 
         params_t out{};
         out.set_cpu_macro_block(block);
         out.set_cpu_max_cols_batched(max_cols_batched);
         out.set_cpu_small_rows_threshold(small_rows_threshold);
         out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        out.set_cpu_grain_size(grain_size);
         return out;
     }
     params_t operator()(const context_cpu& ctx,
@@ -96,12 +103,14 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
             propose_small_rows_threshold<Float, Task>(f_count, r_count);
         const std::int64_t small_rows_max_cols_batched =
             propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t grain_size = propose_grain_size<Float, Task>(f_count, r_count);
 
         params_t out{};
         out.set_cpu_macro_block(block);
         out.set_cpu_max_cols_batched(max_cols_batched);
         out.set_cpu_small_rows_threshold(small_rows_threshold);
         out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        out.set_cpu_grain_size(grain_size);
         return out;
     }
     params_t operator()(const context_cpu& ctx,
@@ -120,12 +129,14 @@ struct train_parameters_cpu<Float, method::norm_eq, Task> {
             propose_small_rows_threshold<Float, Task>(f_count, r_count);
         const std::int64_t small_rows_max_cols_batched =
             propose_small_rows_max_cols_batched<Float, Task>(f_count, r_count);
+        const std::int64_t grain_size = propose_grain_size<Float, Task>(f_count, r_count);
 
         params_t out{};
         out.set_cpu_macro_block(block);
         out.set_cpu_max_cols_batched(max_cols_batched);
         out.set_cpu_small_rows_threshold(small_rows_threshold);
         out.set_cpu_small_rows_max_cols_batched(small_rows_max_cols_batched);
+        out.set_cpu_grain_size(grain_size);
         return out;
     }
 };
