@@ -19,7 +19,6 @@
 namespace oneapi::dal::linear_regression::test {
 
 TEMPLATE_LIST_TEST_M(lr_spmd_test, "LR common flow", "[lr][spmd]", lr_types) {
-    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
 
     this->generate(777);
