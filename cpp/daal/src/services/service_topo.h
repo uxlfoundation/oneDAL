@@ -230,12 +230,60 @@ struct cacheDetail_str
 
 struct Dyn2Arr_str
 {
+    Dyn2Arr_str() = default;
+    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim);
+
+    ~Dyn2Arr_str();
+
+    Dyn2Arr_str(const Dyn2Arr_str & other);
+    Dyn2Arr_str& operator=(Dyn2Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+
+    friend void swap(Dyn2Arr_str& first, Dyn2Arr_str& second) // nothrow
+    {
+        unsigned tmp = first.dim[0];
+        first.dim[0] = second.dim[0];
+        second.dim[0] = tmp;
+
+        tmp = first.dim[1];
+        first.dim[1] = second.dim[1];
+        second.dim[1] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
     unsigned dim[2] = { 0, 0 };   // xdim and ydim
     unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
+    Dyn1Arr_str() = default;
+    explicit Dyn1Arr_str(const unsigned xdim);
+    ~Dyn1Arr_str();
+
+    Dyn1Arr_str(const Dyn1Arr_str & other);
+    Dyn1Arr_str& operator=(Dyn1Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+
+    friend void swap(Dyn1Arr_str& first, Dyn1Arr_str& second) // nothrow
+    {
+        unsigned tmp = first.dim[0];
+        first.dim[0] = second.dim[0];
+        second.dim[0] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
+
     unsigned dim[1] = { 0 };   // xdim
     unsigned * data = nullptr; // data array to be malloc'd
 };
@@ -281,7 +329,7 @@ struct idAffMskOrdMapping_t
 };
 
 
-unsigned _internal_daal_GetMaxCPUSupportedByOS();
+
 unsigned _internal_daal_GetOSLogicalProcessorCount();
 unsigned _internal_daal_GetSysProcessorPackageCount();
 unsigned _internal_daal_GetProcessorCoreCount();
@@ -352,33 +400,33 @@ struct glktsn
 
     void FreeArrays();
 
-    glktsn() : isInit(0), error(0) {
-        std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl;
-        Alert_BiosCPUIDmaxLimitSetting = 0;
+    glktsn() : isInit(0), error(0), Alert_BiosCPUIDmaxLimitSetting(0), hasLeafB(0), maxCacheSubleaf(-1),
+               EnumeratedPkgCount(0), EnumeratedCoreCount(0), EnumeratedThreadCount(0),
+               HWMT_SMTperCore(0), HWMT_SMTperPkg(0) {
+        std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl << std::flush;
         OSProcessorCount = _internal_daal_GetMaxCPUSupportedByOS();
         allocArrays(OSProcessorCount);
         if (error != 0) {
-            std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl;
+            std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl << std::flush;
             return;
         }
-        hasLeafB = 0;
-        maxCacheSubleaf = -1; // -1 means no cache topology is detected
-        EnumeratedPkgCount = 0;
-        EnumeratedCoreCount = 0;
-        EnumeratedThreadCount = 0;
+
         for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++) {
             EnumeratedEachCacheCount[i] = 0;
             EachCacheSelectMask[i] = 0;
             EachCacheMaskWidth[i] = 0;
             cacheDetail[i] = cacheDetail_str{};
         }
-        HWMT_SMTperCore = 0;
-        HWMT_SMTperPkg = 0;
-        std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl;
+
+        std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl << std::flush;
     }
-    ~glktsn() { FreeArrays(); }
+    ~glktsn() {
+        std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
+        FreeArrays();
+    }
 private:
-    int allocArrays(unsigned cpus);
+    int allocArrays(const unsigned cpus);
+    unsigned _internal_daal_GetMaxCPUSupportedByOS();
 };
 
 } // namespace internal

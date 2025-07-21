@@ -64,10 +64,14 @@ static void __internal_daal_setGenericAffinityBit(GenericAffinityMask * pAffinit
 
 static char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
 
-static void * __internal_daal_memset(void * s, int c, size_t n)
+static void * __internal_daal_memset(void * s, int c, size_t nbytes)
 {
-    unsigned char * p = (unsigned char *)s;
-    while (n--) *p++ = (unsigned char)c;
+    const unsigned char value = static_cast<unsigned char>(c);
+    unsigned char * p = static_cast<unsigned char *>(s);
+    for (size_t i = 0; i < nbytes; ++i)
+    {
+        p[i] = value;
+    }
     return s;
 }
 
@@ -190,12 +194,12 @@ static void __internal_daal_restoreContext(void * prevAffinity)
  * how many logical processor the OS supports
  * Return:        a non-zero value
  */
-unsigned int _internal_daal_GetMaxCPUSupportedByOS()
+unsigned int glktsn::_internal_daal_GetMaxCPUSupportedByOS()
 {
     unsigned int lcl_OSProcessorCount = 0;
     #if defined(__linux__) || defined(__FreeBSD__)
 
-    lcl_OSProcessorCount = sysconf(_SC_NPROCESSORS_CONF); //This will tell us how many CPUs are currently enabled.
+    lcl_OSProcessorCount = sysconf(_SC_NPROCESSORS_ONLN); //This will tell us how many CPUs are currently enabled.
 
     #else
         #if (_WIN32_WINNT >= 0x0601)
@@ -1183,6 +1187,72 @@ static int __internal_daal_cpuTopologyParams()
     return 0;
 }
 
+Dyn2Arr_str::Dyn2Arr_str(const unsigned xdim, const unsigned ydim)
+{
+    dim[0] = xdim;
+    dim[1] = ydim;
+    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * ydim * sizeof(unsigned));
+    if (!data)
+    {
+        return;
+    }
+    _INTERNAL_DAAL_MEMSET(data, 0, xdim * ydim * sizeof(unsigned));
+}
+
+Dyn2Arr_str::Dyn2Arr_str(const Dyn2Arr_str & other) {
+    if (this == &other) return; // self-assignment check
+    dim[0] = other.dim[0];
+    dim[1] = other.dim[1];
+    size_t dataSize = dim[0] * dim[1] * sizeof(unsigned);
+    data = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data)
+        return;
+    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
+}
+
+Dyn2Arr_str::~Dyn2Arr_str()
+{
+    if (data)
+    {
+        _INTERNAL_DAAL_FREE(data);
+        data = NULL;
+    }
+    dim[0] = 0;
+    dim[1] = 0;
+}
+
+Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim)
+{
+    dim[0] = xdim;
+    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned));
+    if (!data)
+    {
+        return;
+    }
+    _INTERNAL_DAAL_MEMSET(data, 0, xdim * sizeof(unsigned));
+}
+
+Dyn1Arr_str::Dyn1Arr_str(const Dyn1Arr_str & other) {
+    if (this == &other) return; // self-assignment check
+    dim[0] = other.dim[0];
+    size_t dataSize = dim[0] * sizeof(unsigned);
+    data = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data)
+        return;
+    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
+}
+
+Dyn1Arr_str::~Dyn1Arr_str()
+{
+    if (data)
+    {
+        _INTERNAL_DAAL_FREE(data);
+        data = NULL;
+    }
+    dim[0] = 0;
+}
+
+
 /*
  * __internal_daal_allocArrays
  *
@@ -1192,70 +1262,40 @@ static int __internal_daal_cpuTopologyParams()
  * Arguments: number of logical processors
  * Return: 0 is no error, -1 is error
  */
-int glktsn::allocArrays(unsigned cpus)
+int glktsn::allocArrays(const unsigned cpus)
 {
-
-    unsigned i;
-
-    i                           = cpus + 1;
-    std::cout << "__internal_daal_allocArrays" << std::endl;
-    std::cout << "Allocating arrays for " << i << " logical processors" << std::endl;
-    std::cout << "MAX_CORES = " << MAX_CORES << std::endl;
-    pApicAffOrdMapping = (idAffMskOrdMapping_t *)_INTERNAL_DAAL_MALLOC(i * sizeof(idAffMskOrdMapping_t));
+    const unsigned cpusp1 = cpus + 1;
+    std::cout << "__internal_daal_allocArrays" << std::endl << std::flush;
+    std::cout << "Allocating arrays for " << cpusp1 << " logical processors" << std::endl << std::flush;
+    std::cout << "MAX_CORES = " << MAX_CORES << std::endl << std::flush;
+    pApicAffOrdMapping = (idAffMskOrdMapping_t *)_INTERNAL_DAAL_MALLOC(cpusp1 * sizeof(idAffMskOrdMapping_t));
     if (!pApicAffOrdMapping)
     {
         error = -1;
         return -1;
     }
-    _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, i * sizeof(idAffMskOrdMapping_t));
+    _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpusp1 * sizeof(idAffMskOrdMapping_t));
 
-    perPkg_detectedCoresCount.data = (unsigned *)_INTERNAL_DAAL_MALLOC(i * sizeof(unsigned));
-    if (!perPkg_detectedCoresCount.data)
-    {
-        error = -1;
-        return -1;
-    }
-    _INTERNAL_DAAL_MEMSET(perPkg_detectedCoresCount.data, 0, i * sizeof(unsigned));
-    perPkg_detectedCoresCount.dim[0] = i;
-
-    perCore_detectedThreadsCount.data = (unsigned *)_INTERNAL_DAAL_MALLOC(MAX_CORES * i * sizeof(unsigned));
-    if (!perCore_detectedThreadsCount.data)
-    {
-        error = -1;
-        return -1;
-    }
-    _INTERNAL_DAAL_MEMSET(perCore_detectedThreadsCount.data, 0, MAX_CORES * i * sizeof(unsigned));
-    perCore_detectedThreadsCount.dim[0] = i;
-    perCore_detectedThreadsCount.dim[1] = MAX_CORES;
-
+    perPkg_detectedCoresCount = Dyn1Arr_str(cpusp1);
+    perCore_detectedThreadsCount = Dyn2Arr_str(OSProcessorCount + 1, MAX_CORES),
     // workspace for storing hierarchical counts relative to the cache topology
     // of the largest unified cache (may be shared by several cores)
-    perCache_detectedCoreCount.data = (unsigned *)_INTERNAL_DAAL_MALLOC(i * sizeof(unsigned));
-    if (!perCache_detectedCoreCount.data)
+    perCache_detectedCoreCount = Dyn1Arr_str(cpusp1);
+    perEachCache_detectedThreadCount = Dyn2Arr_str(OSProcessorCount + 1, MAX_CACHE_SUBLEAFS);
+    if (!perPkg_detectedCoresCount.data || !perCore_detectedThreadsCount.data
+        || !perEachCache_detectedThreadCount.data || !perCache_detectedCoreCount.data)
     {
         error = -1;
         return -1;
     }
-    _INTERNAL_DAAL_MEMSET(perCache_detectedCoreCount.data, 0, i * sizeof(unsigned));
-    perCache_detectedCoreCount.dim[0] = i;
 
-    perEachCache_detectedThreadCount.data = (unsigned *)_INTERNAL_DAAL_MALLOC(MAX_CACHE_SUBLEAFS * i * sizeof(unsigned));
-    if (!perEachCache_detectedThreadCount.data)
-    {
-        error = -1;
-        return -1;
-    }
-    _INTERNAL_DAAL_MEMSET(perEachCache_detectedThreadCount.data, 0, MAX_CACHE_SUBLEAFS * i * sizeof(unsigned));
-    perEachCache_detectedThreadCount.dim[0] = i;
-    perEachCache_detectedThreadCount.dim[1] = MAX_CACHE_SUBLEAFS;
-
-    cpuid_values = (CPUIDinfox *)_INTERNAL_DAAL_MALLOC(MAX_LEAFS * i * sizeof(CPUIDinfox));
+    cpuid_values = (CPUIDinfox *)_INTERNAL_DAAL_MALLOC(MAX_LEAFS * cpusp1 * sizeof(CPUIDinfox));
     if (!cpuid_values)
     {
         error = -1;
         return -1;
     }
-    _INTERNAL_DAAL_MEMSET(cpuid_values, 0, MAX_LEAFS * i * sizeof(CPUIDinfox));
+    _INTERNAL_DAAL_MEMSET(cpuid_values, 0, MAX_LEAFS * cpusp1 * sizeof(CPUIDinfox));
 
     return 0;
 }
@@ -1696,13 +1736,13 @@ static void __internal_daal_buildSystemTopologyTables()
 {
     unsigned lcl_OSProcessorCount, subleaf;
     int numMappings = 0;
-    std::cout << "Initializing CPU topology..., &__internal_daal_GetGlobalTopoObject() = " << &__internal_daal_GetGlobalTopoObject() << std::endl;
+    std::cout << "Initializing CPU topology..., &__internal_daal_GetGlobalTopoObject() = " << &__internal_daal_GetGlobalTopoObject() << std::endl << std::flush;
 
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
     lcl_OSProcessorCount = __internal_daal_GetGlobalTopoObject().OSProcessorCount;
 
-    std::cout << "lcl_OSProcessorCount = " << lcl_OSProcessorCount << std::endl;
+    std::cout << "lcl_OSProcessorCount = " << lcl_OSProcessorCount << std::endl << std::flush;
 
     // allocated the memory buffers within the global pointer
 
@@ -1880,13 +1920,13 @@ unsigned _internal_daal_GetSysLogicalProcessorCount()
  */
 unsigned _internal_daal_GetProcessorCoreCount()
 {
-    std::cout << "_internal_daal_GetProcessorCoreCount, isInit = " << int(__internal_daal_GetGlobalTopoObject().isInit) << std::endl;
+    std::cout << "_internal_daal_GetProcessorCoreCount, isInit = " << int(__internal_daal_GetGlobalTopoObject().isInit) << std::endl << std::flush;
     if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
 
-    std::cout << "__internal_daal_GetGlobalTopoObject().error = " << __internal_daal_GetGlobalTopoObject().error << std::endl;
+    std::cout << "__internal_daal_GetGlobalTopoObject().error = " << __internal_daal_GetGlobalTopoObject().error << std::endl << std::flush;
     if (__internal_daal_GetGlobalTopoObject().error) return 0;
 
-    std::cout << "_internal_daal_GetProcessorCoreCount Ok" << std::endl;
+    std::cout << "_internal_daal_GetProcessorCoreCount Ok" << std::endl << std::flush;
     return __internal_daal_GetGlobalTopoObject().EnumeratedCoreCount;
 }
 
@@ -2066,13 +2106,9 @@ void glktsn::FreeArrays()
 {
     std::cout << " glktsn::FreeArrays() called, &__internal_daal_GetGlobalTopoObject() = " << &__internal_daal_GetGlobalTopoObject()
     << ", isInit = " << __internal_daal_GetGlobalTopoObject().error
-    << ", error = " << __internal_daal_GetGlobalTopoObject().error << std::endl;
+    << ", error = " << __internal_daal_GetGlobalTopoObject().error << std::endl << std::flush;
     isInit = 0;
     _INTERNAL_DAAL_FREE(pApicAffOrdMapping);
-    _INTERNAL_DAAL_FREE(perPkg_detectedCoresCount.data);
-    _INTERNAL_DAAL_FREE(perCore_detectedThreadsCount.data);
-    _INTERNAL_DAAL_FREE(perCache_detectedCoreCount.data);
-    _INTERNAL_DAAL_FREE(perEachCache_detectedThreadCount.data);
 
     if (cpuid_values)
     {
@@ -2090,7 +2126,7 @@ void glktsn::FreeArrays()
         }
         _INTERNAL_DAAL_FREE(cpuid_values);
     }
-    std::cout << " glktsn::FreeArrays() Ok " << std::endl;
+    std::cout << " glktsn::FreeArrays() Ok " << std::endl << std::flush;
 }
 
 } // namespace internal
@@ -2099,6 +2135,7 @@ void glktsn::FreeArrays()
 
 void read_topology(int & status, int & nthreads, int & max_threads, int ** cpu_queue)
 {
+    std::cout << "read_topology called, &__internal_daal_GetGlobalTopoObject() = " << &daal::services::internal::__internal_daal_GetGlobalTopoObject() << std::endl << std::flush;
     status      = 0;
     max_threads = 0;
     *cpu_queue  = NULL;
