@@ -98,11 +98,17 @@ static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 template <typename algorithmFPType, CpuType cpu>
 static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
 {
+    // Note: these thresholds are meant to match the DPC++ version.
+    // If modified, should be modified simulatenously in both files.
+    const algorithmFPType bottom = sizeof(algorithmFPType) == 4 ? 1e-7 : 1e-15;
+    const algorithmFPType top    = algorithmFPType(1.0) - bottom;
     PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
-        const auto sigm = static_cast<algorithmFPType>(1.0) / (static_cast<algorithmFPType>(1.0) + exp[i]);
+        const algorithmFPType sigm = static_cast<algorithmFPType>(1.0) / (static_cast<algorithmFPType>(1.0) + exp[i]);
+        if (sigm < bottom) sigm = bottom;
+        if (sigm > top) sigm = top;
         exp[i]          = sigm;
         exp[i + offset] = 1 - sigm;
     }
@@ -325,23 +331,6 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             {
                 DAAL_PROFILER_TASK(applyBeta);
                 applyBeta(xLocal, b, fPtrLocal, nRowsToProcess, p, parameter->interceptFlag);
-            }
-
-            // Note: due to the way the function is calculated here, it needs to avoid sigmoid
-            // and '1-sigmoid' values from being exactly zero or exactly one. They could in
-            // theory be calculated to a larger precision by using a different numerical route,
-            // but in order to avoid slow row-by-row exp/log calls, this just clips symmetrically
-            // to the nearest integer value that would avoid running into zeros and ones.
-            const algorithmFPType maxSigmoidInput = std::is_same<algorithmFPType, double>::value ? 35 : 16;
-            const algorithmFPType minSigmoidInput = -maxSigmoidInput;
-
-            PRAGMA_FORCE_SIMD
-            for (size_t row = 0; row < nRowsToProcess; row++)
-            {
-                algorithmFPType valueRow = fPtrLocal[row];
-                if (valueRow < minSigmoidInput) valueRow = minSigmoidInput;
-                if (valueRow > maxSigmoidInput) valueRow = maxSigmoidInput;
-                fPtrLocal[row] = valueRow;
             }
 
             {
