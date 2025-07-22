@@ -25,7 +25,6 @@
 #define __SERVICE_STAT_MKL_H__
 
 #include <type_traits>
-#include <stdexcept>
 
 #include <mkl.h>
 #include <mkl_vsl_functions.h>
