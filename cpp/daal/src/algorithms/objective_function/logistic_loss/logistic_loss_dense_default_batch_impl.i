@@ -20,8 +20,6 @@
 //  Implementation of logloss algorithm
 //--
 */
-#include <type_traits>
-
 #include "src/services/service_data_utils.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_utils.h"
