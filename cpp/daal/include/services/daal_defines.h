@@ -32,6 +32,9 @@
 
 #include <iostream>
 
+//#define DAAL_CPU_TOPO_DISABLED
+// #define DAAL_THREAD_PINNING_DISABLED
+
 #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
     #define TARGET_X86_64
 #endif

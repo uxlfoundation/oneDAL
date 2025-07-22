@@ -189,12 +189,11 @@ static void __internal_daal_restoreContext(void * prevAffinity)
 }
 
 /*
- * _internal_daal_GetMaxCPUSupportedByOS
  * A wrapper function that calls OS specific system API to find out
  * how many logical processor the OS supports
  * Return:        a non-zero value
  */
-unsigned int glktsn::_internal_daal_GetMaxCPUSupportedByOS()
+unsigned int glktsn::getMaxCPUSupportedByOS()
 {
     unsigned int lcl_OSProcessorCount = 0;
     #if defined(__linux__) || defined(__FreeBSD__)
@@ -532,61 +531,36 @@ static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskW
     return (1 << i) - 1;
 }
 
-/* __internal_daal_allocateGenericAffinityMask
- *
- * Allocate the memory needed for the bitmap of a generic affinity mask
- *  The memory buffer needed must be large enough to cover the specified maxcpu number
- *  Each cpu is represented by one bit in the bitmap
- *
- * Arguments:
- *     GenericAffintyMask - ptr to be filled in.
- *     maxcpu - max number of logical processors the bitmap of this generic affinity mask needs to  handle
- * Return: 0 if no errors, -1 otherwise
- */
-static int __internal_daal_allocateGenericAffinityMask(GenericAffinityMask * pAffinityMap, unsigned maxcpu)
+
+GenericAffinityMask::GenericAffinityMask(const unsigned numCpus)
 {
-    int bytes;
-    // Allocate an unsigned char string long enough (cpus/8 + 1) bytes to have 1 bit per cpu.
-    // cpu 0 is the lsb of byte0, cpu1 is byte[0]:1, cpu2 is byte[0]:2 etc
+    maxByteLength = (numCpus >> 3) + 1;
+    AffinityMask = (unsigned char *)_INTERNAL_DAAL_MALLOC(maxByteLength * sizeof(unsigned char));
+    if (!AffinityMask) return;
 
-    bytes                      = (maxcpu >> 3) + 1;
-    pAffinityMap->AffinityMask = (unsigned char *)_INTERNAL_DAAL_MALLOC(bytes * sizeof(unsigned char));
-    if (pAffinityMap->AffinityMask == NULL) return -1;
-
-    pAffinityMap->maxByteLength = bytes;
-    _INTERNAL_DAAL_MEMSET(pAffinityMap->AffinityMask, 0, bytes * sizeof(unsigned char));
-
-    return 0;
+    _INTERNAL_DAAL_MEMSET(AffinityMask, 0, maxByteLength * sizeof(unsigned char));
 }
 
-/*
- * __internal_daal_freeGenericAffinityMask
- *
- * free up the memory allocated to the bitmap of a generic affinity mask
- *
- * Arguments:
- *     pAffinityMap - pointer to a generic affinity mask
- * Return: none
- */
-static void __internal_daal_freeGenericAffinityMask(GenericAffinityMask * pAffinityMap)
+GenericAffinityMask::GenericAffinityMask(const GenericAffinityMask & other)
 {
-    _INTERNAL_DAAL_FREE(pAffinityMap->AffinityMask);
-    pAffinityMap->maxByteLength = 0;
+    maxByteLength = other.maxByteLength;
+    const int maskSize = maxByteLength * sizeof(unsigned char);
+    AffinityMask  = (unsigned char *)_INTERNAL_DAAL_MALLOC(maskSize);
+    if (!AffinityMask) return;
+
+    _INTERNAL_DAAL_MEMCPY(AffinityMask, maskSize, other.AffinityMask, maskSize);
 }
 
-/*
- * __internal_daal_clearGenericAffinityMask
- *
- * Clear all the affinity bits in the bitmap of a generic affinity mask
- *
- * Arguments:
- *     pAffinityMap - pointer to a generic affinity mask
- * Return: none
- */
-static void __internal_daal_clearGenericAffinityMask(GenericAffinityMask * pAffinityMap)
+GenericAffinityMask::~GenericAffinityMask()
 {
-    _INTERNAL_DAAL_MEMSET(pAffinityMap->AffinityMask, 0, pAffinityMap->maxByteLength);
+    if (AffinityMask)
+    {
+        _INTERNAL_DAAL_FREE(AffinityMask);
+        AffinityMask = NULL;
+    }
+    maxByteLength = 0;
 }
+
 
 /*
  * __internal_daal_setGenericAffinityBit
@@ -762,21 +736,22 @@ static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core,
 // The algorithm assumes __internal_daal_cpuid feature symmetry across all physical packages.
 // Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
 // on one logical processor to derive these system-wide parameters
-static int __internal_daal_cpuTopologyLeafBConstants()
+int glktsn::cpuTopologyLeafBConstants()
 {
     CPUIDinfo infoB;
-    int wasCoreReported            = 0;
-    int wasThreadReported          = 0;
+    bool wasCoreReported    = false;
+    bool wasThreadReported  = false;
     int subLeaf                    = 0, levelType, levelShift;
     unsigned long coreplusSMT_Mask = 0;
 
     do
     {
+        std::cout << "Calling __internal_daal_cpuid_ with subLeaf: " << subLeaf << std::endl << std::flush;
         // we already tested __internal_daal_cpuid leaf 0BH contain valid sub-leaves
         __internal_daal_cpuid_(&infoB, 0xB, subLeaf);
         if (infoB.EBX == 0)
         {
-            // if EBX ==0 then this subleaf is not valid, we can exit the loop
+            // if EBX == 0 then this subleaf is not valid, we can exit the loop
             break;
         }
 
@@ -787,16 +762,16 @@ static int __internal_daal_cpuTopologyLeafBConstants()
         {
         case 1:
             // level type is SMT, so levelShift is the SMT_Mask_Width
-            __internal_daal_GetGlobalTopoObject().SMTSelectMask = ~((-1) << levelShift);
-            __internal_daal_GetGlobalTopoObject().SMTMaskWidth  = levelShift;
-            wasThreadReported      = 1;
+            SMTSelectMask = ~((-1) << levelShift);
+            SMTMaskWidth  = levelShift;
+            wasThreadReported      = true;
             break;
         case 2:
             // level type is Core, so levelShift is the CorePlsuSMT_Mask_Width
             coreplusSMT_Mask            = ~((-1) << levelShift);
-            __internal_daal_GetGlobalTopoObject().PkgSelectMaskShift = levelShift;
-            __internal_daal_GetGlobalTopoObject().PkgSelectMask      = (-1) ^ coreplusSMT_Mask;
-            wasCoreReported             = 1;
+            PkgSelectMaskShift = levelShift;
+            PkgSelectMask      = (-1) ^ coreplusSMT_Mask;
+            wasCoreReported             = true;
             break;
         default:
             // handle in the future
@@ -808,21 +783,21 @@ static int __internal_daal_cpuTopologyLeafBConstants()
 
     if (wasThreadReported && wasCoreReported)
     {
-        __internal_daal_GetGlobalTopoObject().CoreSelectMask = coreplusSMT_Mask ^ __internal_daal_GetGlobalTopoObject().SMTSelectMask;
+        CoreSelectMask = coreplusSMT_Mask ^ SMTSelectMask;
     }
     else if (!wasCoreReported && wasThreadReported)
     {
-        __internal_daal_GetGlobalTopoObject().CoreSelectMask     = 0;
-        __internal_daal_GetGlobalTopoObject().PkgSelectMaskShift = __internal_daal_GetGlobalTopoObject().SMTMaskWidth;
-        __internal_daal_GetGlobalTopoObject().PkgSelectMask      = (-1) ^ __internal_daal_GetGlobalTopoObject().SMTSelectMask;
+        CoreSelectMask     = 0;
+        PkgSelectMaskShift = SMTMaskWidth;
+        PkgSelectMask      = (-1) ^ SMTSelectMask;
     }
     else //(case where !wasThreadReported)
     {
         // throw an error, this should not happen if hardware function normally
-        __internal_daal_GetGlobalTopoObject().error |= _MSGTYP_GENERAL_ERROR;
+        error |= _MSGTYP_GENERAL_ERROR;
     }
 
-    if (__internal_daal_GetGlobalTopoObject().error) return -1;
+    if (error) return error;
 
     return 0;
 }
@@ -832,8 +807,6 @@ static int __internal_daal_cpuTopologyLeafBConstants()
 // Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
 // on one logical processor to derive these system-wide parameters
 /*
- * __internal_daal_cpuTopologyLegacyConstants
- *
  * Derive bitmask extraction parameter using __internal_daal_cpuid leaf 1 and leaf 4
  *
  * Arguments:
@@ -841,7 +814,7 @@ static int __internal_daal_cpuTopologyLeafBConstants()
  *     maxCPUID - Maximum __internal_daal_cpuid Leaf number supported by the processor
  * Return: 0 is no error
  */
-static int __internal_daal_cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID)
+int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID)
 {
     unsigned corePlusSMTIDMaxCnt;
     unsigned coreIDMaxCnt       = 1;
@@ -858,7 +831,7 @@ static int __internal_daal_cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD m
     else
     {
         // no support for __internal_daal_cpuid leaf 4 but caller has verified  HT support
-        if (!__internal_daal_GetGlobalTopoObject().Alert_BiosCPUIDmaxLimitSetting)
+        if (!Alert_BiosCPUIDmaxLimitSetting)
         {
             coreIDMaxCnt       = 1;
             SMTIDPerCoreMaxCnt = corePlusSMTIDMaxCnt / coreIDMaxCnt;
@@ -866,16 +839,17 @@ static int __internal_daal_cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD m
         else
         {
             // we got here most likely because IA32_MISC_ENABLES[22] was set to 1 by BIOS
-            __internal_daal_GetGlobalTopoObject().error |= _MSGTYP_CHECKBIOS_CPUIDMAXSETTING; // IA32_MISC_ENABLES[22] may have been set to 1, will cause inaccurate reporting
+            error |= _MSGTYP_CHECKBIOS_CPUIDMAXSETTING; // IA32_MISC_ENABLES[22] may have been set to 1, will cause inaccurate reporting
         }
     }
 
-    __internal_daal_GetGlobalTopoObject().SMTSelectMask  = __internal_daal_createMask(SMTIDPerCoreMaxCnt, &__internal_daal_GetGlobalTopoObject().SMTMaskWidth);
-    __internal_daal_GetGlobalTopoObject().CoreSelectMask = __internal_daal_createMask(coreIDMaxCnt, &__internal_daal_GetGlobalTopoObject().PkgSelectMaskShift);
-    __internal_daal_GetGlobalTopoObject().PkgSelectMaskShift += __internal_daal_GetGlobalTopoObject().SMTMaskWidth;
-    __internal_daal_GetGlobalTopoObject().CoreSelectMask <<= __internal_daal_GetGlobalTopoObject().SMTMaskWidth;
-    __internal_daal_GetGlobalTopoObject().PkgSelectMask = (-1) ^ (__internal_daal_GetGlobalTopoObject().CoreSelectMask | __internal_daal_GetGlobalTopoObject().SMTSelectMask);
+    SMTSelectMask  = __internal_daal_createMask(SMTIDPerCoreMaxCnt, &SMTMaskWidth);
+    CoreSelectMask = __internal_daal_createMask(coreIDMaxCnt, &PkgSelectMaskShift);
+    PkgSelectMaskShift += SMTMaskWidth;
+    CoreSelectMask <<= SMTMaskWidth;
+    PkgSelectMask = (-1) ^ (CoreSelectMask | SMTSelectMask);
 
+    if (error) return error;
     return 0;
 }
 
@@ -903,8 +877,6 @@ static unsigned long __internal_daal_getCacheTotalLize(CPUIDinfo info)
 }
 
 /*
- * __internal_daal_findEachCacheIndex
- *
  * Find the subleaf index of __internal_daal_cpuid leaf 4 corresponding to the input subleaf
  *
  * Arguments:
@@ -912,7 +884,7 @@ static unsigned long __internal_daal_getCacheTotalLize(CPUIDinfo info)
  *     cache_subleaf - the cache subleaf encoding recognized by CPIUD instruction leaf 4 for the target cache level
  * Return: the sub-leaf index corresponding to the largest cache of specified cache type
  */
-static int __internal_daal_findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf)
+int glktsn::findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf)
 {
     unsigned i, type;
     unsigned long cap;
@@ -926,7 +898,7 @@ static int __internal_daal_findEachCacheIndex(DWORD maxCPUID, unsigned cache_sub
         {
             if (!cache_subleaf)
             {
-                __internal_daal_GetGlobalTopoObject().cacheDetail[cache_subleaf].sizeKB = 0;
+                cacheDetail[cache_subleaf].sizeKB = 0;
                 return cache_subleaf;
             }
         }
@@ -939,14 +911,14 @@ static int __internal_daal_findEachCacheIndex(DWORD maxCPUID, unsigned cache_sub
 
     if (type > 0)
     {
-        __internal_daal_GetGlobalTopoObject().cacheDetail[cache_subleaf].level = __internal_daal_getBitsFromDWORD(info4.EAX, 5, 7);
-        __internal_daal_GetGlobalTopoObject().cacheDetail[cache_subleaf].type  = type;
+        cacheDetail[cache_subleaf].level = __internal_daal_getBitsFromDWORD(info4.EAX, 5, 7);
+        cacheDetail[cache_subleaf].type  = type;
         for (i = 0; i <= cache_subleaf; i++)
         {
-            if (__internal_daal_GetGlobalTopoObject().cacheDetail[i].type == type) __internal_daal_GetGlobalTopoObject().cacheDetail[i].how_many_caches_share_level++;
+            if (cacheDetail[i].type == type) cacheDetail[i].how_many_caches_share_level++;
         }
-        __internal_daal_GetGlobalTopoObject().cacheDetail[cache_subleaf].sizeKB = cap / 1024;
-        target_index                               = cache_subleaf;
+        cacheDetail[cache_subleaf].sizeKB = cap / 1024;
+        target_index                      = cache_subleaf;
     }
 
     return target_index;
@@ -961,34 +933,50 @@ static int __internal_daal_findEachCacheIndex(DWORD maxCPUID, unsigned cache_sub
  * Return: none
  *
  */
-static void __internal_daal_initStructuredLeafBuffers()
+void glktsn::initStructuredLeafBuffers()
 {
     unsigned j, kk, qeidmsk;
     unsigned maxCPUID;
     CPUIDinfo info;
 
     __internal_daal_cpuid(&info, 0);
-    maxCPUID                            = info.EAX;
-    __internal_daal_GetGlobalTopoObject().cpuid_values[0].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-    _INTERNAL_DAAL_MEMCPY(__internal_daal_GetGlobalTopoObject().cpuid_values[0].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
+    maxCPUID = info.EAX;
+
+    cpuid_values[0].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
+    if (!cpuid_values[0].subleaf[0])
+    {
+        error = -1;
+        return;
+    }
+
+    std::cout << "sizeof(CPUIDinfo) = " << sizeof(CPUIDinfo) << std::endl << std::flush;
+    std::cout << "4 * sizeof(unsigned int) = " << 4 * sizeof(unsigned int) << std::endl << std::flush;
+    cpuid_values[0].subleaf[0][0] = info;
+    // _INTERNAL_DAAL_MEMCPY(cpuid_values[0].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
     // Mark this combo of cpu, leaf, subleaf is valid
-    __internal_daal_GetGlobalTopoObject().cpuid_values[0].subleaf_max = 1;
+    cpuid_values[0].subleaf_max = 1;
 
     for (j = 1; j <= maxCPUID; j++)
     {
         __internal_daal_cpuid(&info, j);
-        __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-        _INTERNAL_DAAL_MEMCPY(__internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
-        __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf_max = 1;
+        cpuid_values[j].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
+        if (!cpuid_values[j].subleaf[0])
+        {
+            error = -1;
+            return;
+        }
+        cpuid_values[j].subleaf[0][0] = info;
+        // _INTERNAL_DAAL_MEMCPY(__internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
+        cpuid_values[j].subleaf_max = 1;
 
         if (j == 0xd)
         {
-            int subleaf                          = 2;
-            __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf_max = 1;
+            int subleaf = 2;
+            cpuid_values[j].subleaf_max = 1;
             __internal_daal_cpuid_(&info, j, subleaf);
             while (info.EAX && subleaf < MAX_CACHE_SUBLEAFS)
             {
-                __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf_max = subleaf;
+                cpuid_values[j].subleaf_max = subleaf;
                 subleaf++;
                 __internal_daal_cpuid_(&info, j, subleaf);
             }
@@ -1005,7 +993,7 @@ static void __internal_daal_initStructuredLeafBuffers()
             while (kk < 32)
             {
                 __internal_daal_cpuid_(&info, j, kk);
-                if ((qeidmsk & (1 << kk)) != 0) __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf_max = kk;
+                if ((qeidmsk & (1 << kk)) != 0) cpuid_values[j].subleaf_max = kk;
                 kk++;
             }
         }
@@ -1020,18 +1008,23 @@ static void __internal_daal_initStructuredLeafBuffers()
                     type = __internal_daal_getBitsFromDWORD(info.EAX, 0, 4);
                 else
                     type = 0xffff & info.EBX;
-                __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[subleaf] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-                _INTERNAL_DAAL_MEMCPY(__internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[subleaf], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
+                cpuid_values[j].subleaf[subleaf] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
+                if (!cpuid_values[j].subleaf[subleaf])
+                {
+                    error = -1;
+                    return;
+                }
+                cpuid_values[j].subleaf[subleaf][0] = info;
+
+                // _INTERNAL_DAAL_MEMCPY(__internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf[subleaf], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
                 subleaf++;
-                __internal_daal_GetGlobalTopoObject().cpuid_values[j].subleaf_max = subleaf;
+                cpuid_values[j].subleaf_max = subleaf;
             }
         }
     }
 }
 
 /*
- * __internal_daal_eachCacheTopologyParams
- *
  * Calculates the select mask that can be used to extract Cache_ID from an APIC ID
  *          the caller must specify which target cache level it wishes to extract Cache_IDs
  *
@@ -1040,7 +1033,7 @@ static void __internal_daal_initStructuredLeafBuffers()
  *     maxCPUID - Maximum __internal_daal_cpuid Leaf number supported by the processor, provided by parent
  * Return: 0 is no error
  */
-static int __internal_daal_eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID)
+int glktsn::eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID)
 {
     unsigned long SMTMaxCntPerEachCache;
     CPUIDinfo info;
@@ -1048,6 +1041,7 @@ static int __internal_daal_eachCacheTopologyParams(unsigned targ_subleaf, DWORD 
     __internal_daal_cpuid(&info, 1);
     if (maxCPUID >= 4)
     {
+        // __internal_daal_cpuid leaf 4 and HT are supported
         CPUIDinfo info4;
         __internal_daal_cpuid_(&info4, 4, targ_subleaf);
 
@@ -1064,7 +1058,7 @@ static int __internal_daal_eachCacheTopologyParams(unsigned targ_subleaf, DWORD 
         SMTMaxCntPerEachCache = 1;
     }
 
-    __internal_daal_GetGlobalTopoObject().EachCacheSelectMask[targ_subleaf] = __internal_daal_createMask(SMTMaxCntPerEachCache, &__internal_daal_GetGlobalTopoObject().EachCacheMaskWidth[targ_subleaf]);
+    EachCacheSelectMask[targ_subleaf] = __internal_daal_createMask(SMTMaxCntPerEachCache, &EachCacheMaskWidth[targ_subleaf]);
 
     return 0;
 }
@@ -1074,59 +1068,50 @@ static int __internal_daal_eachCacheTopologyParams(unsigned targ_subleaf, DWORD 
 // Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
 // on one logical processor to derive these system-wide parameters
 // return 0 if successful, non-zero if error occurred
-static int __internal_daal_cacheTopologyParams()
+int glktsn::cacheTopologyParams()
 {
     DWORD maxCPUID;
     CPUIDinfo info;
     int targ_index;
+    unsigned subleaf_max = 0;
 
-    __internal_daal_cpuid_(&info, 0, 0);
+    __internal_daal_cpuid(&info, 0);
     maxCPUID = info.EAX;
 
     // Let's also examine cache topology.
     // As an example choose the largest unified cache as target level
     if (maxCPUID >= 4)
     {
-        unsigned subleaf;
-        __internal_daal_initStructuredLeafBuffers();
+        initStructuredLeafBuffers();
+        if (error) return -1;
 
-        __internal_daal_GetGlobalTopoObject().maxCacheSubleaf = 0;
+        maxCacheSubleaf = 0;
 
-        for (subleaf = 0; subleaf < __internal_daal_GetGlobalTopoObject().cpuid_values[4].subleaf_max; subleaf++)
-        {
-            targ_index = __internal_daal_findEachCacheIndex(maxCPUID, subleaf); // unified cache is type 3 under leaf 4
-            if (targ_index >= 0)
-            {
-                __internal_daal_GetGlobalTopoObject().maxCacheSubleaf = targ_index;
-                __internal_daal_eachCacheTopologyParams(targ_index, maxCPUID);
-            }
-            else
-            {
-                break;
-            }
-        }
+        std::cout << "cpuid_values[4].subleaf_max = " << cpuid_values[4].subleaf_max << std::endl << std::flush;
+        subleaf_max = cpuid_values[4].subleaf_max;
     }
     else if (maxCPUID >= 2)
     {
-        int subleaf;
-        __internal_daal_GetGlobalTopoObject().maxCacheSubleaf = 0;
+        maxCacheSubleaf = 0;
+        subleaf_max = 4;
+    }
 
-        for (subleaf = 0; subleaf < 4; subleaf++)
+    for (unsigned subleaf = 0; subleaf < subleaf_max; subleaf++)
+    {
+        targ_index = findEachCacheIndex(maxCPUID, subleaf);
+        std::cout << "subleaf = " << subleaf << ", targ_index = " << targ_index << std::endl << std::flush;
+        if (targ_index >= 0)
         {
-            targ_index = __internal_daal_findEachCacheIndex(maxCPUID, subleaf);
-            if (targ_index >= 0)
-            {
-                __internal_daal_GetGlobalTopoObject().maxCacheSubleaf = targ_index;
-                __internal_daal_eachCacheTopologyParams(targ_index, maxCPUID);
-            }
-            else
-            {
-                break;
-            }
+            maxCacheSubleaf = targ_index;
+            eachCacheTopologyParams(targ_index, maxCPUID);
+        }
+        else
+        {
+            break;
         }
     }
 
-    if (__internal_daal_GetGlobalTopoObject().error) return -1;
+    if (error) return -1;
 
     return 0;
 }
@@ -1137,7 +1122,7 @@ static int __internal_daal_cacheTopologyParams()
 // identical, we only execute __internal_daal_cpuid on one logical processor to derive these
 // system-wide parameters
 // return 0 if successful, non-zero if error occurred
-static int __internal_daal_cpuTopologyParams()
+int glktsn::cpuTopologyParams()
 {
     DWORD maxCPUID; // highest __internal_daal_cpuid leaf index this processor supports
     CPUIDinfo info; // data structure to store register data reported by __internal_daal_cpuid
@@ -1145,44 +1130,52 @@ static int __internal_daal_cpuTopologyParams()
     __internal_daal_cpuid_(&info, 0, 0);
     maxCPUID = info.EAX;
 
+    std::cout << "glktsn::cpuTopologyParams, maxCPUID = " << maxCPUID << std::endl << std::flush;
+
     // cpuid leaf B detection
     if (maxCPUID >= 0xB)
     {
         CPUIDinfo CPUInfoB;
         __internal_daal_cpuid_(&CPUInfoB, 0xB, 0);
         //glbl_ptr points to assortment of global data, workspace, etc
-        __internal_daal_GetGlobalTopoObject().hasLeafB = (CPUInfoB.EBX != 0);
+        hasLeafB = (CPUInfoB.EBX != 0);
     }
+
+    std::cout << "glktsn::cpuTopologyParams, hasLeafB = " << int(hasLeafB) << std::endl << std::flush;
 
     __internal_daal_cpuid_(&info, 1, 0);
 
     // Use HWMT feature flag __internal_daal_cpuid.01:EDX[28] to treat three configurations:
     if (__internal_daal_getBitsFromDWORD(info.EDX, 28, 28))
     {
-        if (__internal_daal_GetGlobalTopoObject().hasLeafB)
+        // Processors that support Hyper-Threading
+        std::cout << "glktsn::cpuTopologyParams, HT is supported " << std::endl << std::flush;
+
+        if (hasLeafB)
         {
             // #1, Processors that support __internal_daal_cpuid leaf 0BH
             // use __internal_daal_cpuid leaf B to derive extraction parameters
-            __internal_daal_cpuTopologyLeafBConstants();
+            cpuTopologyLeafBConstants();
         }
         else
         {
             //#2, Processors that support legacy parameters
             //  using __internal_daal_cpuid leaf 1 and leaf 4
-            __internal_daal_cpuTopologyLegacyConstants(&info, maxCPUID);
+            cpuTopologyLegacyConstants(&info, maxCPUID);
         }
     }
     else
     {
+        std::cout << "__internal_daal_cpuTopologyParams, !!!!!!! HT is NOT supported " << std::endl << std::flush;
         //#3, Prior to HT, there is only one logical processor in a physical package
-        __internal_daal_GetGlobalTopoObject().CoreSelectMask     = 0;
-        __internal_daal_GetGlobalTopoObject().SMTMaskWidth       = 0;
-        __internal_daal_GetGlobalTopoObject().PkgSelectMask      = (unsigned)(-1);
-        __internal_daal_GetGlobalTopoObject().PkgSelectMaskShift = 0;
-        __internal_daal_GetGlobalTopoObject().SMTSelectMask      = 0;
+        CoreSelectMask     = 0;
+        SMTMaskWidth       = 0;
+        PkgSelectMask      = (unsigned)(-1);
+        PkgSelectMaskShift = 0;
+        SMTSelectMask      = 0;
     }
 
-    if (__internal_daal_GetGlobalTopoObject().error) return -1;
+    if (error) return -1;
 
     return 0;
 }
@@ -1337,8 +1330,6 @@ static unsigned __internal_daal_parseIDS4EachThread(unsigned i, unsigned numMapp
 }
 
 /*
- * __internal_daal_queryParseSubIDs
- *
  * Use OS specific service to find out how many logical processors can be accessed
  * by this application.
  * Querying __internal_daal_cpuid on each logical processor requires using OS-specific API to
@@ -1351,14 +1342,11 @@ static unsigned __internal_daal_parseIDS4EachThread(unsigned i, unsigned numMapp
  * in a manner that abstract the OS-specific affinity mask data structure.
  * Here, we construct a generic affinity mask that can handle arbitrary number of logical processors.
  *
- * Arguments: none
  * Return: 0 is no error
  */
-static int __internal_daal_queryParseSubIDs(void)
+int glktsn::queryParseSubIDs()
 {
-    unsigned i;
     int numMappings = 0;
-    unsigned lcl_OSProcessorCount;
     #if defined(__linux__) || defined(__FreeBSD__)
     cpu_set_t pa;
     #else
@@ -1369,35 +1357,37 @@ static int __internal_daal_queryParseSubIDs(void)
         #endif
     #endif
 
-    // we already queried OS how many logical processor it sees.
-    lcl_OSProcessorCount = __internal_daal_GetGlobalTopoObject().OSProcessorCount;
 
     // we will use our generic affinity bitmap that can be generalized from
     // OS specific affinity mask constructs or the bitmap representation of an OS
-    if (__internal_daal_allocateGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_processAffinity, lcl_OSProcessorCount)) return -1;
-    if (__internal_daal_allocateGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_systemAffinity, lcl_OSProcessorCount)) return -1;
-
-    // Set the affinity bits of our generic affinity bitmap according to
-    // the system affinity mask and process affinity mask
-    __internal_daal_setChkProcessAffinityConsistency(lcl_OSProcessorCount);
-    if (__internal_daal_GetGlobalTopoObject().error)
+    cpu_generic_processAffinity = GenericAffinityMask(OSProcessorCount);
+    cpu_generic_systemAffinity  = GenericAffinityMask(OSProcessorCount);
+    if (cpu_generic_processAffinity.AffinityMask == NULL || cpu_generic_systemAffinity.AffinityMask == NULL)
     {
-        __internal_daal_freeGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_processAffinity);
-        __internal_daal_freeGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_systemAffinity);
         return -1;
     }
 
-    for (i = 0; i < __internal_daal_GetGlobalTopoObject().OSProcessorCount; i++)
+    // Set the affinity bits of our generic affinity bitmap according to
+    // the system affinity mask and process affinity mask
+    __internal_daal_setChkProcessAffinityConsistency(OSProcessorCount);
+    if (error)
+    {
+        cpu_generic_processAffinity = GenericAffinityMask();
+        cpu_generic_systemAffinity  = GenericAffinityMask();
+        return -1;
+    }
+
+    for (unsigned i = 0; i < OSProcessorCount; i++)
     {
         // can't asume OS affinity bit mask is contiguous,
         // but we are using our generic bitmap representation for affinity
-        if (__internal_daal_testGenericAffinityBit(&__internal_daal_GetGlobalTopoObject().cpu_generic_processAffinity, i) == 1)
+        if (__internal_daal_testGenericAffinityBit(&cpu_generic_processAffinity, i) == 1)
         {
             // bind the execution context to the ith logical processor
             // using OS-specifi API
             if (__internal_daal_bindContext(i, (void *)(&pa)))
             {
-                __internal_daal_GetGlobalTopoObject().error |= _MSGTYP_UNKNOWNERR_OS;
+                error |= _MSGTYP_UNKNOWNERR_OS;
                 break;
             }
 
@@ -1409,12 +1399,12 @@ static int __internal_daal_queryParseSubIDs(void)
         }
     }
 
-    __internal_daal_GetGlobalTopoObject().EnumeratedThreadCount = numMappings;
+    EnumeratedThreadCount = numMappings;
 
-    __internal_daal_freeGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_processAffinity);
-    __internal_daal_freeGenericAffinityMask(&__internal_daal_GetGlobalTopoObject().cpu_generic_systemAffinity);
+    cpu_generic_processAffinity = GenericAffinityMask();
+    cpu_generic_systemAffinity  = GenericAffinityMask();
 
-    if (__internal_daal_GetGlobalTopoObject().error) return -1;
+    if (error) return -1;
 
     return numMappings;
 }
@@ -1723,8 +1713,6 @@ static int __internal_daal_analyzeEachCHierarchy(unsigned subleaf, unsigned numM
 }
 
 /*
- * __internal_daal_buildSystemTopologyTables
- *
  * Construct the processor topology tables and values necessary to
  * support the external functions that display CPU topology and/or
  * cache topology derived from system topology enumeration.
@@ -1732,71 +1720,53 @@ static int __internal_daal_analyzeEachCHierarchy(unsigned subleaf, unsigned numM
  * Arguments: None
  * Return: None, sets __internal_daal_GetGlobalTopoObject().error if tables or values can not be calculated.
  */
-static void __internal_daal_buildSystemTopologyTables()
+void glktsn::buildSystemTopologyTables()
 {
     unsigned lcl_OSProcessorCount, subleaf;
     int numMappings = 0;
-    std::cout << "Initializing CPU topology..., &__internal_daal_GetGlobalTopoObject() = " << &__internal_daal_GetGlobalTopoObject() << std::endl << std::flush;
+    std::cout << "Initializing CPU topology..., &__internal_daal_GetGlobalTopoObject() = " << this << std::endl << std::flush;
 
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
-    lcl_OSProcessorCount = __internal_daal_GetGlobalTopoObject().OSProcessorCount;
+    lcl_OSProcessorCount = OSProcessorCount;
 
     std::cout << "lcl_OSProcessorCount = " << lcl_OSProcessorCount << std::endl << std::flush;
 
     // allocated the memory buffers within the global pointer
 
     // Gather all the system-wide constant parameters needed to derive topology information
-    int status = __internal_daal_cpuTopologyParams();
-    if (status) {
-        __internal_daal_GetGlobalTopoObject().error = status;
-        return;
-    }
-    status = __internal_daal_cacheTopologyParams();
-    if (status) {
-        __internal_daal_GetGlobalTopoObject().error = status;
-        return;
-    }
+    error = cpuTopologyParams();
+    if (error) return;
+    error = cacheTopologyParams();
+    if (error) return;
 
     // For each logical processor, collect APIC ID and parse sub IDs for each APIC ID
-    numMappings = __internal_daal_queryParseSubIDs();
+    numMappings = queryParseSubIDs();
     if (numMappings < 0) {
-        __internal_daal_GetGlobalTopoObject().error = numMappings;
+        error = numMappings;
         return;
     }
+#if 0
     // Derived separate numbering schemes for each level of the cpu topology
     if (__internal_daal_analyzeCPUHierarchy(numMappings) < 0)
     {
-        __internal_daal_GetGlobalTopoObject().error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
+        error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
     }
 
     // an example of building cache topology info for each cache level
-    if (__internal_daal_GetGlobalTopoObject().maxCacheSubleaf != -1)
+    if (maxCacheSubleaf != -1)
     {
-        for (subleaf = 0; subleaf <= __internal_daal_GetGlobalTopoObject().maxCacheSubleaf; subleaf++)
+        for (subleaf = 0; subleaf <= .maxCacheSubleaf; subleaf++)
         {
-            if (__internal_daal_GetGlobalTopoObject().EachCacheMaskWidth[subleaf] != 0xffffffff)
+            if (EachCacheMaskWidth[subleaf] != 0xffffffff)
             {
                 // ensure there is at least one core in the target level cache
-                if (__internal_daal_analyzeEachCHierarchy(subleaf, numMappings) < 0) __internal_daal_GetGlobalTopoObject().error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
+                if (__internal_daal_analyzeEachCHierarchy(subleaf, numMappings) < 0) error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
             }
         }
     }
-
-    __internal_daal_GetGlobalTopoObject().isInit = 1;
-}
-
-/*
- * __internal_daal_initCpuTopology
- *
- * Initialize the CPU topology structures if they have not already been initialized
- *
- * Arguments: None
- * Return: None
- */
-static void __internal_daal_initCpuTopology()
-{
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_buildSystemTopologyTables();
+#endif
+    isInit = 1;
 }
 
 /*
@@ -1810,11 +1780,10 @@ static void __internal_daal_initCpuTopology()
  */
 unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) {
-        __internal_daal_initCpuTopology();
+    if (__internal_daal_GetGlobalTopoObject().error) {
+        std::cout << "ERROR in _internal_daal_GetEnumerateAPICID " << std::endl << std::flush;
+        return 0xffffffff;
     }
-
-    if (__internal_daal_GetGlobalTopoObject().error) return 0xffffffff;
 
     if (processor >= __internal_daal_GetGlobalTopoObject().OSProcessorCount) return 0xffffffff; // allow caller to intercept error
 
@@ -1832,9 +1801,10 @@ unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
  */
 unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
-    if (__internal_daal_GetGlobalTopoObject().error || package_ordinal >= __internal_daal_GetGlobalTopoObject().EnumeratedPkgCount) return 0;
+    if (__internal_daal_GetGlobalTopoObject().error || package_ordinal >= __internal_daal_GetGlobalTopoObject().EnumeratedPkgCount) {
+        std::cout << "ERROR in _internal_daal_GetEnumeratedCoreCount " << std::endl << std::flush;
+        return 0;
+    }
 
     return __internal_daal_GetGlobalTopoObject().perPkg_detectedCoresCount.data[package_ordinal];
 }
@@ -1850,9 +1820,10 @@ unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
  */
 unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsigned core_ordinal)
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
-    if (__internal_daal_GetGlobalTopoObject().error || package_ordinal >= __internal_daal_GetGlobalTopoObject().EnumeratedPkgCount) return 0;
+    if (__internal_daal_GetGlobalTopoObject().error || package_ordinal >= __internal_daal_GetGlobalTopoObject().EnumeratedPkgCount) {
+        std::cout << "ERROR in _internal_daal_GetEnumeratedThreadCount " << std::endl << std::flush;
+         return 0;
+    }
 
     if (core_ordinal >= __internal_daal_GetGlobalTopoObject().perPkg_detectedCoresCount.data[package_ordinal]) return 0;
 
@@ -1869,9 +1840,10 @@ unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsig
  */
 unsigned _internal_daal_GetSysEachCacheCount(unsigned subleaf)
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
-    if (__internal_daal_GetGlobalTopoObject().error) return 0;
+    if (__internal_daal_GetGlobalTopoObject().error)  {
+        std::cout << "ERROR in _internal_daal_GetSysEachCacheCount, subleaf = " << subleaf << std::endl << std::flush;
+         return 0;
+    }
 
     return __internal_daal_GetGlobalTopoObject().EnumeratedEachCacheCount[subleaf];
 }
@@ -1886,8 +1858,6 @@ unsigned _internal_daal_GetSysEachCacheCount(unsigned subleaf)
  */
 unsigned _internal_daal_GetOSLogicalProcessorCount()
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
     if (__internal_daal_GetGlobalTopoObject().error) return 0;
 
     return __internal_daal_GetGlobalTopoObject().OSProcessorCount;
@@ -1903,8 +1873,6 @@ unsigned _internal_daal_GetOSLogicalProcessorCount()
  */
 unsigned _internal_daal_GetSysLogicalProcessorCount()
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
     if (__internal_daal_GetGlobalTopoObject().error) return 0;
 
     return __internal_daal_GetGlobalTopoObject().EnumeratedThreadCount;
@@ -1920,10 +1888,8 @@ unsigned _internal_daal_GetSysLogicalProcessorCount()
  */
 unsigned _internal_daal_GetProcessorCoreCount()
 {
-    std::cout << "_internal_daal_GetProcessorCoreCount, isInit = " << int(__internal_daal_GetGlobalTopoObject().isInit) << std::endl << std::flush;
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
-    std::cout << "__internal_daal_GetGlobalTopoObject().error = " << __internal_daal_GetGlobalTopoObject().error << std::endl << std::flush;
+    std::cout << "_internal_daal_GetProcessorCoreCount, isInit = " << int(__internal_daal_GetGlobalTopoObject().isInit)
+              << ", error = " << __internal_daal_GetGlobalTopoObject().error << std::endl << std::flush;
     if (__internal_daal_GetGlobalTopoObject().error) return 0;
 
     std::cout << "_internal_daal_GetProcessorCoreCount Ok" << std::endl << std::flush;
@@ -1940,8 +1906,6 @@ unsigned _internal_daal_GetProcessorCoreCount()
  */
 unsigned _internal_daal_GetSysProcessorPackageCount()
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
     if (__internal_daal_GetGlobalTopoObject().error) return 0;
 
     return __internal_daal_GetGlobalTopoObject().EnumeratedPkgCount;
@@ -1957,8 +1921,6 @@ unsigned _internal_daal_GetSysProcessorPackageCount()
  */
 unsigned _internal_daal_GetCoreCountPerEachCache(unsigned subleaf, unsigned cache_ordinal)
 {
-    if (!__internal_daal_GetGlobalTopoObject().isInit) __internal_daal_initCpuTopology();
-
     if (__internal_daal_GetGlobalTopoObject().error || cache_ordinal >= __internal_daal_GetGlobalTopoObject().EnumeratedEachCacheCount[subleaf]) return 0;
 
     return __internal_daal_GetGlobalTopoObject().perEachCache_detectedThreadCount.data[cache_ordinal * MAX_CACHE_SUBLEAFS + subleaf];

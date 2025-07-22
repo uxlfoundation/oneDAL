@@ -21,6 +21,8 @@
 #include <daal/src/services/service_defines.h>
 #include <daal/include/services/internal/daal_kernel_defines.h>
 
+
+#include <any>
 #include <sstream>
 
 namespace oneapi::dal::detail {
@@ -29,9 +31,14 @@ namespace v1 {
 system_parameters_impl::system_parameters_impl() {
     using daal::services::Environment;
     Environment* env = Environment::getInstance();
-    sys_info_["top_enabled_cpu_extension"] =
-        from_daal_cpu_type(DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID);
-    sys_info_["max_number_of_threads"] = static_cast<std::uint32_t>(env->getNumberOfThreads());
+    // Call to `getCpuId` changes global settings, in particular,
+    // changes default number of threads in the threading layer
+    // const int cpuid = env->getCpuId();
+    env->getCpuId();
+    /* sys_info_.insert({std::string("top_enabled_cpu_extension"),
+        std::make_any<cpu_extension>(from_daal_cpu_type(cpuid))});
+    sys_info_.insert({std::string("max_number_of_threads"),
+        std::make_any<std::uint32_t>(static_cast<std::uint32_t>(env->getNumberOfThreads()))}); */
 }
 
 cpu_extension system_parameters_impl::get_top_enabled_cpu_extension() const {
@@ -39,7 +46,7 @@ cpu_extension system_parameters_impl::get_top_enabled_cpu_extension() const {
     if (entry == sys_info_.end()) {
         throw invalid_argument{ error_messages::invalid_key() };
     }
-    return std::any_cast<cpu_extension>(entry->second);
+    return cpu_extension::avx512; // std::any_cast<cpu_extension>(entry->second);
 }
 
 std::uint32_t system_parameters_impl::get_max_number_of_threads() const {
@@ -47,7 +54,8 @@ std::uint32_t system_parameters_impl::get_max_number_of_threads() const {
     if (entry == sys_info_.end()) {
         throw invalid_argument{ error_messages::invalid_key() };
     }
-    return std::any_cast<std::uint32_t>(entry->second);
+    // return std::any_cast<std::uint32_t>(entry->second);
+    return  0;
 }
 
 void system_parameters_impl::print_any(const std::any& value, std::ostringstream& ss) const {

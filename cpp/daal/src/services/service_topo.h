@@ -205,6 +205,27 @@ struct CPUIDinfox
 
 struct GenericAffinityMask
 {
+    GenericAffinityMask() = default;
+    GenericAffinityMask(const unsigned numCpus);
+    GenericAffinityMask(const GenericAffinityMask & other);
+    GenericAffinityMask& operator=(GenericAffinityMask other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+    ~GenericAffinityMask();
+
+    friend void swap(GenericAffinityMask& first, GenericAffinityMask& second) // nothrow
+    {
+        unsigned tmp = first.maxByteLength;
+        first.maxByteLength = second.maxByteLength;
+        second.maxByteLength = tmp;
+
+        unsigned char * tmpMask = first.AffinityMask;
+        first.AffinityMask      = second.AffinityMask;
+        second.AffinityMask     = tmpMask;
+    }
+
     unsigned maxByteLength       = 0;
     unsigned char * AffinityMask = nullptr;
 };
@@ -365,7 +386,7 @@ struct glktsn
     unsigned Alert_BiosCPUIDmaxLimitSetting;
 
     unsigned OSProcessorCount = 0; // how many logical processor the OS sees
-    unsigned hasLeafB;             // flag to keep track of whether CPUID leaf 0BH is supported
+    bool hasLeafB;             // flag to keep track of whether CPUID leaf 0BH is supported
     unsigned maxCacheSubleaf;      // highest CPUID leaf 4 subleaf index in a processor
 
     // the following global variables are the total counts in the system resulting from software enumeration
@@ -400,12 +421,12 @@ struct glktsn
 
     void FreeArrays();
 
-    glktsn() : isInit(0), error(0), Alert_BiosCPUIDmaxLimitSetting(0), hasLeafB(0), maxCacheSubleaf(-1),
+    glktsn() : isInit(0), error(0), Alert_BiosCPUIDmaxLimitSetting(0), hasLeafB(false), maxCacheSubleaf(-1),
                EnumeratedPkgCount(0), EnumeratedCoreCount(0), EnumeratedThreadCount(0),
                HWMT_SMTperCore(0), HWMT_SMTperPkg(0) {
         std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl << std::flush;
-        OSProcessorCount = _internal_daal_GetMaxCPUSupportedByOS();
-        allocArrays(OSProcessorCount);
+        OSProcessorCount = getMaxCPUSupportedByOS();
+        // allocArrays(OSProcessorCount);
         if (error != 0) {
             std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl << std::flush;
             return;
@@ -418,15 +439,27 @@ struct glktsn
             cacheDetail[i] = cacheDetail_str{};
         }
 
+        // buildSystemTopologyTables();
+
         std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl << std::flush;
     }
     ~glktsn() {
         std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
-        FreeArrays();
+        // FreeArrays();
     }
 private:
     int allocArrays(const unsigned cpus);
-    unsigned _internal_daal_GetMaxCPUSupportedByOS();
+    unsigned getMaxCPUSupportedByOS();
+    int cpuTopologyParams();
+    int cpuTopologyLeafBConstants();
+    int cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID);
+    int cacheTopologyParams();
+    void initStructuredLeafBuffers();
+    int findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf);
+    int eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID);
+
+    int queryParseSubIDs();
+    void buildSystemTopologyTables();
 };
 
 } // namespace internal
@@ -437,4 +470,6 @@ void read_topology(int & status, int & nthreads, int & max_threads, int ** cpu_q
 void delete_topology(void * ptr);
 
 #endif /* #if !defined (DAAL_CPU_TOPO_DISABLED) */
+
+
 #endif /* __SERVICE_TOPO_H__ */

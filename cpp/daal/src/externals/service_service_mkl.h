@@ -30,6 +30,8 @@
 #include <mkl_service.h>
 #include <string.h>
 
+#include <unistd.h>
+
 namespace daal
 {
 namespace internal
@@ -66,7 +68,11 @@ struct MklService
 
     static int serv_get_ncpus()
     {
+        #if !(defined DAAL_CPU_TOPO_DISABLED)
         unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        #else
+        unsigned int ncores = sysconf(_SC_NPROCESSORS_ONLN);
+        #endif
         if (!ncores) {
             std::cout << "!!!!!!!!!serv_get_ncpus: no cores detected, returning 1" << std::endl;
         }
@@ -78,7 +84,11 @@ struct MklService
 
     static int serv_get_ncorespercpu()
     {
+        #if !(defined DAAL_CPU_TOPO_DISABLED)
         unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        #else
+        unsigned int nlogicalcpu = sysconf(_SC_NPROCESSORS_ONLN);
+        #endif
         unsigned int ncpus       = serv_get_ncpus();
         return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? nlogicalcpu / ncpus : 1);
     }

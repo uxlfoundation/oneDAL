@@ -71,8 +71,22 @@ void any_to_stream(const std::any& value, std::ostream& ss) {
     }
 }
 
+/// A map of CPU features to their string representations.
+/// This map is used to convert CPU feature bitmasks to human-readable strings.
+/// Keys are bitflags representing CPU features. They are defined in daal::CpuFeature enumeration.
+/* static const std::map<uint64_t, const std::string> cpu_feature_map = {
+    { uint64_t(cpu_feature::unknown), "Unknown" },
+#if defined(TARGET_X86_64)
+    { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
+    { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
+    { uint64_t(cpu_feature::avx512_bf16), "AVX-512 bfloat16" },
+    { uint64_t(cpu_feature::avx512_vnni), "AVX-512 VNNI" },
+    { uint64_t(cpu_feature::tb3), "Intel(R) Turbo Boost Max 3.0" }
+#endif
+}; */
+
 void cpu_features_to_stream(const std::any& value, std::ostream& ss) {
-    std::uint64_t cpu_features = std::any_cast<std::uint64_t>(value);
+    /* std::uint64_t cpu_features = std::any_cast<std::uint64_t>(value);
     if (cpu_features == 0) {
         const auto entry = cpu_feature_map.find(0);
         if (entry == cpu_feature_map.end()) {
@@ -86,7 +100,7 @@ void cpu_features_to_stream(const std::any& value, std::ostream& ss) {
                 ss << feature << ", ";
             }
         }
-    }
+    } */
 }
 
 cpu_vendor cpu_info_impl::get_cpu_vendor() const {
