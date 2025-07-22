@@ -23,6 +23,7 @@ COMPILERs = gnu clang
 COMPILER ?= gnu
 CPUs := sve
 CPUs.files := a8sve
+OPTFLAG ?= O2
 
 ONEAPI.dispatcher_tag.a8sve := -D__CPU_TAG__=__CPU_TAG_ARMV8SVE__
 

@@ -32,6 +32,7 @@ auto reduction_rm_cw<Float, BinaryOp, UnaryOp>::propose_method(std::int64_t widt
         return reduction_method::blocking;
     }
 
+    /* TODO: The implementation of rm_cw_atomic reduction contains a bug that prevents it from working correctly.
     {
         const auto fwidth = device_max_wg_size(q_);
         const auto twidth = fwidth * atomic_t::max_folding;
@@ -40,6 +41,7 @@ auto reduction_rm_cw<Float, BinaryOp, UnaryOp>::propose_method(std::int64_t widt
             return reduction_method::atomic;
         }
     }
+    */
     return reduction_method::naive;
 }
 
