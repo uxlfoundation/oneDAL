@@ -31,8 +31,6 @@
 #include "src/externals/service_memory.h"
 #include "src/externals/service_stat_rng_mkl.h"
 
-typedef void (*func_type)(DAAL_INT, DAAL_INT, DAAL_INT, void *);
-
 #undef __DAAL_VSLFN_CALL
 #define __DAAL_VSLFN_CALL(f_name, f_args, errcode) errcode = f_name f_args;
 
