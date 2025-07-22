@@ -35,15 +35,6 @@ typedef void (*func_type)(DAAL_INT, DAAL_INT, DAAL_INT, void *);
 
 #undef __DAAL_VSLFN_CALL
 #define __DAAL_VSLFN_CALL(f_name, f_args, errcode) errcode = f_name f_args;
-#define __DAAL_VSLFN_CALL_WITH_CLEANUP(f_name, f_args, errcode) \
-    errcode = f_name f_args;                                    \
-    if (errcode) goto cleanup;
-
-#if defined(_WIN64) || defined(__x86_64__)
-    #define __SS_ILP_FLAG__ 1
-#else
-    #define __SS_ILP_FLAG__ 0
-#endif
 
 extern "C"
 {
