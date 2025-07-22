@@ -104,7 +104,7 @@ static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
-        const algorithmFPType sigm = static_cast<algorithmFPType>(1.0) / (static_cast<algorithmFPType>(1.0) + exp[i]);
+        algorithmFPType sigm = static_cast<algorithmFPType>(1.0) / (static_cast<algorithmFPType>(1.0) + exp[i]);
         if (sigm < bottom) sigm = bottom;
         if (sigm > top) sigm = top;
         exp[i]          = sigm;
