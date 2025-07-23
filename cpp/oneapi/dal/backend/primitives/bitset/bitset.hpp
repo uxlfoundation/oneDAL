@@ -44,7 +44,7 @@ public:
         element_t bit_index = index % element_bitsize;
         sycl::atomic_ref<element_t, mem_order, mem_scope>
             atomic_element(_data[element_index]);
-        atomic_element.store(atomic_element.load() | (element_t(1) << bit_index));
+        atomic_element |= (element_t(1) << bit_index);
     }
 
     /// Clears the bit at the specified index using atomic operations.
@@ -55,7 +55,7 @@ public:
         element_t bit_index = index % element_bitsize;
         sycl::atomic_ref<element_t, mem_order, mem_scope>
             atomic_element(_data[element_index]);
-        atomic_element.store(atomic_element.load() & ~(element_t(1) << bit_index));
+        atomic_element &= ~(element_t(1) << bit_index);
     }
 
     /// Checks if the bit at the specified index is set using atomic operations.
