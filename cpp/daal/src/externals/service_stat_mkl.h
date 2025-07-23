@@ -86,8 +86,8 @@ namespace internal
 namespace mkl
 {
 
-const MKL_INT dataStorage = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
-const MKL_INT cpStorage   = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
+const MKL_INT storageCols = __DAAL_VSL_SS_MATRIX_STORAGE_COLS;
+const MKL_INT storageFull = __DAAL_VSL_SS_MATRIX_STORAGE_FULL;
 
 template <class fpType>
 struct MKLTaskInterfacer
@@ -98,13 +98,13 @@ public:
 
     MKLTaskInterfacer(const __int64 * nFeatures, const __int64 * nVectors, const double * data)
     {
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &dataStorage, data, 0, 0),
+        __DAAL_VSLFN_CALL(vsldSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &storageCols, data, 0, 0),
                           this->errcode);
     }
 
     MKLTaskInterfacer(const __int64 * nFeatures, const __int64 * nVectors, const float * data)
     {
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &dataStorage, data, 0, 0),
+        __DAAL_VSLFN_CALL(vslsSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &storageCols, data, 0, 0),
                           this->errcode);
     }
 
@@ -195,7 +195,7 @@ struct MklStatistics
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_SUM, sum));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_MEAN, mean));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_CP, crossProduct));
-        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_CP_STORAGE, &cpStorage));
+        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_CP_STORAGE, &storageFull));
         fpType weight[2] = { *nPreviousObservations, *nPreviousObservations };
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_ACCUM_WEIGHT, weight));
         CALL_AND_CHECK(task.compute(__DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method));
@@ -215,7 +215,7 @@ struct MklStatistics
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_MEAN, mean));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_WEIGHTS, weight));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_CP, crossProduct));
-        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_CP_STORAGE, &cpStorage));
+        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_CP_STORAGE, &storageFull));
         fpType accumWeightsAll[2] = { 0, 0 };
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_ACCUM_WEIGHT, accumWeightsAll));
         CALL_AND_CHECK(task.compute(__DAAL_VSL_SS_CP | __DAAL_VSL_SS_SUM, method));
@@ -315,7 +315,7 @@ struct MklStatistics
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData));
-        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, &cpStorage));
+        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_SORTED_OBSERV_STORAGE, &storageCols));
         CALL_AND_CHECK(task.compute(__DAAL_VSL_SS_SORTED_OBSERV, __DAAL_VSL_SS_METHOD_RADIX));
         return 0;
     }
