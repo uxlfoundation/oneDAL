@@ -9,6 +9,7 @@
 
 namespace oneapi::dal::backend::primitives {
 
+/// @brief A view of a frontier that provides an interface for the kernel to interact with the frontier data structure.
 template <typename ElementType = std::uint32_t>
 struct frontier_view {
     using bitmap_t = ElementType;
@@ -66,6 +67,7 @@ struct frontier_view {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
+/// @brief The Two-Layer bitmap frontier class
 template <typename ElementType = std::uint32_t>
 class frontier {
     using bitmap_t = ElementType;
@@ -166,6 +168,10 @@ public:
         e2.wait_and_throw();
     }
 
+    /// @brief Computes the active frontier by filling the offsets array with the indices of the active vertices.
+    /// It returns a sycl::event that can be used to synchronize the execution.
+    /// The offsets array is filled with the indices of the active vertices in the first layer of the frontier.
+    /// This is used by the primitives to understand which vertices are active in the frontier.
     sycl::event compute_active_frontier() const {
         auto bitmap = this->get_device_view();
 
