@@ -1,6 +1,7 @@
 #pragma once
 
 #include "oneapi/dal/common.hpp"
+#include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/graph/detail/common.hpp"
 #include "oneapi/dal/graph/detail/container.hpp"
 #include "oneapi/dal/backend/primitives/bitset.hpp"
@@ -172,7 +173,7 @@ public:
         auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
         uint32_t element_bitsize = decltype(bitmap._mlb_layer)::element_bitsize;
-        size_t local_range = 1024; // Adjust as needed
+        size_t local_range = propose_wg_size(this->_queue); 
         size_t global_range =
             _mlb_layer.get_count() + local_range - (_mlb_layer.get_count() % local_range);
 
