@@ -226,6 +226,37 @@ struct GenericAffinityMask
         second.AffinityMask     = tmpMask;
     }
 
+
+    static constexpr unsigned char N_BITS_IN_BYTE = 8;
+    static constexpr unsigned char LOG2_N_BITS_IN_BYTE = 3; // log2(8) = 3
+
+    static constexpr unsigned char OUT_OF_BOUND_ERROR = 0xff;
+
+    unsigned char test(unsigned cpu) const {
+        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE))
+        {
+            if ((AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] & (1 << (cpu % N_BITS_IN_BYTE))))
+                return 1;
+            else
+                return 0;
+        }
+        else
+        {
+            // If cpu is out of range, return 0xff to indicate an error
+            return OUT_OF_BOUND_ERROR;
+        }
+    }
+
+    unsigned char set(unsigned cpu) {
+        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE)) AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] |= 1 << (cpu % N_BITS_IN_BYTE);
+        else
+        {
+            // If cpu is out of range, return 0xff to indicate an error
+            return OUT_OF_BOUND_ERROR;
+        }
+        return 0;
+    }
+
     unsigned maxByteLength       = 0;
     unsigned char * AffinityMask = nullptr;
 };
@@ -318,6 +349,10 @@ struct DynCharBuf_str
 
 struct idAffMskOrdMapping_t
 {
+    idAffMskOrdMapping_t() = default;
+    explicit idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsigned globalPkgSelectMask, unsigned globalPkgSelectMaskShift,
+                                           unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
+                                           unsigned * globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf);
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
     unsigned __int32 OrdIndexOAMsk; // An ordinal index (zero-based) for each logical
@@ -347,6 +382,8 @@ struct idAffMskOrdMapping_t
                                                                    // for each cache entity of the specified cache level in the system
     unsigned __int32 threadPerEaCacheORD[MAX_CACHE_SUBLEAFS] = {}; // a zero-based numbering scheme
                                                                    // for each logical processor sharing the same cache of the specified cache level
+private:
+    void initApicID(bool hasLeafB);
 };
 
 
@@ -393,6 +430,7 @@ struct glktsn
     unsigned EnumeratedPkgCount;
     unsigned EnumeratedCoreCount;
     unsigned EnumeratedThreadCount;
+
     // CPUID ID leaf 4 can report data for several cache levels, we'll keep track of each cache level
     unsigned EnumeratedEachCacheCount[MAX_CACHE_SUBLEAFS] = {};
     // the following global variables are parameters related to
@@ -426,7 +464,7 @@ struct glktsn
                HWMT_SMTperCore(0), HWMT_SMTperPkg(0) {
         std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl << std::flush;
         OSProcessorCount = getMaxCPUSupportedByOS();
-        // allocArrays(OSProcessorCount);
+        allocArrays(OSProcessorCount);
         if (error != 0) {
             std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl << std::flush;
             return;
@@ -439,13 +477,20 @@ struct glktsn
             cacheDetail[i] = cacheDetail_str{};
         }
 
-        // buildSystemTopologyTables();
+        buildSystemTopologyTables();
 
+        if (error)
+        {
+        std::cout << "!!! System topology tables initialization failed, error = " << error << std::endl << std::flush;
+        }
+        else
+        {
         std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl << std::flush;
+        }
     }
     ~glktsn() {
         std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
-        // FreeArrays();
+        FreeArrays();
     }
 private:
     int allocArrays(const unsigned cpus);
@@ -458,7 +503,9 @@ private:
     int findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf);
     int eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID);
 
-    int queryParseSubIDs();
+    void setChkProcessAffinityConsistency();
+    int initEnumeratedThreadCountAndParseAPICIDs();
+    int analyzeCPUHierarchy();
     void buildSystemTopologyTables();
 };
 
