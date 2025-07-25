@@ -158,13 +158,10 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "gradient_boosted_trees",
     compile_as = [ "c++" ],
-    srcs = glob(["source/gradient_boosted_trees/*.cpp"],
-    exclude = ["source/gradient_boosted_trees/gbt_cls_traversed_model_builder.cpp",
-    "source/gradient_boosted_trees/gbt_reg_traversed_model_builder.cpp"],),
+    srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt/regression:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/gbt/classification:kernel",

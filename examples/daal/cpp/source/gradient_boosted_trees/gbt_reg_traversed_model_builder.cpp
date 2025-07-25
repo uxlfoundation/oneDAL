@@ -174,7 +174,7 @@ bool buildTree(size_t treeId,
                const ParentPlace &parentPlace);
 
 int main(int argc, char *argv[]) {
-    checkArguments(argc, argv, 1, &trainDatasetFileName);
+    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
 
     /* Train DAAL Gradient Boosted Trees Regression model */
     training::ResultPtr trainingResult = trainModel();
