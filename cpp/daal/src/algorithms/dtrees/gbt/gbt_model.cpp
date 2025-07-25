@@ -273,6 +273,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
     NodeType * parents = parentsArr.data();
 
     ModelFPType * const splitPoints         = newTree.getSplitPoints();
+    size_t * const leftChildIndexes = newTree.getLeftChildIndexes();
     FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
     ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
     int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
@@ -313,7 +314,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 defaultLeft[idxInTable]     = 0;
                 splitPoints[idxInTable]     = p->featureValueOrResponse;
             }
-
+            leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
             idxInTable++;
         }
         swap(parents, sons);
