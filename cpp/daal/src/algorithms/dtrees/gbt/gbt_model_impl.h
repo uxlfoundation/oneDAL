@@ -65,6 +65,7 @@ public:
     using NodeCoverType              = HomogenNumericTable<ModelFPType>;
     using FeatureIndexesForSplitType = HomogenNumericTable<FeatureIndexType>;
     using defaultLeftForSplitType    = HomogenNumericTable<int>;
+    using leftChildIndexType         = HomogenNumericTable<size_t>;
 
     GbtDecisionTree(const size_t nNodes, const size_t maxLvl)
         : _nNodes(nNodes),
@@ -73,6 +74,7 @@ public:
           _featureIndexes(FeatureIndexesForSplitType::create(1, nNodes, NumericTableIface::doAllocate)),
           _nodeCoverValues(NodeCoverType::create(1, nNodes, NumericTableIface::doAllocate)),
           _defaultLeft(defaultLeftForSplitType::create(1, nNodes, NumericTableIface::doAllocate)),
+          _leftChildIndexes(leftChildIndexType::create(1, nNodes, NumericTableIface::doAllocate)),
           nNodeSplitFeature(),
           CoverFeature(),
           GainFeature()
@@ -85,11 +87,15 @@ public:
 
     FeatureIndexType * getFeatureIndexesForSplit() { return _featureIndexes->getArray(); }
 
+    size_t * getLeftChildIndexes() { return _leftChildIndexes->getArray(); }
+
     int * getDefaultLeftForSplit() { return _defaultLeft->getArray(); }
 
     const ModelFPType * getSplitPoints() const { return _splitPoints->getArray(); }
 
     const FeatureIndexType * getFeatureIndexesForSplit() const { return _featureIndexes->getArray(); }
+
+    const size_t * getLeftChildIndexes() const { return _leftChildIndexes->getArray(); }
 
     ModelFPType * getNodeCoverValues() { return _nodeCoverValues->getArray(); }
 
@@ -133,6 +139,7 @@ public:
 
         ModelFPType * const splitPoints         = tree->getSplitPoints();
         FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
+        size_t * const leftChildIndexes = tree->getLeftChildIndexes();
 
         for (size_t i = 0; i < nNodes; ++i)
         {
@@ -182,7 +189,7 @@ public:
                 nNodeSamplesVals[idxInTable] = (int)p->count;
                 impVals[idxInTable]          = p->impurity;
                 splitPoints[idxInTable]      = p->featureValue;
-
+                leftChildIndexes[idxInTable] = (idxInTable + 1) * 2; // we consider nodes in a tree are numbered from 1
                 idxInTable++;
             }
 
@@ -206,6 +213,7 @@ protected:
         arch->setSharedPtrObj(_featureIndexes);
         arch->setSharedPtrObj(_nodeCoverValues);
         arch->setSharedPtrObj(_defaultLeft);
+        arch->setSharedPtrObj(_leftChildIndexes);
 
         return services::Status();
     }
@@ -217,6 +225,7 @@ protected:
     services::SharedPtr<FeatureIndexesForSplitType> _featureIndexes;
     services::SharedPtr<NodeCoverType> _nodeCoverValues;
     services::SharedPtr<defaultLeftForSplitType> _defaultLeft;
+    services::SharedPtr<leftChildIndexType> _leftChildIndexes;
     services::Collection<size_t> nNodeSplitFeature;
     services::Collection<size_t> CoverFeature;
     services::Collection<double> GainFeature;
@@ -386,7 +395,8 @@ protected:
         if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree, level))
         {
             if (!visitSplit(iRowInTable, level)) return; //do not continue traversing
-
+            
+            // TODO: fix indexes
             traverseGbtDF(level + 1, iRowInTable * 2 + 1, gbtTree, visitSplit, visitLeaf);
             traverseGbtDF(level + 1, iRowInTable * 2 + 2, gbtTree, visitSplit, visitLeaf);
         }
@@ -399,7 +409,8 @@ protected:
     template <typename OnSplitFunctor, typename OnLeafFunctor>
     static void traverseGbtBF(size_t level, NodeIdxArray & aCur, NodeIdxArray & aNext, const GbtDecisionTree & gbtTree, OnSplitFunctor & visitSplit,
                               OnLeafFunctor & visitLeaf)
-    {
+    {   
+        // TODO: fix indexes
         for (size_t i = 0; i < aCur.size(); ++i)
         {
             for (size_t j = 0; j < (level ? 2 : 1); ++j)
