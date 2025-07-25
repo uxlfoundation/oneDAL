@@ -186,7 +186,7 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i], tmp);
 
-        svfloat32_t expVal = daal::internal::ref::RefMath<float, daal::sve>::exp_sleef(tmp);
+        svfloat32_t expVal = daal::internal::ref::exp_vectorized(tmp);
         svst1(pg, &dataRBlock[i], expVal);
 
         // Block 2
@@ -199,7 +199,7 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp  = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + step], tmp);
 
-        expVal = daal::internal::ref::RefMath<float, daal::sve>::exp_sleef(tmp);
+        expVal = daal::internal::ref::exp_vectorized(tmp);
         svst1(pg, &dataRBlock[i + step], expVal);
 
         // Block 3
@@ -212,7 +212,7 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp  = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + 2 * step], tmp);
 
-        expVal = daal::internal::ref::RefMath<float, daal::sve>::exp_sleef(tmp);
+        expVal = daal::internal::ref::exp_vectorized(tmp);
         svst1(pg, &dataRBlock[i + 2 * step], expVal);
     }
 
@@ -229,7 +229,7 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(tail_pg, &mklBuff[i], tmp);
 
-        svfloat32_t expVal = daal::internal::ref::RefMath<float, daal::sve>::exp_sleef(tmp);
+        svfloat32_t expVal = daal::internal::ref::exp_vectorized(tmp);
         svst1(tail_pg, &dataRBlock[i], expVal);
     }
 
