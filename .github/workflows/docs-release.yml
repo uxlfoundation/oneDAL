@@ -25,6 +25,8 @@ permissions: read-all
 jobs:
   build-docs:
     runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
     permissions:
       contents: write
       pages: write
