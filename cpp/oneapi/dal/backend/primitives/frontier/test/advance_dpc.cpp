@@ -1,4 +1,6 @@
-#include "oneapi/dal/backend/primitives/frontier.hpp"
+#include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
+#include "oneapi/dal/backend/primitives/frontier/advance_dpc.hpp"
+#include "oneapi/dal/backend/primitives/frontier/graph.hpp"
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
@@ -9,6 +11,8 @@
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
+
+namespace pr = dal::backend::primitives;
 
 void print_device_name(sycl::queue& queue) {
     const auto device = queue.get_device();
@@ -73,9 +77,9 @@ TEST("test advance operation", "[advance]") {
     size_t num_nodes = row_ptr.size() - 1;
 
     
-    auto graph = csr_graph(queue, row_ptr, col_indices, weights);
-    auto in_frontier = frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
-    auto out_frontier = frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
+    auto graph = pr::csr_graph(queue, row_ptr, col_indices, weights);
+    auto in_frontier = pr::frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
+    auto out_frontier = pr::frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
     
     in_frontier.insert(3);
     in_frontier.insert(4);
@@ -83,7 +87,7 @@ TEST("test advance operation", "[advance]") {
     in_frontier.insert(100);
     std::vector<std::uint32_t> host_frontier = {3, 4, 52, 100};
 
-    advance(graph, in_frontier, out_frontier, [=](auto vertex, auto neighbor, auto edge, auto weight) {
+    pr::advance(graph, in_frontier, out_frontier, [=](auto vertex, auto neighbor, auto edge, auto weight) {
         return true; // Always advance
     }).wait_and_throw();
     
