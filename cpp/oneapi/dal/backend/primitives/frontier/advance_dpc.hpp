@@ -2,7 +2,7 @@
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/frontier/graph.hpp"
-#include "oneapi/dal/backend/primitives/frontier/frontier_dpc.hpp"
+#include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
 
 
 namespace oneapi::dal::backend::primitives {

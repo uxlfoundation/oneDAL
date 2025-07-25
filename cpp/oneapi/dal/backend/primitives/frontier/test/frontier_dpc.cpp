@@ -1,14 +1,12 @@
-#include "oneapi/dal/backend/primitives/frontier.hpp"
-
-#include "oneapi/dal/test/engine/common.hpp"
-#include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/dataframe.hpp"
+#include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
 
 #include "oneapi/dal/test/engine/common.hpp"
 #include "oneapi/dal/test/engine/fixtures.hpp"
 #include "oneapi/dal/test/engine/dataframe.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
+
+namespace pr = dal::backend::primitives;
 
 void print_device_name(sycl::queue& queue) {
     const auto device = queue.get_device();
@@ -32,7 +30,7 @@ TEST("frontier queue basic operations", "[frontier]") {
     print_device_name(queue);
 
     const std::size_t num_items = 100;
-    auto f = frontier<std::uint32_t>(queue, num_items, sycl::usm::alloc::shared);
+    auto f = pr::frontier<std::uint32_t>(queue, num_items, sycl::usm::alloc::shared);
 
     REQUIRE(f.empty() == true);
     f.insert(0);
