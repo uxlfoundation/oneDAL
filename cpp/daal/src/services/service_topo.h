@@ -89,27 +89,11 @@ constexpr LNX_PTR2INT LNX_MY1CON = 1LL;
             #define DWORD_PTR unsigned long *
         #endif
 
-        #ifndef FALSE
-            #define FALSE 0
-        #endif
-
-        #ifndef TRUE
-            #define TRUE 1
-        #endif
-
         #ifndef BYTE
             #define BYTE unsigned char
         #endif
 
-        #ifndef BOOL
-            #define BOOL char
-        #endif
-
-        #ifdef __x86_64__
-            #define AFFINITY_MASK unsigned __int64
-        #else
-            #define AFFINITY_MASK unsigned __int32
-        #endif
+        #define AFFINITY_MASK unsigned __int64
 
     #else /* WINDOWS */
         #define NOMINMAX
@@ -459,35 +443,8 @@ struct glktsn
 
     void FreeArrays();
 
-    glktsn() : isInit(0), error(0), Alert_BiosCPUIDmaxLimitSetting(0), hasLeafB(false), maxCacheSubleaf(-1),
-               EnumeratedPkgCount(0), EnumeratedCoreCount(0), EnumeratedThreadCount(0),
-               HWMT_SMTperCore(0), HWMT_SMTperPkg(0) {
-        std::cout << "glktsn constructor called, this = " << this << ", error = " << error << std::endl << std::flush;
-        OSProcessorCount = getMaxCPUSupportedByOS();
-        allocArrays(OSProcessorCount);
-        if (error != 0) {
-            std::cout << "glktsn constructor failed, memory allocation error = " << error << std::endl << std::flush;
-            return;
-        }
+    glktsn();
 
-        for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++) {
-            EnumeratedEachCacheCount[i] = 0;
-            EachCacheSelectMask[i] = 0;
-            EachCacheMaskWidth[i] = 0;
-            cacheDetail[i] = cacheDetail_str{};
-        }
-
-        buildSystemTopologyTables();
-
-        if (error)
-        {
-        std::cout << "!!! System topology tables initialization failed, error = " << error << std::endl << std::flush;
-        }
-        else
-        {
-        std::cout << "glktsn constructor Ok, isInit = " << isInit << std::endl << std::flush;
-        }
-    }
     ~glktsn() {
         std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
         FreeArrays();
@@ -506,6 +463,7 @@ private:
     void setChkProcessAffinityConsistency();
     int initEnumeratedThreadCountAndParseAPICIDs();
     int analyzeCPUHierarchy();
+    int analyzeEachCHierarchy(unsigned subleaf);
     void buildSystemTopologyTables();
 };
 
