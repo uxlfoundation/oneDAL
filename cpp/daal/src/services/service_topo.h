@@ -89,27 +89,11 @@ constexpr LNX_PTR2INT LNX_MY1CON = 1LL;
             #define DWORD_PTR unsigned long *
         #endif
 
-        #ifndef FALSE
-            #define FALSE 0
-        #endif
-
-        #ifndef TRUE
-            #define TRUE 1
-        #endif
-
         #ifndef BYTE
             #define BYTE unsigned char
         #endif
 
-        #ifndef BOOL
-            #define BOOL char
-        #endif
-
-        #ifdef __x86_64__
-            #define AFFINITY_MASK unsigned __int64
-        #else
-            #define AFFINITY_MASK unsigned __int32
-        #endif
+        #define AFFINITY_MASK unsigned __int64
 
     #else /* WINDOWS */
         #define NOMINMAX
@@ -205,6 +189,58 @@ struct CPUIDinfox
 
 struct GenericAffinityMask
 {
+    GenericAffinityMask() = default;
+    GenericAffinityMask(const unsigned numCpus);
+    GenericAffinityMask(const GenericAffinityMask & other);
+    GenericAffinityMask& operator=(GenericAffinityMask other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+    ~GenericAffinityMask();
+
+    friend void swap(GenericAffinityMask& first, GenericAffinityMask& second) // nothrow
+    {
+        unsigned tmp = first.maxByteLength;
+        first.maxByteLength = second.maxByteLength;
+        second.maxByteLength = tmp;
+
+        unsigned char * tmpMask = first.AffinityMask;
+        first.AffinityMask      = second.AffinityMask;
+        second.AffinityMask     = tmpMask;
+    }
+
+
+    static constexpr unsigned char N_BITS_IN_BYTE = 8;
+    static constexpr unsigned char LOG2_N_BITS_IN_BYTE = 3; // log2(8) = 3
+
+    static constexpr unsigned char OUT_OF_BOUND_ERROR = 0xff;
+
+    unsigned char test(unsigned cpu) const {
+        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE))
+        {
+            if ((AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] & (1 << (cpu % N_BITS_IN_BYTE))))
+                return 1;
+            else
+                return 0;
+        }
+        else
+        {
+            // If cpu is out of range, return 0xff to indicate an error
+            return OUT_OF_BOUND_ERROR;
+        }
+    }
+
+    unsigned char set(unsigned cpu) {
+        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE)) AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] |= 1 << (cpu % N_BITS_IN_BYTE);
+        else
+        {
+            // If cpu is out of range, return 0xff to indicate an error
+            return OUT_OF_BOUND_ERROR;
+        }
+        return 0;
+    }
+
     unsigned maxByteLength       = 0;
     unsigned char * AffinityMask = nullptr;
 };
@@ -221,7 +257,7 @@ struct cacheDetail_str
 {
     char description[256] = {};
     char descShort[64]    = {};
-    unsigned level; // start at 1
+    unsigned level = 1; // start at 1
     unsigned type;  // cache type (instruction, data, combined)
     unsigned sizeKB;
     unsigned how_many_threads_share_cache;
@@ -230,12 +266,60 @@ struct cacheDetail_str
 
 struct Dyn2Arr_str
 {
-    unsigned dim[2] = { 0 };   // xdim and ydim
+    Dyn2Arr_str() = default;
+    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim);
+
+    ~Dyn2Arr_str();
+
+    Dyn2Arr_str(const Dyn2Arr_str & other);
+    Dyn2Arr_str& operator=(Dyn2Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+
+    friend void swap(Dyn2Arr_str& first, Dyn2Arr_str& second) // nothrow
+    {
+        unsigned tmp = first.dim[0];
+        first.dim[0] = second.dim[0];
+        second.dim[0] = tmp;
+
+        tmp = first.dim[1];
+        first.dim[1] = second.dim[1];
+        second.dim[1] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
+    unsigned dim[2] = { 0, 0 };   // xdim and ydim
     unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
+    Dyn1Arr_str() = default;
+    explicit Dyn1Arr_str(const unsigned xdim);
+    ~Dyn1Arr_str();
+
+    Dyn1Arr_str(const Dyn1Arr_str & other);
+    Dyn1Arr_str& operator=(Dyn1Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
+
+    friend void swap(Dyn1Arr_str& first, Dyn1Arr_str& second) // nothrow
+    {
+        unsigned tmp = first.dim[0];
+        first.dim[0] = second.dim[0];
+        second.dim[0] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
+
     unsigned dim[1] = { 0 };   // xdim
     unsigned * data = nullptr; // data array to be malloc'd
 };
@@ -249,6 +333,10 @@ struct DynCharBuf_str
 
 struct idAffMskOrdMapping_t
 {
+    idAffMskOrdMapping_t() = default;
+    explicit idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsigned globalPkgSelectMask, unsigned globalPkgSelectMaskShift,
+                                           unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
+                                           unsigned * globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf);
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
     unsigned __int32 OrdIndexOAMsk; // An ordinal index (zero-based) for each logical
@@ -278,7 +366,26 @@ struct idAffMskOrdMapping_t
                                                                    // for each cache entity of the specified cache level in the system
     unsigned __int32 threadPerEaCacheORD[MAX_CACHE_SUBLEAFS] = {}; // a zero-based numbering scheme
                                                                    // for each logical processor sharing the same cache of the specified cache level
+private:
+    void initApicID(bool hasLeafB);
 };
+
+
+
+unsigned _internal_daal_GetOSLogicalProcessorCount();
+unsigned _internal_daal_GetSysProcessorPackageCount();
+unsigned _internal_daal_GetProcessorCoreCount();
+unsigned _internal_daal_GetLogicalProcessorCount();
+unsigned _internal_daal_GetCoresPerPackageProcessorCount();
+unsigned _internal_daal_GetProcessorPackageCount();
+unsigned _internal_daal_GetEnumerateAPICID(unsigned processor);
+unsigned _internal_daal_GetLogicalPerCoreProcessorCount();
+unsigned _internal_daal_GetCoreCount(unsigned long package_ordinal);
+unsigned _internal_daal_GetThreadCount(unsigned long package_ordinal, unsigned long core_ordinal);
+unsigned _internal_daal_GetLogicalProcessorQueue(int * queue);
+unsigned _internal_daal_GetStatus();
+
+unsigned _internal_daal_GetSysLogicalProcessorCount();
 
 // we are going to put an assortment of global variable, 1D and 2D arrays into
 // a data structure. This is the declaration
@@ -300,13 +407,14 @@ struct glktsn
     unsigned Alert_BiosCPUIDmaxLimitSetting;
 
     unsigned OSProcessorCount = 0; // how many logical processor the OS sees
-    unsigned hasLeafB;             // flag to keep track of whether CPUID leaf 0BH is supported
+    bool hasLeafB;             // flag to keep track of whether CPUID leaf 0BH is supported
     unsigned maxCacheSubleaf;      // highest CPUID leaf 4 subleaf index in a processor
 
     // the following global variables are the total counts in the system resulting from software enumeration
     unsigned EnumeratedPkgCount;
     unsigned EnumeratedCoreCount;
     unsigned EnumeratedThreadCount;
+
     // CPUID ID leaf 4 can report data for several cache levels, we'll keep track of each cache level
     unsigned EnumeratedEachCacheCount[MAX_CACHE_SUBLEAFS] = {};
     // the following global variables are parameters related to
@@ -335,36 +443,30 @@ struct glktsn
 
     void FreeArrays();
 
-    ~glktsn() { FreeArrays(); }
+    glktsn();
+
+    ~glktsn() {
+        std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
+        FreeArrays();
+    }
+private:
+    int allocArrays(const unsigned cpus);
+    unsigned getMaxCPUSupportedByOS();
+    int cpuTopologyParams();
+    int cpuTopologyLeafBConstants();
+    int cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID);
+    int cacheTopologyParams();
+    void initStructuredLeafBuffers();
+    int findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf);
+    int eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID);
+
+    void setChkProcessAffinityConsistency();
+    int initEnumeratedThreadCountAndParseAPICIDs();
+    int analyzeCPUHierarchy();
+    int analyzeEachCHierarchy(unsigned subleaf);
+    void buildSystemTopologyTables();
 };
 
-[[maybe_unused]] static unsigned long __internal_daal_getBitsFromDWORD(const unsigned int val, const char from, const char to);
-[[maybe_unused]] static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskLength);
-[[maybe_unused]] static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core, unsigned logical);
-[[maybe_unused]] static unsigned __internal_daal_getAPICID(unsigned processor);
-[[maybe_unused]] static void __internal_daal_initCpuTopology();
-[[maybe_unused]] static int __internal_daal_bindContext(unsigned cpu, void * prevAffinity);
-[[maybe_unused]] static void __internal_daal_restoreContext(void * prevAffinity);
-[[maybe_unused]] static void __internal_daal_setChkProcessAffinityConsistency(unsigned lcl_OSProcessorCount);
-[[maybe_unused]] static void __internal_daal_setGenericAffinityBit(GenericAffinityMask * pAffinityMap, unsigned cpu);
-[[maybe_unused]] static void __internal_daal_getCpuidInfo(CPUIDinfo * info, const unsigned int func, const unsigned int subfunc);
-[[maybe_unused]] static int __internal_daal_countBits(DWORD_PTR x);
-
-unsigned _internal_daal_GetMaxCPUSupportedByOS();
-unsigned _internal_daal_GetOSLogicalProcessorCount();
-unsigned _internal_daal_GetSysProcessorPackageCount();
-unsigned _internal_daal_GetProcessorCoreCount();
-unsigned _internal_daal_GetLogicalProcessorCount();
-unsigned _internal_daal_GetCoresPerPackageProcessorCount();
-unsigned _internal_daal_GetProcessorPackageCount();
-unsigned _internal_daal_GetEnumerateAPICID(unsigned processor);
-unsigned _internal_daal_GetLogicalPerCoreProcessorCount();
-unsigned _internal_daal_GetCoreCount(unsigned long package_ordinal);
-unsigned _internal_daal_GetThreadCount(unsigned long package_ordinal, unsigned long core_ordinal);
-unsigned _internal_daal_GetLogicalProcessorQueue(int * queue);
-unsigned _internal_daal_GetStatus();
-
-unsigned _internal_daal_GetSysLogicalProcessorCount();
 } // namespace internal
 } // namespace services
 } // namespace daal
@@ -373,4 +475,6 @@ void read_topology(int & status, int & nthreads, int & max_threads, int ** cpu_q
 void delete_topology(void * ptr);
 
 #endif /* #if !defined (DAAL_CPU_TOPO_DISABLED) */
+
+
 #endif /* __SERVICE_TOPO_H__ */

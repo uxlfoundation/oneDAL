@@ -53,11 +53,13 @@ DAAL_EXPORT void _threaded_scalable_free(void * ptr)
 
 DAAL_EXPORT void _daal_tbb_task_scheduler_free(void *& globalControl)
 {
+    std::cout << "_daal_tbb_task_scheduler_free called, globalControl = " << globalControl << std::endl << std::flush;
     if (globalControl)
     {
         delete reinterpret_cast<tbb::global_control *>(globalControl);
         globalControl = nullptr;
     }
+    std::cout << "_daal_tbb_task_scheduler_free Ok " << std::endl << std::flush;
 }
 
 DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle)
@@ -75,6 +77,8 @@ DAAL_EXPORT void _daal_tbb_task_scheduler_handle_free(void *& schedulerHandle)
 
 DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
 {
+    std::cout << "_setSchedulerHandle called " << std::endl << std::flush;
+
 #if defined(TARGET_X86_64)
     #if (TBB_INTERFACE_VERSION < 12120)
     schedulerHandle = nullptr;
@@ -89,6 +93,7 @@ DAAL_EXPORT size_t _setSchedulerHandle(void ** schedulerHandle)
 
 DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void ** globalControl)
 {
+    std::cout << "_setNumberOfThreads called, numThreads = " << numThreads << ", globalControl = " << globalControl << std::endl << std::flush;
     static tbb::spin_mutex mt;
     tbb::spin_mutex::scoped_lock lock(mt);
     if (numThreads != 0)
