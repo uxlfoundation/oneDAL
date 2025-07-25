@@ -386,12 +386,14 @@ void glktsn::setChkProcessAffinityConsistency()
                     // check that j-th core belongs to the process affinity mask
                     if (grp_affinity.Mask & (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << (j - cpu_beg))))
                     {
-                        if (cpu_generic_processAffinity.set(j)) {
+                        if (cpu_generic_processAffinity.set(j))
+                        {
                             error |= _MSGTYP_USERAFFINITYERR;
                             break;
                         }
                     }
                 }
+                cpu_beg += cpu_cnt;
 
                 if (sum > OSProcessorCount)
                 {
