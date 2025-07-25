@@ -6,7 +6,13 @@ load("@onedal//dev/bazel:dal.bzl",
 
 dal_module (
     name = "frontier",
-    auto = True
+    auto = True,
+    dal_deps = [
+        "@onedal//cpp/oneapi/dal/backend/primitives:common",
+        "@onedal//cpp/oneapi/dal/backend/primitives:blas",
+        "@onedal//cpp/oneapi/dal/backend/primitives/optimizers",
+        "@onedal//cpp/oneapi/dal/backend/primitives:sparse_blas",
+    ],
 )
 
 dal_test_suite (
@@ -14,16 +20,10 @@ dal_test_suite (
     framework = "catch2",
     compile_as = [ "dpc++" ],
     private = True,
-    # hdrs = glob([
-    #     "test/*.hpp",
-    # ]),
     srcs = glob([
         "test/*_dpc.cpp",
-    ], exclude=[
-        "test/*perf*.cpp",
     ]),
     dal_deps = [
         ":frontier",
-        "@onedal//cpp/oneapi/dal/backend/primitives:rng",
     ],
 )
