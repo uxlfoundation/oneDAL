@@ -346,6 +346,7 @@ public:
         TableRecordType ** parents = parentsArr.data();
 
         gbt::internal::ModelFPType * const splitPoints         = tree->getSplitPoints();
+        size_t* const leftChildIndexes = tree->getLeftChildIndexes();
         gbt::internal::FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
 
         for (size_t i = 0; i < nNodes; ++i)
@@ -385,7 +386,7 @@ public:
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 nNodeSamplesVals[idxInTable] = (int)p->nTotal;
                 impVals[idxInTable]          = (p->gTotal / (p->hTotal + par.lambda)) * p->gTotal;
-
+                leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
                 idxInTable++;
             }
 
