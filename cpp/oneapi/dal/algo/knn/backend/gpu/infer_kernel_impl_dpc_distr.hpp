@@ -210,9 +210,12 @@ public:
         pr::ndview<res_t, 2> min_resp_dest;
         if (result_options_.test(result_options::responses)) {
             current_min_resp_dest = part_responses_.get_col_slice(k_neighbors_, 2 * k_neighbors_)
-                                            .get_row_slice(first, last);
-            copy_current_resp_event =
-                pr::select_indexed(queue_, inp_indices, train_responses_, current_min_resp_dest, deps);
+                                        .get_row_slice(first, last);
+            copy_current_resp_event = pr::select_indexed(queue_,
+                                                         inp_indices,
+                                                         train_responses_,
+                                                         current_min_resp_dest,
+                                                         deps);
             min_resp_dest = intermediate_responses_.get_row_slice(first, last);
         }
 
@@ -271,16 +274,16 @@ public:
         }
         if (result_options_.test(result_options::responses)) {
             select_resp_event = select_indexed(queue_,
-                                                    min_indc_dest,
-                                                    part_responses_.get_row_slice(first, last),
-                                                    min_resp_dest,
-                                                    { select_event });
+                                               min_indc_dest,
+                                               part_responses_.get_row_slice(first, last),
+                                               min_resp_dest,
+                                               { select_event });
         }
         sycl::event select_indc_event = select_indexed(queue_,
-                                                min_indc_dest,
-                                                part_indices_.get_row_slice(first, last),
-                                                min_indc_dest,
-                                                { select_event, select_resp_event });
+                                                       min_indc_dest,
+                                                       part_indices_.get_row_slice(first, last),
+                                                       min_indc_dest,
+                                                       { select_event, select_resp_event });
         if (last_iteration_) {
             sycl::event copy_sqrt_event;
             if (this->compute_sqrt_) {
@@ -289,9 +292,9 @@ public:
             }
             if (result_options_.test(result_options::responses)) {
                 return this->output_responses(bounds,
-                                                        indices_,
-                                                        distances_,
-                                                        { select_indc_event, copy_sqrt_event });
+                                              indices_,
+                                              distances_,
+                                              { select_indc_event, copy_sqrt_event });
             }
             if (this->compute_sqrt_) {
                 return copy_sqrt_event;
