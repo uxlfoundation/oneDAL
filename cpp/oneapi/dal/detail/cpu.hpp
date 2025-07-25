@@ -73,7 +73,7 @@ enum class cpu_feature : uint64_t {
 /// A map of CPU features to their string representations.
 /// This map is used to convert CPU feature bitmasks to human-readable strings.
 /// Keys are bitflags representing CPU features. They are defined in daal::CpuFeature enumeration.
-static const std::map<uint64_t, const std::string> cpu_feature_map = {
+inline const std::map<uint64_t, const std::string> cpu_feature_map = {
     { uint64_t(cpu_feature::unknown), "Unknown" },
 #if defined(TARGET_X86_64)
     { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
