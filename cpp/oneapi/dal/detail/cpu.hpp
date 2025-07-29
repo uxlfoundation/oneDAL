@@ -22,15 +22,6 @@
 #include <map>
 #include <string>
 
-
-#if defined(__ARM_ARCH) || defined(__aarch64__)
-#define TARGET_ARM
-#endif
-
-#if defined(__riscv) && (__riscv_xlen == 64)
-#define TARGET_RISCV64
-#endif
-
 namespace oneapi::dal::detail {
 namespace v1 {
 
@@ -73,7 +64,7 @@ enum class cpu_feature : uint64_t {
 /// A map of CPU features to their string representations.
 /// This map is used to convert CPU feature bitmasks to human-readable strings.
 /// Keys are bitflags representing CPU features. They are defined in daal::CpuFeature enumeration.
-inline const std::map<uint64_t, const char *> cpu_feature_map = {
+inline const std::map<uint64_t, const std::string> cpu_feature_map = {
     { uint64_t(cpu_feature::unknown), "Unknown" }
 #if defined(TARGET_X86_64)
     ,

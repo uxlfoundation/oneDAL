@@ -21,6 +21,15 @@
 #define TARGET_X86_64
 #endif
 
+#if defined(__ARM_ARCH) || defined(__aarch64__)
+#define TARGET_ARM
+#endif
+
+#if defined(__riscv) && (__riscv_xlen == 64)
+#define TARGET_RISCV64
+#endif
+
+
 #include <cstdint>
 #include <utility>
 
