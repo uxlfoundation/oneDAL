@@ -40,8 +40,9 @@ enum class cpu_vendor { unknown = 0, intel = 1, amd = 2, arm = 3, riscv64 = 4 };
 /// CPU extension enumeration.
 /// This enum is used to represent the highest supported CPU extension.
 enum class cpu_extension : uint64_t {
-    none = 0U,
+    none = 0U
 #if defined(TARGET_X86_64)
+    ,
     sse2 = 1U << 0, /// Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
     sse42 = 1U << 2, /// Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
     avx2 = 1U << 4, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
@@ -49,15 +50,18 @@ enum class cpu_extension : uint64_t {
         1U
         << 5 /// Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512)
 #elif defined(TARGET_ARM)
+    ,
     sve = 1U << 0 /// Arm(R) processors based on Arm's Scalable Vector Extension (SVE)
 #elif defined(TARGET_RISCV64)
+    ,
     rv64 = 1U << 0 /// RISC-V 64-bit architecture
 #endif
 };
 
 enum class cpu_feature : uint64_t {
-    unknown = 0ULL,
+    unknown = 0ULL
 #if defined(TARGET_X86_64)
+    ,
     sstep = 1ULL << 0, /// Intel(R) SpeedStep
     tb = 1ULL << 1, /// Intel(R) Turbo Boost
     avx512_bf16 = 1ULL << 2, /// AVX512 bfloat16
@@ -70,8 +74,9 @@ enum class cpu_feature : uint64_t {
 /// This map is used to convert CPU feature bitmasks to human-readable strings.
 /// Keys are bitflags representing CPU features. They are defined in daal::CpuFeature enumeration.
 inline const std::map<uint64_t, const char *> cpu_feature_map = {
-    { uint64_t(cpu_feature::unknown), "Unknown" },
+    { uint64_t(cpu_feature::unknown), "Unknown" }
 #if defined(TARGET_X86_64)
+    ,
     { uint64_t(cpu_feature::sstep), "Intel(R) SpeedStep" },
     { uint64_t(cpu_feature::tb), "Intel(R) Turbo Boost" },
     { uint64_t(cpu_feature::avx512_bf16), "AVX-512 bfloat16" },
