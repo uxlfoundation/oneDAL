@@ -55,6 +55,8 @@ sycl::event compute_probabilities(sycl::queue& q,
     }
     auto* const prob_ptr = probabilities.get_mutable_data();
 
+    // Note: these same thresholds are also used in the non-DPC version.
+    // If modified, should be modified simulatenously in both files.
     const Float bottom = sizeof(Float) == 4 ? 1e-7 : 1e-15;
     const Float top = Float(1.0) - bottom;
     // Log Loss is undefined for p = 0 and p = 1 so probabilities are clipped into [eps, 1 - eps]
