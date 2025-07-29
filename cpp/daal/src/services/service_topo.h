@@ -267,7 +267,7 @@ struct cacheDetail_str
 struct Dyn2Arr_str
 {
     Dyn2Arr_str() = default;
-    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim);
+    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigned value = 0);
 
     ~Dyn2Arr_str();
 
@@ -276,6 +276,11 @@ struct Dyn2Arr_str
     {
         swap(*this, other);
         return *this;
+    }
+
+    unsigned size() const
+    {
+        return dim[0] * dim[1];
     }
 
     friend void swap(Dyn2Arr_str& first, Dyn2Arr_str& second) // nothrow
@@ -299,7 +304,7 @@ struct Dyn2Arr_str
 struct Dyn1Arr_str
 {
     Dyn1Arr_str() = default;
-    explicit Dyn1Arr_str(const unsigned xdim);
+    explicit Dyn1Arr_str(const unsigned xdim, const unsigned value = 0);
     ~Dyn1Arr_str();
 
     Dyn1Arr_str(const Dyn1Arr_str & other);
@@ -308,6 +313,8 @@ struct Dyn1Arr_str
         swap(*this, other);
         return *this;
     }
+
+    void fill(const unsigned value);
 
     friend void swap(Dyn1Arr_str& first, Dyn1Arr_str& second) // nothrow
     {
