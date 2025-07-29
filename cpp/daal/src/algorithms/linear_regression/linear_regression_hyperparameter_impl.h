@@ -49,7 +49,8 @@ enum HyperparameterId
     denseUpdateMaxColsBatched    = 1,
     denseSmallRowsThreshold      = 2,
     denseSmallRowsMaxColsBatched = 3,
-    hyperparameterIdCount        = 4
+    denseGrainSize               = 4,
+    hyperparameterIdCount        = 5
 };
 
 enum DoubleHyperparameterId
