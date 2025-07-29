@@ -66,19 +66,21 @@ struct MklService
 
     static int serv_get_ncpus()
     {
+        if (daal::services::internal::_internal_daal_GetStatus() != 0) {
+            // CPU topology initialization failed;
+            return -1;
+        }
         unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
-        if (!ncores) {
-            std::cout << "!!!serv_get_ncpus: no cores detected, returning 1" << std::endl;
-        }
-        else {
-            std::cout << "serv_get_ncpus: ncores = " << ncores << std::endl;
-        }
         return (ncores ? ncores : 1);
     }
 
     static int serv_get_ncorespercpu()
     {
-        unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        if (daal::services::internal::_internal_daal_GetStatus() != 0) {
+            // CPU topology initialization failed;
+            return -1;
+        }
+        unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetSysLogicalProcessorCount();
         unsigned int ncpus       = serv_get_ncpus();
         return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? nlogicalcpu / ncpus : 1);
     }

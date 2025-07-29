@@ -54,7 +54,10 @@ void daal_free_buffers();
 DAAL_EXPORT daal::services::Environment * daal::services::Environment::getInstance()
 {
     static daal::services::Environment instance;
-    return &instance;
+    if (isInit)
+        return &instance;
+    else
+        return nullptr;
 }
 
 DAAL_EXPORT int daal::services::Environment::freeInstance()
@@ -127,17 +130,16 @@ DAAL_EXPORT void daal::services::Environment::setDynamicLibraryThreadingTypeOnWi
 
 DAAL_EXPORT daal::services::Environment::Environment() : _schedulerHandle {}, _globalControl {}
 {
-    std::cout << "Environment constructor called" << std::endl;
     _env.cpuid_init_flag = false;
     _env.cpuid           = -1;
-    std::cout << "Environment constructor called Ok" << std::endl;
+    // Initialize the Environment to prevent from using it uninitialized
+    getCpuId();
 }
 
 DAAL_EXPORT daal::services::Environment::Environment(const Environment & e) : daal::services::Environment::Environment() {}
 
 DAAL_EXPORT void daal::services::Environment::initNumberOfThreads()
 {
-    std::cout << "Environment initNumberOfThreads called, isInit = " << int(isInit) << std::endl;
     if (isInit) return;
         // Initializes global oneapi::tbb::task_scheduler_handle object in oneDAL to prevent the unexpected
         // destruction of the calling thread.
@@ -150,17 +152,23 @@ DAAL_EXPORT void daal::services::Environment::initNumberOfThreads()
     /* if HT enabled - set _numThreads to physical cores num */
     if (daal::internal::ServiceInst::serv_get_ht())
     {
+        const int ncpus = daal::internal::ServiceInst::serv_get_ncpus();
+        if (ncpus < 0)
+        {
+            // Failed to get the number of CPUs. Environment cannot be initialized
+            return;
+        }
+
         /* Number of cores = number of cpu packages * number of cores per cpu package */
         int ncores = daal::internal::ServiceInst::serv_get_ncpus() * daal::internal::ServiceInst::serv_get_ncorespercpu();
 
         /*  Re-set number of threads if ncores is valid and different to _numThreads */
         if ((ncores > 0) && (ncores < _daal_threader_get_max_threads()))
         {
-            daal::services::Environment::getInstance()->setNumberOfThreads(ncores);
+            daal::services::Environment::setNumberOfThreads(ncores);
         }
     }
     isInit = true;
-    std::cout << "Environment initNumberOfThreads called Ok" << std::endl;
 }
 
 DAAL_EXPORT daal::services::Environment::~Environment()

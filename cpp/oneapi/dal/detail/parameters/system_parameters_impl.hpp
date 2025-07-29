@@ -46,7 +46,7 @@ public:
 #endif
 
 private:
-    std::map<std::string, std::any> sys_info_;
+    std::map<const std::string, const std::any> sys_info_;
 
     void print_any(const std::any& value, std::ostringstream& ss) const;
 };

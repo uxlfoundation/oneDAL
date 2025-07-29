@@ -24,6 +24,7 @@
 
 #include <any>
 #include <sstream>
+#include <mutex>
 
 namespace oneapi::dal::detail {
 namespace v1 {
@@ -31,11 +32,17 @@ namespace v1 {
 system_parameters_impl::system_parameters_impl() {
     using daal::services::Environment;
     Environment* env = Environment::getInstance();
+    if (!env)
+    {
+        throw std::runtime_error("Environment not initialized, cannot get processor info.");
+    }
     // Call to `getCpuId` changes global settings, in particular,
     // changes default number of threads in the threading layer
     const int cpuid = env->getCpuId();
-    sys_info_["top_enabled_cpu_extension"] = std::make_any<cpu_extension>(from_daal_cpu_type(cpuid));
-    sys_info_["max_number_of_threads"] = std::make_any<std::uint32_t>(env->getNumberOfThreads());
+    std::cout << "system_parameters_impl, cpuid = " << cpuid << std::endl << std::flush;
+
+        sys_info_.insert({"top_enabled_cpu_extension", std::make_any<cpu_extension>(from_daal_cpu_type(cpuid))});
+        sys_info_.insert({"max_number_of_threads", std::make_any<std::uint32_t>(env->getNumberOfThreads())});
 }
 
 cpu_extension system_parameters_impl::get_top_enabled_cpu_extension() const {

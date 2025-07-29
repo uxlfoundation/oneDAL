@@ -446,7 +446,6 @@ struct glktsn
     glktsn();
 
     ~glktsn() {
-        std::cout << "glktsn destructor called, this = " << this << ", error = " << error << std::endl << std::flush;
         FreeArrays();
     }
 private:
