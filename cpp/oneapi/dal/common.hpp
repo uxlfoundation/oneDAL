@@ -29,7 +29,6 @@
 #define TARGET_RISCV64
 #endif
 
-
 #include <cstdint>
 #include <utility>
 

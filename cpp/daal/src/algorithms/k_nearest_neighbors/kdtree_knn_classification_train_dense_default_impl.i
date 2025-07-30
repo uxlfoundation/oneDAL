@@ -159,7 +159,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     size_t * const indexes = static_cast<data_management::HomogenNumericTable<size_t> *>(r->impl()->getIndices().get())->getArray();
 
     Queue<BuildNode, cpu> q;
-    BBox * bboxQ    = nullptr;
+    BBox * bboxQ                      = nullptr;
     daal::services::Environment * env = daal::services::Environment::getInstance();
     if (!env)
     {

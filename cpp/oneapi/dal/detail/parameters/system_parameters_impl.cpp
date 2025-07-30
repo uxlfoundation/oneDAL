@@ -23,7 +23,6 @@
 
 #include <any>
 #include <sstream>
-#include <mutex>
 
 namespace oneapi::dal::detail {
 namespace v1 {
@@ -37,7 +36,6 @@ system_parameters_impl::system_parameters_impl() {
     // Call to `getCpuId` changes global settings, in particular,
     // changes default number of threads in the threading layer
     const int cpuid = env->getCpuId();
-    std::cout << "system_parameters_impl, cpuid = " << cpuid << std::endl << std::flush;
 
     sys_info_.insert(
         { "top_enabled_cpu_extension", std::make_any<cpu_extension>(from_daal_cpu_type(cpuid)) });

@@ -28,14 +28,13 @@ ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
         case daal::sse2: return cpu_extension::sse2;
         case daal::sse42: return cpu_extension::sse42;
         case daal::avx2: return cpu_extension::avx2;
-        case daal::avx512: { std::cout << "system_parameters_impl, cpu_extension::avx512 " << std::endl << std::flush; return cpu_extension::avx512; }
+        case daal::avx512: return cpu_extension::avx512;
 #elif defined(TARGET_ARM)
         case daal::sve: return cpu_extension::sve;
 #elif defined(TARGET_RISCV64)
         case daal::rv64: return cpu_extension::rv64;
 #endif
     }
-    std::cout << "system_parameters_impl, cpu_extension::none " << std::endl << std::flush;
     return cpu_extension::none;
 }
 
