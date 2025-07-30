@@ -67,8 +67,8 @@ typedef cpuset_t cpu_set_t;
             #define LNX_PTR2INT unsigned long long
             #define LNX_MY1CON  1LL
         #elif defined(TARGET_ARM)
-using LNX_PTR2INT                = uintptr_t;
-constexpr LNX_PTR2INT LNX_MY1CON = 1LL;
+            #define LNX_PTR2INT unsigned long long
+            #define LNX_MY1CON  1LL
         #elif defined(TARGET_RISCV64)
             #define LNX_PTR2INT uintptr_t
             #define LNX_MY1CON  1LL
@@ -375,7 +375,7 @@ struct Dyn1Arr_str
     }
 
 private:
-    unsigned dim[1] = { 0 }; // xdim
+    unsigned dim[1] = { 0 };   // xdim
     unsigned * data = nullptr; // data array to be malloc'd
 };
 
