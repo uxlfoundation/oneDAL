@@ -54,19 +54,18 @@ namespace services
 {
 namespace internal
 {
-static glktsn& __internal_daal_GetGlobalTopologyObject()
+static glktsn & __internal_daal_GetGlobalTopologyObject()
 {
     static glktsn glbl_obj;
     return glbl_obj;
 }
-
 
 static char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
 
 static void * __internal_daal_memset(void * s, int c, size_t nbytes)
 {
     const unsigned char value = static_cast<unsigned char>(c);
-    unsigned char * p = static_cast<unsigned char *>(s);
+    unsigned char * p         = static_cast<unsigned char *>(s);
     for (size_t i = 0; i < nbytes; ++i)
     {
         p[i] = value;
@@ -74,13 +73,12 @@ static void * __internal_daal_memset(void * s, int c, size_t nbytes)
     return s;
 }
 
+struct ScopedThreadContext
+{
+    explicit ScopedThreadContext(unsigned int cpu) { error = bindContext(cpu); }
 
-struct ScopedThreadContext {
-    explicit ScopedThreadContext(unsigned int cpu) {
-        error = bindContext(cpu);
-    }
-
-    ~ScopedThreadContext() {
+    ~ScopedThreadContext()
+    {
         // Restore the previous affinity mask
         restoreContext();
     }
@@ -120,7 +118,7 @@ private:
     int bindContext(unsigned int cpu)
     {
         int ret = -1;
-        #if defined(__linux__) || defined(__FreeBSD__)
+    #if defined(__linux__) || defined(__FreeBSD__)
         cpu_set_t currentCPU;
         // add check for size of cpumask_t.
         MY_CPU_ZERO(&currentCPU);
@@ -128,7 +126,7 @@ private:
         MY_CPU_SET(cpu, &currentCPU);
         sched_getaffinity(0, sizeof(prevAffinity), &prevAffinity);
         if (!sched_setaffinity(0, sizeof(currentCPU), &currentCPU)) ret = 0;
-        #else
+    #else
         //we resolve API dynamically at runtime, data structures required by new API is determined at compile time
 
         unsigned int cpu_beg = 0, cpu_cnt, j;
@@ -157,7 +155,7 @@ private:
             {
                 _INTERNAL_DAAL_MEMSET(&grp_affinity, 0, sizeof(GROUP_AFFINITY));
                 grp_affinity.Group = j;
-                grp_affinity.Mask = (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << (cpu - cpu_beg)));
+                grp_affinity.Mask  = (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << (cpu - cpu_beg)));
                 if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prevAffinity))
                 {
                     GetLastError();
@@ -169,17 +167,17 @@ private:
             // if the value of 'cpu' is not this processor group, we move to the next group
             cpu_beg += cpu_cnt;
         }
-        #endif
+    #endif
         return ret;
     }
 
     void restoreContext()
     {
-        #if defined(__linux__) || defined(__FreeBSD__)
+    #if defined(__linux__) || defined(__FreeBSD__)
         sched_setaffinity(0, sizeof(prevAffinity), &prevAffinity);
-        #else
+    #else
         SetThreadGroupAffinity(GetCurrentThread(), &prevAffinity, NULL);
-        #endif
+    #endif
     }
 
     #if defined(__linux__) || defined(__FreeBSD__)
@@ -189,18 +187,18 @@ private:
     #endif
 };
 
-
-glktsn::glktsn() {
-    isInit = 0;
-    error = 0;
-    hasLeafB = false;
+glktsn::glktsn()
+{
+    isInit                         = 0;
+    error                          = 0;
+    hasLeafB                       = false;
     Alert_BiosCPUIDmaxLimitSetting = 0;
-    maxCacheSubleaf = -1;
-    EnumeratedPkgCount = 0;
-    EnumeratedCoreCount = 0;
-    EnumeratedThreadCount = 0;
-    HWMT_SMTperCore = 0;
-    HWMT_SMTperPkg = 0;
+    maxCacheSubleaf                = -1;
+    EnumeratedPkgCount             = 0;
+    EnumeratedCoreCount            = 0;
+    EnumeratedThreadCount          = 0;
+    HWMT_SMTperCore                = 0;
+    HWMT_SMTperPkg                 = 0;
 
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
@@ -209,11 +207,12 @@ glktsn::glktsn() {
     allocArrays(OSProcessorCount);
     if (error) return;
 
-    for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++) {
+    for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++)
+    {
         EnumeratedEachCacheCount[i] = 0;
-        EachCacheSelectMask[i] = 0;
-        EachCacheMaskWidth[i] = 0;
-        cacheDetail[i] = cacheDetail_str{};
+        EachCacheSelectMask[i]      = 0;
+        EachCacheMaskWidth[i]       = 0;
+        cacheDetail[i]              = cacheDetail_str {};
     }
 
     buildSystemTopologyTables();
@@ -260,6 +259,32 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
 
     #endif
     return OSProcessorCount;
+}
+
+/*
+ * __internal_daal_myBitScanReverse
+ *
+ * Returns of bits [to:from] of DWORD
+ * This c-emulation of the BSR instruction is shown here for tool portability
+ *
+ * index      bit offset of the most significant bit that's not 0 found in mask
+ *     mask       input data to search the most significant bit
+  * Return:        1 if a non-zero bit is found, otherwise 0
+ */
+static unsigned char __internal_daal_myBitScanReverse(unsigned * index, unsigned long mask)
+{
+    unsigned long i;
+
+    for (i = (8 * sizeof(unsigned long)); i > 0; i--)
+    {
+        if ((mask & (LNX_MY1CON << (i - 1))) != 0)
+        {
+            *index = (unsigned long)(i - 1);
+            break;
+        }
+    }
+
+    return (unsigned char)(mask != 0);
 }
 
 /*
@@ -458,33 +483,6 @@ static int __internal_daal_countBits(DWORD_PTR x)
     return res;
 }
 
-/*
- * __internal_daal_myBitScanReverse
- *
- * Returns of bits [to:from] of DWORD
- * This c-emulation of the BSR instruction is shown here for tool portability
- *
- * Arguments:
- *     index      bit offset of the most significant bit that's not 0 found in mask
- *     mask       input data to search the most significant bit
-  * Return:        1 if a non-zero bit is found, otherwise 0
- */
-static unsigned char __internal_daal_myBitScanReverse(unsigned * index, unsigned long mask)
-{
-    unsigned long i;
-
-    for (i = (8 * sizeof(unsigned long)); i > 0; i--)
-    {
-        if ((mask & (LNX_MY1CON << (i - 1))) != 0)
-        {
-            *index = (unsigned long)(i - 1);
-            break;
-        }
-    }
-
-    return (unsigned char)(mask != 0);
-}
-
 /* __internal_daal_createMask
  *
  * Derive a bit mask and associated mask width (# of bits) such that
@@ -521,11 +519,10 @@ static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskW
     return (1 << i) - 1;
 }
 
-
 GenericAffinityMask::GenericAffinityMask(const unsigned numCpus)
 {
     maxByteLength = (numCpus >> 3) + 1;
-    AffinityMask = (unsigned char *)_INTERNAL_DAAL_MALLOC(maxByteLength * sizeof(unsigned char));
+    AffinityMask  = (unsigned char *)_INTERNAL_DAAL_MALLOC(maxByteLength * sizeof(unsigned char));
     if (!AffinityMask) return;
 
     _INTERNAL_DAAL_MEMSET(AffinityMask, 0, maxByteLength * sizeof(unsigned char));
@@ -533,9 +530,9 @@ GenericAffinityMask::GenericAffinityMask(const unsigned numCpus)
 
 GenericAffinityMask::GenericAffinityMask(const GenericAffinityMask & other)
 {
-    maxByteLength = other.maxByteLength;
+    maxByteLength      = other.maxByteLength;
     const int maskSize = maxByteLength * sizeof(unsigned char);
-    AffinityMask  = (unsigned char *)_INTERNAL_DAAL_MALLOC(maskSize);
+    AffinityMask       = (unsigned char *)_INTERNAL_DAAL_MALLOC(maskSize);
     if (!AffinityMask) return;
 
     _INTERNAL_DAAL_MEMCPY(AffinityMask, maskSize, other.AffinityMask, maskSize);
@@ -551,7 +548,6 @@ GenericAffinityMask::~GenericAffinityMask()
     maxByteLength = 0;
 }
 
-
 /*
  * Initialize APIC ID from leaf B if it else from leaf 1
  *
@@ -565,7 +561,7 @@ void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
     if (hasLeafB)
     {
         __internal_daal_cpuid(&info, 0xB); // query subleaf 0 of leaf B
-        APICID = info.EDX;                   //  x2APIC ID
+        APICID = info.EDX;                 //  x2APIC ID
     }
 
     __internal_daal_cpuid(&info, 1);
@@ -608,8 +604,8 @@ static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core,
 int glktsn::cpuTopologyLeafBConstants()
 {
     CPUIDinfo infoB;
-    bool wasCoreReported    = false;
-    bool wasThreadReported  = false;
+    bool wasCoreReported           = false;
+    bool wasThreadReported         = false;
     int subLeaf                    = 0, levelType, levelShift;
     unsigned long coreplusSMT_Mask = 0;
 
@@ -837,7 +833,7 @@ void glktsn::initStructuredLeafBuffers()
 
         if (j == 0xd)
         {
-            int subleaf = 2;
+            int subleaf                 = 2;
             cpuid_values[j].subleaf_max = 1;
             __internal_daal_cpuid_(&info, j, subleaf);
             while (info.EAX && subleaf < MAX_CACHE_SUBLEAFS)
@@ -952,12 +948,12 @@ int glktsn::cacheTopologyParams()
         if (error) return -1;
 
         maxCacheSubleaf = 0;
-        subleaf_max = cpuid_values[4].subleaf_max;
+        subleaf_max     = cpuid_values[4].subleaf_max;
     }
     else if (maxCPUID >= 2)
     {
         maxCacheSubleaf = 0;
-        subleaf_max = 4;
+        subleaf_max     = 4;
     }
 
     for (unsigned subleaf = 0; subleaf < subleaf_max; subleaf++)
@@ -1048,14 +1044,14 @@ Dyn2Arr_str::Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigne
     _INTERNAL_DAAL_MEMSET(data, value, xdim * ydim * sizeof(unsigned));
 }
 
-Dyn2Arr_str::Dyn2Arr_str(const Dyn2Arr_str & other) {
+Dyn2Arr_str::Dyn2Arr_str(const Dyn2Arr_str & other)
+{
     if (this == &other) return; // self-assignment check
-    dim[0] = other.dim[0];
-    dim[1] = other.dim[1];
+    dim[0]          = other.dim[0];
+    dim[1]          = other.dim[1];
     size_t dataSize = dim[0] * dim[1] * sizeof(unsigned);
-    data = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
-    if (!data)
-        return;
+    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data) return;
     _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
 }
 
@@ -1081,13 +1077,13 @@ Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim, const unsigned value)
     fill(value);
 }
 
-Dyn1Arr_str::Dyn1Arr_str(const Dyn1Arr_str & other) {
+Dyn1Arr_str::Dyn1Arr_str(const Dyn1Arr_str & other)
+{
     if (this == &other) return; // self-assignment check
-    dim[0] = other.dim[0];
+    dim[0]          = other.dim[0];
     size_t dataSize = dim[0] * sizeof(unsigned);
-    data = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
-    if (!data)
-        return;
+    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data) return;
     _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
 }
 
@@ -1101,10 +1097,10 @@ Dyn1Arr_str::~Dyn1Arr_str()
     dim[0] = 0;
 }
 
-void Dyn1Arr_str::fill(const unsigned value) {
+void Dyn1Arr_str::fill(const unsigned value)
+{
     _INTERNAL_DAAL_MEMSET(data, value, dim[0] * sizeof(unsigned));
 }
-
 
 /*
  * Allocate the dynamic arrays in the global object containing various buffers for analyzing
@@ -1124,14 +1120,14 @@ int glktsn::allocArrays(const unsigned cpus)
     }
     _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpus * sizeof(idAffMskOrdMapping_t));
 
-    perPkg_detectedCoresCount = Dyn1Arr_str(cpus);
+    perPkg_detectedCoresCount    = Dyn1Arr_str(cpus);
     perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES),
     // workspace for storing hierarchical counts relative to the cache topology
-    // of the largest unified cache (may be shared by several cores)
-    perCache_detectedCoreCount = Dyn1Arr_str(cpus);
+        // of the largest unified cache (may be shared by several cores)
+        perCache_detectedCoreCount   = Dyn1Arr_str(cpus);
     perEachCache_detectedThreadCount = Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS);
-    if (!perPkg_detectedCoresCount.data || !perCore_detectedThreadsCount.data
-        || !perEachCache_detectedThreadCount.data || !perCache_detectedCoreCount.data)
+    if (!perPkg_detectedCoresCount.data || !perCore_detectedThreadsCount.data || !perEachCache_detectedThreadCount.data
+        || !perCache_detectedCoreCount.data)
     {
         error = -1;
         return -1;
@@ -1164,10 +1160,10 @@ idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsi
 {
     initApicID(hasLeafB);
 
-    OrdIndexOAMsk   = cpu; // this an ordinal number that can relate to generic affinitymask
-    pkg_IDAPIC      = ((APICID & globalPkgSelectMask) >> globalPkgSelectMaskShift);
-    Core_IDAPIC     = ((APICID & globalCoreSelectMask) >> globalSMTMaskWidth);
-    SMT_IDAPIC      = (APICID & globalSMTSelectMask);
+    OrdIndexOAMsk = cpu; // this an ordinal number that can relate to generic affinitymask
+    pkg_IDAPIC    = ((APICID & globalPkgSelectMask) >> globalPkgSelectMaskShift);
+    Core_IDAPIC   = ((APICID & globalCoreSelectMask) >> globalSMTMaskWidth);
+    SMT_IDAPIC    = (APICID & globalSMTSelectMask);
 
     if (globalmaxCacheSubleaf != -1)
     {
@@ -1225,15 +1221,17 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
             // bind the execution context to the i-th logical processor
             // using OS-specifi API
             volatile ScopedThreadContext ctx(i);
-            if (ctx.error) {
+            if (ctx.error)
+            {
                 error = -1;
                 break;
             }
 
-            pApicAffOrdMapping[EnumeratedThreadCount++] = idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift,
-                                           CoreSelectMask, SMTSelectMask, SMTMaskWidth, EachCacheSelectMask, maxCacheSubleaf);
+            pApicAffOrdMapping[EnumeratedThreadCount++] = idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask,
+                                                                               SMTSelectMask, SMTMaskWidth, EachCacheSelectMask, maxCacheSubleaf);
         }
-        else if (processAffinityBit == 0xff) {
+        else if (processAffinityBit == 0xff)
+        {
             // should never happen
             // i-th bit is out of bounds of the process affinity mask
             error = -1;
@@ -1262,13 +1260,13 @@ int glktsn::analyzeCPUHierarchy()
 
     // we got a 1-D array to store unique Pkg_ID as we sort thru
     // each logical processor
-    unsigned *pDetectedPkgIDs = pDetectedPkgIDsArr.data;
+    unsigned * pDetectedPkgIDs = pDetectedPkgIDsArr.data;
     if (pDetectedPkgIDs == NULL) return -1;
 
     // we got a 2-D array to store unique Core_ID within each Pkg_ID,
     // as we sort thru each logical processor
     Dyn2Arr_str pDetectCoreIDsperPkgArr(EnumeratedThreadCount, (1 << PkgSelectMaskShift), 0xff);
-    unsigned *pDetectCoreIDsperPkg = pDetectCoreIDsperPkgArr.data;
+    unsigned * pDetectCoreIDsperPkg = pDetectCoreIDsperPkgArr.data;
     if (pDetectCoreIDsperPkg == NULL) return -1;
 
     // iterate throught each logical processor in the system.
@@ -1278,7 +1276,7 @@ int glktsn::analyzeCPUHierarchy()
     unsigned maxPackageDetetcted = 0;
     for (unsigned i = 0; i < EnumeratedThreadCount; i++)
     {
-        bool PkgMarked = false;
+        bool PkgMarked     = false;
         unsigned packageID = pApicAffOrdMapping[i].pkg_IDAPIC;
         unsigned coreID    = pApicAffOrdMapping[i].Core_IDAPIC;
 
@@ -1288,7 +1286,7 @@ int glktsn::analyzeCPUHierarchy()
             {
                 bool foundCore = false;
                 unsigned k;
-                PkgMarked                                 = true;
+                PkgMarked                        = true;
                 pApicAffOrdMapping[i].packageORD = h;
 
                 // look for core in marked packages
@@ -1308,7 +1306,7 @@ int glktsn::analyzeCPUHierarchy()
                 if (!foundCore)
                 {
                     // mark up the Core_ID of an unmarked core in a marked package
-                    unsigned core                                = perPkg_detectedCoresCount.data[h];
+                    unsigned core                                          = perPkg_detectedCoresCount.data[h];
                     pDetectCoreIDsperPkg[h * EnumeratedThreadCount + core] = coreID;
 
                     // keep track of respective hierarchical counts
@@ -1328,7 +1326,7 @@ int glktsn::analyzeCPUHierarchy()
         if (!PkgMarked)
         {
             // mark up the pkg_ID and Core_ID of an unmarked package
-            pDetectedPkgIDs[maxPackageDetetcted]                        = packageID;
+            pDetectedPkgIDs[maxPackageDetetcted]                                  = packageID;
             pDetectCoreIDsperPkg[maxPackageDetetcted * EnumeratedThreadCount + 0] = coreID;
 
             // keep track of respective hierarchical counts
@@ -1344,7 +1342,7 @@ int glktsn::analyzeCPUHierarchy()
             pApicAffOrdMapping[i].coreORD    = 0;
             pApicAffOrdMapping[i].threadORD  = 0;
 
-            maxPackageDetetcted++;          // this is an unmarked pkg, increment pkg count by 1
+            maxPackageDetetcted++; // this is an unmarked pkg, increment pkg count by 1
             EnumeratedCoreCount++; // there is at least one core in a package
         }
     }
@@ -1374,7 +1372,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
     unsigned maxCacheDetected = 0;
     {
         Dyn1Arr_str pEachCIDsArr(EnumeratedThreadCount, 0xff);
-        unsigned *pEachCIDs = pEachCIDsArr.data;
+        unsigned * pEachCIDs = pEachCIDsArr.data;
         if (pEachCIDs == NULL) return -1;
 
         // enumerate distinct caches of the same subleaf index to get counts of how many caches only
@@ -1399,7 +1397,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
 
     {
         Dyn1Arr_str pThreadIDsperEachCArr(EnumeratedThreadCount, 0xff);
-        unsigned *pThreadIDsperEachC = pThreadIDsperEachCArr.data;
+        unsigned * pThreadIDsperEachC = pThreadIDsperEachCArr.data;
         if (pThreadIDsperEachC == NULL) return -1;
 
         // enumerate distinct SMT threads within a caches of the subleaf index only without relation to core topology
@@ -1426,7 +1424,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
 
     Dyn1Arr_str pDetectedEachCIDsArr(EnumeratedThreadCount + 1, 0xff);
     Dyn2Arr_str pDetectThreadIDsperEachCArr(EnumeratedThreadCount, maxCacheDetected + 1, 0xff);
-    unsigned * pDetectedEachCIDs = pDetectedEachCIDsArr.data;
+    unsigned * pDetectedEachCIDs        = pDetectedEachCIDsArr.data;
     unsigned * pDetectThreadIDsperEachC = pDetectThreadIDsperEachCArr.data;
     if (pDetectedEachCIDs == NULL || pDetectThreadIDsperEachC == NULL)
     {
@@ -1454,7 +1452,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
             {
                 bool foundThread = false;
 
-                CacheMarked = true;
+                CacheMarked                                 = true;
                 pApicAffOrdMapping[i].EachCacheORD[subleaf] = h;
 
                 // look for cores sharing the same target cache level
@@ -1464,7 +1462,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
                     DAAL_ASSERT(h * EnumeratedThreadCount + k < pDetectThreadIDsperEachCArr.size());
                     if (threadID == pDetectThreadIDsperEachC[h * EnumeratedThreadCount + k])
                     {
-                        foundThread = true;
+                        foundThread                                        = true;
                         pApicAffOrdMapping[i].threadPerEaCacheORD[subleaf] = k;
                         break;
                     }
@@ -1493,7 +1491,7 @@ int glktsn::analyzeEachCHierarchy(unsigned subleaf)
             DAAL_ASSERT(maxCacheDetected < pDetectedEachCIDsArr.dim[0]);
             DAAL_ASSERT(maxCacheDetected * EnumeratedThreadCount < pDetectThreadIDsperEachCArr.size());
             // mark up the pkg_ID and Core_ID of an unmarked package
-            pDetectedEachCIDs[maxCacheDetected]                          = CacheID;
+            pDetectedEachCIDs[maxCacheDetected]                                = CacheID;
             pDetectThreadIDsperEachC[maxCacheDetected * EnumeratedThreadCount] = threadID;
 
             // keep track of respective hierarchical counts
@@ -1532,7 +1530,8 @@ void glktsn::buildSystemTopologyTables()
 
     // For each logical processor, collect APIC ID and parse sub IDs for each APIC ID
     int numMappings = initEnumeratedThreadCountAndParseAPICIDs();
-    if (numMappings < 0) {
+    if (numMappings < 0)
+    {
         error = numMappings;
         return;
     }
@@ -1568,7 +1567,8 @@ void glktsn::buildSystemTopologyTables()
  */
 unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
 {
-    if (__internal_daal_GetGlobalTopologyObject().error) {
+    if (__internal_daal_GetGlobalTopologyObject().error)
+    {
         return 0xffffffff;
     }
 
@@ -1588,7 +1588,8 @@ unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
  */
 unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
 {
-    if (__internal_daal_GetGlobalTopologyObject().error || package_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedPkgCount) {
+    if (__internal_daal_GetGlobalTopologyObject().error || package_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedPkgCount)
+    {
         return 0;
     }
 
@@ -1606,8 +1607,9 @@ unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
  */
 unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsigned core_ordinal)
 {
-    if (__internal_daal_GetGlobalTopologyObject().error || package_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedPkgCount) {
-         return 0;
+    if (__internal_daal_GetGlobalTopologyObject().error || package_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedPkgCount)
+    {
+        return 0;
     }
 
     if (core_ordinal >= __internal_daal_GetGlobalTopologyObject().perPkg_detectedCoresCount.data[package_ordinal]) return 0;
@@ -1625,8 +1627,9 @@ unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsig
  */
 unsigned _internal_daal_GetSysEachCacheCount(unsigned subleaf)
 {
-    if (__internal_daal_GetGlobalTopologyObject().error)  {
-         return 0;
+    if (__internal_daal_GetGlobalTopologyObject().error)
+    {
+        return 0;
     }
 
     return __internal_daal_GetGlobalTopologyObject().EnumeratedEachCacheCount[subleaf];
@@ -1702,7 +1705,9 @@ unsigned _internal_daal_GetSysProcessorPackageCount()
  */
 unsigned _internal_daal_GetCoreCountPerEachCache(unsigned subleaf, unsigned cache_ordinal)
 {
-    if (__internal_daal_GetGlobalTopologyObject().error || cache_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedEachCacheCount[subleaf]) return 0;
+    if (__internal_daal_GetGlobalTopologyObject().error
+        || cache_ordinal >= __internal_daal_GetGlobalTopologyObject().EnumeratedEachCacheCount[subleaf])
+        return 0;
 
     return __internal_daal_GetGlobalTopologyObject().perEachCache_detectedThreadCount.data[cache_ordinal * MAX_CACHE_SUBLEAFS + subleaf];
 }
@@ -1730,7 +1735,8 @@ unsigned _internal_daal_GetLogicalProcessorQueue(int * queue)
             {
                 for (unsigned j = 0; j < _internal_daal_GetSysLogicalProcessorCount(); j++)
                 {
-                    if (__internal_daal_GetGlobalTopologyObject().pApicAffOrdMapping[j].packageORD == pkg && __internal_daal_GetGlobalTopologyObject().pApicAffOrdMapping[j].EachCacheORD[0] == i)
+                    if (__internal_daal_GetGlobalTopologyObject().pApicAffOrdMapping[j].packageORD == pkg
+                        && __internal_daal_GetGlobalTopologyObject().pApicAffOrdMapping[j].EachCacheORD[0] == i)
                     {
                         int jj = ((q / ht) + (cores * (q % ht))) % cpus;
                         if (jj < cpus) queue[jj] = j;

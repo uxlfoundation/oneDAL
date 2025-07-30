@@ -62,9 +62,11 @@ struct MklService
         // return memmove_s(dest, destSize, src, smax);
     }
 
-    static int serv_get_ht() {
+    static int serv_get_ht()
+    {
         const int ncorespercpu = serv_get_ncorespercpu();
-        if (ncorespercpu < 0) {
+        if (ncorespercpu < 0)
+        {
             // Failed to get the number of cores per CPU.
             return -1;
         }
@@ -73,7 +75,8 @@ struct MklService
 
     static int serv_get_ncpus()
     {
-        if (daal::services::internal::_internal_daal_GetStatus() != 0) {
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
             // CPU topology initialization failed;
             return -1;
         }
@@ -83,7 +86,8 @@ struct MklService
 
     static int serv_get_ncorespercpu()
     {
-        if (daal::services::internal::_internal_daal_GetStatus() != 0) {
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
             // CPU topology initialization failed;
             return -1;
         }

@@ -28,7 +28,7 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-class system_parameters_impl {
+struct system_parameters_impl {
 public:
     explicit system_parameters_impl();
 

@@ -192,17 +192,17 @@ struct GenericAffinityMask
     GenericAffinityMask() = default;
     GenericAffinityMask(const unsigned numCpus);
     GenericAffinityMask(const GenericAffinityMask & other);
-    GenericAffinityMask& operator=(GenericAffinityMask other)
+    GenericAffinityMask & operator=(GenericAffinityMask other)
     {
         swap(*this, other);
         return *this;
     }
     ~GenericAffinityMask();
 
-    friend void swap(GenericAffinityMask& first, GenericAffinityMask& second) // nothrow
+    friend void swap(GenericAffinityMask & first, GenericAffinityMask & second) // nothrow
     {
-        unsigned tmp = first.maxByteLength;
-        first.maxByteLength = second.maxByteLength;
+        unsigned tmp         = first.maxByteLength;
+        first.maxByteLength  = second.maxByteLength;
         second.maxByteLength = tmp;
 
         unsigned char * tmpMask = first.AffinityMask;
@@ -210,13 +210,13 @@ struct GenericAffinityMask
         second.AffinityMask     = tmpMask;
     }
 
-
-    static constexpr unsigned char N_BITS_IN_BYTE = 8;
+    static constexpr unsigned char N_BITS_IN_BYTE      = 8;
     static constexpr unsigned char LOG2_N_BITS_IN_BYTE = 3; // log2(8) = 3
 
     static constexpr unsigned char OUT_OF_BOUND_ERROR = 0xff;
 
-    unsigned char test(unsigned cpu) const {
+    unsigned char test(unsigned cpu) const
+    {
         if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE))
         {
             if ((AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] & (1 << (cpu % N_BITS_IN_BYTE))))
@@ -231,8 +231,10 @@ struct GenericAffinityMask
         }
     }
 
-    unsigned char set(unsigned cpu) {
-        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE)) AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] |= 1 << (cpu % N_BITS_IN_BYTE);
+    unsigned char set(unsigned cpu)
+    {
+        if (cpu < (maxByteLength << LOG2_N_BITS_IN_BYTE))
+            AffinityMask[cpu >> LOG2_N_BITS_IN_BYTE] |= 1 << (cpu % N_BITS_IN_BYTE);
         else
         {
             // If cpu is out of range, return 0xff to indicate an error
@@ -257,8 +259,8 @@ struct cacheDetail_str
 {
     char description[256] = {};
     char descShort[64]    = {};
-    unsigned level = 1; // start at 1
-    unsigned type;  // cache type (instruction, data, combined)
+    unsigned level        = 1; // start at 1
+    unsigned type;             // cache type (instruction, data, combined)
     unsigned sizeKB;
     unsigned how_many_threads_share_cache;
     unsigned how_many_caches_share_level;
@@ -272,33 +274,30 @@ struct Dyn2Arr_str
     ~Dyn2Arr_str();
 
     Dyn2Arr_str(const Dyn2Arr_str & other);
-    Dyn2Arr_str& operator=(Dyn2Arr_str other)
+    Dyn2Arr_str & operator=(Dyn2Arr_str other)
     {
         swap(*this, other);
         return *this;
     }
 
-    unsigned size() const
-    {
-        return dim[0] * dim[1];
-    }
+    unsigned size() const { return dim[0] * dim[1]; }
 
-    friend void swap(Dyn2Arr_str& first, Dyn2Arr_str& second) // nothrow
+    friend void swap(Dyn2Arr_str & first, Dyn2Arr_str & second) // nothrow
     {
-        unsigned tmp = first.dim[0];
-        first.dim[0] = second.dim[0];
+        unsigned tmp  = first.dim[0];
+        first.dim[0]  = second.dim[0];
         second.dim[0] = tmp;
 
-        tmp = first.dim[1];
-        first.dim[1] = second.dim[1];
+        tmp           = first.dim[1];
+        first.dim[1]  = second.dim[1];
         second.dim[1] = tmp;
 
         unsigned * tmpData = first.data;
         first.data         = second.data;
         second.data        = tmpData;
     }
-    unsigned dim[2] = { 0, 0 };   // xdim and ydim
-    unsigned * data = nullptr; // data array to be malloc'd
+    unsigned dim[2] = { 0, 0 }; // xdim and ydim
+    unsigned * data = nullptr;  // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
@@ -308,7 +307,7 @@ struct Dyn1Arr_str
     ~Dyn1Arr_str();
 
     Dyn1Arr_str(const Dyn1Arr_str & other);
-    Dyn1Arr_str& operator=(Dyn1Arr_str other)
+    Dyn1Arr_str & operator=(Dyn1Arr_str other)
     {
         swap(*this, other);
         return *this;
@@ -316,10 +315,10 @@ struct Dyn1Arr_str
 
     void fill(const unsigned value);
 
-    friend void swap(Dyn1Arr_str& first, Dyn1Arr_str& second) // nothrow
+    friend void swap(Dyn1Arr_str & first, Dyn1Arr_str & second) // nothrow
     {
-        unsigned tmp = first.dim[0];
-        first.dim[0] = second.dim[0];
+        unsigned tmp  = first.dim[0];
+        first.dim[0]  = second.dim[0];
         second.dim[0] = tmp;
 
         unsigned * tmpData = first.data;
@@ -342,8 +341,8 @@ struct idAffMskOrdMapping_t
 {
     idAffMskOrdMapping_t() = default;
     explicit idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsigned globalPkgSelectMask, unsigned globalPkgSelectMaskShift,
-                                           unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
-                                           unsigned * globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf);
+                                  unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
+                                  unsigned * globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf);
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
     unsigned __int32 OrdIndexOAMsk; // An ordinal index (zero-based) for each logical
@@ -377,8 +376,6 @@ private:
     void initApicID(bool hasLeafB);
 };
 
-
-
 unsigned _internal_daal_GetOSLogicalProcessorCount();
 unsigned _internal_daal_GetSysProcessorPackageCount();
 unsigned _internal_daal_GetProcessorCoreCount();
@@ -391,7 +388,6 @@ unsigned _internal_daal_GetCoreCount(unsigned long package_ordinal);
 unsigned _internal_daal_GetThreadCount(unsigned long package_ordinal, unsigned long core_ordinal);
 unsigned _internal_daal_GetLogicalProcessorQueue(int * queue);
 unsigned _internal_daal_GetStatus();
-
 unsigned _internal_daal_GetSysLogicalProcessorCount();
 
 // we are going to put an assortment of global variable, 1D and 2D arrays into
@@ -414,7 +410,7 @@ struct glktsn
     unsigned Alert_BiosCPUIDmaxLimitSetting;
 
     unsigned OSProcessorCount = 0; // how many logical processor the OS sees
-    bool hasLeafB;             // flag to keep track of whether CPUID leaf 0BH is supported
+    bool hasLeafB;                 // flag to keep track of whether CPUID leaf 0BH is supported
     unsigned maxCacheSubleaf;      // highest CPUID leaf 4 subleaf index in a processor
 
     // the following global variables are the total counts in the system resulting from software enumeration
@@ -452,9 +448,8 @@ struct glktsn
 
     glktsn();
 
-    ~glktsn() {
-        FreeArrays();
-    }
+    ~glktsn() { FreeArrays(); }
+
 private:
     int allocArrays(const unsigned cpus);
     unsigned getMaxCPUSupportedByOS();
@@ -481,6 +476,5 @@ void read_topology(int & status, int & nthreads, int & max_threads, int ** cpu_q
 void delete_topology(void * ptr);
 
 #endif /* #if !defined (DAAL_CPU_TOPO_DISABLED) */
-
 
 #endif /* __SERVICE_TOPO_H__ */
