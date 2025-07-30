@@ -150,7 +150,13 @@ DAAL_EXPORT void daal::services::Environment::initNumberOfThreads()
     daal::setSchedulerHandle(&_schedulerHandle);
 #endif
     /* if HT enabled - set _numThreads to physical cores num */
-    if (daal::internal::ServiceInst::serv_get_ht())
+    const int htStatus = daal::internal::ServiceInst::serv_get_ht();
+    if (htStatus < 0)
+    {
+        // Failed to get the number of CPUs. Environment cannot be initialized
+        return;
+    }
+    else if (htStatus > 0)
     {
         const int ncpus = daal::internal::ServiceInst::serv_get_ncpus();
         if (ncpus < 0)
