@@ -27,19 +27,11 @@ PLATs.gnu = lnx32e mac32e
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+LINKERS_SUPPORTED := bfd gold lld
 
-ifeq ($(OS_is_win),true)
-    ifneq ($(LINKER),)
-        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
-            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
-        endif
-    endif
-else
-    ifneq ($(LINKER),)
-        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
-            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
-        endif
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
     endif
 endif
 
