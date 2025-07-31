@@ -26,6 +26,22 @@ CORE.SERV.COMPILER.icx = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
@@ -56,7 +72,9 @@ COMPILER.lnx.icx = icx -m64 \
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations
 
-link.dynamic.lnx.icx = icx -m64 -no-intel-lib
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+
+link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
 
 pedantic.opts.lnx.icx = -pedantic \

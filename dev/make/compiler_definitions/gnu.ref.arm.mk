@@ -24,6 +24,22 @@ PLATs.gnu = lnxarm
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
@@ -38,7 +54,8 @@ endif
 COMPILER.all.gnu =  ${CXX} -march=armv8-a+sve -fopenmp-simd -ftree-vectorize -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wreturn-type $(if $(RNG_OPENRNG), -DOPENRNG_BACKEND)
 
-link.dynamic.all.gnu = ${CXX} -march=native
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -march=native
 
 COMPILER.lnx.gnu = $(COMPILER.all.gnu)
 link.dynamic.lnx.gnu = $(link.dynamic.all.gnu)

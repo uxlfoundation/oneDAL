@@ -21,6 +21,22 @@
 
 include dev/make/compiler_definitions/clang.mk
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
+
 PLATs.clang = lnxriscv64
 
 COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=riscv64-linux-gnu)
@@ -33,9 +49,10 @@ COMPILER.lnx.clang= clang++ \
                      $(COMPILER.sysroot)
 
 # Linker flags
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.clang = clang++ \
-                         $(COMPILER.lnx.clang.target) \
-                         $(COMPILER.sysroot)
+                        $(linker.ld.flag) $(COMPILER.lnx.clang.target) \
+                        $(COMPILER.sysroot)
 
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)
 

@@ -28,6 +28,22 @@ PLATs.clang = lnx32e mac32e
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
@@ -47,8 +63,9 @@ COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-
 COMPILER.lnx.clang = clang++ -m64 \
                      -Werror -Wreturn-type
 
-link.dynamic.mac.clang = clang++ -m64
-link.dynamic.lnx.clang = clang++ -m64
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+link.dynamic.mac.clang = clang++ $(linker.ld.flag) -m64
+link.dynamic.lnx.clang = clang++ $(linker.ld.flag) -m64
 
 pedantic.opts.mac.clang = $(pedantic.opts.clang)
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)
