@@ -424,7 +424,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             if (bL2)
             {
                 algorithmFPType sumSquaresBeta = 0;
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumSquaresBeta))
                 for (size_t i = 1; i < nBeta; ++i)
                 {
                     sumSquaresBeta += b[i] * b[i];
