@@ -78,13 +78,13 @@ services::Status ComputeInvSigmas(NumericTable * pVariances, TArray<algorithmFPT
         DAAL_CHECK_BLOCK_STATUS(dataRows);
         const algorithmFPType * pRawVariances = dataRows.get();
 
+        daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(numFeatures, pRawVariances, 1, pInvSigmas, 1);
+
+        const algorithmFPType zero(0.0);
         PRAGMA_OMP_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t varianceId = 0; varianceId < numFeatures; ++varianceId)
         {
-            pInvSigmas[varianceId] = pRawVariances[varianceId] ?
-                                         algorithmFPType(1.0) / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(pRawVariances[varianceId]) :
-                                         algorithmFPType(0.0);
+            pInvSigmas[varianceId] = (pRawVariances[varianceId] == zero ? zero : pInvSigmas[varianceId]);
         }
     }
     return status;
