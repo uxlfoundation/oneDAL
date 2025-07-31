@@ -274,7 +274,7 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
         DAAL_CHECK_STATUS_VAR(status);
     }
 
-    const bool use_non_batched_route = nBetas >= maxColsBatched || (nRows >= smallRowsThreshold && nBetas >= smallRowsMaxColsBatched);
+    const bool use_non_batched_route = nBetas >= maxColsBatched || (nRows <= smallRowsThreshold && nBetas >= smallRowsMaxColsBatched);
     if (use_non_batched_route)
     {
         const DAAL_INT nCols = xTable.getNumberOfColumns();

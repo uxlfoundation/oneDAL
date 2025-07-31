@@ -57,6 +57,7 @@ function install_dev-base {
 }
 
 function install_dev-base-conda {
+    echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" > ~/.condarc
     conda env create -f .ci/env/environment.yml
 }
 
