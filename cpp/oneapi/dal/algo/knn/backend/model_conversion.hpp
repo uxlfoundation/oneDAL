@@ -57,8 +57,6 @@ inline auto convert_onedal_to_daal_knn_model(const model<Task>& m) {
 
     const auto trained_model = dynamic_cast_to_knn_model<Task, brute_force_model_impl<Task>>(m);
 
-    // Changed to perform a copy as far as we have similar logic
-    // for d4p patching; to allign performance with DAAL
     const auto daal_train_data = interop::convert_to_daal_table<Float>(trained_model->get_data());
     const auto daal_train_responses =
         interop::convert_to_daal_table<Float>(trained_model->get_responses());
