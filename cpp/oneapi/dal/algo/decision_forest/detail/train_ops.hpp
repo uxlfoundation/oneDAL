@@ -100,7 +100,7 @@ struct train_ops {
         params.check_ranges();
         const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
             ctx,
-            dynamic_cast<const descriptor_base_t&>(desc),
+            dynamic_cast<const descriptor_base<task_t>&>(desc),
             params,
             input);
         check_postconditions(desc, input, result);
