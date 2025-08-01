@@ -59,10 +59,9 @@ inline auto convert_onedal_to_daal_knn_model(const model<Task>& m) {
 
     // Changed to perform a copy as far as we have similar logic
     // for d4p patching; to allign performance with DAAL
-    const auto daal_train_data =
-        interop::copy_to_daal_homogen_table<Float>(trained_model->get_data());
+    const auto daal_train_data = interop::convert_to_daal_table<Float>(trained_model->get_data());
     const auto daal_train_responses =
-        interop::copy_to_daal_homogen_table<Float>(trained_model->get_responses());
+        interop::convert_to_daal_table<Float>(trained_model->get_responses());
 
     const auto model_ptr =
         create_daal_model_for_bf_knn<Float>(daal_train_data, daal_train_responses);
