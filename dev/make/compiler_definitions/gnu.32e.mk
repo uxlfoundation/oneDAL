@@ -39,7 +39,7 @@ else
 endif
 
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
-                    -Werror -Wreturn-type
+                    -Werror -Wreturn-type -fopenmp-simd
 
 link.dynamic.all.gnu = ${CXX} -m64
 
