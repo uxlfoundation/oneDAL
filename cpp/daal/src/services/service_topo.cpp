@@ -289,6 +289,13 @@ struct Dyn2Arr_str
 {
     explicit Dyn2Arr_str(const unsigned xdim = 0, const unsigned ydim = 0, const unsigned value = 0);
 
+    // Disable copy constructor and assignment operator
+    Dyn2Arr_str(const Dyn2Arr_str & other)             = delete;
+    Dyn2Arr_str & operator=(const Dyn2Arr_str & other) = delete;
+
+    Dyn2Arr_str(Dyn2Arr_str && other)             = default;
+    Dyn2Arr_str & operator=(Dyn2Arr_str && other) = default;
+
     unsigned & operator[](unsigned idx)
     {
         DAAL_ASSERT(idx < size());
@@ -313,6 +320,13 @@ private:
 struct Dyn1Arr_str
 {
     explicit Dyn1Arr_str(const unsigned xdim = 0, const unsigned value = 0);
+
+    // Disable copy constructor and assignment operator
+    Dyn1Arr_str(const Dyn1Arr_str & other)             = delete;
+    Dyn1Arr_str & operator=(const Dyn1Arr_str & other) = delete;
+
+    Dyn1Arr_str(Dyn1Arr_str && other)             = default;
+    Dyn1Arr_str & operator=(Dyn1Arr_str && other) = default;
 
     unsigned & operator[](unsigned idx)
     {
@@ -454,7 +468,7 @@ private:
 // Global CPU topology object
 static glktsn globalCPUTopology;
 
-static char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+static std::array<char, BLOCKSIZE_4K> scratch; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
 
 static void * __internal_daal_memset(void * s, int c, size_t nbytes)
 {
@@ -529,9 +543,9 @@ private:
         GROUP_AFFINITY grp_affinity;
         if (cpu >= MAX_WIN7_LOG_CPU) return ret;
 
-        cnt = BLOCKSIZE_4K;
-        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
+        cnt = scratch.size();
+        _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
+        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
 
         if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt)) return ret;
 
@@ -638,9 +652,9 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // if Windows version support processor groups
     // tally actually populated logical processors in each group
     grpCnt = (WORD)GetActiveProcessorGroupCount();
-    cnt    = BLOCKSIZE_4K;
-    _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
-    pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
+    cnt    = scratch.size();
+    _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
+    pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
 
     if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
     {
@@ -747,9 +761,9 @@ void glktsn::setChkProcessAffinityConsistency()
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
 
     {
-        cnt = BLOCKSIZE_4K;
-        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
+        cnt = scratch.size();
+        _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
+        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
 
         if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
         {
@@ -1478,12 +1492,12 @@ int glktsn::allocArrays(const unsigned cpus)
     }
     _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpus * sizeof(idAffMskOrdMapping_t));
 
-    perPkg_detectedCoresCount    = Dyn1Arr_str(cpus);
-    perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES),
+    perPkg_detectedCoresCount    = std::move(Dyn1Arr_str(cpus)); // using std::move because Dyn1Arr_str is a move-only type
+    perCore_detectedThreadsCount = std::move(Dyn2Arr_str(cpus, MAX_CORES)),
     // workspace for storing hierarchical counts relative to the cache topology
         // of the largest unified cache (may be shared by several cores)
-        perCache_detectedCoreCount   = Dyn1Arr_str(cpus);
-    perEachCache_detectedThreadCount = Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS);
+        perCache_detectedCoreCount   = std::move(Dyn1Arr_str(cpus));
+    perEachCache_detectedThreadCount = std::move(Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS));
     if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty() || perEachCache_detectedThreadCount.isEmpty()
         || perCache_detectedCoreCount.isEmpty())
     {
