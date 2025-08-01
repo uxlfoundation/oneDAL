@@ -64,7 +64,19 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
 
     if (isFull<algorithmFPType, cpu>(rLayout))
     {
-        return cosDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        if (na == 1)
+        {
+            return cosDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        }
+        else if (na == 2)
+        {
+            NumericTable * yTable = const_cast<NumericTable *>(a[1]); /* y Input data */
+            return cosDistanceFull<algorithmFPType, cpu>(xTable, yTable, rTable);
+        }
+        else
+        {
+            return services::Status(services::ErrorIncorrectNumberOfInputNumericTables);
+        }
     }
     else
     {
