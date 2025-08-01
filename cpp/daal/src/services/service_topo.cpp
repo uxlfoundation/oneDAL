@@ -1024,13 +1024,13 @@ int glktsn::cpuTopologyLeafBConstants()
         {
         case 1:
             // level type is SMT, so levelShift is the SMT_Mask_Width
-            SMTSelectMask     = ~((-1) << levelShift);
+            SMTSelectMask     = ~((0xFFFFFFFF) << levelShift);
             SMTMaskWidth      = levelShift;
             wasThreadReported = true;
             break;
         case 2:
             // level type is Core, so levelShift is the CorePlsuSMT_Mask_Width
-            coreplusSMT_Mask   = ~((-1) << levelShift);
+            coreplusSMT_Mask   = ~((0xFFFFFFFF) << levelShift);
             PkgSelectMaskShift = levelShift;
             PkgSelectMask      = (-1) ^ coreplusSMT_Mask;
             wasCoreReported    = true;
