@@ -45,7 +45,6 @@ struct infer_ops {
     using input_t = infer_input<task_t>;
     using result_t = infer_result<task_t>;
     using param_t = infer_parameters<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
         using msg = dal::detail::error_messages;

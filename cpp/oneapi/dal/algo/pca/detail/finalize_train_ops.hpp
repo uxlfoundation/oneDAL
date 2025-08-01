@@ -36,7 +36,6 @@ struct finalize_train_ops {
     using task_t = typename Descriptor::task_t;
     using input_t = partial_train_result<task_t>;
     using result_t = train_result<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
         ONEDAL_ASSERT(input.get_partial_n_rows().has_data());

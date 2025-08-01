@@ -52,7 +52,6 @@ struct vertex_similarity_ops {
     using graph_t = Graph;
     using input_t = vertex_similarity_input<graph_t, task_t>;
     using result_t = vertex_similarity_result<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor &param, input_t &input) const {
         using msg = dal::detail::error_messages;

@@ -45,7 +45,6 @@ struct traverse_ops {
     using graph_t = Graph;
     using input_t = traverse_input<graph_t, task_t>;
     using result_t = traverse_result<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     template <typename T = task_t,
               typename M = method_t,

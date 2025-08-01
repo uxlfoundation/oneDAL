@@ -45,7 +45,6 @@ struct train_ops {
     using input_t = train_input<task_t>;
     using result_t = train_result<task_t>;
     using param_t = train_parameters<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
         using msg = dal::detail::error_messages;
@@ -101,7 +100,7 @@ struct train_ops {
         params.check_ranges();
         const auto result = train_ops_dispatcher<Context, float_t, task_t, method_t>{}(
             ctx,
-            dynamic_cast<const descriptor_base_t&>(desc),
+            dynamic_cast<const descriptor_base<task_t>&>(desc),
             params,
             input);
         check_postconditions(desc, input, result);

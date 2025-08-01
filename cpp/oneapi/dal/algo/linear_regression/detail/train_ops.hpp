@@ -45,7 +45,6 @@ struct train_ops {
     using input_t = train_input<task_t>;
     using result_t = train_result<task_t>;
     using param_t = train_parameters<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
         using msg = dal::detail::error_messages;
