@@ -20,6 +20,7 @@ ifeq ($(filter mkl ref,$(BACKEND_CONFIG)),)
 endif
 
 COMPILERs = icc icx gnu clang vc
+LINKERs = bfd gold lld llvm-lib
 COMPILER ?= icx
 CPUs := sse2 sse42 avx2 avx512
 CPUs.files := nrh neh hsw skx
