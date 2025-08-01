@@ -24,6 +24,7 @@
 #include "services/daal_defines.h"
 
 #include <array>
+#include <memory>
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
@@ -286,17 +287,7 @@ struct cacheDetail_str
 
 struct Dyn2Arr_str
 {
-    Dyn2Arr_str() = default;
-    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigned value = 0);
-
-    ~Dyn2Arr_str();
-
-    Dyn2Arr_str(const Dyn2Arr_str & other);
-    Dyn2Arr_str & operator=(Dyn2Arr_str other)
-    {
-        swap(*this, other);
-        return *this;
-    }
+    explicit Dyn2Arr_str(const unsigned xdim = 0, const unsigned ydim = 0, const unsigned value = 0);
 
     unsigned & operator[](unsigned idx)
     {
@@ -314,38 +305,14 @@ struct Dyn2Arr_str
 
     unsigned size() const { return dim[0] * dim[1]; }
 
-    friend void swap(Dyn2Arr_str & first, Dyn2Arr_str & second) // nothrow
-    {
-        unsigned tmp  = first.dim[0];
-        first.dim[0]  = second.dim[0];
-        second.dim[0] = tmp;
-
-        tmp           = first.dim[1];
-        first.dim[1]  = second.dim[1];
-        second.dim[1] = tmp;
-
-        unsigned * tmpData = first.data;
-        first.data         = second.data;
-        second.data        = tmpData;
-    }
-
 private:
-    unsigned dim[2] = { 0, 0 }; // xdim and ydim
-    unsigned * data = nullptr;  // data array to be malloc'd
+    unsigned dim[2] = { 0, 0 };                             // xdim and ydim
+    std::unique_ptr<unsigned[], void (*)(unsigned *)> data; // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
-    Dyn1Arr_str() = default;
-    explicit Dyn1Arr_str(const unsigned xdim, const unsigned value = 0);
-    ~Dyn1Arr_str();
-
-    Dyn1Arr_str(const Dyn1Arr_str & other);
-    Dyn1Arr_str & operator=(Dyn1Arr_str other)
-    {
-        swap(*this, other);
-        return *this;
-    }
+    explicit Dyn1Arr_str(const unsigned xdim = 0, const unsigned value = 0);
 
     unsigned & operator[](unsigned idx)
     {
@@ -363,20 +330,9 @@ struct Dyn1Arr_str
 
     void fill(const unsigned value);
 
-    friend void swap(Dyn1Arr_str & first, Dyn1Arr_str & second) // nothrow
-    {
-        unsigned tmp  = first.dim[0];
-        first.dim[0]  = second.dim[0];
-        second.dim[0] = tmp;
-
-        unsigned * tmpData = first.data;
-        first.data         = second.data;
-        second.data        = tmpData;
-    }
-
 private:
-    unsigned dim[1] = { 0 };   // xdim
-    unsigned * data = nullptr; // data array to be malloc'd
+    unsigned dim[1] = { 0 };                                // xdim
+    std::unique_ptr<unsigned[], void (*)(unsigned *)> data; // data array to be malloc'd
 };
 
 struct idAffMskOrdMapping_t
@@ -1475,73 +1431,33 @@ int glktsn::cpuTopologyParams()
 }
 
 Dyn2Arr_str::Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigned value)
+    : dim { xdim, ydim },
+      data((xdim * ydim > 0 ? (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * ydim * sizeof(unsigned)) : nullptr), [](unsigned * ptr) -> void {
+          if (ptr)
+          {
+              _INTERNAL_DAAL_FREE(ptr);
+              ptr = NULL;
+          }
+      })
 {
-    dim[0] = xdim;
-    dim[1] = ydim;
-    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * ydim * sizeof(unsigned));
-    if (!data)
-    {
-        return;
-    }
-    _INTERNAL_DAAL_MEMSET(data, value, xdim * ydim * sizeof(unsigned));
-}
-
-Dyn2Arr_str::Dyn2Arr_str(const Dyn2Arr_str & other)
-{
-    if (this == &other) return; // self-assignment check
-    dim[0]          = other.dim[0];
-    dim[1]          = other.dim[1];
-    size_t dataSize = dim[0] * dim[1] * sizeof(unsigned);
-    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
-    if (!data) return;
-    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
-}
-
-Dyn2Arr_str::~Dyn2Arr_str()
-{
-    if (data)
-    {
-        _INTERNAL_DAAL_FREE(data);
-        data = NULL;
-    }
-    dim[0] = 0;
-    dim[1] = 0;
+    _INTERNAL_DAAL_MEMSET(data.get(), value, xdim * ydim * sizeof(unsigned));
 }
 
 Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim, const unsigned value)
+    : dim { xdim }, data((xdim > 0 ? (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned)) : nullptr), [](unsigned * ptr) -> void {
+          if (ptr)
+          {
+              _INTERNAL_DAAL_FREE(ptr);
+              ptr = NULL;
+          }
+      })
 {
-    dim[0] = xdim;
-    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned));
-    if (!data)
-    {
-        return;
-    }
     fill(value);
-}
-
-Dyn1Arr_str::Dyn1Arr_str(const Dyn1Arr_str & other)
-{
-    if (this == &other) return; // self-assignment check
-    dim[0]          = other.dim[0];
-    size_t dataSize = dim[0] * sizeof(unsigned);
-    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
-    if (!data) return;
-    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
-}
-
-Dyn1Arr_str::~Dyn1Arr_str()
-{
-    if (data)
-    {
-        _INTERNAL_DAAL_FREE(data);
-        data = NULL;
-    }
-    dim[0] = 0;
 }
 
 void Dyn1Arr_str::fill(const unsigned value)
 {
-    _INTERNAL_DAAL_MEMSET(data, value, dim[0] * sizeof(unsigned));
+    _INTERNAL_DAAL_MEMSET(data.get(), value, dim[0] * sizeof(unsigned));
 }
 
 /*
