@@ -470,7 +470,7 @@ struct glktsn
     // workspeace to assist text display of cache topology information
     std::array<cacheDetail_str, MAX_CACHE_SUBLEAFS> cacheDetail;
 
-    unsigned isInit = 0;
+    bool isInit = false;
 
     glktsn();
 
@@ -627,7 +627,7 @@ private:
 
 glktsn::glktsn()
 {
-    isInit                         = 0;
+    isInit                         = false;
     error                          = 0;
     hasLeafB                       = false;
     Alert_BiosCPUIDmaxLimitSetting = 0;
@@ -1981,7 +1981,7 @@ void glktsn::buildSystemTopologyTables()
             }
         }
     }
-    isInit = 1;
+    isInit = true;
 }
 
 /*
@@ -2278,7 +2278,7 @@ size_t getLLCacheSize()
 
 void glktsn::freeArrays()
 {
-    isInit = 0;
+    isInit = false;
     _INTERNAL_DAAL_FREE(pApicAffOrdMapping);
 
     if (cpuid_values)
