@@ -1493,10 +1493,10 @@ int glktsn::allocArrays(const unsigned cpus)
     _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpus * sizeof(idAffMskOrdMapping_t));
 
     perPkg_detectedCoresCount    = std::move(Dyn1Arr_str(cpus)); // using std::move because Dyn1Arr_str is a move-only type
-    perCore_detectedThreadsCount = std::move(Dyn2Arr_str(cpus, MAX_CORES)),
+    perCore_detectedThreadsCount = std::move(Dyn2Arr_str(cpus, MAX_CORES));
     // workspace for storing hierarchical counts relative to the cache topology
-        // of the largest unified cache (may be shared by several cores)
-        perCache_detectedCoreCount   = std::move(Dyn1Arr_str(cpus));
+    // of the largest unified cache (may be shared by several cores)
+    perCache_detectedCoreCount       = std::move(Dyn1Arr_str(cpus));
     perEachCache_detectedThreadCount = std::move(Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS));
     if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty() || perEachCache_detectedThreadCount.isEmpty()
         || perCache_detectedCoreCount.isEmpty())
