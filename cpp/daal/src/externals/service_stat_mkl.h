@@ -28,6 +28,7 @@
 
 #include <mkl.h>
 #include <mkl_vsl_functions.h>
+#include "services/error_indexes.h"
 #include "src/externals/service_memory.h"
 #include "src/externals/service_stat_rng_mkl.h"
 
@@ -181,7 +182,7 @@ struct MklStatistics
     {
         DaalManagedMalloc<fpType> meanHolder(nFeatures);
         fpType * mean = meanHolder.ptr;
-        if (!mean) return 1;
+        if (!mean) return services::ErrorMemoryAllocationFailed;
 
         if (method == __DAAL_VSL_SS_METHOD_FAST_USER_MEAN)
         {
@@ -208,7 +209,7 @@ struct MklStatistics
     {
         DaalManagedScalableMalloc<fpType, cpu> sumHolder(nFeatures);
         fpType * sum = sumHolder.ptr;
-        if (!sum) return 1;
+        if (!sum) return services::ErrorMemoryAllocationFailed;
 
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_SUM, sum));
@@ -230,7 +231,7 @@ struct MklStatistics
         DaalManagedScalableMalloc<fpType, cpu> rawSecondHolder(nFeatures);
         fpType * sum       = sumHolder.ptr;
         fpType * rawSecond = rawSecondHolder.ptr;
-        if (!sum || !rawSecond) return 1;
+        if (!sum || !rawSecond) return services::ErrorMemoryAllocationFailed;
 
         fpType accumWeightsAll[2] = { 0, 0 };
 
@@ -253,7 +254,7 @@ struct MklStatistics
         DaalManagedMalloc<fpType> secondOrderRawMomentHolder(nFeatures);
         fpType * mean                 = meanHolder.ptr;
         fpType * secondOrderRawMoment = secondOrderRawMomentHolder.ptr;
-        if (!mean || !secondOrderRawMoment) return 1;
+        if (!mean || !secondOrderRawMoment) return services::ErrorMemoryAllocationFailed;
 
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_MEAN, mean));
