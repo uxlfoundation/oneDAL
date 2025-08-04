@@ -129,6 +129,8 @@ struct OpenBlas<double, cpu>
     }
 
     static void xscal(const DAAL_INT * n, const double * a, double * x, const DAAL_INT * incx) { dscal_(n, a, x, incx); }
+
+    static double xasum(const DAAL_INT * n, const double * x, const DAAL_INT * incx) { return dasum_(n, x, incx); }
 };
 
 /*
@@ -223,6 +225,8 @@ struct OpenBlas<float, cpu>
     }
 
     static void xscal(const DAAL_INT * n, const float * a, float * x, const DAAL_INT * incx) { sscal_(n, a, x, incx); }
+
+    static float xasum(const DAAL_INT * n, const float * x, const DAAL_INT * incx) { return sasum_(n, x, incx); }
 };
 
 } // namespace ref
