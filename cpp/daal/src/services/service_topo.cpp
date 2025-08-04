@@ -24,6 +24,7 @@
 #include "services/daal_defines.h"
 
 #include <array>
+#include <limits>
 #include <memory>
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
@@ -1038,13 +1039,13 @@ int glktsn::cpuTopologyLeafBConstants()
         {
         case 1:
             // level type is SMT, so levelShift is the SMT_Mask_Width
-            SMTSelectMask     = ~((0xFFFFFFFF) << levelShift);
+            SMTSelectMask     = ~((std::numeric_limits<decltype(SMTSelectMask)>::max()) << levelShift);
             SMTMaskWidth      = levelShift;
             wasThreadReported = true;
             break;
         case 2:
             // level type is Core, so levelShift is the CorePlsuSMT_Mask_Width
-            coreplusSMT_Mask   = ~((0xFFFFFFFF) << levelShift);
+            coreplusSMT_Mask   = ~((std::numeric_limits<decltype(coreplusSMT_Mask)>::max()) << levelShift);
             PkgSelectMaskShift = levelShift;
             PkgSelectMask      = (-1) ^ coreplusSMT_Mask;
             wasCoreReported    = true;
@@ -1454,7 +1455,10 @@ Dyn2Arr_str::Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigne
           }
       })
 {
-    _INTERNAL_DAAL_MEMSET(data.get(), value, xdim * ydim * sizeof(unsigned));
+    if (data.get())
+    {
+        _INTERNAL_DAAL_MEMSET(data.get(), value, xdim * ydim * sizeof(unsigned));
+    }
 }
 
 Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim, const unsigned value)
@@ -1471,7 +1475,10 @@ Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim, const unsigned value)
 
 void Dyn1Arr_str::fill(const unsigned value)
 {
-    _INTERNAL_DAAL_MEMSET(data.get(), value, dim[0] * sizeof(unsigned));
+    if (data.get())
+    {
+        _INTERNAL_DAAL_MEMSET(data.get(), value, dim[0] * sizeof(unsigned));
+    }
 }
 
 /*
