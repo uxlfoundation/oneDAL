@@ -44,7 +44,8 @@ COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
 # Linker flags
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.clang = clang++ -march=armv8-a+sve \
-                         $(linker.ld.flag) $(COMPILER.lnx.clang.target) \
+                         $(linker.ld.flag) \
+                         $(COMPILER.lnx.clang.target) \
                          $(COMPILER.sysroot)
 
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)

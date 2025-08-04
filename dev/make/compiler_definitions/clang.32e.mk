@@ -28,7 +28,7 @@ PLATs.clang = lnx32e mac32e
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+LINKERS_SUPPORTED := bfd gold lld
 
 ifneq ($(LINKER),)
     ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))

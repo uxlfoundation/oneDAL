@@ -24,7 +24,7 @@ PLATs.gnu = lnxarm
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+LINKERS_SUPPORTED := bfd gold lld
 
 ifneq ($(LINKER),)
     ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
@@ -47,7 +47,7 @@ COMPILER.all.gnu =  ${CXX} -march=armv8-a+sve -fopenmp-simd -ftree-vectorize -fw
                     -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wreturn-type $(if $(RNG_OPENRNG), -DOPENRNG_BACKEND)
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
-link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -march=native
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
 COMPILER.lnx.gnu = $(COMPILER.all.gnu)
 link.dynamic.lnx.gnu = $(link.dynamic.all.gnu)

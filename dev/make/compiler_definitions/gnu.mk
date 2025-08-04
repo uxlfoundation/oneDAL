@@ -28,7 +28,7 @@ CORE.SERV.COMPILER.gnu = generic
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
 
-LINKERS_SUPPORTED := bfd gold lld llvm-lib
+LINKERS_SUPPORTED := bfd gold lld
 
 ifneq ($(LINKER),)
     ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
@@ -48,7 +48,7 @@ else
 endif
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
-link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -march=native
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
 -Zl.gnu =
 -DEBC.gnu = -g

@@ -74,6 +74,7 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.icc = icc $(linker.ld.flag) -no-cilk -diag-disable=10441
 link.dynamic.mac.icc = icc -diag-disable=10441
+link.dynamic.win.icc = icc $(linker.ld.flag)
 
 pedantic.opts.lnx.icc = -pedantic \
                         -Wall \

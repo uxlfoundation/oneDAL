@@ -43,7 +43,8 @@ COMPILER.lnx.clang= clang++ \
 # Linker flags
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.clang = clang++ \
-                        $(linker.ld.flag) $(COMPILER.lnx.clang.target) \
+                        $(linker.ld.flag) \
+                        $(COMPILER.lnx.clang.target) \
                         $(COMPILER.sysroot)
 
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)

@@ -83,7 +83,7 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
-link.dynamic.win.dpcpp = icx  $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \
