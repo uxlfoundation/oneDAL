@@ -31,6 +31,9 @@ variables:
   SYSROOT_OS: 'noble'
   PY_VERSION: '3.11'
   SKL_VERSION: '1.5'
+  # Link to latest version can be taken from basekit download page:
+  # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
+  # Check section 'Install through a Command Line':
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/09a8acaf-265f-4460-866c-a3375ed5b4ff/intel-oneapi-base-toolkit-2025.2.0.591_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
