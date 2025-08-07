@@ -683,11 +683,11 @@ void TaskPlusPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenter(size_t iClu
 
     for (size_t iTrials = 0u; iTrials < this->_nTrials; iTrials++)
     {
-        algorithmFPType newInersia = this->_overallError[iTrials];
+        algorithmFPType newInertia = this->_overallError[iTrials];
 
-        if (newInersia < bestMinInertia)
+        if (newInertia < bestMinInertia)
         {
-            bestMinInertia = newInersia;
+            bestMinInertia = newInertia;
             iTialBest      = iTrials;
         }
     }
