@@ -679,7 +679,7 @@ void TaskPlusPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenter(size_t iClu
 
     // search best candidate from nTrials
     algorithmFPType bestMinInertia = daal::services::internal::MaxVal<algorithmFPType>::get();
-    size_t iTialBest               = 0u;
+    size_t iTrialBest              = 0u;
 
     for (size_t iTrials = 0u; iTrials < this->_nTrials; iTrials++)
     {
@@ -688,11 +688,11 @@ void TaskPlusPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenter(size_t iClu
         if (newInertia < bestMinInertia)
         {
             bestMinInertia = newInertia;
-            iTialBest      = iTrials;
+            iTrialBest     = iTrials;
         }
     }
 
-    this->_trialBest = iTialBest;
+    this->_trialBest = iTrialBest;
 }
 
 template <typename algorithmFPType, CpuType cpu>
