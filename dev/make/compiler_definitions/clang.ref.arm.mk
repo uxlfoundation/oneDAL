@@ -23,6 +23,15 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnxarm
 
+
+LINKERS_SUPPORTED := bfd gold lld
+
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
+endif
+
 COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=aarch64-linux-gnu)
 
 COMPILER.sysroot = $(if $(SYSROOT),--sysroot $(SYSROOT))
@@ -33,7 +42,9 @@ COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
                      $(COMPILER.sysroot)
 
 # Linker flags
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.lnx.clang = clang++ -march=armv8-a+sve \
+                         $(linker.ld.flag) \
                          $(COMPILER.lnx.clang.target) \
                          $(COMPILER.sysroot)
 
