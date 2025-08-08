@@ -114,7 +114,7 @@ mkl_repo(
     urls = [
         # Due to issues with dispatcher, its not possible to use dynamic mkl core in bazel
         # There are conflicts between avx512/avx2/cm3/def symbols in cc_library
-        # TODO: investigate the issue.
+        # TODO: investigate the how to provide global runtime dependencies in bazel.
         # Core static MKL runtime libraries (.a)
         # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.
         "https://anaconda.org/conda-forge/mkl-static/2024.2.2/download/linux-64/mkl-static-2024.2.2-ha770c72_17.conda",
