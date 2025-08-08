@@ -112,9 +112,12 @@ mkl_repo(
     name = "mkl",
     root_env_var = "MKLROOT",
     urls = [
-        # Core dynamic MKL runtime libraries (.so.2 .so)
-        # Includes libmkl_intel_lp64.so.2, libmkl_core.so.2, libmkl_sequential.so.2, etc.
-        "https://anaconda.org/conda-forge/mkl/2025.2.0/download/linux-64/mkl-2025.2.0-h901ac74_628.conda",
+        # Due to issues with dispatcher, its not possible to use dynamic mkl core in bazel
+        # There are conflicts between avx512/avx2/cm3/def symbols in cc_library
+        # TODO: investigate the issue.
+        # Core static MKL runtime libraries (.a)
+        # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.
+        "https://anaconda.org/conda-forge/mkl-static/2024.2.2/download/linux-64/mkl-static-2024.2.2-ha770c72_17.conda",
 
         # Header files for classic MKL (C/C++) interface(mkl_include_)
         # Contains "mkl.h" and related headers, not using oneAPI directory structure
@@ -161,8 +164,8 @@ mkl_repo(
         "https://anaconda.org/conda-forge/onemkl-sycl-stats/2025.2.0/download/linux-64/onemkl-sycl-stats-2025.2.0-haf5e11a_628.conda",
     ],
     sha256s = [
-        # Core dynamic MKL runtime libraries (.so.2 .so)
-        "758999601fa924a29e4967edc1e5ec257633e55caecf21f0eaa8daa52dfb5c4e",
+        # Core static MKL runtime libraries (.a)
+        "c34ecf9d3b7371b4e9b0dfd9cf55daedf2c884507a88d4fc3fe98bf862092b74",
         # Header files for classic MKL (C/C++) interface(mkl_include)
         "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
         # oneMKL SYCL C++ headers (DPC++/SYCL interface)
@@ -187,7 +190,7 @@ mkl_repo(
         "ebf80b94fad4483124c62686b00552b4024e4ec987c83483b4533902a7b854a4",
     ],
     strip_prefixes = [
-        "mkl-2025.2.0.data/data",
+        "mkl_static-2025.2.0.data/data",
         "mkl_include-2025.2.0.data/data",
         "onemkl_sycl_include-2025.2.0.data/data",
         "mkl_devel_dpcpp-2025.2.0.data/data",

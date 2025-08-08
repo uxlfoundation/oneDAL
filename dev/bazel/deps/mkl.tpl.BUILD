@@ -17,15 +17,21 @@ cc_library(
 cc_library(
     name = "mkl_core",
     srcs = [
-        "lib/libmkl_core.so",
-        "lib/libmkl_intel_ilp64.so",
-        "lib/libmkl_tbb_thread.so",
-        "lib/libmkl_core.so.2",
-        "lib/libmkl_intel_ilp64.so.2",
-        "lib/libmkl_tbb_thread.so.2",
-        "lib/libmkl_vml_avx512.so.2",
-        "lib/libmkl_vml_def.so.2",
-        "lib/libmkl_avx512.so.2",
+        "lib/libmkl_core.a",
+        "lib/libmkl_intel_ilp64.a",
+        "lib/libmkl_tbb_thread.a",
+    ],
+    linkopts = [
+        # The source libraries have circular symbol dependencies. To successfully build this cc_library,
+        # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
+        "-Wl,--start-group",
+        "$(location lib/libmkl_core.a)",
+        "$(location lib/libmkl_intel_ilp64.a)",
+        "$(location lib/libmkl_tbb_thread.a)",
+        "-Wl,--end-group",
+        "-lpthread",
+        "-lm",
+        "-ldl",
     ],
     deps = [
         ":headers",
