@@ -51,7 +51,6 @@ struct vertex_ranking_ops {
     using graph_t = Graph;
     using input_t = vertex_ranking_input<graph_t, task_t>;
     using result_t = vertex_ranking_result<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     template <typename Policy>
     auto operator()(const Policy &policy, const Descriptor &desc, input_t &input) const {
