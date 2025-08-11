@@ -159,7 +159,7 @@ jobs:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
       - name: Download oneDAL build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: __release_lnx
           path: ./__release_lnx
