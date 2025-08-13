@@ -299,21 +299,39 @@ template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDescending(size_t nFeatures, size_t nComponents,
                                                                                       algorithmFPType * eigenvectors, algorithmFPType * eigenvalues)
 {
+    const algorithmFPType eps = std::numeric_limits<algorithmFPType>::epsilon();
+
     for (size_t i = 0; i < nComponents / 2; i++)
     {
-        const algorithmFPType tmp        = eigenvalues[i];
-        eigenvalues[i]                   = eigenvalues[nComponents - 1 - i];
+        algorithmFPType tmp     = eigenvalues[i];
+        algorithmFPType tmp_rev = eigenvalues[nComponents - 1 - i];
+
+        if (std::fabs(tmp) < eps) tmp = algorithmFPType(0);
+        if (std::fabs(tmp_rev) < eps) tmp_rev = algorithmFPType(0);
+
+        eigenvalues[i]                   = tmp_rev;
         eigenvalues[nComponents - 1 - i] = tmp;
+    }
+
+    if (nComponents % 2 != 0)
+    {
+        size_t mid = nComponents / 2;
+        if (std::fabs(eigenvalues[mid]) < eps)
+        {
+            eigenvalues[mid] = algorithmFPType(0);
+        }
     }
 
     TArray<algorithmFPType, cpu> eigenvectorTmp(nFeatures);
     DAAL_CHECK_MALLOC(eigenvectorTmp.get());
+
     for (size_t i = 0; i < nComponents / 2; i++)
     {
         copyArray(nFeatures, eigenvectors + i * nFeatures, eigenvectorTmp.get());
         copyArray(nFeatures, eigenvectors + nFeatures * (nComponents - 1 - i), eigenvectors + i * nFeatures);
         copyArray(nFeatures, eigenvectorTmp.get(), eigenvectors + nFeatures * (nComponents - 1 - i));
     }
+
     return services::Status();
 }
 
