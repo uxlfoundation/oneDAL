@@ -39,14 +39,17 @@ ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
 }
 
 ONEDAL_EXPORT cpu_extension detect_top_cpu_extension() {
-#if defined(TARGET_ARM)
-    return detail::cpu_extension::sve;
-#elif defined(TARGET_RISCV64)
-    return detail::cpu_extension::rv64;
-#endif
     const auto daal_cpu = __daal_serv_cpu_detect(0);
-
     return from_daal_cpu_type(daal_cpu);
+}
+
+ONEDAL_EXPORT cpu_extension detect_onedal_cpu_extension() {
+    const auto daal_cpu = daal_enabled_cpu_detect();
+    return from_daal_cpu_type(daal_cpu);
+}
+
+uint64_t detect_cpu_features() {
+    return daal_serv_cpu_feature_detect();
 }
 
 } // namespace v1
