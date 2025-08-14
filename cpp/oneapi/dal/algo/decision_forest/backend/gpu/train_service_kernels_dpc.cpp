@@ -91,7 +91,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::get_split_node_count
     auto krn_local_size = preferable_sbg_size_;
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size, krn_local_size);
-
+    std::cout << "size here 94" << std::endl;
+    std::cout << krn_local_size * 1 * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -155,7 +156,8 @@ train_service_kernels<Float, Bin, Index, Task>::calculate_left_child_row_count_o
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(preferable_partition_groups_count_ * krn_local_size,
                                       krn_local_size);
-
+    std::cout << "size here 158" << std::endl;
+    std::cout << krn_local_size * preferable_partition_groups_count_ * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -278,7 +280,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(preferable_partition_groups_count_ * krn_local_size,
                                       krn_local_size);
-
+    std::cout << "size here 281" << std::endl;
+    std::cout << krn_local_size * preferable_partition_groups_count_ * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -406,7 +409,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::update_mdi_var_impor
 
     const sycl::nd_range<2> nd_range =
         bk::make_multiple_nd_range_2d({ krn_local_size, data_column_count }, { krn_local_size, 1 });
-
+    std::cout << "size here 410" << std::endl;
+    std::cout << krn_local_size * data_column_count * krn_local_size << std::endl;
     const Index node_prop_count =
         impl_const_t::node_prop_count_; // num of split attributes for node
     const Index leaf_mark = impl_const_t::leaf_mark_;
@@ -501,7 +505,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
 
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size * sbg_sum_count, krn_local_size);
-
+    std::cout << "size here 504" << std::endl;
+    std::cout << krn_local_size * sbg_sum_count * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -553,7 +558,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::count_absent_rows_fo
 
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size * sbg_sum_count, krn_local_size);
-
+    std::cout << "size here 556" << std::endl;
+    std::cout << krn_local_size * sbg_sum_count * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -612,7 +618,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::count_absent_rows_to
 
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size * sbg_sum_count, krn_local_size);
-
+    std::cout << "size here 615" << std::endl;
+    std::cout << krn_local_size * sbg_sum_count * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -668,7 +675,8 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::fill_oob_rows_list_b
 
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size * sbg_sum_count, krn_local_size);
-
+    std::cout << "size here 671" << std::endl;
+    std::cout << krn_local_size * sbg_sum_count * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {

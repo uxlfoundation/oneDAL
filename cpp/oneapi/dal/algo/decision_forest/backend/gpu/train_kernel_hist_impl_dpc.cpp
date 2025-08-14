@@ -413,7 +413,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
                                                    rng_engine,
                                                    0,
                                                    ctx.row_total_count_);
-
+        std::cout << "size here 416" << std::endl;
+        std::cout << node_count << std::endl;
         if (ctx.distr_mode_) {
             last_event = queue_.submit([&](sycl::handler& cgh) {
                 cgh.depends_on(generation_event);
@@ -452,6 +453,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::gen_initial_tree_or
                 row_count = std::min(ctx.selected_row_total_count_ - ctx.global_row_offset_,
                                      ctx.row_count_);
             }
+            std::cout << "size here 456" << std::endl;
+            std::cout << node_count << std::endl;
             last_event = queue_.submit([&](sycl::handler& cgh) {
                 cgh.parallel_for(sycl::range<1>(node_count), [=](sycl::id<1> node_idx) {
                     // Store count directly in node_list_host
@@ -836,6 +839,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
     const kernel_context<Float, Index, Task> krn_ctx(ctx);
 
     auto local_size = ctx.preferable_group_size_;
+    std::cout << "size here 842" << std::endl;
+    std::cout << node_count * local_size * 1 * local_size << std::endl;
     const sycl::nd_range<2> nd_range =
         bk::make_multiple_nd_range_2d({ local_size, node_count }, { local_size, 1 });
 
@@ -942,7 +947,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
     auto local_size = ctx.preferable_group_size_;
     const sycl::nd_range<2> nd_range =
         bk::make_multiple_nd_range_2d({ local_size, node_count }, { local_size, 1 });
-
+    std::cout << "size here 950" << std::endl;
+    std::cout << node_count * local_size * 1 * local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         local_accessor_rw_t<Float> local_buf(local_size, cgh);
@@ -1018,7 +1024,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_sum
     auto local_size = ctx.preferable_group_size_;
     const sycl::nd_range<2> nd_range =
         bk::make_multiple_nd_range_2d({ local_size, node_count }, { local_size, 1 });
-
+    std::cout << "size here 1027" << std::endl;
+    std::cout << node_count * local_size * local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         local_accessor_rw_t<Float> local_buf(local_size, cgh);
@@ -1088,7 +1095,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::fin_initial_imp(
     Float* imp_list_ptr = imp_data_list.imp_list_.get_mutable_data();
 
     const sycl::range<1> range{ de::integral_cast<std::size_t>(node_count) };
-
+    std::cout << "size here 1098" << std::endl;
+    std::cout << node_count << std::endl;
     auto last_event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(range, [=](sycl::id<1> node_idx) {
@@ -1416,7 +1424,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::do_node_split(
 
     auto local_size = bk::device_max_sg_size(queue_);
     const sycl::nd_range<1> nd_range = bk::make_multiple_nd_range_1d(local_size, local_size);
-
+    std::cout << "size here 1427" << std::endl;
+    std::cout << local_size * local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {

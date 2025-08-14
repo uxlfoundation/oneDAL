@@ -66,7 +66,8 @@ sycl::event indexed_features<Float, Bin, Index>::extract_column(
     auto column_count = column_count_;
 
     const sycl::range<1> range = de::integral_cast<std::size_t>(row_count_);
-
+    std::cout << "here 69" << std::endl;
+    std::cout << row_count_ << std::endl;
     auto event = queue_.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(range, [=](sycl::id<1> idx) {
@@ -95,7 +96,8 @@ sycl::event indexed_features<Float, Bin, Index>::collect_bin_borders(
     const Float* values = values_nd.get_data();
     const Index* bin_offsets = bin_offsets_nd.get_data();
     Float* bin_borders = bin_borders_nd.get_mutable_data();
-
+    std::cout << "here 99" << std::endl;
+    std::cout << max_bins << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(range, [=](sycl::id<1> idx) {
@@ -132,7 +134,8 @@ sycl::event indexed_features<Float, Bin, Index>::fill_bin_map(
     const Index* indices = indices_nd.get_data();
     const Float* bin_borders = bin_borders_nd.get_data();
     Bin* bins = bins_nd.get_mutable_data();
-
+    std::cout << "here 137" << std::endl;
+    std::cout << local_size * local_blocks_count << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         cgh.parallel_for(nd_range, [=](sycl::nd_item<1> item) {
@@ -367,7 +370,8 @@ sycl::event indexed_features<Float, Bin, Index>::store_column(
     Bin* full_data = full_data_nd.get_mutable_data();
 
     const sycl::range<1> range = de::integral_cast<std::size_t>(column_data_nd.get_dimension(0));
-
+    std::cout << "here 372" << std::endl;
+    std::cout << column_data_nd.get_dimension(0) << std::endl;
     auto event = queue_.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(range, [=](sycl::id<1> idx) {
