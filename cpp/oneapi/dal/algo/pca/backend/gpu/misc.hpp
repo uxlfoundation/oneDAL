@@ -218,8 +218,6 @@ auto flip_eigen_data(sycl::queue& queue,
     auto flipped_eigval_ptr = flipped_eigenvalues.get_mutable_data();
     auto flipped_eigvec_ptr = flipped_eigenvectors.get_mutable_data();
 
-    const Float eps = std::numeric_limits<Float>::epsilon();
-
     auto flip_event = queue.submit([&](sycl::handler& h) {
         const auto range = bk::make_range_2d(component_count, column_count + 1);
         h.depends_on(deps);
@@ -230,7 +228,7 @@ auto flip_eigen_data(sycl::queue& queue,
 
             if (col == 0 && row < component_count) {
                 Float val = eigval_ptr[(eigval_count - 1) - row];
-                if (sycl::fabs(val) < eps) {
+                if (val < 0) {
                     val = Float(0);
                 }
                 flipped_eigval_ptr[row] = val;

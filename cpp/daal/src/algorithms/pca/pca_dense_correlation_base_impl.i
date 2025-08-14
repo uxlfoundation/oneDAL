@@ -306,8 +306,8 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDesce
         algorithmFPType tmp     = eigenvalues[i];
         algorithmFPType tmp_rev = eigenvalues[nComponents - 1 - i];
 
-        if (std::fabs(tmp) < eps) tmp = algorithmFPType(0);
-        if (std::fabs(tmp_rev) < eps) tmp_rev = algorithmFPType(0);
+        if (tmp < 0) tmp = algorithmFPType(0);
+        if (tmp_rev < 0) tmp_rev = algorithmFPType(0);
 
         eigenvalues[i]                   = tmp_rev;
         eigenvalues[nComponents - 1 - i] = tmp;
@@ -316,7 +316,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDesce
     if (nComponents % 2 != 0)
     {
         size_t mid = nComponents / 2;
-        if (std::fabs(eigenvalues[mid]) < eps)
+        if (eigenvalues[mid] < 0)
         {
             eigenvalues[mid] = algorithmFPType(0);
         }
