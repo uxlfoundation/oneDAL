@@ -44,7 +44,7 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_NO_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_NO_GETENV": "",
         "#cmakedefine CATCH_CONFIG_NO_GLOBAL_NEXTAFTER": "",
-        "#cmakedefine CATCH_CONFIG_NO_POSIX_SIGNALS": "",
+        "#cmakedefine CATCH_CONFIG_NO_POSIX_SIGNALS": "#define CATCH_CONFIG_NO_POSIX_SIGNALS",
         "#cmakedefine CATCH_CONFIG_NO_USE_ASYNC": "",
         "#cmakedefine CATCH_CONFIG_NO_EXPERIMENTAL_STATIC_ANALYSIS_SUPPORT": "",
         "#cmakedefine CATCH_CONFIG_NO_WCHAR": "",
