@@ -92,6 +92,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::get_split_node_count
     const sycl::nd_range<1> nd_range =
         bk::make_multiple_nd_range_1d(krn_local_size, krn_local_size);
     std::cout << "size here 94" << std::endl;
+
     std::cout << krn_local_size * 1 * krn_local_size << std::endl;
     auto event = queue_.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
