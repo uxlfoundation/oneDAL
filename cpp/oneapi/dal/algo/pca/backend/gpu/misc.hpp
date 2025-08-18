@@ -118,6 +118,23 @@ auto syevd_computation(sycl::queue& queue,
     return std::make_tuple(eigenvalues, syevd_event);
 }
 
+///  Prepares eigenvectors from the gesvd result in the required order.
+///  Optionally flips the sign of each eigenvector so that the entry with
+///  largest absolute value is positive.
+/// 
+/// @tparam Float Floating-point type used to perform computations
+///
+/// @param[in] queue           The SYCL queue
+/// @param[in] eigenvectors    The input eigenvectors (2D)
+/// @param[in] component_count The number of components (rows) to keep
+/// @param[in] flip_sign       If true, flips eigenvector signs so that the
+///                            dominant entry is positive; if false, leaves
+///                            eigenvectors unchanged
+/// @param[in] deps            Events indicating availability of the data for
+///                            reading or writing
+///
+/// @return 2D ndarray on device containing the first `component_count`
+///         processed eigenvectors
 template <typename Float>
 auto prepare_eigenvectors_svd(sycl::queue& queue,
                               pr::ndview<Float, 2>& eigenvectors,
@@ -132,23 +149,25 @@ auto prepare_eigenvectors_svd(sycl::queue& queue,
     auto eigenvectors_host = eigenvectors.to_host(queue, deps);
     Float* data = eigenvectors_host.get_mutable_data();
 
-    for (std::int64_t i = 0; i < row_count; i++) {
-        Float* row = data + i * column_count;
+    if (flip_sign) {
+        for (std::int64_t i = 0; i < row_count; i++) {
+            Float* row = data + i * column_count;
 
-        Float max_val = row[0];
-        Float abs_max = std::abs(row[0]);
-        for (std::int64_t j = 1; j < column_count; j++) {
-            const Float val = row[j];
-            const Float abs_val = std::abs(val);
-            if (abs_val > abs_max) {
-                abs_max = abs_val;
-                max_val = val;
+            Float max_val = row[0];
+            Float abs_max = std::abs(row[0]);
+            for (std::int64_t j = 1; j < column_count; j++) {
+                const Float val = row[j];
+                const Float abs_val = std::abs(val);
+                if (abs_val > abs_max) {
+                    abs_max = abs_val;
+                    max_val = val;
+                }
             }
-        }
 
-        if (max_val < 0) {
-            for (std::int64_t j = 0; j < column_count; j++) {
-                row[j] = -row[j];
+            if (max_val < 0) {
+                for (std::int64_t j = 0; j < column_count; j++) {
+                    row[j] = -row[j];
+                }
             }
         }
     }
@@ -173,16 +192,6 @@ auto prepare_eigenvectors_svd(sycl::queue& queue,
 }
 
 ///  A wrapper that flips 2d array of eigenvectors from the syevd result in necessary order
-///
-/// @tparam Float Floating-point type used to perform computations
-///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  data  The input eigenvectors in ascending order of size `column_count` x `column_count`
-/// @param[in]  component_count  The number of `component_count` of the descriptor
-/// @param[in]  deps  Events indicating availability of the `data` for reading or writing
-///
-/// @return The resulting 2d array of eigenvectors
-/// Flips both eigenvalues and eigenvectors in descending order in a single parallel operation
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
@@ -691,7 +700,7 @@ template <typename Float>
 auto compute_variances_device(sycl::queue& queue,
                               const pr::ndview<Float, 2>& data,
                               const bk::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_means, queue);
+    ONEDAL_PROFILER_TASK(compute_variances, queue);
     const std::int64_t row_count = data.get_dimension(0);
     const std::int64_t column_count = data.get_dimension(1);
 

@@ -192,7 +192,7 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // SYEVR branch
     // In this case, we compute only nComponents eigenvectors and then sort them in descending order
     // inside the 'computeEigenvectorsInplaceSyevr' function
-    if (nComponents < 0.5 * nFeatures)
+    if (nComponents < 0.25 * nFeatures)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, fullEigenvaluesArray);
         DAAL_CHECK_STATUS_VAR(s);
