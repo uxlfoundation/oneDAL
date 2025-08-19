@@ -47,7 +47,7 @@ else
 endif
 
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
-                    -Werror -Wreturn-type
+                    -Werror -Wreturn-type -fopenmp-simd
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -m64

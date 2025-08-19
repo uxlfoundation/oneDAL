@@ -64,30 +64,9 @@ services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTa
         algorithmFPType * rr = r + k1 * blockSizeDefault;
 
         algorithmFPType buf[blockSizeDefault * blockSizeDefault];
-        algorithmFPType alpha = 1.0, beta = 0.0;
-        char transa = 'T', transb = 'N';
-        DAAL_INT m = blockSize1, k = p, nn = blockSize1;
-        DAAL_INT lda = k, ldb = p, ldc = m;
 
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &nn, &k, &alpha, x, &lda, x, &ldb, &beta, buf, &ldc);
-
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            if (buf[i * blockSize1 + i] > (algorithmFPType)0.0)
-            {
-                buf[i * blockSize1 + i] = (algorithmFPType)1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(buf[i * blockSize1 + i]);
-            }
-        }
-
-        for (size_t i = 0; i < blockSize1; i++)
-        {
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = i + 1; j < blockSize1; j++)
-            {
-                buf[i * blockSize1 + j] = 1.0 - buf[i * blockSize1 + j] * buf[i * blockSize1 + i] * buf[j * blockSize1 + j];
-            }
-        }
+        /* compute upper triangle of diagonal block of the cosine distance elements */
+        computeDiagonalBlock<algorithmFPType, cpu, true>(blockSize1, p, x, buf);
 
         for (size_t i = 0; i < blockSize1; i++)
         {
