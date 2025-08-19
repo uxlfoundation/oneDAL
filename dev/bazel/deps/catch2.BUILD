@@ -1,3 +1,16 @@
+# This BUILD.bazel file is based on the original from the Catch2 project.
+# Catch2 is licensed under the Boost Software License 1.0 (BSL-1.0).
+#
+# Original source: https://github.com/catchorg/Catch2
+# License text: see LICENSE.MIT in this repository
+#
+# Modifications for oneDAL:
+#   - Adjusted substitutions specific for oneDAL (e.g. enabled CATCH_CONFIG_NO_POSIX_SIGNALS)
+#   - Added comments related to enabling/disabling macros
+#   - Removed `license()` rule and `package()` directive to avoid dependency on `rules_license`
+#
+# SPDX-License-Identifier: BSL-1.0
+
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 
 # oneDAL verison of catch2 bazel build file
@@ -19,7 +32,9 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_CPP17_VARIANT": "",
         "#cmakedefine CATCH_CONFIG_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS_CUSTOM_HANDLER": "",
-        "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS": "",
+        # Disables unexpected exceptions handing in Catch2.
+        # It is easier to debug exception via GDB if there is handler.
+        "#cmakedefine CATCH_CONFIG_DISABLE_EXCEPTIONS": "#define CATCH_CONFIG_DISABLE_EXCEPTIONS",
         "#cmakedefine CATCH_CONFIG_DISABLE_STRINGIFICATION": "",
         "#cmakedefine CATCH_CONFIG_DISABLE": "",
         "#cmakedefine CATCH_CONFIG_ENABLE_ALL_STRINGMAKERS": "",
@@ -44,6 +59,11 @@ expand_template(
         "#cmakedefine CATCH_CONFIG_NO_DEPRECATION_ANNOTATIONS": "",
         "#cmakedefine CATCH_CONFIG_NO_GETENV": "",
         "#cmakedefine CATCH_CONFIG_NO_GLOBAL_NEXTAFTER": "",
+        # CATCH_CONFIG_POSIX_SIGNAL enables handling of POSIX signals.
+        # For unknown reason user-defined handlers for signals
+        # (see https://en.wikipedia.org/wiki/C_signal_handling)
+        # catches SIGSEGV signal when USM pointer is accessed on host.
+        # To make USM work, we disable signal handling in Catch2.
         "#cmakedefine CATCH_CONFIG_NO_POSIX_SIGNALS": "#define CATCH_CONFIG_NO_POSIX_SIGNALS",
         "#cmakedefine CATCH_CONFIG_NO_USE_ASYNC": "",
         "#cmakedefine CATCH_CONFIG_NO_EXPERIMENTAL_STATIC_ANALYSIS_SUPPORT": "",
