@@ -59,6 +59,7 @@ struct train_parameters_impl : public base {
     std::int64_t cpu_max_cols_batched = 4'096l;
     std::int64_t cpu_small_rows_threshold = 10'000l;
     std::int64_t cpu_small_rows_max_cols_batched = 1'024l;
+    std::int64_t cpu_grain_size = 10l;
 };
 
 template <typename Task>
@@ -112,6 +113,16 @@ std::int64_t train_parameters<Task>::get_cpu_small_rows_max_cols_batched() const
 template <typename Task>
 void train_parameters<Task>::set_cpu_small_rows_max_cols_batched_impl(std::int64_t val) {
     impl_->cpu_small_rows_max_cols_batched = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_grain_size() const {
+    return impl_->cpu_grain_size;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_grain_size_impl(std::int64_t val) {
+    impl_->cpu_grain_size = val;
 }
 
 template class ONEDAL_EXPORT train_parameters<task::regression>;
