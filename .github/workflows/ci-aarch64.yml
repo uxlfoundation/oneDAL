@@ -58,23 +58,23 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@6b3e96a9bc9976b8b546346fdd102effedae0ca8 # v4.0.3
+        uses: lukka/get-cmake@f3273e0bcecf2f2c0d3430de21bf02ab2752c47d # v4.1.0
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Checkout oneTBB
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
@@ -140,23 +140,23 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@6b3e96a9bc9976b8b546346fdd102effedae0ca8 # v4.0.3
+        uses: lukka/get-cmake@f3273e0bcecf2f2c0d3430de21bf02ab2752c47d # v4.1.0
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
 
       - name: Checkout oneDAL
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Checkout oneTBB
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: uxlfoundation/oneTBB
           ref: ${{ env.TBB_VERSION }}
           path: ${{ github.workspace }}/__work/onetbb-src
 
       - name: Checkout openBLAS
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           repository: OpenMathLib/OpenBLAS
           ref: ${{ env.OPENBLAS_VERSION }}
