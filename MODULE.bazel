@@ -106,7 +106,14 @@ dpl_repo(
         "onedpl_devel-2022.7.1.data/data",
     ],
 )
-   
+
+# oneMKL dependencies for Bazel build.
+#
+# NOTE:
+# PyPI packages provide only the versioned .so files (e.g., libmkl_blas_sycl.so.5),
+# but for building and linking we also need the unversioned symlinks (e.g., libmkl_blas_sycl.so).
+# Anaconda packages provide both, so we use them to ensure proper dynamic linking.
+#
 mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
 mkl_repo(
     name = "mkl",
