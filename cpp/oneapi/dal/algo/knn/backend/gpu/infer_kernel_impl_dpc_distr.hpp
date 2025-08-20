@@ -194,6 +194,7 @@ public:
                            pr::ndview<idx_t, 2>& inp_indices,
                            pr::ndview<Float, 2>& inp_distances,
                            const bk::event_vector& deps = {}) {
+        queue_.wait_and_throw();
         ONEDAL_PROFILER_TASK(query_loop.callback, queue_);
         sycl::event copy_actual_dist_event, copy_current_dist_event, copy_actual_indc_event,
             copy_current_indc_event, copy_actual_resp_event, copy_current_resp_event;
@@ -206,25 +207,33 @@ public:
         ONEDAL_ASSERT(inp_distances.get_dimension(0) == len);
         ONEDAL_ASSERT(inp_distances.get_dimension(1) == k_neighbors_);
 
-        auto current_min_resp_dest = part_responses_.get_col_slice(k_neighbors_, 2 * k_neighbors_)
-                                         .get_row_slice(first, last);
-
-        copy_current_resp_event =
-            pr::select_indexed(queue_, inp_indices, train_responses_, current_min_resp_dest, deps);
+        pr::ndview<res_t, 2> current_min_resp_dest;
+        pr::ndview<res_t, 2> min_resp_dest;
+        if (result_options_.test(result_options::responses)) {
+            current_min_resp_dest = part_responses_.get_col_slice(k_neighbors_, 2 * k_neighbors_)
+                                        .get_row_slice(first, last);
+            copy_current_resp_event = pr::select_indexed(queue_,
+                                                         inp_indices,
+                                                         train_responses_,
+                                                         current_min_resp_dest,
+                                                         deps);
+            min_resp_dest = intermediate_responses_.get_row_slice(first, last);
+        }
+        queue_.wait_and_throw();
 
         const pr::ndshape<2> typical_blocking(last - first, 2 * k_neighbors_);
         auto select = selc_t(queue_, typical_blocking, k_neighbors_);
+        queue_.wait_and_throw();
 
         auto min_dist_dest = distances_.get_row_slice(first, last);
         auto min_indc_dest = indices_.get_row_slice(first, last);
-        auto min_resp_dest = intermediate_responses_.get_row_slice(first, last);
 
         // add global offset value to input indices
         ONEDAL_ASSERT(global_index_offset_ != -1);
-        auto treat_event = pr::treat_indices(queue_,
-                                             inp_indices,
-                                             global_index_offset_,
-                                             { copy_current_resp_event });
+        bk::event_vector ndeps = deps;
+        ndeps.push_back(copy_current_resp_event);
+        auto treat_event = pr::treat_indices(queue_, inp_indices, global_index_offset_, ndeps);
+        queue_.wait_and_throw();
 
         auto actual_min_dist_copy_dest =
             part_distances_.get_col_slice(0, k_neighbors_).get_row_slice(first, last);
@@ -234,6 +243,7 @@ public:
             pr::copy(queue_, actual_min_dist_copy_dest, min_dist_dest, { treat_event });
         copy_current_dist_event =
             pr::copy(queue_, current_min_dist_dest, inp_distances, { treat_event });
+        queue_.wait_and_throw();
 
         auto actual_min_indc_copy_dest =
             part_indices_.get_col_slice(0, k_neighbors_).get_row_slice(first, last);
@@ -243,13 +253,16 @@ public:
             pr::copy(queue_, actual_min_indc_copy_dest, min_indc_dest, { treat_event });
         copy_current_indc_event =
             pr::copy(queue_, current_min_indc_dest, inp_indices, { treat_event });
+        queue_.wait_and_throw();
+        if (result_options_.test(result_options::responses)) {
+            auto actual_min_resp_copy_dest =
+                part_responses_.get_col_slice(0, k_neighbors_).get_row_slice(first, last);
+            copy_actual_resp_event =
+                pr::copy(queue_, actual_min_resp_copy_dest, min_resp_dest, { treat_event });
+            queue_.wait_and_throw();
+        }
 
-        auto actual_min_resp_copy_dest =
-            part_responses_.get_col_slice(0, k_neighbors_).get_row_slice(first, last);
-        copy_actual_resp_event =
-            pr::copy(queue_, actual_min_resp_copy_dest, min_resp_dest, { treat_event });
-
-        sycl::event select_event;
+        sycl::event select_event, select_resp_event;
         {
             ONEDAL_PROFILER_TASK(query_loop.selection, queue_);
             auto kselect_block = part_distances_.get_row_slice(first, last);
@@ -264,28 +277,39 @@ public:
                                     copy_current_indc_event,
                                     copy_actual_resp_event,
                                     copy_current_resp_event });
+            queue_.wait_and_throw();
         }
-        auto select_resp_event = select_indexed(queue_,
-                                                min_indc_dest,
-                                                part_responses_.get_row_slice(first, last),
-                                                min_resp_dest,
-                                                { select_event });
-        auto select_indc_event = select_indexed(queue_,
-                                                min_indc_dest,
-                                                part_indices_.get_row_slice(first, last),
-                                                min_indc_dest,
-                                                { select_resp_event });
+        if (result_options_.test(result_options::responses)) {
+            select_resp_event = select_indexed(queue_,
+                                               min_indc_dest,
+                                               part_responses_.get_row_slice(first, last),
+                                               min_resp_dest,
+                                               { select_event });
+            queue_.wait_and_throw();
+        }
+        sycl::event select_indc_event = select_indexed(queue_,
+                                                       min_indc_dest,
+                                                       part_indices_.get_row_slice(first, last),
+                                                       min_indc_dest,
+                                                       { select_event, select_resp_event });
+        queue_.wait_and_throw();
         if (last_iteration_) {
             sycl::event copy_sqrt_event;
             if (this->compute_sqrt_) {
                 copy_sqrt_event =
                     copy_with_sqrt(queue_, min_dist_dest, min_dist_dest, { select_indc_event });
+                queue_.wait_and_throw();
             }
-            auto final_event = this->output_responses(bounds,
-                                                      indices_,
-                                                      distances_,
-                                                      { select_indc_event, copy_sqrt_event });
-            return final_event;
+            if (result_options_.test(result_options::responses)) {
+                return this->output_responses(bounds,
+                                              indices_,
+                                              distances_,
+                                              { select_indc_event, copy_sqrt_event });
+            }
+            queue_.wait_and_throw();
+            if (this->compute_sqrt_) {
+                return copy_sqrt_event;
+            }
         }
         return select_indc_event;
     }
@@ -443,6 +467,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                             pr::ndview<RespT, 2>& part_responses,
                             pr::ndview<RespT, 2>& intermediate_responses,
                             const bk::event_vector& deps = {}) {
+    queue.wait_and_throw();
     using res_t = response_t<Task, Float>;
     constexpr auto torder = pr::ndorder::c;
 
@@ -485,6 +510,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     auto rank_count = comm.get_rank_count();
     auto block_size = propose_distributed_block_size<Float>(queue, fcount);
     auto node_sample_counts = pr::ndarray<std::int64_t, 1>::empty({ rank_count });
+    queue.wait_and_throw();
 
     comm.allgather(tcount, node_sample_counts.flatten()).wait();
 
@@ -526,6 +552,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     callback.set_part_indices(part_indices);
 
     auto next_event = callback.reset_dists_inds(deps);
+    queue.wait_and_throw();
 
     if constexpr (std::is_same_v<Task, task::classification>) {
         if (desc.get_result_options().test(result_options::responses) &&
@@ -574,16 +601,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     auto relative_block_offset = std::distance(nodes.begin(), it);
     ONEDAL_ASSERT(it != nodes.end());
 
+    pr::ndarray<res_t, 2> current_tresps;
+    queue.wait_and_throw();
+
     for (std::int64_t relative_block_idx = 0; relative_block_idx < block_count;
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
         train_block_queue.pop_front();
         ONEDAL_ASSERT(current_block.has_data());
-        auto current_tresps = tresps_queue.front();
-        ONEDAL_ASSERT(current_tresps.has_data());
-        auto current_tresps_1d =
-            pr::ndview<res_t, 1>::wrap(current_tresps.get_data(), { current_tresps.get_count() });
-        tresps_queue.pop_front();
 
         auto absolute_block_idx = (relative_block_idx + relative_block_offset) % block_count;
         ONEDAL_ASSERT(absolute_block_idx + 1 < bounds_size);
@@ -594,10 +619,21 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         ONEDAL_ASSERT(sc >= actual_rows_in_block);
         auto curr_k = std::min(actual_rows_in_block, kcount);
         auto actual_current_block = current_block.get_row_slice(0, actual_rows_in_block);
-        auto actual_current_tresps = current_tresps_1d.get_slice(0, actual_rows_in_block);
+        queue.wait_and_throw();
+
+        if (ropts.test(result_options::responses)) {
+            current_tresps = tresps_queue.front();
+            ONEDAL_ASSERT(current_tresps.has_data());
+            auto current_tresps_1d = pr::ndview<res_t, 1>::wrap(current_tresps.get_data(),
+                                                                { current_tresps.get_count() });
+            tresps_queue.pop_front();
+            auto actual_current_tresps = current_tresps_1d.get_slice(0, actual_rows_in_block);
+            callback.set_train_responses(actual_current_tresps);
+        }
+        queue.wait_and_throw();
 
         callback.set_global_index_offset(boundaries.at(absolute_block_idx));
-        callback.set_train_responses(actual_current_tresps);
+
         if (relative_block_idx == block_count - 1) {
             callback.set_last_iteration(true);
         }
@@ -607,6 +643,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
 
             const dst_t dist{ queue };
             const search_t search{ queue, actual_current_block, tbcount, dist };
+            queue.wait_and_throw();
             next_event = search(query, callback, qbcount, curr_k, { next_event });
         }
 
@@ -616,6 +653,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
 
             const dst_t dist{ queue };
             const search_t search{ queue, actual_current_block, tbcount, dist };
+            queue.wait_and_throw();
             next_event = search(query, callback, qbcount, curr_k, { next_event });
         }
 
@@ -627,6 +665,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
 
             const dst_t dist{ queue };
             const search_t search{ queue, actual_current_block, tbcount, dist };
+            queue.wait_and_throw();
             next_event = search(query, callback, qbcount, curr_k, { next_event });
         }
         else if (is_minkowski_distance) {
@@ -636,9 +675,11 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
 
             const dst_t dist{ queue, met_t(distance_impl->get_degree()) };
             const search_t search{ queue, actual_current_block, tbcount, dist };
+            queue.wait_and_throw();
             next_event = search(query, callback, qbcount, curr_k, { next_event });
         }
 
+        queue.wait_and_throw();
         if (relative_block_idx < block_count - 1) {
             ONEDAL_PROFILER_TASK(distributed_loop.sendrecv_replace, queue);
             auto send_count = current_block.get_count();
@@ -648,15 +689,20 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                                                        current_block.get_mutable_data(),
                                                        send_count,
                                                        { next_event });
+            queue.wait_and_throw();
             comm.sendrecv_replace(send_train_block, prev_node, next_node).wait();
             train_block_queue.emplace_back(current_block);
-            auto send_resps_block = array<res_t>::wrap(queue,
-                                                       current_tresps.get_mutable_data(),
-                                                       current_tresps.get_count(),
-                                                       { next_event });
-            comm.sendrecv_replace(send_resps_block, prev_node, next_node).wait();
-            tresps_queue.emplace_back(current_tresps);
+            if (ropts.test(result_options::responses)) {
+                auto send_resps_block = array<res_t>::wrap(queue,
+                                                           current_tresps.get_mutable_data(),
+                                                           current_tresps.get_count(),
+                                                           { next_event });
+                queue.wait_and_throw();
+                comm.sendrecv_replace(send_resps_block, prev_node, next_node).wait();
+                tresps_queue.emplace_back(current_tresps);
+            }
         }
+        queue.wait_and_throw();
     }
 
     return next_event;
