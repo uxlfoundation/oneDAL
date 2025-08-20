@@ -27,6 +27,15 @@ CORE.SERV.COMPILER.gnu = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
 
+
+LINKERS_SUPPORTED := bfd gold lld
+
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
@@ -37,6 +46,9 @@ ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
 else
     -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
 endif
+
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
 -Zl.gnu =
 -DEBC.gnu = -g

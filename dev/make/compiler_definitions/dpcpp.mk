@@ -27,11 +27,26 @@ CORE.SERV.COMPILER.dpcpp = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
 
 ifeq ($(OS_is_win),true)
     ifeq ($(filter $(OPTFLAG),Ob Od Oi Os Ot Ox Oy),$(OPTFLAG))
@@ -63,10 +78,12 @@ COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
                      -Wno-deprecated-declarations -fsycl-device-code-split=per_kernel
 
-link.dynamic.lnx.dpcpp = icpx -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+
+link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
-link.dynamic.win.dpcpp = icx -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \
