@@ -121,7 +121,7 @@ auto syevd_computation(sycl::queue& queue,
 ///  Prepares eigenvectors from the gesvd result in the required order.
 ///  Optionally flips the sign of each eigenvector so that the entry with
 ///  largest absolute value is positive.
-/// 
+///
 /// @tparam Float Floating-point type used to perform computations
 ///
 /// @param[in] queue           The SYCL queue
