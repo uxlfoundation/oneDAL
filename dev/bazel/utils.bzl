@@ -54,7 +54,7 @@ def _filter_out(lst_to_filter, filter):
 def _add_prefix(prefix, lst):
     return [ prefix + str(x) for x in lst ]
 
-def _substitude(string, substitutions={}):
+def _substitute(string, substitutions={}):
     string_fmt = string
     for key, value in substitutions.items():
         string_fmt = string_fmt.replace(key, value)
@@ -99,7 +99,7 @@ utils = struct(
     normalize_dict = _normalize_dict,
     filter_out = _filter_out,
     add_prefix = _add_prefix,
-    substitude = _substitude,
+    substitute = _substitute,
     match_substring = _match_substring,
     remove_substring = _remove_substring,
     warn = _warn,
