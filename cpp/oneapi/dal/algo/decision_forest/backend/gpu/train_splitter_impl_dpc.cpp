@@ -134,7 +134,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
 
     const auto nd_range =
         bk::make_multiple_nd_range_2d({ local_size, node_in_block_count }, { local_size, 1 });
-
+    std::cout << "size here 137" << std::endl;
+    std::cout << local_size * node_in_block_count * local_size << std::endl;
     sycl::event last_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(deps);
         local_accessor_rw_t<hist_type_t> local_hist_buf(hist_size, cgh);
@@ -540,7 +541,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
     const Index local_size = bk::device_max_wg_size(queue);
     const auto nd_range =
         bk::make_multiple_nd_range_3d({ node_count, ftr_count, local_size }, { 1, 1, local_size });
-
+    std::cout << "size here 544" << std::endl;
+    std::cout << node_count * ftr_count * local_size * local_size << std::endl;
     const auto best_ftr_splits =
         pr::ndarray<split_scalar_t, 1>::empty(queue, { node_count * ftr_count }, alloc::device);
     const auto splits_ptr = best_ftr_splits.get_mutable_data();
@@ -690,6 +692,8 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
     // Merging kernel: selects best split among all features.
     const auto merge_range =
         bk::make_multiple_nd_range_2d({ node_count, local_size }, { 1, local_size });
+    std::cout << "size here 695" << std::endl;
+    std::cout << node_count * 1 * local_size * local_size << std::endl;
     last_event = queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on({ last_event });
         local_accessor_rw_t<Index> ftr_ids(local_size, cgh);
