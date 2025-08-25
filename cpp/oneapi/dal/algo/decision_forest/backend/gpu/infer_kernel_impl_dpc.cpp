@@ -126,6 +126,7 @@ infer_kernel_impl<Float, Index, Task>::predict_by_tree_group_weighted(
     const Float* cls_prb_list_ptr = class_proba_list.get_data();
 
     Index obs_tree_group_response_count = ctx.class_count * ctx.tree_in_group_count;
+    std::cout << "overflow check 1" << std::endl;
     de::check_mul_overflow(ctx.row_count, obs_tree_group_response_count);
     auto [obs_response_list, zero_obs_response_event] =
         pr::ndarray<Float, 1>::zeros(queue_,
@@ -233,6 +234,7 @@ infer_kernel_impl<Float, Index, Task>::predict_by_tree_group(const infer_context
     Index obs_tree_group_response_count = ctx.tree_in_group_count;
     if constexpr (is_classification) {
         obs_tree_group_response_count = ctx.class_count * ctx.tree_in_group_count;
+        std::cout << "overflow check 2" << std::endl;
         de::check_mul_overflow(ctx.row_count, obs_tree_group_response_count);
     }
     auto [obs_response_list, zero_obs_response_event] =
@@ -325,6 +327,7 @@ infer_kernel_impl<Float, Index, Task>::reduce_tree_group_response(
     if constexpr (is_classification) {
         ONEDAL_ASSERT(obs_response_list.get_count() ==
                       ctx.row_count * ctx.class_count * ctx.tree_in_group_count);
+        std::cout << "overflow check 3" << std::endl;
         de::check_mul_overflow(ctx.class_count, ctx.row_count);
         response_count = ctx.row_count * ctx.class_count;
     }

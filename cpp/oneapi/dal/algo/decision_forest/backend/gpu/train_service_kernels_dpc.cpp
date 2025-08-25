@@ -140,7 +140,7 @@ train_service_kernels<Float, Bin, Index, Task>::calculate_left_child_row_count_o
     ONEDAL_ASSERT(data.get_count() == ctx.row_count_ * ctx.column_count_);
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
     ONEDAL_ASSERT(tree_order.get_count() == ctx.tree_in_block_ * ctx.selected_row_total_count_);
-
+    std::cout << "overflow check 28" << std::endl;
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
     const Index node_prop_count =
@@ -247,7 +247,7 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::do_level_partition_b
     ONEDAL_ASSERT(node_list.get_count() == node_count * impl_const_t::node_prop_count_);
     ONEDAL_ASSERT(tree_order.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
     ONEDAL_ASSERT(tree_order_buf.get_count() == ctx.selected_row_count_ * ctx.tree_count_);
-
+    std::cout << "overflow check 29" << std::endl;
     const Index total_block_count = de::check_mul_overflow(node_count, partition_max_block_count_);
 
     // node_aux_list is auxilliary buffer for synchronization of left and right boundaries of blocks (elems_to_left_count, elems_to_right_count)
@@ -497,7 +497,9 @@ sycl::event train_service_kernels<Float, Bin, Index, Task>::mark_present_rows(
     Index krn_local_size,
     Index sbg_sum_count,
     const bk::event_vector& deps) {
+    std::cout << "overflow check 30" << std::endl;
     ONEDAL_ASSERT(row_list.get_count() == de::check_mul_overflow(global_row_count, node_count));
+    std::cout << "overflow check 31" << std::endl;
     ONEDAL_ASSERT(row_buffer.get_count() == de::check_mul_overflow(block_row_count, node_count));
 
     const Index* rows_list_ptr = row_list.get_data();

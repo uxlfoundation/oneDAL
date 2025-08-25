@@ -306,17 +306,21 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
         max_node_count_per_tree *= 2;
     }
     // node_lists for one tree
+    std::cout << "overflow check 8" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Index) * impl_const_t::node_prop_count_,
                                max_node_count_per_tree);
     // node_vs_tree_map_list structure
+    std::cout << "overflow check 9" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Index), max_node_count_per_tree);
     // Selected features and random bin tresholds
+    std::cout << "overflow check 10" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow((sizeof(Index) + sizeof(Float)) * ctx.selected_ftr_count_,
                                max_node_count_per_tree);
     // Impurity data for each node
+    std::cout << "overflow check 11" << std::endl;
     required_mem_size_for_one_tree +=
         de::check_mul_overflow(sizeof(Float) * impl_const_t::node_imp_prop_count_,
                                max_node_count_per_tree);
@@ -330,7 +334,8 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
     if (ctx.mdi_required_) {
         required_mem_size_for_one_tree += sizeof(Float) * max_node_count_per_tree;
     }
-
+    //tmp workaround
+    required_mem_size_for_one_tree *= 4;
     ctx.tree_in_block_ = de::integral_cast<Index>(available_mem_size_for_tree_block /
                                                   required_mem_size_for_one_tree);
     if (ctx.tree_in_block_ <= 0) {
@@ -353,6 +358,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::init_params(train_context_
 
 template <typename Float, typename Bin, typename Index, typename Task>
 void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const train_context_t& ctx) {
+    std::cout << "overflow check 12" << std::endl;
     de::check_mul_overflow(ctx.selected_row_total_count_, ctx.tree_in_block_);
 
     // main tree order and auxilliary one are used for partitioning
@@ -367,6 +373,7 @@ void train_kernel_hist_impl<Float, Bin, Index, Task>::allocate_buffers(const tra
                                      alloc::device);
     if (ctx.oob_required_) {
         // oob_per_obs_list contains class_count number of counters for all out of bag observations for all trees
+        std::cout << "overflow check 20" << std::endl;
         de::check_mul_overflow(ctx.row_count_, ctx.class_count_);
         auto [oob_per_obs_list, event] =
             pr::ndarray<hist_type_t, 1>::zeros(queue_,
@@ -486,7 +493,7 @@ train_kernel_hist_impl<Float, Bin, Index, Task>::gen_feature_list(
     ONEDAL_PROFILER_TASK(gen_feature_list, queue_);
 
     ONEDAL_ASSERT(node_vs_tree_map_list.get_count() == node_count);
-
+    std::cout << "overflow check 21" << std::endl;
     de::check_mul_overflow((node_count + 1), ctx.selected_ftr_count_);
 
     auto selected_features_com =
@@ -1878,8 +1885,9 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
         imp_data_mng_t imp_data_holder(queue_, ctx);
         // initilizing imp_list and class_hist_list (for classification)
         imp_data_holder.init_new_level(node_count);
-
+        std::cout << "overflow check 22" << std::endl;
         de::check_mul_overflow(node_count, impl_const_t::node_prop_count_);
+        std::cout << "overflow check 23" << std::endl;
         de::check_mul_overflow(node_count, impl_const_t::node_imp_prop_count_);
         auto node_vs_tree_map_list_host = pr::ndarray<Index, 1>::empty({ node_count });
         auto level_node_list_init_host =
@@ -1996,7 +2004,7 @@ train_result<Task> train_kernel_hist_impl<Float, Bin, Index, Task>::operator()(
             if (node_count_new) {
                 //there are split nodes -> next level is required
                 node_count_new *= 2;
-
+                std::cout << "overflow check 25" << std::endl;
                 de::check_mul_overflow(node_count_new, impl_const_t::node_prop_count_);
                 auto node_list_new = pr::ndarray<Index, 1>::empty(
                     queue_,
