@@ -61,7 +61,7 @@ substitutions = [
 
 # sys.path.insert(0, path_relative_to_repo_root('source/elements/oneDAL'))
 
-extensions = ['sphinx-prompt',
+extensions = ['sphinx_prompt',
               'sphinx_substitution_extensions',
               'sphinx.ext.extlinks',
               'sphinx_tabs.tabs',
@@ -96,7 +96,6 @@ extlinks = {
 html_static_path = ['_static']
 
 html_theme = 'sphinx_book_theme'
-html_logo = '_static/uxl-foundation-logo-horizontal-color.png'
 html_favicon = '_static/favicons.png'
 
 # Theme options
@@ -108,7 +107,9 @@ html_theme_options = {
     'repository_branch': 'master',
     "logo": {
         "text": "oneDAL Documentation",
-    }
+        "image_light": "_static/uxl-foundation-logo-horizontal-color.png",
+        "image_dark": "_static/uxl-foundation-logo-horizontal-white.png",
+    },
 }
 
 
@@ -172,6 +173,16 @@ nitpick_ignore = [
     # chebyshev_distance
     ('cpp:identifier', 'chebyshev_distance'),
     ('cpp:identifier', 'chebyshev_distance::descriptor'),
+    # correlation_distance
+    ('cpp:identifier', 'correlation_distance'),
+    ('cpp:identifier', 'correlation_distance::descriptor'),
+    ('cpp:identifier', 'correlation_distance::compute_result'),
+    ('cpp:identifier', 'correlation_distance::compute_input'),
+    # cosine_distance
+    ('cpp:identifier', 'cosine_distance'),
+    ('cpp:identifier', 'cosine_distance::descriptor'),
+    ('cpp:identifier', 'cosine_distance::compute_result'),
+    ('cpp:identifier', 'cosine_distance::compute_input'),
     # kmeans
     ('cpp:identifier', 'kmeans'),
     ('cpp:identifier', 'kmeans::descriptor'),

@@ -25,10 +25,32 @@ include dev/make/compiler_definitions/gnu.mk
 
 PLATs.gnu = lnx32e mac32e
 
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Os Ofast Og Oz
+
+LINKERS_SUPPORTED := bfd gold lld
+
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
+endif
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
+    -optlevel.gnu = -$(OPTFLAG)
+else
+    -optlevel.gnu = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+endif
+
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
                     -Werror -Wreturn-type
 
-link.dynamic.all.gnu = ${CXX} -m64
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -m64
 
 pedantic.opts.lnx.gnu = $(pedantic.opts.all.gnu)
 pedantic.opts.mac.gnu = $(pedantic.opts.all.gnu)

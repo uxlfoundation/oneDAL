@@ -180,14 +180,13 @@ struct RefSpBlas
         DAAL_INT offset = pntrb[row] - 1;
         DAAL_INT nnz    = pntrb[row + 1] - pntrb[row];
         DAAL_INT csrcol = col + 1;
-#pragma omp simd
+
+        for (DAAL_INT i = 0; i < nnz; ++i)
         {
-            for (DAAL_INT i = 0; i < nnz; ++i)
-            {
-                if (csrcol < indx[offset + i]) break;
-                if (csrcol == indx[offset + i]) return val[offset + i];
-            }
+            if (csrcol < indx[offset + i]) break;
+            if (csrcol == indx[offset + i]) return val[offset + i];
         }
+
         return fpType(0);
     }
     static void csrmm(const DAAL_INT * m, const DAAL_INT * n, const DAAL_INT * k, const fpType * alpha, const fpType * a, const DAAL_INT * indx,

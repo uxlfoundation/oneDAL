@@ -44,7 +44,6 @@ struct compute_ops {
     using input_t = compute_input<task_t>;
     using result_t = compute_result<task_t>;
     using param_t = compute_parameters<task_t>;
-    using descriptor_base_t = descriptor_base<task_t>;
 
     void check_preconditions(const Descriptor& params, const input_t& input) const {
         using msg = dal::detail::error_messages;
@@ -84,7 +83,7 @@ struct compute_ops {
     /// Check that the hyperparameters of the algorithm belong to the expected ranges
     void check_parameters_ranges(const param_t& params, const input_t& input) const {
         ONEDAL_ASSERT(params.get_cpu_macro_block() > 0);
-        ONEDAL_ASSERT(params.get_cpu_macro_block() <= 0x10000l);
+        ONEDAL_ASSERT(params.get_cpu_grain_size() > 0);
     }
 
     template <typename Context>

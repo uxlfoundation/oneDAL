@@ -9,12 +9,14 @@ PARAMETRIZED_ALGOS = [
     "covariance",
     "decision_forest",
     "linear_regression",
+    "pca",
 ]
 
 ALGOS = [
     "basic_statistics",
     "chebyshev_distance",
     "connected_components",
+    "correlation_distance",
     "cosine_distance",
     "dbscan",
     "decision_tree",
@@ -29,7 +31,6 @@ ALGOS = [
     "louvain",
     "minkowski_distance",
     "objective_function",
-    "pca",
     "polynomial_kernel",
     "rbf_kernel",
     "sigmoid_kernel",

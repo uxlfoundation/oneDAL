@@ -24,8 +24,10 @@
 
 namespace oneapi::dal::pca {
 
+namespace detail::v1 {
+
 template <typename Task>
-class detail::v1::train_input_impl : public base {
+class train_input_impl : public base {
 public:
     train_input_impl() : data(table()){};
     train_input_impl(const table& data) : data(data) {}
@@ -33,7 +35,7 @@ public:
 };
 
 template <typename Task>
-class detail::v1::train_result_impl : public base {
+class train_result_impl : public base {
 public:
     model<Task> trained_model;
     table singular_values;
@@ -42,7 +44,7 @@ public:
 };
 
 template <typename Task>
-class detail::v1::partial_train_result_impl : public base {
+class partial_train_result_impl : public base {
 public:
     table nobs;
     table crossproduct;
@@ -50,8 +52,75 @@ public:
     std::vector<table> auxiliary_tables;
 };
 
+template <typename Task>
+struct train_parameters_impl : public base {
+    std::int64_t cpu_macro_block = 140l;
+    std::int64_t cpu_grain_size = 1l;
+    std::int64_t cpu_max_cols_batched = 4096;
+    std::int64_t cpu_small_rows_threshold = 10'000;
+    std::int64_t cpu_small_rows_max_cols_batched = 1024;
+};
+
+template <typename Task>
+train_parameters<Task>::train_parameters() : impl_(new train_parameters_impl<Task>{}) {}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_macro_block() const {
+    return impl_->cpu_macro_block;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_macro_block_impl(std::int64_t val) {
+    impl_->cpu_macro_block = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_grain_size() const {
+    return impl_->cpu_grain_size;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_grain_size_impl(std::int64_t val) {
+    impl_->cpu_grain_size = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_max_cols_batched() const {
+    return impl_->cpu_max_cols_batched;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_max_cols_batched = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_small_rows_threshold() const {
+    return impl_->cpu_small_rows_threshold;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_small_rows_threshold_impl(std::int64_t val) {
+    impl_->cpu_small_rows_threshold = val;
+}
+
+template <typename Task>
+std::int64_t train_parameters<Task>::get_cpu_small_rows_max_cols_batched() const {
+    return impl_->cpu_small_rows_max_cols_batched;
+}
+
+template <typename Task>
+void train_parameters<Task>::set_cpu_small_rows_max_cols_batched_impl(std::int64_t val) {
+    impl_->cpu_small_rows_max_cols_batched = val;
+}
+
+template class ONEDAL_EXPORT train_parameters<task::dim_reduction>;
+
+} // namespace detail::v1
+
 using detail::v1::train_input_impl;
 using detail::v1::train_result_impl;
+using detail::v1::train_parameters;
 using detail::v1::partial_train_result_impl;
 
 namespace v1 {

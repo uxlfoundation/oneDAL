@@ -109,11 +109,15 @@ public:
 
             if (_prob || _logProb)
             {
-                ll::internal::LogLossKernel<algorithmFPType, ll::defaultDense, cpu>::sigmoid(buff, buff, nRowsToProcess);
-            }
+                if (_logProb)
+                {
+                    ll::internal::LogLossKernel<algorithmFPType, ll::defaultDense, cpu>::sigmoid_clipped(buff, buff, nRowsToProcess);
+                }
+                else
+                {
+                    ll::internal::LogLossKernel<algorithmFPType, ll::defaultDense, cpu>::sigmoid(buff, buff, nRowsToProcess);
+                }
 
-            if (_prob || _logProb)
-            {
                 auto ntForProb = _prob ? _prob : _logProb;
                 WriteOnlyRows<algorithmFPType, cpu> probBD(ntForProb, iStartRow, nRowsToProcess);
                 DAAL_CHECK_BLOCK_STATUS_THR(probBD);
@@ -180,7 +184,7 @@ protected:
             s |= gemvSoa(x, beta + 1, xb, nRows, nCols, xOffset);
             if (bIntercept)
             {
-                PRAGMA_IVDEP
+                PRAGMA_FORCE_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRows; ++i) xb[i] += beta[0];
             }

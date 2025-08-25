@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/table/csr.hpp"
 #include "oneapi/dal/graph/common.hpp"
 #include "oneapi/dal/io/csv/read_types.hpp"
 #include "oneapi/dal/io/csv/detail/select_kernel.hpp"
@@ -47,6 +48,13 @@ struct read_ops_dispatcher<table, Float, dal::detail::host_policy> {
                      const dal::csv::read_args<table>& args) const;
 };
 
+template <typename Float>
+struct read_ops_dispatcher<csr_table, Float, dal::detail::host_policy> {
+    csr_table operator()(const dal::detail::host_policy& policy,
+                         const data_source_base& ds,
+                         const dal::csv::read_args<csr_table>& args) const;
+};
+
 #ifdef ONEDAL_DATA_PARALLEL
 
 template <typename Float>
@@ -54,6 +62,13 @@ struct read_ops_dispatcher<table, Float, dal::detail::data_parallel_policy> {
     table operator()(const dal::detail::data_parallel_policy& ctx,
                      const data_source_base& ds,
                      const dal::csv::read_args<table>& args) const;
+};
+
+template <typename Float>
+struct read_ops_dispatcher<csr_table, Float, dal::detail::data_parallel_policy> {
+    csr_table operator()(const dal::detail::data_parallel_policy& ctx,
+                         const data_source_base& ds,
+                         const dal::csv::read_args<csr_table>& args) const;
 };
 
 #endif
@@ -98,6 +113,27 @@ struct read_ops<table, DataSource> {
     auto operator()(const Policy& ctx, const data_source_base& ds, const input_t& args) const {
         check_preconditions(ds, args);
         const auto result = read_ops_dispatcher<table, float_t, Policy>()(ctx, ds, args);
+        check_postconditions(ds, args, result);
+        return result;
+    }
+};
+
+template <typename DataSource>
+struct read_ops<csr_table, DataSource> {
+    using float_t = typename DataSource::float_t;
+    using input_t = read_args<csr_table>;
+    using result_t = csr_table;
+
+    void check_preconditions(const data_source_base& ds, const input_t& args) const {}
+
+    void check_postconditions(const data_source_base& ds,
+                              const input_t& args,
+                              const result_t& result) const {}
+
+    template <typename Policy>
+    auto operator()(const Policy& ctx, const data_source_base& ds, const input_t& args) const {
+        check_preconditions(ds, args);
+        const auto result = read_ops_dispatcher<csr_table, float_t, Policy>()(ctx, ds, args);
         check_postconditions(ds, args, result);
         return result;
     }

@@ -44,6 +44,11 @@ struct Statistics
     typedef typename _impl<fpType, cpu>::MethodType MethodType;
     typedef typename _impl<fpType, cpu>::ErrorType ErrorType;
 
+    static ErrorType xmeansOnePass(const fpType * data, SizeType nFeatures, SizeType nVectors, fpType * means)
+    {
+        return _impl<fpType, cpu>::xmeansOnePass(data, nFeatures, nVectors, means);
+    }
+
     static ErrorType xcp(fpType * data, SizeType nFeatures, SizeType nVectors, fpType * nPreviousObservations, fpType * sum, fpType * crossProduct,
                          MethodType method)
     {
@@ -109,7 +114,7 @@ struct Statistics
 
             fpType wsum = 0;
 
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             PRAGMA_ICC_NO16(omp simd reduction(+ : wsum))
             for (size_t i = 0; i < nRows; i++)

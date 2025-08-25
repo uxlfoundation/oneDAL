@@ -57,6 +57,14 @@ detail::cpu_extension cpu_info::get_top_cpu_extension() const {
     return impl_->get_top_cpu_extension();
 }
 
+detail::cpu_extension cpu_info::get_onedal_cpu_extension() const {
+    return impl_->get_onedal_cpu_extension();
+}
+
+uint64_t cpu_info::get_cpu_features() const {
+    return impl_->get_cpu_features();
+}
+
 std::string cpu_info::dump() const {
     return impl_->dump();
 }

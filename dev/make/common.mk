@@ -67,10 +67,10 @@ md5sum.cmd.win = md5sum
 md5sum.cmd.mac = md5 -q
 
 # Enable compiler-provided defences as recommended by Intel Security Development Lifecycle document (SW.01)
-secure.opts.icc.win = -GS
-secure.opts.icc.lnx = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong
+secure.opts.win = -GS
+secure.opts.lnx = -Wformat -Wformat-security -fstack-protector-strong
+secure.opts.mac = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector
 
-secure.opts.icc.mac = -Wformat -Wformat-security -O2 -D_FORTIFY_SOURCE=2 -fstack-protector
 
 secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
 secure.opts.link.lnx = -z relro -z now -z noexecstack
@@ -81,13 +81,14 @@ RC.COMPILE = rc.exe $(RCOPT) -fo$@ $<
 # Used as $(eval $(call set_c_compile,$(COMPILER),$(_OS),$(gcc_toolchain))
 C.COMPILE = $(if $(COMPILER.$(_OS).$(COMPILER)),$(COMPILER.$(_OS).$(COMPILER)),$(error COMPILER.$(_OS).$(COMPILER) must be defined)) \
             $(if $(C.COMPILE.gcc_toolchain),--gcc-toolchain=$(C.COMPILE.gcc_toolchain)) \
-            -c $(secure.opts.icc.$(_OS)) $(COPT) $(INCLUDES) $1 $(-Fo)$@ $<
+            -c $(secure.opts.$(_OS)) $(COPT) $(INCLUDES) $1 $(-Fo)$@ $<
 
 DPC.COMPILE = $(if $(COMPILER.$(_OS).dpcpp),$(COMPILER.$(_OS).dpcpp),$(error COMPILER.$(_OS).dpcpp must be defined)) \
               $(if $(DPC.COMPILE.gcc_toolchain),--gcc-toolchain=$(DPC.COMPILE.gcc_toolchain)) \
-              -c $(secure.opts.icc.$(_OS)) $(COPT) $(INCLUDES) $1 $(-Fo)$@ $<
+              -c $(secure.opts.$(_OS)) $(COPT) $(INCLUDES) $1 $(-Fo)$@ $<
 
 # Enable additional options to follow ISO C++ standards
+# TODO: add these flags for DAAL code.
 pedantic.opts = $(pedantic.opts.$(_OS).$(COMPILER))
 pedantic.opts.dpcpp = $(pedantic.opts.$(_OS).dpcpp)
 
@@ -105,10 +106,30 @@ write.prereqs.dump = $(call exec,printf -- "$(subst $(space),$2,$1)$(if $6,$2)" 
 EXCLUDE_LIBS = $(foreach lib,$(MATH_LIBS_TO_EXCLUDE),-Wl$(comma)--exclude-libs=$(lib))
 
 # Link static lib
+# In the current oneDAL static build, all symbols from MKL are copied
+# directly into the resulting oneDAL libraries. This ensures that
+# the oneDAL static binaries are self-contained and work regardless
+# of the MKL version present at runtime.
+#
+# The following logic handles platform-specific static linking of MKL
+# (especially mkl_core) into oneDAL.
+# - On Linux, if the input is a static library (*.a), a linker script
+#   is generated using 'ar -M'.
+# - On Windows, the 'lib' tool is used to create a static library
+#   from object files. Since the 'lib' tool does not support linker
+#   scripts, object files are passed directly for linking.
+#
+# To avoid compatibility issues between external MKL dependencies
+# (e.g., libmkl_sycl) and MKL symbols embedded inside oneDAL static
+# libraries, we also explicitly add mkl_core and mkl_intel_lp64
+# to the list of imported libraries in the CMake files.
 LINK.STATIC = $(mkdir)$(call rm,$@)$(link.static.cmd)
 link.static.cmd = $(call link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
 link.static.lnx = $(if $(filter %.a,$1),$(link.static.lnx.script),$(link.static.lnx.cmdline))
 link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.txt=@%_link.txt)
+# The plan is to replace addlib with one of the following:
+# 1. Collect just necessary MKL symbols from the static library.
+# 2. Use the whole MKL as external dependency.
 .addlib = $(foreach lib,$(filter %.a,$1),addlib $(lib)\n)
 .addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
 .addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))

@@ -55,6 +55,8 @@ dal_example_suite(
 dal_algo_example_suite(
     algos = [
         "basic_statistics",
+        "correlation_distance",
+        "cosine_distance",
         "covariance",
         "decision_forest",
         "kmeans",

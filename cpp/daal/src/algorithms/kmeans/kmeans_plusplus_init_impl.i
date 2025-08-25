@@ -198,7 +198,7 @@ public:
         for (size_t iRow = 0u; iRow < nRowsToProcess; iRow++)
         {
             algorithmFPType dist2 = algorithmFPType(0);
-            PRAGMA_IVDEP
+            PRAGMA_FORCE_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0u; i < dim; i++)
             {
@@ -224,7 +224,7 @@ public:
         const algorithmFPType * pData = ntDataBD.get();
         algorithmFPType res(0.);
 
-        PRAGMA_IVDEP
+        PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < dim; ++i)
         {
@@ -679,20 +679,20 @@ void TaskPlusPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenter(size_t iClu
 
     // search best candidate from nTrials
     algorithmFPType bestMinInertia = daal::services::internal::MaxVal<algorithmFPType>::get();
-    size_t iTialBest               = 0u;
+    size_t iTrialBest              = 0u;
 
     for (size_t iTrials = 0u; iTrials < this->_nTrials; iTrials++)
     {
-        algorithmFPType newInersia = this->_overallError[iTrials];
+        algorithmFPType newInertia = this->_overallError[iTrials];
 
-        if (newInersia < bestMinInertia)
+        if (newInertia < bestMinInertia)
         {
-            bestMinInertia = newInersia;
-            iTialBest      = iTrials;
+            bestMinInertia = newInertia;
+            iTrialBest     = iTrials;
         }
     }
 
-    this->_trialBest = iTialBest;
+    this->_trialBest = iTrialBest;
 }
 
 template <typename algorithmFPType, CpuType cpu>

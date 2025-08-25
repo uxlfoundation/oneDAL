@@ -31,6 +31,14 @@ public:
     /// The highest supported CPU extension
     virtual cpu_extension get_top_cpu_extension() const = 0;
 
+    /// The highest used by oneDAL CPU extension
+    /// If REQCPU make flag was used, it might be different from the one returned by get_top_cpu_extension.
+    virtual cpu_extension get_onedal_cpu_extension() const = 0;
+
+    /// The CPU features available on the system
+    /// @return The CPU features bitmask
+    virtual uint64_t get_cpu_features() const = 0;
+
     /// The dump of all supported CPU features in the format:
     /// feature 1: value1; feature2: value2; ...
     virtual std::string dump() const = 0;

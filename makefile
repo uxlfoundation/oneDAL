@@ -128,6 +128,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -Fo         := $(if $(OS_is_win),-Fo,-o)
 -Q          := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
 -cxx17      := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
+-optlevel   := $(-optlevel.$(COMPILER))
 -fPIC       := $(if $(OS_is_win),,-fPIC)
 -visibility := $(if $(OS_is_win),,-fvisibility=hidden)
 -DMKL_ILP64 := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
@@ -143,7 +144,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
 -sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
--lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address -static-libasan,$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), -shared-libasan)))
+-lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -501,6 +502,7 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 -include $(CORE.tmpdir_a)/*.d
 -include $(CORE.tmpdir_y)/*.d
 
+# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
@@ -514,12 +516,13 @@ $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY)
 ifdef OS_is_win
 $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y)
 endif
+# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.ext) $(VTUNESDK.LIBS_A) \
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -528,7 +531,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -687,7 +690,7 @@ $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y.dpc)/.
 
 # Set compilation options to the object files which are part of STATIC lib
 $(ONEAPI.objs_a): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_a)/inc_a_folders.txt
-$(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -698,7 +701,7 @@ $(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-sanitize) $(-DMKL_ILP64) 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a)))
 
 $(ONEAPI.objs_a.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt
-$(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-sanitize) $(-DMKL_ILP64) $(-DEBC_DPCPP) $(-EHsc) $(pedantic.opts.dpcpp) \
+$(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP) $(-sanitize) $(-DMKL_ILP64) $(-DEBC_DPCPP) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
@@ -711,7 +714,7 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a.dpc),.dpcpp))
 
 # Set compilation options to the object files which are part of DYNAMIC lib
 $(ONEAPI.objs_y): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y)/inc_y_folders.txt
-$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
+$(ONEAPI.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-DEBC) $(-EHsc) $(pedantic.opts) \
                           -DDAAL_NOTHROW_EXCEPTIONS \
                           -DDAAL_HIDE_DEPRECATED \
                           -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -727,7 +730,7 @@ $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y)))
 # When compiling with the debug flag $(-DEBC_DPCPP), linking with libonedal_dpc.so may cause indefinite linking times
 # due to the extensive processing of debug information. For debugging, please use the static library version (libonedal_dpc.a).
 $(ONEAPI.objs_y.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
-$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-Zl_DPCPP) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
+$(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP) $(-visibility) $(-sanitize) $(-DMKL_ILP64) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
                               -DDAAL_HIDE_DEPRECATED \
                               -DONEDAL_DATA_PARALLEL \
@@ -776,6 +779,7 @@ ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.lib += $(PARAMETERS.objs_y.filtered)
 endif
 
+# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y)/dll.res,) | $(ONEAPI.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y): \
@@ -811,6 +815,7 @@ ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)
 endif
 
+# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
@@ -879,7 +884,7 @@ THR.objs_y := $(THR_TBB.objs_y)
 THR_TBB.objs := $(THR_TBB.objs_a) $(THR_TBB.objs_y)
 THR.objs := $(THR.objs_a) $(THR.objs_y)
 
-$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
+$(THR.objs): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-DEBC) -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX
 
 $(THR.objs_a): $(THR.tmpdir_a)/thr_inc_a_folders.txt
 $(THR.objs_a): COPT += @$(THR.tmpdir_a)/thr_inc_a_folders.txt
@@ -1035,12 +1040,13 @@ $(foreach x,$(release.ONEAPI.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEAS
 $(foreach x,$(release.EXAMPLES.CMAKE),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))
 
 #----- releasing environment scripts
+# Note: Requires GNU sed for -z support
 define .release.x
 $4: $3/$2
 $3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MAJOR_BINARY__/$(MAJORBINARY)/' $3/$2)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MINOR_BINARY__/$(MINORBINARY)/' $3/$2)
-	$(if $(OS_is_win),unix2dos $3/$2)
+	$(if $(OS_is_win),sed -i -n -z -e 's/\r*\n/\r\n/g;p' $3/$2)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach x,$(release.ENV),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
@@ -1127,6 +1133,7 @@ Targets:
   cleanall - clean both working and release directories
 Flags:
   COMPILER   - compiler to use ($(COMPILERs)) [default: $(COMPILER)]
+  OPTFLAG    - optimization flags to use ($(COMPILER)) [default: $(OPTFLAG)]
   WORKDIR    - directory for intermediate results [default: $(WORKDIR)]
   RELEASEDIR - directory for release [default: $(RELEASEDIR)]
   CORE.ALGORITHMS.CUSTOM - list of algorithms to be included into library
