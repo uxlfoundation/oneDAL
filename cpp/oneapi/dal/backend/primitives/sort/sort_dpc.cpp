@@ -14,9 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __TBB_EXPORTED_METHOD
-#define __TBB_EXPORTED_METHOD
+#ifdef __TBB_EXPORTED_METHOD
+#undef __TBB_EXPORTED_METHOD
 #endif
+
+#define __TBB_EXPORTED_METHOD
 
 #if defined(_MSC_VER)
 #pragma message(">>> Compiling with MSVC: _MSC_VER is defined <<<")
