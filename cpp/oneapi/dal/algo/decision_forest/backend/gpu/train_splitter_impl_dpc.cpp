@@ -19,6 +19,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/train_helpers.hpp"
+#include <cmath>
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -538,7 +539,28 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
     const Index bin_block =
         compute_bin_block_size<hist_type_t, Index, Float, Task>(queue, hist_prop_count, bin_count);
 
-    const Index local_size = bk::device_max_wg_size(queue);
+    Index max_wg = bk::device_max_wg_size(queue);
+
+    // int32 maximum bound
+    const std::int64_t int32_limit = std::numeric_limits<int32_t>::max();
+
+    // base product (node_count * ftr_count)
+    std::int64_t base = static_cast<int64_t>(node_count) * ftr_count;
+
+    // default fallback
+    Index local_size = 1;
+
+    if (base > 0 && base < int32_limit) {
+        // maximum allowed local_size so that
+        // base * local_size * local_size <= int32_limit
+        int64_t max_local_by_limit = static_cast<int64_t>(std::sqrt(int32_limit / base));
+
+        // choose the safe local_size:
+        // 1 <= local_size <= min(device_max_wg_size, max_local_by_limit)
+        local_size =
+            static_cast<Index>(std::max<int64_t>(1, std::min<int64_t>(max_wg, max_local_by_limit)));
+    }
+
     const auto nd_range =
         bk::make_multiple_nd_range_3d({ node_count, ftr_count, local_size }, { 1, 1, local_size });
     std::cout << "size here 544" << std::endl;
