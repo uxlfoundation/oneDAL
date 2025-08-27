@@ -11,7 +11,7 @@
 ### Key Characteristics
 - **Language**: Modern C++ (C++14/17+)
 - **Architecture**: Dual interface system (DAAL + oneAPI)
-- **Build Systems**: Bazel (primary), CMake, Make
+- **Build Systems**: Make (PRIMARY for production), CMake (end-user integration), Bazel (development/testing)
 - **Targets**: CPU (SIMD optimized), GPU (SYCL), Distributed (MPI)
 - **License**: Apache License 2.0
 
@@ -23,12 +23,12 @@ daal/
 │   ├── daal/              # Traditional DAAL interface
 │   └── oneapi/            # Modern oneAPI interface
 ├── dev/                    # Development tools and build configs
-│   ├── bazel/             # Bazel build system configuration
-│   └── make/              # Make-based build system
+│   ├── bazel/             # Bazel build system configuration (development/testing)
+│   └── make/              # Make-based build system (PRIMARY for production)
 ├── examples/               # Usage examples and tutorials
 ├── docs/                   # Documentation and API references
 ├── samples/                # Advanced usage samples
-└── cmake/                  # CMake build system support
+└── cmake/                  # CMake build system support (end-user integration)
 ```
 
 ## 🔗 Context Files for AI Agents
@@ -42,8 +42,8 @@ For detailed context about specific areas, refer to these specialized AGENTS.md 
 
 ### Build Systems
 - **[dev/AGENTS.md](dev/AGENTS.md)** - Development tools and build system context
-- **[dev/make/AGENTS.md](dev/make/AGENTS.md)** - Make build system specifics (primary production builds)
-- **[dev/bazel/AGENTS.md](dev/bazel/AGENTS.md)** - Bazel build system specifics (development and testing)
+- **[dev/make/AGENTS.md](dev/make/AGENTS.md)** - Make build system specifics (🔴 PRIMARY for production builds)
+- **[dev/bazel/AGENTS.md](dev/bazel/AGENTS.md)** - Bazel build system specifics (🟡 development and testing only)
 
 ### Documentation and Examples
 - **[docs/AGENTS.md](docs/AGENTS.md)** - Documentation structure and guidelines
@@ -104,14 +104,28 @@ For GitHub Copilot users, specialized instruction files are available in the `.g
 3. **Respect Standards**: Apply the coding guidelines consistently
 4. **Test Thoroughly**: Ensure your changes work with the build system
 
-## 🔍 PR Review Focus
+## 🔍 PR Review Focus (PRIMARY GOAL)
 
 For GitHub Copilot users focusing on PR reviews:
-- **Primary Goal**: Assist with PR review and validation
-- **Build Priority**: Verify Make compatibility first (production builds)
-- **Integration**: Check CMake integration (end-user support)
-- **Development**: Validate Bazel tests (development workflow)
-- **Cross-Repository**: Consider scikit-learn-intelex integration impact
+
+### 🎯 **Primary Goal**: Assist with PR review and validation
+### 🔴 **Build Priority Order**:
+1. **Make compatibility first** (production builds) - 🔴 CRITICAL
+2. **CMake integration** (end-user support) - 🟡 IMPORTANT  
+3. **Bazel tests** (development workflow) - 🟢 DEVELOPMENT
+
+### 📋 **PR Review Checklist**:
+- [ ] **Make build succeeds** (production validation)
+- [ ] **CMake integration works** (end-user support)
+- [ ] **Bazel tests pass** (development validation)
+- [ ] **C++17 compliance maintained** (compatibility)
+- [ ] **Interface consistency preserved** (architecture)
+- [ ] **Cross-repository impact assessed** (scikit-learn-intelex)
+
+### 🔄 **Cross-Repository Considerations**:
+- **scikit-learn-intelex integration impact**
+- **API compatibility preservation**
+- **Performance consistency maintenance**
 
 ## 🔍 Key Files for Understanding
 
@@ -131,3 +145,5 @@ For GitHub Copilot users focusing on PR reviews:
 ---
 
 **Note**: This file serves as the main entry point. For specific implementation details, always refer to the relevant sub-AGENTS.md file in the appropriate directory.
+
+**🚨 CRITICAL REMINDER**: Make is the PRIMARY build system for production. Bazel is for development/testing only. CMake is for end-user integration.
