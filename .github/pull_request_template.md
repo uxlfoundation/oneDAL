@@ -29,7 +29,6 @@ justify how this code change is expected to affect performance (or justification
 - [ ] I have commented my code, particularly in hard-to-understand areas.
 - [ ] I have updated the documentation to reflect the changes or created a separate PR with updates and provided its number in the description, if necessary.
 - [ ] Git commit message contains an appropriate signed-off-by string _(see [CONTRIBUTING.md](https://github.com/uxlfoundation/scikit-learn-intelex/blob/main/CONTRIBUTING.md#pull-requests) for details)_.
-- [ ] I have added respective label(s) to the PR if I have permission for that.
 - [ ] I have resolved any merge conflicts that might occur with the base branch.
 
 **Testing**
