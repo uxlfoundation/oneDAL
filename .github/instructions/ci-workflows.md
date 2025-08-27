@@ -1,15 +1,28 @@
 # CI/CD Workflows Instructions for GitHub Copilot
 
+## 🎯 **PRIMARY GOAL: PR Review Assistance**
+
+**GitHub Copilot's main purpose is to assist with PR reviews. CI workflows provide validation for PR review scenarios.**
+
 ## CI Infrastructure Overview
 
 **oneDAL** uses GitHub Actions for continuous integration and deployment, with multiple validation stages and cross-repository considerations.
 
 ### Key CI Characteristics
 - **Multi-Platform**: Linux, Windows, macOS validation
-- **Multi-Build**: Make (production), CMake (integration), Bazel (development)
+- **Multi-Build**: Make (🔴 production), CMake (🟡 integration), Bazel (🟢 development)
 - **Cross-Repository**: Integration with scikit-learn-intelex validation
 - **Performance Testing**: Automated performance benchmarks
 - **Quality Gates**: Code quality, security, and compliance checks
+
+## 🔴 **CRITICAL BUILD SYSTEM PRIORITY FOR PR REVIEWS**
+
+### Build System Validation Order (CRITICAL)
+1. **🔴 Make Builds (FIRST PRIORITY)**: Production builds for releases
+2. **🟡 CMake Builds (SECOND PRIORITY)**: End-user integration support
+3. **🟢 Bazel Builds (THIRD PRIORITY)**: Development and testing workflow
+
+**🚨 WHY MAKE FIRST?** Make is the production build system. All changes MUST work with Make builds for production deployment.
 
 ## 🏗️ CI Workflow Structure
 
@@ -46,24 +59,29 @@
     fail_on: warning
 ```
 
-### Stage 2: Build Validation
+### Stage 2: Build Validation (🔴 CRITICAL FOR PR REVIEWS)
 ```yaml
-# Multi-build system validation
+# 🔴 Make Build (PRODUCTION - FIRST PRIORITY)
 - name: Make Build (Production)
   run: |
     cd dev/make
     make clean all
+    echo "🔴 Make production build successful"
     
+# 🟡 CMake Build (End-User Integration - SECOND PRIORITY)
 - name: CMake Build (Integration)
   run: |
     mkdir build && cd build
     cmake .. -DCMAKE_CXX_STANDARD=17
     make -j$(nproc)
+    echo "🟡 CMake integration build successful"
     
+# 🟢 Bazel Build (Development - THIRD PRIORITY)
 - name: Bazel Build (Development)
   run: |
     cd dev/bazel
     bazel build //...
+    echo "🟢 Bazel development build successful"
 ```
 
 ### Stage 3: Testing
@@ -113,7 +131,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         compiler: [gcc, clang, msvc]
-        build_system: [make, cmake, bazel]
+        build_system: [make, cmake, bazel]  # Note: make is PRIMARY
     
     steps:
       - uses: actions/checkout@v3
@@ -130,7 +148,7 @@ strategy:
   matrix:
     os: [ubuntu-20.04, ubuntu-22.04, windows-2019, windows-2022, macos-12, macos-13]
     compiler: [gcc-9, gcc-10, gcc-11, clang-12, clang-13, clang-14, msvc-2019, msvc-2022]
-    cxx_std: [14, 17]
+    cxx_std: [14, 17]  # Note: 17 is maximum for compatibility
     build_type: [debug, release, relwithdebinfo]
 ```
 
@@ -143,9 +161,9 @@ strategy:
 - **SonarQube**: Code quality and security analysis
 
 ### Build Validation
-- **Make**: Production build validation
-- **CMake**: End-user integration validation
-- **Bazel**: Development workflow validation
+- **🔴 Make**: Production build validation (CRITICAL)
+- **🟡 CMake**: End-user integration validation (IMPORTANT)
+- **🟢 Bazel**: Development workflow validation (DEVELOPMENT)
 - **Cross-compilation**: Multi-architecture support
 
 ### Testing Validation
@@ -219,6 +237,33 @@ strategy:
 - **Email Alerts**: Critical failure notifications
 - **Dashboard**: CI metrics visualization
 
+## 🔍 **PR Review CI Checklist (CRITICAL)**
+
+### 🔴 **Make Build Validation (FIRST PRIORITY)**
+- [ ] **Make build succeeds** on all supported platforms
+- [ ] **Production configuration** works correctly
+- [ ] **Performance characteristics** maintained
+- [ ] **Dependencies resolved** properly
+- [ ] **No breaking changes** introduced
+
+### 🟡 **CMake Integration Validation (SECOND PRIORITY)**
+- [ ] **find_package(oneDAL)** works correctly
+- [ ] **End-user projects** can build successfully
+- [ ] **Cross-platform support** maintained
+- [ ] **IDE integration** works properly
+
+### 🟢 **Bazel Development Validation (THIRD PRIORITY)**
+- [ ] **Development workflow** preserved
+- [ ] **Test suites** run successfully
+- [ ] **CI/CD pipelines** work correctly
+- [ ] **Dependency management** functional
+
+### 🔍 **Cross-Repository Impact**
+- [ ] **scikit-learn-intelex compatibility** maintained
+- [ ] **API changes documented** for integration
+- [ ] **Performance impact** evaluated
+- [ ] **Breaking changes** clearly identified
+
 ## 🛠️ Troubleshooting
 
 ### Common CI Issues
@@ -257,6 +302,18 @@ strategy:
 **For Integration**: Check scikit-learn-intelex compatibility
 **For Deployment**: Use deployment context files
 
+## 🚨 **Critical Reminders for PR Review**
+
+1. **🔴 Make compatibility is CRITICAL** - verify FIRST in CI
+2. **🟡 CMake integration is IMPORTANT** - verify SECOND in CI
+3. **🟢 Bazel testing is DEVELOPMENT** - verify THIRD in CI
+4. **Production builds use Make** - not Bazel
+5. **End-users use CMake** - ensure find_package works
+6. **Development uses Bazel** - for testing and CI/CD
+7. **Cross-repository impact** - consider scikit-learn-intelex
+
 ---
 
 **Note**: This file provides CI/CD workflow context for AI agents. For detailed implementation, refer to the specific workflow files in the `.github/workflows/` directory.
+
+**🚨 CRITICAL**: For PR reviews, always verify Make compatibility FIRST in CI - this is the production build system!
