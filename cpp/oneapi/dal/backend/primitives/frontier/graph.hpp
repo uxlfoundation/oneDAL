@@ -3,7 +3,7 @@
 #include "oneapi/dal/common.hpp"
 #include "oneapi/dal/graph/detail/common.hpp"
 #include "oneapi/dal/graph/detail/container.hpp"
-#include "oneapi/dal/backend/primitives/bitset.hpp"
+#include "oneapi/dal/backend/primitives/frontier/bitset.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
 namespace oneapi::dal::backend::primitives {
