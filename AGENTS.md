@@ -104,23 +104,6 @@ For GitHub Copilot users, specialized instruction files are available in the `.g
 3. **Respect Standards**: Apply the coding guidelines consistently
 4. **Test Thoroughly**: Ensure your changes work with the build system
 
-## 🔍 PR Review Focus (PRIMARY GOAL)
-
-For GitHub Copilot users focusing on PR reviews:
-
-### 🎯 **Primary Goal**: Assist with PR review and validation
-### 🔴 **Build Priority Order**:
-1. **Make compatibility first** (production builds) - 🔴 CRITICAL
-2. **CMake integration** (end-user support) - 🟡 IMPORTANT  
-3. **Bazel tests** (development workflow) - 🟢 DEVELOPMENT
-
-### 📋 **PR Review Checklist**:
-- [ ] **Make build succeeds** (production validation)
-- [ ] **CMake integration works** (end-user support)
-- [ ] **Bazel tests pass** (development validation)
-- [ ] **C++17 compliance maintained** (compatibility)
-- [ ] **Interface consistency preserved** (architecture)
-- [ ] **Cross-repository impact assessed** (scikit-learn-intelex)
 
 ### 🔄 **Cross-Repository Considerations**:
 - **scikit-learn-intelex integration impact**
@@ -146,4 +129,3 @@ For GitHub Copilot users focusing on PR reviews:
 
 **Note**: This file serves as the main entry point. For specific implementation details, always refer to the relevant sub-AGENTS.md file in the appropriate directory.
 
-**🚨 CRITICAL REMINDER**: Make is the PRIMARY build system for production. Bazel is for development/testing only. CMake is for end-user integration.

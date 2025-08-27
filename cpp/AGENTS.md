@@ -21,9 +21,9 @@ oneDAL provides **two distinct C++ interfaces** for different use cases and targ
 ## 🔧 C++ Development Standards
 
 ### Language Features
-- **C++ Standard**: C++14 minimum, C++17 preferred
-- **Compiler Support**: GCC, Clang, MSVC (Windows)
-- **Extensions**: Avoid compiler-specific extensions
+- **C++ Standard**: C++17 for oneDAL and C++14 for daal
+- **Compiler Support**: gcc, msvs, clang for daal part and SYCL compiler for oneDAL
+
 
 ### Code Organization
 ```

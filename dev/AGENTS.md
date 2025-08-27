@@ -7,14 +7,8 @@
 oneDAL supports **multiple build systems** to accommodate different development workflows and platform requirements:
 
 ### Primary Build Systems
-- **Bazel**: Primary build system for development and CI/CD
-- **CMake**: Alternative build system for traditional workflows
-- **Make**: Legacy build system for specific platforms
-
-### Build System Priority
-1. **Bazel** - Recommended for development and testing
-2. **CMake** - Alternative for traditional C++ workflows
-3. **Make** - Legacy support for specific platforms
+- **Bazel**: In process of migration build system that handle development and validation usecases
+- **Make**: Primary development build system used for production builds
 
 ## 📁 Directory Structure
 
@@ -38,7 +32,7 @@ dev/
 ### Key Characteristics
 - **Primary Build System**: Used for development and CI/CD
 - **Dependency Management**: Automatic dependency resolution
-- **Multi-platform**: Supports Linux, Windows, macOS
+- **Multi-platform**: Supports Linux
 - **Incremental Builds**: Fast incremental compilation
 
 ### Configuration Files
@@ -76,35 +70,11 @@ cc_library(
 )
 ```
 
-## 🔧 CMake Build System
-
-### Key Characteristics
-- **Alternative Build System**: Traditional C++ workflow support
-- **IDE Integration**: Good IDE and editor support
-- **Package Management**: Integration with package managers
-- **Cross-platform**: Native support for multiple platforms
-
-### Configuration Files
-- **[cmake/scripts/generate_config.cmake](cmake/scripts/generate_config.cmake)** - Configuration generation
-- **[cmake/templates/oneDALConfig.cmake.in](cmake/templates/oneDALConfig.cmake.in)** - CMake package configuration
-
-### Common Commands
-```bash
-# Configure build
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-
-# Build project
-cmake --build build --parallel
-
-# Install
-cmake --install build
-```
 
 ## 🔧 Make Build System
 
 ### Key Characteristics
-- **Legacy Support**: Maintained for specific platforms
-- **Simple Configuration**: Basic makefile-based builds
+- **Production build system**: MAin build system used for production builds
 - **Platform Specific**: Different configurations per platform
 - **Dependency Management**: Manual dependency specification
 
@@ -113,34 +83,7 @@ cmake --install build
 - **[dev/make/common.mk](make/common.mk)** - Common make rules
 - **[dev/make/deps.mk](make/deps.mk)** - Dependency management
 
-### Common Commands
-```bash
-# Build project
-make
 
-# Clean build
-make clean
-
-# Install
-make install
-```
-
-## 🎯 Development Guidelines
-
-### 1. Build System Selection
-- **New Development**: Use Bazel for consistency
-- **Existing Workflows**: CMake if already established
-- **Platform Support**: Make for specific platform requirements
-
-### 2. Dependency Management
-- **External Dependencies**: Use Bazel dependency management
-- **Version Control**: Pin dependency versions in build files
-- **Platform Support**: Ensure dependencies work on target platforms
-
-### 3. Configuration Management
-- **Build Configurations**: Use appropriate configuration files
-- **Compiler Flags**: Follow project compiler definitions
-- **Platform Detection**: Use automatic platform detection
 
 ## 🔍 Build System Patterns
 
@@ -165,24 +108,6 @@ cc_test(
         ":library_name",
         "//dev/bazel/deps:gtest",
     ],
-)
-```
-
-### 2. CMake Pattern
-```cmake
-# Library target
-add_library(library_name
-    src/file1.cpp
-    src/file2.cpp
-)
-
-target_include_directories(library_name
-    PUBLIC include
-)
-
-target_link_libraries(library_name
-    dependency1
-    dependency2
 )
 ```
 
@@ -222,11 +147,6 @@ library_name: $(LIBRARY_OBJS)
 - **Dependencies**: Validate dependency resolution
 - **Platforms**: Test on supported platforms
 
-### CI/CD Integration
-- **Bazel**: Primary CI/CD build system
-- **CMake**: Alternative CI/CD option
-- **Make**: Platform-specific CI/CD
-
 ## 🔧 Development Tools
 
 ### Required Tools
@@ -234,8 +154,6 @@ library_name: $(LIBRARY_OBJS)
 - **CMake**: 3.16+ for CMake builds
 - **Make**: GNU Make 3.81+ for Make builds
 - **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
-
-### Optional Tools
 - **Intel oneAPI**: For SYCL development
 - **Intel MKL**: For optimized math operations
 - **Intel TBB**: For threading support

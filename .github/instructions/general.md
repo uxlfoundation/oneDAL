@@ -14,9 +14,6 @@
 **GitHub Copilot's main purpose in this repository is to assist with PR reviews and validation.**
 
 ### 📋 **PR Review Priority Checklist**
-- [ ] **🔴 CRITICAL**: Make build compatibility (production builds)
-- [ ] **🟡 IMPORTANT**: CMake integration (end-user support)  
-- [ ] **🟢 DEVELOPMENT**: Bazel tests (development workflow)
 - [ ] **🔴 CRITICAL**: C++17 compliance maintained
 - [ ] **🟡 IMPORTANT**: Interface consistency preserved
 - [ ] **🟡 IMPORTANT**: Cross-repository impact assessed
@@ -35,28 +32,6 @@
 - **Headers**: Use `#pragma once` for oneAPI, traditional guards for DAAL
 - **Smart Pointers**: Always use `std::unique_ptr` and `std::shared_ptr`
 - **RAII**: Follow Resource Acquisition Is Initialization principles
-
-### 🔴 **Build System Priority (CRITICAL FOR PR REVIEWS)**
-
-#### **1. Make Build System (PRIMARY for Production)**
-- **🔴 CRITICAL**: All changes MUST work with Make builds
-- **Purpose**: Production builds and releases
-- **Priority**: HIGHEST - verify Make compatibility FIRST
-- **Location**: `dev/make/` directory
-
-#### **2. CMake Build System (End-User Integration)**
-- **🟡 IMPORTANT**: Changes should support CMake integration
-- **Purpose**: End-user projects using `find_package(oneDAL)`
-- **Priority**: HIGH - verify CMake compatibility SECOND
-- **Location**: `cmake/` directory
-
-#### **3. Bazel Build System (Development Only)**
-- **🟢 DEVELOPMENT**: Changes should work with Bazel for testing
-- **Purpose**: Development workflow and CI/CD testing
-- **Priority**: MEDIUM - verify Bazel compatibility THIRD
-- **Location**: `dev/bazel/` directory
-
-**🚨 WHY MAKE FIRST?** Make is the production build system used for releases. CMake is for end-user integration. Bazel is for development/testing only.
 
 ### Coding Standards
 - **Comprehensive Guidelines**: Follow [coding-guidelines.md](coding-guidelines.md) for all code
@@ -82,19 +57,6 @@
 - Maintain backward compatibility
 - Follow comprehensive coding guidelines
 
-### When Working in `dev/make/`
-- 🔴 **CRITICAL**: Suggest Make build patterns for PRODUCTION
-- Use Make syntax for build files
-- Follow Make naming conventions
-- Include proper dependencies and targets
-- **Remember**: This is the PRIMARY build system
-
-### When Working in `dev/bazel/`
-- 🟢 **DEVELOPMENT ONLY**: Suggest Bazel build rules for development/testing
-- Use Python syntax for BUILD files
-- Follow Bazel naming conventions
-- Include proper dependencies
-- **Note**: This is for development, NOT production builds
 
 ### When Working in `examples/` or `samples/`
 - Ensure examples are complete and runnable
@@ -132,7 +94,6 @@
 #### **1. New Algorithm Implementation**
 - [ ] **Interface Consistency**: Uses appropriate interface (oneAPI for new, DAAL for legacy)
 - [ ] **Make Compatibility**: Works with Make build system (🔴 CRITICAL)
-- [ ] **CMake Integration**: Supports end-user integration
 - [ ] **Bazel Testing**: Includes proper test configuration
 - [ ] **C++17 Compliance**: No C++20/23 features used
 - [ ] **Coding Standards**: Follows comprehensive guidelines
@@ -174,100 +135,6 @@
 - [ ] **Documentation**: Proper comments and documentation
 - [ ] **Error Handling**: Robust exception safety
 
-### Review Checklist Template
-
-```markdown
-## PR Review Checklist
-
-### 🔴 Build System Validation (CRITICAL)
-- [ ] **Make build succeeds** (production validation)
-- [ ] **CMake integration works** (end-user support)
-- [ ] **Bazel tests pass** (development validation)
-
-### 🟡 Code Quality
-- [ ] **C++17 compliance maintained** (no C++20/23)
-- [ ] **Interface consistency preserved** (DAAL vs oneAPI)
-- [ ] **Error handling implemented** (proper exception safety)
-- [ ] **Documentation updated** (accurate and complete)
-- [ ] **Coding standards followed** (comprehensive guidelines)
-
-### 🟡 Cross-Repository Impact
-- [ ] **scikit-learn-intelex compatibility** assessed
-- [ ] **API changes documented** for integration
-- [ ] **Performance impact** evaluated
-- [ ] **Breaking changes** clearly identified
-
-### 🟢 Development Workflow
-- [ ] **Examples build and run** correctly
-- [ ] **Tests provide adequate coverage**
-- [ ] **Code follows project patterns**
-- [ ] **No platform-specific hardcoding**
-```
-
-## File Path Context Detection
-
-### oneAPI Context (`cpp/oneapi/`, `examples/oneapi/`)
-```cpp
-// Use oneAPI patterns
-#include "oneapi/dal/algo/kmeans.hpp"
-#include "oneapi/dal/table/homogen.hpp"
-
-auto desc = kmeans::descriptor<float>()
-    .set_cluster_count(10);
-```
-
-### DAAL Context (`cpp/daal/`, `examples/daal/`)
-```cpp
-// Use DAAL patterns
-#include "algorithms/kmeans/kmeans_batch.h"
-#include "data_management/data/homogen_numeric_table.h"
-
-auto training = new kmeans_batch<float>();
-```
-
-### Build System Context (`dev/bazel/`, `cmake/`)
-```python
-# Bazel context (DEVELOPMENT ONLY)
-cc_library(
-    name = "library_name",
-    srcs = glob(["src/**/*.cpp"]),
-    deps = [":dependency"],
-)
-```
-
-## Quick Reference
-
-### For New Development
-1. Use **oneAPI interface** (`cpp/oneapi/`)
-2. 🔴 **Use Make build system** (`dev/make/`) for production builds
-3. 🟢 Use **Bazel build system** (`dev/bazel/`) for development and testing
-4. Use **C++17 features** when possible (but not C++20/23)
-5. Follow **modern C++ patterns**
-6. Follow **comprehensive coding guidelines**
-
-### For Legacy Maintenance
-1. Use **DAAL interface** (`cpp/daal/`)
-2. Maintain **backward compatibility**
-3. Use **C++14/17 features** appropriately (but not C++20/23)
-4. Follow **existing patterns**
-5. Follow **comprehensive coding guidelines**
-
-### For Examples and Documentation
-1. Ensure **completeness** and **runnability**
-2. Use **appropriate interface** based on context
-3. Include **proper error handling**
-4. Follow **established patterns**
-5. Follow **coding standards**
-
-## 🚨 Critical Reminders for PR Review
-
-1. **🔴 Make compatibility is CRITICAL** - verify FIRST
-2. **🟡 CMake integration is IMPORTANT** - verify SECOND  
-3. **🟢 Bazel testing is DEVELOPMENT** - verify THIRD
-4. **C++17 maximum standard** - no C++20/23 features
-5. **Interface consistency** - don't mix DAAL and oneAPI
-6. **Cross-repository impact** - consider scikit-learn-intelex
-7. **Coding standards** - follow comprehensive guidelines
 
 ## 🔄 **Cross-Reference Navigation**
 
@@ -285,9 +152,6 @@ cc_library(
 ---
 
 **Remember**: 
-- Always check the file path and context before generating code
-- C++17 is the maximum standard allowed for compatibility reasons
 - When in doubt, refer to the appropriate instruction file for detailed guidance
 - Ensure all generated code compiles and follows the established patterns
-- **PR Review is the PRIMARY goal** - focus on validation and quality
 - **Follow comprehensive coding guidelines** for consistency and quality
