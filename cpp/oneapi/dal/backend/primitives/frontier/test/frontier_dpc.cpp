@@ -14,7 +14,7 @@ void print_device_name(sycl::queue& queue) {
     std::cout << "Running on device: " << device_name << std::endl;
 }
 
-template<typename T>
+template <typename T>
 void print_frontier(const T* data, size_t count, size_t num_items) {
     size_t element_bitsize = sizeof(T) * 8;
     for (size_t i = 0; i < count; ++i) {
@@ -50,11 +50,12 @@ TEST("frontier queue basic operations", "[frontier]") {
     REQUIRE(f.check(3) == false);
     REQUIRE(f.check(bitset<std::uint32_t>::element_bitsize) == true);
     REQUIRE(f.check(bitset<std::uint32_t>::element_bitsize + 1) == false);
-    
+
     auto e = f.compute_active_frontier();
-    REQUIRE(f.get_offsets_size().at_device(queue, 0, {e}) == 3);
+    REQUIRE(f.get_offsets_size().at_device(queue, 0, { e }) == 3);
     for (int i = 0; i < 3; i++) {
-        std::cout << "Active frontier item " << i << ": " << f.get_offsets().at_device(queue, i) << std::endl;
+        std::cout << "Active frontier item " << i << ": " << f.get_offsets().at_device(queue, i)
+                  << std::endl;
     }
 
     f.clear();
