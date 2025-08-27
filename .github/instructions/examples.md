@@ -45,7 +45,7 @@
 ```cpp
 // Quick K-means example
 auto desc = kmeans::descriptor<float>()
-    .set_cluster_count(10)
+            .set_cluster_count(10)
     .set_max_iteration_count(100);
 auto result = train(desc, data);
 ```
@@ -55,7 +55,7 @@ auto result = train(desc, data);
 try {
     auto result = train(desc, data);
     return result;
-} catch (const std::exception& e) {
+    } catch (const std::exception& e) {
     std::cerr << "Training failed: " << e.what() << std::endl;
     throw;
 }
@@ -112,8 +112,8 @@ auto result = std::make_unique<training_result>();
 #include "oneapi/dal/algo/kmeans.hpp"
 #include "oneapi/dal/table/homogen.hpp"
 
-auto desc = kmeans::descriptor<float>()
-    .set_cluster_count(10);
+        auto desc = kmeans::descriptor<float>()
+            .set_cluster_count(10);
 auto result = train(desc, data);
 ```
 
@@ -207,7 +207,7 @@ auto desc = algorithm::descriptor<Float>()
     .set_parameter1(value1)
     .set_parameter2(value2);
 
-auto result = train(desc, data);
+    auto result = train(desc, data);
 // Process result...
 ```
 
