@@ -86,10 +86,11 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
     auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
     uint32_t element_bitsize = bitmap.get_element_bitsize();
-    size_t local_range = propose_wg_size(this->_queue); 
-    size_t global_range =
-        _mlb_layer.get_count() + local_range - (_mlb_layer.get_count() % local_range);
+    size_t local_range = 256;// propose_wg_size(this->_queue); 
+    size_t mlb_count = _mlb_layer.get_count();
+    size_t global_range = (mlb_count % local_range == 0) ? mlb_count : (mlb_count + local_range - (mlb_count % local_range));
 
+    // check if local memory is enough
     bool use_local_mem =
         device_local_mem_size(this->_queue) >= static_cast<std::int64_t>(local_range * element_bitsize * sizeof(uint32_t));
 
@@ -102,7 +103,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
     auto e1 = this->_queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(e0);
 
-        if (!use_local_mem || true) { // Force to use global memory for simplicity
+        if (!use_local_mem) {   
             cgh.parallel_for(make_range_1d(_mlb_layer.get_count()),
                 [=,
                 offsets = offsets_pointer,
@@ -135,19 +136,19 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
                 offsets = offsets_pointer,
                 offsets_size = offsets_size_pointer,
                 data_layer = this->_mlb_layer.get_mutable_data(),
-                size = this->_num_items,
+                size = mlb_count,
                 buffer = this->_buffer.get_mutable_data(),
                 CAF_FLAG = this->_CAF_FLAG](sycl::nd_item<1> item) {
                     if (!buffer[CAF_FLAG]) return;
 
                     auto group = item.get_group();
                     sycl::atomic_ref<uint32_t,
-                                        sycl::memory_order::relaxed,
-                                        sycl::memory_scope::work_group>
+                                     sycl::memory_order::relaxed,
+                                     sycl::memory_scope::work_group>
                         local_size_ref{ local_size[0] };
                     sycl::atomic_ref<uint32_t,
-                                        sycl::memory_order::relaxed,
-                                        sycl::memory_scope::device>
+                                     sycl::memory_order::relaxed,
+                                     sycl::memory_scope::device>
                         offsets_size_ref{ offsets_size[0] };
 
                     if (group.leader()) {
@@ -155,7 +156,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
                     }
                     sycl::group_barrier(group);
                     for (uint32_t gid = item.get_global_linear_id(); gid < size;
-                            gid += local_range) {
+                            gid += item.get_global_range(0)) {
                         ElementType data = data_layer[gid];
                         for (size_t i = 0; i < element_bitsize; i++) {
                             if (data & (static_cast<ElementType>(1) << i)) {
