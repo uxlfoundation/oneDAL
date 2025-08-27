@@ -23,8 +23,8 @@ public:
                   std::uint32_t* offsets_size,
                   size_t num_items)
             : _num_items(num_items),
-              _data_layer(bitset<bitmap_t>{data_layer}),
-              _mlb_layer(bitset<bitmap_t>{mlb_layer}),
+              _data_layer(bitset<bitmap_t>{ data_layer }),
+              _mlb_layer(bitset<bitmap_t>{ mlb_layer }),
               _offsets(offsets),
               _offsets_size(offsets_size) {}
 
@@ -73,17 +73,19 @@ class frontier {
     using buffer_t = std::uint32_t;
 
 public:
-    frontier(sycl::queue& queue, std::size_t num_items, sycl::usm::alloc alloc = sycl::usm::alloc::shared);
+    frontier(sycl::queue& queue,
+             std::size_t num_items,
+             sycl::usm::alloc alloc = sycl::usm::alloc::shared);
 
     const frontier_view<ElementType> get_device_view() const {
         auto offsets_size_pointer = _offsets.get_mutable_data();
         auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
         return { _data_layer.get_mutable_data(),
-                _mlb_layer.get_mutable_data(),
-                offsets_pointer,
-                offsets_size_pointer,
-                static_cast<std::size_t>(_data_layer.get_count()) };
+                 _mlb_layer.get_mutable_data(),
+                 offsets_pointer,
+                 offsets_size_pointer,
+                 static_cast<std::size_t>(_data_layer.get_count()) };
     }
 
     inline ndview<ElementType, 1> get_data() const {
