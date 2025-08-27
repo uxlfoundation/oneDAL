@@ -10,6 +10,7 @@ This directory contains custom instructions for GitHub Copilot to understand the
 
 - **[general.md](general.md)** - General repository context and rules
 - **[cpp.md](cpp.md)** - C++ development guidelines and patterns
+- **[coding-guidelines.md](coding-guidelines.md)** - Comprehensive coding standards and best practices
 - **[cpp17-constraints.md](cpp17-constraints.md)** - C++17 constraints and best practices
 - **[build-systems.md](build-systems.md)** - Build system configurations and rules
 - **[documentation.md](documentation.md)** - Documentation standards and patterns
@@ -25,15 +26,6 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 - **Development context** (new code vs. legacy maintenance)
 - **PR Review scenarios** (primary focus)
 
-## 🔴 **CRITICAL BUILD SYSTEM PRIORITY FOR PR REVIEWS**
-
-### Build System Priority Order (CRITICAL)
-1. **🔴 Make (CRITICAL)**: Primary build system for production builds
-2. **🟡 CMake (IMPORTANT)**: End-user integration support (find_package)
-3. **🟢 Bazel (DEVELOPMENT)**: Development and testing (ongoing migration)
-
-**🚨 WHY MAKE FIRST?** Make is the production build system used for releases. All changes MUST work with Make builds for production deployment.
-
 ## 📋 Key Rules Summary
 
 1. **🔴 Build System Priority**: Make is PRIMARY for production, CMake for end-users, Bazel for development
@@ -44,6 +36,7 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 6. **C++17 Compliance**: Strict adherence to C++17 maximum standard
 7. **Integration**: Works with scikit-learn-intelex project
 8. **🎯 PR Review Focus**: Primary goal is PR review assistance
+9. **Coding Standards**: Follow comprehensive coding guidelines for consistency
 
 ## 🔍 **PR Review Assistance (PRIMARY FOCUS)**
 
@@ -54,6 +47,7 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 - **Documentation Updates**: Ensure accuracy and completeness
 - **Performance Changes**: Verify Make build performance impact
 - **Integration Changes**: Check scikit-learn-intelex compatibility
+- **Code Quality**: Verify coding standards and best practices
 
 ### PR Review Checklist Template
 ```markdown
@@ -69,6 +63,7 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 - [ ] **Interface consistency preserved** (DAAL vs oneAPI)
 - [ ] **Error handling implemented** (proper exception safety)
 - [ ] **Documentation updated** (accurate and complete)
+- [ ] **Coding standards followed** (naming, style, structure)
 
 ### 🟡 Cross-Repository Impact
 - [ ] **scikit-learn-intelex compatibility** assessed
@@ -106,6 +101,7 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 ### For Copilot Instructions
 - **[Build Systems](../../.github/instructions/build-systems.md)** - Build system guidance
 - **[C++ Development](../../.github/instructions/cpp.md)** - C++ coding guidelines
+- **[Coding Guidelines](../../.github/instructions/coding-guidelines.md)** - Comprehensive coding standards
 - **[Examples](../../.github/instructions/examples.md)** - Code pattern examples
 - **[Documentation](../../.github/instructions/documentation.md)** - Documentation standards
 - **[CI Workflows](../../.github/instructions/ci-workflows.md)** - CI/CD validation guidance
@@ -121,6 +117,7 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 7. **C++17 maximum standard** - no C++20/23 features
 8. **Interface consistency** - don't mix DAAL and oneAPI
 9. **Cross-repository impact** - consider scikit-learn-intelex
+10. **Coding standards** - follow comprehensive guidelines
 
 ## 📊 **Quick Decision Guide**
 
@@ -129,18 +126,28 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 - **Build**: Ensure Make compatibility (🔴 CRITICAL)
 - **Testing**: Include Bazel tests (🟢 development)
 - **Documentation**: Update relevant docs
+- **Standards**: Follow coding guidelines
 
 ### Legacy Code Maintenance?
 - **Interface**: Use DAAL (`cpp/daal/`)
 - **Build**: Maintain Make compatibility (🔴 CRITICAL)
 - **Compatibility**: Preserve backward compatibility
 - **Testing**: Ensure existing tests pass
+- **Standards**: Follow coding guidelines
 
 ### Build System Changes?
 - **Priority**: Make compatibility FIRST (🔴 CRITICAL)
 - **Integration**: CMake support SECOND (🟡 IMPORTANT)
 - **Development**: Bazel workflow THIRD (🟢 DEVELOPMENT)
 - **Validation**: Test all build systems
+- **Documentation**: Update build instructions
+
+### Code Quality Issues?
+- **Standards**: Refer to coding guidelines
+- **Naming**: Follow naming conventions
+- **Structure**: Use proper declaration order
+- **Documentation**: Include proper comments
+- **Testing**: Ensure code is testable
 
 ---
 

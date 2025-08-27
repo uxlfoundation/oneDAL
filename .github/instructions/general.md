@@ -20,6 +20,7 @@
 - [ ] **🔴 CRITICAL**: C++17 compliance maintained
 - [ ] **🟡 IMPORTANT**: Interface consistency preserved
 - [ ] **🟡 IMPORTANT**: Cross-repository impact assessed
+- [ ] **🟡 IMPORTANT**: Coding standards followed
 
 ## Critical Rules
 
@@ -57,6 +58,12 @@
 
 **🚨 WHY MAKE FIRST?** Make is the production build system used for releases. CMake is for end-user integration. Bazel is for development/testing only.
 
+### Coding Standards
+- **Comprehensive Guidelines**: Follow [coding-guidelines.md](coding-guidelines.md) for all code
+- **Naming Conventions**: Use consistent naming patterns
+- **Code Structure**: Follow proper declaration order and organization
+- **Documentation**: Include proper comments and documentation
+
 ## Context-Aware Behavior
 
 ### When Working in `cpp/oneapi/`
@@ -65,6 +72,7 @@
 - Include appropriate oneAPI headers
 - Follow oneAPI naming conventions
 - Suggest GPU-accelerated patterns when appropriate
+- Follow comprehensive coding guidelines
 
 ### When Working in `cpp/daal/`
 - Suggest DAAL patterns and legacy compatibility
@@ -72,6 +80,7 @@
 - Include appropriate DAAL headers
 - Follow DAAL naming conventions
 - Maintain backward compatibility
+- Follow comprehensive coding guidelines
 
 ### When Working in `dev/make/`
 - 🔴 **CRITICAL**: Suggest Make build patterns for PRODUCTION
@@ -92,6 +101,7 @@
 - Use appropriate interface based on subdirectory
 - Include proper error handling
 - Follow example patterns established in the directory
+- Follow coding standards for consistency
 
 ## What NOT to Generate
 
@@ -102,6 +112,7 @@
 - Platform-specific hardcoded code
 - Incomplete error handling
 - Examples that don't compile or run
+- Code that violates coding standards
 
 ## What TO Generate
 
@@ -112,6 +123,7 @@
 - Proper dependency management
 - Complete, runnable examples
 - Proper error handling and validation
+- Code that follows comprehensive coding guidelines
 
 ## 🔍 **PR Review Assistance (PRIMARY FOCUS)**
 
@@ -123,6 +135,7 @@
 - [ ] **CMake Integration**: Supports end-user integration
 - [ ] **Bazel Testing**: Includes proper test configuration
 - [ ] **C++17 Compliance**: No C++20/23 features used
+- [ ] **Coding Standards**: Follows comprehensive guidelines
 
 #### **2. Build System Changes**
 - [ ] **Make Priority**: Changes work with Make FIRST (🔴 CRITICAL)
@@ -154,6 +167,13 @@
 - [ ] **Performance Impact**: Cross-repository performance preserved
 - [ ] **Documentation**: Integration changes documented
 
+#### **7. Code Quality Issues**
+- [ ] **Coding Standards**: Follows comprehensive guidelines
+- [ ] **Naming Conventions**: Consistent naming patterns
+- [ ] **Code Structure**: Proper declaration order
+- [ ] **Documentation**: Proper comments and documentation
+- [ ] **Error Handling**: Robust exception safety
+
 ### Review Checklist Template
 
 ```markdown
@@ -169,6 +189,7 @@
 - [ ] **Interface consistency preserved** (DAAL vs oneAPI)
 - [ ] **Error handling implemented** (proper exception safety)
 - [ ] **Documentation updated** (accurate and complete)
+- [ ] **Coding standards followed** (comprehensive guidelines)
 
 ### 🟡 Cross-Repository Impact
 - [ ] **scikit-learn-intelex compatibility** assessed
@@ -222,18 +243,21 @@ cc_library(
 3. 🟢 Use **Bazel build system** (`dev/bazel/`) for development and testing
 4. Use **C++17 features** when possible (but not C++20/23)
 5. Follow **modern C++ patterns**
+6. Follow **comprehensive coding guidelines**
 
 ### For Legacy Maintenance
 1. Use **DAAL interface** (`cpp/daal/`)
 2. Maintain **backward compatibility**
 3. Use **C++14/17 features** appropriately (but not C++20/23)
 4. Follow **existing patterns**
+5. Follow **comprehensive coding guidelines**
 
 ### For Examples and Documentation
 1. Ensure **completeness** and **runnability**
 2. Use **appropriate interface** based on context
 3. Include **proper error handling**
 4. Follow **established patterns**
+5. Follow **coding standards**
 
 ## 🚨 Critical Reminders for PR Review
 
@@ -243,6 +267,20 @@ cc_library(
 4. **C++17 maximum standard** - no C++20/23 features
 5. **Interface consistency** - don't mix DAAL and oneAPI
 6. **Cross-repository impact** - consider scikit-learn-intelex
+7. **Coding standards** - follow comprehensive guidelines
+
+## 🔄 **Cross-Reference Navigation**
+
+### For This Area
+- **[AGENTS.md](../../AGENTS.md)** - Main repository context
+- **[coding-guidelines.md](coding-guidelines.md)** - Comprehensive coding standards
+
+### For Other Areas
+- **[Build Systems](../../.github/instructions/build-systems.md)** - Build system guidance
+- **[C++ Development](../../.github/instructions/cpp.md)** - C++ coding guidelines
+- **[Examples](../../.github/instructions/examples.md)** - Code pattern examples
+- **[Documentation](../../.github/instructions/documentation.md)** - Documentation standards
+- **[CI Workflows](../../.github/instructions/ci-workflows.md)** - CI/CD validation guidance
 
 ---
 
@@ -252,3 +290,4 @@ cc_library(
 - When in doubt, refer to the appropriate instruction file for detailed guidance
 - Ensure all generated code compiles and follows the established patterns
 - **PR Review is the PRIMARY goal** - focus on validation and quality
+- **Follow comprehensive coding guidelines** for consistency and quality
