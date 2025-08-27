@@ -217,13 +217,8 @@ auto result = train(comm, desc, local_data);
 
 ### SYCL Development
 - **Intel oneAPI DPC++**: Primary SYCL implementation
-- **SYCLomatic**: Migration tool from CUDA
 - **Intel VTune**: Performance profiling
 
-### Build System
-- **Bazel**: Primary build system
-- **CMake**: Alternative build system
-- **Conan**: Package management
 
 ## 📖 Further Reading
 

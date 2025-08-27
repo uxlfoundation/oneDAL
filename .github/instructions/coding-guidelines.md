@@ -4,15 +4,6 @@
 
 **GitHub Copilot's main purpose is to assist with PR reviews. These coding guidelines ensure consistent, high-quality code that follows oneDAL standards.**
 
-## 🔴 **CRITICAL BUILD SYSTEM PRIORITY**
-
-### Build System Priority Order (CRITICAL FOR PR REVIEWS)
-1. **🔴 Make (CRITICAL)**: Primary build system for production builds
-2. **🟡 CMake (IMPORTANT)**: End-user integration support (find_package)
-3. **🟢 Bazel (DEVELOPMENT)**: Development and testing (ongoing migration)
-
-**🚨 WHY MAKE FIRST?** Make is the production build system used for releases. All changes MUST work with Make builds for production deployment.
-
 ## 📋 **Coding Style Standards**
 
 ### General Rules
@@ -37,7 +28,7 @@ Each C++ file should begin with:
 /*
  * kmeans_batch.h
  *
- * Copyright 2024 Intel Corporation
+ * Copyright contributors to the oneDAL project
  *
  * K-means clustering algorithm batch processing interface
  */
@@ -290,22 +281,14 @@ const double epsilon = 1e-6;
 - [ ] **Memory efficiency** optimized for performance
 - [ ] **SDL requirements** met for security
 
-### Build Compatibility
-- [ ] **Make compatibility** verified (🔴 CRITICAL)
-- [ ] **CMake integration** tested (🟡 IMPORTANT)
-- [ ] **Bazel tests** pass (🟢 DEVELOPMENT)
-- [ ] **C++17 compliance** maintained (no C++20/23)
 
 ## 🚨 **Critical Reminders for PR Review**
 
-1. **🔴 Make compatibility is CRITICAL** - verify FIRST
-2. **🟡 CMake integration is IMPORTANT** - verify SECOND  
-3. **🟢 Bazel testing is DEVELOPMENT** - verify THIRD
-4. **C++17 maximum standard** - no C++20/23 features
-5. **Naming conventions** must be consistent
-6. **RAII and smart pointers** for memory management
-7. **Const correctness** for type safety
-8. **Exception safety** for robustness
+1. **C++17 maximum standard** - no C++20/23 features
+2. **Naming conventions** must be consistent
+3. **RAII and smart pointers** for memory management
+4. **Const correctness** for type safety
+5. **Exception safety** for robustness
 
 ## 🔄 **Cross-Reference Navigation**
 
@@ -323,5 +306,3 @@ const double epsilon = 1e-6;
 **Note**: These coding guidelines ensure consistent, high-quality code that follows oneDAL standards.
 
 **🎯 PRIMARY GOAL**: Assist with PR reviews by ensuring code follows established coding standards and best practices.
-
-**🚨 CRITICAL**: For PR reviews, always verify Make compatibility FIRST - this is the production build system!

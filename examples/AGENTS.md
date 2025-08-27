@@ -265,15 +265,9 @@ int main(int argc, char* argv[]) {
 
 ### Required Tools
 - **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
-- **Build Systems**: Bazel, CMake, Make
-- **Development Environment**: IDE or text editor
-- **Version Control**: Git for source management
-
-### Optional Tools
+- **Build Systems**:  CMake
 - **Intel oneAPI**: For SYCL development
 - **MPI**: For distributed computing examples
-- **Database Tools**: For integration examples
-- **Performance Tools**: For benchmarking examples
 
 ## 📖 Further Reading
 

@@ -20,7 +20,6 @@ deploy/
 ├── local/                    # Local development deployment
 │   ├── config.txt           # Local configuration
 │   ├── dal                  # Local binary
-│   ├── vars_lnx.sh          # Linux environment variables
 │   ├── vars_win.bat         # Windows environment variables
 │   └── vars_lnx.sh          # Linux environment variables
 ├── nuget/                    # .NET package distribution
