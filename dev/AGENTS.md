@@ -1,3 +1,17 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Development Tools and Build Systems - AI Agents Context
 
 > **Purpose**: This file provides context for AI agents working with the development tools, build systems, and configuration patterns used in oneDAL development.
@@ -7,7 +21,7 @@
 oneDAL supports **multiple build systems** to accommodate different development workflows and platform requirements:
 
 ### Primary Build Systems
-- **Bazel**: In process of migration build system that handle development and validation usecases
+- **Bazel**: In process of migration build system that handles development and validation use cases
 - **Make**: Primary development build system used for production builds
 
 ## 📁 Directory Structure
@@ -74,7 +88,7 @@ cc_library(
 ## 🔧 Make Build System
 
 ### Key Characteristics
-- **Production build system**: MAin build system used for production builds
+- **Production build system**: Main build system used for production builds
 - **Platform Specific**: Different configurations per platform
 - **Dependency Management**: Manual dependency specification
 
