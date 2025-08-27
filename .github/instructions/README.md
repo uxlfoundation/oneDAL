@@ -1,3 +1,17 @@
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # GitHub Copilot Instructions for oneDAL
 
 ## 🎯 **PRIMARY GOAL: PR Review Assistance**
@@ -71,11 +85,11 @@ These instruction files are automatically loaded by GitHub Copilot when working 
 - **[ci/AGENTS.md](../../ci/AGENTS.md)** - CI infrastructure and workflows context
 
 ### For Copilot Instructions
-- **[Build Systems](../../.github/instructions/build-systems.md)** - Build system guidance
-- **[C++ Development](../../.github/instructions/cpp.md)** - C++ coding guidelines
-- **[Coding Guidelines](../../.github/instructions/coding-guidelines.md)** - Comprehensive coding standards
-- **[Examples](../../.github/instructions/examples.md)** - Code pattern examples
-- **[Documentation](../../.github/instructions/documentation.md)** - Documentation standards
-- **[CI Workflows](../../.github/instructions/ci-workflows.md)** - CI/CD validation guidance
+- **[Build Systems](build-systems.md)** - Build system guidance
+- **[C++ Development](cpp.md)** - C++ coding guidelines
+- **[Coding Guidelines](coding-guidelines.md)** - Comprehensive coding standards
+- **[Examples](examples.md)** - Code pattern examples
+- **[Documentation](documentation.md)** - Documentation standards
+- **[CI Workflows](ci-workflows.md)** - CI/CD validation guidance
 
 
