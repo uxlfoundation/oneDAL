@@ -23,6 +23,8 @@
 
 #include "services/daal_defines.h"
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
+#include <cassert>
+#include <iostream>
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -58,6 +60,7 @@ size_t ModelImpl::numberOfTrees() const
 
 void ModelImpl::traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const
 {
+    std::cerr << "traverseDF" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -78,6 +81,7 @@ void ModelImpl::traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor
 
 void ModelImpl::traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const
 {
+    // std::cerr << "traverseBF" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -103,6 +107,7 @@ void ModelImpl::traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor
 
 void ModelImpl::traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const
 {
+    // std::cerr << "traverseBFS" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -143,6 +148,7 @@ void ModelImpl::traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisito
 
 void ModelImpl::traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const
 {
+    std::cerr << "traverseDFS" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -227,6 +233,9 @@ void ModelImpl::destroy()
 
 bool ModelImpl::nodeIsDummyLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTree)
 {
+    std::cerr << "This function should not be called" << std::endl;
+    assert(0);
+    // TODO fix - function is redundant
     const size_t childArrayIndex           = nodeIndex - 1;
     const ModelFPType * splitPoints        = gbtTree.getSplitPoints();
     const FeatureIndexType * splitFeatures = gbtTree.getFeatureIndexesForSplit();
@@ -243,19 +252,26 @@ bool ModelImpl::nodeIsDummyLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTre
 
 bool ModelImpl::nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const size_t lvl)
 {
-    if (lvl == gbtTree.getMaxLvl())
-    {
-        return true;
-    }
-    else if (nodeIsDummyLeaf(2 * idx, gbtTree)) // check, that left son is dummy
-    {
-        return true;
-    }
-    return false;
+    // TODO: fix
+    const size_t * leftChildIdx = gbtTree.getLeftChildIndexes();
+    // std::cerr << "nodeIsLeaf: " << idx - 1 << " " << leftChildIdx[idx - 1] << std::endl;
+    return leftChildIdx[idx - 1] == idx;
+    // if (lvl == gbtTree.getMaxLvl())
+    // {
+    //     return true;
+    // }
+    // else if (nodeIsDummyLeaf(2 * idx, gbtTree)) // check, that left son is dummy
+    // {
+    //     return true;
+    // }
+    // return false;
 }
 
 size_t ModelImpl::getIdxOfParent(const size_t childIdx)
 {
+    // TODO fix
+    std::cerr << "This function should not be called" << std::endl;
+    assert(0);
     return childIdx / 2;
 }
 
@@ -273,7 +289,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
     NodeType * parents = parentsArr.data();
 
     ModelFPType * const splitPoints         = newTree.getSplitPoints();
-    size_t * const leftChildIndexes = newTree.getLeftChildIndexes();
+    size_t * const leftChildIndexes         = newTree.getLeftChildIndexes();
     FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
     ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
     int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
@@ -287,6 +303,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
     size_t nParents   = 1;
     parents[0]        = arr;
     size_t idxInTable = 0;
+    size_t idxChild   = 2;
 
     for (size_t lvl = 0; lvl < nLvls + 1; ++lvl)
     {
@@ -303,18 +320,24 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 nodeCoverValues[idxInTable] = p->cover;
                 defaultLeft[idxInTable]     = p->defaultLeft;
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
-                splitPoints[idxInTable] = p->featureValueOrResponse;
+                splitPoints[idxInTable]      = p->featureValueOrResponse;
+                leftChildIndexes[idxInTable] = idxChild;
+                idxChild += 2;
             }
             else
             {
-                sons[nSons++]               = p;
-                sons[nSons++]               = p;
+                //sons[nSons++]               = p;
+                //sons[nSons++]               = p;
                 featureIndexes[idxInTable]  = 0;
                 nodeCoverValues[idxInTable] = p->cover;
                 defaultLeft[idxInTable]     = 0;
                 splitPoints[idxInTable]     = p->featureValueOrResponse;
+
+                //leftChildIndexes[idxInTable] = idxChild;
+                //idxChild += 2;
+                leftChildIndexes[idxInTable] = idxInTable + 1;
             }
-            leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
+            // leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
             idxInTable++;
         }
         swap(parents, sons);
