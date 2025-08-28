@@ -346,7 +346,7 @@ public:
         TableRecordType ** parents = parentsArr.data();
 
         gbt::internal::ModelFPType * const splitPoints         = tree->getSplitPoints();
-        size_t* const leftChildIndexes = tree->getLeftChildIndexes();
+        size_t * const leftChildIndexes                        = tree->getLeftChildIndexes();
         gbt::internal::FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
 
         for (size_t i = 0; i < nNodes; ++i)

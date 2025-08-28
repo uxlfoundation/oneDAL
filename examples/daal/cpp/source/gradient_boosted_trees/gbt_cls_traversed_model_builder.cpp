@@ -122,6 +122,7 @@ public:
     virtual bool onSplitNode(
         const daal::algorithms::tree_utils::regression::SplitNodeDescriptor &desc) {
         if (desc.level == 0) {
+            // parent is dummy
             Node *root = roots[treeId].root;
             (*(roots + treeId)).nNodes = 1;
             root->left = NULL;
@@ -135,7 +136,6 @@ public:
         else {
             roots[treeId - 1].nNodes++;
             Node *node = new Node(0, desc.featureIndex, desc.featureValue);
-
             Node *parent = parentNodes.front();
             if (parent->left == NULL) {
                 parent->left = node;
@@ -176,6 +176,8 @@ bool buildTree(size_t treeId,
 int main(int argc, char *argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
 
+    services::Environment::getInstance()->setNumberOfThreads(1);
+
     /* train DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();
     std::cout << "Predict on trained model" << std::endl;
@@ -183,10 +185,12 @@ int main(int argc, char *argv[]) {
     if (trainedModel.get())
         nTrees = trainedModel->numberOfTrees();
     size_t trainedAccurcy = testModel(trainedModel);
-
+    std::cerr << nTrees << std::endl;
+    if (trainedAccurcy){};
     /* traverse the trained model to get Tree representation */
     BFSNodeVisitor visitor(nTrees);
     Tree *trees = traverseModel(trainedModel, visitor);
+    if(trees) {};
     /* build the model by ModelBuilder from Tree */
     daal::algorithms::gbt::classification::ModelPtr builtModel = buildModel(trees);
     std::cout << "Predict on built model from input user Tree " << std::endl;

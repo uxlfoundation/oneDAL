@@ -129,7 +129,7 @@ TEST("nodeIsLeafThreeNodes", "[unit]")
 TEST("nodeIsDummyLeafFiveNodes", "[unit]")
 {
     GbtDecisionTree tree = prepareFiveNodeTree();
-
+    // TODO update test
     REQUIRE(!ModelImpl::nodeIsDummyLeaf(1, tree));
     REQUIRE(!ModelImpl::nodeIsDummyLeaf(2, tree));
     REQUIRE(!ModelImpl::nodeIsDummyLeaf(3, tree));
