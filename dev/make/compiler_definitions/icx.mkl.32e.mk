@@ -70,7 +70,7 @@ endif
 COMPILER.lnx.icx = icx -m64 \
                      -Werror -Wreturn-type -qopenmp-simd
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wignored-attributes -Wno-deprecated-declarations
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-error=ignored-attributes -Wno-deprecated-declarations
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
