@@ -51,13 +51,13 @@ else
 endif
 
 COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
-                     -Werror -Wreturn-type
+                     -Werror -Wreturn-type ${CXXFLAGS}
 COMPILER.lnx.clang = clang++ -m64 \
-                     -Werror -Wreturn-type
+                     -Werror -Wreturn-type ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.mac.clang = clang++ $(linker.ld.flag) -m64
-link.dynamic.lnx.clang = clang++ $(linker.ld.flag) -m64
+link.dynamic.lnx.clang = clang++ $(linker.ld.flag) -m64 ${LDFLAGS}
 
 pedantic.opts.mac.clang = $(pedantic.opts.clang)
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)
