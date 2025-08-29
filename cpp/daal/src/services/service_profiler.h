@@ -31,6 +31,7 @@
 #include <iostream>
 #include <mutex>
 #include <algorithm>
+#include <exception>
 
 #include "services/library_version_info.h"
 
@@ -299,30 +300,39 @@ public:
     {
         if (is_analyzer_enabled())
         {
-            merge_tasks();
-            const auto & tasks_info  = get_instance()->get_task();
-            std::uint64_t total_time = 0;
-            std::cerr << "Algorithm tree analyzer" << '\n';
-
-            for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+            try
             {
-                const auto & entry = tasks_info.kernels[i];
-                if (entry.level == 0) total_time += entry.duration;
+                merge_tasks();
+                const auto & tasks_info  = get_instance()->get_task();
+                std::uint64_t total_time = 0;
+                std::cerr << "Algorithm tree analyzer" << '\n';
+
+                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+                {
+                    const auto & entry = tasks_info.kernels[i];
+                    if (entry.level == 0) total_time += entry.duration;
+                }
+
+                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+                {
+                    const auto & entry = tasks_info.kernels[i];
+                    std::string prefix;
+                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
+                    bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
+                    prefix += is_last ? "|-- " : "|-- ";
+                    std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
+                              << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
+                              << " times"
+                              << " in a " << entry.threading_task << " region" << '\n';
+                }
+                std::cerr << "|---(end)" << '\n';
+                std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
             }
 
-            for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+            catch (std::exception & e)
             {
-                const auto & entry = tasks_info.kernels[i];
-                std::string prefix;
-                for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
-                bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
-                prefix += is_last ? "|-- " : "|-- ";
-                std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
-                          << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count << " times"
-                          << " in a " << entry.threading_task << " region" << '\n';
+                std::cerr << e.what() << std::endl;
             }
-            std::cerr << "|---(end)" << '\n';
-            std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
         }
     }
 
@@ -526,10 +536,18 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
-        if (is_thread_)
-            profiler::end_threading_task(task_name_, idx_);
-        else
-            profiler::end_task(task_name_, idx_);
+        try
+        {
+            if (is_thread_)
+                profiler::end_threading_task(task_name_, idx_);
+            else
+                profiler::end_task(task_name_, idx_);
+        }
+
+        catch (std::exception & e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
     }
 }
 
