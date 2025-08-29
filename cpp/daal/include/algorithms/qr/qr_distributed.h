@@ -396,11 +396,7 @@ public:
         {
             return _partialResult->check(_par, method);
         }
-        else
-        {
-            return services::Status(services::ErrorNullResult);
-        }
-        return services::Status();
+        return services::Status(services::ErrorNullResult);
     }
 
     /**
