@@ -148,7 +148,8 @@ host_csr_table_adapter<Data>::host_csr_table_adapter(const csr_table& table, sta
         one_based_row_offsets_.reset(row_count + 1);
         size_t* one_based_column_indices_ptr = one_based_column_indices_.get_mutable_data();
         size_t* one_based_row_offsets_ptr = one_based_row_offsets_.get_mutable_data();
-        for (std::int64_t i = 0; i < column_count; i++) {
+        const std::size_t nnz = one_based_row_offsets_[row_count] - one_based_row_offsets_[0];
+        for (std::size_t i = 0; i < nnz; i++) {
             one_based_column_indices_ptr[i] = column_indices[i] + 1;
         }
         column_indices = one_based_column_indices_ptr;
