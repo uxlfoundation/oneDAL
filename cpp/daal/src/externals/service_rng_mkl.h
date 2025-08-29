@@ -75,11 +75,6 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
         int * rr   = (int *)r;
         __DAAL_VSLFN_CALL_NR_WHILE(iRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, na, nb), errcode);
 
-        if (errcode != 0)
-        {
-            return errcode;
-        }
-
         size_t shift = a - na;
         for (size_t i = 0; i < n; i++)
         {
@@ -97,11 +92,6 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
             int nn     = (int)n;
             int * rr   = (int *)r + n;
             __DAAL_VSLFN_CALL_NR_WHILE(iRngUniform, ((const MKL_INT)method, stream, (const MKL_INT)nn, rr, na, nb), errcode);
-
-            if (errcode != 0)
-            {
-                return errcode;
-            }
 
             rr           = (int *)r + n;
             size_t shift = a - na;
@@ -127,11 +117,6 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
                 int nn                = (int)n;
                 unsigned __int64 * rr = cr;
                 __DAAL_VSLFN_CALL_NR_WHILE(iRngUniformBits64, ((const MKL_INT)method, stream, (const MKL_INT)nn, (unsigned MKL_INT64 *)rr), errcode);
-
-                if (errcode != 0)
-                {
-                    return errcode;
-                }
             }
             else
             {
@@ -144,11 +129,6 @@ int uniformRNG(const size_t cn, size_t * r, void * stream, const size_t a, const
                     unsigned __int64 * rr = cr + pos;
                     __DAAL_VSLFN_CALL_NR_WHILE(iRngUniformBits64, ((const MKL_INT)method, stream, (const MKL_INT)nn, (unsigned MKL_INT64 *)rr),
                                                errcode);
-
-                    if (errcode != 0)
-                    {
-                        return errcode;
-                    }
 
                     for (size_t i = pos; i < cn; i++)
                     {
