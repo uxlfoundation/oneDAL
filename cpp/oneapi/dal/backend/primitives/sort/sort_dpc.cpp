@@ -14,6 +14,12 @@
 * limitations under the License.
 *******************************************************************************/
 
+
+
+#if defined(_MSC_VER)
+#pragma message(">>> Compiling with MSVC: _MSC_VER is defined <<<")
+#endif
+
 #include "oneapi/dal/backend/primitives/sort/sort.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
