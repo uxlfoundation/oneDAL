@@ -70,12 +70,6 @@ public:
  * 
  * @par Complexity
  * Time complexity: O(n * k * i) where n is number of points,
- * k is number of clusters, and i is number of iterations.
- */
-template<typename Float, Method Method>
-auto train(const kmeans::descriptor<Float, Method>& desc,
-           const table& data) -> kmeans::train_result<Float, Method>;
-```
 
 ### Class Documentation
 ```cpp
@@ -227,110 +221,11 @@ Bazel Configuration
     )
 ```
 
-## Python API Documentation
+**Note**: Python API documentation belongs in the scikit-learn-intelex repository, not in oneDAL. This is a C++ library with Python bindings provided separately.
 
-### Docstring Format
-```python
-def kmeans_training(data, n_clusters=10, max_iterations=100):
-    """
-    Perform K-means clustering training.
-    
-    Parameters
-    ----------
-    data : array-like
-        Input data for clustering. Shape (n_samples, n_features).
-    n_clusters : int, default=10
-        Number of clusters to form.
-    max_iterations : int, default=100
-        Maximum number of iterations for convergence.
-    
-    Returns
-    -------
-    result : KMeansResult
-        Training result containing cluster centers and labels.
-    
-    Examples
-    --------
-    >>> from onedal.cluster import KMeans
-    >>> kmeans = KMeans(n_clusters=3)
-    >>> result = kmeans.fit(data)
-    >>> centers = result.cluster_centers_
-    >>> labels = result.labels_
-    
-    Notes
-    -----
-    This implementation uses the Lloyd algorithm with dense data support.
-    For sparse data, consider using CSR format.
-    
-    See Also
-    --------
-    KMeans : The main KMeans class
-    KMeansResult : Result object containing training results
-    """
-    pass
-```
 
-### Class Documentation
-```python
-class KMeans:
-    """
-    K-Means clustering algorithm.
-    
-    This class implements the K-means clustering algorithm with support
-    for both dense and sparse data formats.
-    
-    Parameters
-    ----------
-    n_clusters : int, default=8
-        The number of clusters to form as well as the number of
-        centroids to generate.
-    max_iterations : int, default=100
-        Maximum number of iterations of the k-means algorithm.
-    tolerance : float, default=1e-4
-        Relative tolerance with regards to inertia to declare convergence.
-    
-    Attributes
-    ----------
-    cluster_centers_ : array of shape (n_clusters, n_features)
-        Coordinates of cluster centers.
-    labels_ : array of shape (n_samples,)
-        Labels of each point.
-    inertia_ : float
-        Sum of squared distances of samples to their closest cluster center.
-    
-    Examples
-    --------
-    >>> from onedal.cluster import KMeans
-    >>> import numpy as np
-    >>> X = np.array([[1, 2], [1, 4], [1, 0],
-    ...               [10, 2], [10, 4], [10, 0]])
-    >>> kmeans = KMeans(n_clusters=2, random_state=0)
-    >>> kmeans.fit(X)
-    KMeans(n_clusters=2, random_state=0)
-    >>> kmeans.labels_
-    array([1, 1, 1, 0, 0, 0], dtype=int32)
-    >>> kmeans.predict([[0, 0], [12, 3]])
-    array([1, 0], dtype=int32)
-    >>> kmeans.cluster_centers_
-    array([[10.,  2.],
-           [ 1.,  2.]])
-    """
-    
-    def __init__(self, n_clusters=8, max_iterations=100, tolerance=1e-4):
-        """
-        Initialize KMeans.
-        
-        Parameters
-        ----------
-        n_clusters : int, default=8
-            The number of clusters to form.
-        max_iterations : int, default=100
-            Maximum number of iterations.
-        tolerance : float, default=1e-4
-            Convergence tolerance.
-        """
-        pass
-```
+
+
 
 ## Documentation Standards
 

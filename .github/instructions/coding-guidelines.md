@@ -136,24 +136,80 @@ public:
 ```
 
 ### Smart Pointers and RAII
+
+#### For Traditional DAAL Interface (`cpp/daal/`)
+- **Ownership**: Use `daal::services::SharedPtr<T>` for memory management
+- **Allocators**: Use DAAL's custom allocator system
+- **Pattern**: Follow existing DAAL memory management patterns
+
+#### For Modern oneAPI Interface (`cpp/oneapi/`)
 - **Ownership**: Use `std::unique_ptr` for exclusive ownership
-- **Shared Ownership**: Use `std::shared_ptr` when ownership is shared
-- **RAII**: Follow Resource Acquisition Is Initialization principles
+- **Allocators**: Use standard C++ allocators or SYCL memory management
+- **Pattern**: Follow modern C++ RAII principles
+
+#### Memory Management Guidelines
+- **Don't mix** DAAL and STL smart pointers in the same codebase
+- **Use appropriate** memory management for each interface
+- **Follow** existing patterns in each codebase section
 
 ```cpp
-// Good - RAII with smart pointers
-class DataProcessor {
+// DAAL Interface - Use DAAL smart pointers
+class DAALDataProcessor {
 private:
-    std::unique_ptr<DataTable> data_;
-    std::shared_ptr<Algorithm> algorithm_;
+    daal::services::SharedPtr<daal::data_management::NumericTable> data_;
+    daal::services::SharedPtr<daal::algorithms::Algorithm> algorithm_;
     
 public:
-    DataProcessor(std::unique_ptr<DataTable> data, 
-                  std::shared_ptr<Algorithm> algo)
-        : data_(std::move(data)), algorithm_(algo) {}
-    
-    // Destructor automatically cleans up resources
+    DAALDataProcessor(daal::services::SharedPtr<daal::data_management::NumericTable> data,
+                      daal::services::SharedPtr<daal::algorithms::Algorithm> algo)
+        : data_(data), algorithm_(algo) {}
 };
+
+// oneAPI Interface - Use STL smart pointers
+class OneAPIDataProcessor {
+private:
+    std::unique_ptr<oneapi::dal::table> data_;
+    std::shared_ptr<oneapi::dal::algorithm> algorithm_;
+    
+public:
+    OneAPIDataProcessor(std::unique_ptr<oneapi::dal::table> data,
+                        std::shared_ptr<oneapi::dal::algorithm> algo)
+        : data_(std::move(data)), algorithm_(algo) {}
+};
+```
+
+### Error Handling
+
+#### For Traditional DAAL Interface (`cpp/daal/`)
+- **Status Codes**: Use DAAL's status code system
+- **Error Checking**: Check status after operations
+- **Pattern**: `if (status != services::Status::OK) { /* handle error */ }`
+
+#### For Modern oneAPI Interface (`cpp/oneapi/`)
+- **Exceptions**: Use exception-based error handling
+- **Exception Safety**: Provide strong exception guarantees
+- **Pattern**: `try { /* operation */ } catch (const std::exception& e) { /* handle */ }`
+
+#### Error Handling Guidelines
+- **Don't mix** error handling approaches in the same interface
+- **Use consistent** error handling within each codebase section
+- **Follow** existing error handling patterns
+
+```cpp
+// DAAL Interface - Use status codes
+daal::services::Status status = algorithm->compute();
+if (status != daal::services::Status::OK) {
+    // Handle error using DAAL error handling
+    daal::services::throwIfPossible(status);
+}
+
+// oneAPI Interface - Use exceptions
+try {
+    auto result = oneapi::dal::train(desc, data);
+} catch (const std::exception& e) {
+    // Handle exception appropriately
+    std::cerr << "Training failed: " << e.what() << std::endl;
+}
 ```
 
 ### Function Design
@@ -263,9 +319,10 @@ const double epsilon = 1e-6;
 ### Code Quality
 - [ ] **Naming conventions** followed consistently
 - [ ] **Function design** follows single responsibility principle
-- [ ] **Error handling** implemented properly
-- [ ] **Memory management** uses RAII and smart pointers
+- [ ] **Error handling** implemented properly for the interface (DAAL: status codes, oneAPI: exceptions)
+- [ ] **Memory management** uses appropriate patterns (DAAL: SharedPtr, oneAPI: STL smart pointers)
 - [ ] **Const correctness** applied appropriately
+- [ ] **Interface consistency** maintained (no mixing of DAAL and oneAPI patterns)
 
 ### Style and Formatting
 - [ ] **Indentation** uses 4 spaces (no tabs)
@@ -286,9 +343,10 @@ const double epsilon = 1e-6;
 
 1. **C++17 maximum standard** - no C++20/23 features
 2. **Naming conventions** must be consistent
-3. **RAII and smart pointers** for memory management
-4. **Const correctness** for type safety
-5. **Exception safety** for robustness
+3. **Memory management** - Use DAAL patterns for DAAL code, STL for oneAPI code
+4. **Error handling** - Use status codes for DAAL, exceptions for oneAPI
+5. **Const correctness** for type safety
+6. **Interface separation** - Don't mix DAAL and oneAPI patterns
 
 ## 🔄 **Cross-Reference Navigation**
 
@@ -300,6 +358,11 @@ const double epsilon = 1e-6;
 - **[Build Systems](build-systems.md)** - Build configuration guidance
 - **[Examples](examples.md)** - Code pattern examples
 - **[Documentation](documentation.md)** - Documentation standards
+
+### For Detailed Interface Patterns
+- **[cpp/daal/AGENTS.md](../../cpp/daal/AGENTS.md)** - Traditional DAAL interface patterns
+- **[cpp/oneapi/AGENTS.md](../../cpp/oneapi/AGENTS.md)** - Modern oneAPI interface patterns
+- **[dev/AGENTS.md](../../dev/AGENTS.md)** - Build system and development tools
 
 ---
 
