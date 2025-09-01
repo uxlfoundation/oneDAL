@@ -151,6 +151,7 @@ protected:
 
     DAAL_INT doPartition(size_t n, size_t iStart, SplitDataType & split, DAAL_INT iFeature, size_t idxFeatureValueBestSplit)
     {
+        // TODO: check if 2 * iStart is related to indexes
         return doPartitionIdx(n, _sharedData.aIdx + iStart, _sharedData.ctx.dataHelper().indexedFeatures().data(iFeature), split.featureUnordered,
                               idxFeatureValueBestSplit, _sharedData.bestSplitIdxBuf + (2 * iStart), split.nLeft);
     }
@@ -179,7 +180,7 @@ protected:
             RowIndexType iRight = 0;
             const size_t iStart = iBlock * sizeOfBlock;
             const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > n) ? n : iStart + sizeOfBlock);
-
+            // TODO: check if 2 * iStart is related to indexes
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 
@@ -223,7 +224,7 @@ protected:
                 offsetLeft += part_high_left[i];
                 offsetRight += part_high_right[i];
             }
-
+            // TODO: check if 2 * iStart is related to indexes
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 

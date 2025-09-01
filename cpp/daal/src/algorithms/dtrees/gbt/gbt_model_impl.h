@@ -410,13 +410,17 @@ protected:
                               OnLeafFunctor & visitLeaf)
     {
         const size_t oneBasedNodeIndex = iRowInTable + 1;
+        const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
         if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree, level))
         {
             if (!visitSplit(iRowInTable, level)) return; //do not continue traversing
 
             // TODO: fix indexes
-            traverseGbtDF(level + 1, iRowInTable * 2 + 1, gbtTree, visitSplit, visitLeaf);
-            traverseGbtDF(level + 1, iRowInTable * 2 + 2, gbtTree, visitSplit, visitLeaf);
+            // traverseGbtDF(level + 1, iRowInTable * 2 + 1, gbtTree, visitSplit, visitLeaf);
+            // traverseGbtDF(level + 1, iRowInTable * 2 + 2, gbtTree, visitSplit, visitLeaf);
+
+            traverseGbtDF(level + 1, leftChildIndexes[iRowInTable] - 1, gbtTree, visitSplit, visitLeaf);
+            traverseGbtDF(level + 1, leftChildIndexes[iRowInTable], gbtTree, visitSplit, visitLeaf);
         }
         else if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
         {
