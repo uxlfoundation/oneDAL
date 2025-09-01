@@ -18,8 +18,7 @@ module(name = "onedal")
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.1")
-bazel_dep(name = "rules_cc", version = "0.1.2")
-bazel_dep(name = "catch2", version = "3.8.1")
+bazel_dep(name = "rules_cc", version = "0.2.2")
 bazel_dep(name = "fmt", version = "11.2.0")
 
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
@@ -34,6 +33,15 @@ extra_toolchain_ext = use_extension("@onedal//dev/bazel/toolchains:extra_toolcha
 use_repo(extra_toolchain_ext, "onedal_extra_toolchain")
 register_toolchains("@{}//:all".format("onedal_extra_toolchain"))
 
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "catch2",
+    url = "https://github.com/catchorg/Catch2/archive/v3.9.1.tar.gz",
+    sha256 = "a215c2a723bd7483efd236dc86066842a389cb4e344c61119c978acdf24d39be",
+    strip_prefix = "Catch2-3.9.1",
+    build_file = "//dev/bazel/deps:catch2.BUILD",
+)
 
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
@@ -106,25 +114,109 @@ dpl_repo(
         "onedpl_devel-2022.7.1.data/data",
     ],
 )
-   
+
+# oneMKL dependencies for Bazel build.
+#
+# NOTE:
+# PyPI packages provide only the versioned .so files (e.g., libmkl_blas_sycl.so.5),
+# but for building and linking we also need the unversioned symlinks (e.g., libmkl_blas_sycl.so).
+# Anaconda packages provide both, so we use them to ensure proper dynamic linking.
+#
 mkl_repo = use_repo_rule("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo")
 mkl_repo(
     name = "mkl",
     root_env_var = "MKLROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/95/d8/76f53cde7c1df06fcd153b4f6fdf0516aafbfc3239ba8d5a8c354e20bbb2/mkl_static-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/b1/91/b76ab204c03f90d5ce008ba7cf6efd77168059866e96b70277fec959b940/mkl_include-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/b8/d7/ea82194db165d83e22dfedee4d45423477441202e2c321b9e96809d36e63/mkl_devel_dpcpp-2025.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        # Due to issues with dispatcher, its not possible to use dynamic mkl core in bazel
+        # There are conflicts between avx512/avx2/cm3/def symbols in cc_library
+        # TODO: investigate the how to provide global runtime dependencies in bazel.
+        # Core static MKL runtime libraries (.a)
+        # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.
+        "https://anaconda.org/conda-forge/mkl-static/2024.2.2/download/linux-64/mkl-static-2024.2.2-ha770c72_17.conda",
+
+        # Header files for classic MKL (C/C++) interface(mkl_include_)
+        # Contains "mkl.h" and related headers, not using oneAPI directory structure
+        "https://files.pythonhosted.org/packages/11/58/6f583b3bac7d3952a89a00ab34e61baa17f6d6de3454a8005958289bef22/mkl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        
+        # oneMKL SYCL C++ headers (DPC++/SYCL interface)
+        # Provides headers for SYCL-based oneAPI MKL development (e.g., onemkl/*.hpp)
+        "https://files.pythonhosted.org/packages/67/60/183badc2d807be1abb95a20315e84a2075cb44a1d1ede104d42cb1ed3092/onemkl_sycl_include-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        
+        # oneMKL SYCL - main part
+        # Provides libmkl_sycl.so
+        "https://files.pythonhosted.org/packages/08/30/a28cfc8f9a982a5998940b808288f58f4ba2607e50a18f97207b7428f602/mkl_devel_dpcpp-2025.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        
+        # oneMKL SYCL - Data Fitting domain
+        # Provides libmkl_sycl_data_fitting.so.5 for interpolation, regression, etc.
+        "https://anaconda.org/conda-forge/onemkl-sycl-datafitting/2025.2.0/download/linux-64/onemkl-sycl-datafitting-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - BLAS domain
+        # Provides libmkl_sycl_blas.so.5 with SYCL-enabled BLAS (e.g., GEMM, AXPY)
+        "https://anaconda.org/conda-forge/onemkl-sycl-blas/2025.2.0/download/linux-64/onemkl-sycl-blas-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - DFT domain
+        # Provides libmkl_sycl_dft.so.5 for Discrete Fourier Transform operations
+        "https://anaconda.org/conda-forge/onemkl-sycl-dft/2025.2.0/download/linux-64/onemkl-sycl-dft-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - LAPACK domain
+        # Provides libmkl_sycl_lapack.so.5 for linear algebra (e.g., LU, QR, eigenvalues)
+        "https://anaconda.org/conda-forge/onemkl-sycl-lapack/2025.2.0/download/linux-64/onemkl-sycl-lapack-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - Sparse domain
+        # Provides libmkl_sycl_sparse.so.5 for sparse matrix operations and solvers
+        "https://anaconda.org/conda-forge/onemkl-sycl-sparse/2025.2.0/download/linux-64/onemkl-sycl-sparse-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - Random Number Generator (RNG)
+        # Provides libmkl_sycl_rng.so.5 for random number generation with SYCL
+        "https://anaconda.org/conda-forge/onemkl-sycl-rng/2025.2.0/download/linux-64/onemkl-sycl-rng-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - Vector Math (VM)
+        # Provides libmkl_sycl_vm.so.5 for fast element-wise math operations
+        "https://anaconda.org/conda-forge/onemkl-sycl-vm/2025.2.0/download/linux-64/onemkl-sycl-vm-2025.2.0-haf5e11a_628.conda",
+        
+        # oneMKL SYCL - Statistics domain
+        # Provides libmkl_sycl_stats.so.5 for statistical computations and analysis
+        "https://anaconda.org/conda-forge/onemkl-sycl-stats/2025.2.0/download/linux-64/onemkl-sycl-stats-2025.2.0-haf5e11a_628.conda",
     ],
     sha256s = [
-        "706f92fcd6e00cc94155097a87528da52b4c3dda4616c8c334963251773a0d13",
-        "cf19e274bdd1449ef7285671576c545510bebff669363ee1926779192f618cdd",
-        "455281a590920fb58628dbc06ac007f2618c7315e4c04748c2a1b62efa01afb3",
+        # Core static MKL runtime libraries (.a)
+        "c34ecf9d3b7371b4e9b0dfd9cf55daedf2c884507a88d4fc3fe98bf862092b74",
+        # Header files for classic MKL (C/C++) interface(mkl_include)
+        "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
+        # oneMKL SYCL C++ headers (DPC++/SYCL interface)
+        "4e995c02e5f43265aa830a06e538b2e5ada76b7c2785c26b788d6073ba605b0f",
+        # oneMKL SYCL - main part
+        "44ceb849a99f9bbe3ad89dac9dcdedb540b3996c69e699a40047d62d51934a0c",
+        # oneMKL SYCL - Data Fitting domain
+        "84c196a6e243a6f275aa0f040ba02f12d8e9e9bfb5b02f5e58c3160f9bf52887",
+        # oneMKL SYCL - BLAS domain
+        "0748e4f91e328f4ae995013b10ae79966f80cf62a72e76495dfe1841cd022235",
+        # oneMKL SYCL - DFT domain
+        "3580e30db302602e89e54a0296457dbdafbccd86fe79975f3bf84be0d3ce57c1",
+        # oneMKL SYCL - LAPACK domain
+        "e56ec1e4e0fbfa28783a28e99337ca541934cb3aaaa0ecca469a27dab2f3a762",
+        # oneMKL SYCL - Sparse domain
+        "b2cdba1894464927a05115c04bcc1a5b64e25c116c45ae44c75990c101162b35",
+        # oneMKL SYCL - Random Number Generator (RNG)
+        "e5664adaca1c2e15a771b0d67ec7691137c8ba8e0a5a6af6fdffece9ae37692e",
+        # oneMKL SYCL - Vector Math (VM)
+        "ed782c632d4851f98303ab34f47437cbb77d4b9f705b36b62d4b05123c629604",
+        # oneMKL SYCL - Statistics domain
+        "ebf80b94fad4483124c62686b00552b4024e4ec987c83483b4533902a7b854a4",
     ],
     strip_prefixes = [
-        "mkl_static-2025.0.0.data/data",
-        "mkl_include-2025.0.0.data/data",
-        "mkl_devel_dpcpp-2025.0.0.data/data",
+        "mkl_static-2025.2.0.data/data",
+        "mkl_include-2025.2.0.data/data",
+        "onemkl_sycl_include-2025.2.0.data/data",
+        "mkl_devel_dpcpp-2025.2.0.data/data",
+        "onemkl_sycl_datafitting-2025.2.0.data/data",
+        "onemkl_sycl_blas-2025.2.0.data/data",
+        "onemkl_sycl_dft-2025.2.0.data/data",
+        "onemkl_sycl_lapack-2025.2.0.data/data",
+        "onemkl_sycl_sparse-2025.2.0.data/data",
+        "onemkl_sycl_rng-2025.2.0.data/data",
+        "onemkl_sycl_vm-2025.2.0.data/data",
+        "onemkl_sycl_stats-2025.2.0.data/data",
     ],
 )
 
