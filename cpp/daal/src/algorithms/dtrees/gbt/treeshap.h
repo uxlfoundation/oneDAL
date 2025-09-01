@@ -331,7 +331,8 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> dispatcher;
     // TODO: fix indexing
     size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, leftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
-    const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+    // const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+    const size_t coldIndex = leftIds[nodeIndex] + (hotIndex == leftIds[nodeIndex]);
 
     const algorithmFPType w                = nodeCoverValues[nodeIndex];
     const algorithmFPType hotZeroFraction  = nodeCoverValues[hotIndex] / w;
