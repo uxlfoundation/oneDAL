@@ -176,7 +176,7 @@ bool buildTree(size_t treeId,
 int main(int argc, char *argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
 
-    services::Environment::getInstance()->setNumberOfThreads(1);
+    // services::Environment::getInstance()->setNumberOfThreads(1);
 
     /* train DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();

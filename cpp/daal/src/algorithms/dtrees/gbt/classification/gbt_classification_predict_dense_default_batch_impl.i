@@ -417,6 +417,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
                                                                             services::HostAppIface * pHostApp, bool predShapContributions,
                                                                             bool predShapInteractions)
 {
+    // std::cerr << "PredictBinaryClassificationTask" << std::endl;
     // assert we're not requesting both contributions and interactions
     DAAL_ASSERT(!(predShapContributions && predShapInteractions));
 
@@ -468,7 +469,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             PRAGMA_VECTOR_ALWAYS
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
-                // TODO: fix indicies
+                // TODO: fix indicies - probaly this is 0/1 probability no fix is required
                 res[iRow]               = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
@@ -497,7 +498,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, expVal + startRow, expVal + startRow);
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
-                // TODO: fix
+                // TODO: fix - probaly this is 0/1 probability no fix is required
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }

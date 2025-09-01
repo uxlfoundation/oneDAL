@@ -60,7 +60,7 @@ size_t ModelImpl::numberOfTrees() const
 
 void ModelImpl::traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const
 {
-    std::cerr << "traverseDF" << std::endl;
+    // std::cerr << "traverseDF" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -148,7 +148,7 @@ void ModelImpl::traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisito
 
 void ModelImpl::traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const
 {
-    std::cerr << "traverseDFS" << std::endl;
+    // std::cerr << "traverseDFS" << std::endl;
     if (iTree >= size()) return;
 
     const GbtDecisionTree & gbtTree = *at(iTree);
@@ -231,24 +231,24 @@ void ModelImpl::destroy()
     super::destroy();
 }
 
-bool ModelImpl::nodeIsDummyLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTree)
-{
-    std::cerr << "This function should not be called" << std::endl;
-    assert(0);
-    // TODO fix - function is redundant
-    const size_t childArrayIndex           = nodeIndex - 1;
-    const ModelFPType * splitPoints        = gbtTree.getSplitPoints();
-    const FeatureIndexType * splitFeatures = gbtTree.getFeatureIndexesForSplit();
+// bool ModelImpl::nodeIsDummyLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTree)
+// {
+//     std::cerr << "This function should not be called" << std::endl;
+//     assert(0);
+//     // TODO fix - function is redundant
+//     const size_t childArrayIndex           = nodeIndex - 1;
+//     const ModelFPType * splitPoints        = gbtTree.getSplitPoints();
+//     const FeatureIndexType * splitFeatures = gbtTree.getFeatureIndexesForSplit();
 
-    if (childArrayIndex)
-    {
-        // check if child node has same split feature and split value as parent
-        const size_t parent           = getIdxOfParent(nodeIndex);
-        const size_t parentArrayIndex = parent - 1;
-        return splitPoints[parentArrayIndex] == splitPoints[childArrayIndex] && splitFeatures[parentArrayIndex] == splitFeatures[childArrayIndex];
-    }
-    return false;
-}
+//     if (childArrayIndex)
+//     {
+//         // check if child node has same split feature and split value as parent
+//         const size_t parent           = getIdxOfParent(nodeIndex);
+//         const size_t parentArrayIndex = parent - 1;
+//         return splitPoints[parentArrayIndex] == splitPoints[childArrayIndex] && splitFeatures[parentArrayIndex] == splitFeatures[childArrayIndex];
+//     }
+//     return false;
+// }
 
 bool ModelImpl::nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const size_t lvl)
 {
@@ -267,13 +267,13 @@ bool ModelImpl::nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const si
     // return false;
 }
 
-size_t ModelImpl::getIdxOfParent(const size_t childIdx)
-{
-    // TODO fix
-    std::cerr << "This function should not be called" << std::endl;
-    assert(0);
-    return childIdx / 2;
-}
+// size_t ModelImpl::getIdxOfParent(const size_t childIdx)
+// {
+//     // TODO fix
+//     std::cerr << "This function should not be called" << std::endl;
+//     assert(0);
+//     return childIdx / 2;
+// }
 
 void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisionTree & newTree)
 {
