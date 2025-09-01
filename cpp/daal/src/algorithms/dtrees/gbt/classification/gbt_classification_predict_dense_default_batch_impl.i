@@ -468,6 +468,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             PRAGMA_VECTOR_ALWAYS
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
+                // TODO: fix indicies
                 res[iRow]               = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
@@ -496,6 +497,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, expVal + startRow, expVal + startRow);
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
+                // TODO: fix
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }
