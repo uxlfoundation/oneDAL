@@ -46,12 +46,12 @@ typedef uint32_t FeatureIndexType;
 typedef float ModelFPType;
 typedef services::Collection<size_t> NodeIdxArray;
 
-static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
-{
-    std::cerr << "getNumberOfNodesByLvls should not be called" << std::endl;
-    assert(0);
-    return (1 << (nLvls + 1)) - 1;
-}
+// static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
+// {
+//     std::cerr << "getNumberOfNodesByLvls should not be called" << std::endl;
+//     assert(0);
+//     return (1 << (nLvls + 1)) - 1;
+// }
 
 template <typename T>
 void swap(T & t1, T & t2)
@@ -367,7 +367,8 @@ public:
      * \param lvl       current level in the tree
      * \return true     if the node is a dummy leaf, false otherwise
      */
-    static bool nodeIsDummyLeaf(size_t idx, const GbtDecisionTree & gbtTree);
+    
+     // static bool nodeIsDummyLeaf(size_t idx, const GbtDecisionTree & gbtTree);
     // TODO ensure this function is not called
 
     /**
@@ -422,7 +423,7 @@ protected:
             traverseGbtDF(level + 1, leftChildIndexes[iRowInTable] - 1, gbtTree, visitSplit, visitLeaf);
             traverseGbtDF(level + 1, leftChildIndexes[iRowInTable], gbtTree, visitSplit, visitLeaf);
         }
-        else if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
+        else // if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
         {
             // TODO: update condition
             if (!visitLeaf(iRowInTable, level)) return; //do not continue traversing
