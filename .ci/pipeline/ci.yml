@@ -146,8 +146,8 @@ jobs:
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
   - script: |
-      .ci/env/apt.sh llvm-version 21
-    displayName: 'llvm 21 installation'
+      .ci/env/apt.sh llvm-version 20
+    displayName: 'llvm 20 installation'
   - script: |
       .ci/env/apt.sh qemu-deb
     displayName: 'qemu-emulation installation'
