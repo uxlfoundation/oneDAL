@@ -68,15 +68,15 @@ endif
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
 COMPILER.lnx.icx = icx -m64 \
-                     -Werror -Wreturn-type -qopenmp-simd
+                     -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS}
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
-link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib
+link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-link.dynamic.win.icc = icx $(linker.ld.flag)
+link.dynamic.win.icc = icx $(linker.ld.flag) ${LDFLAGS}
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \
