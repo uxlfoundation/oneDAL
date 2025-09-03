@@ -7,7 +7,7 @@
 - **Traditional DAAL**: Legacy CPU-focused interface for backward compatibility
 - **Modern oneAPI**: GPU-accelerated interface with SYCL support for new development
 
-**Integration Note**: oneDAL works together with the [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex) project. While they are separate repositories, they share common validation aspects and work together to provide accelerated machine learning capabilities.
+**Integration Note**: oneDAL works together with [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex). They share common validation aspects and work together to provide accelerated machine learning capabilities.
 
 ## 🎯 **PRIMARY GOAL: PR Review Assistance**
 
@@ -47,7 +47,6 @@
 - Include appropriate oneAPI headers
 - Follow oneAPI naming conventions
 - Suggest GPU-accelerated patterns when appropriate
-- Follow comprehensive coding guidelines
 
 ### When Working in `cpp/daal/`
 - Suggest DAAL patterns and legacy compatibility
@@ -55,15 +54,12 @@
 - Include appropriate DAAL headers
 - Follow DAAL naming conventions
 - Maintain backward compatibility
-- Follow comprehensive coding guidelines
-
 
 ### When Working in `examples/` or `samples/`
 - Ensure examples are complete and runnable
 - Use appropriate interface based on subdirectory
 - Include proper error handling
 - Follow example patterns established in the directory
-- Follow coding standards for consistency
 
 ## What NOT to Generate
 
@@ -74,7 +70,6 @@
 - Platform-specific hardcoded code
 - Incomplete error handling
 - Examples that don't compile or run
-- Code that violates coding standards
 
 ## What TO Generate
 
@@ -85,7 +80,6 @@
 - Proper dependency management
 - Complete, runnable examples
 - Proper error handling and validation
-- Code that follows comprehensive coding guidelines
 
 ## 🔍 **PR Review Assistance (PRIMARY FOCUS)**
 
@@ -99,59 +93,16 @@
 - [ ] **Coding Standards**: Follows comprehensive guidelines
 
 #### **2. Build System Changes**
-- [ ] **Make Priority**: Changes work with Make FIRST (🔴 CRITICAL)
-- [ ] **CMake Support**: End-user integration maintained
-- [ ] **Bazel Validation**: Development workflow preserved
-- [ ] **Backward Compatibility**: Existing builds not broken
+- [ ] **Make Priority**: Make build system takes priority over others
+- [ ] **Cross-Platform**: Changes work on Linux, Windows, macOS
+- [ ] **Dependency Management**: Proper dependency handling
 
-#### **3. Test Additions**
-- [ ] **Bazel Configuration**: Proper test setup for development
-- [ ] **Make Integration**: Tests work with production builds
-- [ ] **Coverage**: Adequate test coverage provided
-- [ ] **Performance**: No performance regression introduced
+#### **3. Interface Changes**
+- [ ] **Backward Compatibility**: DAAL interface remains unchanged
+- [ ] **scikit-learn-intelex Impact**: Consider impact on integration
+- [ ] **API Consistency**: New APIs follow established patterns
 
-#### **4. Documentation Updates**
-- [ ] **Accuracy**: Information is technically correct
-- [ ] **Completeness**: All changes documented
-- [ ] **Examples**: Code examples compile and run
-- [ ] **Cross-References**: Links to related documentation
-
-#### **5. Performance Changes**
-- [ ] **Make Build Performance**: Production build performance maintained
-- [ ] **Runtime Performance**: Algorithm performance preserved or improved
-- [ ] **Memory Usage**: Memory efficiency maintained
-- [ ] **Platform Support**: Works across supported platforms
-
-#### **6. Integration Changes**
-- [ ] **scikit-learn-intelex Compatibility**: No breaking changes
-- [ ] **API Consistency**: Interface consistency maintained
-- [ ] **Performance Impact**: Cross-repository performance preserved
-- [ ] **Documentation**: Integration changes documented
-
-#### **7. Code Quality Issues**
-- [ ] **Coding Standards**: Follows comprehensive guidelines
-- [ ] **Naming Conventions**: Consistent naming patterns
-- [ ] **Code Structure**: Proper declaration order
-- [ ] **Documentation**: Proper comments and documentation
-- [ ] **Error Handling**: Robust exception safety
-
-
-## 🔄 **Cross-Reference Navigation**
-
-### For This Area
-- **[AGENTS.md](../../AGENTS.md)** - Main repository context
+## Cross-Reference
 - **[coding-guidelines.md](coding-guidelines.md)** - Comprehensive coding standards
-
-### For Other Areas
-- **[Build Systems](build-systems.md)** - Build system guidance
-- **[C++ Development](cpp.md)** - C++ coding guidelines
-- **[Examples](examples.md)** - Code pattern examples
-- **[Documentation](documentation.md)** - Documentation standards
-- **[CI Workflows](ci-workflows.md)** - CI/CD validation guidance
-
----
-
-**Remember**: 
-- When in doubt, refer to the appropriate instruction file for detailed guidance
-- Ensure all generated code compiles and follows the established patterns
-- **Follow comprehensive coding guidelines** for consistency and quality
+- **[build-systems.md](build-systems.md)** - Build system guidance
+- **[examples.md](examples.md)** - Example patterns

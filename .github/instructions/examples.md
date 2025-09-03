@@ -18,18 +18,13 @@
 - **Performance**: Consider performance implications
 - **Platform Support**: Cross-platform compatibility
 
-### 🟢 **Development Patterns (Nice to Have)**
-- **Modern C++**: Use C++17 features appropriately
-- **Clean Code**: Readable and maintainable
-- **Best Practices**: Follow project conventions
-
 ## 🚀 Quick Start Examples
 
 ### 1. Basic Algorithm Usage (Concise)
 ```cpp
 // Quick K-means example
 auto desc = kmeans::descriptor<float>()
-            .set_cluster_count(10)
+    .set_cluster_count(10)
     .set_max_iteration_count(100);
 auto result = train(desc, data);
 ```
@@ -39,7 +34,7 @@ auto result = train(desc, data);
 try {
     auto result = train(desc, data);
     return result;
-    } catch (const std::exception& e) {
+} catch (const std::exception& e) {
     std::cerr << "Training failed: " << e.what() << std::endl;
     throw;
 }
@@ -63,14 +58,12 @@ auto result = std::make_unique<training_result>();
 ### Data Management Examples
 - **Data Loading**: CSV, binary, streaming
 - **Data Transformation**: Feature scaling, normalization
-- **Data Validation**: Type checking, range validation
 - **Memory Management**: Efficient data handling
 
 ### Performance Examples
 - **CPU Optimization**: SIMD, threading
 - **GPU Acceleration**: SYCL, memory management
 - **Distributed Computing**: MPI, load balancing
-- **Benchmarking**: Performance measurement
 
 ## 🔍 PR Review Example Checklist
 
@@ -96,8 +89,8 @@ auto result = std::make_unique<training_result>();
 #include "oneapi/dal/algo/kmeans.hpp"
 #include "oneapi/dal/table/homogen.hpp"
 
-        auto desc = kmeans::descriptor<float>()
-            .set_cluster_count(10);
+auto desc = kmeans::descriptor<float>().set_cluster_count(10);
+auto data = read<homogen_table>(csv_file);
 auto result = train(desc, data);
 ```
 
@@ -107,137 +100,21 @@ auto result = train(desc, data);
 #include "algorithms/kmeans/kmeans_batch.h"
 #include "data_management/data/homogen_numeric_table.h"
 
-auto training = new kmeans_batch<float>();
-training->parameter.nClusters = 10;
-training->compute();
+auto algorithm = new kmeans::Batch<float>();
+algorithm->input.set(kmeans::data, data);
+algorithm->compute();
+auto result = algorithm->getResult();
 ```
 
-### Build System Context
-```makefile
-# Make example (production builds)
-CXXFLAGS = -std=c++17 -O3
-LIBS = -lonedal
-TARGET = example
-SOURCES = example.cpp
-
-$(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
-```
-
-## 🚫 What NOT to Include in Examples
-
-- **Verbose Code**: Keep examples concise for quick review
-- **Unnecessary Complexity**: Focus on essential patterns
-- **Platform-Specific Code**: Ensure cross-platform compatibility
-- **Incomplete Error Handling**: Always include proper error checking
-- **Hardcoded Values**: Use configuration parameters
-
-## ✅ What TO Include in Examples
-
-- **Essential Patterns**: Core functionality demonstration
-- **Error Handling**: Proper exception safety
-- **Resource Management**: RAII and smart pointers
-- **Documentation**: Clear comments and usage
-- **Testing**: Include test cases where appropriate
-
-## 🔧 Example Development Guidelines
-
-### 1. Keep Examples Concise
-- **Focus on essentials**: Core functionality only
-- **Remove verbosity**: Eliminate unnecessary code
-- **Clear structure**: Easy to follow and understand
-
-### 2. Ensure Completeness
-- **Self-contained**: Examples should run independently
-- **Dependencies**: Include necessary includes and setup
-- **Error handling**: Proper exception safety
-
-### 3. Follow Project Patterns
-- **Interface consistency**: Use appropriate interface
-- **Coding standards**: Follow project conventions
-- **Build compatibility**: Ensure Make compatibility
-
-### 4. Include Documentation
-- **Clear comments**: Explain what the example does
-- **Usage instructions**: How to run and use
-- **Expected output**: What to expect from the example
-
-## 🧪 Example Testing and Validation
-
-### Build Testing
-- **Compilation**: Examples compile without errors
-- **Linking**: Proper library linking
-- **Dependencies**: Dependency resolution works
-- **Platforms**: Cross-platform compatibility
-
-### Runtime Testing
-- **Execution**: Examples run successfully
-- **Output validation**: Expected results
-- **Performance**: No performance regression
-- **Memory**: No memory leaks
-
-### Integration Testing
-- **Build systems**: Work with different build systems
-- **Dependencies**: Different dependency versions
-- **Environments**: Different environments
-- **CI/CD**: Integration with continuous integration
-
-## 📖 Quick Reference Templates
-
-### Basic Algorithm Template
+### SYCL GPU Example
 ```cpp
-// Quick algorithm template
-auto desc = algorithm::descriptor<Float>()
-    .set_parameter1(value1)
-    .set_parameter2(value2);
+#include <sycl/sycl.hpp>
 
-    auto result = train(desc, data);
-// Process result...
+sycl::queue q(sycl::gpu_selector_v);
+auto desc = kmeans::descriptor<float>().set_cluster_count(10);
+auto result = train(q, desc, data);  // GPU execution
 ```
 
-### Error Handling Template
-```cpp
-try {
-    // Algorithm execution
-    auto result = execute_algorithm(desc, data);
-    return result;
-} catch (const std::exception& e) {
-    // Log error and rethrow
-    std::cerr << "Algorithm failed: " << e.what() << std::endl;
-    throw;
-}
-```
-
-### Resource Management Template
-```cpp
-// Smart pointer resource management
-auto resource = std::make_unique<ResourceType>();
-auto result = process_resource(*resource);
-// Automatic cleanup when scope ends
-```
-
-## 🔄 Cross-Reference Navigation
-
-### For This Area
-- **[AGENTS.md](../../AGENTS.md)** - Main repository context
-- **[cpp/AGENTS.md](../../cpp/AGENTS.md)** - C++ implementation context
-
-### For Other Areas
-- **[Build Systems](build-systems.md)** - Build configuration guidance
-- **[C++ Development](cpp.md)** - C++ coding guidelines
-- **[Documentation](documentation.md)** - Documentation standards
-
-## 🚨 Critical Reminders for PR Review
-
-1. **Examples must be concise** for quick review
-2. **Include proper error handling** for robustness
-3. **Ensure Make compatibility** for production builds
-4. **Follow interface consistency** (DAAL vs oneAPI)
-5. **Examples should be complete** and runnable
-6. **Focus on essential patterns** for clarity
-
----
-
-**Note**: Examples are crucial for user adoption and understanding. Keep them concise, complete, and review-friendly for effective PR review assistance.
-
-**🎯 PRIMARY GOAL**: Assist with PR reviews by providing clear, concise examples that demonstrate proper usage patterns.
+## Cross-Reference
+- **[AGENTS.md](../../examples/AGENTS.md)** - Example patterns context
+- **[coding-guidelines.md](coding-guidelines.md)** - Coding standards

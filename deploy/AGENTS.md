@@ -1,41 +1,29 @@
 
 # Deployment and Distribution - AI Agents Context
 
-> **Purpose**: This file provides comprehensive context for AI agents working with oneDAL deployment, packaging, and distribution processes.
+> **Purpose**: Context for AI agents working with oneDAL deployment, packaging, and distribution processes.
 
 ## 🎯 Deployment Overview
 
-**oneDAL** deployment involves multiple packaging formats and distribution channels to support different user needs and platforms.
-
-### Key Deployment Characteristics
+**oneDAL** deployment involves multiple packaging formats and distribution channels:
 - **Multi-Format**: Multiple package formats for different use cases
 - **Cross-Platform**: Support for Linux, Windows, macOS
 - **Integration**: Works with scikit-learn-intelex for Python distribution
 - **Enterprise**: Commercial distribution through Intel channels
 - **Open Source**: Community distribution through UXL Foundation
 
-## 🏗️ Deployment Structure
-
+## 🏗️ Structure
 ```
 deploy/
-├── local/                    # Local development deployment
-│   ├── config.txt           # Local configuration
-│   ├── dal                  # Local binary
-│   ├── vars_win.bat         # Windows environment variables
-│   └── vars_lnx.sh          # Linux environment variables
-├── nuget/                    # .NET package distribution
-│   ├── inteldal.nuspec.tpl  # NuGet package template
-│   └── prepare_dal_nuget.sh # NuGet preparation script
-└── pkg-config/              # pkg-config distribution
-    ├── generate_pkgconfig.py # pkg-config generation script
-    └── pkg-config.tpl       # pkg-config template
+├── local/      # Local development deployment
+├── nuget/      # .NET package distribution
+└── pkg-config/ # pkg-config distribution
 ```
 
-## 🔧 Deployment Processes
+## 🔧 Deployment Formats
 
 ### Local Development Deployment
 - **Purpose**: Development and testing environments
-- **Target**: Local machine setup
 - **Format**: Binary + configuration files
 - **Platform**: All supported platforms
 
@@ -43,37 +31,24 @@ deploy/
 - **Purpose**: .NET ecosystem integration
 - **Target**: Windows developers using .NET
 - **Format**: .nupkg files
-- **Platform**: Windows (primary), cross-platform support
 
 ### pkg-config Distribution
 - **Purpose**: Unix/Linux system integration
-- **Target**: System package managers and build tools
 - **Format**: .pc files
 - **Platform**: Linux, macOS, Unix systems
 
-## 📦 Package Creation Workflows
+## 📦 Package Creation
 
-### NuGet Package Creation
+### NuGet Package
 ```bash
-# Generate NuGet package
 ./deploy/nuget/prepare_dal_nuget.sh
-
-# Package includes:
-# - Native libraries (x86, x64, ARM64)
-# - Header files
-# - Documentation
-# - License and metadata
+# Includes: Native libraries, headers, documentation, license
 ```
 
-### pkg-config Generation
-```python
-# Generate pkg-config files
+### pkg-config Files
+```bash
 python deploy/pkg-config/generate_pkgconfig.py
-
-# Outputs:
-# - onedal.pc
-# - onedal_c.pc
-# - Platform-specific configurations
+# Outputs: onedal.pc, onedal_c.pc, platform-specific configs
 ```
 
 ### Local Development Setup
@@ -83,11 +58,7 @@ source deploy/local/vars_lnx.sh
 
 # Windows
 deploy/local/vars_win.bat
-
-# Sets environment variables:
-# - ONEDAL_ROOT
-# - PATH updates
-# - Library paths
+# Sets: ONEDAL_ROOT, PATH updates, Library paths
 ```
 
 ## 🔄 Integration with scikit-learn-intelex
@@ -103,98 +74,51 @@ deploy/local/vars_win.bat
 - **Platform Coverage**: Test on all supported platforms
 
 ## 🚀 Distribution Strategies
-
-### Open Source Distribution
-- **GitHub Releases**: Source code and pre-built binaries
-- **Package Managers**: Integration with system package managers
-- **Documentation**: Comprehensive user and developer guides
-
-### Commercial Distribution
-- **Intel Channels**: Enterprise support and distribution
-- **Performance Tuning**: Optimized builds for Intel platforms
-- **Support**: Professional support and maintenance
-
-### Community Distribution
-- **UXL Foundation**: Open source community distribution
-- **Contributions**: Community-driven improvements
-- **Standards**: Industry standard compliance
+- **Open Source**: GitHub releases, package managers, documentation
+- **Commercial**: Intel channels, enterprise support, performance tuning
+- **Community**: UXL Foundation, community contributions, standards compliance
 
 ## 📋 Deployment Checklist
 
 ### Pre-Release Validation
-- [ ] All tests pass (Make, CMake, Bazel)
-- [ ] Performance benchmarks meet targets
-- [ ] Documentation is complete and accurate
-- [ ] License and attribution files are correct
-- [ ] Cross-platform compatibility verified
+- All tests pass (Make, CMake, Bazel)
+- Performance benchmarks meet targets
+- Documentation complete and accurate
+- Cross-platform compatibility verified
 
 ### Package Creation
-- [ ] NuGet package builds successfully
-- [ ] pkg-config files are generated correctly
-- [ ] Local deployment scripts work on all platforms
-- [ ] Package metadata is accurate and complete
+- NuGet package builds successfully
+- pkg-config files generated correctly
+- Local deployment scripts work on all platforms
 
 ### Distribution
-- [ ] Release notes are comprehensive
-- [ ] Binary compatibility is maintained
-- [ ] Integration with scikit-learn-intelex is verified
-- [ ] Platform-specific issues are addressed
+- Release notes comprehensive
+- Binary compatibility maintained
+- Integration with scikit-learn-intelex verified
 
 ## 🔍 Common Deployment Scenarios
 
 ### New Release Deployment
-1. **Build Validation**: Ensure all build systems work
-2. **Package Creation**: Generate all package formats
-3. **Testing**: Validate packages on target platforms
-4. **Distribution**: Deploy to all channels
-5. **Documentation**: Update user guides and examples
+1. Build validation → Package creation → Testing → Distribution → Documentation
 
 ### Hotfix Deployment
-1. **Issue Identification**: Identify critical issue
-2. **Fix Development**: Develop and test fix
-3. **Package Update**: Update affected packages
-4. **Rapid Distribution**: Deploy to critical users
-5. **Full Release**: Include in next regular release
+1. Issue identification → Fix development → Package update → Rapid distribution
 
 ### Platform Addition
-1. **Platform Support**: Add new platform support
-2. **Build Configuration**: Configure build systems
-3. **Testing**: Validate on new platform
-4. **Package Updates**: Update all package formats
-5. **Documentation**: Update platform-specific guides
+1. Platform support → Build configuration → Testing → Package updates → Documentation
 
 ## 🛠️ Troubleshooting
 
 ### Common Issues
-- **Package Installation Failures**: Check platform compatibility and dependencies
+- **Package Installation**: Check platform compatibility and dependencies
 - **Build Failures**: Verify build system configuration and C++17 compliance
 - **Integration Issues**: Check scikit-learn-intelex compatibility
-- **Performance Degradation**: Validate optimization flags and compiler settings
+- **Performance**: Validate optimization flags and compiler settings
 
 ### Debugging Steps
-1. **Environment Check**: Verify deployment environment variables
-2. **Dependency Validation**: Check all required dependencies
-3. **Platform Verification**: Ensure platform-specific configurations
-4. **Integration Testing**: Test with scikit-learn-intelex
+1. Environment check → Dependency validation → Platform verification → Integration testing
 
-## 📚 Related Context Files
-
-### For This Area
-- **[AGENTS.md](../../AGENTS.md)** - Main repository context
-- **[dev/AGENTS.md](../../dev/AGENTS.md)** - Development tools context
-
-### For Other Areas
-- **[Build Systems](../../.github/instructions/build-systems.md)** - Build configuration guidance
-- **[Examples](../../.github/instructions/examples.md)** - Usage examples
-- **[Documentation](../../.github/instructions/documentation.md)** - Documentation standards
-
-## 🔄 Cross-Reference Navigation
-
-**For Deployment Tasks**: Use this file for deployment-specific guidance
-**For Build Issues**: Refer to build system context files
-**For Integration**: Check scikit-learn-intelex compatibility
-**For User Support**: Use examples and documentation context
-
----
-
-**Note**: This file provides deployment context for AI agents. For detailed implementation, refer to the specific deployment scripts and configuration files in this directory.
+## 📖 Further Reading
+- **[AGENTS.md](../AGENTS.md)** - Main repository context
+- **[dev/AGENTS.md](../dev/AGENTS.md)** - Development tools context
+- **[ci/AGENTS.md](../ci/AGENTS.md)** - CI infrastructure context
