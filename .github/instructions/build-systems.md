@@ -20,12 +20,11 @@
 ```bash
 PLAT := lnx32e    # Linux x86-64
 PLAT := win32e    # Windows x86-64  
-PLAT := mac32e    # macOS x86-64
 ```
 
 #### **Compiler Selection**
 ```bash
-COMPILER := icx      # Intel oneAPI DPC++ (default)
+COMPILER := icx      # Intel oneAPI C++/DPC++ (default)
 COMPILER := gnu      # GCC/Clang
 COMPILER := vc       # Microsoft Visual C++
 ```
@@ -48,19 +47,6 @@ make onedal_core
 # Platform-specific builds
 make PLAT=lnx32e COMPILER=icx
 make PLAT=win32e COMPILER=vc
-```
-
-### **CPU Dispatch System**
-```makefile
-# CPU-specific compilation flags
-p4_OPT.icx = -march=nocona      # SSE2
-avx2_OPT.icx = -march=haswell   # AVX2
-skx_OPT.icx = -march=skx        # AVX-512
-
-# CPU dispatch macros
-ONEAPI.dispatcher_tag.nrh := -D__CPU_TAG__=__CPU_TAG_SSE2__
-ONEAPI.dispatcher_tag.hsw := -D__CPU_TAG__=__CPU_TAG_AVX2__
-ONEAPI.dispatcher_tag.skx := -D__CPU_TAG__=__CPU_TAG_AVX512__
 ```
 
 ## 🟢 Bazel Build System (Development)

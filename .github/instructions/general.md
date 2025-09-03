@@ -27,8 +27,7 @@
 - **NEVER MIX**: Don't mix DAAL and oneAPI interfaces in the same file
 
 ### C++ Standards
-- **Language**: Use C++17 features when possible, C++14 minimum
-- **Maximum Standard**: C++17 ONLY - do not use C++20/23 features for compatibility reasons
+- **Language**: Use C++17 for oneDAL and C++14 for DAAL
 - **Headers**: Use `#pragma once` for oneAPI, traditional guards for DAAL
 - **Smart Pointers**: Always use `std::unique_ptr` and `std::shared_ptr`
 - **RAII**: Follow Resource Acquisition Is Initialization principles
@@ -43,14 +42,14 @@
 
 ### When Working in `cpp/oneapi/`
 - Suggest oneAPI patterns and SYCL integration
-- Use modern C++17 features (but not C++20/23)
+- Use modern C++17 features
 - Include appropriate oneAPI headers
 - Follow oneAPI naming conventions
 - Suggest GPU-accelerated patterns when appropriate
 
 ### When Working in `cpp/daal/`
 - Suggest DAAL patterns and legacy compatibility
-- Use C++14/17 features appropriately (but not C++20/23)
+- Use C++14 features
 - Include appropriate DAAL headers
 - Follow DAAL naming conventions
 - Maintain backward compatibility
@@ -73,7 +72,6 @@
 
 ## What TO Generate
 
-- Modern C++17 patterns with smart pointers
 - RAII-compliant resource management
 - Exception-safe code
 - Context-appropriate interface usage
