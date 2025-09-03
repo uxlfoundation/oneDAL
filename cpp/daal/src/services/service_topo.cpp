@@ -25,7 +25,6 @@
 
 #include <array>
 #include <limits>
-#include <memory>
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
@@ -288,14 +287,17 @@ struct cacheDetail_str
 
 struct Dyn2Arr_str
 {
-    explicit Dyn2Arr_str(const unsigned xdim = 0, const unsigned ydim = 0, const unsigned value = 0);
+    Dyn2Arr_str() = default;
+    explicit Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigned value = 0);
 
-    // Disable copy constructor and assignment operator
-    Dyn2Arr_str(const Dyn2Arr_str & other)             = delete;
-    Dyn2Arr_str & operator=(const Dyn2Arr_str & other) = delete;
+    ~Dyn2Arr_str();
 
-    Dyn2Arr_str(Dyn2Arr_str && other)             = default;
-    Dyn2Arr_str & operator=(Dyn2Arr_str && other) = default;
+    Dyn2Arr_str(const Dyn2Arr_str & other);
+    Dyn2Arr_str & operator=(Dyn2Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
 
     unsigned & operator[](unsigned idx)
     {
@@ -313,21 +315,38 @@ struct Dyn2Arr_str
 
     unsigned size() const { return dim[0] * dim[1]; }
 
+    friend void swap(Dyn2Arr_str & first, Dyn2Arr_str & second) // nothrow
+    {
+        unsigned tmp  = first.dim[0];
+        first.dim[0]  = second.dim[0];
+        second.dim[0] = tmp;
+
+        tmp           = first.dim[1];
+        first.dim[1]  = second.dim[1];
+        second.dim[1] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
+
 private:
-    unsigned dim[2] = { 0, 0 };                             // xdim and ydim
-    std::unique_ptr<unsigned[], void (*)(unsigned *)> data; // data array to be malloc'd
+    unsigned dim[2] = { 0, 0 }; // xdim and ydim
+    unsigned * data = nullptr;  // data array to be malloc'd
 };
 
 struct Dyn1Arr_str
 {
-    explicit Dyn1Arr_str(const unsigned xdim = 0, const unsigned value = 0);
+    Dyn1Arr_str() = default;
+    explicit Dyn1Arr_str(const unsigned xdim, const unsigned value = 0);
+    ~Dyn1Arr_str();
 
-    // Disable copy constructor and assignment operator
-    Dyn1Arr_str(const Dyn1Arr_str & other)             = delete;
-    Dyn1Arr_str & operator=(const Dyn1Arr_str & other) = delete;
-
-    Dyn1Arr_str(Dyn1Arr_str && other)             = default;
-    Dyn1Arr_str & operator=(Dyn1Arr_str && other) = default;
+    Dyn1Arr_str(const Dyn1Arr_str & other);
+    Dyn1Arr_str & operator=(Dyn1Arr_str other)
+    {
+        swap(*this, other);
+        return *this;
+    }
 
     unsigned & operator[](unsigned idx)
     {
@@ -345,9 +364,20 @@ struct Dyn1Arr_str
 
     void fill(const unsigned value);
 
+    friend void swap(Dyn1Arr_str & first, Dyn1Arr_str & second) // nothrow
+    {
+        unsigned tmp  = first.dim[0];
+        first.dim[0]  = second.dim[0];
+        second.dim[0] = tmp;
+
+        unsigned * tmpData = first.data;
+        first.data         = second.data;
+        second.data        = tmpData;
+    }
+
 private:
-    unsigned dim[1] = { 0 };                                // xdim
-    std::unique_ptr<unsigned[], void (*)(unsigned *)> data; // data array to be malloc'd
+    unsigned dim[1] = { 0 };   // xdim
+    unsigned * data = nullptr; // data array to be malloc'd
 };
 
 struct idAffMskOrdMapping_t
@@ -469,7 +499,7 @@ private:
 // Global CPU topology object
 static glktsn globalCPUTopology;
 
-static std::array<char, BLOCKSIZE_4K> scratch; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+static char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
 
 static void * __internal_daal_memset(void * s, int c, size_t nbytes)
 {
@@ -544,9 +574,9 @@ private:
         GROUP_AFFINITY grp_affinity;
         if (cpu >= MAX_WIN7_LOG_CPU) return ret;
 
-        cnt = scratch.size();
-        _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
+        cnt = BLOCKSIZE_4K;
+        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
+        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
         if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt)) return ret;
 
@@ -653,9 +683,9 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // if Windows version support processor groups
     // tally actually populated logical processors in each group
     grpCnt = (WORD)GetActiveProcessorGroupCount();
-    cnt    = scratch.size();
-    _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
-    pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
+    cnt    = BLOCKSIZE_4K;
+    _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
+    pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
     if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
     {
@@ -762,9 +792,9 @@ void glktsn::setChkProcessAffinityConsistency()
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
 
     {
-        cnt = scratch.size();
-        _INTERNAL_DAAL_MEMSET(scratch.data(), 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)scratch.data();
+        cnt = BLOCKSIZE_4K;
+        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
+        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
         if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
         {
@@ -1446,39 +1476,73 @@ int glktsn::cpuTopologyParams()
 }
 
 Dyn2Arr_str::Dyn2Arr_str(const unsigned xdim, const unsigned ydim, const unsigned value)
-    : dim { xdim, ydim },
-      data((xdim * ydim > 0 ? (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * ydim * sizeof(unsigned)) : nullptr), [](unsigned * ptr) -> void {
-          if (ptr)
-          {
-              _INTERNAL_DAAL_FREE(ptr);
-              ptr = NULL;
-          }
-      })
 {
-    if (data.get())
+    dim[0] = xdim;
+    dim[1] = ydim;
+    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * ydim * sizeof(unsigned));
+    if (!data)
     {
-        _INTERNAL_DAAL_MEMSET(data.get(), value, xdim * ydim * sizeof(unsigned));
+        return;
     }
+    _INTERNAL_DAAL_MEMSET(data, value, xdim * ydim * sizeof(unsigned));
+}
+
+Dyn2Arr_str::Dyn2Arr_str(const Dyn2Arr_str & other)
+{
+    if (this == &other) return; // self-assignment check
+    dim[0]          = other.dim[0];
+    dim[1]          = other.dim[1];
+    size_t dataSize = dim[0] * dim[1] * sizeof(unsigned);
+    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data) return;
+    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
+}
+
+Dyn2Arr_str::~Dyn2Arr_str()
+{
+    if (data)
+    {
+        _INTERNAL_DAAL_FREE(data);
+        data = NULL;
+    }
+    dim[0] = 0;
+    dim[1] = 0;
 }
 
 Dyn1Arr_str::Dyn1Arr_str(const unsigned xdim, const unsigned value)
-    : dim { xdim }, data((xdim > 0 ? (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned)) : nullptr), [](unsigned * ptr) -> void {
-          if (ptr)
-          {
-              _INTERNAL_DAAL_FREE(ptr);
-              ptr = NULL;
-          }
-      })
 {
+    dim[0] = xdim;
+    data   = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned));
+    if (!data)
+    {
+        return;
+    }
     fill(value);
+}
+
+Dyn1Arr_str::Dyn1Arr_str(const Dyn1Arr_str & other)
+{
+    if (this == &other) return; // self-assignment check
+    dim[0]          = other.dim[0];
+    size_t dataSize = dim[0] * sizeof(unsigned);
+    data            = (unsigned *)_INTERNAL_DAAL_MALLOC(dataSize);
+    if (!data) return;
+    _INTERNAL_DAAL_MEMCPY(data, dataSize, other.data, dataSize);
+}
+
+Dyn1Arr_str::~Dyn1Arr_str()
+{
+    if (data)
+    {
+        _INTERNAL_DAAL_FREE(data);
+        data = NULL;
+    }
+    dim[0] = 0;
 }
 
 void Dyn1Arr_str::fill(const unsigned value)
 {
-    if (data.get())
-    {
-        _INTERNAL_DAAL_MEMSET(data.get(), value, dim[0] * sizeof(unsigned));
-    }
+    _INTERNAL_DAAL_MEMSET(data, value, dim[0] * sizeof(unsigned));
 }
 
 /*
@@ -1499,12 +1563,12 @@ int glktsn::allocArrays(const unsigned cpus)
     }
     _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpus * sizeof(idAffMskOrdMapping_t));
 
-    perPkg_detectedCoresCount    = std::move(Dyn1Arr_str(cpus)); // using std::move because Dyn1Arr_str is a move-only type
-    perCore_detectedThreadsCount = std::move(Dyn2Arr_str(cpus, MAX_CORES));
+    perPkg_detectedCoresCount    = Dyn1Arr_str(cpus);
+    perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES);
     // workspace for storing hierarchical counts relative to the cache topology
     // of the largest unified cache (may be shared by several cores)
-    perCache_detectedCoreCount       = std::move(Dyn1Arr_str(cpus));
-    perEachCache_detectedThreadCount = std::move(Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS));
+    perCache_detectedCoreCount   = Dyn1Arr_str(cpus);
+    perEachCache_detectedThreadCount = Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS);
     if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty() || perEachCache_detectedThreadCount.isEmpty()
         || perCache_detectedCoreCount.isEmpty())
     {
