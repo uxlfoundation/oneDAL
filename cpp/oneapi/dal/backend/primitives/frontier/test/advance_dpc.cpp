@@ -3,12 +3,6 @@
 #include "oneapi/dal/backend/primitives/frontier/graph.hpp"
 
 #include "oneapi/dal/test/engine/common.hpp"
-#include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/dataframe.hpp"
-
-#include "oneapi/dal/test/engine/common.hpp"
-#include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/dataframe.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 
@@ -138,7 +132,6 @@ TEST("test advance operation", "[advance]") {
 
     auto tmp_frontier = compute_next_frontier(row_ptr, col_indices, host_frontier);
     compare_frontiers(out_frontier, tmp_frontier, num_nodes);
-
 } // TEST "test advance operation"
 
 } // namespace oneapi::dal::backend::primitives::test

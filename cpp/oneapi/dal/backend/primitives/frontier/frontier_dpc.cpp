@@ -1,8 +1,4 @@
-
 #include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
-#include "oneapi/dal/backend/common.hpp"
-#include "oneapi/dal/backend/primitives/ndarray.hpp"
-#include "oneapi/dal/graph/detail/common.hpp"
 
 namespace oneapi::dal::backend::primitives {
 

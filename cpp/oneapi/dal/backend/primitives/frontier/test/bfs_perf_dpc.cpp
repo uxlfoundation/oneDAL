@@ -184,7 +184,6 @@ TEST("test advance operation", "[advance]") {
     for (size_t i = 0; i < num_nodes; ++i) {
         REQUIRE(actual_distances[i] == expected_distances[i]);
     }
-
 } // TEST "test advance operation"
 
 } // namespace oneapi::dal::backend::primitives::test
