@@ -48,154 +48,113 @@ training->compute();
 ```cpp
 // ✅ CORRECT - Use smart pointers
 auto data = std::make_unique<float[]>(size);
-auto table = std::make_shared<homogen_table>(rows, cols);
+auto table = std::make_shared<homogen_table>(data.get(), rows, cols);
 
-// ❌ WRONG - Don't use raw pointers for ownership
-float* data = new float[size];  // Memory leak risk
+// ❌ AVOID - Raw pointers for ownership
+float* raw_data = new float[size];  // Don't do this
 ```
 
-### RAII Principles
+### RAII Pattern
 ```cpp
-class DataManager {
+// ✅ CORRECT - RAII with smart pointers
+class DataProcessor {
 private:
-    std::unique_ptr<float[]> data_;
-    size_t size_;
+    std::unique_ptr<float[]> buffer_;
+    std::shared_ptr<homogen_table> table_;
     
 public:
-    DataManager(size_t size) 
-        : data_(std::make_unique<float[]>(size))
-        , size_(size) {}
-    
-    // Destructor automatically cleans up
+    DataProcessor(size_t size) 
+        : buffer_(std::make_unique<float[]>(size))
+        , table_(std::make_shared<homogen_table>(buffer_.get(), rows, cols))
+    { }
+    // Automatic cleanup on destruction
 };
 ```
 
 ## Error Handling
 
-### Exception Safety
+### oneAPI Interface (Exceptions)
 ```cpp
-void safe_operation() {
-    auto resource = std::make_unique<Resource>();
+try {
+    auto result = train(desc, data);
+    return result.get_model();
+} catch (const std::exception& e) {
+    std::cerr << "Training failed: " << e.what() << std::endl;
+    throw;
+}
+```
+
+### DAAL Interface (Status Codes)
+```cpp
+daal::services::Status status = algorithm->compute();
+if (status != daal::services::Status::OK) {
+    daal::services::throwIfPossible(status);
+    return nullptr;  // Handle error appropriately
+}
+```
+
+## Template Patterns
+
+### Function Templates
+```cpp
+template<typename T>
+auto process_data(const std::vector<T>& input) -> std::vector<T> {
+    std::vector<T> output;
+    output.reserve(input.size());
     
-    try {
-        resource->do_work();
-    } catch (const std::exception& e) {
-        // Handle exception appropriately
-        throw;
+    for (const auto& value : input) {
+        output.push_back(process_value(value));
     }
+    return output;
 }
 ```
 
-### Status Checking (DAAL)
+### Class Templates
 ```cpp
-#include "services/error_handling.h"
-
-if (status != services::Status::OK) {
-    services::throwIfPossible(status);
-}
-```
-
-## Modern C++ Patterns
-
-### Range-based For Loops
-```cpp
-// ✅ CORRECT - Use range-based for
-std::vector<float> data;
-for (const auto& value : data) {
-    // Process value
-}
-
-// ❌ WRONG - Don't use index-based loops
-for (size_t i = 0; i < data.size(); ++i) {
-    // Process data[i]
-}
-```
-
-### Auto Keyword
-```cpp
-// ✅ CORRECT - Use auto for type deduction
-auto result = train(desc, data);
-auto table = homogen_table::wrap(data, rows, cols);
-
-// ❌ WRONG - Don't repeat obvious types
-homogen_table<float> table = homogen_table<float>::wrap(data, rows, cols);
-```
-
-### Lambda Expressions
-```cpp
-// Use lambdas for simple operations
-auto processor = [](const auto& value) {
-    return value * 2.0f;
+template<typename Float, Method M>
+class algorithm_descriptor {
+private:
+    std::int64_t cluster_count_ = 2;
+    std::int64_t max_iterations_ = 100;
+    
+public:
+    auto set_cluster_count(std::int64_t count) -> algorithm_descriptor& {
+        cluster_count_ = count;
+        return *this;
+    }
 };
-
-std::transform(data.begin(), data.end(), result.begin(), processor);
 ```
 
-## Threading and Concurrency
+## Performance Guidelines
 
-### oneDAL Threading Layer
+### Const Correctness
 ```cpp
-// ✅ CORRECT - Use oneDAL threading abstractions
-#include "oneapi/dal/threading.hpp"
-
-// ❌ WRONG - Don't use standard threading directly
-#include <thread>
-std::thread worker([]{ /* work */ });  // Avoid this
+// ✅ CORRECT - Proper const usage
+class DataTable {
+public:
+    std::int64_t get_row_count() const { return row_count_; }  // const method
+    const float* get_data() const { return data_.get(); }     // const return
+    
+private:
+    const std::int64_t row_count_;  // const member
+    std::unique_ptr<float[]> data_;
+};
 ```
 
-### SYCL Integration
+### Move Semantics
 ```cpp
-#include <sycl/sycl.hpp>
-#include "oneapi/dal/algo/kmeans.hpp"
-
-// Create SYCL queue
-sycl::queue q(sycl::gpu_selector_v);
-
-// Execute on GPU
-auto result = train(q, desc, data);
+// ✅ CORRECT - Use move semantics
+class DataManager {
+public:
+    DataManager(std::vector<float> data) : data_(std::move(data)) {}
+    
+    auto get_data() && -> std::vector<float> {  // Move-qualified
+        return std::move(data_);
+    }
+};
 ```
 
-## Data Management
-
-### Table Creation
-```cpp
-// oneAPI - Modern table creation
-auto table = homogen_table::wrap(data, row_count, column_count);
-auto csr_table = csr_table::wrap(data, row_count, column_count, row_offsets);
-
-// DAAL - Legacy table creation
-auto table = new homogen_numeric_table<float>(nRows, nCols);
-auto csr_table = new csr_numeric_table<float>(data, nRows, nCols, rowOffsets);
-```
-
-### Data Access
-```cpp
-// oneAPI - Safe data access
-auto accessor = row_accessor<const float>(table);
-auto row_data = accessor.pull({0, 10}); // Rows 0-9
-
-// DAAL - Direct data access
-float* data = table->getArray();
-size_t nRows = table->getNumberOfRows();
-```
-
-## Common Pitfalls to Avoid
-
-1. **Interface Mixing**: Never mix DAAL and oneAPI in same file
-2. **Memory Leaks**: Always use smart pointers for ownership
-3. **Exception Safety**: Provide strong exception guarantees
-4. **Thread Safety**: Use oneDAL threading layer, not standard primitives
-5. **Platform Dependencies**: Avoid hardcoded platform-specific code
-6. **C++20/23 Features**: Do not use C++20/23 features - stick to C++17 maximum for compatibility
-
-## Best Practices
-
-1. **Consistency**: Follow existing patterns in the file
-2. **Documentation**: Include clear comments for complex logic
-3. **Testing**: Ensure code is testable and maintainable
-4. **Performance**: Consider performance implications of design choices
-5. **Maintainability**: Write code that others can understand and modify
-
----
-
-**Note**: Always check the file path to determine which interface to use. Follow the patterns already established in the file you're working with.
+## Cross-Reference
+- **[coding-guidelines.md](coding-guidelines.md)** - Comprehensive coding standards
+- **[general.md](general.md)** - General repository context
+- **[AGENTS.md](../../cpp/AGENTS.md)** - C++ implementation context

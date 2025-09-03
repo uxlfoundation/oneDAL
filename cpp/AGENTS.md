@@ -119,12 +119,7 @@ public:
 - **Compatibility**: Test with different compilers/platforms
 
 ## 📖 Further Reading
-
 - **[cpp/daal/AGENTS.md](daal/AGENTS.md)** - Traditional DAAL interface details
 - **[cpp/oneapi/AGENTS.md](oneapi/AGENTS.md)** - Modern oneAPI interface details
 - **[dev/AGENTS.md](../dev/AGENTS.md)** - Build system and development tools
 - **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines
-
----
-
-**Next Steps**: For specific interface details, refer to the appropriate sub-AGENTS.md file in the `daal/` or `oneapi/` directories.
