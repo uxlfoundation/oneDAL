@@ -1,8 +1,6 @@
 #include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
 
 #include "oneapi/dal/test/engine/common.hpp"
-#include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/dataframe.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 
@@ -60,7 +58,6 @@ TEST("frontier queue basic operations", "[frontier]") {
 
     f.clear();
     REQUIRE(f.empty() == true);
-
 } // TEST "frontier queue operations"
 
 } // namespace oneapi::dal::backend::primitives::test
