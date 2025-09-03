@@ -58,7 +58,6 @@ struct Context {
         const uint32_t acutal_id_offset = (state.group_offset * state.coarsening_factor) +
                                           (state.item.get_local_linear_id() / element_bitsize);
         const uint32_t* bitmap_offsets = in_dev_frontier.get_offsets();
-        // const size_t acutal_id_offset = (item.get_group_linear_id() * coarsening_factor) + (item.get_local_linear_id() / bitmap_range);
         const auto assigned_vertex = (bitmap_offsets[acutal_id_offset] * element_bitsize) +
                                      (state.item.get_local_linear_id() % element_bitsize);
         return assigned_vertex;
@@ -233,7 +232,8 @@ sycl::event advance(const GraphT& graph,
     auto out_dev_frontier = out.get_device_view();
     auto graph_dev = graph.get_device_view();
 
-    size_t coarsening_factor = 1; // it should be Compute Unit Size / num subgroups
+    /// The coarsening factor represents the number of integers a single work-group should handle.
+    size_t coarsening_factor = 1; // it should be Compute Unit Size / num subgroups;
 
     size_t element_bitsize = in_dev_frontier.get_element_bitsize(); // in bits
     sycl::range<1> local_range = { element_bitsize * coarsening_factor };
