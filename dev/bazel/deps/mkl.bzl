@@ -24,14 +24,30 @@ mkl_repo = repos.prebuilt_libs_repo_rule(
         "lib/libmkl_core.a",
         "lib/libmkl_intel_ilp64.a",
         "lib/libmkl_tbb_thread.a",
-        "lib/libmkl_sycl.a",
+        "lib/libmkl_sycl.so",
+        "lib/libmkl_sycl_blas.so",
+        "lib/libmkl_sycl_lapack.so",
+        "lib/libmkl_sycl_sparse.so",
+        "lib/libmkl_sycl_dft.so",
+        "lib/libmkl_sycl_vm.so",
+        "lib/libmkl_sycl_rng.so",
+        "lib/libmkl_sycl_stats.so",
+        "lib/libmkl_sycl_data_fitting.so",
+        "lib/libmkl_sycl_blas.so.5",
+        "lib/libmkl_sycl_lapack.so.5",
+        "lib/libmkl_sycl_sparse.so.5",
+        "lib/libmkl_sycl_dft.so.5",
+        "lib/libmkl_sycl_vm.so.5",
+        "lib/libmkl_sycl_rng.so.5",
+        "lib/libmkl_sycl_stats.so.5",
+        "lib/libmkl_sycl_data_fitting.so.5",
     ],
     build_template = "@onedal//dev/bazel/deps:mkl.tpl.BUILD",
     download_mapping = {
     # Required directory layout and layout in the downloaded
     # archives may be different. Mapping helps to setup relations
     # between required layout (LHS) and downloaded (RHS).
-    # In this case, files from `lib/*` will be copied to `lib/intel64/*`.
-    "lib/intel64": "lib/",
+    # For example in this case, files from `lib/*` will be copied to `lib/intel64/*`.
+    # "lib/intel64": "lib/",
     },
 )

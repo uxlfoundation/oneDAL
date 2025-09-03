@@ -113,6 +113,26 @@ static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
+void LogLossKernel<algorithmFPType, method, cpu>::sigmoid_clipped(const algorithmFPType * f, algorithmFPType * s, size_t n)
+{
+    const algorithmFPType bottom = sizeof(algorithmFPType) == 4 ? 1e-7 : 1e-15;
+    const algorithmFPType top    = algorithmFPType(1.0) - bottom;
+
+    //s = exp(-f)
+    vexp<algorithmFPType, cpu>(f, s, n);
+    //s = sigm(f)
+    PRAGMA_FORCE_SIMD
+    PRAGMA_VECTOR_ALWAYS
+    for (size_t i = 0; i < n; ++i)
+    {
+        algorithmFPType sigm = static_cast<algorithmFPType>(1.0) / (static_cast<algorithmFPType>(1.0) + s[i]);
+        if (sigm < bottom) sigm = bottom;
+        if (sigm > top) sigm = top;
+        s[i] = sigm;
+    }
+}
+
+template <typename algorithmFPType, Method method, CpuType cpu>
 void LogLossKernel<algorithmFPType, method, cpu>::sigmoid(const algorithmFPType * f, algorithmFPType * s, size_t n)
 {
     //s = exp(-f)

@@ -301,7 +301,8 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
         SpBlasInst<algorithmFPType, cpu>::xxcsrmm(&transa, &_n, &_c, &_p, &alpha, matdescra, data, (DAAL_INT *)colIdx, (DAAL_INT *)rowIdx, inClusters,
                                                   &_p, &beta, x_clusters, &_n);
 
-        size_t csrCursor = 0;
+        algorithmFPType goal = 0;
+        size_t csrCursor     = 0;
         for (size_t i = 0; i < blockSize; i++)
         {
             algorithmFPType minGoalVal = clustersSq[0] - x_clusters[i];
@@ -328,7 +329,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
 
             kmeansInsertCandidate(tt, minGoalVal, k * blockSizeDefault + i);
 
-            *trg += minGoalVal;
+            goal += minGoalVal;
 
             cS0[minIdx]++;
 
@@ -338,6 +339,7 @@ Status TaskKMeansLloyd<algorithmFPType, cpu>::addNTToTaskThreadedCSR(const Numer
                 assignments[i] = (int)minIdx;
             }
         }
+        *trg += goal;
     });
     return safeStat.detach();
 }
