@@ -14,20 +14,14 @@
 **GitHub Copilot's main purpose in this repository is to assist with PR reviews and validation.**
 
 ### 📋 **PR Review Priority Checklist**
-- [ ] **🔴 CRITICAL**: C++17 compliance maintained
 - [ ] **🟡 IMPORTANT**: Interface consistency preserved
-- [ ] **🟡 IMPORTANT**: Cross-repository impact assessed
 - [ ] **🟡 IMPORTANT**: Coding standards followed
+- [ ] **🟡 IMPORTANT**: Cross-repository impact assessed
 
 ## Critical Rules
 
-### Interface Selection
-- **NEW CODE**: Always use the **oneAPI interface** (`cpp/oneapi/`) for new development
-- **LEGACY CODE**: Use **DAAL interface** (`cpp/daal/`) only when modifying existing code
-- **NEVER MIX**: Don't mix DAAL and oneAPI interfaces in the same file
-
 ### C++ Standards
-- **Language**: Use C++17 for oneDAL and C++14 for DAAL
+- **Language**: Use C++17
 - **Headers**: Use `#pragma once` for oneAPI, traditional guards for DAAL
 - **Smart Pointers**: Always use `std::unique_ptr` and `std::shared_ptr`
 - **RAII**: Follow Resource Acquisition Is Initialization principles
@@ -49,7 +43,7 @@
 
 ### When Working in `cpp/daal/`
 - Suggest DAAL patterns and legacy compatibility
-- Use C++14 features
+- Use modern C++17 features
 - Include appropriate DAAL headers
 - Follow DAAL naming conventions
 - Maintain backward compatibility
@@ -85,18 +79,17 @@
 
 #### **1. New Algorithm Implementation**
 - [ ] **Interface Consistency**: Uses appropriate interface (oneAPI for new, DAAL for legacy)
-- [ ] **Make Compatibility**: Works with Make build system (🔴 CRITICAL)
+- [ ] **Make Compatibility**: Works with Make build system
 - [ ] **Bazel Testing**: Includes proper test configuration
 - [ ] **C++17 Compliance**: No C++20/23 features used
 - [ ] **Coding Standards**: Follows comprehensive guidelines
 
 #### **2. Build System Changes**
-- [ ] **Make Priority**: Make build system takes priority over others
-- [ ] **Cross-Platform**: Changes work on Linux, Windows, macOS
+- [ ] **Cross-Platform**: Changes work on Linux, Windows
 - [ ] **Dependency Management**: Proper dependency handling
 
 #### **3. Interface Changes**
-- [ ] **Backward Compatibility**: DAAL interface remains unchanged
+- [ ] **Backward Compatibility**: Changes are not breaking backward compatibility
 - [ ] **scikit-learn-intelex Impact**: Consider impact on integration
 - [ ] **API Consistency**: New APIs follow established patterns
 

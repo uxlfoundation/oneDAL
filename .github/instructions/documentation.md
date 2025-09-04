@@ -109,11 +109,6 @@ def kmeans_training(data, n_clusters=10, max_iterations=100):
 - **Testing**: Validate all code examples compile and run
 - **Links**: Test internal and external links regularly
 
-## Required Tools
-- **Doxygen**: 1.8.13+ for C++ API generation
-- **Sphinx**: 3.0+ for reStructuredText processing
-- **Python**: 3.7+ for build automation
-
 ## Cross-Reference
 - **[AGENTS.md](../../docs/AGENTS.md)** - Documentation context
 - **[examples.md](examples.md)** - Example patterns
