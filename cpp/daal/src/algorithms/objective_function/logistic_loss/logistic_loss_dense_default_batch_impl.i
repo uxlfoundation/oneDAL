@@ -121,7 +121,7 @@ void LogLossKernel<algorithmFPType, method, cpu>::sigmoid_clipped(const algorith
     //s = exp(-f)
     vexp<algorithmFPType, cpu>(f, s, n);
     //s = sigm(f)
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
