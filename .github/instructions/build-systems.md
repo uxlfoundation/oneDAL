@@ -12,7 +12,119 @@
 - **CMake**: User projects integrating oneDAL, example builds
 - **Bazel**: Development workflow, new test development, experimental features
 
+## 🏛️ **Core Architecture Concepts**
+
+### **CPU Dispatch System**
+oneDAL uses runtime CPU feature detection to select optimized implementations:
+
+#### **Architecture Support (VALIDATED)**
+```cpp
+// X86-64 targets (from dispatcher.hpp:42-51)
+#if defined(TARGET_X86_64)
+struct cpu_dispatch_sse2 {};     // Baseline
+struct cpu_dispatch_sse42 {};
+struct cpu_dispatch_avx2 {};
+struct cpu_dispatch_avx512 {};
+using cpu_dispatch_default = cpu_dispatch_sse2;
+
+// ARM targets
+#elif defined(TARGET_ARM)
+struct cpu_dispatch_sve {};      // ARM Scalable Vector Extension
+using cpu_dispatch_default = cpu_dispatch_sve;
+
+// RISC-V targets
+#elif defined(TARGET_RISCV64)
+struct cpu_dispatch_rv64 {};
+using cpu_dispatch_default = cpu_dispatch_rv64;
+#endif
+```
+
+#### **Template Specialization Pattern (VALIDATED)**
+```cpp
+// DAAL interface pattern (from service_utils.h)
+template <CpuType cpu, typename T>
+class Algorithm {
+    // CPU-specific implementation
+};
+
+// oneAPI interface pattern (from dispatcher.hpp)
+template <typename Kernel, typename... Args>
+class cpu_dispatcher {
+    // Runtime dispatch to optimal CPU implementation
+};
+```
+
+### **Build System Integration**
+#### **Make CPU Targets**
+```makefile
+# Supported CPU list (from makefile:74)
+USECPUS := $(if $(REQCPU),$(REQCPU),$(CPUs))
+# CPUs include: sse2, sse42, avx2, avx512 (x86-64)
+#              sve (ARM), rv64 (RISC-V)
+```
+
+#### **Bazel CPU Configuration**
+```python
+# CPU-specific defines (from daal.bzl:44-53)
+cpu_defines = {
+    "sse2":       [ "DAAL_CPU=sse2"       ],
+    "sse42":      [ "DAAL_CPU=sse42"      ],
+    "avx2":       [ "DAAL_CPU=avx2"       ],
+    "avx512":     [ "DAAL_CPU=avx512"     ],
+}
+fpt_defines = {
+    "f32": [ "DAAL_FPTYPE=float"  ],
+    "f64": [ "DAAL_FPTYPE=double" ],
+}
+```
+
+### **Template Instantiation Architecture**
+oneDAL uses extensive template specialization for performance:
+
+#### **Algorithm Templates**
+```cpp
+// DAAL BatchContainer pattern
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public AnalysisContainerIface<batch> {
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+// Floating-point and CPU specialization
+template class BatchContainer<float, defaultDense, sse2>;
+template class BatchContainer<double, defaultDense, avx2>;
+template class BatchContainer<float, defaultDense, avx512>;
+```
+
+#### **oneAPI Dispatch Pattern**
+```cpp
+// Multi-compilation approach
+if "c++" in compile_as:
+    _dal_module(name = name, ...)           // CPU-only compilation
+if "dpc++" in compile_as:
+    _dal_module(name = name + "_dpc", ...)  // GPU/DPC++ compilation
+```
+
 ## 🏗️ Make Build System (Primary)
+
+### **Platform Detection**
+```bash
+# Automatic platform identification (from identify_os.sh)
+IDENTIFIED_PLAT=$(shell bash dev/make/identify_os.sh)
+# Returns: lnx32e (Linux x86-64), mac32e (macOS), win32e (Windows)
+#          lnxarm (Linux ARM64), lnxriscv64 (Linux RISC-V)
+```
+
+### **Algorithm List Management**
+```makefile
+# Core algorithm list
+CORE.ALGORITHMS.CUSTOM.AVAILABLE := low_order_moments quantiles covariance \
+    cosdistance cordistance kmeans pca cholesky svd assocrules qr em \
+    outlierdetection_bacon outlierdetection_multivariate decision_tree \
+    dtrees/gbt dtrees/forest linear_regression ridge_regression naivebayes \
+    stump adaboost brownboost logitboost svm k_nearest_neighbors \
+    logistic_regression implicit_als coordinate_descent jaccard \
+    triangle_counting shortest_paths subgraph_isomorphism connected_components
+```
 
 ### **Key Make Variables**
 
@@ -29,10 +141,26 @@ COMPILER := gnu      # GCC/Clang
 COMPILER := vc       # Microsoft Visual C++
 ```
 
-#### **Backend Configuration**
+#### **Backend Configuration (VALIDATED)**
 ```bash
 BACKEND_CONFIG := mkl     # Intel MKL (default)
-BACKEND_CONFIG := ref     # Reference implementation
+BACKEND_CONFIG := ref     # Reference implementation (OpenBLAS)
+```
+
+#### **CPU Target Selection (VALIDATED)**
+```bash
+# Specify CPU targets (from makefile:73-74)
+REQCPU := sse42 avx2 avx512  # Custom CPU list
+USECPUS := $(if $(REQCPU),$(REQCPU),$(CPUs))  # Use custom or all CPUs
+```
+
+#### **Security Features (VALIDATED)**
+```makefile
+# Security flags (from common.mk:69-77)
+secure.opts.lnx = -Wformat -Wformat-security -fstack-protector-strong
+secure.opts.win = -GS
+secure.opts.link.lnx = -z relro -z now -z noexecstack
+secure.opts.link.win = -DYNAMICBASE -NXCOMPAT
 ```
 
 ### **Common Make Targets**
@@ -50,6 +178,42 @@ make PLAT=win32e COMPILER=vc
 ```
 
 ## 🟢 Bazel Build System (Development)
+
+### **Module Definition Architecture**
+```python
+# DAAL module pattern (from daal.bzl:31-68)
+def daal_module(name, features=[], lib_tag="daal", auto=False):
+    cc_module(
+        name = name,
+        lib_tag = lib_tag,
+        features = [ "c++17" ] + features,
+        cpu_defines = {  # CPU-specific compilation
+            "sse2":   [ "DAAL_CPU=sse2"   ],
+            "avx2":   [ "DAAL_CPU=avx2"   ],
+            "avx512": [ "DAAL_CPU=avx512" ],
+        },
+        fpt_defines = {  # Floating-point precision
+            "f32": [ "DAAL_FPTYPE=float"  ],
+            "f64": [ "DAAL_FPTYPE=double" ],
+        },
+    )
+
+# oneAPI module pattern
+def dal_module(name, compile_as=["c++", "dpc++"]):
+    if "c++" in compile_as:
+        _dal_module(name = name, ...)          # CPU-only build
+    if "dpc++" in compile_as:
+        _dal_module(name = name + "_dpc", ...) # GPU/DPC++ build
+```
+
+### **Dispatcher Generation**
+```python
+# CPU dispatcher generation
+dal_generate_cpu_dispatcher(
+    name = "cpu_dispatcher",
+    out = "_dal_cpu_dispatcher_gen.hpp",
+)
+```
 
 ### **Key Bazel Commands**
 ```bash
@@ -69,25 +233,56 @@ bazel test --config=dpc         # DPC++ with SYCL
 bazel test --config=dpc --device=gpu     # GPU only
 ```
 
-### **Bazel Build Rules**
+### **Dependency Management**
 ```python
-# Basic module definition
-dal_module(
-    name = "core",
-    auto = True,                    # Auto-discover sources
-    dal_deps = [":dependency"],     # oneDAL dependencies
-    compile_as = ["c++", "dpc++"],  # Compilation modes
-)
+# External dependencies (from deps/ .bzl files)
+load("@onedal//dev/bazel/deps:tbb.bzl", "tbb_repo")
+load("@onedal//dev/bazel/deps:mkl.bzl", "mkl_repo") 
+load("@onedal//dev/bazel/deps:dpl.bzl", "dpl_repo")
+load("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
 
-# Test module
+# Module collection pattern
+dal_collect_modules(
+    name = "core",
+    root = "@onedal//cpp/oneapi/dal",
+    modules = ["graph", "table", "util"],
+    dal_deps = [":common"],
+)
+```
+
+### **Test Configuration**
+```python
+# Test rules support both CPU and GPU
 dal_test_module(
     name = "core_test",
     dal_deps = [":core"],
+    compile_as = ["c++", "dpc++"],    # Both CPU and DPC++ tests
     dal_test_deps = ["@catch2//:catch2"],
 )
 ```
 
 ## 🔧 Build System Integration
+
+### **Multi-Platform Build Matrix**
+```makefile
+# Platform definitions
+PLATs := lnx32e win32e lnxarm lnxriscv64
+
+# Compiler options per platform
+COMPILERs.lnx32e := gnu clang icx
+COMPILERs.win32e := vc icx  
+COMPILERs.mac32e := gnu clang
+COMPILERs.lnxarm := gnu clang
+COMPILERs.lnxriscv64 := clang
+```
+
+### **Parallel Build Support**
+```makefile
+# Automatic job detection
+MAKE_PID := $(shell echo $$PPID)
+JOB_FLAG := $(filter -j%, $(shell ps T | grep "$(MAKE_PID).*$(MAKE)"))
+MAKE_JOBS := $(if $(filter $(MAKE_JOBS),$(shell seq 1 999)),$(MAKE_JOBS),$(shell nproc))
+```
 
 ### **Required Environment Variables**
 ```bash
