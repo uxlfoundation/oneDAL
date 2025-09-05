@@ -1,22 +1,36 @@
 
 # Development Tools and Build Systems - AI Agents Context
 
-> **Purpose**: Context for AI agents working with development tools, build systems, and configuration patterns in oneDAL.
+> **Purpose**: Context for AI agents working with oneDAL's sophisticated build systems, Bazel rules, and development tools.
 
-## 🏗️ Build System Overview
+## 🏗️ Build System Architecture
 
-oneDAL supports **multiple build systems** for different development workflows:
+oneDAL uses **dual build systems** optimized for different workflows:
 
 ### Build Systems
-- **Bazel**: Development and testing build system
-- **Make**: Primary production build system
+- **Bazel**: Modern development build system with sophisticated C++ template instantiation
+- **Make**: Production build system with platform-specific optimizations
+
+### Development Tools
+- **Level Zero (L0) Tools**: GPU development utilities (`dev/l0_tools/`)
+- **Docker**: Containerized development environment (`dev/docker/`)
+- **Dependency Management**: Automated TBB, MKL, SYCL integration
 
 ## 📁 Structure
 ```
 dev/
-├── bazel/      # Bazel build system configuration
-├── make/       # Make-based build system
-└── l0_tools/   # Level Zero development tools
+├── bazel/                  # Bazel build system with custom rules
+│   ├── dal.bzl            # oneAPI interface build rules
+│   ├── daal.bzl           # DAAL interface build rules  
+│   ├── cc/                # C++ compilation rules
+│   ├── deps/              # External dependency management
+│   └── config/            # Build configuration
+├── make/                   # Make-based build system
+│   ├── common.mk          # Common make patterns
+│   ├── deps.mk            # Dependency resolution
+│   └── compiler_definitions/ # Compiler-specific settings
+├── l0_tools/              # Level Zero GPU development tools
+└── docker/                # Development containers
 ```
 
 ## 🔧 Bazel Build System

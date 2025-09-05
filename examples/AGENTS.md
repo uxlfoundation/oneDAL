@@ -1,136 +1,175 @@
 
-# Examples and Tutorials - AI Agents Context
+# Examples - AI Agents Context
 
-> **Purpose**: Context for AI agents working with oneDAL examples, demonstrating both DAAL and oneAPI interfaces.
+> **Purpose**: Context for AI agents working with oneDAL example patterns demonstrating dual C++ interface usage.
 
 ## 🏗️ Examples Architecture
 
-oneDAL provides **comprehensive examples** across different platforms:
-- **C++ Examples**: Traditional C++ implementations  
-- **DPC++ Examples**: SYCL-based GPU acceleration
-- **Distributed Examples**: MPI-based distributed computing
-- **Integration Examples**: Database and framework integration
+oneDAL examples demonstrate **three distinct interface patterns** corresponding to the dual C++ architecture:
+
+### Interface Categories
+- **DAAL Interface** (`examples/daal/cpp/source/`) - Traditional CPU-focused patterns
+- **oneAPI CPU** (`examples/oneapi/cpp/source/`) - Modern C++ with fluent interfaces  
+- **oneAPI GPU** (`examples/oneapi/dpc/source/`) - Heterogeneous computing with SYCL
 
 ## 📁 Structure
 ```
 examples/
-├── daal/              # Traditional DAAL interface examples
-│   ├── cpp/source/   # Algorithm-specific examples
-│   └── data/         # Example data files
-└── oneapi/           # Modern oneAPI interface examples
-    ├── cpp/source/   # Algorithm-specific examples  
-    ├── dpc/source/   # SYCL GPU examples
-    └── data/         # Example data files
+├── daal/cpp/source/           # Traditional DAAL interface examples
+│   ├── covariance/           # Algorithm-specific examples
+│   ├── kmeans/               # K-means clustering examples
+│   └── [algorithms]/         # Other algorithm examples
+├── oneapi/cpp/source/         # Modern oneAPI CPU examples
+│   ├── covariance/           # Same algorithms, modern interface
+│   ├── kmeans/               # Modern K-means patterns
+│   └── example_util/         # Shared utilities
+└── oneapi/dpc/source/         # GPU-accelerated examples
+    ├── kmeans/               # SYCL-enabled K-means
+    └── [algorithms]/         # GPU algorithm examples
 ```
 
-## 🔧 Example Patterns
+## 🎭 Interface Pattern Comparison
 
-### Traditional DAAL Interface
+### 1. DAAL Traditional Pattern
 ```cpp
-#include "algorithms/kmeans/kmeans_batch.h"
-#include "data_management/data/homogen_numeric_table.h"
-
+// Explicit lifecycle management with status codes
+#include "daal.h"
 using namespace daal::algorithms;
 
-int main() {
-    // Create data and algorithm
-    auto data = new homogen_numeric_table<float>(nRows, nCols);
-    auto kmeans = new kmeans::Batch<float>();
-    
-    // Set parameters and compute
-    auto parameter = kmeans->getParameter();
-    parameter->nClusters = 10;
-    kmeans->input.set(kmeans::BatchInput::data, data);
-    kmeans->compute();
-    
-    // Get results
-    auto result = kmeans->getResult();
-    return 0;
-}
+covariance::Batch<> algorithm;
+algorithm.input.set(covariance::data, dataSource.getNumericTable());
+algorithm.compute();
+covariance::ResultPtr res = algorithm.getResult();
+printNumericTable(res->get(covariance::covariance), "Covariance matrix:");
 ```
 
-### Modern oneAPI Interface
+**Characteristics:**
+- **Headers**: `#include "daal.h"` with `using namespace daal::algorithms`
+- **Memory**: Custom `SharedPtr<T>` and `NumericTable` management
+- **Workflow**: Instantiate → set input → compute() → getResult()
+- **Error Handling**: Implicit status checking
+
+### 2. oneAPI CPU Pattern
 ```cpp
+// Modern fluent interface with RAII
 #include "oneapi/dal/algo/kmeans.hpp"
-#include "oneapi/dal/table/homogen.hpp"
+namespace dal = oneapi::dal;
 
-using namespace oneapi::dal;
-
-int main() {
-    // Load data and create descriptor
-    auto data = read<homogen_table>(csv_file);
-    auto desc = kmeans::descriptor<float>()
-        .set_cluster_count(10)
-        .set_max_iteration_count(100);
-    
-    // Train and infer
-    auto train_result = train(desc, data);
-    auto infer_result = infer(desc, train_result.get_model(), test_data);
-    return 0;
-}
+const auto kmeans_desc = dal::kmeans::descriptor<>()
+                             .set_cluster_count(20)
+                             .set_max_iteration_count(5)
+                             .set_accuracy_threshold(0.001);
+const auto result_train = dal::train(kmeans_desc, x_train, initial_centroids);
+std::cout << "Centroids:\n" << result_train.get_model().get_centroids() << std::endl;
 ```
 
-### SYCL GPU Example
+**Characteristics:**
+- **Headers**: `#include "oneapi/dal/algo/[algorithm].hpp"`
+- **Memory**: STL RAII with automatic resource management
+- **Workflow**: Descriptor configuration → train/compute → result access
+- **Data**: Modern `dal::table` with CSV data sources
+
+### 3. oneAPI GPU Pattern
 ```cpp
+// SYCL queue integration for heterogeneous computing
 #include <sycl/sycl.hpp>
 #include "oneapi/dal/algo/kmeans.hpp"
 
-int main() {
-    sycl::queue q(sycl::gpu_selector_v);
-    auto data = read<homogen_table>(csv_file);
-    auto desc = kmeans::descriptor<float>().set_cluster_count(10);
-    auto result = train(q, desc, data);  // GPU execution
-    return 0;
+void run(sycl::queue &q) {
+    const auto x_train = dal::read<dal::table>(q, dal::csv::data_source{...});
+    const auto result_train = dal::train(q, kmeans_desc, x_train, initial_centroids);
 }
 ```
 
-### Distributed Computing (MPI)
+**Characteristics:**
+- **Headers**: SYCL integration with `#include <sycl/sycl.hpp>`
+- **Queue Parameter**: All operations accept `sycl::queue& q` as first parameter
+- **Data Loading**: Queue-aware `dal::read<dal::table>(q, data_source)`
+- **Execution**: GPU-accelerated with same API as CPU version
+
+## 🔧 Build System Integration
+
+### Bazel Configuration
+```python
+# examples/oneapi/cpp/BUILD
+dal_example_suite(
+    name = "kmeans",
+    compile_as = ["c++"],
+    srcs = glob(["source/kmeans/*.cpp"]),
+    dal_deps = ["@onedal//cpp/oneapi/dal/algo:kmeans"],
+    data = ["@onedal//examples/oneapi:data"],
+    extra_deps = [":example_util", "@opencl//:opencl_binary"],
+)
+```
+
+### Common Patterns
+- **Algorithm Suites**: Each algorithm gets `dal_example_suite` target
+- **Shared Utilities**: `example_util` module for common helpers
+- **Data Dependencies**: Centralized test data management
+- **OpenCL Integration**: GPU examples require OpenCL binary dependencies
+
+## 🎯 Example Usage Patterns
+
+### Data Loading Evolution
 ```cpp
-#include <mpi.h>
-#include "oneapi/dal/spmd/communicator.hpp"
+// DAAL: Explicit data source management
+FileDataSource<CSVFeatureManager> dataSource(fileName, 
+                                             DataSource::doAllocateNumericTable,
+                                             DataSource::doDictionaryFromContext);
+dataSource.loadDataBlock();
 
-int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-    auto comm = spmd::make_communicator();
-    auto local_data = read<homogen_table>(local_csv_file);
-    auto result = train(comm, desc, local_data);  // Distributed training
-    MPI_Finalize();
-    return 0;
-}
+// oneAPI CPU: Modern data loading
+const auto input = dal::read<dal::table>(dal::csv::data_source{fileName});
+
+// oneAPI GPU: Queue-aware data loading  
+const auto input = dal::read<dal::table>(queue, dal::csv::data_source{fileName});
 ```
 
-## 🎯 Example Guidelines
+### Algorithm Configuration Evolution
+```cpp
+// DAAL: Parameter-based configuration
+const size_t nClusters = 20;
+const size_t nIterations = 5;
+// Configuration through algorithm parameters
 
-### Code Quality Standards
-- **Readability**: Clear, well-commented code
-- **Completeness**: Self-contained, runnable examples  
-- **Best Practices**: Follow oneDAL coding guidelines
-- **Error Handling**: Proper error checking and handling
+// oneAPI: Fluent descriptor pattern
+const auto desc = dal::kmeans::descriptor<>()
+                      .set_cluster_count(20)
+                      .set_max_iteration_count(5)
+                      .set_accuracy_threshold(0.001);
+```
 
-### Algorithm Categories
-- **Classification**: Decision trees, SVM, Naive Bayes
-- **Clustering**: K-means, DBSCAN, EM
-- **Regression**: Linear regression, Ridge regression  
-- **Dimensionality Reduction**: PCA, SVD
+## 🏛️ Design Philosophy
 
-## 🚫 Common Pitfalls
-- **Incomplete examples**: Always provide complete, runnable code
-- **Poor error handling**: Include proper error checking
-- **Platform dependencies**: Avoid hardcoded paths, provide cross-platform solutions
+### Progressive Modernization
+1. **DAAL Examples**: Demonstrate traditional patterns for backward compatibility
+2. **oneAPI CPU**: Show modern C++ best practices with same algorithms  
+3. **oneAPI GPU**: Extend CPU patterns to heterogeneous computing
 
-## 🧪 Testing Requirements
-- **Build Testing**: Ensure examples compile without errors
-- **Runtime Testing**: Verify examples run successfully
-- **Performance**: Validate performance characteristics
-- **Memory**: Check for memory leaks
+### Interface Consistency
+- **Same Algorithm Logic**: Core computation remains identical across interfaces
+- **Consistent Results**: All three patterns produce equivalent outputs
+- **Performance Scaling**: GPU examples demonstrate acceleration without API complexity
 
-## 🔧 Required Tools
-- **Compilers**: GCC 7+, Clang 6+, MSVC 2017+
-- **Build Systems**: CMake
-- **Intel oneAPI**: For SYCL development  
-- **MPI**: For distributed computing examples
+## 🎯 Critical Example Rules
+
+### Interface Separation
+- **NEVER mix interfaces** within single example
+- **DAAL**: Traditional headers, explicit lifecycle, custom smart pointers
+- **oneAPI**: Modern headers, fluent API, STL RAII
+
+### GPU Programming  
+- **Queue Management**: Always pass `sycl::queue` as first parameter
+- **Data Locality**: Use queue-aware data loading for optimal GPU performance
+- **Memory Management**: Leverage USM for CPU/GPU data sharing
+
+### Build Dependencies
+- **Algorithm Dependencies**: Match example to correct `dal_deps` in BUILD files
+- **Utility Sharing**: Use `example_util` for common patterns across examples
+- **Data Management**: Reference centralized data dependencies
 
 ## 📖 Further Reading
-- **[AGENTS.md](../AGENTS.md)** - Repository context
-- **[cpp/AGENTS.md](../cpp/AGENTS.md)** - C++ implementation
-- **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines
+- **[cpp/AGENTS.md](../cpp/AGENTS.md)** - C++ implementation overview
+- **[cpp/daal/AGENTS.md](../cpp/daal/AGENTS.md)** - DAAL interface patterns
+- **[cpp/oneapi/AGENTS.md](../cpp/oneapi/AGENTS.md)** - oneAPI interface patterns
+- **[dev/AGENTS.md](../dev/AGENTS.md)** - Build system and development tools
