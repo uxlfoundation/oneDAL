@@ -309,6 +309,6 @@ endif
 ```
 
 ## 🔄 Cross-Reference
-- **[dev/AGENTS.md](../../dev/AGENTS.md)** - Development tools context
-- **[dev/bazel/AGENTS.md](../../dev/bazel/AGENTS.md)** - Bazel-specific context
-- **[C++ Development](cpp.md)** - C++ standards and patterns
+- **[dev/AGENTS.md](/dev/AGENTS.md)** - Development tools context
+- **[dev/bazel/AGENTS.md](/dev/bazel/AGENTS.md)** - Bazel-specific context
+- **[C++ Development](cpp-coding-guidelines.md)** - C++ standards and patterns

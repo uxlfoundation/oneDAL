@@ -116,5 +116,5 @@ auto result = train(q, desc, data);  // GPU execution
 ```
 
 ## Cross-Reference
-- **[AGENTS.md](../../examples/AGENTS.md)** - Example patterns context
-- **[coding-guidelines.md](coding-guidelines.md)** - Coding standards
+- **[AGENTS.md](/examples/AGENTS.md)** - Example patterns context
+- **[coding-guidelines.md](/.github/instructions/cpp-coding-guidelines.md)** - Coding standards

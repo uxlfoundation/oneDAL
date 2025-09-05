@@ -27,7 +27,7 @@
 - **RAII**: Follow Resource Acquisition Is Initialization principles
 
 ### Coding Standards
-- **Comprehensive Guidelines**: Follow [coding-guidelines.md](coding-guidelines.md) for all code
+- **Comprehensive Guidelines**: Follow [coding-guidelines.md](/.github/instructions/cpp-coding-guidelines.md) for all code
 - **Naming Conventions**: Use consistent naming patterns
 - **Code Structure**: Follow proper declaration order and organization
 - **Documentation**: Include proper comments and documentation
@@ -94,6 +94,6 @@
 - [ ] **API Consistency**: New APIs follow established patterns
 
 ## Cross-Reference
-- **[coding-guidelines.md](coding-guidelines.md)** - Comprehensive coding standards
-- **[build-systems.md](build-systems.md)** - Build system guidance
-- **[examples.md](examples.md)** - Example patterns
+- **[coding-guidelines.md](/.github/instructions/cpp-coding-guidelines.md)** - Comprehensive coding standards
+- **[build-systems.md](/.github/instructions/build-systems.md)** - Build system guidance
+- **[examples.md](/.github/instructions/examples.md)** - Example patterns
