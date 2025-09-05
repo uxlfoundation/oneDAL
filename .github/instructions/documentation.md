@@ -110,5 +110,5 @@ def kmeans_training(data, n_clusters=10, max_iterations=100):
 - **Links**: Test internal and external links regularly
 
 ## Cross-Reference
-- **[AGENTS.md](../../docs/AGENTS.md)** - Documentation context
-- **[examples.md](examples.md)** - Example patterns
+- **[AGENTS.md](/docs/AGENTS.md)** - Documentation context
+- **[examples.md](/.github/instructions/examples.md)** - Example patterns

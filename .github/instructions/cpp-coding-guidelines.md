@@ -257,6 +257,6 @@ private:
 6. **C++17 Compliance** - No C++20/23 features for maximum compatibility
 
 ## 🔄 **Cross-Reference**
-- **[general.md](general.md)** - General repository context
-- **[build-systems.md](build-systems.md)** - Build system instructions
-- **[examples.md](examples.md)** - Example code patterns
+- **[general.md](/.github/instructions/general.md)** - General repository context
+- **[build-systems.md](/.github/instructions/build-systems.md)** - Build system instructions
+- **[examples.md](/.github/instructions/examples.md)** - Example code patterns

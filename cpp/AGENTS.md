@@ -133,6 +133,11 @@ auto infer_result = infer(desc, train_result.get_model(), test_data);
 - **Threading**: TBB integration for task-based parallelism
 - **GPU**: SYCL for heterogeneous computing
 
-## 📖 Reference Links
-- **[cpp/daal/AGENTS.md](daal/AGENTS.md)** - DAAL interface specifics
-- **[cpp/oneapi/AGENTS.md](oneapi/AGENTS.md)** - oneAPI interface specifics
+## 📖 Further Reading
+- **[AGENTS.md](/AGENTS.md)** - Repository overview and context
+- **[cpp/daal/AGENTS.md](/cpp/daal/AGENTS.md)** - DAAL interface specifics
+- **[cpp/oneapi/AGENTS.md](/cpp/oneapi/AGENTS.md)** - oneAPI interface specifics
+- **[dev/AGENTS.md](/dev/AGENTS.md)** - Build system architecture
+- **[dev/bazel/AGENTS.md](/dev/bazel/AGENTS.md)** - Bazel-specific patterns
+- **[docs/AGENTS.md](/docs/AGENTS.md)** - Documentation generation
+- **[examples/AGENTS.md](/examples/AGENTS.md)** - Example integration patterns

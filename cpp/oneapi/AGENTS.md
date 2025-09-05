@@ -310,5 +310,10 @@ auto row_data = accessor.pull({0, 10}); // Rows 0-9
 - **Type Safety**: Template metaprogramming with compile-time dispatch
 
 ## 📖 Further Reading
-- **[cpp/AGENTS.md](../AGENTS.md)** - C++ implementation overview  
-- **[cpp/daal/AGENTS.md](../daal/AGENTS.md)** - Traditional DAAL interface
+- **[AGENTS.md](/AGENTS.md)** - Repository overview and context
+- **[cpp/AGENTS.md](/cpp/AGENTS.md)** - C++ implementation overview  
+- **[cpp/daal/AGENTS.md](/cpp/daal/AGENTS.md)** - Traditional DAAL interface
+- **[dev/AGENTS.md](/dev/AGENTS.md)** - Build system architecture
+- **[dev/bazel/AGENTS.md](/dev/bazel/AGENTS.md)** - Bazel-specific patterns
+- **[docs/AGENTS.md](/docs/AGENTS.md)** - Documentation generation
+- **[examples/AGENTS.md](/examples/AGENTS.md)** - Example integration patterns
