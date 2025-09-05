@@ -1,0 +1,77 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+{% set version = "2025.9.0" %}
+{% set buildnumber = 0 %}
+
+package:
+  name: dal
+  version: {{ version }}
+
+source:
+  - path: ..
+
+build:
+  skip: true  # [not (linux64 or win)]
+  number: {{ buildnumber }}
+  include_recipe: False
+  string: h{{ PKG_HASH }}_{{ buildnumber }}_dpcpp
+  ignore_run_exports_from:
+    - {{ compiler('dpcpp') }}  # [linux64 or win]
+
+requirements:
+  build:
+    - python
+    - make  # [linux]
+    - {{ compiler('dpcpp') }}  # [linux64 or win]
+    - {{ compiler('cxx') }}
+    - onedpl-devel  # [linux64 or win]
+    - mkl-devel  # [linux64 or win]
+    - mkl-static  # [linux64 or win]
+    - mkl-devel-dpcpp  # [linux64 or win]
+    - onemkl-sycl-include  # [linux64 or win]
+    - tbb-devel
+  host:
+    - tbb
+
+test:
+  commands:
+    - test -f $PREFIX/include/oneapi/dal.hpp
+    - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
+    - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
+    - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
+
+about:
+  home: https://uxlfoundation.github.io/oneDAL
+  license: Apache-2.0
+  license_file:
+    - LICENSE
+    - third-party-programs.txt
+  summary: oneAPI Data Analytics Library (oneDAL)
+  description: |
+    oneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library
+    (powering the Extension for Scikit-learn in Python) which implements
+    accelerated machine learning routines for tabular data
+    (e.g. linear regression, K-means clustering, random forests, etc.)
+    for CPUs, GPUs, and multi-node distributed setups.
+  dev_url: https://github.com/uxlfoundation/oneDAL
+  doc_url: https://uxlfoundation.github.io/oneDAL
+
+extra:
+  recipe-maintainers:
+    - napetrov
+    - Alexsandruss
+    - maria-Petrova
