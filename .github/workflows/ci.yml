@@ -169,3 +169,27 @@ jobs:
           echo "Keep the branch up to date with oneDAL 'main' as it may otherwise not contain the latest changes "
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
+
+  LinuxCondaRecipeDPCPP:
+    name: LinuxCondaRecipeDPCPP
+    if: github.repository == 'uxlfoundation/oneDAL'
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+      - name: Conda update
+        run: |
+          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" >> ~/.condarc
+          conda config --add channels conda-forge
+          conda config --set channel_priority strict
+          conda update -y -q conda python
+      - name: Conda create
+        run: conda create -y -q -n build-env conda-build conda-verify
+      - name: Conda build and test
+        run:
+          . /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate build-env
+          conda build .
