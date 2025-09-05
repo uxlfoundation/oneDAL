@@ -38,9 +38,12 @@ namespace la = dal::test::engine::linalg;
 using kmeans_types = COMBINE_TYPES((float, double),
                                    (kmeans::method::lloyd_dense, kmeans::method::lloyd_csr));
 
+using kmeans_types_csr = COMBINE_TYPES((float, double), (kmeans::method::lloyd_csr));
+
 template <typename TestType, typename Derived>
 class kmeans_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
+    sparse_indexing data_indexing_; // for sparse data testing
     using base_t = te::crtp_algo_fixture<TestType, Derived>;
     using float_t = std::tuple_element_t<0, TestType>;
     using method_t = std::tuple_element_t<1, TestType>;
