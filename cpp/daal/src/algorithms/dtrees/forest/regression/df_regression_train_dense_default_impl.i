@@ -536,6 +536,10 @@ public:
         node.impurity = imp.var;
     }
 
+#ifdef DEBUG_CHECK_IMPURITY
+    void checkImpurityInternal(const IndexType * ptrIdx, size_t n, const ImpurityData & expected, bool bInternal) const;
+#endif
+
 private:
 #ifdef DEBUG_CHECK_IMPURITY
     algorithmFPType calcResponse(algorithmFPType & res, const IndexType * idx, size_t n) const;
