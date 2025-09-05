@@ -54,7 +54,10 @@ void daal_free_buffers();
 DAAL_EXPORT daal::services::Environment * daal::services::Environment::getInstance()
 {
     static daal::services::Environment instance;
-    return &instance;
+    if (isInit)
+        return &instance;
+    else
+        return nullptr;
 }
 
 DAAL_EXPORT int daal::services::Environment::freeInstance()
@@ -129,6 +132,8 @@ DAAL_EXPORT daal::services::Environment::Environment() : _schedulerHandle {}, _g
 {
     _env.cpuid_init_flag = false;
     _env.cpuid           = -1;
+    // Initialize the Environment to prevent from using it uninitialized
+    getCpuId();
 }
 
 DAAL_EXPORT daal::services::Environment::Environment(const Environment & e) : daal::services::Environment::Environment() {}
@@ -145,8 +150,21 @@ DAAL_EXPORT void daal::services::Environment::initNumberOfThreads()
     daal::setSchedulerHandle(&_schedulerHandle);
 #endif
     /* if HT enabled - set _numThreads to physical cores num */
-    if (daal::internal::ServiceInst::serv_get_ht())
+    const int htStatus = daal::internal::ServiceInst::serv_get_ht();
+    if (htStatus < 0)
     {
+        // Failed to get the number of CPUs. Environment cannot be initialized
+        return;
+    }
+    else if (htStatus > 0)
+    {
+        const int ncpus = daal::internal::ServiceInst::serv_get_ncpus();
+        if (ncpus < 0)
+        {
+            // Failed to get the number of CPUs. Environment cannot be initialized
+            return;
+        }
+
         /* Number of cores = number of cpu packages * number of cores per cpu package */
         int ncores = daal::internal::ServiceInst::serv_get_ncpus() * daal::internal::ServiceInst::serv_get_ncorespercpu();
 
