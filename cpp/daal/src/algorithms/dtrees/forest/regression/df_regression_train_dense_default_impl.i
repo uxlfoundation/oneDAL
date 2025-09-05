@@ -50,6 +50,9 @@ using namespace dtrees::training::internal;
 //computes mean2 and var2 as the mean and mse for the set of elements s2, s2 = s - s1
 //where mean, var are mean and mse for s,
 //where mean1, var1 are mean and mse for s1
+//it should uphold the following condition:
+// mean = (leftWeights*mean1 + rightWeights*mean2) / (leftWeights + rightWeights)
+//with 'mean2' being the unknown quantity to calculate.
 template <typename algorithmFPType, CpuType cpu>
 void subtractImpurity(algorithmFPType var, algorithmFPType mean, algorithmFPType var1, algorithmFPType mean1, algorithmFPType leftWeights,
                       algorithmFPType & var2, algorithmFPType & mean2, algorithmFPType rightWeights)
