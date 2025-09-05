@@ -1,125 +1,138 @@
 
 # oneDAL C++ Implementation - AI Agents Context
 
-> **Purpose**: This file provides context for AI agents working with the C++ implementation of oneDAL, explaining the dual interface architecture and common patterns.
+> **Purpose**: Context for AI agents working with oneDAL's dual C++ interface architecture.
 
 ## 🏗️ C++ Architecture Overview
 
-oneDAL provides **two distinct C++ interfaces** for different use cases and target platforms:
+oneDAL provides **two distinct C++ interfaces**:
 
 ### 1. Traditional DAAL Interface (`cpp/daal/`)
-- **Purpose**: Legacy interface for existing DAAL applications
-- **Target**: CPU-focused implementations with SIMD optimizations
-- **Style**: Object-oriented C++ with explicit memory management
-- **Compatibility**: Backward compatible with Intel DAAL
+- **Target**: CPU-focused with SIMD optimizations, backward compatible
+- **Style**: Traditional C++ with `daal::services::SharedPtr<T>`, `services::Status` return codes
+- **Headers**: `.h` files with `#ifndef` guards, `daal::algorithms` namespaces
 
-### 2. Modern oneAPI Interface (`cpp/oneapi/`)
-- **Purpose**: Modern, GPU-accelerated interface
-- **Target**: CPU + GPU (SYCL) + distributed computing
-- **Style**: Modern C++ with RAII and smart pointers
-- **Future**: Primary development focus going forward
+### 2. Modern oneAPI Interface (`cpp/oneapi/`)  
+- **Target**: CPU + GPU (SYCL) + distributed computing (primary development focus)
+- **Style**: Modern C++17 with STL smart pointers, exceptions, RAII
+- **Headers**: `.hpp` files with `#pragma once`, `oneapi::dal` namespaces
 
-## 🔧 C++ Development Standards
+## 🔧 Development Standards
 
-### Language Features
-- **C++ Standard**: C++17 for oneDAL and C++14 for daal
-- **Compiler Support**: gcc, msvs, clang for daal part and SYCL compiler for oneDAL
+- **C++ Standard**: C++17 (no C++20/23 features for compatibility)
+- **Architecture**: x86_64, ARM64 (SVE), RISC-V 64-bit with CPU-specific optimizations
+- **Build**: Bazel with `dal.bzl`/`daal.bzl` rules, MKL/OpenBLAS backend selection
 
+## 🎭 Key Template Patterns
 
-### Code Organization
-```
-cpp/
-├── daal/                    # Traditional DAAL interface
-│   ├── include/            # Public headers
-│   │   ├── algorithms/     # Algorithm implementations
-│   │   ├── data_management/ # Data structures
-│   │   └── services/       # Utility services
-│   └── src/                # Implementation files
-└── oneapi/                  # Modern oneAPI interface
-    ├── dal/                 # Core oneAPI implementation
-    │   ├── algo/           # Algorithm implementations
-    │   ├── table/          # Data table abstractions
-    │   └── backend/        # Backend implementations
-    └── test/               # Unit tests
-```
-
-## 📚 Key C++ Patterns
-
-### 1. Algorithm Interface Pattern
-Both interfaces follow a consistent pattern for algorithms:
-
+### Template Specialization & CPU Dispatch
 ```cpp
-// Training interface
-template<typename Float, Method M>
-class algorithm_training_batch {
-public:
-    using input_t = algorithm_training_input;
-    using result_t = algorithm_training_result;
-    
-    void compute();
-    void setInput(const input_t& input);
-    result_t getResult();
+// DAAL - Multi-dimensional specialization for CPU optimization
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+// oneAPI - Type-safe dispatching with perfect forwarding  
+template <typename Context, typename Float, typename Method, typename Task>
+struct train_ops_dispatcher {
+    train_result<Task> operator()(const Context&, const descriptor_base<Task>&,
+                                  const train_parameters<Task>&, const train_input<Task>&) const;
 };
 ```
 
-### 2. Data Management
-- **Numeric Tables**: Primary data structure for matrices
-- **Memory Management**: Smart pointers and RAII
-- **Data Sources**: CSV, binary, and streaming support
-
-### 3. Service Layer
-- **Environment Detection**: CPU features, threading
-- **Memory Services**: Allocation and deallocation
-- **Error Handling**: Exception-based error management
-
-## 🎯 Implementation Guidelines
-
-### Header Files
-- **Include Guards**: Use `#pragma once` for oneAPI, traditional guards for DAAL
-- **Forward Declarations**: Minimize header dependencies
-- **Template Specializations**: Place in appropriate headers
-
-### Source Files
-- **Implementation**: Keep headers clean, implement in .cpp files
-- **Exception Safety**: Provide strong exception guarantees
-- **Thread Safety**: Document thread safety requirements
+## 🏛️ Core Design Patterns
 
 ### Memory Management
-- **Smart Pointers**: Use `std::unique_ptr` and `std::shared_ptr`
-- **RAII**: Automatic resource management
-- **Custom Allocators**: Support for custom memory allocation
+```cpp
+// DAAL - Custom smart pointers
+daal::services::SharedPtr<NumericTable> data_;
 
-## 🔍 Common Pitfalls to Avoid
+// oneAPI - STL smart pointers with RAII
+std::unique_ptr<object> ptr_ = std::make_unique<object>();
+std::shared_ptr<table> table_ = std::make_shared<table>();
+```
 
-### 1. Interface Mismatches
-- **Don't mix** DAAL and oneAPI interfaces in the same code
-- **Don't assume** compatibility between interfaces
-- **Do use** the appropriate interface for your target platform
+### Error Handling  
+- **DAAL**: `services::Status` return codes with `throwIfPossible()` conversion
+- **oneAPI**: STL exceptions (`std::invalid_argument`, `std::domain_error`)
 
-### 2. Memory Management
-- **Don't use** raw pointers for ownership
-- **Don't forget** to handle exceptions in destructors
-- **Do use** smart pointers and RAII consistently
+## ⚡ Platform Optimizations
 
-### 3. Threading
-- **Don't use** standard threading primitives directly
-- **Don't assume** thread safety without documentation
-- **Do use** oneDAL threading layer abstractions
+### Multi-Architecture CPU Support
+```cpp
+// Compile-time CPU optimization selection
+#if defined(TARGET_X86_64)
+    enum CpuType { sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6 };
+#elif defined(TARGET_ARM)
+    enum CpuType { sve = 0 };  // ARM SVE
+#elif defined(TARGET_RISCV64)
+    enum CpuType { rv64 = 0 }; // RISC-V 64-bit
+#endif
 
-## 🧪 Testing and Validation
+// SIMD optimization
+#define PRAGMA_FORCE_SIMD _Pragma("ivdep")  // Intel compiler vectorization
+```
 
-### Unit Tests
-- **Coverage**: Aim for high test coverage
-- **Mocking**: Use appropriate mocking for dependencies
-- **Edge Cases**: Test boundary conditions and error cases
+### Runtime CPU Feature Detection
+```cpp
+enum cpu_extension : uint64_t {
+    sse2 = 1U << 0, sse42 = 1U << 2, avx2 = 1U << 4, avx512 = 1U << 5
+};
+```
 
-### Integration Tests
-- **Examples**: Ensure examples build and run
-- **Performance**: Validate performance characteristics
-- **Compatibility**: Test with different compilers/platforms
+## 🌐 Dependencies & Namespaces
 
-## 📖 Further Reading
-- **[cpp/daal/AGENTS.md](daal/AGENTS.md)** - Traditional DAAL interface details
-- **[cpp/oneapi/AGENTS.md](oneapi/AGENTS.md)** - Modern oneAPI interface details
-- **[dev/AGENTS.md](../dev/AGENTS.md)** - Build system and development tools
-- **[docs/AGENTS.md](../docs/AGENTS.md)** - Documentation guidelines
+### Key Dependencies
+- **Math**: Intel MKL (primary), OpenBLAS (reference)
+- **Threading**: Intel TBB for task-based parallelism
+- **GPU**: Intel SYCL for heterogeneous computing
+- **Distributed**: MPI via `oneapi::dal::preview::spmd`
+
+### Namespace Structure
+```cpp
+// oneAPI: oneapi::dal::{v1, preview, detail, spmd}
+// DAAL: daal::{algorithms, data_management, services}::{internal}
+```
+
+## 📚 Algorithm Interface Patterns
+
+### DAAL Pattern
+```cpp
+// Traditional algorithm lifecycle with explicit memory management
+auto training = new algorithm_training_batch<float>();
+training->input.set(data_input::data, data_table);
+training->compute();
+auto result = training->getResult();
+auto model = result->get(training_result::model);
+```
+
+### oneAPI Pattern  
+```cpp
+// Modern fluent interface with automatic resource management
+auto desc = kmeans::descriptor<float>()
+    .set_cluster_count(10)
+    .set_max_iteration_count(100);
+auto train_result = train(desc, train_data);
+auto infer_result = infer(desc, train_result.get_model(), test_data);
+```
+
+## 🎯 Critical Rules
+
+### Interface Separation
+- **NEVER mix DAAL and oneAPI patterns** in same file
+- **DAAL**: `.h` headers, `#ifndef` guards, `daal::services::SharedPtr<T>`
+- **oneAPI**: `.hpp` headers, `#pragma once`, `std::unique_ptr/shared_ptr`
+
+### Memory & Error Handling
+- **DAAL**: Custom smart pointers, `services::Status` codes
+- **oneAPI**: STL RAII, C++ exceptions
+
+### Performance
+- **CPU Dispatch**: Templates specialized by `CpuType` for optimal SIMD
+- **Threading**: TBB integration for task-based parallelism
+- **GPU**: SYCL for heterogeneous computing
+
+## 📖 Reference Links
+- **[cpp/daal/AGENTS.md](daal/AGENTS.md)** - DAAL interface specifics
+- **[cpp/oneapi/AGENTS.md](oneapi/AGENTS.md)** - oneAPI interface specifics
