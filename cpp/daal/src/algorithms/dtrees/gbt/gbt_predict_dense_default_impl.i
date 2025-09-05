@@ -34,6 +34,7 @@
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
 #include "src/services/service_defines.h"
 #include "src/services/service_environment.h"
+#include <vector>
 
 namespace daal
 {
@@ -55,44 +56,50 @@ struct PredictDispatcher
 };
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
-                                    const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
+                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
 {
-    return idx * 2 + (valueFromDataSet > splitPoints[idx]);
+    return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (valueFromDataSet > splitPoints[idx]));
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
-                                    const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
+                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
 {
-    return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
+    // std::cerr << idx << std::endl;
+    return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]));
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
-                                    const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
+                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
 {
     if (checkFinitenessByComparison(valueFromDataSet))
     {
-        return idx * 2 + (defaultLeft[idx] != 1);
+        return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (defaultLeft[idx] != 1));
     }
     else
     {
-        return idx * 2 + (valueFromDataSet > splitPoints[idx]);
+        return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (valueFromDataSet > splitPoints[idx]));
     }
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
-                                    const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
+                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
 {
     if (checkFinitenessByComparison(valueFromDataSet))
     {
-        return idx * 2 + (defaultLeft[idx] != 1);
+        return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (defaultLeft[idx] != 1));
     }
     else
     {
-        return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
+        return leftChildIndexes[idx]
+               + ((idx != leftChildIndexes[idx]) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]));
     }
 }
 
@@ -101,26 +108,40 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
                                  const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
     const ModelFPType * const values        = t.getSplitPoints() - 1;
+    const size_t * const leftIds            = t.getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
     const FeatureIndexType nFeat            = featTypes.getNumberOfFeatures();
 
     FeatureIndexType i[vectorBlockSize];
     services::internal::service_memset_seq<FeatureIndexType, cpu>(i, FeatureIndexType(1), vectorBlockSize);
-
+    // prediction goes here
     const FeatureIndexType maxLvl = t.getMaxLvl();
-
+    // std::vector<std::vector<size_t>> printids(vectorBlockSize);
+    // std::cerr << "Block of size " << vectorBlockSize << std::endl;
     for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
     {
+        // std::cerr << "level: " << itr << std::endl;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
         {
             const FeatureIndexType idx          = i[k];
             const FeatureIndexType splitFeature = fIndexes[idx];
-            i[k] = updateIndex(idx, x[splitFeature + k * nFeat], values, defaultLeft, featTypes, splitFeature, dispatcher);
+            i[k] = updateIndex(idx, x[splitFeature + k * nFeat], values, leftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+            // printids[k].push_back(i[k]);
         }
+        // std::cerr << "---------" << std::endl;
     }
+    // for (int i = 0; i < vectorBlockSize; i++)
+    // {
+    //     for (size_t j = 0; j < printids[i].size(); j++)
+    //     {
+    //         std::cerr << printids[i][j] - 1 << " ";
+    //     }
+    //     std::cerr << std::endl;
+    // }
+    // std::cerr << "------------" << std::endl;
 
     PRAGMA_FORCE_SIMD
     PRAGMA_VECTOR_ALWAYS
@@ -135,6 +156,7 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
                                       const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
     const ModelFPType * const values        = (const ModelFPType *)t.getSplitPoints() - 1;
+    const size_t * const leftIds            = t.getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
 
@@ -142,10 +164,12 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
 
     FeatureIndexType i = 1;
 
+    // std::cerr << "Inside prediction for tree" << std::endl;
+
     for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
     {
         const FeatureIndexType splitFeature = fIndexes[i];
-        i                                   = updateIndex(i, x[splitFeature], values, defaultLeft, featTypes, splitFeature, dispatcher);
+        i                                   = updateIndex(i, x[splitFeature], values, leftIds, defaultLeft, featTypes, splitFeature, dispatcher);
     }
     return values[i];
 }
