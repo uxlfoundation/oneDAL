@@ -53,6 +53,10 @@ using namespace dtrees::training::internal;
 //it should uphold the following condition:
 // mean = (leftWeights*mean1 + rightWeights*mean2) / (leftWeights + rightWeights)
 //with 'mean2' being the unknown quantity to calculate.
+//similarly, it should uphold the condition that 'var' is the pooled non-bias-corrected
+//variance between var1' and 'var2' with weights given by 'leftWeights' and 'rightWeights',
+//respectively, which would meet the following condition:
+// var = (1 / (leftWeights + rightWeights)) * (var1*leftWeights + var2*rightWeights + (mean1 - mean2)^2 * leftWeights * rightWeights / (leftWeights + rightWeights))
 template <typename algorithmFPType, CpuType cpu>
 void subtractImpurity(algorithmFPType var, algorithmFPType mean, algorithmFPType var1, algorithmFPType mean1, algorithmFPType leftWeights,
                       algorithmFPType & var2, algorithmFPType & mean2, algorithmFPType rightWeights)
