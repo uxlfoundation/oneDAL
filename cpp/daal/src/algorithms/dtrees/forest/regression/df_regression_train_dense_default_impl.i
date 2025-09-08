@@ -181,6 +181,10 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         imp.var /= totalWeights; //impurity is MSE
     }
 
+// Note: the debug checks throughout this file are always done in float64 precision regardless
+// of the input data type, as otherwise they can get too inaccurate when sample sizes are more
+// than a few million rows, up to the point where the debug calculation would be less precise
+// than the shorthand non-debug calculation.
 #ifdef DEBUG_CHECK_IMPURITY
     if (!this->_weights)
     {
