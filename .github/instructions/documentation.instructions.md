@@ -1,3 +1,7 @@
+---
+applyTo: ["**/docs/**", "**/*.rst", "**/*.md", "**/Doxyfile"]
+---
+
 # Documentation Instructions for GitHub Copilot
 
 ## Documentation Architecture

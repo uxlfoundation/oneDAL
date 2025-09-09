@@ -1,23 +1,83 @@
 # Traditional DAAL Interface - AI Agents Context
 
-> **Purpose**: Context for AI agents working with the traditional DAAL interface patterns and CPU optimizations.
+> **Purpose**: AI guide for traditional DAAL interface (CPU-focused, backward compatibility)
 
-## 🏗️ DAAL Interface Architecture
+## 🎯 Quick Rules
 
-The traditional DAAL interface provides **CPU-focused, object-oriented** machine learning with explicit memory management.
-
-### Key Characteristics
-- **Headers**: `.h` files with traditional `#ifndef __FILE_H__` guards
-- **Memory**: `daal::services::SharedPtr<T>` custom smart pointer system
-- **Error Handling**: `services::Status` return codes with `throwIfPossible()` conversion
+- **Headers**: `.h` files with `#ifndef __FILE_H__` guards
+- **Memory**: `daal::services::SharedPtr<T>` custom smart pointers
+- **Errors**: `services::Status` return codes with `throwIfPossible()`
 - **Threading**: TBB-based with CPU-specific kernels
 - **Optimization**: Multi-architecture dispatch (SSE2, AVX2, AVX-512, ARM SVE, RISC-V)
 
-### CPU Architecture Support
+## 🚀 Essential Commands
+
+```bash
+# Build DAAL interface
+`make daal_core`
+
+# Platform-specific builds
+`make PLAT=lnx32e COMPILER=icx`
+
+# CPU target selection
+`make REQCPU="sse42 avx2 avx512"`
+```
+
+## 🛠️ Core Patterns
+
+### Algorithm Pattern
+```cpp
+#include "algorithms/kmeans/kmeans_batch.h"
+#include "data_management/data/homogen_numeric_table.h"
+
+// Traditional algorithm lifecycle
+auto training = new kmeans::Batch<float>();
+auto parameter = training->getParameter();
+parameter->nClusters = 10;
+
+training->input.set(kmeans::data, data_table);
+services::Status status = training->compute();
+if (status != services::Status::OK) {
+    throwIfPossible(status);
+}
+
+auto result = training->getResult();
+auto model = result->get(kmeans::model);
+```
+
+### Memory Management
+```cpp
+// Custom smart pointer system
+daal::services::SharedPtr<NumericTable> data_;
+services::SharedPtr<services::KernelErrorCollection> errors_;
+
+// Usage pattern
+auto table = new HomogenNumericTable<float>(rows, cols);
+services::SharedPtr<NumericTable> shared_table(table);
+```
+
+### Status-Based Error Handling
+```cpp
+// Hierarchical error status system
+services::Status compute() {
+    // Implementation
+    return services::Status::OK;
+}
+
+// Usage pattern
+services::Status status = algorithm->compute();
+if (status != services::Status::OK) {
+    daal::services::throwIfPossible(status);
+    return nullptr;
+}
+```
+
+### CPU-Specific Kernel Dispatch
 ```cpp
 // Multi-architecture template specialization
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
+public:
     virtual services::Status compute() DAAL_C11_OVERRIDE;
 };
 
@@ -33,152 +93,14 @@ enum CpuType {
 };
 ```
 
-## 🎭 Advanced DAAL Template Patterns
-
-### 1. Container-Kernel Pattern (CRTP)
-```cpp
-// Algorithm container manages lifecycle and dispatch
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public AnalysisContainerIface<batch> {
-    typedef KMeansBatchKernel<algorithmFPType, method, cpu> KernelType;
-    
-    services::Status compute() override {
-        return kernel.compute(input, parameter, *result);
-    }
-};
-
-// Separate CPU-specific kernel implementations
-template <typename algorithmFPType, Method method, CpuType cpu>
-class KMeansBatchKernel : public Kernel {
-    services::Status compute(const Input* input, const Parameter* par, Result* result);
-};
-```
-
-### 2. DAAL Smart Pointer System
-```cpp
-// Custom reference-counted smart pointer with RAII
-template<typename T>
-class SharedPtr {
-    T* _ptr;
-    RefCounter* _refs;
-public:
-    SharedPtr(T* ptr = nullptr);
-    SharedPtr(const SharedPtr& other) { _refs->inc(); }
-    ~SharedPtr() { if (_refs->dec() == 0) { delete _ptr; delete _refs; } }
-    T* get() const { return _ptr; }
-    T& operator*() const { return *_ptr; }
-};
-
-// Usage pattern
-daal::services::SharedPtr<HomogenNumericTable<float>> data_;
-services::SharedPtr<services::KernelErrorCollection> errors_;
-```
-
-### 3. Status-Based Error Handling
-```cpp
-// Hierarchical error status system
-class Status {
-    services::ErrorID _id;
-    SharedPtr<ErrorCollection> _collection;
-public:
-    static const Status OK;
-    bool operator==(const Status& s) const;
-};
-
-// Exception conversion for error propagation
-void throwIfPossible(const Status& s) {
-    if (s != Status::OK) {
-        throw std::runtime_error(s.getDescription());
-    }
-}
-```
-
-## ⚡ DAAL Performance Optimization
-
-### 1. CPU-Specific Kernel Dispatch
-```cpp
-// Runtime CPU detection and optimal code path selection  
-#define DAAL_KERNEL_CPU_PATH(cpuType, ...)                    \
-    if (daal::services::Environment::getInstance()->getCpuId() == cpuType) { \
-        return KernelType<DAAL_FPTYPE, cpuType>::compute(__VA_ARGS__); \
-    }
-
-// Automatic kernel selection
-services::Status dispatchCompute(/* parameters */) {
-#if defined(TARGET_X86_64)
-    DAAL_KERNEL_CPU_PATH(avx512, /*args*/);
-    DAAL_KERNEL_CPU_PATH(avx2, /*args*/);
-    DAAL_KERNEL_CPU_PATH(sse42, /*args*/);
-    DAAL_KERNEL_CPU_PATH(sse2, /*args*/);  // Fallback
-#endif
-}
-```
-
-### 2. SIMD Integration
-```cpp
-// Compiler-specific vectorization pragmas
-#if defined(__INTEL_COMPILER)
-    #define PRAGMA_FORCE_SIMD _Pragma("ivdep")
-#endif
-
-// Vectorized algorithm kernels
-template <typename algorithmFPType, CpuType cpu>
-void vectorizedCompute(const algorithmFPType* data, size_t n) {
-    PRAGMA_FORCE_SIMD
-    for (size_t i = 0; i < n; ++i) {
-        result[i] = complexComputation(data[i]);
-    }
-}
-```
-
-### 3. BLAS/LAPACK Template Wrappers
-```cpp
-// CPU and data-type specific BLAS optimization
-template <typename fpType, CpuType cpu>
-struct MklBlas<double, cpu> {
-    static void xgemm(/* parameters */) {
-        #define __DAAL_MKLFN_CALL_BLAS(f_name, f_args) f_name f_args;
-        __DAAL_MKLFN_CALL_BLAS(dgemm, (/* optimized parameters */));
-    }
-};
-```
-
-## 🔧 Core Algorithm Interface
-
-### Algorithm Workflow Pattern
-```cpp
-// Traditional algorithm class with typed template parameters
-template <typename algorithmFPType, Method method>
-class algorithm_batch {
-public:
-    typedef algorithm_input<algorithmFPType> InputType;
-    typedef algorithm_result ResultType;
-    
-    void setInput(algorithmInputId id, const NumericTablePtr& ptr);
-    void compute();
-    services::SharedPtr<ResultType> getResult();
-    
-private:
-    services::SharedPtr<InputType> _input;
-    services::SharedPtr<ResultType> _result;
-};
-
-// Usage example
-auto training = new algorithm_training_batch<float>();
-training->input.set(algorithm_input::data, data);
-training->compute();
-auto result = training->getResult();
-auto model = result->get(training_result::model);
-```
-
-### Data Management Pattern
+### Data Management
 ```cpp
 // NumericTable as primary data structure
-auto table = new homogen_numeric_table<float>(nRows, nCols);
+auto table = new HomogenNumericTable<float>(rows, cols);
 float* data = table->getArray();
 
 // CSV data source
-auto dataSource = new csv_data_source<CSVFeatureManager>(filename);
+auto dataSource = new FileDataSource<CSVFeatureManager>(filename);
 auto table = dataSource->loadDataBlock();
 ```
 
@@ -188,16 +110,12 @@ auto table = dataSource->loadDataBlock();
 - **Error Handling**: Check `services::Status` return codes, use `throwIfPossible()`
 - **Headers**: Traditional `#ifndef` guards, `daal::algorithms` namespaces
 - **Templates**: CPU-specific specialization for performance optimization
-- **Threading**: TBB integration with `threader_for()` patterns
+- **Interface**: Never mix DAAL and oneAPI patterns in same file
 
-## 📖 Further Reading
-- **[AGENTS.md](/AGENTS.md)** - Repository overview and context
-- **[cpp/AGENTS.md](/cpp/AGENTS.md)** - C++ implementation overview
-- **[cpp/oneapi/AGENTS.md](/cpp/oneapi/AGENTS.md)** - Modern oneAPI interface
-- **[dev/AGENTS.md](/dev/AGENTS.md)** - Build system architecture
-- **[dev/bazel/AGENTS.md](/dev/bazel/AGENTS.md)** - Bazel-specific patterns
-- **[docs/AGENTS.md](/docs/AGENTS.md)** - Documentation generation
-- **[examples/AGENTS.md](/examples/AGENTS.md)** - Example integration patterns
+## 🔗 References
 
----
+- **[AGENTS.md](../../AGENTS.md)** - Repository overview
+- **[cpp/oneapi/AGENTS.md](../oneapi/AGENTS.md)** - Modern oneAPI interface
+- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ standards
+
 **Note**: This interface is maintained for backward compatibility. For new development, consider the modern oneAPI interface.

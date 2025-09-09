@@ -1,3 +1,7 @@
+---
+applyTo: ["**/examples/**", "**/samples/**"]
+---
+
 # Examples Instructions for GitHub Copilot
 
 ## 🎯 **PRIMARY GOAL: PR Review Assistance**

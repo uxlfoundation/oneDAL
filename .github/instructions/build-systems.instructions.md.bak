@@ -1,3 +1,7 @@
+---
+applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.bazel", "**/*.mk", "**/CMakeLists.txt"]
+---
+
 # Build Systems Instructions for GitHub Copilot
 
 ## Build System Priority and Usage

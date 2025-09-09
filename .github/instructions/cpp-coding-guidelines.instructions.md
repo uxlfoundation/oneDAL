@@ -1,3 +1,7 @@
+---
+applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/cpp/**", "**/include/**"]
+---
+
 # C++ Development and Coding Guidelines for GitHub Copilot
 
 ## 📋 **C++ Standards and Language Features**

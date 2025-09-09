@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # General Repository Instructions for GitHub Copilot
 
 ## Repository Context
