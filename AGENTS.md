@@ -10,7 +10,7 @@
 **Integration Note**: oneDAL works with [scikit-learn-intelex](https://github.com/intel/scikit-learn-intelex). They share common validation aspects and provide accelerated machine learning capabilities together.
 
 ### Key Characteristics
-- **Language**: Modern C++ (C++14/17+)
+- **Language**: Modern C++ (17+)
 - **Architecture**: Dual interface system (DAAL + oneAPI)
 - **Build Systems**: Make (production), CMake (integration), Bazel (development/testing)
 - **Targets**: CPU (SIMD optimized), GPU (SYCL), Distributed (MPI)
@@ -47,15 +47,6 @@ Specialized AGENTS.md files for detailed context:
 - **[examples/AGENTS.md](examples/AGENTS.md)** - Example code patterns and usage
 - **[deploy/AGENTS.md](deploy/AGENTS.md)** - Deployment and distribution context
 - **[ci/AGENTS.md](ci/AGENTS.md)** - CI/CD infrastructure context
-
-## 🤖 GitHub Copilot Instructions
-
-Specialized instruction files available in `.github/instructions/`:
-- **[.github/instructions/general.md](.github/instructions/general.md)** - General repository rules
-- **[.github/instructions/cpp.md](.github/instructions/cpp.md)** - C++ development guidelines
-- **[.github/instructions/build-systems.md](.github/instructions/build-systems.md)** - Build configurations
-- **[.github/instructions/documentation.md](.github/instructions/documentation.md)** - Documentation standards
-- **[.github/instructions/examples.md](.github/instructions/examples.md)** - Example code patterns
 
 ## 📋 Critical Development Rules
 
