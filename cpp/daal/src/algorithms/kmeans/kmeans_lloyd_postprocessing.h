@@ -79,9 +79,9 @@ struct PostProcessing<lloydDense, algorithmFPType, cpu>
             PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
             for (size_t j = 0; j < p; j++)
             {
-                sum += inClusters[k * p + j] * inClusters[k * p + j] * 0.5;
+                sum += inClusters[k * p + j] * inClusters[k * p + j];
             }
-            clSq[k] = sum;
+            clSq[k] = sum * 0.5;
         }
 
         SafeStatus safeStat;
@@ -205,9 +205,9 @@ struct PostProcessing<lloydCSR, algorithmFPType, cpu>
             PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
             for (size_t j = 0; j < p; j++)
             {
-                sum += inClusters[k * p + j] * inClusters[k * p + j] * 0.5;
+                sum += inClusters[k * p + j] * inClusters[k * p + j];
             }
-            clSq[k] = sum;
+            clSq[k] = sum * 0.5;
         }
 
         SafeStatus safeStat;

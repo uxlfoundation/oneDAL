@@ -146,11 +146,8 @@ public:
                 const algorithmFPType pk = p[k];
                 const algorithmFPType h  = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);
                 algorithmFPType * gh_ik  = gh + 2 * (k * nRows + iSample);
+                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - algorithmFPType(1.)) : pk;
                 gh_ik[1]                 = h;
-                if (size_t(y[iSample]) == k)
-                    gh_ik[0] = (pk - algorithmFPType(1.));
-                else
-                    gh_ik[0] = pk;
             }
         });
     }
@@ -160,7 +157,9 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
+#ifndef __clang__ // TODO: Temporary workaround. Clang 18 fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
+#endif
         for (size_t i = 1; i < _nClasses; ++i)
         {
             maxArg = (maxArg < arg[i]) ? arg[i] : maxArg;

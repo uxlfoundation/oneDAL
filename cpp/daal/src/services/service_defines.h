@@ -56,7 +56,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
     #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
     #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
     #define PRAGMA_IVDEP
     #define PRAGMA_NOVECTOR
     #define PRAGMA_VECTOR_UNALIGNED
@@ -258,15 +258,9 @@ typedef union
     double fp;
 } _daal_dp_union_t;
 
-#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag)         \
-    int DAAL_EXPORT Class::serializationTag()          \
-    {                                                  \
-        return Tag;                                    \
-    }                                                  \
-    int DAAL_EXPORT Class::getSerializationTag() const \
-    {                                                  \
-        return Class::serializationTag();              \
-    }
+#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag)                \
+    int DAAL_EXPORT Class::serializationTag() { return Tag; } \
+    int DAAL_EXPORT Class::getSerializationTag() const { return Class::serializationTag(); }
 
 #define IMPLEMENT_SERIALIZABLE_TAG1T(Class, T1, Tag)            \
     template <>                                                 \
@@ -304,15 +298,9 @@ typedef union
         return Class<T1, T2>::serializationTag();               \
     }
 
-#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag)            \
-    int DAAL_EXPORT Class<T1, Tag>::serializationTag()          \
-    {                                                           \
-        return Tag;                                             \
-    }                                                           \
-    int DAAL_EXPORT Class<T1, Tag>::getSerializationTag() const \
-    {                                                           \
-        return Class<T1, Tag>::serializationTag();              \
-    }
+#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag)                   \
+    int DAAL_EXPORT Class<T1, Tag>::serializationTag() { return Tag; } \
+    int DAAL_EXPORT Class<T1, Tag>::getSerializationTag() const { return Class<T1, Tag>::serializationTag(); }
 
 /* Maximal size of services::String */
 #define DAAL_MAX_STRING_SIZE 4096

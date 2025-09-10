@@ -96,11 +96,14 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmax(const algorit
         const algorithmFPType * const pArg = arg + iRow * nCols;
         algorithmFPType * const pRes       = res + iRow * nCols;
         algorithmFPType maxArg             = pArg[0];
+#ifndef __clang__ // TODO: Temporary workaround. Clang 18 fails to vectoize this simple loop
         PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
+#endif
         for (size_t i = 1; i < nCols; ++i)
         {
-            maxArg = (maxArg < pArg[i]) ? pArg[i] : maxArg;
+            maxArg = (pArg[i] > maxArg) ? pArg[i] : maxArg;
         }
+
         PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nCols; ++i)
@@ -165,7 +168,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmaxThreaded(const
 
     const size_t nRowsInBlockDefault = 500;
     const size_t nRowsInBlock        = services::internal::getNumElementsFitInMemory(services::internal::getL1CacheSize() * 0.8,
-                                                                                     nCols * sizeof(algorithmFPType), nRowsInBlockDefault);
+                                                                              nCols * sizeof(algorithmFPType), nRowsInBlockDefault);
     const size_t nDataBlocks         = nRows / nRowsInBlock + !!(nRows % nRowsInBlock);
     daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
         const size_t iStartRow       = iBlock * nRowsInBlock;

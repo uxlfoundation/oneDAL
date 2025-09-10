@@ -864,10 +864,17 @@ void finalize(LowOrderMomentsFinalizeTask<algorithmFPType, cpu> & task)
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {
-        mean[i]      = sums[i] * invNObservations;
-        raw2Mom[i]   = sumSq[i] * invNObservations;
-        variance[i]  = sumSqCen[i] * invNObservationsM1;
-        stDev[i]     = daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(variance[i]);
+        mean[i]     = sums[i] * invNObservations;
+        raw2Mom[i]  = sumSq[i] * invNObservations;
+        variance[i] = sumSqCen[i] * invNObservationsM1;
+    }
+
+    daal::internal::MathInst<algorithmFPType, cpu>::vSqrt(nFeatures, variance, stDev);
+
+    PRAGMA_OMP_SIMD
+    PRAGMA_VECTOR_ALWAYS
+    for (size_t i = 0; i < nFeatures; i++)
+    {
         variation[i] = stDev[i] / mean[i];
     }
 }

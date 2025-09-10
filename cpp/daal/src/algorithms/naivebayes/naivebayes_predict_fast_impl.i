@@ -172,17 +172,13 @@ services::Status methodSpecific<defaultDense, algorithmFPType, cpu>::getPredicti
     {
         int max_c                 = 0;
         algorithmFPType max_c_val = -(services::internal::MaxVal<algorithmFPType>::get());
+        algorithmFPType * buffPtr = buff + j * c;
 
-        PRAGMA_OMP_SIMD
+        PRAGMA_VECTOR_ALWAYS
         for (size_t cl = 0; cl < c; cl++)
         {
-            algorithmFPType val = buff[j * c + cl];
-
-            if (val > max_c_val)
-            {
-                max_c_val = val;
-                max_c     = cl;
-            }
+            max_c     = (buffPtr[cl] > max_c_val) ? cl : max_c;
+            max_c_val = (buffPtr[cl] > max_c_val) ? buffPtr[cl] : max_c_val;
         }
 
         classes[j] = max_c;
@@ -220,17 +216,13 @@ services::Status methodSpecific<fastCSR, algorithmFPType, cpu>::getPredictionDat
     {
         int max_c                 = 0;
         algorithmFPType max_c_val = -(services::internal::MaxVal<algorithmFPType>::get());
+        algorithmFPType * buffPtr = buff + j * c;
 
-        PRAGMA_OMP_SIMD
+        PRAGMA_VECTOR_ALWAYS
         for (size_t cl = 0; cl < c; cl++)
         {
-            algorithmFPType val = buff[j + cl * n];
-
-            if (val > max_c_val)
-            {
-                max_c_val = val;
-                max_c     = cl;
-            }
+            max_c     = (buffPtr[cl] > max_c_val) ? cl : max_c;
+            max_c_val = (buffPtr[cl] > max_c_val) ? buffPtr[cl] : max_c_val;
         }
 
         classes[j] = max_c;

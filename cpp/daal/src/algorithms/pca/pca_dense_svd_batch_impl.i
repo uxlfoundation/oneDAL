@@ -191,7 +191,8 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
 
     TArrayCalloc<algorithmFPType, cpu> mean_total(nFeatures);
     TArrayCalloc<algorithmFPType, cpu> inv_sigma_total(nFeatures);
-    DAAL_CHECK_MALLOC(mean_total.get() && inv_sigma_total.get());
+    TArrayCalloc<algorithmFPType, cpu> non_zero_sigma_total(nFeatures);
+    DAAL_CHECK_MALLOC(mean_total.get() && inv_sigma_total.get() && non_zero_sigma_total.get());
 
 #define _BLOCK_SIZE_ 256
     /* Split rows by blocks, block size cannot be less than nObservations */
@@ -247,7 +248,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     algorithmFPType n_current = 0;
 
     /* Merge mean and variance arrays by blocks */
-    tls_data.reduce([=, &inv_sigma_total, &mean_total, &n_current](tls_data_t<algorithmFPType, cpu> * tls_data_local) {
+    tls_data.reduce([=, &non_zero_sigma_total, &inv_sigma_total, &mean_total, &n_current](tls_data_t<algorithmFPType, cpu> * tls_data_local) {
         if (!tls_data_local) return;
 
         /* loop invariants */
@@ -281,10 +282,16 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
 
     /* Convert array of variances to inverse sigma's */
     PRAGMA_OMP_SIMD
-    PRAGMA_VECTOR_ALWAYS
     for (size_t j = 0; j < nFeatures; j++)
     {
-        if (inv_sigma_total[j]) inv_sigma_total[j] = algorithmFPType(1.0) / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(inv_sigma_total[j]);
+        non_zero_sigma_total[j] = (inv_sigma_total[j] > 0.0) ? 1.0 : 0.0;
+    }
+    size_t iOne = 1;
+    daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(nFeatures, inv_sigma_total.get(), iOne, inv_sigma_total.get(), iOne);
+    PRAGMA_OMP_SIMD
+    for (size_t j = 0; j < nFeatures; j++)
+    {
+        inv_sigma_total[j] *= non_zero_sigma_total[j];
     }
 
     /* Final normalization threaded loop */

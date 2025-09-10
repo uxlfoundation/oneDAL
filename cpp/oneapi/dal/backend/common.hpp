@@ -35,7 +35,7 @@
 #define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
 #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
 #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__clang__)
 #define PRAGMA_IVDEP
 #define PRAGMA_NOVECTOR
 #define PRAGMA_VECTOR_UNALIGNED
