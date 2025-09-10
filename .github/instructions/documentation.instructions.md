@@ -80,26 +80,6 @@ Usage Example
     auto result = train(desc, data);
 ```
 
-### Python API Documentation
-```python
-def kmeans_training(data, n_clusters=10, max_iterations=100):
-    """
-    Perform K-means clustering training.
-    
-    Parameters
-    ----------
-    data : array-like
-        Input data for clustering. Shape (n_samples, n_features).
-    n_clusters : int, default=10
-        Number of clusters to form.
-    
-    Returns
-    -------
-    result : KMeansResult
-        Training result containing cluster centers and labels.
-    """
-```
-
 ## Documentation Standards
 
 ### Content Guidelines

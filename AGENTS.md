@@ -70,7 +70,7 @@ Specialized AGENTS.md files for detailed context:
 
 ## 🚀 Quick Start for AI Agents
 
-1. **Understand Context**: Read relevant sub-AGENTS.md file for your task
+1. **Understand Context**: Read relevant AGENTS.md file for your task
 2. **Follow Patterns**: Study existing code in similar areas
 3. **Respect Standards**: Apply coding guidelines consistently
 4. **Test Thoroughly**: Ensure changes work with build system

@@ -81,9 +81,8 @@ auto result = std::make_unique<training_result>();
 
 ### For Example Updates
 - [ ] **Backward Compatibility**: Existing examples still work
-- [ ] **Performance Impact**: No performance regression
 - [ ] **Documentation**: Examples are updated
-- [ ] **Testing**: Examples are tested
+- [ ] **Validation**: Examples are executed and passing
 
 ## 🎯 Context-Aware Examples
 
