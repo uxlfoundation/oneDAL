@@ -18,7 +18,7 @@
 {% set buildnumber = 0 %}
 
 package:
-  name: dal
+  name: dal-feedstock
   version: {{ version }}
 
 source:
@@ -27,8 +27,8 @@ source:
 build:
   skip: true  # [not (linux64 or win)]
   number: {{ buildnumber }}
-  include_recipe: False
   string: h{{ PKG_HASH }}_{{ buildnumber }}_dpcpp
+  include_recipe: False
   ignore_run_exports_from:
     - {{ compiler('dpcpp') }}  # [linux64 or win]
 
@@ -47,12 +47,51 @@ requirements:
   host:
     - tbb
 
-test:
-  commands:
-    - test -f $PREFIX/include/oneapi/dal.hpp
-    - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
-    - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
-    - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
+outputs:
+  - name: dal
+    script: pack.sh  # [linux]
+    test:
+      commands:
+        - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
+        - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
+    about:
+      summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
+
+  - name: dal-include
+    script: pack.sh  # [linux]
+    test:
+      commands:
+        - test -f $PREFIX/include/oneapi/dal.hpp
+    about:
+      summary: Headers for building against oneAPI Data Analytics Library (oneDAL)
+
+  - name: dal-static
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - {{ pin_subpackage('dal-include', exact=True) }}
+    test:
+      commands:
+        - test -f $PREFIX/lib/libonedal_core.a  # [linux]
+        - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
+    about:
+      summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
+
+  - name: dal-devel
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - {{ pin_subpackage('dal-include', exact=True) }}
+    test:
+      commands:
+        - test -f $PREFIX/lib/cmake/oneDAL/oneDALConfig.cmake  # [linux]
+        - test -f $PREFIX/lib/cmake/oneDAL/oneDALConfigVersion.cmake  # [linux]
+        - test -f $PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc  # [linux]
+        - test -f $PREFIX/lib/pkgconfig/dal-static-threading-host.pc  # [linux]
+    about:
+      summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
 
 about:
   home: https://uxlfoundation.github.io/oneDAL
