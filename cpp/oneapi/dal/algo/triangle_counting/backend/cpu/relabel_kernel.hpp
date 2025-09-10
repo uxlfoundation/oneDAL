@@ -93,16 +93,16 @@ void parallel_prefix_sum(const std::int32_t* degrees_relabel,
                                                         0,
                                                         local_sums[block - 1],
                                                         local_sums[block - 1] + local_sums[block] };
-            part_prefix[block] = part_prefix[block - 1] + local_sums[block - 1];
+            part_prefix[block + 0] = part_prefix[block - 1] + local_sums[block - 1];
             part_prefix[block + 1] = part_prefix[block - 1] + local_sums[block + 0];
             part_prefix[block + 2] = part_prefix[block - 1] + local_sums[block + 1];
             part_prefix[block + 3] = part_prefix[block - 1] + local_sums[block + 2];
-            part_prefix[block] += shuffle1[0] + shuffle2[0];
+            part_prefix[block + 0] += shuffle1[0] + shuffle2[0];
             part_prefix[block + 1] += shuffle1[1] + shuffle2[1];
             part_prefix[block + 2] += shuffle1[2] + shuffle2[2];
             part_prefix[block + 3] += shuffle1[3] + shuffle2[3];
         }
-        for (std::int64_t block = (num_blocks / simd_width) * simd_width + 1; block < num_blocks;
+        for (std::int64_t block = ((num_blocks + 2) / simd_width - 1) * simd_width + 1; block < num_blocks;
              block++) {
             part_prefix[block] = part_prefix[block - 1] + local_sums[block - 1];
         }

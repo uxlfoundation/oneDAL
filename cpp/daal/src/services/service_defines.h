@@ -258,9 +258,15 @@ typedef union
     double fp;
 } _daal_dp_union_t;
 
-#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag)                \
-    int DAAL_EXPORT Class::serializationTag() { return Tag; } \
-    int DAAL_EXPORT Class::getSerializationTag() const { return Class::serializationTag(); }
+#define IMPLEMENT_SERIALIZABLE_TAG(Class, Tag)         \
+    int DAAL_EXPORT Class::serializationTag()          \
+    {                                                  \
+        return Tag;                                    \
+    }                                                  \
+    int DAAL_EXPORT Class::getSerializationTag() const \
+    {                                                  \
+        return Class::serializationTag();              \
+    }
 
 #define IMPLEMENT_SERIALIZABLE_TAG1T(Class, T1, Tag)            \
     template <>                                                 \
@@ -298,9 +304,15 @@ typedef union
         return Class<T1, T2>::serializationTag();               \
     }
 
-#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag)                   \
-    int DAAL_EXPORT Class<T1, Tag>::serializationTag() { return Tag; } \
-    int DAAL_EXPORT Class<T1, Tag>::getSerializationTag() const { return Class<T1, Tag>::serializationTag(); }
+#define IMPLEMENT_SERIALIZABLE_TAG22(Class, T1, Tag)            \
+    int DAAL_EXPORT Class<T1, Tag>::serializationTag()          \
+    {                                                           \
+        return Tag;                                             \
+    }                                                           \
+    int DAAL_EXPORT Class<T1, Tag>::getSerializationTag() const \
+    {                                                           \
+        return Class<T1, Tag>::serializationTag();              \
+    }
 
 /* Maximal size of services::String */
 #define DAAL_MAX_STRING_SIZE 4096

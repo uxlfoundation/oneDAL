@@ -168,7 +168,7 @@ void CrossEntropyLossKernel<algorithmFPType, method, cpu>::softmaxThreaded(const
 
     const size_t nRowsInBlockDefault = 500;
     const size_t nRowsInBlock        = services::internal::getNumElementsFitInMemory(services::internal::getL1CacheSize() * 0.8,
-                                                                              nCols * sizeof(algorithmFPType), nRowsInBlockDefault);
+                                                                                     nCols * sizeof(algorithmFPType), nRowsInBlockDefault);
     const size_t nDataBlocks         = nRows / nRowsInBlock + !!(nRows % nRowsInBlock);
     daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
         const size_t iStartRow       = iBlock * nRowsInBlock;
