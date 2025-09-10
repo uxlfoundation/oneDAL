@@ -15,12 +15,24 @@
 # limitations under the License.
 #===============================================================================
 
-export TBBROOT=$PREFIX
+RELEASE_DIR=$(find . -maxdepth 1 -name "__release_*" -type d | head -1)
+cd "$RELEASE_DIR/daal/latest"
 
-# oneDAL build system requires non-versioned library names, conda-forge::tbb doesn't provide them
-ln -s $PREFIX/lib/libtbb.so.12 $PREFIX/lib/libtbb.so
-ln -s $PREFIX/lib/libtbbmalloc.so.2 $PREFIX/lib/libtbbmalloc.so
-
-# flags set by conda-build create problems with oneDAL build system
-unset CFLAGS LDFLAGS CXXFLAGS
-make -j$(nproc) daal oneapi
+mkdir -p "$PREFIX/lib"
+# copy devel content
+if [ "$PKG_NAME" = "dal-devel" ]; then
+    cp -r "lib/cmake" "$PREFIX/lib/"
+    cp -r "lib/pkgconfig" "$PREFIX/lib/"
+fi
+# copy headers
+if [ "$PKG_NAME" = "dal-include" ]; then
+    mkdir -p "$PREFIX/include"
+    cp -r include/* "$PREFIX/include/"
+fi
+# copy libraries
+if [ "$PKG_NAME" = "dal" ]; then
+    find lib/intel64 -name "libonedal*.so.3" -exec cp {} "$PREFIX/lib/" \;
+fi
+if [ "$PKG_NAME" = "dal-static" ]; then
+    find lib/intel64 -name "libonedal*.a" -exec cp {} "$PREFIX/lib/" \;
+fi
