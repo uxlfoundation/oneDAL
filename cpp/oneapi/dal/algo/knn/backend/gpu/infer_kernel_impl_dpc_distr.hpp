@@ -533,7 +533,13 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
 
     //auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
     std::deque<pr::ndarray<Float, 2>> train_block_queue;
-    train_block_queue.push_back(pr::ndarray<Float, 2>::wrap(queue, train));
+    row_accessor<const Float> accessor{train};
+    auto raw_array = accessor.pull(queue, {0, tcount});
+    auto raw_view = pr::ndview<Float, 2>::wrap(raw_array.get_data(), {tcount, fcount});
+    auto tmp = pr::ndarray<Float, 2>::empty(queue, {tcount, fcount}, sycl::usm::alloc::device);
+    pr::copy(queue, tmp, raw_view).wait();
+    train_block_queue.push_back(std::move(tmp));
+    // train_block_queue.push_back(pr::ndarray<Float, 2>::wrap(queue, train));
     auto tresps_queue = pr::split_table<res_t>(queue, tresps, block_size);
     std::int64_t tbq_size = train_block_queue.size();
     std::int64_t trq_size = tresps_queue.size();
