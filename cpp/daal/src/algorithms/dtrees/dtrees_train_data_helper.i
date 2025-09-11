@@ -104,17 +104,18 @@ void shuffle(void * state, size_t n, IndexType * dst, int * auxBuf)
 template <typename algorithmFPType, typename TImpurityData>
 struct SplitData
 {
+    using intermSummFPType = typename TImpurityData::intermSummFPType;
     TImpurityData left;
     algorithmFPType featureValue;
-    algorithmFPType impurityDecrease;
+    intermSummFPType impurityDecrease;
     size_t nLeft;
     size_t iStart;
     bool featureUnordered;
-    algorithmFPType totalWeights;
-    algorithmFPType leftWeights;
+    intermSummFPType totalWeights;
+    intermSummFPType leftWeights;
 
     SplitData()
-        : impurityDecrease(-daal::services::internal::MaxVal<algorithmFPType>::get()),
+        : impurityDecrease(-daal::services::internal::MaxVal<intermSummFPType>::get()),
           left {},
           featureValue(0.0),
           nLeft(0),
@@ -122,7 +123,7 @@ struct SplitData
           totalWeights(0.0),
           leftWeights(0.0)
     {}
-    SplitData(algorithmFPType impDecr, bool bFeatureUnordered)
+    SplitData(intermSummFPType impDecr, bool bFeatureUnordered)
         : impurityDecrease(impDecr), featureUnordered(bFeatureUnordered), featureValue(0.0), nLeft(0), iStart(0), totalWeights(0.0), leftWeights(0.0)
     {}
     SplitData(const SplitData & o) = delete;
