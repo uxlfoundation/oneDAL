@@ -531,7 +531,9 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     std::int64_t bounds_size = boundaries.size();
     ONEDAL_ASSERT(block_count + 1 == bounds_size);
 
-    auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
+    //auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
+    std::deque<pr::ndarray<Float, 2>> train_block_queue;
+    train_block_queue.push_back(pr::ndarray<Float, 2>::wrap(queue, train));
     auto tresps_queue = pr::split_table<res_t>(queue, tresps, block_size);
     std::int64_t tbq_size = train_block_queue.size();
     std::int64_t trq_size = tresps_queue.size();
