@@ -118,17 +118,17 @@ class OrderedRespHelperBest : public DataHelper<algorithmFPType, algorithmFPType
 {
 public:
     typedef algorithmFPType TResponse;
-    typedef double intermSummFPType;
     typedef DataHelper<algorithmFPType, algorithmFPType, cpu> super;
 
     struct ImpurityData
     {
-        typedef intermSummFPType intermSummFPType;
+        typedef double intermSummFPType;
         intermSummFPType var; //impurity is a variance
         intermSummFPType mean;
         intermSummFPType value() const { return var; }
     };
 
+    using intermSummFPType = typename ImpurityData::intermSummFPType;
     typedef SplitData<algorithmFPType, ImpurityData> TSplitData;
 
 public:

@@ -56,13 +56,12 @@ template <typename algorithmFPType, CpuType cpu>
 class UnorderedRespHelperBest : public DataHelper<algorithmFPType, ClassIndexType, cpu>
 {
 public:
-    typedef double intermSummFPType;
     typedef DataHelper<algorithmFPType, ClassIndexType, cpu> super;
-    typedef typename dtrees::internal::TVector<intermSummFPType, cpu, dtrees::internal::ScalableAllocator<cpu> > Histogramm;
 
     struct ImpurityData
     {
-        typedef intermSummFPType intermSummFPType;
+        typedef double intermSummFPType;
+        typedef typename dtrees::internal::TVector<intermSummFPType, cpu, dtrees::internal::ScalableAllocator<cpu> > Histogramm;
         intermSummFPType var; //impurity is a variance
         Histogramm hist;
 
@@ -76,6 +75,8 @@ public:
         }
     };
 
+    using intermSummFPType = typename ImpurityData::intermSummFPType;
+    using Histogramm = typename ImpurityData::Histogramm;
     typedef SplitData<algorithmFPType, ImpurityData> TSplitData;
 
 public:
