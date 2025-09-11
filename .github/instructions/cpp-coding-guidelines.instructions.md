@@ -33,13 +33,13 @@ auto train_result = train(desc, train_data);
 auto infer_result = infer(desc, train_result.get_model(), test_data);
 ```
 
-**oneAPI Patterns (VALIDATED AGAINST CODEBASE)**:
+**oneAPI Patterns**:
 - **Headers**: Use `.hpp` extension with `#pragma once`
 - **Namespaces**: `oneapi::dal` structure
 - **Memory Management**: `std::unique_ptr`, `std::shared_ptr`, `std::make_unique`
 - **Error Handling**: C++ exceptions (`throw`, `try/catch`)
 
-### DAAL Interface (Legacy) - `cpp/daal/`
+### DAAL Interface - `cpp/daal/`
 ```cpp
 #include "algorithms/kmeans/kmeans_batch.h"
 #include "data_management/data/homogen_numeric_table.h"
