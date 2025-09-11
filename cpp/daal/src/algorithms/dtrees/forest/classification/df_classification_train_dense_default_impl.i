@@ -76,7 +76,7 @@ public:
     };
 
     using intermSummFPType = typename ImpurityData::intermSummFPType;
-    using Histogramm = typename ImpurityData::Histogramm;
+    using Histogramm       = typename ImpurityData::Histogramm;
     typedef SplitData<algorithmFPType, ImpurityData> TSplitData;
 
 public:
