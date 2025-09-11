@@ -14,6 +14,7 @@ applyTo: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/cpp/**", "**/include/**"]
 ### Code Organization
 - **Header Files**: Keep headers clean with minimal dependencies
 - **Implementation**: Implement in .cpp files, not headers
+- **DAAL .i Files**: Use `.i` files for template implementations requiring compile-time inclusion
 - **Forward Declarations**: Use to minimize header dependencies
 - **Template Specializations**: Place in appropriate headers
 
@@ -56,9 +57,35 @@ if (status != services::Status::OK) {
 
 **DAAL Patterns**:
 - **Headers**: Use `.h` extension with traditional include guards (`#ifndef __FILE_NAME_H__`)
+- **Implementation Files**: Use `.i` extension for template implementations
 - **Namespaces**: `daal::algorithms`, `daal::data_management`, `daal::services`
 - **Memory Management**: `daal::services::SharedPtr<T>` (validated in codebase)
 - **Error Handling**: `services::Status` return codes (validated in codebase)
+
+### DAAL Template Implementation Files (.i files)
+```cpp
+// Example: kmeans_init_impl.i
+#include "algorithms/algorithm.h"
+#include "data_management/data/numeric_table.h"
+
+namespace daal::algorithms::kmeans::init::internal {
+
+template <Method method, typename algorithmFPType, CpuType cpu>
+Status init(size_t p, size_t n, size_t nRowsTotal, size_t nClusters, 
+           algorithmFPType * clusters, NumericTable * ntData, unsigned int seed) {
+    // Template implementation here
+}
+
+} // namespace
+```
+
+**DAAL .i File Patterns**:
+- **Usage**: Include in `.cpp` files: `#include "algorithm_method_impl.i"`
+- **Purpose**: Template implementations requiring compile-time instantiation
+- **Location**: Exclusively in `cpp/daal/src/` directory structure
+- **CPU Specialization**: Support different CPU architectures (SSE, AVX, AVX512)
+- **Naming**: Follow pattern: `{algorithm}_{method}_impl.i`
+- **Build System**: Listed as headers in Bazel BUILD files
 
 ## 💾 **Memory Management Patterns**
 

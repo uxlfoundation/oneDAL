@@ -52,7 +52,7 @@ public:
  * @return Training result containing the trained model
  * 
  * @par Exception Safety
- * This function provides strong exception guarantee.
+ * Strong exception guarantee - if an exception is thrown, the program state remains unchanged.
  * 
  * @par Thread Safety
  * This function is not thread-safe.
