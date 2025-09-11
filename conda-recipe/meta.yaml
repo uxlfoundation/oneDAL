@@ -43,13 +43,15 @@ requirements:
     - mkl-static  # [linux64 or win]
     - mkl-devel-dpcpp  # [linux64 or win]
     - onemkl-sycl-include  # [linux64 or win]
-    - tbb-devel
   host:
-    - tbb
+    - tbb-devel
 
 outputs:
   - name: dal
     script: pack.sh  # [linux]
+    requirements:
+      run:
+        - tbb
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
@@ -83,6 +85,7 @@ outputs:
     script: pack.sh  # [linux]
     requirements:
       run:
+        - {{ pin_subpackage('dal', exact=True) }}
         - {{ pin_subpackage('dal-include', exact=True) }}
     test:
       commands:
