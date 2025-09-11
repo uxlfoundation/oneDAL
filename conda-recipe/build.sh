@@ -17,10 +17,7 @@
 
 export TBBROOT=$PREFIX
 
-# oneDAL build system requires non-versioned library names, conda-forge::tbb doesn't provide them
-ln -s $PREFIX/lib/libtbb.so.12 $PREFIX/lib/libtbb.so
-ln -s $PREFIX/lib/libtbbmalloc.so.2 $PREFIX/lib/libtbbmalloc.so
-
-# flags set by conda-build create problems with oneDAL build system
+# default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
+
 make -j$(nproc) daal oneapi
