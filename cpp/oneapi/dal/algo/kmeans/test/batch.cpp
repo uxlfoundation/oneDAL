@@ -103,6 +103,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     // This test is not stable on CPU
     // TODO: Remove the following `SKIP_IF` once stability problem is resolved
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!this->get_policy().has_native_float64());
     SKIP_IF(this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
     this->check_on_large_data_with_one_cluster();
@@ -304,6 +305,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 
     SECTION("cluster=128") {
         SKIP_IF(this->get_policy().is_cpu());
+        SKIP_IF(!this->get_policy().has_native_float64());
         bool init_centroids = true;
         auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(128,
                                                                       100000,
@@ -335,6 +337,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 
     SECTION("cluster=32") {
         SKIP_IF(this->get_policy().is_cpu());
+        SKIP_IF(!this->get_policy().has_native_float64());
         bool init_centroids = false;
         auto input = oneapi::dal::test::engine::csr_make_blobs<Float>(32,
                                                                       10000,
@@ -352,8 +355,8 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "[kmeans][batch]",
                      kmeans_types_csr) {
     SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(!this->get_policy().has_native_float64());
     SKIP_IF(!this->is_sparse_method());
-    SKIP_IF(this->not_float64_friendly());
     using Float = std::tuple_element_t<0, TestType>;
 
     // Check that algorithm does not crash on big number of rows
