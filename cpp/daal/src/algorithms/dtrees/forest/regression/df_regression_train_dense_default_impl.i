@@ -158,12 +158,12 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    imp.var = 0;
     if (noWeights)
     {
         if (n < 32)
         {
             imp.mean = this->_aResponse[aIdx[0]].val;
+            imp.var  = 0;
             for (size_t i = 1; i < n; ++i)
             {
                 const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
@@ -232,6 +232,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
     else
     {
         imp.mean     = this->_aResponse[aIdx[0]].val;
+        imp.var      = 0;
         totalWeights = this->_aWeights[aIdx[0]].val;
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
