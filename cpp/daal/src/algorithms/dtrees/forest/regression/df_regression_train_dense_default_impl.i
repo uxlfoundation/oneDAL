@@ -179,6 +179,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             constexpr const size_t simd_batch_size  = 8;
             double means[simd_batch_size]           = { 0 };
             double sums_of_squares[simd_batch_size] = { 0 };
+            double y_batch[simd_batch_size];
 
             const size_t iters_simd_loop = n / simd_batch_size;
             const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
@@ -189,14 +190,21 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const size_t i_start  = i_main * simd_batch_size;
                 const auto aIdx_start = aIdx + i_start;
                 const double div      = static_cast<double>(i_main + 1);
+
 #pragma omp simd
                 for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
                 {
-                    const double y_batch = this->_aResponse[aIdx_start[i_sub]].val;
-                    double mean_batch    = means[i_sub];
-                    const double delta   = y_batch - mean_batch;
+                    y_batch[i_sub] = this->_aResponse[aIdx_start[i_sub]].val;
+                }
+
+#pragma omp simd
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    const double y     = y_batch[i_sub];
+                    double mean_batch  = means[i_sub];
+                    const double delta = y - mean_batch;
                     mean_batch += delta / div;
-                    sums_of_squares[i_sub] += delta * (y_batch - mean_batch);
+                    sums_of_squares[i_sub] += delta * (y - mean_batch);
                     means[i_sub] = mean_batch;
                 }
             }
