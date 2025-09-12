@@ -50,13 +50,27 @@ outputs:
   - name: dal
     script: pack.sh  # [linux]
     requirements:
-      run:
-        - tbb
+      host:
+        - tbb-devel
     test:
+      requires:
+        - python
+        - pytest
+        - scikit-learn-intelex >=2025.0
+        - pandas
+        - xgboost
+        - lightgbm
+        - shap
+        - catboost
+        - treelite
+        - array-api-compat
+        - array-api-strict
       commands:
         - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
+        - pytest --pyargs daal4py --verbose
+        - pytest --pyargs sklearnex --verbose
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
