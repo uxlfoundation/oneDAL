@@ -1119,7 +1119,7 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     }
 
     this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
-    this->template calcImpurity<noWeights>(aIdx + r + 1, n - r - 1, right, rightWeights);
+    this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
 
     if (!((leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
     {
