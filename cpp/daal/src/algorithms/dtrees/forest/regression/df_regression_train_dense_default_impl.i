@@ -158,22 +158,72 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    imp.var  = 0;
-    imp.mean = this->_aResponse[aIdx[0]].val;
+    imp.var = 0;
     if (noWeights)
     {
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < n; ++i)
+        if (n < 32)
         {
-            const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
-            imp.mean += delta / double(i + 1);
-            imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            imp.mean = this->_aResponse[aIdx[0]].val;
+            for (size_t i = 1; i < n; ++i)
+            {
+                const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
+                imp.mean += delta / double(i + 1);
+                imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            totalWeights = double(n);
+            imp.var /= double(n); //impurity is MSE
         }
-        totalWeights = double(n);
-        imp.var /= double(n); //impurity is MSE
+
+        else
+        {
+            constexpr const size_t simd_batch_size  = 8;
+            double means[simd_batch_size]           = { 0 };
+            double sums_of_squares[simd_batch_size] = { 0 };
+
+            const size_t iters_simd_loop = n / simd_batch_size;
+            const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
+            const size_t size_remainder  = n - size_simd_loop;
+
+            for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
+            {
+                const size_t i_start  = i_main * simd_batch_size;
+                const auto aIdx_start = aIdx + i_start;
+                const double div      = static_cast<double>(i_main + 1);
+#pragma omp simd
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    const double y_batch = this->_aResponse[aIdx_start[i_sub]].val;
+                    double mean_batch    = means[i_sub];
+                    const double delta   = y_batch - mean_batch;
+                    mean_batch += delta / div;
+                    sums_of_squares[i_sub] += delta * (y_batch - mean_batch);
+                    means[i_sub] = mean_batch;
+                }
+            }
+
+            imp.mean = means[0];
+            imp.var  = sums_of_squares[0];
+            for (size_t i = 1; i < simd_batch_size; i++)
+            {
+                const double delta = means[i] - imp.mean;
+                const double div   = 1.0 / static_cast<double>(i + 1);
+                imp.mean += delta * div;
+                imp.var += sums_of_squares[i] + (delta * delta) * (static_cast<double>(i) * div);
+            }
+
+            for (size_t i = size_simd_loop; i < n; i++)
+            {
+                const double delta = this->_aResponse[aIdx[i]].val - imp.mean;
+                imp.mean += delta / static_cast<double>(i + 1);
+                imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            totalWeights = static_cast<double>(n);
+            imp.var /= totalWeights;
+        }
     }
     else
     {
+        imp.mean     = this->_aResponse[aIdx[0]].val;
         totalWeights = this->_aWeights[aIdx[0]].val;
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
