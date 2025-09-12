@@ -189,7 +189,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             {
                 const size_t i_start  = i_main * simd_batch_size;
                 const auto aIdx_start = aIdx + i_start;
-                const double div      = static_cast<double>(i_main + 1);
+                const double mult     = 1.0 / static_cast<double>(i_main + 1);
 
 #pragma omp simd simdlen(8)
                 for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
@@ -203,7 +203,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                     const double y     = y_batch[i_sub];
                     double mean_batch  = means[i_sub];
                     const double delta = y - mean_batch;
-                    mean_batch += delta / div;
+                    mean_batch += delta * mult;
                     sums_of_squares[i_sub] += delta * (y - mean_batch);
                     means[i_sub] = mean_batch;
                 }
