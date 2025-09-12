@@ -71,25 +71,12 @@ jobs:
       - name: Archive Coverity build results
         id: check_size
         run: |
-          tar -czvf cov-int.tgz cov-int
+          tar -czf cov-int.tgz cov-int
           size=$(du -m cov-int.tgz | cut -f1)
           echo "Artifact size: $size MB"
           echo "size=$size" >> $GITHUB_OUTPUT
 
       - name: Submit Coverity results for analysis
-        #* if condition is related to Coverity limitation for archives that exceed 500MB
-        if: ${{steps.check_size.outputs.size <= 500}}
-        run: |
-          curl \
-            --form token="${{secrets.COVERITY_TOKEN}}" \
-            --form email="${{secrets.COVERITY_EMAIL}}" \
-            --form file=@cov-int.tgz \
-            --form version="${GITHUB_SHA}" \
-            --form description="" \
-            "https://scan.coverity.com/builds?project=${{env.COVERITY_PROJECT}}"
-
-      - name: Submit Coverity results for analysis
-        if: ${{steps.check_size.outputs.size > 500}}
         run: |
           curl -X POST \
             -d version="${GITHUB_SHA}" \
