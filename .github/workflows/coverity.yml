@@ -30,7 +30,7 @@ env:
 
 jobs:
   coverity_linux:
-    name: Coverity Linux
+    name: Coverity Linux (AVX2)
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: [ubuntu-latest]
     steps:
