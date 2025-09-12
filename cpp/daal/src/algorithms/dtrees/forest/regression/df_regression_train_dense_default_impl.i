@@ -191,7 +191,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const auto aIdx_start = aIdx + i_start;
                 const double div      = static_cast<double>(i_main + 1);
 
-#pragma omp simd
+#pragma omp simd simdlen(8)
                 for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
                 {
                     y_batch[i_sub] = this->_aResponse[aIdx_start[i_sub]].val;
