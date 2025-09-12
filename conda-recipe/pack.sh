@@ -21,8 +21,19 @@ cd "$RELEASE_DIR/daal/latest"
 mkdir -p "$PREFIX/lib"
 # copy devel content
 if [ "$PKG_NAME" = "dal-devel" ]; then
+    cp -r "env" "$PREFIX/"
     cp -r "lib/cmake" "$PREFIX/lib/"
     cp -r "lib/pkgconfig" "$PREFIX/lib/"
+    # set up links necessary for proper works of pkg-config, cmake and env. script
+    mkdir -p "$PREFIX/lib/intel64"
+    for lib in lib/intel64/libonedal*.so*; do
+        if [ -f "$lib" ]; then
+            libname=$(basename "$lib")
+            ln -sf "../$libname" "$PREFIX/lib/intel64/$libname"
+        fi
+    done
+    # WORKAROUND: empty file to force conda-build to include "lib/intel64" directory into devel package
+    touch "$PREFIX/lib/intel64/.onedal_links_anchor"
 fi
 # copy headers
 if [ "$PKG_NAME" = "dal-include" ]; then
@@ -31,7 +42,7 @@ if [ "$PKG_NAME" = "dal-include" ]; then
 fi
 # copy libraries
 if [ "$PKG_NAME" = "dal" ]; then
-    find lib/intel64 -name "libonedal*.so.3" -exec cp {} "$PREFIX/lib/" \;
+    find lib/intel64 -name "libonedal*.so*" -exec cp -P {} "$PREFIX/lib/" \;
 fi
 if [ "$PKG_NAME" = "dal-static" ]; then
     find lib/intel64 -name "libonedal*.a" -exec cp {} "$PREFIX/lib/" \;
