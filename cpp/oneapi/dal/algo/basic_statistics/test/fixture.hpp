@@ -41,6 +41,7 @@ constexpr inline std::uint64_t mask_full = 0xffffffffffffffff;
 template <typename TestType, typename Derived>
 class basic_statistics_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
+    sparse_indexing data_indexing_; // for sparse data testing
     using float_t = std::tuple_element_t<0, TestType>;
     using method_t = std::tuple_element_t<1, TestType>;
     using input_t = bs::compute_input<>;

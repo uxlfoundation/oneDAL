@@ -457,7 +457,7 @@ struct csr_make_blobs {
         for (std::int32_t i = 0; i < row_count_; ++i) {
             response_ptr[i] = i % cluster_count_;
         }
-        return homogen_table::wrap(response_ptr, row_count_, 1);
+        return homogen_table::wrap(responses, row_count_, 1);
     }
 };
 

@@ -134,7 +134,7 @@ host_csr_table_adapter<Data>::host_csr_table_adapter(const csr_table& table, sta
         return;
     }
 
-    const std::int64_t column_count = table.get_column_count();
+    const std::int64_t column_indices_count = table.get_non_zero_count();
     const std::int64_t row_count = table.get_row_count();
     size_t* column_indices =
         const_cast<std::size_t*>(reinterpret_cast<const std::size_t*>(table.get_column_indices()));
@@ -144,11 +144,11 @@ host_csr_table_adapter<Data>::host_csr_table_adapter(const csr_table& table, sta
     // Convert zero-based indices to one-based if needed.
     // Because DAAL tables support only one-based indexing
     if (table.get_indexing() == sparse_indexing::zero_based) {
-        one_based_column_indices_.reset(column_count);
+        one_based_column_indices_.reset(column_indices_count);
         one_based_row_offsets_.reset(row_count + 1);
         size_t* one_based_column_indices_ptr = one_based_column_indices_.get_mutable_data();
         size_t* one_based_row_offsets_ptr = one_based_row_offsets_.get_mutable_data();
-        for (std::int64_t i = 0; i < column_count; i++) {
+        for (std::int64_t i = 0; i < column_indices_count; i++) {
             one_based_column_indices_ptr[i] = column_indices[i] + 1;
         }
         column_indices = one_based_column_indices_ptr;
