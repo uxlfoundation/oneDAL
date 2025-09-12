@@ -183,7 +183,6 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
             const size_t iters_simd_loop = n / simd_batch_size;
             const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
-            const size_t size_remainder  = n - size_simd_loop;
 
             for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
             {
