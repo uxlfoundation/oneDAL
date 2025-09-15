@@ -31,11 +31,14 @@ build:
   include_recipe: False
   ignore_run_exports_from:
     - {{ compiler('dpcpp') }}  # [linux64 or win]
+  script_env:
+    - REQCPU=avx2  # [linux64 or win]
 
 requirements:
   build:
     - python
     - make  # [linux]
+    - cmake  # [linux64 or win]
     - {{ compiler('dpcpp') }}  # [linux64 or win]
     - {{ compiler('cxx') }}
     - onedpl-devel  # [linux64 or win]
