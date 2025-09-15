@@ -14,34 +14,32 @@
 
 ```bash
 # Build DAAL interface
-`make daal_core`
+`make daal_c`
 
 # Platform-specific builds
-`make PLAT=lnx32e COMPILER=icx`
+`make daal_c PLAT=lnx32e COMPILER=icx`
 
 # CPU target selection
-`make REQCPU="sse42 avx2 avx512"`
+`make daal_c REQCPU="sse42 avx2 avx512"`
 ```
 
 ## 🛠️ Core Patterns
 
-### Algorithm Pattern
+### Algorithm Usage Pattern
 ```cpp
 #include "algorithms/kmeans/kmeans_batch.h"
 #include "data_management/data/homogen_numeric_table.h"
 
 // Traditional algorithm lifecycle
-auto training = new kmeans::Batch<float>();
-auto parameter = training->getParameter();
-parameter->nClusters = 10;
+kmeans::Batch<float> training(clusters, iterations);
 
-training->input.set(kmeans::data, data_table);
-services::Status status = training->compute();
-if (status != services::Status::OK) {
+training.input.set(kmeans::data, data_table);
+services::Status status = training.compute();
+if (!status) {
     throwIfPossible(status);
 }
 
-auto result = training->getResult();
+auto result = training.getResult();
 auto model = result->get(kmeans::model);
 ```
 
@@ -52,23 +50,36 @@ daal::services::SharedPtr<NumericTable> data_;
 services::SharedPtr<services::KernelErrorCollection> errors_;
 
 // Usage pattern
-auto table = new HomogenNumericTable<float>(rows, cols);
-services::SharedPtr<NumericTable> shared_table(table);
+using dm = daal::data_management
+services::Status status;
+services::SharedPtr<dm::HomogenNumericTable<float>> table(dm::HomogenNumericTable<float>::create(data_array, rows, cols, &status));
+// Shorter variant
+dm::NumericTablePtr table(dm::HomogenNumericTable<float>::create(data_array, rows, cols, &status));
 ```
 
-### Status-Based Error Handling
+### Error Handling
+
+DAAL has a mixed approach to error handling:
+- Status-based approach is used inside the CPU-specific implementations of the algorithms,
+- Exception-based approach is used at the interface layer; The error codes returned from the  CPU-specific implementations are converted into C++ exceptions using `throwIfPossible()`.
+
+If `DAAL_NOTHROW_EXCEPTIONS` macro is defined during DAAL build `throwIfPossible()` doesn't perform status code to exception conversion.
+
 ```cpp
 // Hierarchical error status system
 services::Status compute() {
-    // Implementation
-    return services::Status::OK;
-}
+    services::Status status;
 
-// Usage pattern
-services::Status status = algorithm->compute();
-if (status != services::Status::OK) {
-    daal::services::throwIfPossible(status);
-    return nullptr;
+    // Implementation
+    if (/* Error condition */) {
+        // Add error code ID to the status
+        status.add(services::SomeErrorCodeID);
+        return status;
+    }
+    // Implementation
+
+    // Computations are successful if status holds no errors on exit
+    return status;
 }
 ```
 
@@ -87,28 +98,39 @@ enum CpuType {
     sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6
 #elif defined(TARGET_ARM)
     sve = 0     // ARM Scalable Vector Extension
-#elif defined(TARGET_RISCV64) 
+#elif defined(TARGET_RISCV64)
     rv64 = 0    // RISC-V 64-bit
 #endif
 };
 ```
 
 ### Data Management
+
+DAAL numeric tables do not own the data they work with, they can be viewed as wrappers over the user-provided data.
+
 ```cpp
 // NumericTable as primary data structure
-auto table = new HomogenNumericTable<float>(rows, cols);
-float* data = table->getArray();
+float * data_array = new float[rows * cols];
+services::Status status;
+auto table = HomogenNumericTable<float>::create(data_array, rows, cols, &status);
+// User is responsible for allocation and deletion of the data assocoated with numeric tables
+delete[] data_array;
 
-// CSV data source
-auto dataSource = new FileDataSource<CSVFeatureManager>(filename);
-auto table = dataSource->loadDataBlock();
+// CSV data source allows to produce a numeric table from CSV file
+FileDataSource<CSVFeatureManager> fileDataSource(datafile,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+dataSource.loadDataBlock();
+// dataSource.loadDataBlock(10); loads next 10 rows from the file
+auto table = dataSource.getNumericTable();
+
 ```
 
 ## 🎯 Critical DAAL Rules
 
 - **Memory**: Use `daal::services::SharedPtr<T>`, never raw pointers for ownership
-- **Error Handling**: Check `services::Status` return codes, use `throwIfPossible()`
-- **Headers**: Traditional `#ifndef` guards, `daal::algorithms` namespaces
+- **Error Handling**: Check `services::Status` return codes or catch the exceptions
+- **Headers**: Traditional `#ifndef` guards
 - **Templates**: CPU-specific specialization for performance optimization
 - **Interface**: Never mix DAAL and oneAPI patterns in same file
 
@@ -116,6 +138,6 @@ auto table = dataSource->loadDataBlock();
 
 - **[AGENTS.md](../../AGENTS.md)** - Repository overview
 - **[cpp/oneapi/AGENTS.md](../oneapi/AGENTS.md)** - Modern oneAPI interface
-- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ standards
+- **[.github/instructions/cpp-coding-guidelines.instructions.md](../../.github/instructions/cpp-coding-guidelines.instructions.md)** - Detailed C++ coding guidelines
 
 **Note**: This interface is maintained for backward compatibility. For new development, consider the modern oneAPI interface.
