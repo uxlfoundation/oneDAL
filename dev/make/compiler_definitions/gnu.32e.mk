@@ -47,10 +47,10 @@ else
 endif
 
 COMPILER.all.gnu =  ${CXX} -m64 -fwrapv -fno-strict-overflow -fno-delete-null-pointer-checks \
-                    -Werror -Wreturn-type
+                    -Werror -Wreturn-type ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
-link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -m64
+link.dynamic.all.gnu = ${CXX} $(linker.ld.flag) -m64 ${LDFLAGS}
 
 pedantic.opts.lnx.gnu = $(pedantic.opts.all.gnu)
 pedantic.opts.mac.gnu = $(pedantic.opts.all.gnu)
