@@ -123,7 +123,6 @@ FileDataSource<CSVFeatureManager> fileDataSource(datafile,
 dataSource.loadDataBlock();
 // dataSource.loadDataBlock(10); loads next 10 rows from the file
 auto table = dataSource.getNumericTable();
-
 ```
 
 ## 🎯 Critical DAAL Rules
