@@ -9,10 +9,10 @@ oneDAL provides **two distinct C++ interfaces**:
 
 ### 1. Traditional DAAL Interface (`cpp/daal/`)
 - **Target**: CPU-focused with SIMD optimizations, backward compatible
-- **Style**: Traditional C++ with `daal::services::SharedPtr<T>`, `services::Status` return codes
+- **Style**: Traditional C++ with `daal::services::SharedPtr<T>`, `services::Status` return codes, highly-nested namespaces
 - **Headers**: `.h` files with `#ifndef` guards, `daal::algorithms` namespaces
 
-### 2. Modern oneAPI Interface (`cpp/oneapi/`)  
+### 2. Modern oneAPI Interface (`cpp/oneapi/`)
 - **Target**: CPU + GPU (SYCL) + distributed computing (primary development focus)
 - **Style**: Modern C++17 with STL smart pointers, exceptions, RAII
 - **Headers**: `.hpp` files with `#pragma once`, `oneapi::dal` namespaces
@@ -33,7 +33,7 @@ class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
     virtual services::Status compute() DAAL_C11_OVERRIDE;
 };
 
-// oneAPI - Type-safe dispatching with perfect forwarding  
+// oneAPI - Type-safe dispatching with perfect forwarding
 template <typename Context, typename Float, typename Method, typename Task>
 struct train_ops_dispatcher {
     train_result<Task> operator()(const Context&, const descriptor_base<Task>&,
@@ -47,13 +47,17 @@ struct train_ops_dispatcher {
 ```cpp
 // DAAL - Custom smart pointers
 daal::services::SharedPtr<NumericTable> data_;
+// DAAL - Custom objects collections
+daal::services::Collection<int> collection(5);
 
 // oneAPI - STL smart pointers with RAII
 std::unique_ptr<object> ptr_ = std::make_unique<object>();
 std::shared_ptr<table> table_ = std::make_shared<table>();
+// oneAPI - STL containers
+std::vector<int> vec(5);
 ```
 
-### Error Handling  
+### Error Handling
 - **DAAL**: `services::Status` return codes with `throwIfPossible()` conversion
 - **oneAPI**: STL exceptions (`std::invalid_argument`, `std::domain_error`)
 
@@ -76,8 +80,13 @@ std::shared_ptr<table> table_ = std::make_shared<table>();
 
 ### Runtime CPU Feature Detection
 ```cpp
-enum cpu_extension : uint64_t {
-    sse2 = 1U << 0, sse42 = 1U << 2, avx2 = 1U << 4, avx512 = 1U << 5
+enum class cpu_feature : uint64_t {
+    unknown = 0ULL,
+    sstep = 1ULL << 0,          // Intel(R) SpeedStep
+    tb = 1ULL << 1,             // Intel(R) Turbo Boost
+    avx512_bf16 = 1ULL << 2,    // AVX512 bfloat16
+    avx512_vnni = 1ULL << 3,    // AVX512 VNNI
+    tb3 = 1ULL << 4             // Intel(R) Turbo Boost Max 3.0
 };
 ```
 
@@ -90,30 +99,41 @@ enum cpu_extension : uint64_t {
 - **Distributed**: MPI via `oneapi::dal::preview::spmd`
 
 ### Namespace Structure
-```cpp
-// oneAPI: oneapi::dal::{v1, preview, detail, spmd}
-// DAAL: daal::{algorithms, data_management, services}::{internal}
-```
+
+- **oneAPI**:
+  - `oneapi::dal`: Top level oneDAL namespace.
+    - `oneapi::dal::{...}::backend`: APIs for internal oneDAL use, not visible to the users.
+    - `oneapi::dal::{...}::detail`: APIs that are visible to the users, but might be a subject to change. Those APIs do not follow ABI compatibility requirements.
+    - `oneapi::dal::{...}::preview`: Functionality added into a product for users to try it out. Also might be a subject to change or removal, and does not follow the ABI compatibility requirements.
+    - `oneapi::dal::<algorithm>`, for example `oneapi::dal::kmeans`: Namespace of a respective algorithm.
+- **DAAL**:
+  - `daal`: Top level DAAL namespace.
+    - `daal::algorithms`: Algorithms and related classes like `Parameter`, `Input`, `Result`.
+    - `daal::data_management`: Numeric tables and data sources.
+    - `daal::services`: Error handling, `SharedPtr`, `Collection`.
+    - `daal::{}::internal`: APIs for internal DAAL use, not visible to the users.
 
 ## 📚 Algorithm Interface Patterns
 
 ### DAAL Pattern
 ```cpp
 // Traditional algorithm lifecycle with explicit memory management
-auto training = new algorithm_training_batch<float>();
-training->input.set(data_input::data, data_table);
-training->compute();
+using rr_train = daal::ridge_regression::training;
+rr_train::Batch<float> training(2.0 /* ridge coefficient */);
+training.input.set(rr_train::data, data_table);
+training.input.set(rr_train::dependentVariables, dependents);
+training.compute();
 auto result = training->getResult();
-auto model = result->get(training_result::model);
+auto model = result->get(rr_train::model);
 ```
 
-### oneAPI Pattern  
+### oneAPI Pattern
 ```cpp
 // Modern fluent interface with automatic resource management
-auto desc = kmeans::descriptor<float>()
+auto desc = dal::kmeans::descriptor<float>()
     .set_cluster_count(10)
     .set_max_iteration_count(100);
-auto train_result = train(desc, train_data);
+auto train_result = dal::train(desc, data_table);
 auto infer_result = infer(desc, train_result.get_model(), test_data);
 ```
 
