@@ -20,4 +20,4 @@ export TBBROOT=$PREFIX
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
 
-make -j$(nproc) daal oneapi REQCPU=$REQCPU
+make -j$(nproc) daal oneapi REQCPU=$REQCPU COMPILER=$CONDA_CXX_COMPILER
