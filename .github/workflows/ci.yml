@@ -171,10 +171,18 @@ jobs:
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
 
   LinuxCondaRecipeDPCPP:
-    name: LinuxCondaRecipeDPCPP
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - cxx_compiler: "gxx"
+            cxx_compiler_version: "12"
+          - cxx_compiler: "clangxx"
+            cxx_compiler_version: "15"
+          - cxx_compiler: "dpcpp"
+            cxx_compiler_version: "2025"
+    name: LinuxCondaRecipe(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     steps:
@@ -194,4 +202,4 @@ jobs:
         run: |
           . /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate build-env
-          conda build .
+          conda build . --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
