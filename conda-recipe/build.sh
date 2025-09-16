@@ -16,6 +16,7 @@
 #===============================================================================
 
 export TBBROOT=$PREFIX
+export DPL_ROOT=$PREFIX
 
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS

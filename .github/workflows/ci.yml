@@ -170,14 +170,16 @@ jobs:
           echo "in the ABI that can lead to erroneous failures in the ABI check."
           .ci/scripts/abi_check.sh __release_lnx_main/daal/latest/lib/intel64/ __release_lnx/daal/latest/lib/intel64/
 
-  LinuxCondaRecipeDPCPP:
+  LinuxCondaRecipe:
     if: github.repository == 'uxlfoundation/oneDAL'
     strategy:
       fail-fast: false
       matrix:
         include:
+          # ubuntu 22.04 default gcc version
           - cxx_compiler: "gxx"
-            cxx_compiler_version: "12"
+            cxx_compiler_version: "11"
+          # ubuntu 24.04 default clang version (earlier not available in conda-forge)
           - cxx_compiler: "clangxx"
             cxx_compiler_version: "18"
           - cxx_compiler: "dpcpp"
