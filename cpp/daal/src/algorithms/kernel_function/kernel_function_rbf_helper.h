@@ -159,6 +159,7 @@ inline services::Status HelperKernelRBF<double, sve>::postGemmPart(double * cons
 
     return services::Status();
 }
+
 //SVE implementation for RBF kernel post-GEMM part float data type
 template <>
 inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const mklBuff, const float * const sqrA1i, const float sqrA2i,
@@ -185,6 +186,9 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i], tmp);
 
+        svfloat32_t expVal = daal::internal::ref::exp_vectorized(tmp);
+        svst1(pg, &dataRBlock[i], expVal);
+
         // Block 2
         mklVec = svld1(pg, &mklBuff[i + step]);
         sqrVec = svld1(pg, &sqrA1i[i + step]);
@@ -195,6 +199,9 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         tmp  = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + step], tmp);
 
+        expVal = daal::internal::ref::exp_vectorized(tmp);
+        svst1(pg, &dataRBlock[i + step], expVal);
+
         // Block 3
         mklVec = svld1(pg, &mklBuff[i + 2 * step]);
         sqrVec = svld1(pg, &sqrA1i[i + 2 * step]);
@@ -204,6 +211,9 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         mask = svcmpgt_f32(pg, tmp, thresholdVec);
         tmp  = svsel_f32(mask, tmp, thresholdVec);
         svst1(pg, &mklBuff[i + 2 * step], tmp);
+
+        expVal = daal::internal::ref::exp_vectorized(tmp);
+        svst1(pg, &dataRBlock[i + 2 * step], expVal);
     }
 
     // Tail loop
@@ -218,9 +228,10 @@ inline services::Status HelperKernelRBF<float, sve>::postGemmPart(float * const 
         svbool_t mask = svcmpgt_f32(tail_pg, tmp, thresholdVec);
         tmp           = svsel_f32(mask, tmp, thresholdVec);
         svst1(tail_pg, &mklBuff[i], tmp);
+
+        svfloat32_t expVal = daal::internal::ref::exp_vectorized(tmp);
+        svst1(tail_pg, &dataRBlock[i], expVal);
     }
-    //exponential function
-    MathInst<float, sve>::vExp(n, mklBuff, dataRBlock);
 
     return services::Status();
 }
