@@ -21,6 +21,7 @@ ALGOS = [
     "dbscan",
     "decision_tree",
     "finiteness_checker",
+    "hdbscan",
     "jaccard",
     "kmeans",
     "kmeans_init",
