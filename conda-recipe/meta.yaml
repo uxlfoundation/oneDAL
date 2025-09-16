@@ -27,20 +27,23 @@ source:
 build:
   skip: true  # [not (linux64 or win)]
   number: {{ buildnumber }}
-  string: h{{ PKG_HASH }}_{{ buildnumber }}_dpcpp
+  string: h{{ PKG_HASH }}_{{ buildnumber }}_{{ cxx_compiler }}
   include_recipe: False
   ignore_run_exports_from:
-    - {{ compiler('dpcpp') }}  # [linux64 or win]
+    - dpcpp_impl_linux-64  # [linux64 or win]
   script_env:
     - REQCPU=avx2  # [linux64 or win]
+    - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
+    - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
+    - CONDA_CXX_COMPILER=gnu  # [ cxx_compiler == "gxx" ]
 
 requirements:
   build:
     - python
     - make  # [linux]
     - cmake  # [linux64 or win]
-    - {{ compiler('dpcpp') }}  # [linux64 or win]
     - {{ compiler('cxx') }}
+    - dpcpp_impl_linux-64  # [linux64 or win]
     - onedpl-devel  # [linux64 or win]
     - mkl-devel  # [linux64 or win]
     - mkl-static  # [linux64 or win]
