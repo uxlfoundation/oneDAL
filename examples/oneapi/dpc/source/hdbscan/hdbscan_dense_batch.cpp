@@ -34,10 +34,10 @@ void run(sycl::queue &q) {
 
     const auto x_data = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
 
-    double epsilon = 0.04;
-    std::int64_t min_observations = 45;
+    // double epsilon = 0.04;
+    std::int64_t min_observations = 5;
 
-    auto hdbscan_desc = dal::hdbscan::descriptor<>(epsilon, min_observations);
+    auto hdbscan_desc = dal::hdbscan::descriptor<double>(min_observations);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
 
     const auto result_compute = dal::compute(q, hdbscan_desc, x_data);

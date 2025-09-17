@@ -104,14 +104,12 @@ public:
 
     descriptor_base();
 
-    double get_epsilon() const;
-    std::int64_t get_min_observations() const;
+    std::int64_t get_min_cluster_size() const;
     bool get_mem_save_mode() const;
     result_option_id get_result_options() const;
 
 protected:
-    void set_min_observations_impl(std::int64_t);
-    void set_epsilon_impl(double);
+    void set_min_cluster_size_impl(std::int64_t);
     void set_mem_save_mode_impl(bool);
     void set_result_options_impl(const result_option_id& value);
 
@@ -155,40 +153,38 @@ public:
     using method_t = Method;
     using task_t = Task;
 
-    /// Creates a new instance of the class with the given :literal:`epsilon`, :literal:`min_observations`
-    explicit descriptor(double epsilon, std::int64_t min_observations) {
-        set_min_observations(min_observations);
-        set_epsilon(epsilon);
+    /// Creates a new instance of the class with the given :literal:`min_cluster_size`
+    explicit descriptor(std::int64_t min_cluster_size) {
+        set_min_cluster_size(min_cluster_size);
     }
 
     /// The number of neighbors
-    std::int64_t get_min_observations() const {
-        return base_t::get_min_observations();
+    std::int64_t get_min_cluster_size() const {
+        return base_t::get_min_cluster_size();
     }
 
-    auto& set_min_observations(std::int64_t value) {
-        base_t::set_min_observations_impl(value);
+    auto& set_min_cluster_size(std::int64_t value) {
+        base_t::set_min_cluster_size_impl(value);
         return *this;
     }
 
-    /// The distance `epsilon` for neighbor search
-    /// @invariant :expr:`epsilon >= 0.0`
-    double get_epsilon() const {
-        return base_t::get_epsilon();
+    /// The number of neighbors
+    std::int64_t get_min_samples() const {
+        return base_t::get_min_samples();
     }
 
-    auto& set_epsilon(double value) {
-        base_t::set_epsilon_impl(value);
+    auto& set_min_samples(std::int64_t value) {
+        base_t::set_min_samples(value);
         return *this;
     }
 
-    /// The flag for memory saving mode
-    bool get_mem_save_mode() const {
-        return base_t::get_mem_save_mode();
+    /// The number of neighbors
+    std::int64_t get_cluster_selection_epsilon() const {
+        return base_t::get_cluster_selection_epsilon();
     }
 
-    auto& set_mem_save_mode(bool value) {
-        base_t::set_mem_save_mode_impl(value);
+    auto& set_cluster_selection_epsilon(std::int64_t value) {
+        base_t::set_cluster_selection_epsilon(value);
         return *this;
     }
 

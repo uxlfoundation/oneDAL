@@ -44,7 +44,7 @@ namespace v1 {
 template <typename Task>
 class descriptor_impl : public base {
 public:
-    std::int64_t min_observations;
+    std::int64_t min_cluster_size;
     double epsilon;
     bool mem_save_mode;
     result_option_id result_options = default_result_options<Task>;
@@ -60,13 +60,8 @@ template <typename Task>
 descriptor_base<Task>::descriptor_base() : impl_(new descriptor_impl<Task>{}) {}
 
 template <typename Task>
-std::int64_t descriptor_base<Task>::get_min_observations() const {
-    return impl_->min_observations;
-}
-
-template <typename Task>
-double descriptor_base<Task>::get_epsilon() const {
-    return impl_->epsilon;
+std::int64_t descriptor_base<Task>::get_min_cluster_size() const {
+    return impl_->min_cluster_size;
 }
 
 template <typename Task>
@@ -75,16 +70,8 @@ bool descriptor_base<Task>::get_mem_save_mode() const {
 }
 
 template <typename Task>
-void descriptor_base<Task>::set_epsilon_impl(double value) {
-    if (value <= 0) {
-        throw domain_error(dal::detail::error_messages::cluster_count_leq_zero());
-    }
-    impl_->epsilon = value;
-}
-
-template <typename Task>
-void descriptor_base<Task>::set_min_observations_impl(std::int64_t value) {
-    impl_->min_observations = value;
+void descriptor_base<Task>::set_min_cluster_size_impl(std::int64_t value) {
+    impl_->min_cluster_size = value;
 }
 
 template <typename Task>
