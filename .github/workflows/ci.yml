@@ -179,7 +179,7 @@ jobs:
           - cxx_compiler: "gxx"
             cxx_compiler_version: "11"
           - cxx_compiler: "clangxx"
-            cxx_compiler_version: "16"
+            cxx_compiler_version: "20"
           - cxx_compiler: "dpcpp"
             cxx_compiler_version: "2025"
     name: LinuxCondaRecipe(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
