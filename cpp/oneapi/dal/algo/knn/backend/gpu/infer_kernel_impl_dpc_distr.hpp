@@ -227,8 +227,9 @@ public:
 
         // add global offset value to input indices
         ONEDAL_ASSERT(global_index_offset_ != -1);
-        deps.push_back(copy_current_resp_event);
-        auto treat_event = pr::treat_indices(queue_, inp_indices, global_index_offset_, deps);
+        bk::event_vector ndeps = deps;
+        ndeps.push_back(copy_current_resp_event);
+        auto treat_event = pr::treat_indices(queue_, inp_indices, global_index_offset_, ndeps);
 
         auto actual_min_dist_copy_dest =
             part_distances_.get_col_slice(0, k_neighbors_).get_row_slice(first, last);
