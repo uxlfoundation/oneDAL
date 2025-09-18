@@ -289,6 +289,30 @@ public:
                 copy_sqrt_event =
                     copy_with_sqrt(queue_, min_dist_dest, min_dist_dest, { select_indc_event });
             }
+
+            // Print distances and indices for debugging
+            if (result_options_.test(result_options::distances)) {
+                [[maybe_unused]] auto host_distances = distances_.to_host(queue_);
+                std::cout << "Distances (operator): ";
+                for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_distances.get_dimension(0)); ++row) {
+                    for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_distances.get_dimension(1)); ++col) {
+                        std::cout << host_distances.at(row, col) << " ";
+                    }
+                    std::cout << std::endl;
+                }
+                std::cout << std::endl;
+            }
+            if (result_options_.test(result_options::indices)) {
+                [[maybe_unused]] auto host_indices = indices_.to_host(queue_);
+                std::cout << "Indices (operator): ";
+                for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_indices.get_dimension(0)); ++row) {
+                    for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_indices.get_dimension(1)); ++col) {
+                        std::cout << host_indices.at(row, col) << " ";
+                    }
+                    std::cout << std::endl;
+                }
+                std::cout << std::endl;
+            }
             if (result_options_.test(result_options::responses)) {
                 return this->output_responses(bounds,
                                               indices_,

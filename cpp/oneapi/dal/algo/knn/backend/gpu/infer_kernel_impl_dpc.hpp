@@ -186,6 +186,29 @@ public:
         }
 
         sycl::event::wait_and_throw({ copy_indices, copy_distances, comp_responses });
+        // Print distances and indices for debugging
+        if (result_options_.test(result_options::distances)) {
+            [[maybe_unused]] auto host_distances = distances_.to_host(queue_);
+            std::cout << "Distances (first 10): ";
+            for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_distances.get_dimension(0)); ++row) {
+                for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_distances.get_dimension(1)); ++col) {
+                    std::cout << host_distances.at(row, col) << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
+        if (result_options_.test(result_options::indices)) {
+            [[maybe_unused]] auto host_indices = indices_.to_host(queue_);
+            std::cout << "Indices (first 10): ";
+            for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_indices.get_dimension(0)); ++row) {
+                for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_indices.get_dimension(1)); ++col) {
+                    std::cout << host_indices.at(row, col) << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+        }
         return sycl::event();
     }
 
