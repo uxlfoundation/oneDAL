@@ -60,25 +60,10 @@ outputs:
       host:
         - tbb-devel
     test:
-      requires:
-        - python
-        - pytest
-        - scikit-learn-intelex =={{ version.split('.')[0] }}.*
-        - pandas
-        - xgboost
-        - lightgbm
-        - shap
-        - catboost
-        - treelite
-        - array-api-compat
-        - array-api-strict
       commands:
         - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
-        - pytest --pyargs daal4py --verbose
-        - pytest --pyargs onedal --verbose
-        - pytest --pyargs sklearnex --verbose
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
@@ -109,12 +94,14 @@ outputs:
       run:
         - {{ pin_subpackage('dal', exact=True) }}
         - {{ pin_subpackage('dal-include', exact=True) }}
+        - tbb-devel
     test:
-      commands:
-        - test -f $PREFIX/lib/cmake/oneDAL/oneDALConfig.cmake  # [linux]
-        - test -f $PREFIX/lib/cmake/oneDAL/oneDALConfigVersion.cmake  # [linux]
-        - test -f $PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc  # [linux]
-        - test -f $PREFIX/lib/pkgconfig/dal-static-threading-host.pc  # [linux]
+      requires:
+        - cmake  # [linux64 or win]
+        - {{ compiler('cxx') }}
+      source_files:
+        - examples
+      script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
 
