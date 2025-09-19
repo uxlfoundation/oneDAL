@@ -78,13 +78,13 @@ services::Status ComputeInvSigmas(NumericTable * pVariances, TArray<algorithmFPT
         DAAL_CHECK_BLOCK_STATUS(dataRows);
         const algorithmFPType * pRawVariances = dataRows.get();
 
-        daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(numFeatures, pRawVariances, 1, pInvSigmas, 1);
-
-        const algorithmFPType zero(0.0);
-        PRAGMA_OMP_SIMD
+        PRAGMA_IVDEP
+        PRAGMA_VECTOR_ALWAYS
         for (size_t varianceId = 0; varianceId < numFeatures; ++varianceId)
         {
-            pInvSigmas[varianceId] = (pRawVariances[varianceId] == zero ? zero : pInvSigmas[varianceId]);
+            pInvSigmas[varianceId] = pRawVariances[varianceId] ?
+                                         algorithmFPType(1.0) / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(pRawVariances[varianceId]) :
+                                         algorithmFPType(0.0);
         }
     }
     return status;
@@ -181,14 +181,14 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
                 /* compute centering if numMeans != 0 */
-                PRAGMA_OMP_SIMD
+                PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numMeans; ++colId)
                 {
                     pCopyBlock[rowId * numMeans + colId] = pDataBlock[rowId * numMeans + colId] - pRawMeans[colId];
                 }
                 /* compute normalization to unit variance if numInvSigmas!= 0 */
-                PRAGMA_OMP_SIMD
+                PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numInvSigmas; ++colId)
                 {
@@ -203,7 +203,7 @@ services::Status TransformKernel<algorithmFPType, method, cpu>::compute(NumericT
         {
             for (size_t rowId = 0; rowId < numRows; ++rowId)
             {
-                PRAGMA_OMP_SIMD
+                PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t colId = 0; colId < numComponents; ++colId)
                 {
