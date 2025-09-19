@@ -66,18 +66,19 @@ template <typename algorithmFPType, CpuType cpu, bool upper = true>
 void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const algorithmFPType * x, algorithmFPType * sum, algorithmFPType * block)
 {
     /* calculate sum^t * sum */
-    const algorithmFPType one(1.0);
-    const algorithmFPType zero(0.0);
+    constexpr algorithmFPType one(1.0);
+    constexpr algorithmFPType zero(0.0);
+    const algorithmFPType & alpha(one);
     const DAAL_INT bsz  = blockSize;
     const DAAL_INT ione = 1;
 
-    BlasInst<algorithmFPType, cpu>::xxgemm("N", "T", &bsz, &bsz, &ione, &one, sum, &bsz, sum, &bsz, &zero, block, &bsz);
+    BlasInst<algorithmFPType, cpu>::xxgemm("N", "T", &bsz, &bsz, &ione, &alpha, sum, &bsz, sum, &bsz, &zero, block, &bsz);
 
     /* calculate x * x^t - 1/p * sum^t * sum */
     const algorithmFPType beta = -one / (algorithmFPType)nColumns;
     const DAAL_INT ncol        = nColumns;
 
-    BlasInst<algorithmFPType, cpu>::xxgemm("T", "N", &bsz, &bsz, &ncol, &one, x, &ncol, x, &ncol, &beta, block, &bsz);
+    BlasInst<algorithmFPType, cpu>::xxgemm("T", "N", &bsz, &bsz, &ncol, &alpha, x, &ncol, x, &ncol, &beta, block, &bsz);
 
     algorithmFPType * diag = sum; // reuse sum array for diagonal elements
 

@@ -144,10 +144,9 @@ public:
             for (size_t k = 0; k < _nClasses; ++k)
             {
                 const algorithmFPType pk = p[k];
-                const algorithmFPType h  = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);
                 algorithmFPType * gh_ik  = gh + 2 * (k * nRows + iSample);
-                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - algorithmFPType(1.)) : pk;
-                gh_ik[1]                 = h;
+                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - algorithmFPType(1.)) : pk; // gradient
+                gh_ik[1]                 = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);       // hessian
             }
         });
     }

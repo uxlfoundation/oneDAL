@@ -43,10 +43,11 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     algorithmFPType diag[blockSizeDefault];
     constexpr algorithmFPType one(1.0);
     constexpr algorithmFPType zero(0.0);
+    const algorithmFPType & alpha(one);
     const DAAL_INT bsz  = blockSize;
     const DAAL_INT ncol = nColumns;
 
-    BlasInst<algorithmFPType, cpu>::xxgemm("T", "N", &bsz, &bsz, &ncol, &one, x, &ncol, x, &ncol, &zero, block, &bsz);
+    BlasInst<algorithmFPType, cpu>::xxgemm("T", "N", &bsz, &bsz, &ncol, &alpha, x, &ncol, x, &ncol, &zero, block, &bsz);
 
     for (size_t i = 0; i < blockSize; i++)
     {
