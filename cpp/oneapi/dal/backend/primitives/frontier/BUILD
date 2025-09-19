@@ -26,16 +26,3 @@ dal_test_suite (
         ":frontier",
     ],
 )
-
-dal_test_suite(
-    name = "perf_tests",
-    framework = "catch2",
-    compile_as = [ "dpc++" ],
-    private = True,
-    srcs = glob([
-        "test/*perf_dpc.cpp",
-    ]),
-    dal_deps = [
-        ":frontier",
-    ],
-)
