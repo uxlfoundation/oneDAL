@@ -233,8 +233,14 @@ inline daal::data_management::CSRNumericTablePtr wrap_by_host_csr_adapter(const 
 template <typename Float>
 inline daal::data_management::CSRNumericTablePtr convert_to_daal_table(const csr_table& table,
                                                                        bool need_copy = false) {
+    if (need_copy)
+        // Always copy the table, and do not try to wrap it, if need_copy is specified by the caller.
+        // Because the table's data can be allocated on device and it will lead to crash in wrap_by_host_csr_adapter
+        return copy_to_daal_csr_table<Float>(table);
+
     auto wrapper = wrap_by_host_csr_adapter(table);
-    return need_copy || !wrapper ? copy_to_daal_csr_table<Float>(table) : wrapper;
+    // copy the table if wrap failed
+    return !wrapper ? copy_to_daal_csr_table<Float>(table) : wrapper;
 }
 
 template <typename Data>
