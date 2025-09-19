@@ -20,15 +20,28 @@ test -f $PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 
 source $CONDA_PREFIX/env/vars.sh
 
-cd examples/oneapi/cpp
-mkdir build
-cd build
+run_examples() {
+    local example_type=$1
+    echo "Building and running $example_type examples"
 
-cmake .. -DONEDAL_LINK=dynamic
-make -j`nproc`
+    cd examples/$example_type/cpp
+    mkdir build
+    cd build
 
-cd ..
+    cmake .. -DONEDAL_LINK=dynamic
+    make -j$(nproc)
 
-for example in _cmake_results/intel_intel64_so/*; do
-    $example
-done
+    cd ..
+
+    for example in _cmake_results/intel_intel64_so/*; do
+        echo "================"
+        echo "Running example: $(basename $example)"
+        echo "================"
+        $example
+    done
+
+    cd ../../..
+}
+
+run_examples "oneapi"
+run_examples "daal"
