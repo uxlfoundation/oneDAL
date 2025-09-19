@@ -12,45 +12,6 @@ namespace oneapi::dal::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
 
-class PerformanceTester {
-public:
-    void add(const std::string& name, const sycl::event& event) {
-        if (timings_.find(name) == timings_.end()) {
-            timings_[name] = std::vector<sycl::event>();
-        }
-        timings_[name].push_back(event);
-    }
-
-    void set_start() {
-        start_time_ = std::chrono::high_resolution_clock::now();
-    }
-
-    void set_end() {
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_).count();
-        std::cout << "Total execution time: " << duration << " ms" << std::endl;
-    }
-
-    void print() const {
-        for (const auto& [name, events] : timings_) {
-            std::cout << "Performance for " << name << ": ";
-            for (const auto& event : events) {
-                auto duration =
-                    event.get_profiling_info<sycl::info::event_profiling::command_end>() -
-                    event.get_profiling_info<sycl::info::event_profiling::command_start>();
-                std::cout << duration / 1e6 << " ms ";
-            }
-            std::cout << std::endl;
-        }
-    }
-
-private:
-    // define start time
-    std::chrono::high_resolution_clock::time_point start_time_;
-    std::map<std::string, std::vector<sycl::event>> timings_;
-};
-
 void print_device_name(sycl::queue& queue) {
     const auto device = queue.get_device();
     const auto device_name = device.get_info<sycl::info::device::name>();
@@ -86,8 +47,6 @@ TEST("test advance operation", "[advance]") {
     DECLARE_TEST_POLICY(policy);
     auto& queue = policy.get_queue();
     print_device_name(queue);
-
-    PerformanceTester perf_tester;
 
     std::vector<std::uint32_t> row_ptr = {
         0,   2,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,  49,  53,  57,  61,
@@ -156,7 +115,6 @@ TEST("test advance operation", "[advance]") {
     size_t iter = 0;
 
     /// Start BFS
-    perf_tester.set_start();
     while (!in_frontier.empty()) {
         auto e = pr::advance(graph,
                              in_frontier,
@@ -168,16 +126,12 @@ TEST("test advance operation", "[advance]") {
                                  }
                                  return !visited;
                              });
-        perf_tester.add("advance", e);
         e.wait_and_throw();
         iter++;
         pr::swap_frontiers(in_frontier, out_frontier);
         out_frontier.clear();
     }
-    perf_tester.set_end();
     /// End BFS
-
-    // perf_tester.print();
 
     auto expected_distances = host_bfs(row_ptr, col_indices, src);
     auto actual_distances = distance.to_host(queue).get_data();
