@@ -80,7 +80,8 @@ public:
 /// It processes the input frontier and advances it based on the provided functor.
 template <typename T, typename ContextT, typename GraphDevT, typename LambdaT>
 struct BitmapKernel {
-    template<typename VertexT>
+    /// This function distributes the workload among the workgroup, subgroup, and individual work items
+    template <typename VertexT>
     inline void distribute_workload(frontier_context_state& state, const VertexT& vertex) const {
         const size_t lid = state.item.get_local_linear_id();
         const auto wgroup = state.item.get_group();
@@ -91,11 +92,11 @@ struct BitmapKernel {
 
         if (sgroup.leader()) {
             subgroup_reduce_tail[sgroup_id] = 0;
-            }
+        }
         if (wgroup.leader()) {
             workgroup_reduce_tail[0] = 0;
         }
-        
+
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group>
             sg_tail{ subgroup_reduce_tail[sgroup_id] };
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group>
@@ -104,7 +105,8 @@ struct BitmapKernel {
 
         if (context.check(state, vertex)) {
             uint32_t n_edges = graph_dev.get_degree(vertex);
-            if (n_edges >= wgroup_size * wgroup_size) { // if the number of edges is large enough, we can assign the vertex to the workgroup
+            // if the number of edges is large enough, we can assign the vertex to the workgroup
+            if (n_edges >= wgroup_size * wgroup_size) {
                 uint32_t loc = wg_tail.fetch_add(static_cast<uint32_t>(1));
                 n_edges_wg[loc] = n_edges;
                 workgroup_reduce[loc] = vertex;
@@ -123,11 +125,12 @@ struct BitmapKernel {
         }
     }
 
+    /// This function processes the vertices assigned to the workgroup.
     inline void process_workgroup_reduction(frontier_context_state& state) const {
         /// This function processes the vertices assigned to the workgroup.
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group>
             wg_tail{ workgroup_reduce_tail[0] };
-        
+
         const auto wgroup = state.item.get_group();
         const size_t lid = state.item.get_local_linear_id();
         const size_t wgroup_size = wgroup.get_local_range(0);
@@ -153,6 +156,7 @@ struct BitmapKernel {
         }
     }
 
+    /// This function processes the vertices assigned to the subgroup.
     inline void process_subgroup_reduction(frontier_context_state& state) const {
         const auto sgroup = state.item.get_sub_group();
         const auto sgroup_id = sgroup.get_group_id();
@@ -163,7 +167,7 @@ struct BitmapKernel {
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group>
             sg_tail{ subgroup_reduce_tail[sgroup_id] };
 
-        for (size_t i = 0; i < subgroup_reduce_tail[sgroup_id]; i++) { 
+        for (size_t i = 0; i < subgroup_reduce_tail[sgroup_id]; i++) {
             // active_elements_tail[subgroup_id] is always less or equal than subgroup_size
             size_t vertex_id = offset + i;
             auto vertex = subgroup_reduce[vertex_id];
@@ -187,8 +191,10 @@ struct BitmapKernel {
         }
     }
 
-    template<typename VertexT>
-    inline void process_workitem_reduction(frontier_context_state& state, const VertexT& vertex) const {
+    /// This function processes the vertices that were not assigned to the workgroup or subgroup.
+    template <typename VertexT>
+    inline void process_workitem_reduction(frontier_context_state& state,
+                                           const VertexT& vertex) const {
         const size_t lid = state.item.get_local_linear_id();
 
         if (!visited[lid]) {
@@ -216,7 +222,6 @@ struct BitmapKernel {
 
             // 1. distribute the workload based on the number of edges to the workgroup, subgroup or workitem
             distribute_workload(state, assigned_vertex);
-
             sycl::group_barrier(wgroup);
 
             // 2. process the the edge of one vertex at a time using the workgroup
@@ -229,7 +234,7 @@ struct BitmapKernel {
 
             // 4. process the edges of the vertices that were not assigned to the workgroup or subgroup
             process_workitem_reduction(state, assigned_vertex);
-            
+
             context.complete_iteration(state); // complete the current iteration
         }
     }
@@ -285,9 +290,11 @@ sycl::event advance(const GraphT& graph,
                                      : global_size +
                                            (local_range[0] - global_size % local_range[0]) };
 
-    frontier_context<decltype(in_dev_frontier), decltype(out_dev_frontier)> context{ num_nodes,
-                                                                            in_dev_frontier,
-                                                                            out_dev_frontier };
+    frontier_context<decltype(in_dev_frontier), decltype(out_dev_frontier)> context{
+        num_nodes,
+        in_dev_frontier,
+        out_dev_frontier
+    };
     using bitmap_kernel_t =
         BitmapKernel<element_t, decltype(context), decltype(graph_dev), LambdaT>;
 

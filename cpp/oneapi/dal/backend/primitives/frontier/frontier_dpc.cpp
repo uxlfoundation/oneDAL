@@ -87,12 +87,12 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
     auto offsets_size_pointer = _offsets.get_mutable_data();
     auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
-    uint32_t element_bitsize = bitmap.get_element_bitsize();
-    size_t local_range = 256; // propose_wg_size(this->_queue);
-    size_t mlb_count = _mlb_layer.get_count();
-    size_t global_range = (mlb_count % local_range == 0)
-                              ? mlb_count
-                              : (mlb_count + local_range - (mlb_count % local_range));
+    const uint32_t element_bitsize = bitmap.get_element_bitsize();
+    const size_t local_range = 256; // propose_wg_size(this->_queue);
+    const size_t mlb_count = _mlb_layer.get_count();
+    const size_t global_range = (mlb_count % local_range == 0)
+                                    ? mlb_count
+                                    : (mlb_count + local_range - (mlb_count % local_range));
 
     // check if local memory is enough
     bool use_local_mem =
