@@ -616,6 +616,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
         train_block_queue.pop_front();
+        auto host_block = current_block.to_host(queue);
+        std::cout << "current_block (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block.get_dimension(1)); ++col) {
+                std::cout << host_block.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
         ONEDAL_ASSERT(current_block.has_data());
 
         auto absolute_block_idx = (relative_block_idx + relative_block_offset) % block_count;
@@ -639,6 +647,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         }
 
         callback.set_global_index_offset(boundaries.at(absolute_block_idx));
+        auto acutal_host_block = actual_current_block.to_host(queue);
+        std::cout << "actual_current_block (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, acutal_host_block.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, acutal_host_block.get_dimension(1)); ++col) {
+                std::cout << acutal_host_block.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
 
         if (relative_block_idx == block_count - 1) {
             callback.set_last_iteration(true);
@@ -691,6 +707,14 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                                                        send_count,
                                                        { next_event });
             comm.sendrecv_replace(send_train_block, prev_node, next_node).wait();
+            auto host_block2 = current_block.to_host(queue);
+            std::cout << "current_block after sendrecv_replace (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
+            for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block2.get_dimension(0)); ++row) {
+                for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block2.get_dimension(1)); ++col) {
+                    std::cout << host_block2.at(row, col) << " ";
+                }
+                std::cout << std::endl;
+            }
             train_block_queue.emplace_back(current_block);
             if (ropts.test(result_options::responses)) {
                 auto send_resps_block = array<res_t>::wrap(queue,
