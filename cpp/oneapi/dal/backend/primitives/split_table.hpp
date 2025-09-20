@@ -94,6 +94,14 @@ inline auto& split_table_inplace(sycl::queue& queue,
 
     uniform_blocking blocking{ row_count, block };
     const auto blk_count = blocking.get_block_count();
+    auto all_rows = accessor.pull({ 0, row_count });
+    std::cout << "Input table (first 3 rows):" << std::endl;
+    for (std::int64_t row = 0; row < std::min<std::int64_t>(3, row_count); ++row) {
+        for (std::int64_t col = 0; col < std::min<std::int64_t>(3, col_count); ++col) {
+            std::cout << all_rows[row * col_count + col] << " ";
+        }
+        std::cout << std::endl;
+    }
 
     event_vector events(blk_count);
     for (std::int64_t b = 0; b < blk_count; ++b) {
@@ -115,6 +123,17 @@ inline auto& split_table_inplace(sycl::queue& queue,
     }
 
     sycl::event::wait_and_throw(events);
+    // Debug print: show first few rows/cols of each block
+    for (std::size_t b = 0; b < container.size(); ++b) {
+        auto host_tmp = container[b].to_host(queue);
+        std::cout << "split_table SYCL block " << b << " (first 3 rows):" << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_tmp.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_tmp.get_dimension(1)); ++col) {
+                std::cout << host_tmp.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
 
     return container;
 }
