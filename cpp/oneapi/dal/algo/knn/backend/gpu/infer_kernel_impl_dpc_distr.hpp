@@ -542,6 +542,18 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     ONEDAL_ASSERT(block_count + 1 == bounds_size);
 
     auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
+    // Print train blocks before the loop
+    if (!train_block_queue.empty()) {
+        auto block = train_block_queue.front();
+        auto host_block3 = block.to_host(queue);
+        std::cout << "first train block right after split_table (first 5 rows):" << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block3.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block3.get_dimension(1)); ++col) {
+                std::cout << host_block3.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
     auto tresps_queue = pr::split_table<res_t>(queue, tresps, block_size);
     std::int64_t tbq_size = train_block_queue.size();
     std::int64_t trq_size = tresps_queue.size();
