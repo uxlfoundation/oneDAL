@@ -3,7 +3,6 @@
 #include <random>
 #include <vector>
 
-
 void print_device_name(sycl::queue& queue) {
     const auto device = queue.get_device();
     const auto device_name = device.get_info<sycl::info::device::name>();
@@ -11,7 +10,7 @@ void print_device_name(sycl::queue& queue) {
 }
 
 namespace oneapi::dal::backend::primitives {
-  struct csr_graph_data {
+struct csr_graph_data {
     std::vector<std::uint32_t> row_ptr;
     std::vector<std::uint32_t> col_indices;
     std::vector<std::uint32_t> weights;
@@ -26,8 +25,9 @@ csr_graph_data generate_random_graph(std::size_t vertex_count,
 
     std::mt19937 rng(seed);
     std::bernoulli_distribution edge_dist(edge_probability);
-    std::uniform_int_distribution<std::uint32_t> vertex_dist(0,
-                                                             static_cast<std::uint32_t>(vertex_count - 1));
+    std::uniform_int_distribution<std::uint32_t> vertex_dist(
+        0,
+        static_cast<std::uint32_t>(vertex_count - 1));
 
     std::vector<std::uint32_t> row_ptr(vertex_count + 1, 0);
     std::vector<std::uint32_t> col_indices;
