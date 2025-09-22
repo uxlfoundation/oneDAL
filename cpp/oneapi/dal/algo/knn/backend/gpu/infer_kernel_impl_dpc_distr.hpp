@@ -541,7 +541,7 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     std::int64_t bounds_size = boundaries.size();
     ONEDAL_ASSERT(block_count + 1 == bounds_size);
 
-    auto train_block_queue = pr::split_table<Float>(queue, train, block_size, de::limits<Float>::max(), sycl::usm::alloc::shared);
+    auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
     // Print train blocks before the loop
     if (!train_block_queue.empty()) {
         auto block = train_block_queue.front();
