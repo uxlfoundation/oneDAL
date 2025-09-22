@@ -199,7 +199,7 @@ jobs:
           conda config --set channel_priority strict
           conda update -y -q conda python
       - name: Conda create
-        run: conda create -y -q -n build-env conda-build conda-verify
+        run: conda create -y -q -n build-env conda-build
       - name: Conda build and test
         run: |
           . /usr/share/miniconda/etc/profile.d/conda.sh

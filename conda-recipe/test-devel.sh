@@ -22,25 +22,25 @@ source $CONDA_PREFIX/env/vars.sh
 
 run_examples() {
     local example_type=$1
-    echo "Building and running $example_type examples"
+    echo "Building and running  examples"
 
-    cd examples/$example_type/cpp
-    mkdir build
-    cd build
+    (
+        cd examples/$example_type/cpp
+        mkdir build
 
-    cmake .. -DONEDAL_LINK=dynamic
-    make -j$(nproc)
+        (
+            cd build
+            cmake .. -DONEDAL_LINK=dynamic
+            make -j$(nproc)
+        )
 
-    cd ..
-
-    for example in _cmake_results/intel_intel64_so/*; do
-        echo "================"
-        echo "Running example: $(basename $example)"
-        echo "================"
-        $example
-    done
-
-    cd ../../..
+        for example in _cmake_results/intel_intel64_so/*; do
+            echo "================"
+            echo "Running example: $example_type/$(basename $example)"
+            echo "================"
+            $example
+        done
+    )
 }
 
 run_examples "oneapi"
