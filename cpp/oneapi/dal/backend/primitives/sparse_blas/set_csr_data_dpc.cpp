@@ -34,15 +34,15 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(data.get_count());
     ONEDAL_ASSERT(column_indices.get_count());
     ONEDAL_ASSERT(row_offsets.get_count() == row_count + 1);
-    return mkl::sparse::set_csr_data(queue,
-                                     dal::detail::get_impl(handle).get(),
-                                     row_count,
-                                     column_count,
-                                     sparse_indexing_to_mkl(indexing),
-                                     const_cast<std::int64_t *>(row_offsets.get_data()),
-                                     const_cast<std::int64_t *>(column_indices.get_data()),
-                                     const_cast<Float *>(data.get_data()),
-                                     deps);
+    return oneapi::mkl::sparse::set_csr_data(queue,
+                                             dal::detail::get_impl(handle).get(),
+                                             row_count,
+                                             column_count,
+                                             sparse_indexing_to_mkl(indexing),
+                                             const_cast<std::int64_t *>(row_offsets.get_data()),
+                                             const_cast<std::int64_t *>(column_indices.get_data()),
+                                             const_cast<Float *>(data.get_data()),
+                                             deps);
 }
 
 template <typename Float>
@@ -58,15 +58,15 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(data);
     ONEDAL_ASSERT(column_indices);
     ONEDAL_ASSERT(row_offsets);
-    return mkl::sparse::set_csr_data(queue,
-                                     dal::detail::get_impl(handle).get(),
-                                     row_count,
-                                     column_count,
-                                     sparse_indexing_to_mkl(indexing),
-                                     const_cast<std::int64_t *>(row_offsets),
-                                     const_cast<std::int64_t *>(column_indices),
-                                     const_cast<Float *>(data),
-                                     deps);
+    return oneapi::mkl::sparse::set_csr_data(queue,
+                                             dal::detail::get_impl(handle).get(),
+                                             row_count,
+                                             column_count,
+                                             sparse_indexing_to_mkl(indexing),
+                                             const_cast<std::int64_t *>(row_offsets),
+                                             const_cast<std::int64_t *>(column_indices),
+                                             const_cast<Float *>(data),
+                                             deps);
 }
 
 sycl::event set_csr_data(sycl::queue &queue,
