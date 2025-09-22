@@ -42,28 +42,30 @@ void print_frontier(const T* data, size_t count, size_t num_items) {
     }
 }
 
-std::set<uint32_t> compute_next_frontier(std::vector<uint32_t>& row_ptr,
-                                          std::vector<uint32_t>& col_indices,
-                                          std::set<uint32_t>& frontier) {
-    std::set<uint32_t> next_frontier;
+std::vector<bool> compute_next_frontier(std::vector<uint32_t>& row_ptr,
+                                        std::vector<uint32_t>& col_indices,
+                                        std::vector<bool>& frontier) {
+    std::vector<bool> next_frontier(frontier.size(), false);
 
-    for (auto node : frontier) {
+    for (size_t node = 0; node < frontier.size(); ++node) {
+        if (!frontier[node]) continue;
+
         auto start = row_ptr[node];
         auto end = row_ptr[node + 1];
 
         for (size_t i = start; i < end; ++i) {
             auto neighbor = col_indices[i];
-            next_frontier.insert(neighbor);
+            next_frontier[neighbor] = true;
         }
     }
     return next_frontier;
 }
 
 template <typename T>
-void compare_frontiers(T& device_frontier, std::set<uint32_t>& host_frontier, size_t num_nodes) {
+void compare_frontiers(T& device_frontier, std::vector<bool>& host_frontier, size_t num_nodes) {
     for (size_t i = 0; i < num_nodes; ++i) {
         bool tmpd = device_frontier.check(i);
-        bool tmph = host_frontier.find(i) != host_frontier.end();
+        bool tmph = host_frontier[i];
         if (tmpd != tmph) {
             std::cout << "Mismatch at vertex " << i << ": device = " << tmpd << ", host = " << tmph
                       << std::endl;
@@ -131,7 +133,11 @@ TEST("test advance operation", "[advance]") {
     in_frontier.insert(4);
     in_frontier.insert(52);
     in_frontier.insert(100);
-    std::set<std::uint32_t> host_frontier = { 3, 4, 52, 100 };
+    std::vector<bool> host_frontier(num_nodes, false);
+    host_frontier[3] = true;
+    host_frontier[4] = true;
+    host_frontier[52] = true;
+    host_frontier[100] = true;
 
     pr::advance(graph,
                 in_frontier,
