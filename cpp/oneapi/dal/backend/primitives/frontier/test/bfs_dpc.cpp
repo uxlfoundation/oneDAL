@@ -17,14 +17,11 @@
 *******************************************************************************/
 
 #include "oneapi/dal/backend/primitives/frontier.hpp"
-
 #include "oneapi/dal/test/engine/common.hpp"
-#include "oneapi/dal/test/engine/fixtures.hpp"
-#include "oneapi/dal/test/engine/dataframe.hpp"
+
 #include <queue>
 #include <vector>
 #include <map>
-#include <chrono>
 
 namespace oneapi::dal::backend::primitives::test {
 
@@ -61,7 +58,7 @@ std::vector<std::uint32_t> host_bfs(std::vector<T>& row_offsets,
     return distances;
 }
 
-TEST("test advance operation", "[advance]") {
+TEST("test BFS", "[bfs]") {
     DECLARE_TEST_POLICY(policy);
     auto& queue = policy.get_queue();
     print_device_name(queue);
