@@ -42,10 +42,10 @@ void print_frontier(const T* data, size_t count, size_t num_items) {
     }
 }
 
-std::vector<uint32_t> compute_next_frontier(std::vector<uint32_t>& row_ptr,
-                                            std::vector<uint32_t>& col_indices,
-                                            std::vector<uint32_t>& frontier) {
-    std::vector<uint32_t> next_frontier;
+std::set<uint32_t> compute_next_frontier(std::vector<uint32_t>& row_ptr,
+                                          std::vector<uint32_t>& col_indices,
+                                          std::set<uint32_t>& frontier) {
+    std::set<uint32_t> next_frontier;
 
     for (auto node : frontier) {
         auto start = row_ptr[node];
@@ -53,21 +53,17 @@ std::vector<uint32_t> compute_next_frontier(std::vector<uint32_t>& row_ptr,
 
         for (size_t i = start; i < end; ++i) {
             auto neighbor = col_indices[i];
-            next_frontier.push_back(neighbor);
+            next_frontier.insert(neighbor);
         }
     }
-    // Remove duplicates
-    std::sort(next_frontier.begin(), next_frontier.end());
-    next_frontier.erase(std::unique(next_frontier.begin(), next_frontier.end()),
-                        next_frontier.end());
     return next_frontier;
 }
 
 template <typename T>
-void compare_frontiers(T& device_frontier, std::vector<uint32_t>& host_frontier, size_t num_nodes) {
+void compare_frontiers(T& device_frontier, std::set<uint32_t>& host_frontier, size_t num_nodes) {
     for (size_t i = 0; i < num_nodes; ++i) {
         bool tmpd = device_frontier.check(i);
-        bool tmph = std::find(host_frontier.begin(), host_frontier.end(), i) != host_frontier.end();
+        bool tmph = host_frontier.find(i) != host_frontier.end();
         if (tmpd != tmph) {
             std::cout << "Mismatch at vertex " << i << ": device = " << tmpd << ", host = " << tmph
                       << std::endl;
@@ -81,9 +77,6 @@ TEST("test advance operation", "[advance]") {
     auto& queue = policy.get_queue();
     print_device_name(queue);
 
-    // std::vector<std::uint32_t> row_ptr = {0, 2, 4, 6};
-    // std::vector<std::uint32_t> col_indices = {1, 2, 0, 2, 0, 1};
-    // std::vector<std::uint32_t> weights = {1, 1, 1, 1, 1, 1};
     std::vector<std::uint32_t> row_ptr = {
         0,   2,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,  49,  53,  57,  61,
         65,  69,  73,  77,  81,  85,  89,  93,  97,  101, 105, 109, 113, 117, 121, 125, 129,
@@ -138,7 +131,7 @@ TEST("test advance operation", "[advance]") {
     in_frontier.insert(4);
     in_frontier.insert(52);
     in_frontier.insert(100);
-    std::vector<std::uint32_t> host_frontier = { 3, 4, 52, 100 };
+    std::set<std::uint32_t> host_frontier = { 3, 4, 52, 100 };
 
     pr::advance(graph,
                 in_frontier,
