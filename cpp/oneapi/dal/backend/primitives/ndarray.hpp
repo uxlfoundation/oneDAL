@@ -645,6 +645,11 @@ inline sycl::event copy(sycl::queue& q,
         const auto dst_stride = dst.get_leading_stride();
         const auto src_stride = src.get_leading_stride();
         const auto cp_range = make_range_2d(dst_shape[0], dst_shape[1]);
+        std::cout << "[copy SYCL] dst_ptr: " << static_cast<void*>(dst_ptr)
+              << " src_ptr: " << static_cast<const void*>(src_ptr)
+              << " dst_stride: " << dst_stride
+              << " src_stride: " << src_stride
+              << " shape: (" << dst_shape[0] << ", " << dst_shape[1] << ")" << std::endl;
         res_event = q.submit([&](sycl::handler& h) {
             h.depends_on(deps);
             h.parallel_for(cp_range, [=](sycl::id<2> idx) {
@@ -701,6 +706,10 @@ inline sycl::event fill(sycl::queue& q,
         const ndshape<2> dst_shape = dst.get_shape();
         const auto dst_stride = dst.get_leading_stride();
         const auto fl_range = make_range_2d(dst_shape[0], dst_shape[1]);
+        std::cout << "[fill SYCL] dst_ptr: " << static_cast<void*>(dst_ptr)
+              << " value: " << value
+              << " dst_stride: " << dst_stride
+              << " shape: (" << dst_shape[0] << ", " << dst_shape[1] << ")" << std::endl;
         res_event = q.submit([&](sycl::handler& h) {
             h.depends_on(deps);
             h.parallel_for(fl_range, [=](sycl::id<2> idx) {

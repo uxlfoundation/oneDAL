@@ -125,23 +125,6 @@ inline auto& split_table_inplace(sycl::queue& queue,
         auto tmp_slice = tmp.get_row_slice(0, len);
 
         auto fevent = len != block ? fill(queue, tmp, default_value) : sycl::event{};
-        fevent.wait_and_throw();
-        auto host_tmp = tmp.to_host(queue);
-        std::cout << "tmp (first 3 rows):" << std::endl;
-        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_tmp.get_dimension(0)); ++row) {
-            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_tmp.get_dimension(1)); ++col) {
-                std::cout << host_tmp.at(row, col) << " ";
-            }
-            std::cout << std::endl;
-        }
-        auto host_slice = tmp_slice.to_host(queue);
-        std::cout << "tmp_slice (first 3 rows):" << std::endl;
-        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_slice.get_dimension(0)); ++row) {
-            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_slice.get_dimension(1)); ++col) {
-                std::cout << host_slice.at(row, col) << " ";
-            }
-            std::cout << std::endl;
-        }
 
         events.at(b) = copy(queue, tmp_slice, raw_view, { fevent });
 
