@@ -43,7 +43,8 @@ std::vector<bool> compute_next_frontier(const std::vector<std::uint32_t>& row_pt
     std::vector<bool> next_frontier(frontier.size(), false);
 
     for (size_t node = 0; node < frontier.size(); ++node) {
-        if (!frontier[node]) continue;
+        if (!frontier[node])
+            continue;
 
         auto start = row_ptr[node];
         auto end = row_ptr[node + 1];
@@ -81,7 +82,8 @@ TEST("test advance operation", "[advance]") {
     const std::size_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
-    auto graph = pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
+    auto graph =
+        pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
     auto in_frontier =
         pr::frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
     auto out_frontier =
@@ -99,7 +101,9 @@ TEST("test advance operation", "[advance]") {
     }
 
     if (in_frontier.empty()) {
-        std::uniform_int_distribution<std::uint32_t> vertex_dist(0, static_cast<std::uint32_t>(num_nodes - 1));
+        std::uniform_int_distribution<std::uint32_t> vertex_dist(
+            0,
+            static_cast<std::uint32_t>(num_nodes - 1));
         const auto fallback_vertex = vertex_dist(frontier_rng);
         in_frontier.insert(fallback_vertex);
         host_frontier[fallback_vertex] = true;
@@ -113,7 +117,8 @@ TEST("test advance operation", "[advance]") {
                 })
         .wait_and_throw();
 
-    auto tmp_frontier = compute_next_frontier(graph_data.row_ptr, graph_data.col_indices, host_frontier);
+    auto tmp_frontier =
+        compute_next_frontier(graph_data.row_ptr, graph_data.col_indices, host_frontier);
     compare_frontiers(out_frontier, tmp_frontier, num_nodes);
 } // TEST "test advance operation"
 

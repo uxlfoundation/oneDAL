@@ -63,7 +63,8 @@ TEST("test BFS", "[bfs]") {
     const std::size_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
-    auto graph = pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
+    auto graph =
+        pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
     auto in_frontier = pr::frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
     auto out_frontier = pr::frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
     pr::ndarray<std::uint32_t, 1> distance =
@@ -104,7 +105,8 @@ TEST("test BFS", "[bfs]") {
     }
     /// End BFS
 
-    auto expected_distances = host_bfs<std::uint32_t>(graph_data.row_ptr, graph_data.col_indices, src);
+    auto expected_distances =
+        host_bfs<std::uint32_t>(graph_data.row_ptr, graph_data.col_indices, src);
     auto actual_distances = distance.to_host(queue).get_data();
     for (size_t i = 0; i < num_nodes; ++i) {
         REQUIRE(actual_distances[i] == expected_distances[i]);
