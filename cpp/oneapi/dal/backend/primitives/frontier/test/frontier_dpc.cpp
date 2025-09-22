@@ -17,18 +17,12 @@
 *******************************************************************************/
 
 #include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
-
+#include "oneapi/dal/backend/primitives/frontier/test/utils.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 
 namespace oneapi::dal::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
-
-void print_device_name(sycl::queue& queue) {
-    const auto device = queue.get_device();
-    const auto device_name = device.get_info<sycl::info::device::name>();
-    std::cout << "Running on device: " << device_name << std::endl;
-}
 
 template <typename T>
 void print_frontier(const T* data, size_t count, size_t num_items) {
