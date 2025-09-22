@@ -104,18 +104,44 @@ inline auto& split_table_inplace(sycl::queue& queue,
     }
 
     event_vector events(blk_count);
+    std::cout << "BLOCK COUNT and size and default: " << blk_count << " " << block << " " << default_value << std::endl;
     for (std::int64_t b = 0; b < blk_count; ++b) {
         const auto f_row = blocking.get_block_start_index(b);
         const auto l_row = blocking.get_block_end_index(b);
         const auto len = l_row - f_row;
+        std::cout << "BLOCK INDEX: " << b <<  " start and end incides: " << f_row << " " << l_row << std::endl;
 
         const auto raw_array = accessor.pull(queue, { f_row, l_row }, kind);
         const auto raw_view = ndview<T, 2>::wrap(raw_array.get_data(), { len, col_count });
-
+        auto host_raw_view = raw_view.to_host(queue);
+        std::cout << "raw_view (host) for block " << b << " (first 3 rows):" << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_raw_view.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_raw_view.get_dimension(1)); ++col) {
+                std::cout << host_raw_view.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
         auto tmp = ndarray<T, 2, order>::empty(queue, { block, col_count }, kind);
         auto tmp_slice = tmp.get_row_slice(0, len);
 
         auto fevent = len != block ? fill(queue, tmp, default_value) : sycl::event{};
+        fevent.wait_and_throw();
+        auto host_tmp = tmp.to_host(queue);
+        std::cout << "tmp (first 3 rows):" << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_tmp.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_tmp.get_dimension(1)); ++col) {
+                std::cout << host_tmp.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
+        auto host_slice = tmp_slice.to_host(queue);
+        std::cout << "tmp_slice (first 3 rows):" << std::endl;
+        for (std::int64_t row = 0; row < std::min<std::int64_t>(3, host_slice.get_dimension(0)); ++row) {
+            for (std::int64_t col = 0; col < std::min<std::int64_t>(3, host_slice.get_dimension(1)); ++col) {
+                std::cout << host_slice.at(row, col) << " ";
+            }
+            std::cout << std::endl;
+        }
 
         events.at(b) = copy(queue, tmp_slice, raw_view, { fevent });
 
