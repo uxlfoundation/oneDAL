@@ -17,6 +17,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/backend/primitives/frontier.hpp"
+#include "oneapi/dal/backend/primitives/frontier/test/utils.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 
 #include <queue>
@@ -27,16 +28,10 @@ namespace oneapi::dal::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
 
-void print_device_name(sycl::queue& queue) {
-    const auto device = queue.get_device();
-    const auto device_name = device.get_info<sycl::info::device::name>();
-    std::cout << "Running on device: " << device_name << std::endl;
-}
-
 template <typename T>
-std::vector<std::uint32_t> host_bfs(std::vector<T>& row_offsets,
-                                    std::vector<T>& col_indices,
-                                    T src) {
+std::vector<std::uint32_t> host_bfs(const std::vector<T>& row_offsets,
+                                    const std::vector<T>& col_indices,
+                                    const T src) {
     std::vector<std::uint32_t> distances(row_offsets.size() - 1,
                                          std::numeric_limits<std::uint32_t>::max());
     std::queue<T> q;
