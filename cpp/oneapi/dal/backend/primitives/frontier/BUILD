@@ -17,6 +17,9 @@ dal_test_suite (
     framework = "catch2",
     compile_as = [ "dpc++" ],
     private = True,
+    hdrs = glob([
+        "test/*.hpp",
+    ]),
     srcs = glob([
         "test/*_dpc.cpp",
     ], exclude=[
