@@ -99,6 +99,7 @@ inline auto& split_table_inplace(sycl::queue& queue,
         const auto f_row = blocking.get_block_start_index(b);
         const auto l_row = blocking.get_block_end_index(b);
         const auto len = l_row - f_row;
+
         const auto raw_array = accessor.pull(queue, { f_row, l_row }, kind);
         const auto raw_view = ndview<T, 2>::wrap(raw_array.get_data(), { len, col_count });
 
@@ -106,7 +107,7 @@ inline auto& split_table_inplace(sycl::queue& queue,
         auto tmp_slice = tmp.get_row_slice(0, len);
 
         auto fevent = len != block ? fill(queue, tmp, default_value) : sycl::event{};
-        
+
         // Small hotfix to call wait_and_throw inside the loop
         // Investigation issue with creating an event_vector and calling wait_and_throw outside loop is needed
         copy(queue, tmp_slice, raw_view, { fevent }).wait_and_throw();
