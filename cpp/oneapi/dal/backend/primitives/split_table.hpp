@@ -103,8 +103,6 @@ inline auto& split_table_inplace(sycl::queue& queue,
         std::cout << std::endl;
     }
 
-    // event_vector events(blk_count);
-    event_vector events;
     std::cout << "BLOCK COUNT and size and default: " << blk_count << " " << block << " " << default_value << std::endl;
     for (std::int64_t b = 0; b < blk_count; ++b) {
         const auto f_row = blocking.get_block_start_index(b);
@@ -126,14 +124,12 @@ inline auto& split_table_inplace(sycl::queue& queue,
         auto tmp_slice = tmp.get_row_slice(0, len);
 
         auto fevent = len != block ? fill(queue, tmp, default_value) : sycl::event{};
-
-        // events.at(b) = copy(queue, tmp_slice, raw_view, { fevent });
-        events.push_back(copy(queue, tmp_slice, raw_view, { fevent }));
-        // copy(queue, tmp_slice, raw_view, { fevent }).wait_and_throw();
+        
+        // Small hotfix to call wait_and_throw inside the loop
+        // Investigation issue with creating an event_vector and calling wait_and_throw outside loop is needed
+        copy(queue, tmp_slice, raw_view, { fevent }).wait_and_throw();
         container.push_back(std::move(tmp));
     }
-    sycl::event::wait_and_throw(events);
-    // wait_or_pass(events);
 
     // Debug print: show first few rows/cols of each block
     for (std::size_t b = 0; b < container.size(); ++b) {
