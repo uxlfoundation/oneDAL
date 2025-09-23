@@ -22,6 +22,8 @@
 #include "oneapi/dal/backend/primitives/sparse_blas/misc.hpp"
 #include "oneapi/dal/backend/primitives/sparse_blas/handle.hpp"
 
+#include <mkl_version.h>
+
 namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
