@@ -209,25 +209,11 @@ static infer_result<Task> kernel(const descriptor_t<Task>& desc,
     if (desc.get_result_options().test(result_options::indices)) {
         result =
             result.set_indices(homogen_table::wrap(arr_indices, infer_row_count, neighbor_count));
-        const auto indices_table = result.get_indices();
-        auto indices = row_accessor<const idx_t>(indices_table).pull();
-        std::cout << "Indices (final): ";
-        for (std::int64_t i = 0; i < std::min<std::int64_t>(30, indices.get_count()); ++i) {
-            std::cout << indices[i] << " ";
-        }
-        std::cout << std::endl;
     }
 
     if (desc.get_result_options().test(result_options::distances)) {
         result = result.set_distances(
             homogen_table::wrap(arr_distances, infer_row_count, neighbor_count));
-        const auto distances_table = result.get_distances();
-        auto distances = row_accessor<const Float>(distances_table).pull();
-        std::cout << "Distances (final): ";
-        for (std::int64_t i = 0; i < std::min<std::int64_t>(30, distances.get_count()); ++i) {
-            std::cout << distances[i] << " ";
-        }
-        std::cout << std::endl;
     }
 
     return result;

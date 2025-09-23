@@ -289,30 +289,6 @@ public:
                 copy_sqrt_event =
                     copy_with_sqrt(queue_, min_dist_dest, min_dist_dest, { select_indc_event });
             }
-
-            // Print distances and indices for debugging
-            if (result_options_.test(result_options::distances)) {
-                [[maybe_unused]] auto host_distances = distances_.to_host(queue_);
-                std::cout << "Distances (operator): ";
-                for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_distances.get_dimension(0)); ++row) {
-                    for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_distances.get_dimension(1)); ++col) {
-                        std::cout << host_distances.at(row, col) << " ";
-                    }
-                    std::cout << std::endl;
-                }
-                std::cout << std::endl;
-            }
-            if (result_options_.test(result_options::indices)) {
-                [[maybe_unused]] auto host_indices = indices_.to_host(queue_);
-                std::cout << "Indices (operator): ";
-                for (std::int64_t row = 0; row < std::min<std::int64_t>(10, host_indices.get_dimension(0)); ++row) {
-                    for (std::int64_t col = 0; col < std::min<std::int64_t>(10, host_indices.get_dimension(1)); ++col) {
-                        std::cout << host_indices.at(row, col) << " ";
-                    }
-                    std::cout << std::endl;
-                }
-                std::cout << std::endl;
-            }
             if (result_options_.test(result_options::responses)) {
                 return this->output_responses(bounds,
                                               indices_,
@@ -542,18 +518,6 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
     ONEDAL_ASSERT(block_count + 1 == bounds_size);
 
     auto train_block_queue = pr::split_table<Float>(queue, train, block_size);
-    // Print train blocks before the loop
-    if (!train_block_queue.empty()) {
-        auto block = train_block_queue.front();
-        auto host_block3 = block.to_host(queue);
-        std::cout << "first train block right after split_table (first 5 rows):" << std::endl;
-        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block3.get_dimension(0)); ++row) {
-            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block3.get_dimension(1)); ++col) {
-                std::cout << host_block3.at(row, col) << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
     auto tresps_queue = pr::split_table<res_t>(queue, tresps, block_size);
     std::int64_t tbq_size = train_block_queue.size();
     std::int64_t trq_size = tresps_queue.size();
@@ -628,14 +592,6 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
          ++relative_block_idx) {
         auto current_block = train_block_queue.front();
         train_block_queue.pop_front();
-        auto host_block = current_block.to_host(queue);
-        std::cout << "current_block (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
-        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block.get_dimension(0)); ++row) {
-            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block.get_dimension(1)); ++col) {
-                std::cout << host_block.at(row, col) << " ";
-            }
-            std::cout << std::endl;
-        }
         ONEDAL_ASSERT(current_block.has_data());
 
         auto absolute_block_idx = (relative_block_idx + relative_block_offset) % block_count;
@@ -659,14 +615,6 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
         }
 
         callback.set_global_index_offset(boundaries.at(absolute_block_idx));
-        auto acutal_host_block = actual_current_block.to_host(queue);
-        std::cout << "actual_current_block (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
-        for (std::int64_t row = 0; row < std::min<std::int64_t>(5, acutal_host_block.get_dimension(0)); ++row) {
-            for (std::int64_t col = 0; col < std::min<std::int64_t>(5, acutal_host_block.get_dimension(1)); ++col) {
-                std::cout << acutal_host_block.at(row, col) << " ";
-            }
-            std::cout << std::endl;
-        }
 
         if (relative_block_idx == block_count - 1) {
             callback.set_last_iteration(true);
@@ -719,14 +667,6 @@ sycl::event bf_kernel_distr(sycl::queue& queue,
                                                        send_count,
                                                        { next_event });
             comm.sendrecv_replace(send_train_block, prev_node, next_node).wait();
-            auto host_block2 = current_block.to_host(queue);
-            std::cout << "current_block after sendrecv_replace (first 5 rows) on rank " << current_rank << " and iteration " << relative_block_idx << std::endl;
-            for (std::int64_t row = 0; row < std::min<std::int64_t>(5, host_block2.get_dimension(0)); ++row) {
-                for (std::int64_t col = 0; col < std::min<std::int64_t>(5, host_block2.get_dimension(1)); ++col) {
-                    std::cout << host_block2.at(row, col) << " ";
-                }
-                std::cout << std::endl;
-            }
             train_block_queue.emplace_back(current_block);
             if (ropts.test(result_options::responses)) {
                 auto send_resps_block = array<res_t>::wrap(queue,
