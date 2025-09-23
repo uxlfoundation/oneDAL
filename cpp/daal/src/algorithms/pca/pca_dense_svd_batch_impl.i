@@ -284,7 +284,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     PRAGMA_OMP_SIMD
     for (size_t j = 0; j < nFeatures; j++)
     {
-        non_zero_sigma_total[j] = (inv_sigma_total[j] > 0.0) ? 1.0 : 0.0;
+        non_zero_sigma_total[j] = algorithmFPType(inv_sigma_total[j] > 0.0);
     }
     size_t iOne = 1;
     daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(nFeatures, inv_sigma_total.get(), iOne, inv_sigma_total.get(), iOne);

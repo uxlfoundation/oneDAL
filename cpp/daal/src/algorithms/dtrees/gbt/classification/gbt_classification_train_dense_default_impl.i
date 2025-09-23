@@ -135,6 +135,8 @@ public:
         const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
         daal::TlsMem<algorithmFPType, cpu> lsData(_nClasses);
         daal::threader_for(n, n, [&](size_t i) {
+            constexpr algorithmFPType one(1.0);
+            constexpr algorithmFPType two(2.0);
             algorithmFPType buf[s_cMaxClassesBufSize];
             algorithmFPType * p  = bUseTLS ? lsData.local() : buf;
             const size_t iSample = (sampleInd ? sampleInd[i] : i);
@@ -145,8 +147,8 @@ public:
             {
                 const algorithmFPType pk = p[k];
                 algorithmFPType * gh_ik  = gh + 2 * (k * nRows + iSample);
-                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - algorithmFPType(1.)) : pk; // gradient
-                gh_ik[1]                 = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);       // hessian
+                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - one) : pk; // gradient
+                gh_ik[1]                 = two * pk * (one - pk);                       // hessian
             }
         });
     }

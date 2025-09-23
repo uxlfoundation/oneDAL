@@ -66,7 +66,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     PRAGMA_OMP_SIMD_ARGS(reduction(+ : dotProduct))
     for (size_t i = 0; i < nFeatures; i++)
     {
-        dataR[0] += dataA1[i] * dataA2[i];
+        dotProduct += dataA1[i] * dataA2[i];
     }
     dataR[0] = dotProduct * par->scale + par->shift;
 

@@ -83,7 +83,7 @@ inline void OutlierDetectionKernel<algorithmFPType, method, cpu>::mahalanobisDis
         {
             distanceValue += dataCenPtr[j] * dataCenInvScatterPtr[j];
         }
-        distance[i] = distanceValue;
+        distance[i] += distanceValue;
     }
 }
 
