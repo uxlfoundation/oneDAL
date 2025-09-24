@@ -130,7 +130,6 @@ if [ "${cross_compile}" == "yes" ]; then
     cmake_options=(-DCMAKE_TOOLCHAIN_FILE="${toolchain_file}"
       -DCMAKE_BUILD_TYPE=Release
       -DTBB_TEST=OFF
-      -DTBB_STRICT_PROTOTYPES=OFF
       -DCMAKE_INSTALL_PREFIX="${tbb_prefix}"
       "${tbb_src}"
     )
@@ -146,7 +145,6 @@ else
       -DCMAKE_C_COMPILER="${CC}"
       -DCMAKE_BUILD_TYPE=Release
       -DTBB_TEST=OFF
-      -DTBB_STRICT_PROTOTYPES=OFF
       -DCMAKE_INSTALL_PREFIX="${tbb_prefix}"
       "${tbb_src}"
     )
