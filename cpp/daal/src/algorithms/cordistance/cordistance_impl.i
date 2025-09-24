@@ -82,13 +82,22 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
 
     algorithmFPType * diag = sum; // reuse sum array for diagonal elements
 
+    TArrayCalloc<algorithmFPType, cpu> positiveDiagonal(blockSize); // 0.0 if diagonal element is negative, 1.0 otherwise
+
+    PRAGMA_OMP_SIMD
     for (size_t i = 0; i < blockSize; i++)
     {
-        if (block[i * blockSize + i] > (algorithmFPType)0.0)
-        {
-            block[i * blockSize + i] = (algorithmFPType)1.0 / daal::internal::MathInst<algorithmFPType, cpu>::sSqrt(block[i * blockSize + i]);
-        }
-        diag[i] = block[i * blockSize + i];
+        positiveDiagonal[i] = algorithmFPType(block[i * blockSize + i] > (algorithmFPType)0.0);
+    }
+
+    constexpr size_t iOne       = 1;
+    const size_t diagonalStride = blockSize + 1;
+    daal::internal::MathInst<algorithmFPType, cpu>::vInvSqrtI(blockSize, block, diagonalStride, diag, iOne);
+
+    PRAGMA_OMP_SIMD
+    for (size_t i = 0; i < blockSize; i++)
+    {
+        diag[i] *= positiveDiagonal[i];
     }
 
     if constexpr (upper)

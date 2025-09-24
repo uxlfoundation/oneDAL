@@ -160,9 +160,9 @@ protected:
     {
         DAAL_INT iRowSplitVal = -1;
 
-        constexpr size_t maxNBlocks  = 56;
-        constexpr size_t sizeOfBlock = 2048;
-        size_t nBlocks               = n / sizeOfBlock;
+        constexpr size_t maxNBlocks = 56;
+        size_t sizeOfBlock          = 2048;
+        size_t nBlocks              = n / sizeOfBlock;
         nBlocks += !!(n - nBlocks * sizeOfBlock);
 
         if (nBlocks > maxNBlocks)
