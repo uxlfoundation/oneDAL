@@ -108,7 +108,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
             dotProduct += dataA1[i * nFeatures + j] * dataA2[j];
         }
         dataR[i] += dotProduct;
-        dataR[i] = k * dotProduct;
+        dataR[i] = k * dataR[i];
     }
 
     if (par->kernelType == KernelType::sigmoid)

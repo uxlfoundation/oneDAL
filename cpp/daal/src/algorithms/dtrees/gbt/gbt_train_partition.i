@@ -160,9 +160,9 @@ protected:
     {
         DAAL_INT iRowSplitVal = -1;
 
-        constexpr size_t maxNBlocks = 56;
-        size_t sizeOfBlock          = 2048;
-        size_t nBlocks              = n / sizeOfBlock;
+        constexpr size_t maxNBlocks  = 56;
+        constexpr size_t sizeOfBlock = 2048;
+        size_t nBlocks               = n / sizeOfBlock;
         nBlocks += !!(n - nBlocks * sizeOfBlock);
 
         if (nBlocks > maxNBlocks)
@@ -183,48 +183,9 @@ protected:
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 
-            constexpr size_t unrollFactor = 32;                             /// Unroll factor for SIMD
-            const IndexType nUnroll       = (iEnd - iStart) / unrollFactor; /// Number of unrolled iterations
-            const IndexType iEndUnroll    = iStart + nUnroll * unrollFactor;
-            bool isRight[unrollFactor];                     /// Array to store the results of the comparison for unrolled loop
-                                                            /// isRight[j] = true if the corresponding observation falls into the right partition,
-                                                            /// isRight[j] = false if it falls into the left partition
-            RowIndexType indexedFeatureBlock[unrollFactor]; /// Block to store the indexed feature values for unrolled loop
             if (featureUnordered)
             {
-                /// The loop implementation is unrolled to improve performance by using SIMD instructions.
-                /// The original loop looks like this:
-                /// for (IndexType i = iStart; i < iEnd; ++i)
-                /// {
-                ///     if (indexedFeature[aIdx[i]] != idxFeatureValueBestSplit)
-                ///         bestSplitIdxRight[iRight++] = aIdx[i];
-                ///     else
-                ///         bestSplitIdx[iLeft++] = aIdx[i];
-                /// }
-                /// The unrolled loop:
-                for (IndexType i = iStart; i < iEndUnroll; i += unrollFactor)
-                {
-                    PRAGMA_OMP_SIMD
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        indexedFeatureBlock[j] = indexedFeature[aIdx[i + j]];
-                    }
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        isRight[j] = (indexedFeatureBlock[j] != idxFeatureValueBestSplit);
-                    }
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        bestSplitIdxRight[iRight] = (isRight[j] ? aIdx[i + j] : bestSplitIdxRight[iRight]);
-                        bestSplitIdx[iLeft]       = (isRight[j] ? bestSplitIdx[iLeft] : aIdx[i + j]);
-                        iRight += (isRight[j] ? 1 : 0);
-                        iLeft += (isRight[j] ? 0 : 1);
-                    }
-                }
-                /// Process the remaining elements
-                for (IndexType i = iEndUnroll; i < iEnd; ++i)
+                for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] != idxFeatureValueBestSplit)
                         bestSplitIdxRight[iRight++] = aIdx[i];
@@ -234,39 +195,7 @@ protected:
             }
             else
             {
-                /// The loop implementation is unrolled to improve performance by using SIMD instructions.
-                /// The original loop looks like this:
-                /// for (IndexType i = iStart; i < iEnd; ++i)
-                /// {
-                ///     if (indexedFeature[aIdx[i]] > idxFeatureValueBestSplit)
-                ///         bestSplitIdxRight[iRight++] = aIdx[i];
-                ///     else
-                ///         bestSplitIdx[iLeft++] = aIdx[i];
-                /// }
-                /// The unrolled loop:
-                for (IndexType i = iStart; i < iEndUnroll; i += unrollFactor)
-                {
-                    PRAGMA_OMP_SIMD
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        indexedFeatureBlock[j] = indexedFeature[aIdx[i + j]];
-                    }
-                    PRAGMA_OMP_SIMD
-                    PRAGMA_VECTOR_ALWAYS
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        isRight[j] = (indexedFeatureBlock[j] > idxFeatureValueBestSplit);
-                    }
-                    for (IndexType j = 0; j < unrollFactor; ++j)
-                    {
-                        bestSplitIdxRight[iRight] = (isRight[j] ? aIdx[i + j] : bestSplitIdxRight[iRight]);
-                        bestSplitIdx[iLeft]       = (isRight[j] ? bestSplitIdx[iLeft] : aIdx[i + j]);
-                        iRight += (isRight[j] ? 1 : 0);
-                        iLeft += (isRight[j] ? 0 : 1);
-                    }
-                }
-                /// Process the remaining elements
-                for (IndexType i = iEndUnroll; i < iEnd; ++i)
+                for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] > idxFeatureValueBestSplit)
                         bestSplitIdxRight[iRight++] = aIdx[i];
