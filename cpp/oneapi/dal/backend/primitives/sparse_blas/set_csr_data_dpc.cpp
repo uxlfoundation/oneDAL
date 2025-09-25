@@ -26,6 +26,7 @@ sycl::event set_csr_data(sycl::queue &queue,
                          sparse_matrix_handle &handle,
                          const std::int64_t row_count,
                          const std::int64_t column_count,
+                         const std::int64_t nnz,
                          dal::sparse_indexing indexing,
                          const dal::array<Float> &data,
                          const dal::array<std::int64_t> &column_indices,
@@ -35,7 +36,6 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(column_indices.get_count());
     ONEDAL_ASSERT(row_offsets.get_count() == row_count + 1);
 #if INTEL_MKL_VERSION >= 20250300
-    std::int64_t nnz = row_offsets[row_count] - row_offsets[0];
     return oneapi::mkl::sparse::set_csr_data(queue,
                                              dal::detail::get_impl(handle).get(),
                                              row_count,
@@ -64,6 +64,7 @@ sycl::event set_csr_data(sycl::queue &queue,
                          sparse_matrix_handle &handle,
                          const std::int64_t row_count,
                          const std::int64_t column_count,
+                         const std::int64_t nnz,
                          dal::sparse_indexing indexing,
                          const Float *data,
                          const std::int64_t *column_indices,
@@ -73,7 +74,6 @@ sycl::event set_csr_data(sycl::queue &queue,
     ONEDAL_ASSERT(column_indices);
     ONEDAL_ASSERT(row_offsets);
 #if INTEL_MKL_VERSION >= 20250300
-    std::int64_t nnz = row_offsets[row_count] - row_offsets[0];
     return oneapi::mkl::sparse::set_csr_data(queue,
                                              dal::detail::get_impl(handle).get(),
                                              row_count,
@@ -110,6 +110,7 @@ sycl::event set_csr_data(sycl::queue &queue,
                             handle,
                             table.get_row_count(),
                             table.get_column_count(),
+                            table.get_non_zero_count(),
                             table.get_indexing(),
                             table.get_data<float>(),
                             table.get_column_indices(),
@@ -121,6 +122,7 @@ sycl::event set_csr_data(sycl::queue &queue,
                             handle,
                             table.get_row_count(),
                             table.get_column_count(),
+                            table.get_non_zero_count(),
                             table.get_indexing(),
                             table.get_data<double>(),
                             table.get_column_indices(),
@@ -136,6 +138,7 @@ sycl::event set_csr_data(sycl::queue &queue,
         sparse_matrix_handle & handle,                                                     \
         const std::int64_t row_count,                                                      \
         const std::int64_t column_count,                                                   \
+        const std::int64_t nnz,                                                            \
         dal::sparse_indexing indexing,                                                     \
         const dal::array<F> &data,                                                         \
         const dal::array<std::int64_t> &column_indices,                                    \
@@ -146,6 +149,7 @@ sycl::event set_csr_data(sycl::queue &queue,
                                                        sparse_matrix_handle & handle,      \
                                                        const std::int64_t row_count,       \
                                                        const std::int64_t column_count,    \
+                                                       const std::int64_t nnz,             \
                                                        dal::sparse_indexing indexing,      \
                                                        const F *data,                      \
                                                        const std::int64_t *column_indices, \
