@@ -125,57 +125,71 @@ public:
     static Status solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b, const ErrorID & internalError);
 };
 
-/**
- * Thread local storage used on the partial results update stage
- */
 template <typename algorithmFPType, CpuType cpu>
-class ThreadingTask
+class LinearModelReducer : public daal::Reducer
 {
-    typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
-
 public:
-    DAAL_NEW_DELETE();
+    /// Construct and initialize the thread-local partial results
+    ///
+    /// @param[in] xTable        Input data table that stores matrix X with feature vectors
+    /// @param[in] yTable        Input data table that stores matrix Y with target values
+    /// @param[in] nBetasIntercept   Number of trainable parameters
+    /// @param[in] numRowsInBlock   Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread
+    /// @param[in] numBlocks        Number of blocks of rows in the input data table
+    LinearModelReducer(const NumericTable & xTable, const NumericTable & yTable, DAAL_INT nBetasIntercept, DAAL_INT numRowsInBlock, size_t numBlocks);
 
-    /**
-     * Creates thread local storage of the requested size
-     * \param[in] nBetasIntercept   Number of colums in the partial result
-     * \param[in] nResponses        Number of responses
-     * \return Pointer on the thread local storage object if the object was created successfully, NULL otherwise
-     */
-    static ThreadingTask<algorithmFPType, cpu> * create(size_t nBetasIntercept, size_t nResponses);
-    virtual ~ThreadingTask();
+    /// New and delete operators are overloaded to use scalable memory allocator that doesn't block threads
+    /// if memory allocations are executed concurrently.
+    void * operator new(size_t size);
+    void operator delete(void * p);
 
-    /**
-     * Updates local partial result with the new block of data
-     * \param[in] startRow  Index of the starting row of the block
-     * \param[in] nRows     Number of rows in the block of data
-     * \param[in] xTable    Input data set of size N x P
-     * \param[in] yTable    Input array of responses of size N x Ny
-     * \return Status of the computations
-     */
-    Status update(DAAL_INT startRow, DAAL_INT nRows, const NumericTable & xTable, const NumericTable & yTable);
+    /// Get pointer to the array of partial X^tY matrix.
+    inline algorithmFPType * xty();
+    /// Get pointer to the partial X^tX matrix.
+    inline algorithmFPType * xtx();
 
-    /**
-     * Reduces thread local partial results into global partial result
-     * \param[out] xtx Global partial result of size P' x P'
-     * \param[out] xty Global partial result of size Ny x P'
-     */
-    void reduce(algorithmFPType * xtx, algorithmFPType * xty);
+    /// Get constant pointer to the array of partial X^tY matrix.
+    inline const algorithmFPType * xty() const;
+    /// Get constant pointer to the partial X^tX matrix.
+    inline const algorithmFPType * xtx() const;
 
-protected:
-    /**
-     * Construct thread local storage of the requested size
-     * \param[in]  nBetasIntercept  Number of colums in the partial result
-     * \param[in]  nResponses       Number of responses
-     * \param[out] st               Status of the object construction
-     */
-    ThreadingTask(size_t nBetasIntercept, size_t nResponses, Status & st);
-    algorithmFPType * _xtx;    /*!< Partial result of size P' x P' */
-    algorithmFPType * _xty;    /*!< Partial result of size Ny x P' */
-    ReadRowsType _xBlock;      /*!< Object that manages memory block of the input data set */
-    ReadRowsType _yBlock;      /*!< Object that manages memory block of the input array of responses */
-    DAAL_INT _nBetasIntercept; /*!< P' - number of columns in the partial result */
-    DAAL_INT _nResponses;      /*!< Ny - number of responses */
+    /// Constructs a thread-local partial result and initializes it with zeros.
+    /// Must be able to run concurrently with `update` and `join` methods.
+    ///
+    /// @return Pointer to the partial result of the linear regression algorithm.
+    virtual ReducerUniquePtr create() const override;
+
+    /// Updates partial X^tX and X^tY matrices
+    /// from the blocks of input data table in the sub-interval [begin, end).
+    ///
+    /// @param begin Index of the starting block of the input data table.
+    /// @param end   Index of the block after the last one in the sub-range.
+    virtual void update(size_t begin, size_t end) override;
+
+    /// Merge the partial result with the data from another thread.
+    ///
+    /// @param otherReducer Pointer to the other thread's partial result.
+    virtual void join(Reducer * otherReducer) override;
+
+private:
+    /// Reference to the input data table that stores matrix X with feature vectors.
+    const NumericTable & _xTable;
+    /// Reference to the input data table that stores matrix Y with target values.
+    const NumericTable & _yTable;
+    /// Number of features in the input data table.
+    DAAL_INT _nFeatures;
+    /// Number of targets to predict.
+    DAAL_INT _nResponses;
+    /// Number of trainable parameters (including intercept).
+    DAAL_INT _nBetasIntercept;
+    /// Number of rows in the block of the input data table - a mininal number of rows to be processed by a thread.
+    DAAL_INT _numRowsInBlock;
+    /// Number of blocks of rows in the input data table.
+    size_t _numBlocks;
+    /// Thread-local array of X^tX partial sums of size `_nBetasIntercept` * `_nBetasIntercept`.
+    TArrayScalableCalloc<algorithmFPType, cpu> _xtx;
+    /// Thread-local array of X^tY partial sums of size `_nBetasIntercept` * `_nLabels`.
+    TArrayScalableCalloc<algorithmFPType, cpu> _xty;
 };
 
 /**
@@ -186,7 +200,7 @@ class UpdateKernel
 {
     typedef WriteRows<algorithmFPType, cpu> WriteRowsType;
     typedef ReadRows<algorithmFPType, cpu> ReadRowsType;
-    typedef ThreadingTask<algorithmFPType, cpu> ThreadingTaskType;
+    // typedef ThreadingTask<algorithmFPType, cpu> ThreadingTaskType;
 
 public:
     typedef linear_model::internal::Hyperparameter HyperparameterType;
