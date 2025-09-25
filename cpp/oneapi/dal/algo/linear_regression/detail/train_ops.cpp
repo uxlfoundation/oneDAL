@@ -37,7 +37,7 @@ struct train_ops_dispatcher<Policy, Float, Method, Task> {
                                              const descriptor_base<Task>& desc,
                                              const train_input<Task>& input) const {
         using kernel_dispatcher_t = dal::backend::kernel_dispatcher< //
-            KERNEL_SINGLE_NODE_CPU(parameters::train_parameters_cpu<Float, Method, Task>)>;
+            KERNEL_UNIVERSAL_SPMD_CPU(parameters::train_parameters_cpu<Float, Method, Task>)>;
         return kernel_dispatcher_t{}(ctx, desc, input);
     }
 
@@ -54,7 +54,7 @@ private:
                                const train_parameters<Task>& params,
                                const train_input<Task>& input) const {
         using kernel_dispatcher_t = dal::backend::kernel_dispatcher< //
-            KERNEL_SINGLE_NODE_CPU(backend::train_kernel_cpu<Float, Method, Task>)>;
+            KERNEL_UNIVERSAL_SPMD_CPU(backend::train_kernel_cpu<Float, Method, Task>)>;
         return kernel_dispatcher_t{}(ctx, desc, params, input);
     }
 };
