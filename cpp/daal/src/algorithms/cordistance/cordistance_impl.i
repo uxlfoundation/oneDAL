@@ -82,12 +82,12 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
 
     algorithmFPType * diag = sum; // reuse sum array for diagonal elements
 
-    TArrayCalloc<algorithmFPType, cpu> positiveDiagonal(blockSize); // 0.0 if diagonal element is negative, 1.0 otherwise
+    TArrayCalloc<algorithmFPType, cpu> negativeDiagonal(blockSize); // 1.0 if diagonal element is positive, block[i * blockSize + i] otherwise
 
     PRAGMA_OMP_SIMD
     for (size_t i = 0; i < blockSize; i++)
     {
-        positiveDiagonal[i] = algorithmFPType(block[i * blockSize + i] > (algorithmFPType)0.0);
+        negativeDiagonal[i] = (block[i * blockSize + i] > zero ? one : block[i * blockSize + i]);
     }
 
     constexpr size_t iOne       = 1;
@@ -97,7 +97,7 @@ void computeDiagonalBlock(const size_t blockSize, const size_t nColumns, const a
     PRAGMA_OMP_SIMD
     for (size_t i = 0; i < blockSize; i++)
     {
-        diag[i] *= positiveDiagonal[i];
+        diag[i] = (negativeDiagonal[i] == one ? diag[i] : negativeDiagonal[i]);
     }
 
     if constexpr (upper)
