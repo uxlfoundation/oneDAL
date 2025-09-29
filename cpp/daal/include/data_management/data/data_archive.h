@@ -593,7 +593,10 @@ public:
     template <typename T>
     void set(T * ptr, size_t size)
     {
-        _arch->write((byte *)ptr, size * sizeof(T));
+        if (size)
+        {
+            _arch->write((byte *)ptr, size * sizeof(T));
+        }
     }
 
     /**
@@ -873,7 +876,10 @@ public:
     template <typename T>
     void set(T * ptr, size_t size) const
     {
-        _arch->read((byte *)ptr, size * sizeof(T));
+        if (size)
+        {
+            _arch->read((byte *)ptr, size * sizeof(T));
+        }
     }
 
     /**
