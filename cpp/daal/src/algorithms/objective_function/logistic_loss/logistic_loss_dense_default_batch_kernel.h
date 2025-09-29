@@ -52,6 +52,7 @@ public:
     static void applyBeta(const algorithmFPType * x, const algorithmFPType * beta, algorithmFPType * xb, size_t nRows, size_t nCols, bool bIntercept);
 
     static void sigmoid(const algorithmFPType * f, algorithmFPType * s, size_t n);
+    static void sigmoid_clipped(const algorithmFPType * f, algorithmFPType * s, size_t n);
 
 protected:
     services::Status doCompute(const NumericTable * dataNT, const NumericTable * dependentVariablesNT, size_t n, size_t p, NumericTable * betaNT,

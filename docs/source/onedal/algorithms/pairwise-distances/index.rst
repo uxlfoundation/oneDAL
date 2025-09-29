@@ -21,9 +21,13 @@ Pairwise Distances
 
    minkowski-distance.rst
    chebyshev-distance.rst
-   cosine-distance.rst
    correlation-distance.rst
+   cosine-distance.rst
 
 .. rubric:: Examples: Correlation Distance
 
 .. include:: ../../../includes/pairwise-distances/correlation-distance-examples.rst
+
+.. rubric:: Examples: Cosine Distance
+
+.. include:: ../../../includes/pairwise-distances/cosine-distance-examples.rst
