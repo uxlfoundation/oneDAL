@@ -22,7 +22,7 @@ source $CONDA_PREFIX/env/vars.sh
 
 run_examples() {
     local interface_name=$1
-    local linking_type="dynamic"
+    local linking_type=$2
 
     if [ "$linking_type" == "dynamic" ]; then
         library_postfix="so"
@@ -32,10 +32,10 @@ run_examples() {
 
     (
         cd examples/$interface_name/cpp
-        mkdir build
+        mkdir build_$linking_type
 
         (
-            cd build
+            cd build_$linking_type
             cmake .. -DONEDAL_LINK=$linking_type
             make -j$(nproc)
         )
@@ -49,5 +49,7 @@ run_examples() {
     )
 }
 
-run_examples "oneapi"
-run_examples "daal"
+run_examples oneapi dynamic
+run_examples oneapi static
+run_examples daal dynamic
+run_examples daal static
