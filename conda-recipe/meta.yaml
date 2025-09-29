@@ -33,7 +33,7 @@ build:
   ignore_run_exports_from:
     - dpcpp_impl_linux-64  # [linux64 or win]
   script_env:
-    - REQCPU=avx2  # [linux64 or win]
+    - REQCPU=avx512  # [linux64 or win]
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
     - CONDA_CXX_COMPILER=gnu  # [ cxx_compiler == "gxx" ]
@@ -113,10 +113,16 @@ about:
     - third-party-programs.txt
   summary: oneAPI Data Analytics Library (oneDAL)
   description: |
-    oneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library
-    (powering the Extension for Scikit-learn in Python) which implements
-    accelerated machine learning routines for tabular data
-    (e.g. linear regression, K-means clustering, random forests, etc.)
-    for CPUs, GPUs, and multi-node distributed setups.
+    OneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library (powering the
+    <a href="https://uxlfoundation.github.io/scikit-learn-intelex" target="_blank">Extension for Scikit-learn in Python</a>)
+    which implements accelerated machine learning routines for tabular data (e.g. linear regression, K-means clustering,
+    random forests, etc.) for CPUs, GPUs, and multi-node distributed setups.
+    <br/><br/>
+    Acceleration on CPUs is achieved by leveraging SIMD instructions and exploiting cache structures of modern hardware,
+    while GPU acceleration leverages the SYCL framework and the oneMKL library.
+    <br/><br/>
+    OneDAL is part of the <a href="http://www.uxlfoundation.org" target="_blank">UXL Foundation</a>
+    and is an implementation of the <a href="https://oneapi-spec.uxlfoundation.org" target="_blank">oneAPI specification</a>
+    for the oneDAL component.
   dev_url: https://github.com/uxlfoundation/oneDAL
   doc_url: https://uxlfoundation.github.io/oneDAL

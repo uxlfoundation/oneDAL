@@ -21,22 +21,28 @@ test -f $PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 source $CONDA_PREFIX/env/vars.sh
 
 run_examples() {
-    local example_type=$1
-    echo "Building and running  examples"
+    local interface_name=$1
+    local linking_type="dynamic"
+
+    if [ "$linking_type" == "dynamic" ]; then
+        library_postfix="so"
+    else
+        library_postfix="a"
+    fi
 
     (
-        cd examples/$example_type/cpp
+        cd examples/$interface_name/cpp
         mkdir build
 
         (
             cd build
-            cmake .. -DONEDAL_LINK=dynamic
+            cmake .. -DONEDAL_LINK=$linking_type
             make -j$(nproc)
         )
 
-        for example in _cmake_results/intel_intel64_so/*; do
+        for example in _cmake_results/intel_intel64_$library_postfix/*; do
             echo "================"
-            echo "Running example: $example_type/$(basename $example)"
+            echo "Running example: $interface_name-$linking_type-$(basename $example)"
             echo "================"
             $example
         done
