@@ -14,6 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
+# Note: fetching tags from https://github.com/uxlfoundation/oneDAL
+# is required for the proper versioning of the package using GIT_DESCRIBE_TAG
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
@@ -33,7 +35,7 @@ build:
   ignore_run_exports_from:
     - dpcpp_impl_linux-64  # [linux64 or win]
   script_env:
-    - REQCPU=avx512  # [linux64 or win]
+    - REQCPU={{ environ.get('REQCPU', 'avx512') }}  # [linux64 or win]
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
     - CONDA_CXX_COMPILER=gnu  # [ cxx_compiler == "gxx" ]
@@ -99,6 +101,7 @@ outputs:
       requires:
         - cmake  # [linux64 or win]
         - {{ compiler('cxx') }}
+        - dal-static =={{ version }}
       source_files:
         - examples
       script: test-devel.sh  # [linux]
