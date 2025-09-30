@@ -104,6 +104,7 @@ outputs:
         - dal-static =={{ version }}
         - mkl-devel
         - mkl-static
+        - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
       source_files:
         - examples
       script: test-devel.sh  # [linux]
