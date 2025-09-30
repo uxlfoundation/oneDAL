@@ -102,6 +102,8 @@ outputs:
         - cmake  # [linux64 or win]
         - {{ compiler('cxx') }}
         - dal-static =={{ version }}
+        - mkl-devel
+        - mkl-static
       source_files:
         - examples
       script: test-devel.sh  # [linux]
