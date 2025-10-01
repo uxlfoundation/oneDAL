@@ -352,7 +352,7 @@ public:
     void add(const ErrorID & id)
     {
         _errors->add(id);
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         if (_canThrow) throw Exception::getException(getDescription());
 #endif
     }
@@ -364,7 +364,7 @@ public:
     void add(const ErrorPtr & e)
     {
         _errors->add(e);
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         if (_canThrow) throw Exception::getException(getDescription());
 #endif
     }
@@ -378,7 +378,7 @@ public:
         if (!e.isEmpty())
         {
             _errors->add(e.getErrors());
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             if (_canThrow) throw Exception::getException(getDescription());
 #endif
         }
@@ -393,7 +393,7 @@ public:
         if (!e->isEmpty())
         {
             _errors->add(e);
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             if (_canThrow) throw Exception::getException(getDescription());
 #endif
         }
@@ -581,7 +581,7 @@ private:
 
 inline const Status & throwIfPossible(const Status & s)
 {
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
     if (!s.ok()) throw services::Exception::getException(s.getDescription());
 #endif
     return s;

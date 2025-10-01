@@ -300,7 +300,7 @@ public:
     {
         if (is_analyzer_enabled())
         {
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             try
             {
 #endif
@@ -330,7 +330,7 @@ public:
                 std::cerr << "|---(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
 
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             }
             catch (std::exception & e)
             {
@@ -549,7 +549,7 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         try
         {
 #endif
@@ -557,7 +557,7 @@ inline profiler_task::~profiler_task()
                 profiler::end_threading_task(task_name_, idx_);
             else
                 profiler::end_task(task_name_, idx_);
-#ifndef DAAL_NOTHROW_EXCEPTIONS
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         }
         catch (std::exception & e)
         {
