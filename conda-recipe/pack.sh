@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
