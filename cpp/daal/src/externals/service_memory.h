@@ -60,9 +60,7 @@ void service_memset_seq(T * const ptr, const T value, const size_t num)
     {
         /// Use aligned stores
         const unsigned int num32 = static_cast<unsigned int>(num);
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(ptr : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (unsigned int i = 0; i < num32; i++)
         {
             ptr[i] = value;
@@ -70,7 +68,7 @@ void service_memset_seq(T * const ptr, const T value, const size_t num)
     }
     else
     {
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < num; i++)
         {
@@ -250,7 +248,7 @@ T * service_memset(T * const ptr, const T value, const size_t num)
             end = num;
         }
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = block * blockSize; i < end; i++)
         {
@@ -264,7 +262,7 @@ T * service_memset(T * const ptr, const T value, const size_t num)
 template <typename T, CpuType cpu>
 void service_memset_incrementing(T * const ptr, const T startValue, const size_t num)
 {
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < num; i++)
     {
