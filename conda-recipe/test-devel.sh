@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -37,15 +37,15 @@ run_examples() {
         (
             cd build_$linking_type
 
-            cmake_args=(-DONEDAL_LINK="$linking_type")
+            cmake_args="-DONEDAL_LINK=$linking_type"
             # Note: MKL cmake config is required for static build only and
             # doesn't work with conda-forge distribution of tbb-devel.
             # Thus, tbb is set to "found" manually.
             if [ "$linking_type" == "static" ]; then
-                cmake_args+=(-DTBB_tbb_FOUND=YES)
+                cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
             fi
 
-            cmake .. "${cmake_args[@]}"
+            cmake .. $cmake_args
             make -j$(nproc)
         )
 
