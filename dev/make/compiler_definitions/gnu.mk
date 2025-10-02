@@ -50,7 +50,7 @@ endif
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 link.dynamic.all.gnu = ${CXX} $(linker.ld.flag)
 
--Zl.gnu =
+-Zl.gnu = -nostdlib
 -DEBC.gnu = -g
 
 -asanstatic.gnu = -static-libasan

@@ -41,7 +41,7 @@ else
     -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
 endif
 
--Zl.clang =
+-Zl.clang = -nodefaultlibs
 
 -DEBC.clang = -g
 
