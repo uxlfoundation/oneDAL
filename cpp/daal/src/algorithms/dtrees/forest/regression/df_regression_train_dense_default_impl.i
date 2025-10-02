@@ -50,6 +50,13 @@ using namespace dtrees::training::internal;
 //computes mean2 and var2 as the mean and mse for the set of elements s2, s2 = s - s1
 //where mean, var are mean and mse for s,
 //where mean1, var1 are mean and mse for s1
+//it should uphold the following condition:
+// mean = (leftWeights*mean1 + rightWeights*mean2) / (leftWeights + rightWeights)
+//with 'mean2' being the unknown quantity to calculate.
+//similarly, it should uphold the condition that 'var' is the pooled non-bias-corrected
+//variance between 'var1' and 'var2' with weights given by 'leftWeights' and 'rightWeights',
+//respectively, which would meet the following condition:
+// var = (1 / (leftWeights + rightWeights)) * (var1*leftWeights + var2*rightWeights + (mean1 - mean2)^2 * leftWeights * rightWeights / (leftWeights + rightWeights))
 template <typename algorithmFPType, CpuType cpu>
 void subtractImpurity(algorithmFPType var, algorithmFPType mean, algorithmFPType var1, algorithmFPType mean1, algorithmFPType leftWeights,
                       algorithmFPType & var2, algorithmFPType & mean2, algorithmFPType rightWeights)
@@ -535,6 +542,10 @@ public:
         node.count    = n;
         node.impurity = imp.var;
     }
+
+#ifdef DEBUG_CHECK_IMPURITY
+    void checkImpurityInternal(const IndexType * ptrIdx, size_t n, const ImpurityData & expected, bool bInternal) const;
+#endif
 
 private:
 #ifdef DEBUG_CHECK_IMPURITY

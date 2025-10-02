@@ -27,6 +27,22 @@ CORE.SERV.COMPILER.icc = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifeq ($(OS_is_win),true)
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),lld llvm-lib),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Windows: lld llvm-lib)
+        endif
+    endif
+else
+    ifneq ($(LINKER),)
+        ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+            $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+        endif
+    endif
+endif
+
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
@@ -48,14 +64,17 @@ endif
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
 COMPILER.lnx.icc  = $(if $(COVFILE),cov01 -1; covc --no-banner -i )icc -qopenmp-simd \
-                    -Werror -Wreturn-type -diag-disable=10441
+                    -Werror -Wreturn-type -diag-disable=10441 ${CXXFLAGS}
 COMPILER.lnx.icc += $(if $(COVFILE), $(-Q)m64)
-COMPILER.win.icc = icl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX -Qopenmp-simd -Qdiag-disable:10441
+COMPILER.win.icc = icl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX -Qopenmp-simd -Qdiag-disable:10441 ${CXXFLAGS}
 COMPILER.mac.icc = icc -stdlib=libc++ -mmacosx-version-min=10.15 \
-				   -Werror -Wreturn-type -diag-disable=10441
+				   -Werror -Wreturn-type -diag-disable=10441 ${CXXFLAGS}
 
-link.dynamic.lnx.icc = icc -no-cilk -diag-disable=10441
-link.dynamic.mac.icc = icc -diag-disable=10441
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+
+link.dynamic.lnx.icc = icc $(linker.ld.flag) -no-cilk -diag-disable=10441 ${LDFLAGS}
+link.dynamic.mac.icc = icc -diag-disable=10441 ${LDFLAGS}
+link.dynamic.win.icc = icc $(linker.ld.flag) ${LDFLAGS}
 
 pedantic.opts.lnx.icc = -pedantic \
                         -Wall \

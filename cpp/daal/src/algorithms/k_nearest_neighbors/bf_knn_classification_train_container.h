@@ -64,6 +64,7 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
 
     const bool copy = (par->dataUseInModel == doNotUse);
     status |= r->impl()->setData<algorithmFpType>(x, copy);
+    DAAL_CHECK_STATUS_VAR(status);
     if ((par->resultsToEvaluate & daal::algorithms::classifier::computeClassLabels) != 0)
     {
         const NumericTablePtr y = input->get(classifier::training::labels);
