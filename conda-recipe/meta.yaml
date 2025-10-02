@@ -19,6 +19,7 @@
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
+# TODO: automate binary version getting
 
 package:
   name: dal-feedstock
