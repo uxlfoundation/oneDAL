@@ -78,7 +78,6 @@ inline void OutlierDetectionKernel<algorithmFPType, method, cpu>::mahalanobisDis
     for (size_t i = 0; i < nVectors; i++, dataCenPtr += nFeatures, dataCenInvScatterPtr += nFeatures)
     {
         distance[i] = zero;
-        PRAGMA_IVDEP
         for (size_t j = 0; j < nFeatures; j++)
         {
             distance[i] += dataCenPtr[j] * dataCenInvScatterPtr[j];
