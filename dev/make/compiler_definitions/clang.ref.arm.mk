@@ -36,7 +36,7 @@ COMPILER.lnx.clang.target = $(if $(filter yes,$(COMPILER_is_cross)),--target=aar
 
 COMPILER.sysroot = $(if $(SYSROOT),--sysroot $(SYSROOT))
 
-COMPILER.lnx.clang= clang++ -march=armv8-a+sve \
+COMPILER.lnx.clang= clang++ -march=armv8-a+sve -nodefaultlibs \
                      -DDAAL_REF -DONEDAL_REF -DDAAL_CPU=sve -Werror -Wreturn-type \
                      $(COMPILER.lnx.clang.target) \
                      $(COMPILER.sysroot)
