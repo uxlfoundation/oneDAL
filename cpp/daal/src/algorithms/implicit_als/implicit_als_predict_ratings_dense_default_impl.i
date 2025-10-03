@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Implementation of impicit ALS prediction algorithm
+//  Implementation of implicit ALS prediction algorithm
 //--
 */
 

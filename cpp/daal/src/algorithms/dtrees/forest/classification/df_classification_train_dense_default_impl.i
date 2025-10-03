@@ -117,7 +117,7 @@ protected: //enables specific functions for UnorderedRespHelperBest
         imp.hist[iClass] -= moveWeights;
     }
 
-    // Calculate impurity for left and right childs
+    // Calculate impurity for left and right children
     static void updateImpurity(ImpurityData & left, ImpurityData & right, ClassIndexType iClass, double totalWeights, double startWeights,
                                double & moveWeights)
     {
@@ -1446,7 +1446,7 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
     checkImpurity(aIdx + i - 1, totalWeights - leftWeights, this->_impRight);
 #endif
 
-    if ((leftWeights >= minWeightLeaf) && ((totalWeights - leftWeights) >= minWeightLeaf)) //it is a valid split with enought leaf weights
+    if ((leftWeights >= minWeightLeaf) && ((totalWeights - leftWeights) >= minWeightLeaf)) //it is a valid split with enough leaf weight
     {
         //check if bFound condition below
         if (!isPositive<algorithmFPType, cpu>(this->_impLeft.var)) this->_impLeft.var = 0;   //set left impurity to 0 if negative
@@ -1455,7 +1455,7 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
         v = leftWeights * this->_impLeft.var + (totalWeights - leftWeights) * this->_impRight.var; //calculate overall weighted Gini index
 
         if (!(bBestFromOtherFeatures
-              && isGreater<algorithmFPType, cpu>(v, vBestFromOtherFeatures))) //if it has a better weighted gini overwite parameters
+              && isGreater<algorithmFPType, cpu>(v, vBestFromOtherFeatures))) //if it has a better weighted gini then overwrite parameters
         {
             bFound             = true;
             split.left.var     = this->_impLeft.var;
