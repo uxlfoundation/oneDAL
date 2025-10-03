@@ -99,14 +99,15 @@ struct train_kernel_gpu<Float, method::lloyd_csr, task::clustering> {
             pr::ndarray<std::int64_t, 1>::wrap(arr_row.get_data(), arr_row.get_count());
 
         pr::sparse_matrix_handle data_handle(queue);
-        auto set_csr_data_event = pr::set_csr_data(queue,
-                                                   data_handle,
-                                                   row_count,
-                                                   column_count,
-                                                   sparse_indexing::zero_based,
-                                                   arr_val.get_data(),
-                                                   arr_col.get_data(),
-                                                   arr_row.get_data());
+        table data_gpu = csr_table::wrap(queue,
+                                         values.get_data(),
+                                         column_indices.get_data(),
+                                         row_offsets.get_data(),
+                                         row_count,
+                                         column_count,
+                                         sparse_indexing::zero_based);
+        auto set_csr_data_event =
+            set_csr_data(queue, data_handle, static_cast<const csr_table&>(data_gpu));
 
         auto arr_initial = get_initial_centroids<Float, method::lloyd_csr>(ctx, params, input);
         auto arr_centroid_squares =

@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/table/common.hpp"
 
+#include <mkl_version.h>
 #include <oneapi/mkl.hpp>
 
 namespace oneapi::dal::backend::primitives {
