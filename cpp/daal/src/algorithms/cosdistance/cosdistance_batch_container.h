@@ -34,7 +34,7 @@ namespace algorithms
 namespace cosine_distance
 {
 /**
- *  \brief Initialize list of correlation distance, double precission
+ *  \brief Initialize list of correlation distance, double precision
  *  kernels with implementations for supported architectures
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
