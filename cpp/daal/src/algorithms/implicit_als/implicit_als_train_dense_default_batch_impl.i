@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Implementation of impicit ALS training algorithm for batch processing mode
+//  Implementation of implicit ALS training algorithm for batch processing mode
 //--
 */
 
