@@ -55,6 +55,6 @@ ifeq ($(RNG_OPENRNG), yes)
 	daaldep.math_backend.thr += $(daaldep.rng_backend.lib)
 endif
 
+daaldep.math_backend.ext_static := $(daaldep.math_backend.thr)
 daaldep.math_backend.ext := $(daaldep.math_backend.thr)
-daaldep.math_backend.sycl := $(daaldep.math_backend.thr)
 daaldep.math_backend.oneapi := $(daaldep.math_backend.thr)
