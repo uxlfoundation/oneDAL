@@ -140,8 +140,9 @@ protected:
 template <typename algorithmFPType, CpuType cpu>
 struct gh
 {
-    algorithmFPType g; //gradient
-    algorithmFPType h; //hessian
+    typedef double intermSummFPType; // needed due to templating shared with forests
+    algorithmFPType g;               //gradient
+    algorithmFPType h;               //hessian
     gh() : g(0), h(0) {}
     gh(algorithmFPType _g, algorithmFPType _h) : g(_g), h(_h) {}
     gh(const gh & o) : g(o.g), h(o.h) {}
