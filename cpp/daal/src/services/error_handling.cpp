@@ -239,7 +239,7 @@ public:
 
     /**
     * Adds description of the error detail to the given string
-    * \param[in] str String to add descrition to
+    * \param[in] str String to add description to
     */
     virtual void describe(char * str) const;
 
@@ -716,7 +716,7 @@ void ErrorMessageCollection::parseResourceFile()
     add(ErrorCloneMethodFailed, "Cloning of algorithm failed");
     add(ErrorDataTypeNotSupported, "Data type not supported");
     add(ErrorNullByteInjection, "Null byte injection has been detected");
-    add(ErrorBufferSizeIntegerOverflow, "Integer overflow is occured");
+    add(ErrorBufferSizeIntegerOverflow, "Integer overflow is occurred");
     add(ErrorHyperparameterNotFound, "Cannot find a hyperparameter");
     add(ErrorHyperparameterBadValue, "Hyperparameter has bad value");
 
@@ -910,8 +910,8 @@ void ErrorMessageCollection::parseResourceFile()
 
     // Convolution2d error: -16000..-17000
     add(ErrorConvolutionInternal, "Convolution layer internal error");
-    add(ErrorIncorrectKernelSise1, "Convolution2d bakward: incorrect parameter kernelSize1");
-    add(ErrorIncorrectKernelSise2, "Convolution2d bakward: incorrect parameter kernelSize2");
+    add(ErrorIncorrectKernelSise1, "Convolution2d backward: incorrect parameter kernelSize1");
+    add(ErrorIncorrectKernelSise2, "Convolution2d backward: incorrect parameter kernelSize2");
 
     // Ridge Regression errors: -17000..-17999
     add(ErrorRidgeRegressionInternal, "Ridge Regression internal error");
