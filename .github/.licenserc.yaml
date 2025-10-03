@@ -43,7 +43,6 @@ header:
     - '.bazelrc'
     - '.bazelversion'
     - 'BUILD'
-    - 'WORKSPACE'
     - 'MODULE.bazel'
     - '**/*.tpl.BUILD'
     # Clang-format config
@@ -65,15 +64,8 @@ header:
     - 'docs/source/_templates/layout.html'
     - 'docs/source/substitutions_common.txt'
     - 'docs/source/substitutions_specific.txt'
-    # TODO: Remove `conformance-scripts` from the ignore list after the files will be deleted
-    - '.ci/scripts/conformance-scripts/algorithms.txt'
-    - '.ci/scripts/conformance-scripts/run_tests_with_context.py'
     # Some files from .ci/.github
-    - '.ci/pipeline/**/*.yml'
-    - '.ci/env/environment.yml'
-    - '.github/workflows/*.yml'
     - '.github/instructions/*.md'
-    - '.github/.mergify.yml'
     - '.github/CODEOWNERS'
     - '.github/pull_request_template.md'
     - '.github/renovate.json'
