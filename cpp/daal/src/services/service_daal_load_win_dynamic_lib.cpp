@@ -53,11 +53,11 @@ static HMODULE WINAPI _DAALLoadLibrary(LPCTSTR filename)
     // "SetDllDirectory function" - https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setdlldirectorya
     // "LoadLibraryExA function" - https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa
 
-    // Exclude current directory from the serch path
+    // Exclude current directory from the search path
     rv1 = SetDllDirectoryA("");
     if (0 == rv1)
     {
-        printf("Intel oneDAL FATAL ERROR: Cannot exclude current directory from serch path.\n");
+        printf("Intel oneDAL FATAL ERROR: Cannot exclude current directory from search path.\n");
         return NULL;
     }
 
