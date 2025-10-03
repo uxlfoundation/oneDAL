@@ -89,7 +89,7 @@ class MessageCollection : public Collection<SharedPtr<Message<IDType> > >
 public:
     /**
     * Constructs a message collection
-    * \param[in] noMessageFound Index retuned when no corresponding element is found in the collection
+    * \param[in] noMessageFound Index returned when no corresponding element is found in the collection
     */
     MessageCollection(IDType noMessageFound) : _noMessageFound(noMessageFound) {};
 
