@@ -52,7 +52,7 @@ endif
 
 COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
                      -Werror -Wreturn-type ${CXXFLAGS}
-COMPILER.lnx.clang = clang++ -m64 \
+COMPILER.lnx.clang = clang++ -m64 -nodefaultlibs \
                      -Werror -Wreturn-type ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
