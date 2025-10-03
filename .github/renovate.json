@@ -33,9 +33,9 @@
       "customType": "regex",
       "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^\\.github\\/workflows\\/ci.+$"],
       "matchStrings": [
-        "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "TBB_VERSION: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "\\s*TBB_DEFAULT_VERSION\\s*=\\s*\"?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)\"?",
+        "\\s*set\\s+TBBVERSION\\s*=\\s*(?<currentValue>v?\\d+\\.\\d+\\.\\d+)",
+        "\\s*TBB_VERSION\\s*[:=]\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
       "datasourceTemplate": "github-releases"
