@@ -45,7 +45,7 @@ namespace internal
 /**
  *  \brief Construct Logit Boost classifier model.
  *
- *  \param a[in]    Array of numeric tables contating input data
+ *  \param a[in]    Array of numeric tables containing input data
  *                  a[0] holds input matrix of features X
  *                  a[1] holds input matrix of class labels Y
  *  \param r[out]   Resulting model
