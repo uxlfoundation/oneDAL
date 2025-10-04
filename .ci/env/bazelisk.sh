@@ -23,6 +23,8 @@ BAZELISK_JSON=$(wget -qO- \
   --header="X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/bazelbuild/bazelisk/releases/$BAZELISK_VERSION)
 
+echo $BAZELISK_JSON
+
 # extract SHA256 from json
 SHA256=""
 found=""
