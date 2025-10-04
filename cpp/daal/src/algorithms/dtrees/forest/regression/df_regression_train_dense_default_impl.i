@@ -50,6 +50,13 @@ using namespace dtrees::training::internal;
 //computes mean2 and var2 as the mean and mse for the set of elements s2, s2 = s - s1
 //where mean, var are mean and mse for s,
 //where mean1, var1 are mean and mse for s1
+//it should uphold the following condition:
+// mean = (leftWeights*mean1 + rightWeights*mean2) / (leftWeights + rightWeights)
+//with 'mean2' being the unknown quantity to calculate.
+//similarly, it should uphold the condition that 'var' is the pooled non-bias-corrected
+//variance between 'var1' and 'var2' with weights given by 'leftWeights' and 'rightWeights',
+//respectively, which would meet the following condition:
+// var = (1 / (leftWeights + rightWeights)) * (var1*leftWeights + var2*rightWeights + (mean1 - mean2)^2 * leftWeights * rightWeights / (leftWeights + rightWeights))
 template <typename algorithmFPType, CpuType cpu>
 void subtractImpurity(algorithmFPType var, algorithmFPType mean, algorithmFPType var1, algorithmFPType mean1, algorithmFPType leftWeights,
                       algorithmFPType & var2, algorithmFPType & mean2, algorithmFPType rightWeights)
@@ -181,14 +188,18 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         imp.var /= totalWeights; //impurity is MSE
     }
 
+// Note: the debug checks throughout this file are always done in float64 precision regardless
+// of the input data type, as otherwise they can get too inaccurate when sample sizes are more
+// than a few million rows, up to the point where the debug calculation would be less precise
+// than the shorthand non-debug calculation.
 #ifdef DEBUG_CHECK_IMPURITY
     if (!this->_weights)
     {
-        TResponse mean1 = this->_aResponse[aIdx[0]].val / algorithmFPType(n);
-        for (size_t i = 1; i < n; ++i) mean1 += this->_aResponse[aIdx[i]].val / algorithmFPType(n);
-        algorithmFPType var1 = 0;
+        double mean1 = this->_aResponse[aIdx[0]].val / static_cast<double>(n);
+        for (size_t i = 1; i < n; ++i) mean1 += this->_aResponse[aIdx[i]].val / static_cast<double>(n);
+        double var1 = 0;
         for (size_t i = 0; i < n; ++i) var1 += (this->_aResponse[aIdx[i]].val - mean1) * (this->_aResponse[aIdx[i]].val - mean1);
-        var1 /= algorithmFPType(n); //impurity is MSE
+        var1 /= static_cast<double>(n); //impurity is MSE
         DAAL_ASSERT(fabs(mean1 - imp.mean) < 0.001);
         DAAL_ASSERT(fabs(var1 - imp.var) < 0.001);
     }
@@ -425,10 +436,10 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::checkImpurityInternal(const In
 {
     if (!this->_weights)
     {
-        algorithmFPType div = 1. / algorithmFPType(n);
-        TResponse cMean     = this->_aResponse[ptrIdx[0]].val * div;
+        double div   = 1. / static_cast<double>(n);
+        double cMean = this->_aResponse[ptrIdx[0]].val * div;
         for (size_t i = 1; i < n; ++i) cMean += this->_aResponse[ptrIdx[i]].val * div;
-        algorithmFPType cVar = 0;
+        double cVar = 0;
         for (size_t i = 0; i < n; ++i) cVar += (this->_aResponse[ptrIdx[i]].val - cMean) * (this->_aResponse[ptrIdx[i]].val - cMean);
         if (!bInternal) cVar *= div;
         DAAL_ASSERT(fabs(cMean - expected.mean) < 0.001);
@@ -526,9 +537,9 @@ public:
 #ifdef DEBUG_CHECK_IMPURITY
         if (!this->_weights)
         {
-            algorithmFPType response;
-            algorithmFPType val = calcResponse(response, idx, n);
-            node.response       = response;
+            double response;
+            double val    = calcResponse(response, idx, n);
+            node.response = response;
             DAAL_ASSERT(fabs(val - imp.mean) < 0.001);
         }
 #endif
@@ -536,9 +547,13 @@ public:
         node.impurity = imp.var;
     }
 
+#ifdef DEBUG_CHECK_IMPURITY
+    void checkImpurityInternal(const IndexType * ptrIdx, size_t n, const ImpurityData & expected, bool bInternal) const;
+#endif
+
 private:
 #ifdef DEBUG_CHECK_IMPURITY
-    algorithmFPType calcResponse(algorithmFPType & res, const IndexType * idx, size_t n) const;
+    algorithmFPType calcResponse(double & res, const IndexType * idx, size_t n) const;
 #endif
 };
 
@@ -549,10 +564,10 @@ void RespHelperBase<algorithmFPType, cpu, crtp>::checkImpurityInternal(const Ind
 {
     if (!this->_weights)
     {
-        algorithmFPType div = 1. / algorithmFPType(n);
-        TResponse cMean     = this->_aResponse[ptrIdx[0]].val * div;
+        double div   = 1. / static_cast<double>(n);
+        double cMean = this->_aResponse[ptrIdx[0]].val * div;
         for (size_t i = 1; i < n; ++i) cMean += this->_aResponse[ptrIdx[i]].val * div;
-        algorithmFPType cVar = 0;
+        double cVar = 0;
         for (size_t i = 0; i < n; ++i) cVar += (this->_aResponse[ptrIdx[i]].val - cMean) * (this->_aResponse[ptrIdx[i]].val - cMean);
         if (!bInternal) cVar *= div;
         DAAL_ASSERT(fabs(cMean - expected.mean) < 0.001);
@@ -579,10 +594,10 @@ bool RespHelperBase<algorithmFPType, cpu, crtp>::init(const NumericTable * data,
 
 #ifdef DEBUG_CHECK_IMPURITY
 template <typename algorithmFPType, CpuType cpu, typename crtp>
-algorithmFPType RespHelperBase<algorithmFPType, cpu, crtp>::calcResponse(algorithmFPType & res, const IndexType * idx, size_t n) const
+algorithmFPType RespHelperBase<algorithmFPType, cpu, crtp>::calcResponse(double & res, const IndexType * idx, size_t n) const
 {
-    const algorithmFPType cDiv = 1. / algorithmFPType(n);
-    res                        = this->_aResponse[idx[0]].val * cDiv;
+    const double cDiv = 1. / static_cast<double>(n);
+    res               = this->_aResponse[idx[0]].val * cDiv;
     for (size_t i = 1; i < n; ++i) res += this->_aResponse[idx[i]].val * cDiv;
     return res;
 }
