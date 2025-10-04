@@ -34,7 +34,7 @@ while IFS= read -r line; do
     break
   fi
 done < <(printf '%s\n' "$BAZELISK_JSON")
-SHA256+=" bazelisk-linux-amd64"
+SHA256+="  bazelisk-linux-amd64"
 
 # Download Bazelisk
 wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/bazelisk-linux-amd64
