@@ -16,6 +16,7 @@
 #===============================================================================
 
 BAZELISK_VERSION=v1.27.0
+# collect information about the bazelisk release
 BAZELISK_JSON=$(wget -qO- \
   --header="Accept: application/vnd.github+json" \
   ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
