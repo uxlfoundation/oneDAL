@@ -49,8 +49,11 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$"],
-      "matchStrings": ["BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$", "^dev\\/docker\\/onedal\\-dev\\.Dockerfile", "^dev\\/bazel\\/README\\.md"],
+      "matchStrings": [
+        "BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "github\\.com/bazelbuild/bazelisk/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/bazelisk-[^\"' ]+"
+    ],
       "depNameTemplate": "bazelbuild/bazelisk",
       "datasourceTemplate": "github-releases"
     }
