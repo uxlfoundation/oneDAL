@@ -36,18 +36,15 @@ function install_dpcpp {
 }
 
 function install_tbb {
-    apt-cache madison intel-oneapi-tbb-devel
-    sudo apt-get install -y intel-oneapi-tbb-devel=2022.2
+    sudo apt-get install -y intel-oneapi-tbb-devel-2022.2
 }
 
 function install_dpl {
-    apt-cache madison intel-oneapi-libdpstd-devel
     sudo apt-get install -y intel-oneapi-libdpstd-devel
 }
 
 function install_mkl {
-    apt-cache madison intel-oneapi-mkl-devel
-    sudo apt-get install -y intel-oneapi-mkl-devel=2025.2
+    sudo apt-get install -y intel-oneapi-mkl-devel-2025.2
     install_tbb
     install_dpl
 }
