@@ -15,9 +15,28 @@
 # limitations under the License.
 #===============================================================================
 
+BAZELISK_VERSION=v1.27.0
+BAZELISK_JSON=$(wget -qO- \
+  --header="Accept: application/vnd.github+json" \
+  --header="Authorization: Bearer $GITHUB_TOKEN" \
+  --header="X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/bazelbuild/bazelisk/releases/$BAZELISK_VERSION)
+
+# extract SHA256 from json
+SHA256=""
+found=""
+while IFS= read -r line; do
+  if [[ $line == *'"name": "bazelisk-linux-amd64"'* ]]; then
+    found=1
+  elif [[ $found && $line == *'"digest":'* ]]; then
+    SHA256=$(echo "$line" | sed -n 's/.*"sha256:\([^"]*\)".*/\1/p')
+    break
+  fi
+done < <(printf '%s\n' "$BAZELISK_JSON")
+SHA256+="  bazelisk-linux-amd64"
+
 # Download Bazelisk
-export SHA256="ce52caa51ef9e509fb6b7e5ad892e5cf10feb0794b0aed4d2f36adb00a1a2779  bazelisk-linux-amd64"
-wget https://github.com/bazelbuild/bazelisk/releases/download/v1.18.0/bazelisk-linux-amd64
+wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/bazelisk-linux-amd64
 echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
 chmod +x bazelisk-linux-amd64
