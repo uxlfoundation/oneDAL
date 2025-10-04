@@ -21,9 +21,7 @@ BAZELISK_JSON=$(wget -qO- \
   --header="Accept: application/vnd.github+json" \
   ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
   --header="X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/bazelbuild/bazelisk/releases/$BAZELISK_VERSION)
-
-echo $BAZELISK_JSON
+  https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$BAZELISK_VERSION)
 
 # extract SHA256 from json
 SHA256=""
@@ -41,7 +39,6 @@ SHA256+="  bazelisk-linux-amd64"
 # Download Bazelisk
 wget https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_VERSION/bazelisk-linux-amd64
 echo $SHA256
-echo ${SHA256}
 echo ${SHA256} | sha256sum --check
 # "Install" bazelisk
 chmod +x bazelisk-linux-amd64
