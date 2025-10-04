@@ -55,7 +55,6 @@
       ],
       "datasourceTemplate": "deb",
       "registryUrlTemplate": "https://apt.repos.intel.com/oneapi?suite=all&components=main&binaryArch=amd64"
-      "depNameTemplate": "Intel DPC++ Compiler (Ubuntu)"
     }
   ]
 }
