@@ -31,7 +31,8 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.2 intel-oneapi-runtime-libs
+    apt-cache madison intel-oneapi-compiler-dpcpp-cpp
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2025.2.1-7 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
