@@ -36,7 +36,7 @@ function install_dpcpp {
 }
 
 function install_tbb {
-    sudo apt-get install -y intel-oneapi-tbb-devel-2022.2
+    sudo apt-get install -y intel-oneapi-tbb-devel=2022.2.0-507
 }
 
 function install_dpl {
@@ -44,7 +44,7 @@ function install_dpl {
 }
 
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel-2025.2
+    sudo apt-get install -y intel-oneapi-mkl-devel=2025.2.0-628
     install_tbb
     install_dpl
 }
