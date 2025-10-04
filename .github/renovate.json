@@ -46,6 +46,13 @@
       "matchStrings": ["BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "OpenMathLib/OpenBLAS",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$"],
+      "matchStrings": ["BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "bazelbuild/bazelisk",
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
