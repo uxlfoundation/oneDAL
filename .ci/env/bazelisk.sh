@@ -18,7 +18,7 @@
 BAZELISK_VERSION=v1.27.0
 BAZELISK_JSON=$(wget -qO- \
   --header="Accept: application/vnd.github+json" \
-  --header="Authorization: Bearer $GITHUB_TOKEN" \
+  ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
   --header="X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/bazelbuild/bazelisk/releases/$BAZELISK_VERSION)
 
