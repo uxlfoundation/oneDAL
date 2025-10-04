@@ -49,7 +49,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
       "matchStrings": [
         ".*\\bintel-oneapi-compiler-dpcpp-cpp=(?<currentValue>\\d{4}\\.\\d+-\\d+).*"
       ],
