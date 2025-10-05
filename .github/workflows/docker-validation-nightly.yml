@@ -40,7 +40,12 @@ jobs:
       #- name: Building oneDAL
       #  run: docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
       - name: Building oneDAL with bazel
-        run: docker run -v $PWD:/workspace -w /workspace onedal-dev bazel build :release --explain=/workspace/explain.txt
+        run: |
+          docker run --rm \
+          -v ${{ github.workspace }}:/sources/oneDAL \
+          -w /sources/oneDAL \
+          onedal-dev \
+          bazel build :release --explain=explain.txt
       - name: read out
         if: always()
         run: more ./explain.txt
