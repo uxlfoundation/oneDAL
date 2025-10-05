@@ -45,7 +45,7 @@ jobs:
           -v ${{ github.workspace }}:/sources/oneDAL \
           -w /sources/oneDAL \
           onedal-dev \
-          bazel build :release --explain=explain.txt
+          bazel build :release --explain=explain.txt && ls -l explain.txt && cat explain.txt
       - name: read out
         if: always()
         run: more ./explain.txt
