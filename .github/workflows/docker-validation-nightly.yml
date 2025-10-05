@@ -42,4 +42,5 @@ jobs:
       - name: Building oneDAL with bazel
         run: docker run onedal-dev bazel build :release --explain=explain.txt
       - name: read out
+        if: always()
         run: more explain.txt
