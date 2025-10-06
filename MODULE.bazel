@@ -132,7 +132,7 @@ mkl_repo(
         # TODO: investigate the how to provide global runtime dependencies in bazel.
         # Core static MKL runtime libraries (.a)
         # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.
-        "https://anaconda.org/conda-forge/mkl-static/2024.2.2/download/linux-64/mkl-static-2024.2.2-ha770c72_17.conda",
+        "https://anaconda.org/conda-forge/mkl-static/2025.2.0/download/linux-64/mkl-static-2025.2.0-ha770c72_629.conda",
 
         # Header files for classic MKL (C/C++) interface(mkl_include_)
         # Contains "mkl.h" and related headers, not using oneAPI directory structure
@@ -180,7 +180,7 @@ mkl_repo(
     ],
     sha256s = [
         # Core static MKL runtime libraries (.a)
-        "c34ecf9d3b7371b4e9b0dfd9cf55daedf2c884507a88d4fc3fe98bf862092b74",
+        "a982243984e68abc692ad1c855902163f646d0c2121e8821c54c28e77f1939ec",
         # Header files for classic MKL (C/C++) interface(mkl_include)
         "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
         # oneMKL SYCL C++ headers (DPC++/SYCL interface)
