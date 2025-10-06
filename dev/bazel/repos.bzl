@@ -17,25 +17,20 @@
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
-    # Workaround Python wheel extraction. Bazel cannot determine file
-    # type automatically as does not support wheels out-of-the-box.
-    filename = url.split("/")[-1]
-    downloaded_path = repo_ctx.path(filename)
-
     repo_ctx.download(
         url = url,
-        output = downloaded_path,
+        output = output,
         sha256 = sha256,
     )
 
-    if filename.endswith(".conda"):
-        repo_ctx.execute(["unzip", downloaded_path, "-d", output])
+    if url.endswith(".conda"):
+        repo_ctx.execute(["unzip", output, "-d", output])
 
         for entry in repo_ctx.path(output).readdir():
             if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
                 repo_ctx.execute(["bash", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
 
-    elif filename.endswith(".whl") or filename.endswith(".zip"):
+    elif url.endswith(".whl") or url.endswith(".zip"):
         repo_ctx.download_and_extract(
             url = url,
             sha256 = sha256,
