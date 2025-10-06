@@ -22,6 +22,10 @@ BAZELISK_JSON=$(wget -qO- \
   ${GITHUB_TOKEN:+--header="Authorization: Bearer $GITHUB_TOKEN"} \
   --header="X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/bazelbuild/bazelisk/releases/tags/$BAZELISK_VERSION)
+if [ $? -ne 0 ] || [ -z "$BAZELISK_JSON" ]; then
+  echo ":error: Failed to fetch Bazelisk release information from GitHub API." >&2
+  exit 1
+fi
 
 # extract SHA256 from json
 SHA256=""
