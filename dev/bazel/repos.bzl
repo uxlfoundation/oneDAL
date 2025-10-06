@@ -40,7 +40,7 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
             url = url,
             sha256 = sha256,
             output = output,
-            stripPrefix = strip_prefix,
+            strip_prefix = strip_prefix,
             type = "zip",
         )
 
@@ -49,7 +49,7 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
             url = url,
             sha256 = sha256,
             output = output,
-            stripPrefix = strip_prefix,
+            strip_prefix = strip_prefix,
         )
 
 
