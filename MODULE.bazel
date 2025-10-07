@@ -72,16 +72,16 @@ mpi_repo(
     name = "mpi",
     root_env_var = "MPIROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/0a/7c/0f4de62a3463e4ebcf232352b231427f3b34c6a0a1b102a94da3246cad76/impi_rt-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/10/9f/4ee3244c078b9e9e8f65ec51760e7a6e52988abba92a285ab8b0c4dbafff/impi_devel-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/e5/44/6867aebd60d8b8bcf8f7e3b1fa781debd4fc3df16bfb1525e732570ea214/impi_rt-2021.16.1-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/41/75/46b81412f336dde770a56960c7b10af6860efa4dd3aa9796d5eb2645644a/impi_devel-2021.16.1-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "f06ac9eba3de9609fb257d714e3041f82334ccfe27a9bec0f90007d6381dd52e",
-        "6a6ec66719ac4884a40a0504f4f186f51ee4169bece5f4486c31138ed6bcc87d",
+        "0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95",
+        "d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd",
     ],
     strip_prefixes = [
-        "impi_rt-2021.14.0.data/data",
-        "impi_devel-2021.14.0.data/data",
+        "impi_rt-2021.16.1.data/data",
+        "impi_devel-2021.16.1.data/data",
     ]
 )
 
