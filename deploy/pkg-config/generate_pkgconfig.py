@@ -18,7 +18,6 @@
 
 import os
 import sys
-import glob
 import argparse
 from sys import platform
 import platform as plt
@@ -52,12 +51,10 @@ else:
 RESULT_PKG_CONFIGS = {
     'dal-static-threading-host': {
         'is_static': True,
-        'is_threading': True,
         'dal_libs': LIBS_PAR_STAT
     },
     'dal-dynamic-threading-host': {
         'is_static': False,
-        'is_threading': True,
         'dal_libs': LIBS_PAR_DYN
     },
 }
@@ -93,27 +90,24 @@ elif platform in ["win32", "win64"]:
     SUFF_DYN_LIB = "_dll.lib"
     SUFF_STAT_LIB = ".lib"
     TBB_LIBS = "tbb12.lib tbbmalloc.lib"
-    OTHER_LIBS = " "
+    OTHER_LIBS = ""
     OTHER_OPTS = "/std:c++17 /MD /wd4996"
 else:
     raise RuntimeError("Not support OS {}".format(platform))
 
-def get_result_libs(is_static, is_threading, dal_libs):
+def get_result_libs(is_static, dal_libs):
     suffix = SUFF_STAT_LIB if is_static else SUFF_DYN_LIB
     out_lib = ["${{libdir}}{}{}{}{}".format('/', PREF_LIB, lib, suffix) for lib in dal_libs]
-    res_dal_libs = " ".join(out_lib)
-    return res_dal_libs + ' ' + TBB_LIBS + ' ' + OTHER_LIBS
+    return " ".join([lib for lib in out_lib + [TBB_LIBS, OTHER_LIBS] if lib])
 
 def generate(config):
     with open(config.template_name, 'r') as pkg_template_file:
         pkg_template = pkg_template_file.read()
 
-        for pkg_config in RESULT_PKG_CONFIGS:
-            pack_pkg_config = RESULT_PKG_CONFIGS[pkg_config]
+        for pkg_config, pack_pkg_config in RESULT_PKG_CONFIGS.items():
             libs = get_result_libs(**pack_pkg_config)
-            libdir = LIBDIR
             opts = OTHER_OPTS + ' ' + '-I${includedir}'
-            result_content = pkg_template.format(libdir=libdir, libs=libs, opts=opts)
+            result_content = pkg_template.format(libdir=LIBDIR, libs=libs, opts=opts)
             if not os.path.exists(config.output_dir):
                 os.makedirs(config.output_dir)
             result_pkg_config_file = config.output_dir + os.sep + pkg_config + '.pc'
