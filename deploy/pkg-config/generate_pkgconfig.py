@@ -90,7 +90,7 @@ elif platform in ["win32", "win64"]:
     SUFF_DYN_LIB = "_dll.lib"
     SUFF_STAT_LIB = ".lib"
     TBB_LIBS = "tbb12.lib tbbmalloc.lib"
-    OTHER_LIBS = ""
+    OTHER_LIBS = " "
     OTHER_OPTS = "/std:c++17 /MD /wd4996"
 else:
     raise RuntimeError("Not support OS {}".format(platform))
@@ -98,7 +98,8 @@ else:
 def get_result_libs(is_static, dal_libs):
     suffix = SUFF_STAT_LIB if is_static else SUFF_DYN_LIB
     out_lib = ["${{libdir}}{}{}{}{}".format('/', PREF_LIB, lib, suffix) for lib in dal_libs]
-    return " ".join([lib for lib in out_lib + [TBB_LIBS, OTHER_LIBS] if lib])
+    res_dal_libs = " ".join(out_lib)
+    return res_dal_libs + ' ' + TBB_LIBS + ' ' + OTHER_LIBS
 
 def generate(config):
     with open(config.template_name, 'r') as pkg_template_file:
