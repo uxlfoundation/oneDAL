@@ -97,7 +97,6 @@ def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
-    repo_ctx.execute(["mkdir", "-p", str(output)])
     info_entries = _normalize_download_info(repo_ctx)
     for info in info_entries:
         _download_and_extract(
