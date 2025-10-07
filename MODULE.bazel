@@ -17,9 +17,9 @@
 module(name = "onedal")
 
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "bazel_skylib", version = "1.8.1")
-bazel_dep(name = "rules_cc", version = "0.2.5")
-bazel_dep(name = "fmt", version = "11.2.0")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_cc", version = "0.2.9")
+bazel_dep(name = "fmt", version = "12.0.0")
 
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
 declare_onedal_config(name = "config",)

@@ -19,6 +19,15 @@
       "groupName": "Dockerfile",
       "schedule": ["before 2am on the first day of the month"],
       "matchFileNames": ["**/*.Dockerfile"]
+    },
+    {
+      "matchPackageNames": [
+        "intel-oneapi-compiler-dpcpp-cpp",
+        "intel-oneapi-mkl-devel",
+        "intel-oneapi-tbb-devel"
+      ],
+      "matchUpdateTypes": ["major", "minor"],
+      "groupName": "intel-oneapi-apt"
     }
   ],
   "customManagers": [
@@ -33,9 +42,9 @@
       "customType": "regex",
       "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^\\.github\\/workflows\\/ci.+$"],
       "matchStrings": [
-        "TBB_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
-        "set TBBVERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "TBB_VERSION: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+        "\\s*TBB_DEFAULT_VERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "\\s*set\\s+TBBVERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
+        "\\s*TBB_VERSION\\s*[:=]\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?"
       ],
       "depNameTemplate": "uxlfoundation/oneTBB",
       "datasourceTemplate": "github-releases"
@@ -46,6 +55,43 @@
       "matchStrings": ["BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "OpenMathLib/OpenBLAS",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$", "^dev\\/docker\\/onedal\\-dev\\.Dockerfile", "^dev\\/bazel\\/README\\.md"],
+      "matchStrings": [
+        "BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+        "github\\.com/bazelbuild/bazelisk/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/bazelisk-[^\"' ]+"
+      ],
+      "depNameTemplate": "bazelbuild/bazelisk",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "matchStrings": [
+        ".*\\b(?<depName>intel-oneapi-compiler-dpcpp-cpp)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
+      ],
+      "datasourceTemplate": "deb",
+      "registryUrlTemplate": "https://apt.repos.intel.com/oneapi?suite=all&components=main&binaryArch=amd64"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "matchStrings": [
+        ".*\\b(?<depName>intel-oneapi-mkl-devel)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
+      ],
+      "datasourceTemplate": "deb",
+      "registryUrlTemplate": "https://apt.repos.intel.com/oneapi?suite=all&components=main&binaryArch=amd64"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "matchStrings": [
+        ".*\\b(?<depName>intel-oneapi-tbb-devel)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
+      ],
+      "datasourceTemplate": "deb",
+      "registryUrlTemplate": "https://apt.repos.intel.com/oneapi?suite=all&components=main&binaryArch=amd64"
     }
   ]
 }
