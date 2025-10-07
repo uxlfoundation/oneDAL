@@ -716,7 +716,7 @@ void ErrorMessageCollection::parseResourceFile()
     add(ErrorCloneMethodFailed, "Cloning of algorithm failed");
     add(ErrorDataTypeNotSupported, "Data type not supported");
     add(ErrorNullByteInjection, "Null byte injection has been detected");
-    add(ErrorBufferSizeIntegerOverflow, "Integer overflow is occurred");
+    add(ErrorBufferSizeIntegerOverflow, "Integer overflow has occurred");
     add(ErrorHyperparameterNotFound, "Cannot find a hyperparameter");
     add(ErrorHyperparameterBadValue, "Hyperparameter has bad value");
 
