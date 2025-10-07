@@ -28,6 +28,9 @@ def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     )
 
     if filename.endswith(".conda"):
+        if not repo_ctx.path(output).is_dir():
+            repo_ctx.execute(["rm", "-f", output])
+            repo_ctx.execute(["mkdir", "-p", output])
         repo_ctx.execute(["unzip", downloaded_path, "-d", output])
         print(output)
         for entry in repo_ctx.path(output).readdir():
