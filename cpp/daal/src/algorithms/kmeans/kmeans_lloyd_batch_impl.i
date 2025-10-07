@@ -121,7 +121,8 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         {
             DAAL_PROFILER_TASK(addNTToTaskThreaded);
             /* For the last iteration we do not need to recount of assignments */
-            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize, assignmentsNT && (kIter == nIter - 1) ? assignmentsNT : nullptr);
+            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize,
+                                                           assignmentsNT && (kIter == nIter - 1) ? assignmentsNT : nullptr);
         }
 
         if (!s)
