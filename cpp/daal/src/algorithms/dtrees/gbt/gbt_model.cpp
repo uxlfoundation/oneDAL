@@ -25,6 +25,7 @@
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
 #include <cassert>
 #include <iostream>
+#include <utility>
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -290,6 +291,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 
     ModelFPType * const splitPoints         = newTree.getSplitPoints();
     size_t * const leftChildIndexes         = newTree.getLeftChildIndexes();
+    SplitLeftIdPair* const SplitAndLeftIds  = newTree.getSplitsAndLeftIds();
     FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
     ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
     int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
@@ -322,6 +324,8 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 splitPoints[idxInTable]      = p->featureValueOrResponse;
                 leftChildIndexes[idxInTable] = idxChild;
+                SplitAndLeftIds[idxInTable].leftId = idxChild;
+                SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
                 idxChild += 2;
             }
             else
@@ -336,6 +340,9 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 //leftChildIndexes[idxInTable] = idxChild;
                 //idxChild += 2;
                 leftChildIndexes[idxInTable] = idxInTable + 1;
+
+                SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
+                SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
             }
             // leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
             idxInTable++;
