@@ -54,16 +54,16 @@ tbb_repo(
     name = "tbb",
     root_env_var = "TBBROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/93/4b/2e29f4266be5a66f21fc2dadcde48f9acea86119d6fb1bb2d2a451222ff7/tbb-2022.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/ff/8c/1eb1f856a7a328242d524f1bf64f2a212d46ce5651168e7c8bc7aeaf0f44/tbb_devel-2022.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/cd/5c/019acaccf0038b8e05b0a54189439d0987891017a84ca43675589f7e460c/tbb-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/75/b8/de55540aecc77a7f308db1b0667e017578be7d4c18d7235cbc8f1fd1f59a/tbb_devel-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "15a15a4e3ea4c3f3198bdb3c55fac75c589e15ed2ad0bbb080900d355c5b017e",
-        "474e4ed1dce2efeea1d3652e295a97713df5d0ed854c937ee7d0464c38353c36",
+        "522189f3e370a6b9c92b8a7fbdecf3633f7c53f0ea4eb8d6891a7f5f00c78099",
+        "3cf12760779cdbdad1006112a1384e1f8853e46f8bc7a41e7e7bcfd5557b6983",
     ],
     strip_prefixes = [
-        "tbb-2022.0.0.data/data",
-        "tbb_devel-2022.0.0.data/data",
+        "tbb-2022.2.0.data/data",
+        "tbb_devel-2022.2.0.data/data",
     ]
 )
 
@@ -90,13 +90,13 @@ ccl_repo(
     name = "ccl",
     root_env_var = "CCL_ROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/c4/34/84fcf891faabfcd88e1e054a9268cdbefac8c22ab37d7eea2d9a3bda0f52/oneccl_devel-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/20/84/80906846a15a688214479b30c5a25044f3356216f6ee473b5f33010d7db0/oneccl-2021.16.2-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "580641c9d296b673d225ed3ca740b3356d7408a5c792de596a8836fde7d6c79e",
+        "83fa5c0ac8e7c06569480fd27eb5f26a3bb383902277e2d22c93212b6cf26e9e",
     ],
     strip_prefixes = [
-        "oneccl_devel-2021.14.0.data/data",
+        "oneccl_devel-2021.16.2.data/data",
     ]
 )
 
