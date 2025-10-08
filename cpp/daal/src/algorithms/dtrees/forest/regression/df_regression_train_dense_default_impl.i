@@ -158,10 +158,11 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    constexpr const size_t simd_batch_size = 8;
+    constexpr const size_t simdBatchSize        = 8;
+    constexpr const size_t minObsVectorizedPath = 32;
     if (noWeights)
     {
-        if (n < 32)
+        if (n < minObsVectorizedPath)
         {
             imp.mean = this->_aResponse[aIdx[0]].val;
             imp.var  = 0;
@@ -177,27 +178,27 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
         else
         {
-            double means[simd_batch_size]           = { 0 };
-            double sums_of_squares[simd_batch_size] = { 0 };
-            double y_batch[simd_batch_size];
+            double means[simdBatchSize]           = { 0 };
+            double sums_of_squares[simdBatchSize] = { 0 };
+            double y_batch[simdBatchSize];
 
-            const size_t iters_simd_loop = n / simd_batch_size;
-            const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
+            const size_t iters_simd_loop = n / simdBatchSize;
+            const size_t size_simd_loop  = iters_simd_loop * simdBatchSize;
 
             for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
             {
-                const size_t i_start  = i_main * simd_batch_size;
+                const size_t i_start  = i_main * simdBatchSize;
                 const auto aIdx_start = aIdx + i_start;
                 const double mult     = 1.0 / static_cast<double>(i_main + 1);
 
-#pragma omp simd simdlen(simd_batch_size)
-                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+#pragma omp simd simdlen(simdBatchSize)
+                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
                 {
                     y_batch[i_sub] = this->_aResponse[aIdx_start[i_sub]].val;
                 }
 
 #pragma omp simd
-                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
                 {
                     const double y     = y_batch[i_sub];
                     double mean_batch  = means[i_sub];
@@ -210,7 +211,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
             imp.mean = means[0];
             imp.var  = sums_of_squares[0];
-            for (size_t i = 1; i < simd_batch_size; i++)
+            for (size_t i = 1; i < simdBatchSize; i++)
             {
                 const double delta = means[i] - imp.mean;
                 const double div   = 1.0 / static_cast<double>(i + 1);
@@ -230,7 +231,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
     }
     else
     {
-        if (n < 32)
+        if (n < minObsVectorizedPath)
         {
             imp.mean     = this->_aResponse[aIdx[0]].val;
             imp.var      = 0;
@@ -252,28 +253,28 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         {
             // For details about the vectorized version, see the wikipedia article:
             // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
-            double means[simd_batch_size]           = { 0 };
-            double sums_of_squares[simd_batch_size] = { 0 };
-            double y_batch[simd_batch_size];
-            double weights_batch[simd_batch_size];
+            double means[simdBatchSize]           = { 0 };
+            double sums_of_squares[simdBatchSize] = { 0 };
+            double y_batch[simdBatchSize];
+            double weights_batch[simdBatchSize];
 
-            const size_t iters_simd_loop = n / simd_batch_size;
-            const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
+            const size_t iters_simd_loop = n / simdBatchSize;
+            const size_t size_simd_loop  = iters_simd_loop * simdBatchSize;
 
             for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
             {
-                const size_t i_start  = i_main * simd_batch_size;
+                const size_t i_start  = i_main * simdBatchSize;
                 const auto aIdx_start = aIdx + i_start;
 
-#pragma omp simd simdlen(simd_batch_size)
-                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+#pragma omp simd simdlen(simdBatchSize)
+                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
                 {
                     y_batch[i_sub]       = this->_aResponse[aIdx_start[i_sub]].val;
                     weights_batch[i_sub] = this->_aWeights[aIdx[i_sub]].val;
                 }
 
 #pragma omp simd
-                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
                 {
                     const double y      = y_batch[i_sub];
                     const double weight = weights_batch[i_sub];
@@ -291,11 +292,11 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             imp.var      = sums_of_squares[0];
             totalWeights = weights_batch[0];
             size_t i_batch;
-            for (i_batch = 0; i_batch < simd_batch_size; i_batch++)
+            for (i_batch = 0; i_batch < simdBatchSize; i_batch++)
             {
                 if (weights_batch[i_batch]) break;
             }
-            for (; i_batch < simd_batch_size; i_batch++)
+            for (; i_batch < simdBatchSize; i_batch++)
             {
                 const double weightNew  = weights_batch[i_batch];
                 const double weightLeft = totalWeights;
