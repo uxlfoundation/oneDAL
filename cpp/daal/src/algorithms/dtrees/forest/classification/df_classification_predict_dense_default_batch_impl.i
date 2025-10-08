@@ -68,8 +68,6 @@ DAAL_FORCEINLINE void fillResults(const size_t nClasses, const enum VotingMethod
 {
     if (votingMethod == VotingMethod::unweighted || probas == nullptr)
     {
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < blockSize; ++i)
         {
             const size_t cl = classes[leafsIndexes[i]];
@@ -80,8 +78,6 @@ DAAL_FORCEINLINE void fillResults(const size_t nClasses, const enum VotingMethod
     {
         for (size_t i = 0; i < blockSize; ++i)
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nClasses; ++j)
             {
                 resPtr[i * nClasses + j] += probas[leafsIndexes[i] * nClasses + j];
@@ -340,8 +336,6 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTrees(const siz
         }
         else if (_votingMethod == VotingMethod::weighted)
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < _nClasses; ++i)
             {
                 resPtr[i] += probas[idx * _nClasses + i];
@@ -351,14 +345,11 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTrees(const siz
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
                 }
 
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     resPtr[i] = resPtr[i] / sum;
@@ -403,8 +394,6 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
         }
         else if (_votingMethod == VotingMethod::weighted)
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < _nClasses; ++i)
             {
                 resPtr[i] += probas[idx * _nClasses + i];
@@ -414,14 +403,11 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
                 }
 
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     resPtr[i] = resPtr[i] / sum;
@@ -449,8 +435,6 @@ Status PredictClassificationTask<algorithmFPType, cpu>::parallelPredict(const al
 
     SafeStatus safeStat;
 
-    PRAGMA_IVDEP
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < treeSize; ++i)
     {
         fi[i] = aNode[i].featureIndex;
@@ -769,8 +753,6 @@ DAAL_FORCEINLINE Status PredictClassificationTask<algorithmFPType, cpu>::predict
     }
     if (probPtr != nullptr)
     {
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _nClasses; ++j)
         {
             probPtr[j] = prob_d[j];
@@ -891,8 +873,6 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
             {
                 const size_t treeSize          = _aTree[iTree + i]->getNumberOfRows();
                 const DecisionTreeNode * aNode = (const DecisionTreeNode *)(*_aTree[iTree + i]).getArray();
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < treeSize; ++j)
                 {
                     fi[displace + j] = aNode[j].featureIndex;
@@ -1002,8 +982,6 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
     }
     if (probPtr != nullptr)
     {
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _nClasses; ++j)
         {
             probPtr[j] = prob_d[j];
