@@ -123,6 +123,7 @@ private:
     std::int64_t rank_count_ = -1;
 };
 
+// TODO: Add tests for other methods
 using kmeans_init_types = _TE_COMBINE_TYPES_2((float, double),
                                               (kmeans_init::method::plus_plus_dense));
 
