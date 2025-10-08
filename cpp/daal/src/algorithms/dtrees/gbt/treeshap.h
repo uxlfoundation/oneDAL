@@ -102,8 +102,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     // stop if we have no weight coming down to us
     if (conditionFraction < FLT_EPSILON) return;
 
-    const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
-    const size_t * const leftIds              = tree->getLeftChildIndexes() - 1;
+    // const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
+    // const size_t * const leftIds              = tree->getLeftChildIndexes() - 1;
+    const SplitLeftIdPair* const splitAndLeftIds = tree->getSplitsAndLeftIds() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
@@ -127,7 +128,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         {
             const float w          = unwoundPathSum(uniquePath, uniqueDepth, i);
             const PathElement & el = uniquePath[i];
-            phi[el.featureIndex] += w * (el.oneFraction - el.zeroFraction) * splitValues[nodeIndex] * conditionFraction;
+            phi[el.featureIndex] += w * (el.oneFraction - el.zeroFraction) * splitAndLeftIds[nodeIndex].splitPoint * conditionFraction;
         }
 
         return;
@@ -139,7 +140,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> dispatcher;
 
     // TODO: fix indexing
-    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, leftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
+    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitAndLeftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
     const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
 
     const float w = nodeCoverValues[nodeIndex];
@@ -248,8 +249,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     // stop if we have no weight coming down to us
     if (conditionFraction < FLT_EPSILON) return;
 
-    const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
-    const size_t * const leftIds              = tree->getLeftChildIndexes() - 1;
+    // const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
+    // const size_t * const leftIds              = tree->getLeftChildIndexes() - 1;
+    const SplitLeftIdPair* const splitAndLeftIds = tree->getSplitsAndLeftIds() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
@@ -285,7 +287,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         uint32_t valuesNonZeroCount = 0;
         for (uint32_t j = 0; j < numOutputs; ++j)
         {
-            if (splitValues[valuesOffset + j] != 0)
+            if (splitAndLeftIds[valuesOffset + j].splitPoint != 0)
             {
                 valuesNonZeroInd = j;
                 valuesNonZeroCount++;
@@ -311,13 +313,13 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
             }
             if (valuesNonZeroCount == 1)
             {
-                phi[phiOffset + valuesNonZeroInd] += scale * splitValues[valuesOffset + valuesNonZeroInd];
+                phi[phiOffset + valuesNonZeroInd] += scale * splitAndLeftIds[valuesOffset + valuesNonZeroInd].splitPoint;
             }
             else
             {
                 for (uint32_t j = 0; j < numOutputs; ++j)
                 {
-                    phi[phiOffset + j] += scale * splitValues[valuesOffset + j];
+                    phi[phiOffset + j] += scale * splitAndLeftIds[valuesOffset + j].splitPoint;
                 }
             }
         }
@@ -330,9 +332,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
 
     gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> dispatcher;
     // TODO: fix indexing
-    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, leftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
+    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitAndLeftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
     // const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
-    const size_t coldIndex = leftIds[nodeIndex] + (hotIndex == leftIds[nodeIndex]);
+    const size_t coldIndex = splitAndLeftIds[nodeIndex].leftId + (hotIndex == splitAndLeftIds[nodeIndex].leftId);
 
     const algorithmFPType w                = nodeCoverValues[nodeIndex];
     const algorithmFPType hotZeroFraction  = nodeCoverValues[hotIndex] / w;
