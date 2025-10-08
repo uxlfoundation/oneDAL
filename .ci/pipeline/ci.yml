@@ -39,12 +39,12 @@ pr:
 
 variables:
   OPENBLAS_VERSION : 'v0.3.27'
-  TBB_VERSION : 'v2021.10.0'
+  TBB_VERSION : 'v2022.2.0'
   VM_IMAGE : 'ubuntu-24.04'
-  WIN_VM_IMAGE : 'windows-2022'
+  WIN_VM_IMAGE : 'windows-2025'
   SYSROOT_OS: 'noble'
-  PY_VERSION: '3.11'
-  SKL_VERSION: '1.5'
+  PY_VERSION: '3.13'
+  SKL_VERSION: '1.7'
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
@@ -148,11 +148,10 @@ jobs:
     platform.type : 'lnxriscv64'
     OPENBLAS_VERSION : 'v0.3.27'
     OPENBLAS_CACHE_DIR : $(Pipeline.Workspace)/openblas-riscv64-clang
-    TBB_VERSION : 'v2021.10.0'
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-24.04'
   steps:
   - script: |
       .ci/env/apt.sh dev-base
@@ -161,8 +160,8 @@ jobs:
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
   - script: |
-      .ci/env/apt.sh llvm-version 18
-    displayName: 'llvm 18 installation'
+      .ci/env/apt.sh llvm-version 20
+    displayName: 'llvm 20 installation'
   - script: |
       .ci/env/apt.sh qemu-deb
     displayName: 'qemu-emulation installation'
@@ -381,7 +380,7 @@ jobs:
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python313:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
   steps:
@@ -484,7 +483,7 @@ jobs:
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python313:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
   steps:
