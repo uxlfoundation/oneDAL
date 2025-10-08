@@ -566,6 +566,7 @@ public:
                              const algorithmFPType accuracy, const ImpurityData & curImpurity, TSplitData & split,
                              const algorithmFPType minWeightLeaf, const algorithmFPType totalWeights) const
     {
+        DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::RespHelperBase.findSplitForFeature);
         const bool noWeights = !this->_weights;
         if (noWeights)
         {
@@ -885,6 +886,7 @@ int RespHelperBase<algorithmFPType, cpu, crtp>::findSplitForFeatureSorted(algori
                                                                           TSplitData & split, const algorithmFPType minWeightLeaf,
                                                                           const algorithmFPType totalWeights, const BinIndexType * binIndex) const
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::RespHelperBase.findSplitForFeatureSorted);
     const auto nDiffFeatMax = this->indexedFeatures().numIndices(iFeature);
     this->_samplesPerClassBuf.setValues(nClasses() * nDiffFeatMax, 0);
 
@@ -1049,6 +1051,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
                                                                             const algorithmFPType minWeightLeaf, const algorithmFPType totalWeights,
                                                                             const IndexType iFeature) const
 {
+    DAAL_PROFILER_THREADING_TASK(UnorderedRespHelperRandom::findSplitByHistDefault);
     auto nFeatIdx         = this->_idxFeatureBuf.get();
     auto featWeights      = this->_weightsFeatureBuf.get();
     auto nSamplesPerClass = this->_samplesPerClassBuf.get();
@@ -1156,6 +1159,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
                                                                          const algorithmFPType minWeightLeaf, const algorithmFPType totalWeights,
                                                                          const IndexType iFeature) const
 {
+    DAAL_PROFILER_THREADING_TASK(UnorderedRespHelperRandom::findSplitFewClasses);
     auto nSamplesPerClass = this->_samplesPerClassBuf.get();
     auto nFeatIdx         = this->_idxFeatureBuf.get();
 
