@@ -96,7 +96,7 @@ ccl_repo(
         "83fa5c0ac8e7c06569480fd27eb5f26a3bb383902277e2d22c93212b6cf26e9e",
     ],
     strip_prefixes = [
-        "oneccl_devel-2021.16.2.data/data",
+        "oneccl-2021.16.2.data/data",
     ]
 )
 
