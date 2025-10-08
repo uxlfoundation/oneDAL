@@ -158,34 +158,169 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    imp.var  = 0;
-    imp.mean = this->_aResponse[aIdx[0]].val;
+    constexpr const size_t simd_batch_size = 8;
     if (noWeights)
     {
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < n; ++i)
+        if (n < 32)
         {
-            const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
-            imp.mean += delta / double(i + 1);
-            imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            imp.mean = this->_aResponse[aIdx[0]].val;
+            imp.var  = 0;
+            for (size_t i = 1; i < n; ++i)
+            {
+                const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
+                imp.mean += delta / double(i + 1);
+                imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            totalWeights = double(n);
+            imp.var /= double(n); //impurity is MSE
         }
-        totalWeights = double(n);
-        imp.var /= double(n); //impurity is MSE
+
+        else
+        {
+            double means[simd_batch_size]           = { 0 };
+            double sums_of_squares[simd_batch_size] = { 0 };
+            double y_batch[simd_batch_size];
+
+            const size_t iters_simd_loop = n / simd_batch_size;
+            const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
+
+            for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
+            {
+                const size_t i_start  = i_main * simd_batch_size;
+                const auto aIdx_start = aIdx + i_start;
+                const double mult     = 1.0 / static_cast<double>(i_main + 1);
+
+#pragma omp simd simdlen(simd_batch_size)
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    y_batch[i_sub] = this->_aResponse[aIdx_start[i_sub]].val;
+                }
+
+#pragma omp simd
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    const double y     = y_batch[i_sub];
+                    double mean_batch  = means[i_sub];
+                    const double delta = y - mean_batch;
+                    mean_batch += delta * mult;
+                    sums_of_squares[i_sub] += delta * (y - mean_batch);
+                    means[i_sub] = mean_batch;
+                }
+            }
+
+            imp.mean = means[0];
+            imp.var  = sums_of_squares[0];
+            for (size_t i = 1; i < simd_batch_size; i++)
+            {
+                const double delta = means[i] - imp.mean;
+                const double div   = 1.0 / static_cast<double>(i + 1);
+                imp.mean += delta * div;
+                imp.var += sums_of_squares[i] + (delta * delta) * (static_cast<double>(i) * div);
+            }
+
+            for (size_t i = size_simd_loop; i < n; i++)
+            {
+                const double delta = this->_aResponse[aIdx[i]].val - imp.mean;
+                imp.mean += delta / static_cast<double>(i + 1);
+                imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            totalWeights = static_cast<double>(n);
+            imp.var /= totalWeights;
+        }
     }
     else
     {
-        totalWeights = this->_aWeights[aIdx[0]].val;
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < n; ++i)
+        if (n < 32)
         {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
-            totalWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(totalWeights)));
-            imp.mean += weights * delta / totalWeights;
-            imp.var += weights * delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            imp.mean     = this->_aResponse[aIdx[0]].val;
+            imp.var      = 0;
+            totalWeights = this->_aWeights[aIdx[0]].val;
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t i = 1; i < n; ++i)
+            {
+                const double weights = this->_aWeights[aIdx[i]].val;
+                const double delta   = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
+                totalWeights += weights;
+                DAAL_ASSERT(!(isZero<double, cpu>(totalWeights)));
+                imp.mean += weights * delta / totalWeights;
+                imp.var += weights * delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            imp.var /= totalWeights; //impurity is MSE
         }
-        imp.var /= totalWeights; //impurity is MSE
+
+        else
+        {
+            // For details about the vectorized version, see the wikipedia article:
+            // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+            double means[simd_batch_size]           = { 0 };
+            double sums_of_squares[simd_batch_size] = { 0 };
+            double y_batch[simd_batch_size];
+            double weights_batch[simd_batch_size];
+
+            const size_t iters_simd_loop = n / simd_batch_size;
+            const size_t size_simd_loop  = iters_simd_loop * simd_batch_size;
+
+            for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
+            {
+                const size_t i_start  = i_main * simd_batch_size;
+                const auto aIdx_start = aIdx + i_start;
+
+#pragma omp simd simdlen(simd_batch_size)
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    y_batch[i_sub]       = this->_aResponse[aIdx_start[i_sub]].val;
+                    weights_batch[i_sub] = this->_aWeights[aIdx[i_sub]].val;
+                }
+
+#pragma omp simd
+                for (size_t i_sub = 0; i_sub < simd_batch_size; i_sub++)
+                {
+                    const double y      = y_batch[i_sub];
+                    const double weight = weights_batch[i_sub];
+                    weights_batch[i_sub] += weight;
+
+                    double mean_batch  = means[i_sub];
+                    const double delta = y - mean_batch;
+                    mean_batch += weights_batch[i_sub] ? (delta * (weight / weights_batch[i_sub])) : 0;
+                    sums_of_squares[i_sub] += weight * (delta * (y - mean_batch));
+                    means[i_sub] = mean_batch;
+                }
+            }
+
+            imp.mean     = means[0];
+            imp.var      = sums_of_squares[0];
+            totalWeights = weights_batch[0];
+            size_t i_batch;
+            for (i_batch = 0; i_batch < simd_batch_size; i_batch++)
+            {
+                if (weights_batch[i_batch]) break;
+            }
+            for (; i_batch < simd_batch_size; i_batch++)
+            {
+                const double weightNew  = weights_batch[i_batch];
+                const double weightLeft = totalWeights;
+                totalWeights += weightNew;
+                const double fractionRight = totalWeights ? (weightNew / totalWeights) : 0;
+                const double delta         = means[i_batch] - imp.mean;
+                imp.mean += delta * fractionRight;
+                imp.var += sums_of_squares[i_batch] + (delta * delta) * (weightLeft * fractionRight);
+            }
+
+            size_t i;
+            for (i = size_simd_loop; i < n; i++)
+            {
+                if (this->_aWeights[aIdx[i]].val) break;
+            }
+            for (; i < n; i++)
+            {
+                const double weights = this->_aWeights[aIdx[i]].val;
+                const double delta   = this->_aResponse[aIdx[i]].val - imp.mean;
+                totalWeights += weights;
+                imp.mean += delta * (weights / totalWeights);
+                imp.var += weights * delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+            }
+            if (totalWeights) imp.var /= totalWeights;
+        }
     }
 
 // Note: the debug checks throughout this file are always done in float64 precision regardless
@@ -1026,9 +1161,10 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData right;
     IndexType iBest = -1;
     algorithmFPType vBest;
-    algorithmFPType leftWeights = 0.;
-    auto aResponse              = this->_aResponse.get();
-    auto aWeights               = this->_aWeights.get();
+    double leftWeights;
+    double rightWeights;
+    auto aResponse = this->_aResponse.get();
+    auto aWeights  = this->_aWeights.get();
     algorithmFPType idx;
     vBest = split.impurityDecrease < 0 ? daal::services::internal::MaxVal<algorithmFPType>::get() :
                                          (curImpurity.var - split.impurityDecrease) * totalWeights;
@@ -1063,57 +1199,8 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
         }
     }
 
-    left.var   = 0;
-    left.mean  = this->_aResponse[aIdx[0]].val;
-    right.var  = 0;
-    right.mean = this->_aResponse[aIdx[r]].val;
-    if (noWeights)
-    {
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            left.mean += delta / double(i + 1);
-            left.var += delta * (this->_aResponse[aIdx[i]].val - left.mean);
-            DAAL_ASSERT(left.var >= 0);
-        }
-
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            right.mean += delta / double(i + 1 - r);
-            right.var += delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-
-        leftWeights = r;
-    }
-    else
-    {
-        leftWeights = this->_aWeights[aIdx[0]].val;
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            leftWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(leftWeights)));
-            left.mean += weights * delta / leftWeights;
-            left.var += weights * delta * (this->_aResponse[aIdx[i]].val - left.mean);
-        }
-
-        algorithmFPType rightWeights = this->_aWeights[aIdx[r]].val;
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            rightWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(rightWeights)));
-            right.mean += weights * delta / rightWeights;
-            right.var += weights * delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-    }
+    this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
+    this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
 
     if (!((leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
     {
