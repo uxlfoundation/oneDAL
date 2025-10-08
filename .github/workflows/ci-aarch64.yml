@@ -58,7 +58,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@2ecc21724e5215b0e567bc399a2602d2ecb48541 # v4.1.1
+        uses: lukka/get-cmake@628dd514bed37cb0a609e84a6186cbbaa2fc0140 # v4.1.2
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
@@ -140,7 +140,7 @@ jobs:
       # Faster builds where possible. Fix version of CMake and Ninja.
       # Note: This will create a github actions cache
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@2ecc21724e5215b0e567bc399a2602d2ecb48541 # v4.1.1
+        uses: lukka/get-cmake@628dd514bed37cb0a609e84a6186cbbaa2fc0140 # v4.1.2
         with:
           cmakeVersion: 3.31.0
           ninjaVersion: 1.12.0
