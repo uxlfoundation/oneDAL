@@ -46,8 +46,8 @@ mpi_repo = repos.prebuilt_libs_repo_rule(
         # archives may be different. Mapping helps to setup relations
         # between the required layout (LHS) and downloaded (RHS).
         #          REQUIRED                              DOWNLOADED
-        "libfabric/lib/libfabric.so":                   "lib/libfabric/libfabric.so",
-        "libfabric/lib/libfabric.so.1":                 "lib/libfabric/libfabric.so.1",
+        "libfabric/lib/libfabric.so":                   "lib/libfabric.so",
+        "libfabric/lib/libfabric.so.1":                 "lib/libfabric.so.1",
         "lib/release/libmpi.so":                        "lib/libmpi.so",
         "lib/release/libmpi.so.12":                     "lib/libmpi.so.12",
         "lib/release/libmpi.so.12.0":                   "lib/libmpi.so.12.0",
