@@ -197,7 +197,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * _nClasses + iClass];
         }
-        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf) continue;
+        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf || !leftWeights) continue;
 
         if (split.featureUnordered)
         {
@@ -299,7 +299,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitFewClasses(int nDiff
         {
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
         }
-        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf) continue;
+        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf || !leftWeights) continue;
 
         if (split.featureUnordered)
         {
@@ -483,7 +483,7 @@ bool UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitCategoricalFeature(
             _impLeft.hist[xi] += weights;
         }
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+            || ((totalWeights - leftWeights) < minWeightLeaf) || !leftWeights)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
@@ -1114,8 +1114,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         }
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart)
-          || (leftWeights < minWeightLeaf)))
+    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf))
+        && leftWeights)
     {
         auto histTotal           = curImpurity.hist.get();
         algorithmFPType sumLeft  = 0;
@@ -1327,8 +1327,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         for (size_t iClass = 0; iClass < K; ++iClass) leftWeights += histLeft[iClass];
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart)
-          || (leftWeights < minWeightLeaf)))
+    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf))
+        && leftWeights)
     {
         auto histTotal           = curImpurity.hist.get();
         algorithmFPType sumLeft  = 0;
@@ -1446,7 +1446,8 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
     checkImpurity(aIdx + i - 1, totalWeights - leftWeights, this->_impRight);
 #endif
 
-    if ((leftWeights >= minWeightLeaf) && ((totalWeights - leftWeights) >= minWeightLeaf)) //it is a valid split with enought leaf weights
+    if ((leftWeights >= minWeightLeaf) && ((totalWeights - leftWeights) >= minWeightLeaf)
+        && leftWeights) //it is a valid split with enought leaf weights
     {
         //check if bFound condition below
         if (!isPositive<algorithmFPType, cpu>(this->_impLeft.var)) this->_impLeft.var = 0;   //set left impurity to 0 if negative
@@ -1548,7 +1549,7 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
             this->_impLeft.hist[xi] += weights;
         }
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+            || ((totalWeights - leftWeights) < minWeightLeaf) || !leftWeights)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
