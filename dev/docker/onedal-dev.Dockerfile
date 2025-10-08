@@ -21,7 +21,7 @@ WORKDIR ${workdirectory}
 
 #Env setup
 RUN apt-get update && \
-      apt-get -y install sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar bash
+      apt-get -y install sudo wget gnupg git make python3-setuptools doxygen software-properties-common unzip zstd tar
 
 # Install miniconda
 ENV CONDA_DIR=/opt/conda
