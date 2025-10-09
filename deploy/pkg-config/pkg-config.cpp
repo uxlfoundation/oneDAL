@@ -16,7 +16,7 @@
 
 #define ONEDAL_URL "https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html"
 
-#if defined(__linux__) || defined(__linux) || defined(linux)
+#if defined(__linux__) || defined(__linux)
 
     #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
         #define LIBDIR lib/intel64
@@ -57,7 +57,7 @@
 
     #define OPTS -std=c++17 -Wno-deprecated-declarations -diag-disable=10441
 
-#elif defined(_win32) || defined(_win64)
+#elif defined(_WIN32) || defined(_WIN64)
     #define LIBDIR lib/intel64
 
     #define OTHER_LIBS tbb12.lib tbbmalloc.lib
