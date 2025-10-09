@@ -88,10 +88,15 @@ static infer_result<Task> call_dal_kernel(const context_gpu& ctx,
                                      sparse_indexing::zero_based);
 
     dal::backend::primitives::sparse_matrix_handle sp_handle(queue);
-    set_csr_data(queue, sp_handle, static_cast<const csr_table&>(data_gpu));
+    auto set_csr_data_event =
+        set_csr_data(queue, sp_handle, static_cast<const csr_table&>(data_gpu));
 
-    sycl::event probabilities_event =
-        compute_probabilities_sparse(queue, params_suf, sp_handle, probs, fit_intercept, {});
+    sycl::event probabilities_event = compute_probabilities_sparse(queue,
+                                                                   params_suf,
+                                                                   sp_handle,
+                                                                   probs,
+                                                                   fit_intercept,
+                                                                   { set_csr_data_event });
 
     const auto* const prob_ptr = probs.get_data();
     auto* const resp_ptr = responses.get_mutable_data();
