@@ -25,11 +25,11 @@
     #elif defined(__riscv64__) || defined(__riscv64)
         #define LIBDIR lib/riscv64
     #else
-        #error Unknown CPU architecture    
+        #error Unknown CPU architecture
     #endif
 
     #define OTHER_LIBS -ltbb -ltbbmalloc -lpthread -ldl
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters) 
+    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
 
     #ifdef STATIC
         #define SUFFIX a
@@ -45,7 +45,7 @@
     #define LIBDIR lib
 
     #define OTHER_LIBS -ltbb -ltbbmalloc -ldl
-    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters) 
+    #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
 
     #ifdef STATIC
         #define SUFFIX a
