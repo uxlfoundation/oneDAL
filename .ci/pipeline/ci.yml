@@ -97,7 +97,7 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -201,7 +201,7 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
       .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
