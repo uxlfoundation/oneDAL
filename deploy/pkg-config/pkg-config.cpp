@@ -18,11 +18,11 @@
 
 #if defined(__linux__) || defined(__linux) || defined(linux)
 
-    #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+    #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
         #define LIBDIR lib/intel64
-    #elif defined(__aarch64__) || defined(_M_ARM64)
+    #elif defined(__ARM_ARCH) || defined(__aarch64__)
         #define LIBDIR lib/arm
-    #elif defined(__riscv64__) || defined(__riscv64)
+    #elif defined(__riscv) && (__riscv_xlen == 64)
         #define LIBDIR lib/riscv64
     #else
         #error Unknown CPU architecture
