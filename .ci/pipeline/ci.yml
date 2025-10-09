@@ -87,7 +87,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
@@ -124,6 +124,9 @@ jobs:
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
   - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'conda install'
+  - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
@@ -156,7 +159,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
