@@ -1200,8 +1200,59 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
         }
     }
 
-    this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
-    this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
+    // this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
+    // this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
+    left.var   = 0;
+    left.mean  = this->_aResponse[aIdx[0]].val;
+    right.var  = 0;
+    right.mean = this->_aResponse[aIdx[r]].val;
+    if (noWeights)
+    {
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t i = 1; i < r; ++i)
+        {
+            const double delta = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
+            left.mean += delta / double(i + 1);
+            left.var += delta * (this->_aResponse[aIdx[i]].val - left.mean);
+            DAAL_ASSERT(left.var >= 0);
+        }
+
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t i = r + 1; i < n; ++i)
+        {
+            const double delta = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
+            right.mean += delta / double(i + 1 - r);
+            right.var += delta * (this->_aResponse[aIdx[i]].val - right.mean);
+        }
+
+        leftWeights = r;
+    }
+    else
+    {
+        leftWeights = this->_aWeights[aIdx[0]].val;
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t i = 1; i < r; ++i)
+        {
+            const double weights = this->_aWeights[aIdx[i]].val;
+            const double delta   = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
+            leftWeights += weights;
+            DAAL_ASSERT(!(isZero<double, cpu>(leftWeights)));
+            left.mean += weights * delta / leftWeights;
+            left.var += weights * delta * (this->_aResponse[aIdx[i]].val - left.mean);
+        }
+
+        algorithmFPType rightWeights = this->_aWeights[aIdx[r]].val;
+        PRAGMA_VECTOR_ALWAYS
+        for (size_t i = r + 1; i < n; ++i)
+        {
+            const double weights = this->_aWeights[aIdx[i]].val;
+            const double delta   = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
+            rightWeights += weights;
+            DAAL_ASSERT(!(isZero<double, cpu>(rightWeights)));
+            right.mean += weights * delta / rightWeights;
+            right.var += weights * delta * (this->_aResponse[aIdx[i]].val - right.mean);
+        }
+    }
 
     if (!((leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
     {
