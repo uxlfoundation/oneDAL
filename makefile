@@ -1022,7 +1022,7 @@ $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(R
 endif
 endif
 
-_release_c: ./deploy/pkg-config/pkg-config.cpp sed.-i
+_release_c: ./deploy/pkg-config/pkg-config.cpp
 	mkdir -p $(RELEASEDIR.pkgconfig)
 	# use the compiler's preprocessor to define the pkg-config file as it can handle cross-compilation, OS and ISA determination for all OSes.
 	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E $(if $(COMPILER_is_vc),/,-)DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
