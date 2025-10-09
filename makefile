@@ -1028,9 +1028,9 @@ _release_c: ./deploy/pkg-config/pkg-config.cpp
 	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E $(if $(COMPILER_is_vc),/,-)DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
 	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
 	# insert header then remove C++ comment lines, remove preprocessor headers and quotes from the URL
-	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
 	sed $(sed.-i) '/^#/d; s|//#|#|g; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
-	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
 	sed $(sed.-i) '/^#/d; s|//#|#|g; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
 
 
