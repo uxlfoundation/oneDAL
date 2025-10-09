@@ -91,7 +91,7 @@ elif platform in ["win32", "win64"]:
     SUFF_STAT_LIB = ".lib"
     TBB_LIBS = "tbb12.lib tbbmalloc.lib"
     OTHER_LIBS = " "
-    OTHER_OPTS = "/std:c++17 /MD /wd4996"
+    OTHER_OPTS = "/std:c++17 /MD /wd4996 /EHsc"
 else:
     raise RuntimeError("Not support OS {}".format(platform))
 
