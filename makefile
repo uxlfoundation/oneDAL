@@ -1029,9 +1029,9 @@ _release_c: ./deploy/pkg-config/pkg-config.cpp
 	$(COMPILER.$(_OS).$(COMPILER)) -E ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
 # insert license header, remove preprocessor header, swap to .pc file compliant comments, and remove quotes from the URL
 	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
-	sed $(sed.-i) '1,/^[[:space:]]*[^#[:space:]].*$/ { /^[[:space:]]*$/d; /^[[:space:]]*#/d }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
 	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
-	sed $(sed.-i) '1,/^[[:space:]]*[^#[:space:]].*$/ { /^[[:space:]]*$/d; /^[[:space:]]*#/d }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
 
 
 #----- releasing examples
