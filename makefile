@@ -1022,18 +1022,17 @@ $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(R
 endif
 endif
 
-_release_c: ./deploy/pkg-config/pkg-config.cpp
+_release_c: ./deploy/pkg-config/pkg-config.cpp sed.-i
 	mkdir -p $(RELEASEDIR.pkgconfig)
 	# use the compiler's preprocessor to define the pkg-config file as it can handle cross-compilation, OS and ISA determination for all OSes.
-	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E $(if $(COMPILER_is_vc),/,-)DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
-	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
-	# insert header (modified to follow .pc standards), then remove preprocessor headers and quotes from the URL
-	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp | sed 's|//||g'; \
-	  sed '/^#/d; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc; \
-	} > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
-	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp | sed 's|//||g'; \
-	  sed '/^#/d; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc; \
-	} > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E $(if $(COMPILER_is_vc),/,-)DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER))$(if $(COMPILER_is_vc),/,-)E ./deploy/pkg-config/pkg-config.cpp $(if $(COMPILER_is_vc),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
+	# insert header then remove C++ comment lines, remove preprocessor headers and quotes from the URL
+	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	sed $(sed.-i) 's|//#|#|g; /^#/d; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	{ head -n 15 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+	sed $(sed.-i) 's|//#|#|g; /^#/d; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+
 
 #----- releasing examples
 define .release.x
