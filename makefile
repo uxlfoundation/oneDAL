@@ -1022,8 +1022,9 @@ $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(R
 endif
 endif
 
-_release_c: ./deploy/pkg-config/pkg-config.tpl
-	python ./deploy/pkg-config/generate_pkgconfig.py --output_dir $(RELEASEDIR.pkgconfig) --template_name ./deploy/pkg-config/pkg-config.tpl
+_release_c: ./deploy/pkg-config/pkg-config.cpp
+	$(C.COMPILE) -E -DSTATIC ./deploy/pkg-config/generate_pkg-config.cpp -o $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	$(C.COMPILE) -E ./deploy/pkg-config/generate_pkg-config.cpp -o $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
 
 #----- releasing examples
 define .release.x
