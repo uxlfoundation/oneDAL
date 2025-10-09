@@ -154,6 +154,8 @@ protected:
     mutable TVector<algorithmFPType, cpu, DefaultAllocator<cpu> > _weightsFeatureBuf;
 };
 
+// For details about the vectorized version, see the wikipedia article:
+// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
 template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
@@ -209,21 +211,25 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 }
             }
 
-            imp.mean = means[0];
-            imp.var  = sums_of_squares[0];
+            imp.mean          = means[0];
+            imp.var           = sums_of_squares[0];
+            double var_deltas = 0;
             for (size_t i = 1; i < simdBatchSize; i++)
             {
                 const double delta = means[i] - imp.mean;
                 const double div   = 1.0 / static_cast<double>(i + 1);
                 imp.mean += delta * div;
-                imp.var += sums_of_squares[i] + (delta * delta) * (static_cast<double>(i) * div);
+                imp.var += sums_of_squares[i];
+                var_deltas += (delta * delta) * (static_cast<double>(i) * div);
             }
+            imp.var += var_deltas * iters_simd_loop;
 
             for (size_t i = size_simd_loop; i < n; i++)
             {
-                const double delta = this->_aResponse[aIdx[i]].val - imp.mean;
+                const double y     = this->_aResponse[aIdx[i]].val;
+                const double delta = y - imp.mean;
                 imp.mean += delta / static_cast<double>(i + 1);
-                imp.var += delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+                imp.var += delta * (y - imp.mean);
             }
             totalWeights = static_cast<double>(n);
             imp.var /= totalWeights;
@@ -251,10 +257,9 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
         else
         {
-            // For details about the vectorized version, see the wikipedia article:
-            // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
             double means[simdBatchSize]           = { 0 };
             double sums_of_squares[simdBatchSize] = { 0 };
+            double sums_of_weights[simdBatchSize] = { 0 };
             double y_batch[simdBatchSize];
             double weights_batch[simdBatchSize];
 
@@ -270,7 +275,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
                 {
                     y_batch[i_sub]       = this->_aResponse[aIdx_start[i_sub]].val;
-                    weights_batch[i_sub] = this->_aWeights[aIdx[i_sub]].val;
+                    weights_batch[i_sub] = this->_aWeights[aIdx_start[i_sub]].val;
                 }
 
 #pragma omp simd
@@ -278,34 +283,37 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 {
                     const double y      = y_batch[i_sub];
                     const double weight = weights_batch[i_sub];
-                    weights_batch[i_sub] += weight;
+                    sums_of_weights[i_sub] += weight;
 
                     double mean_batch  = means[i_sub];
                     const double delta = y - mean_batch;
-                    mean_batch += weights_batch[i_sub] ? (delta * (weight / weights_batch[i_sub])) : 0;
+                    mean_batch += sums_of_weights[i_sub] ? (delta * (weight / sums_of_weights[i_sub])) : 0;
                     sums_of_squares[i_sub] += weight * (delta * (y - mean_batch));
                     means[i_sub] = mean_batch;
                 }
             }
 
-            imp.mean     = means[0];
-            imp.var      = sums_of_squares[0];
-            totalWeights = weights_batch[0];
+            imp.mean          = means[0];
+            imp.var           = sums_of_squares[0];
+            totalWeights      = sums_of_weights[0];
+            double var_deltas = 0;
             size_t i_batch;
-            for (i_batch = 0; i_batch < simdBatchSize; i_batch++)
+            for (i_batch = 1; i_batch < simdBatchSize; i_batch++)
             {
-                if (weights_batch[i_batch]) break;
+                if (sums_of_weights[i_batch]) break;
             }
             for (; i_batch < simdBatchSize; i_batch++)
             {
-                const double weightNew  = weights_batch[i_batch];
+                const double weightNew  = sums_of_weights[i_batch];
                 const double weightLeft = totalWeights;
                 totalWeights += weightNew;
-                const double fractionRight = totalWeights ? (weightNew / totalWeights) : 0;
+                const double fractionRight = weightNew / totalWeights;
                 const double delta         = means[i_batch] - imp.mean;
                 imp.mean += delta * fractionRight;
-                imp.var += sums_of_squares[i_batch] + (delta * delta) * (weightLeft * fractionRight);
+                imp.var += sums_of_squares[i_batch];
+                var_deltas += (delta * delta) * (weightLeft * fractionRight);
             }
+            imp.var += var_deltas;
 
             size_t i;
             for (i = size_simd_loop; i < n; i++)
@@ -314,11 +322,12 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             }
             for (; i < n; i++)
             {
-                const double weights = this->_aWeights[aIdx[i]].val;
-                const double delta   = this->_aResponse[aIdx[i]].val - imp.mean;
-                totalWeights += weights;
-                imp.mean += delta * (weights / totalWeights);
-                imp.var += weights * delta * (this->_aResponse[aIdx[i]].val - imp.mean);
+                const double weight = this->_aWeights[aIdx[i]].val;
+                const double y      = this->_aResponse[aIdx[i]].val;
+                const double delta  = y - imp.mean;
+                totalWeights += weight;
+                imp.mean += delta * (weight / totalWeights);
+                imp.var += weight * delta * (y - imp.mean);
             }
             if (totalWeights) imp.var /= totalWeights;
         }
@@ -1200,59 +1209,8 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
         }
     }
 
-    // this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
-    // this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
-    left.var   = 0;
-    left.mean  = this->_aResponse[aIdx[0]].val;
-    right.var  = 0;
-    right.mean = this->_aResponse[aIdx[r]].val;
-    if (noWeights)
-    {
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            left.mean += delta / double(i + 1);
-            left.var += delta * (this->_aResponse[aIdx[i]].val - left.mean);
-            DAAL_ASSERT(left.var >= 0);
-        }
-
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            right.mean += delta / double(i + 1 - r);
-            right.var += delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-
-        leftWeights = r;
-    }
-    else
-    {
-        leftWeights = this->_aWeights[aIdx[0]].val;
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            leftWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(leftWeights)));
-            left.mean += weights * delta / leftWeights;
-            left.var += weights * delta * (this->_aResponse[aIdx[i]].val - left.mean);
-        }
-
-        algorithmFPType rightWeights = this->_aWeights[aIdx[r]].val;
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            rightWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(rightWeights)));
-            right.mean += weights * delta / rightWeights;
-            right.var += weights * delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-    }
+    this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
+    this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
 
     if (!((leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
     {
