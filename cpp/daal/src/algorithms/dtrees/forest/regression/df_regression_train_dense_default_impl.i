@@ -183,10 +183,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         // Since zero-weight observations have no impact on the results, this tries to
         // look for the first non-zero weight.
         size_t i_start;
-        for (i_start = 0; i_start < n; i_start++)
-        {
-            if (this->_aWeights[aIdx[i_start]].val) break;
-        }
+        for (i_start = 0; i_start < n && !this->_aWeights[aIdx[i_start]].val; i_start++);
 
         for (size_t i = i_start; i < n; ++i)
         {
