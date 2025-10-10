@@ -596,10 +596,10 @@ protected:
         DAAL_ASSERT(iBuf < _nFeatureBufs);
         return _aFeatureBuf[iBuf].get();
     }
-    algorithmFPType * featureBuf_FPType() const
+    algorithmFPType * featureBufFPType() const
     {
-        this->_BufFPType.reset(this->_data->getNumberOfRows());
-        return this->_BufFPType.get();
+        this->_bufFPType.reset(this->_data->getNumberOfRows());
+        return this->_bufFPType.get();
     }
     IndexType * featureIndexBuf(size_t iBuf) const
     {
@@ -678,7 +678,7 @@ protected:
     typename DataHelper::TreeType _tree;
     mutable TVector<IndexType, cpu> _aSample;
     mutable TArray<intermSummFPTypeArray, cpu> _aFeatureBuf;
-    mutable TArray<algorithmFPType, cpu> _BufFPType;
+    mutable TArray<algorithmFPType, cpu> _bufFPType;
     mutable TArray<IndexTypeArray, cpu> _aFeatureIndexBuf;
 
     const NumericTable * _data;
@@ -1245,7 +1245,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
         }
         else
         {
-            algorithmFPType * featBuf = featureBuf_FPType() + iStart; //single thread
+            algorithmFPType * featBuf = featureBufFPType() + iStart; //single thread
             featureValuesToBuf(iFeature, featBuf, aIdx, n);
             if (featBuf[n - 1] - featBuf[0] <= _accuracy) //all values of the feature are the same
                 continue;
