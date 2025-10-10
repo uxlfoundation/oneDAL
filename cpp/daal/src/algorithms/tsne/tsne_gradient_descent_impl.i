@@ -554,7 +554,7 @@ services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
 
             // Aggregate subtrees into main tree
             {
-                // Replace splitted bottom leafs with top nodes from subtrees
+                // Replace split bottom leafs with top nodes from subtrees
                 int nodeOffs  = qTree.layerOffs[bLevel];
                 int childOffs = qTree.layerOffs[bLevel + 1];
 
@@ -756,7 +756,7 @@ services::Status repulsionKernelImpl(MemoryCtxType<IdxType, DataType, cpu> & mem
                 }
                 else
                 {
-                    // Leaf node, process all point separatly
+                    // Leaf node, process all point separately
                     for (int c = 0; c < mass; c++)
                     {
                         // _mm_prefetch(&mem.pos[mem.z_order_idx[fpos + c + 8]], _MM_HINT_T0);
@@ -946,7 +946,7 @@ services::Status tsneGradientDescentImpl(const NumericTablePtr initTable, const 
     const size_t sizeIterTableNumRows = sizeIterTable->getNumberOfRows();
     DAAL_CHECK(sizeIterTableNumRows >= 4, daal::services::ErrorIncorrectSizeOfInputNumericTable);
     const IdxType N                    = sizeIter[0]; // Number of points
-    const IdxType nnz                  = sizeIter[1]; // Number of elements in sparce matrix P
+    const IdxType nnz                  = sizeIter[1]; // Number of elements in sparse matrix P
     const IdxType nIterWithoutProgress = sizeIter[2]; // Number of iterations without introducing changes
     const IdxType maxIter              = sizeIter[3]; // Number of iterations
     IdxType explorationIter            = 250;         // Aligned with scikit-learn
