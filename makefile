@@ -143,8 +143,8 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
--sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
--lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
+-sanitize   := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
+-lsanitize  := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
