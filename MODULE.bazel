@@ -54,16 +54,16 @@ tbb_repo(
     name = "tbb",
     root_env_var = "TBBROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/93/4b/2e29f4266be5a66f21fc2dadcde48f9acea86119d6fb1bb2d2a451222ff7/tbb-2022.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/ff/8c/1eb1f856a7a328242d524f1bf64f2a212d46ce5651168e7c8bc7aeaf0f44/tbb_devel-2022.0.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/cd/5c/019acaccf0038b8e05b0a54189439d0987891017a84ca43675589f7e460c/tbb-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/75/b8/de55540aecc77a7f308db1b0667e017578be7d4c18d7235cbc8f1fd1f59a/tbb_devel-2022.2.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "15a15a4e3ea4c3f3198bdb3c55fac75c589e15ed2ad0bbb080900d355c5b017e",
-        "474e4ed1dce2efeea1d3652e295a97713df5d0ed854c937ee7d0464c38353c36",
+        "522189f3e370a6b9c92b8a7fbdecf3633f7c53f0ea4eb8d6891a7f5f00c78099",
+        "3cf12760779cdbdad1006112a1384e1f8853e46f8bc7a41e7e7bcfd5557b6983",
     ],
     strip_prefixes = [
-        "tbb-2022.0.0.data/data",
-        "tbb_devel-2022.0.0.data/data",
+        "tbb-2022.2.0.data/data",
+        "tbb_devel-2022.2.0.data/data",
     ]
 )
 
@@ -72,16 +72,16 @@ mpi_repo(
     name = "mpi",
     root_env_var = "MPIROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/0a/7c/0f4de62a3463e4ebcf232352b231427f3b34c6a0a1b102a94da3246cad76/impi_rt-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
-        "https://files.pythonhosted.org/packages/10/9f/4ee3244c078b9e9e8f65ec51760e7a6e52988abba92a285ab8b0c4dbafff/impi_devel-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/e5/44/6867aebd60d8b8bcf8f7e3b1fa781debd4fc3df16bfb1525e732570ea214/impi_rt-2021.16.1-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/41/75/46b81412f336dde770a56960c7b10af6860efa4dd3aa9796d5eb2645644a/impi_devel-2021.16.1-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "f06ac9eba3de9609fb257d714e3041f82334ccfe27a9bec0f90007d6381dd52e",
-        "6a6ec66719ac4884a40a0504f4f186f51ee4169bece5f4486c31138ed6bcc87d",
+        "0f70499bc42eab6923c0ae8fa6dd409c047d93626d686ac21d04e295b120bb95",
+        "d1081a1647a4de521e2680983629d627704364a07f16c60aaec0bb85535e25bd",
     ],
     strip_prefixes = [
-        "impi_rt-2021.14.0.data/data",
-        "impi_devel-2021.14.0.data/data",
+        "impi_rt-2021.16.1.data/data",
+        "impi_devel-2021.16.1.data/data",
     ]
 )
 
@@ -90,13 +90,13 @@ ccl_repo(
     name = "ccl",
     root_env_var = "CCL_ROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/c4/34/84fcf891faabfcd88e1e054a9268cdbefac8c22ab37d7eea2d9a3bda0f52/oneccl_devel-2021.14.0-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/20/84/80906846a15a688214479b30c5a25044f3356216f6ee473b5f33010d7db0/oneccl-2021.16.2-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "580641c9d296b673d225ed3ca740b3356d7408a5c792de596a8836fde7d6c79e",
+        "83fa5c0ac8e7c06569480fd27eb5f26a3bb383902277e2d22c93212b6cf26e9e",
     ],
     strip_prefixes = [
-        "oneccl_devel-2021.14.0.data/data",
+        "oneccl-2021.16.2.data/data",
     ]
 )
 
@@ -105,13 +105,13 @@ dpl_repo(
     name = "dpl",
     root_env_var = "DPL_ROOT",
     urls = [
-        "https://files.pythonhosted.org/packages/95/f6/18f78cb933e01ecd9e99d37a10da4971a795fcfdd1d24640799b4050fdbb/onedpl_devel-2022.7.1-py2.py3-none-manylinux_2_28_x86_64.whl",
+        "https://files.pythonhosted.org/packages/73/54/1bac6739304afa4d598e022e9ff5e988c58e4bef1be0f16623061dfa12ee/onedpl_devel-2022.9.0-py2.py3-none-manylinux_2_28_x86_64.whl",
     ],
     sha256s = [
-        "3b270999d2464c5151aa0e7995dda9e896d072c75069ccee1efae9dc56bdc417",
+        "6d4410d565cceb9160e756d189b3adab1a54d2c1ac3055a268189298961bc57b",
     ],
     strip_prefixes = [
-        "onedpl_devel-2022.7.1.data/data",
+        "onedpl_devel-2022.9.0.data/data",
     ],
 )
 
@@ -132,7 +132,7 @@ mkl_repo(
         # TODO: investigate the how to provide global runtime dependencies in bazel.
         # Core static MKL runtime libraries (.a)
         # Includes libmkl_intel_lp64.a, libmkl_core.a, libmkl_sequential.a, etc.
-        "https://anaconda.org/conda-forge/mkl-static/2024.2.2/download/linux-64/mkl-static-2024.2.2-ha770c72_17.conda",
+        "https://anaconda.org/conda-forge/mkl-static/2025.2.0/download/linux-64/mkl-static-2025.2.0-ha770c72_629.conda",
 
         # Header files for classic MKL (C/C++) interface(mkl_include_)
         # Contains "mkl.h" and related headers, not using oneAPI directory structure
@@ -180,7 +180,7 @@ mkl_repo(
     ],
     sha256s = [
         # Core static MKL runtime libraries (.a)
-        "c34ecf9d3b7371b4e9b0dfd9cf55daedf2c884507a88d4fc3fe98bf862092b74",
+        "a982243984e68abc692ad1c855902163f646d0c2121e8821c54c28e77f1939ec",
         # Header files for classic MKL (C/C++) interface(mkl_include)
         "691ceaccf6d960e19d47304d24ca2ee4e807810077e93c1c86c2e32cd6223012",
         # oneMKL SYCL C++ headers (DPC++/SYCL interface)
