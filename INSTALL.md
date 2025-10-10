@@ -21,7 +21,6 @@ Required Software:
 * C/C++ Compiler
 * [DPC++ Compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html) and [oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) if building with SYCL support
 * BLAS and LAPACK libraries - both provided by oneMKL
-* Python version 3.9 or higher
 * oneTBB library (repository contains script to download it)
 * oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
@@ -121,9 +120,7 @@ is available as an alternative to the manual setup.
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
 
-7. Download and install Python (version 3.9 or higher).
-
-8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -311,7 +308,7 @@ Then, install the necessary dependencies from the appropriate channels with `con
 conda install -y \
     -c https://software.repos.intel.com/python/conda/ `# Intel's repository` \
     -c conda-forge `# for tools like 'make'` \
-    make "python>=3.9" `# used by the build system` \
+    make `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
     onedpl-devel `# required oneDPL package` \
