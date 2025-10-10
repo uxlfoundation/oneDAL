@@ -37,6 +37,8 @@ cc_library(
         ":headers",
         "@opencl//:opencl_binary",
     ],
+    alwayslink = 1,
+    linkstatic = 1,
 )
 
 cc_library(
