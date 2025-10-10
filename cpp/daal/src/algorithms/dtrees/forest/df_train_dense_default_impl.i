@@ -33,6 +33,7 @@
 #include "src/services/service_defines.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
+#include "src/services/service_profiler.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::internal;
@@ -351,6 +352,7 @@ template <CpuType cpu, typename IndexType, typename BinIndexType>
 services::Status copyBinIndex(const size_t nRows, const size_t nCols, const IndexType * featureIndex,
                               TVector<BinIndexType, cpu, ScalableAllocator<cpu> > & binIndexVector, BinIndexType ** binIndex)
 {
+    DAAL_PROFILER_TASK(DFClassifierTrain::copyBinIndex);
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, nRows, nCols);
     binIndexVector.resize(nRows * nCols);
     DAAL_CHECK(binIndexVector.get(), ErrorMemoryAllocationFailed);
@@ -702,6 +704,7 @@ template <typename algorithmFPType, typename BinIndexType, typename DataHelper, 
 services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::run(
     engines::internal::BatchBaseImpl * engineImpl, dtrees::internal::Tree *& pTree, size_t & numElems)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::TrainBatchTaskBase.run);
     const size_t maxFeatures = nFeatures();
     _nConstFeature           = 0;
     _numElems                = &numElems;
@@ -817,6 +820,7 @@ template <typename algorithmFPType, typename BinIndexType, typename DataHelper, 
 typename DataHelper::NodeType::Leaf * TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::makeLeaf(
     const IndexType * idx, size_t n, typename DataHelper::ImpurityData & imp, size_t nClasses)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::TrainBatchTaskBase.makeLeaf);
     typename DataHelper::NodeType::Leaf * pNode = _tree.allocator().allocLeaf(_nClasses);
     _helper.setLeafData(*pNode, idx, n, imp);
     return pNode;
@@ -827,6 +831,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     services::Status & s, size_t iStart, size_t n, size_t level, typename DataHelper::ImpurityData & curImpurity, bool & bUnorderedFeaturesUsed,
     size_t nClasses, algorithmFPType totalWeights)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::TrainBatchTaskBase.buildDepthFirst);
     const size_t maxFeatures = nFeatures();
     if (_hostApp.isCancelled(s, n)) return nullptr;
 
@@ -910,6 +915,7 @@ template <typename WorkItem>
 typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::buildNode(
     const size_t level, const size_t nClasses, size_t & remainingSplitNodes, WorkItem & item, typename DataHelper::ImpurityData & impurity)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::buildNode);
     typename DataHelper::TSplitData split;
     IndexType iFeature;
 
@@ -966,6 +972,7 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     services::Status & s, size_t iStart, size_t n, size_t level, typename DataHelper::ImpurityData & curImpurity, bool & bUnorderedFeaturesUsed,
     size_t nClasses, algorithmFPType totalWeights)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::buildBestFirst);
     struct WorkItem
     {
         bool isLeaf;
@@ -1095,6 +1102,7 @@ template <typename algorithmFPType, typename BinIndexType, typename DataHelper, 
 NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, HyperparameterType, cpu>::simpleSplit(
     size_t iStart, const typename DataHelper::ImpurityData & curImpurity, IndexType & iFeatureBest, typename DataHelper::TSplitData & split)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::TrainBatchTaskBase.simpleSplit);
     services::Status st;
     RNGsInst<IndexType, cpu> rng;
     algorithmFPType featBuf[2];
@@ -1144,6 +1152,7 @@ NodeSplitResult TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, Hy
     size_t level, size_t iStart, size_t n, const typename DataHelper::ImpurityData & curImpurity, IndexType & iBestFeature,
     typename DataHelper::TSplitData & bestSplit, algorithmFPType totalWeights)
 {
+    DAAL_PROFILER_THREADING_TASK(DFClassifierTrain::TrainBatchTaskBase.findBestSplitSerial);
     services::Status st;
 
     /* counter of the number of visited features, we visit _nFeaturesPerNode
