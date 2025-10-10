@@ -70,7 +70,7 @@
         #define PATH(inp) ${libdir}/inp##_dll.lib
     #endif
 
-    #define OPTS /std:c++17 /MD /wd4996
+    #define OPTS /std:c++17 /MD /wd4996 /EHsc
 
 #else
     #error Not a supported OS
