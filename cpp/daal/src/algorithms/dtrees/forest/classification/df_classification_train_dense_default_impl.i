@@ -189,7 +189,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
         leftWeights             = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
         const auto rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || !rightWeights)
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
 
         if (!split.featureUnordered)
@@ -294,7 +294,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitFewClasses(int nDiff
         leftWeights             = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
         const auto rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || !rightWeights)
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
 
         if (!split.featureUnordered)
@@ -486,7 +486,7 @@ bool UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitCategoricalFeature(
         }
         const auto rightWeights = totalWeights - leftWeights;
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
-            || !leftWeights || !rightWeights)
+            || !leftWeights || rightWeights <= 0)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
@@ -1555,7 +1555,7 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
         }
         const auto rightWeights = totalWeights - leftWeights;
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
-            || !leftWeights || !rightWeights)
+            || !leftWeights || rightWeights <= 0)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS

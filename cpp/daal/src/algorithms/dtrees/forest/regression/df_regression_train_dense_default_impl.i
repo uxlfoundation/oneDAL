@@ -241,7 +241,7 @@ int OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitByHist(size_t nDif
         leftWeights             = (featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
         const auto rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || !rightWeights)
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
         sumLeft = (featureUnordered ? buf[i] : sumLeft + buf[i]);
         if ((nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf) || !leftWeights) continue;
@@ -335,7 +335,7 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
             const bool bSameFeaturePrev(featureVal[i] <= featureVal[i - 1] + accuracy);
 
             if (!(bSameFeaturePrev || (i < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)) && leftWeights
-                && rightWeights)
+                && rightWeights > 0)
             {
                 //can make a split
                 //nLeft == i, nRight == n - i
@@ -407,7 +407,7 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitCategoricalFeatur
         }
         const auto rightWeights = totalWeights - leftWeights;
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
-            || !leftWeights || !rightWeights)
+            || !leftWeights || rightWeights <= 0)
             continue;
 
         if ((i == n) && (nDiffFeatureValues == 2) && bFound) break; //only 2 feature values, one possible split, already found
@@ -1003,7 +1003,7 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
 
     const auto rightWeights = totalWeights - leftWeights;
     if (!(((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf)) && leftWeights
-        && rightWeights)
+        && rightWeights > 0)
     {
         intermSummFPType sumRight = sumTotal - sumLeft;
         //the part of the impurity decrease dependent on split itself
