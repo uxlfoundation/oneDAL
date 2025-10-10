@@ -138,7 +138,7 @@ protected: //enables specific functions for UnorderedRespHelperBest
         const double one       = double(1);
         const double cDiv      = isZero<double, cpu>(sqWeights) ? one : (one / sqWeights);
         double var             = one;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i) var -= cDiv * double(imp.hist[i]) * double(imp.hist[i]);
         imp.var = var;
@@ -193,7 +193,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
 
         if (!split.featureUnordered)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * _nClasses + iClass];
         }
@@ -201,7 +201,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
 
         if (split.featureUnordered)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             //one against others
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[i * _nClasses + iClass];
@@ -210,7 +210,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
         auto histTotal           = curImpurity.hist.get();
         algorithmFPType sumLeft  = 0;
         algorithmFPType sumRight = 0;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         //proximal impurity improvement
         for (size_t iClass = 0; iClass < _nClasses; ++iClass)
@@ -485,8 +485,7 @@ bool UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitCategoricalFeature(
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
             || ((totalWeights - leftWeights) < minWeightLeaf))
             continue;
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+
         for (size_t j = 0; j < _nClasses; ++j) _impRight.hist[j] = curImpurity.hist[j] - _impLeft.hist[j];
         calcGini(leftWeights, _impLeft);
         calcGini(totalWeights - leftWeights, _impRight);
@@ -632,7 +631,7 @@ public:
         DAAL_ASSERT(n > 0);
         node.count    = n;
         node.impurity = imp.var;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < this->_nClasses; ++i)
         {
@@ -681,7 +680,7 @@ protected:
         auto histTotal = total.get();
         auto histRight = right.get();
         auto histLeft  = left.get();
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histRight[iClass] = histTotal[iClass] - histLeft[iClass];
     }
@@ -726,7 +725,6 @@ void RespHelperBase<algorithmFPType, cpu, crtp>::calcImpurity(const IndexType * 
     imp.init(this->_nClasses);
     if (noWeights)
     {
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < n; ++i)
         {
             const ClassIndexType iClass = this->_aResponse[aIdx[i]].val;
@@ -736,7 +734,6 @@ void RespHelperBase<algorithmFPType, cpu, crtp>::calcImpurity(const IndexType * 
     }
     else
     {
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < n; ++i)
         {
             const ClassIndexType iClass = this->_aResponse[aIdx[i]].val;
@@ -1089,7 +1086,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         nLeft       = nFeatIdx[idx];
         leftWeights = featWeights[idx];
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         //one against others
         for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * this->_nClasses + iClass];
@@ -1108,7 +1105,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
             nLeft += nFeatIdx[i];
             leftWeights += featWeights[i];
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * this->_nClasses + iClass];
         }
@@ -1120,7 +1117,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         auto histTotal           = curImpurity.hist.get();
         algorithmFPType sumLeft  = 0;
         algorithmFPType sumRight = 0;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         //proximal impurity improvement
         for (size_t iClass = 0; iClass < this->_nClasses; ++iClass)
@@ -1186,8 +1183,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         {
             minidx++;
 
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[minidx * K + iClass];
@@ -1202,8 +1198,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         while ((minidx < maxidx) && isZero<IndexType, cpu>(thisNFeatIdx)) thisNFeatIdx = nFeatIdx[++minidx];
         nLeft = thisNFeatIdx;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : minWeights))
         for (size_t iClass = 0; iClass < K; ++iClass)
         {
             minWeights += nSamplesPerClass[minidx * K + iClass];
@@ -1217,7 +1212,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         return idxFeatureBestSplit;
 
     //set histLeft
-    PRAGMA_FORCE_SIMD
+    PRAGMA_IVDEP
     PRAGMA_VECTOR_ALWAYS
     for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[minidx * K + iClass];
 
@@ -1228,8 +1223,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         while ((minidx < maxidx) && isZero<algorithmFPType, cpu>(thisNFeatIdx))
         {
             maxidx--;
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[maxidx * K + iClass];
@@ -1260,12 +1254,12 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         //iterate idx down to a bin with values for FinalizeBestSplit
         algorithmFPType thisNFeatIdx(0);
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
         for (size_t iC = 0; iC < K; ++iC) thisNFeatIdx += nSamplesPerClass[idx * K + iC];
         while ((minidx < idx) && isZero<algorithmFPType, cpu>(thisNFeatIdx))
         {
             idx--;
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : thisNFeatIdx))
             for (size_t iClass = 0; iClass < K; ++iClass)
             {
                 thisNFeatIdx += nSamplesPerClass[idx * K + iClass];
@@ -1276,24 +1270,25 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
 
         if (split.featureUnordered) //only need last index
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * K + iClass];
         }
         else //sum over all to idx
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = minidx + 1; i <= idx; i++)
             {
+                PRAGMA_IVDEP
+                PRAGMA_VECTOR_ALWAYS
                 for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
             }
         }
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : leftWeights))
         for (size_t iClass = 0; iClass < K; ++iClass)
+        {
             leftWeights += histLeft[iClass]; //histleft is forced to float, and may cause issues with algorithmFPType = double
+        }
         nLeft = leftWeights;
     }
     else
@@ -1307,7 +1302,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         if (split.featureUnordered) //only need last index
         {
             nLeft = nFeatIdx[idx];
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * K + iClass];
         }
@@ -1316,14 +1311,13 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
             for (size_t i = minidx + 1; i <= idx; i++)
             {
                 nLeft += nFeatIdx[i];
-                PRAGMA_FORCE_SIMD
+                PRAGMA_IVDEP
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
             }
         }
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : leftWeights))
         for (size_t iClass = 0; iClass < K; ++iClass) leftWeights += histLeft[iClass];
     }
 
@@ -1412,8 +1406,6 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
 
     if (noWeights)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (i = 0; i < r; ++i)
         {
             const ClassIndexType iClass = this->_aResponse[aIdx[i]].val;
@@ -1423,8 +1415,6 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
     }
     else
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (i = 0; i < r; ++i)
         {
             const ClassIndexType iClass = this->_aResponse[aIdx[i]].val;
@@ -1550,7 +1540,7 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
             || ((totalWeights - leftWeights) < minWeightLeaf))
             continue;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_IVDEP
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < this->_nClasses; ++j) this->_impRight.hist[j] = curImpurity.hist[j] - this->_impLeft.hist[j];
         this->calcGini(leftWeights, this->_impLeft);
@@ -1619,7 +1609,7 @@ public:
             OOBClassificationData * dst       = (OOBClassificationData *)other.oobBuf;
             const OOBClassificationData * src = (const OOBClassificationData *)this->oobBuf;
             const size_t n                    = _nClasses * nSamples;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_IVDEP
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < n; ++i)
             {

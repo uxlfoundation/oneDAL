@@ -160,9 +160,9 @@ protected:
     {
         DAAL_INT iRowSplitVal = -1;
 
-        const size_t maxNBlocks = 56;
-        size_t sizeOfBlock      = 2048;
-        size_t nBlocks          = n / sizeOfBlock;
+        constexpr size_t maxNBlocks = 56;
+        size_t sizeOfBlock          = 2048;
+        size_t nBlocks              = n / sizeOfBlock;
         nBlocks += !!(n - nBlocks * sizeOfBlock);
 
         if (nBlocks > maxNBlocks)
@@ -185,8 +185,6 @@ protected:
 
             if (featureUnordered)
             {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] != idxFeatureValueBestSplit)
@@ -197,8 +195,6 @@ protected:
             }
             else
             {
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (IndexType i = iStart; i < iEnd; ++i)
                 {
                     if (indexedFeature[aIdx[i]] > idxFeatureValueBestSplit)
