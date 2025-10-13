@@ -302,7 +302,7 @@ conda create -y -n onedal_env
 conda activate onedal_env
 ```
 
-Then, install the necessary dependencies with `conda` - note that these are not available in the Anaconda main channel, but can be installed from either `conda-forge` or from Inte;'s conda channel (https://software.repos.intel.com/python/conda/):
+Then, install the necessary dependencies with `conda` - note that these are not available in the Anaconda main channel, but can be installed from either `conda-forge` or from Intel's conda channel (https://software.repos.intel.com/python/conda/):
 
 ```shell
 conda install -c conda-forge \
