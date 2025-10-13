@@ -272,7 +272,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse default cases",
-                     "[kmeans][batch]",
+                     "[kmeans][batch][external-dataset]",
                      kmeans_types_csr) {
     SKIP_IF(!this->is_sparse_method());
     SKIP_IF(this->not_float64_friendly());
@@ -349,7 +349,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
 
 TEMPLATE_LIST_TEST_M(kmeans_batch_test,
                      "KMmeans sparse cases on large number of rows",
-                     "[kmeans][batch]",
+                     "[kmeans][batch][external-dataset]",
                      kmeans_types_csr) {
     SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(!this->is_sparse_method());
