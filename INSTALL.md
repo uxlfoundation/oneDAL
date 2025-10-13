@@ -302,12 +302,10 @@ conda create -y -n onedal_env
 conda activate onedal_env
 ```
 
-Then, install the necessary dependencies from the appropriate channels with `conda`:
+Then, install the necessary dependencies with `conda` - note that these are not available in the Anaconda main channel, but can be installed from either `conda-forge` or from Intel's conda channel (https://software.repos.intel.com/python/conda/):
 
 ```shell
-conda install -y \
-    -c https://software.repos.intel.com/python/conda/ `# Intel's repository` \
-    -c conda-forge `# for tools like 'make'` \
+conda install -c conda-forge \
     make `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
