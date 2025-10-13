@@ -76,6 +76,10 @@ daaldep.fbsd32e.ipp := $(if $(COV.libia),$(COV.libia)/libcov.a)
 daaldep.vml     := $(daaldep.$(PLAT).vml)
 daaldep.ipp     := $(daaldep.$(PLAT).ipp)
 
-daaldep.math_backend.ext_static := 
-daaldep.math_backend.ext := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
+# For the MKL-based math backend, we don't link MKL statically into libonedal_core library
+# The user must provide MKL static libraries when building their application.
+daaldep.math_backend.static_link_deps := 
+# Static MKL libraries linked into the shared oneDAL library.
+daaldep.math_backend.shared_link_deps := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
+# Static MKL libraries(SYCL) linked into the shared oneDAL(SYCL) library.
 daaldep.math_backend.oneapi := $(daaldep.math_backend.sycl)
