@@ -660,7 +660,7 @@ Status TaskPlusPlusBatchBase<algorithmFPType, cpu, DataHelper>::updateMinDist(co
 template <typename algorithmFPType, CpuType cpu, typename DataHelper>
 void TaskPlusPlusBatch<algorithmFPType, cpu, DataHelper>::calcCenter(size_t iCluster)
 {
-    // nTrials new candidats
+    // nTrials new candidates
     for (size_t iTrials = 0u; iTrials < this->_nTrials; iTrials++)
     {
         const algorithmFPType probability = this->_aProbability[iTrials * this->_nClusters + iCluster];

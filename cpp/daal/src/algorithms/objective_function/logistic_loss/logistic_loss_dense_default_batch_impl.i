@@ -97,7 +97,7 @@ template <typename algorithmFPType, CpuType cpu>
 static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
 {
     // Note: these thresholds are meant to match the DPC++ version.
-    // If modified, should be modified simulatenously in both files.
+    // If modified, should be modified simultaneously in both files.
     const algorithmFPType bottom = sizeof(algorithmFPType) == 4 ? 1e-7 : 1e-15;
     const algorithmFPType top    = algorithmFPType(1.0) - bottom;
     PRAGMA_FORCE_SIMD
