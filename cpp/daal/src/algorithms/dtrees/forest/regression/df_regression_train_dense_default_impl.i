@@ -183,50 +183,50 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         else
         {
             double means[simdBatchSize]           = { 0 };
-            double sums_of_squares[simdBatchSize] = { 0 };
-            double y_batch[simdBatchSize];
+            double sumsOfSquares[simdBatchSize] = { 0 };
+            double yBatch[simdBatchSize];
 
-            const size_t iters_simd_loop = n / simdBatchSize;
-            const size_t size_simd_loop  = iters_simd_loop * simdBatchSize;
+            const size_t itersSimdLoop = n / simdBatchSize;
+            const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
 
-            for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
+            for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
-                const size_t i_start  = i_main * simdBatchSize;
-                const auto aIdx_start = aIdx + i_start;
-                const double mult     = 1.0 / static_cast<double>(i_main + 1);
+                const size_t iStart  = iMain * simdBatchSize;
+                const auto aIdxStart = aIdx + iStart;
+                const double mult     = 1.0 / static_cast<double>(iMain + 1);
 
 #pragma omp simd simdlen(simdBatchSize)
-                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
+                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
-                    y_batch[i_sub] = this->_aResponse[aIdx_start[i_sub]].val;
+                    yBatch[iSub] = this->_aResponse[aIdxStart[iSub]].val;
                 }
 
 #pragma omp simd
-                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
+                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
-                    const double y     = y_batch[i_sub];
-                    double mean_batch  = means[i_sub];
-                    const double delta = y - mean_batch;
-                    mean_batch += delta * mult;
-                    sums_of_squares[i_sub] += delta * (y - mean_batch);
-                    means[i_sub] = mean_batch;
+                    const double y     = yBatch[iSub];
+                    double meanBatch  = means[iSub];
+                    const double delta = y - meanBatch;
+                    meanBatch += delta * mult;
+                    sumsOfSquares[iSub] += delta * (y - meanBatch);
+                    means[iSub] = meanBatch;
                 }
             }
 
             imp.mean          = means[0];
-            imp.var           = sums_of_squares[0];
+            imp.var           = sumsOfSquares[0];
             double var_deltas = 0;
             for (size_t i = 1; i < simdBatchSize; i++)
             {
                 const double delta = means[i] - imp.mean;
                 const double div   = 1.0 / static_cast<double>(i + 1);
                 imp.mean += delta * div;
-                imp.var += sums_of_squares[i];
+                imp.var += sumsOfSquares[i];
                 var_deltas += (delta * delta) * (static_cast<double>(i) * div);
             }
-            imp.var += var_deltas * iters_simd_loop;
+            imp.var += var_deltas * itersSimdLoop;
 
-            for (size_t i = size_simd_loop; i < n; i++)
+            for (size_t i = sizeSimdLoop; i < n; i++)
             {
                 const double y     = this->_aResponse[aIdx[i]].val;
                 const double delta = y - imp.mean;
@@ -248,11 +248,11 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             // Note: weights can be exactly zero, in which case they'd break the division.
             // Since zero-weight observations have no impact on the results, this tries to
             // look for the first non-zero weight.
-            size_t i_start;
-            for (i_start = 0; i_start < n && !this->_aWeights[aIdx[i_start]].val; i_start++)
+            size_t iStart;
+            for (iStart = 0; iStart < n && !this->_aWeights[aIdx[iStart]].val; iStart++)
                 ;
 
-            for (size_t i = i_start; i < n; ++i)
+            for (size_t i = iStart; i < n; ++i)
             {
                 const double weights = this->_aWeights[aIdx[i]].val;
                 const double y       = this->_aResponse[aIdx[i]].val;
@@ -267,68 +267,66 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
         else
         {
             double means[simdBatchSize]           = { 0 };
-            double sums_of_squares[simdBatchSize] = { 0 };
-            double sums_of_weights[simdBatchSize] = { 0 };
-            double y_batch[simdBatchSize];
-            double weights_batch[simdBatchSize];
+            double sumsOfSquares[simdBatchSize] = { 0 };
+            double sumsOfWeights[simdBatchSize] = { 0 };
+            double yBatch[simdBatchSize];
+            double weightsBatch[simdBatchSize];
 
-            const size_t iters_simd_loop = n / simdBatchSize;
-            const size_t size_simd_loop  = iters_simd_loop * simdBatchSize;
+            const size_t itersSimdLoop = n / simdBatchSize;
+            const size_t sizeSimdLoop  = itersSimdLoop * simdBatchSize;
 
-            for (size_t i_main = 0; i_main < iters_simd_loop; i_main++)
+            for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
-                const size_t i_start  = i_main * simdBatchSize;
-                const auto aIdx_start = aIdx + i_start;
+                const size_t iStart  = iMain * simdBatchSize;
+                const auto aIdxStart = aIdx + iStart;
 
 #pragma omp simd simdlen(simdBatchSize)
-                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
+                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
-                    y_batch[i_sub]       = this->_aResponse[aIdx_start[i_sub]].val;
-                    weights_batch[i_sub] = this->_aWeights[aIdx_start[i_sub]].val;
+                    yBatch[iSub]       = this->_aResponse[aIdxStart[iSub]].val;
+                    weightsBatch[iSub] = this->_aWeights[aIdxStart[iSub]].val;
                 }
 
 #pragma omp simd
-                for (size_t i_sub = 0; i_sub < simdBatchSize; i_sub++)
+                for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
-                    const double y      = y_batch[i_sub];
-                    const double weight = weights_batch[i_sub];
-                    sums_of_weights[i_sub] += weight;
+                    const double y      = yBatch[iSub];
+                    const double weight = weightsBatch[iSub];
+                    sumsOfWeights[iSub] += weight;
 
-                    double mean_batch  = means[i_sub];
-                    const double delta = y - mean_batch;
-                    mean_batch += sums_of_weights[i_sub] ? (delta * (weight / sums_of_weights[i_sub])) : 0;
-                    sums_of_squares[i_sub] += weight * (delta * (y - mean_batch));
-                    means[i_sub] = mean_batch;
+                    double meanBatch  = means[iSub];
+                    const double delta = y - meanBatch;
+                    meanBatch += sumsOfWeights[iSub] ? (delta * (weight / sumsOfWeights[iSub])) : 0;
+                    sumsOfSquares[iSub] += weight * (delta * (y - meanBatch));
+                    means[iSub] = meanBatch;
                 }
             }
 
             imp.mean          = means[0];
-            imp.var           = sums_of_squares[0];
-            totalWeights      = sums_of_weights[0];
+            imp.var           = sumsOfSquares[0];
+            totalWeights      = sumsOfWeights[0];
             double var_deltas = 0;
-            size_t i_batch;
-            for (i_batch = 1; i_batch < simdBatchSize; i_batch++)
+            size_t iBatch;
+            for (iBatch = 1; iBatch < simdBatchSize; iBatch++)
             {
-                if (sums_of_weights[i_batch]) break;
+                if (sumsOfWeights[iBatch]) break;
             }
-            for (; i_batch < simdBatchSize; i_batch++)
+            for (; iBatch < simdBatchSize; iBatch++)
             {
-                const double weightNew  = sums_of_weights[i_batch];
+                const double weightNew  = sumsOfWeights[iBatch];
                 const double weightLeft = totalWeights;
                 totalWeights += weightNew;
                 const double fractionRight = weightNew / totalWeights;
-                const double delta         = means[i_batch] - imp.mean;
+                const double delta         = means[iBatch] - imp.mean;
                 imp.mean += delta * fractionRight;
-                imp.var += sums_of_squares[i_batch];
+                imp.var += sumsOfSquares[iBatch];
                 var_deltas += (delta * delta) * (weightLeft * fractionRight);
             }
             imp.var += var_deltas;
 
             size_t i;
-            for (i = size_simd_loop; i < n; i++)
-            {
-                if (this->_aWeights[aIdx[i]].val) break;
-            }
+            for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++)
+                ;
             for (; i < n; i++)
             {
                 const double weight = this->_aWeights[aIdx[i]].val;
