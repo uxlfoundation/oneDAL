@@ -160,7 +160,7 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    const constexpr const size_t simdBatchSize  = 8;
+    constexpr const size_t simdBatchSize        = 8;
     constexpr const size_t minObsVectorizedPath = 32;
     if (noWeights)
     {
