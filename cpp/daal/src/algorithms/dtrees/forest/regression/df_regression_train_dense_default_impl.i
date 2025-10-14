@@ -182,7 +182,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
         else
         {
-            double means[simdBatchSize]           = { 0 };
+            double means[simdBatchSize]         = { 0 };
             double sumsOfSquares[simdBatchSize] = { 0 };
             double yBatch[simdBatchSize];
 
@@ -193,7 +193,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             {
                 const size_t iStart  = iMain * simdBatchSize;
                 const auto aIdxStart = aIdx + iStart;
-                const double mult     = 1.0 / static_cast<double>(iMain + 1);
+                const double mult    = 1.0 / static_cast<double>(iMain + 1);
 
 #pragma omp simd simdlen(simdBatchSize)
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
@@ -205,7 +205,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
                     const double y     = yBatch[iSub];
-                    double meanBatch  = means[iSub];
+                    double meanBatch   = means[iSub];
                     const double delta = y - meanBatch;
                     meanBatch += delta * mult;
                     sumsOfSquares[iSub] += delta * (y - meanBatch);
@@ -266,7 +266,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
         else
         {
-            double means[simdBatchSize]           = { 0 };
+            double means[simdBatchSize]         = { 0 };
             double sumsOfSquares[simdBatchSize] = { 0 };
             double sumsOfWeights[simdBatchSize] = { 0 };
             double yBatch[simdBatchSize];
@@ -294,7 +294,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                     const double weight = weightsBatch[iSub];
                     sumsOfWeights[iSub] += weight;
 
-                    double meanBatch  = means[iSub];
+                    double meanBatch   = means[iSub];
                     const double delta = y - meanBatch;
                     meanBatch += sumsOfWeights[iSub] ? (delta * (weight / sumsOfWeights[iSub])) : 0;
                     sumsOfSquares[iSub] += weight * (delta * (y - meanBatch));
