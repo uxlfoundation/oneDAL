@@ -63,7 +63,7 @@ public:
      */
     Buffer(T * data, size_t size, Status & status) : _impl(internal::HostBuffer<T>::create(data, size, status)) {}
 
-    #ifndef DAAL_NOTHROW_EXCEPTIONS
+    #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
     /**
      *   Creates a Buffer object from host-allocated raw pointer
      *   Buffer does not own this pointer
@@ -81,7 +81,7 @@ public:
      */
     Buffer(const SharedPtr<T> & data, size_t size, Status & status) : _impl(internal::HostBuffer<T>::create(data, size, status)) {}
 
-    #ifndef DAAL_NOTHROW_EXCEPTIONS
+    #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
     /**
      *   Creates a Buffer object referencing the shared pointer to the host-allocated data
      */
@@ -124,7 +124,7 @@ public:
         return internal::HostBufferConverter<T>().toHost(*_impl, rwFlag, status);
     }
 
-    #ifndef DAAL_NOTHROW_EXCEPTIONS
+    #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
     /**
      *  Converts data inside the buffer to the host side, throws exception if conversion fails
      *  \param[in]  rwFlag  Access flag to the data
@@ -173,7 +173,7 @@ public:
         return Buffer<T>(_impl->getSubBuffer(offset, size, status));
     }
 
-    #ifndef DAAL_NOTHROW_EXCEPTIONS
+    #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
     /**
      *  Creates Buffer object that points to the same memory as a parent but with offset,
      *  throws exception if conversion fails

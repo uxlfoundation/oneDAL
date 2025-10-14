@@ -158,7 +158,6 @@ elif [ "${component}" == "clang-format" ]; then
 elif [ "${component}" == "dev-base" ]; then
     update
     install_dev-base
-    install_dev-base-conda
 elif [ "${component}" == "qemu-apt" ]; then
     update
     install_qemu_emulation_apt
