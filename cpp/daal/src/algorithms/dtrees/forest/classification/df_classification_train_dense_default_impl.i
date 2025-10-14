@@ -1332,8 +1332,9 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         for (size_t iClass = 0; iClass < K; ++iClass) leftWeights += histLeft[iClass];
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf))
-        && leftWeights)
+    const intermSummFPType rightWeights = totalWeights - leftWeights;
+    if (!(((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf)) && leftWeights
+        && rightWeights > 0)
     {
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
@@ -1346,7 +1347,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
             sumRight += (histTotal[iClass] - histLeft[iClass]) * (histTotal[iClass] - histLeft[iClass]);
         }
 
-        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / (totalWeights - leftWeights);
+        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / rightWeights;
         if (decrease > bestImpDecrease)
         {
             split.left.hist     = this->_histLeft;
@@ -1692,10 +1693,11 @@ Status TreeThreadCtx<algorithmFPType, cpu>::finalizeOOBError(const NumericTable 
         }
         if (resPerObs) resPerObs[i] = algorithmFPType(maxIdx != classLabel);
     });
-    if (res) *res = nPredicted.get() ? algorithmFPType(nError.get()) / static_cast<intermSummFPType>(nPredicted.get()) : 0;
+    if (res) *res = nPredicted.get() ? static_cast<intermSummFPType>(nError.get()) / static_cast<intermSummFPType>(nPredicted.get()) : 0;
     if (resAccuracy)
-        *resAccuracy = nPredicted.get() ? algorithmFPType(1) - algorithmFPType(nError.get()) / static_cast<intermSummFPType>(nPredicted.get()) :
-                                          algorithmFPType(1);
+        *resAccuracy = nPredicted.get() ?
+                           intermSummFPType(1) - static_cast<intermSummFPType>(nError.get()) / static_cast<intermSummFPType>(nPredicted.get()) :
+                           intermSummFPType(1);
     return Status();
 }
 

@@ -724,8 +724,7 @@ void RespHelperBase<algorithmFPType, cpu, crtp>::finalizeBestSplit(const IndexTy
     }
     else
     {
-        divL =
-            isZero<intermSummFPType, cpu>(bestSplit.leftWeights) ? intermSummFPType(1) : (1.0 / static_cast<intermSummFPType>(bestSplit.leftWeights));
+        divL = isZero<intermSummFPType, cpu>(bestSplit.leftWeights) ? intermSummFPType(1) : (1.0 / bestSplit.leftWeights);
 
         bestSplit.left.mean *= divL;
         bestSplit.left.var            = 0;
