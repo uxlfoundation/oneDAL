@@ -158,10 +158,12 @@ template <typename algorithmFPType, CpuType cpu>
 template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp, double & totalWeights) const
 {
-    imp.var  = 0;
-    imp.mean = this->_aResponse[aIdx[0]].val;
     if (noWeights)
     {
+        imp.var  = 0;
+        imp.mean = this->_aResponse[aIdx[0]].val;
+
+        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
         {
             const double delta = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
@@ -173,17 +175,26 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
     }
     else
     {
-        totalWeights = this->_aWeights[aIdx[0]].val;
-        for (size_t i = 1; i < n; ++i)
+        imp.mean     = 0;
+        imp.var      = 0;
+        totalWeights = 0;
+
+        // Note: weights can be exactly zero, in which case they'd break the division.
+        // Since zero-weight observations have no impact on the results, this tries to
+        // look for the first non-zero weight.
+        size_t i_start;
+        for (i_start = 0; i_start < n && !this->_aWeights[aIdx[i_start]].val; i_start++)
+            ;
+
+        for (size_t i = i_start; i < n; ++i)
         {
             const double weights = this->_aWeights[aIdx[i]].val;
             const double delta   = this->_aResponse[aIdx[i]].val - imp.mean; //x[i] - mean
             totalWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(totalWeights)));
-            imp.mean += weights * delta / totalWeights;
+            imp.mean += delta * (weights / totalWeights);
             imp.var += weights * delta * (this->_aResponse[aIdx[i]].val - imp.mean);
         }
-        imp.var /= totalWeights; //impurity is MSE
+        if (totalWeights) imp.var /= totalWeights; //impurity is MSE
     }
 
 // Note: the debug checks throughout this file are always done in float64 precision regardless
@@ -226,16 +237,17 @@ int OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitByHist(size_t nDif
 
         algorithmFPType thisFeatWeights = noWeights ? nFeatIdx[i] : featWeights[i];
 
-        nLeft       = (featureUnordered ? nFeatIdx[i] : nLeft + nFeatIdx[i]);
-        leftWeights = (featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        nLeft                   = (featureUnordered ? nFeatIdx[i] : nLeft + nFeatIdx[i]);
+        leftWeights             = (featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        const auto rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf))
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
         sumLeft = (featureUnordered ? buf[i] : sumLeft + buf[i]);
-        if ((nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf)) continue;
+        if ((nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf) || !leftWeights) continue;
         intermSummFPType sumRight = sumTotal - sumLeft;
         //the part of the impurity decrease dependent on split itself
-        const intermSummFPType impDecreasePart = sumLeft * sumLeft / leftWeights + sumRight * sumRight / (totalWeights - leftWeights);
+        const intermSummFPType impDecreasePart = sumLeft * sumLeft / leftWeights + sumRight * sumRight / rightWeights;
         if (impDecreasePart > bestImpDecreasePart)
         {
             split.left.mean     = algorithmFPType(sumLeft);
@@ -316,12 +328,14 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
     else
     {
         algorithmFPType leftWeights = weights;
+        auto rightWeights           = totalWeights - leftWeights;
         for (size_t i = 1; i < (n - nMinSplitPart + 1); ++i)
         {
             weights = aWeights[aIdx[i]].val;
             const bool bSameFeaturePrev(featureVal[i] <= featureVal[i - 1] + accuracy);
 
-            if (!(bSameFeaturePrev || (i < nMinSplitPart) || (leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
+            if (!(bSameFeaturePrev || (i < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)) && leftWeights
+                && rightWeights > 0)
             {
                 //can make a split
                 //nLeft == i, nRight == n - i
@@ -339,11 +353,12 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitOrderedFeature(co
             //update impurity and continue
             xi                    = aResponse[aIdx[i]].val;
             algorithmFPType delta = xi - left.mean;
-            left.mean += weights * delta / (isPositive<algorithmFPType, cpu>(leftWeights + weights) ? leftWeights + weights : 1.);
+            leftWeights += weights;
+            rightWeights = totalWeights - leftWeights;
+            left.mean += weights * delta / (isPositive<algorithmFPType, cpu>(leftWeights) ? leftWeights : 1.);
             left.var += weights * delta * (xi - left.mean);
             if (left.var < 0) left.var = 0;
-            calcPrevImpurity<double, cpu>(right.var, right.mean, right.var, right.mean, xi, totalWeights - leftWeights, weights);
-            leftWeights += weights;
+            calcPrevImpurity<double, cpu>(right.var, right.mean, right.var, right.mean, xi, rightWeights, weights);
 #ifdef DEBUG_CHECK_IMPURITY
             checkImpurityInternal(aIdx, i + 1, left);
             checkImpurityInternal(aIdx + i + 1, n - i - 1, right);
@@ -390,8 +405,9 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitCategoricalFeatur
         {
             leftWeights += aWeights[aIdx[i]].val;
         }
-        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+        const auto rightWeights = totalWeights - leftWeights;
+        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
+            || !leftWeights || rightWeights <= 0)
             continue;
 
         if ((i == n) && (nDiffFeatureValues == 2) && bFound) break; //only 2 feature values, one possible split, already found
@@ -399,9 +415,8 @@ bool OrderedRespHelperBest<algorithmFPType, cpu>::findBestSplitCategoricalFeatur
         double weights = double(0);
         calcImpurity<noWeights>(aIdx + iStart, count, left, weights);
         DAAL_ASSERT(fabs(weights - leftWeights) < 0.001);
-        subtractImpurity<double, cpu>(curImpurity.var, curImpurity.mean, left.var, left.mean, leftWeights, right.var, right.mean,
-                                      totalWeights - leftWeights);
-        const algorithmFPType v = leftWeights * left.var + (totalWeights - leftWeights) * right.var;
+        subtractImpurity<double, cpu>(curImpurity.var, curImpurity.mean, left.var, left.mean, leftWeights, right.var, right.mean, rightWeights);
+        const algorithmFPType v = leftWeights * left.var + rightWeights * right.var;
         if (!bFound || v < vBest)
         {
             vBest              = v;
@@ -984,12 +999,13 @@ int OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitByHist(size_t nD
         }
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart)
-          || (leftWeights < minWeightLeaf)))
+    const auto rightWeights = totalWeights - leftWeights;
+    if (!(((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf)) && leftWeights
+        && rightWeights > 0)
     {
         intermSummFPType sumRight = sumTotal - sumLeft;
         //the part of the impurity decrease dependent on split itself
-        const intermSummFPType impDecreasePart = sumLeft * sumLeft / leftWeights + sumRight * sumRight / (totalWeights - leftWeights);
+        const intermSummFPType impDecreasePart = sumLeft * (sumLeft / leftWeights) + sumRight * (sumRight / rightWeights);
 
         if (impDecreasePart > bestImpDecreasePart)
         {
@@ -1022,9 +1038,10 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData right;
     IndexType iBest = -1;
     algorithmFPType vBest;
-    algorithmFPType leftWeights = 0.;
-    auto aResponse              = this->_aResponse.get();
-    auto aWeights               = this->_aWeights.get();
+    double leftWeights  = 0.;
+    double rightWeights = 0.;
+    auto aResponse      = this->_aResponse.get();
+    auto aWeights       = this->_aWeights.get();
     algorithmFPType idx;
     vBest = split.impurityDecrease < 0 ? daal::services::internal::MaxVal<algorithmFPType>::get() :
                                          (curImpurity.var - split.impurityDecrease) * totalWeights;
@@ -1059,57 +1076,10 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
         }
     }
 
-    left.var   = 0;
-    left.mean  = this->_aResponse[aIdx[0]].val;
-    right.var  = 0;
-    right.mean = this->_aResponse[aIdx[r]].val;
-    if (noWeights)
-    {
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            left.mean += delta / double(i + 1);
-            left.var += delta * (this->_aResponse[aIdx[i]].val - left.mean);
-            DAAL_ASSERT(left.var >= 0);
-        }
+    this->template calcImpurity<noWeights>(aIdx, r, left, leftWeights);
+    this->template calcImpurity<noWeights>(aIdx + r, n - r, right, rightWeights);
 
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double delta = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            right.mean += delta / double(i + 1 - r);
-            right.var += delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-
-        leftWeights = r;
-    }
-    else
-    {
-        leftWeights = this->_aWeights[aIdx[0]].val;
-
-        for (size_t i = 1; i < r; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - left.mean; //x[i] - mean
-            leftWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(leftWeights)));
-            left.mean += weights * delta / leftWeights;
-            left.var += weights * delta * (this->_aResponse[aIdx[i]].val - left.mean);
-        }
-
-        algorithmFPType rightWeights = this->_aWeights[aIdx[r]].val;
-
-        for (size_t i = r + 1; i < n; ++i)
-        {
-            const double weights = this->_aWeights[aIdx[i]].val;
-            const double delta   = this->_aResponse[aIdx[i]].val - right.mean; //x[i] - mean
-            rightWeights += weights;
-            DAAL_ASSERT(!(isZero<double, cpu>(rightWeights)));
-            right.mean += weights * delta / rightWeights;
-            right.var += weights * delta * (this->_aResponse[aIdx[i]].val - right.mean);
-        }
-    }
-
-    if (!((leftWeights < minWeightLeaf) || ((totalWeights - leftWeights) < minWeightLeaf)))
+    if (!((leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)) && leftWeights && rightWeights)
     {
         const algorithmFPType v = left.var + right.var;
         if (v < vBest)
@@ -1187,8 +1157,9 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitCategoricalFeat
         {
             leftWeights += aWeights[aIdx[i]].val;
         }
-        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+        const auto rightWeights = totalWeights - leftWeights;
+        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
+            || !leftWeights || !rightWeights)
             continue;
 
         //if ((i == n) && (nDiffFeatureValues == 2) && bFound) break; //only 2 feature values, one possible split, already found
@@ -1196,9 +1167,8 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitCategoricalFeat
         double weights = double(0);
         this->template calcImpurity<noWeights>(aIdx + iStart, count, left, weights);
         DAAL_ASSERT(fabs(weights - leftWeights) < 0.001);
-        subtractImpurity<double, cpu>(curImpurity.var, curImpurity.mean, left.var, left.mean, leftWeights, right.var, right.mean,
-                                      totalWeights - leftWeights);
-        const algorithmFPType v = leftWeights * left.var + (totalWeights - leftWeights) * right.var;
+        subtractImpurity<double, cpu>(curImpurity.var, curImpurity.mean, left.var, left.mean, leftWeights, right.var, right.mean, rightWeights);
+        const algorithmFPType v = leftWeights * left.var + rightWeights * right.var;
         if (!bFound || v < vBest)
         {
             vBest              = v;

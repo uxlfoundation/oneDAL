@@ -300,8 +300,10 @@ public:
     {
         if (is_analyzer_enabled())
         {
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             try
             {
+#endif
                 merge_tasks();
                 const auto & tasks_info  = get_instance()->get_task();
                 std::uint64_t total_time = 0;
@@ -327,12 +329,14 @@ public:
                 }
                 std::cerr << "|---(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
-            }
 
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+            }
             catch (std::exception & e)
             {
                 std::cerr << e.what() << std::endl;
             }
+#endif
         }
     }
 
@@ -522,9 +526,18 @@ public:
         }
     }
 
-    inline task & get_task() { return task_; }
-    inline std::int64_t & get_current_level() { return current_level_; }
-    inline std::int64_t & get_kernel_count() { return kernel_count_; }
+    inline task & get_task()
+    {
+        return task_;
+    }
+    inline std::int64_t & get_current_level()
+    {
+        return current_level_;
+    }
+    inline std::int64_t & get_kernel_count()
+    {
+        return kernel_count_;
+    }
 
 private:
     std::int64_t current_level_ = 0;
@@ -536,18 +549,21 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         try
         {
+#endif
             if (is_thread_)
                 profiler::end_threading_task(task_name_, idx_);
             else
                 profiler::end_task(task_name_, idx_);
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
         }
-
         catch (std::exception & e)
         {
             std::cerr << e.what() << std::endl;
         }
+#endif
     }
 }
 
