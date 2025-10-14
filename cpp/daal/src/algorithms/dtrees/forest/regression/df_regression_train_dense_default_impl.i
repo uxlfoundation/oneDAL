@@ -169,7 +169,6 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             imp.var  = 0;
             imp.mean = this->_aResponse[aIdx[0]].val;
 
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 1; i < n; ++i)
             {
                 const double y     = this->_aResponse[aIdx[i]].val;
