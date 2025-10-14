@@ -29,6 +29,12 @@
 #include "algorithms/tree_utils/tree_utils_regression.h"
 #include "src/algorithms/dtrees/dtrees_model_impl_common.h"
 #include "src/services/service_arrays.h"
+#include <cassert>
+#include <iostream>
+#include <utility>
+//#include "daal.h"
+#include "data_management/features/compatibility.h"
+// #include "service.h"
 
 using namespace daal::data_management;
 
@@ -43,11 +49,19 @@ namespace internal
 typedef uint32_t FeatureIndexType;
 typedef float ModelFPType;
 typedef services::Collection<size_t> NodeIdxArray;
+//typedef std::pair<size_t, ModelFPType> SplitLeftIdPair;
 
-static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
-{
-    return (1 << (nLvls + 1)) - 1;
-}
+struct SplitLeftIdPair {
+    size_t leftId;
+    ModelFPType splitPoint;
+};
+
+// static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
+// {
+//     std::cerr << "getNumberOfNodesByLvls should not be called" << std::endl;
+//     assert(0);
+//     return (1 << (nLvls + 1)) - 1;
+// }
 
 template <typename T>
 void swap(T & t1, T & t2)
@@ -65,6 +79,8 @@ public:
     using NodeCoverType              = HomogenNumericTable<ModelFPType>;
     using FeatureIndexesForSplitType = HomogenNumericTable<FeatureIndexType>;
     using defaultLeftForSplitType    = HomogenNumericTable<int>;
+    using leftChildIndexType         = HomogenNumericTable<size_t>;
+    // using splitLeftIdPairType = AOSNumericTable;
 
     GbtDecisionTree(const size_t nNodes, const size_t maxLvl)
         : _nNodes(nNodes),
@@ -73,10 +89,28 @@ public:
           _featureIndexes(FeatureIndexesForSplitType::create(1, nNodes, NumericTableIface::doAllocate)),
           _nodeCoverValues(NodeCoverType::create(1, nNodes, NumericTableIface::doAllocate)),
           _defaultLeft(defaultLeftForSplitType::create(1, nNodes, NumericTableIface::doAllocate)),
+          _leftChildIndexes(leftChildIndexType::create(1, nNodes, NumericTableIface::doAllocate)),
+          _splitAndLeftIdPairs(AOSNumericTable::create(sizeof(SplitLeftIdPair), 2, nNodes)),
           nNodeSplitFeature(),
           CoverFeature(),
           GainFeature()
-    {}
+    {   
+        // services::Status st;
+        _splitAndLeftIdPairs = AOSNumericTable::create(sizeof(SplitLeftIdPair), 2, nNodes);
+        
+        // std::cerr << "Status: " << st << std::endl;
+        // if (!st) {
+        //     std::cerr << "failure on allocation" << std::endl;
+        // }
+        _splitAndLeftIdPairs->allocateDataMemory();
+        _splitAndLeftIdPairs->setFeature<size_t>(0,
+            DAAL_STRUCT_MEMBER_OFFSET(SplitLeftIdPair, leftId),
+            daal::data_management::data_feature_utils::DAAL_CATEGORICAL);
+        _splitAndLeftIdPairs->setFeature<ModelFPType>(1,
+            DAAL_STRUCT_MEMBER_OFFSET(SplitLeftIdPair, splitPoint),
+            daal::data_management::data_feature_utils::DAAL_CONTINUOUS);
+        // std::cerr << "Pointer after init: " << _splitAndLeftIdPairs.get() << std::endl;
+    }
 
     // for serialization only
     GbtDecisionTree() : _nNodes(0), _maxLvl(0) {}
@@ -85,11 +119,17 @@ public:
 
     FeatureIndexType * getFeatureIndexesForSplit() { return _featureIndexes->getArray(); }
 
+    size_t * getLeftChildIndexes() { return _leftChildIndexes->getArray(); }
+    SplitLeftIdPair* getSplitsAndLeftIds() { return static_cast<SplitLeftIdPair*>(_splitAndLeftIdPairs->getArray()); }
+
     int * getDefaultLeftForSplit() { return _defaultLeft->getArray(); }
 
     const ModelFPType * getSplitPoints() const { return _splitPoints->getArray(); }
 
     const FeatureIndexType * getFeatureIndexesForSplit() const { return _featureIndexes->getArray(); }
+
+    const size_t * getLeftChildIndexes() const { return _leftChildIndexes->getArray(); }
+    const SplitLeftIdPair* getSplitsAndLeftIds() const { return reinterpret_cast<SplitLeftIdPair*>(_splitAndLeftIdPairs->getArray()); }
 
     ModelFPType * getNodeCoverValues() { return _nodeCoverValues->getArray(); }
 
@@ -133,6 +173,9 @@ public:
 
         ModelFPType * const splitPoints         = tree->getSplitPoints();
         FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
+        size_t * const leftChildIndexes         = tree->getLeftChildIndexes();
+        SplitLeftIdPair* const SplitAndLeftIds = tree->getSplitsAndLeftIds();
+        // std::cerr << "Pointer: " << SplitAndLeftIds << std::endl;
 
         for (size_t i = 0; i < nNodes; ++i)
         {
@@ -154,7 +197,8 @@ public:
         size_t nParents   = 1;
         parents[0]        = NodeType::castSplit(&root);
         size_t idxInTable = 0;
-
+        size_t idxChild   = 2;
+        // std::cerr << "edges" << std::endl;
         for (size_t lvl = 0; lvl < nLvls + 1; ++lvl)
         {
             size_t nSons = 0;
@@ -168,21 +212,29 @@ public:
                     tree->CoverFeature[p->featureIdx] += p->count;
                     tree->GainFeature[p->featureIdx] -= p->impurity - p->left()->impurity - p->right()->impurity;
 
-                    sons[nSons++]              = NodeType::castSplit(p->left());
-                    sons[nSons++]              = NodeType::castSplit(p->right());
-                    featureIndexes[idxInTable] = p->featureIdx;
+                    sons[nSons++]                = NodeType::castSplit(p->left());
+                    sons[nSons++]                = NodeType::castSplit(p->right());
+                    featureIndexes[idxInTable]   = p->featureIdx;
+                    leftChildIndexes[idxInTable] = idxChild;
+                    SplitAndLeftIds[idxInTable].leftId = idxChild;
+                    // std::cerr << idxInTable << " " << idxChild - 1 << std::endl;
+                    // std::cerr << idxInTable << " " << idxChild << std::endl;
+                    idxChild += 2;
                 }
                 else
                 {
-                    sons[nSons++]              = p;
-                    sons[nSons++]              = p;
-                    featureIndexes[idxInTable] = 0;
+                    // sons[nSons++]              = p;
+                    // sons[nSons++]              = p;
+                    featureIndexes[idxInTable]   = 0;
+                    leftChildIndexes[idxInTable] = idxInTable + 1;
+                    SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
                 }
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 nNodeSamplesVals[idxInTable] = (int)p->count;
                 impVals[idxInTable]          = p->impurity;
                 splitPoints[idxInTable]      = p->featureValue;
-
+                SplitAndLeftIds[idxInTable].splitPoint = p->featureValue;
+                // leftChildIndexes[idxInTable] = (idxInTable + 1) * 2; // we consider nodes in a tree are numbered from 1
                 idxInTable++;
             }
 
@@ -206,6 +258,8 @@ protected:
         arch->setSharedPtrObj(_featureIndexes);
         arch->setSharedPtrObj(_nodeCoverValues);
         arch->setSharedPtrObj(_defaultLeft);
+        arch->setSharedPtrObj(_leftChildIndexes);
+        arch->setSharedPtrObj(_splitAndLeftIdPairs);
 
         return services::Status();
     }
@@ -217,6 +271,8 @@ protected:
     services::SharedPtr<FeatureIndexesForSplitType> _featureIndexes;
     services::SharedPtr<NodeCoverType> _nodeCoverValues;
     services::SharedPtr<defaultLeftForSplitType> _defaultLeft;
+    services::SharedPtr<leftChildIndexType> _leftChildIndexes;
+    services::SharedPtr<AOSNumericTable> _splitAndLeftIdPairs;
     services::Collection<size_t> nNodeSplitFeature;
     services::Collection<size_t> CoverFeature;
     services::Collection<double> GainFeature;
@@ -235,11 +291,14 @@ public:
     services::Status convertGbtTreeToTable(GbtDecisionTree ** pTbl, HomogenNumericTable<double> ** pTblImp, HomogenNumericTable<int> ** pTblSmplCnt,
                                            size_t nFeature) const
     {
+        // std::cerr << "convertGbtTreeToTable" << std::endl;
         size_t nLvls = 1;
         services::Status status;
         getMaxLvl(*super::top(), nLvls, static_cast<size_t>(-1));
-        const size_t nNodes = getNumberOfNodesByLvls(nLvls);
-
+        // TODO change
+        const size_t nNodes = super::getNumberOfNodes();
+        // const size_t nNodes = getNumberOfNodesByLvls(nLvls);
+        // std::cerr << "convertGbtTreeToTable: " <<  nNodes << " " << nLvls << std::endl;
         *pTbl        = new GbtDecisionTree(nNodes, nLvls);
         *pTblImp     = new HomogenNumericTable<double>(1, nNodes, NumericTable::doAllocate);
         *pTblSmplCnt = new HomogenNumericTable<int>(1, nNodes, NumericTable::doAllocate);
@@ -345,7 +404,9 @@ public:
      * \param lvl       current level in the tree
      * \return true     if the node is a dummy leaf, false otherwise
      */
-    static bool nodeIsDummyLeaf(size_t idx, const GbtDecisionTree & gbtTree);
+    
+     // static bool nodeIsDummyLeaf(size_t idx, const GbtDecisionTree & gbtTree);
+    // TODO ensure this function is not called
 
     /**
      * \brief Return true if a node is leaf
@@ -356,6 +417,7 @@ public:
      * \return true   if the node is a leaf, false otherwise
      */
     static bool nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const size_t lvl);
+    // TODO: check implementation of this function
 
 protected:
     /**
@@ -365,6 +427,8 @@ protected:
      * \return size_t   1-based node index of the parent
      */
     static size_t getIdxOfParent(const size_t sonIdx);
+    // Ensure this function is not called
+
     static void getMaxLvl(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t curLvl = 0);
 
     static GbtDecisionTree * allocateGbtTree(const DecisionTreeTable & tree)
@@ -373,8 +437,9 @@ protected:
 
         size_t nLvls = 1;
         getMaxLvl(arr, 0, nLvls, static_cast<size_t>(-1));
-        const size_t nNodes = getNumberOfNodesByLvls(nLvls);
-
+        // TODO: change get real number of nodes
+        // const size_t nNodes = getNumberOfNodesByLvls(nLvls);
+        const size_t nNodes = tree.getNumberOfRows();
         return new GbtDecisionTree(nNodes, nLvls);
     }
 
@@ -383,15 +448,24 @@ protected:
                               OnLeafFunctor & visitLeaf)
     {
         const size_t oneBasedNodeIndex = iRowInTable + 1;
+        const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+        const SplitLeftIdPair * SplitAndLeftIds = gbtTree.getSplitsAndLeftIds();
         if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree, level))
         {
             if (!visitSplit(iRowInTable, level)) return; //do not continue traversing
 
-            traverseGbtDF(level + 1, iRowInTable * 2 + 1, gbtTree, visitSplit, visitLeaf);
-            traverseGbtDF(level + 1, iRowInTable * 2 + 2, gbtTree, visitSplit, visitLeaf);
+            // TODO: fix indexes
+            // traverseGbtDF(level + 1, iRowInTable * 2 + 1, gbtTree, visitSplit, visitLeaf);
+            // traverseGbtDF(level + 1, iRowInTable * 2 + 2, gbtTree, visitSplit, visitLeaf);
+            assert(SplitAndLeftIds[iRowInTable].leftId == leftChildIndexes[iRowInTable]);
+            // traverseGbtDF(level + 1, leftChildIndexes[iRowInTable] - 1, gbtTree, visitSplit, visitLeaf);
+            // traverseGbtDF(level + 1, leftChildIndexes[iRowInTable], gbtTree, visitSplit, visitLeaf);
+            traverseGbtDF(level + 1, SplitAndLeftIds[iRowInTable].leftId - 1, gbtTree, visitSplit, visitLeaf);
+            traverseGbtDF(level + 1, SplitAndLeftIds[iRowInTable].leftId, gbtTree, visitSplit, visitLeaf);
         }
-        else if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
+        else // if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
         {
+            // TODO: update condition
             if (!visitLeaf(iRowInTable, level)) return; //do not continue traversing
         }
     }
@@ -400,22 +474,31 @@ protected:
     static void traverseGbtBF(size_t level, NodeIdxArray & aCur, NodeIdxArray & aNext, const GbtDecisionTree & gbtTree, OnSplitFunctor & visitSplit,
                               OnLeafFunctor & visitLeaf)
     {
+        // TODO: fix indexes
+        const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+        const SplitLeftIdPair * SplitAndLeftIds = gbtTree.getSplitsAndLeftIds();
         for (size_t i = 0; i < aCur.size(); ++i)
         {
             for (size_t j = 0; j < (level ? 2 : 1); ++j)
             {
                 const size_t iRowInTable       = aCur[i] + j;
                 const size_t oneBasedNodeIndex = iRowInTable + 1;
+                assert(SplitAndLeftIds[iRowInTable].leftId == leftChildIndexes[iRowInTable]);
+                // std::cerr << level << " " << iRowInTable << std::endl;
                 if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree, level))
                 {
                     if (!visitSplit(iRowInTable, level)) return; //do not continue traversing
-
-                    aNext.push_back(iRowInTable * 2 + 1);
+                    aNext.push_back(SplitAndLeftIds[iRowInTable].leftId - 1);
+                    // aNext.push_back(leftChildIndexes[iRowInTable] - 1);
+                    // aNext.push_back(iRowInTable * 2 + 1);
+                } else {
+                    if (!visitLeaf(iRowInTable, level)) return;
                 }
-                else if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
-                {
-                    if (!visitLeaf(iRowInTable, level)) return; //do not continue traversing
-                }
+                // else if (!nodeIsDummyLeaf(oneBasedNodeIndex, gbtTree))
+                // {
+                //     // TODO update condition
+                //     if (!visitLeaf(iRowInTable, level)) return; //do not continue traversing
+                // }
             }
         }
         aCur.clear();
