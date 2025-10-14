@@ -67,15 +67,15 @@ else
 endif
 
 
--Zl.dpcpp = $(if $(OS_is_win),-Zl,)
+-Zl.dpcpp = $(if $(OS_is_win),-Zl -Q,-)no-intel-lib
 -DEBC.dpcpp = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
 -asanstatic.dpcpp = -static-libasan
 -asanshared.dpcpp = -shared-libasan
 
-COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv -no-intel-lib \
+COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
                      -Werror -Wreturn-type -fsycl-device-code-split=per_kernel
-COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -Qno-intel-lib -nologo -WX -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
+COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 

@@ -59,7 +59,7 @@ else
     endif
 endif
 
--Zl.icx = $(if $(OS_is_win),-Zl,)
+-Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
 -DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
 
 -asanstatic.icx = -static-libasan
@@ -67,10 +67,10 @@ endif
 
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
-COMPILER.lnx.icx = icx -m64 -no-intel-lib \
+COMPILER.lnx.icx = icx -m64 \
                      -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS}
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -Qno-intel-lib -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS}
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS}
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
