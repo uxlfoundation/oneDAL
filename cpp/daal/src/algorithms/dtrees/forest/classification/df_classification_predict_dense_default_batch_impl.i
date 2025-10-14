@@ -346,7 +346,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTrees(const siz
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
@@ -407,7 +407,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
@@ -445,9 +445,9 @@ Status PredictClassificationTask<algorithmFPType, cpu>::parallelPredict(const al
     for (size_t i = 0; i < treeSize; ++i)
     {
         const DecisionTreeNode & node = aNode[i];
-        fi[i] = node.featureIndex;
-        lc[i] = node.leftIndexOrClass;
-        fv[i] = (algorithmFPType)node.featureValueOrResponse;
+        fi[i]                         = node.featureIndex;
+        lc[i]                         = node.leftIndexOrClass;
+        fv[i]                         = (algorithmFPType)node.featureValueOrResponse;
     }
     daal::threader_for(nBlocks, nBlocks, [&, nCols](const size_t iBlock) {
         safeStat |= predictByTree(aX + iBlock * blockSize * nCols, blockSize, nCols, fi, lc, fv, prob + iBlock * blockSize * _nClasses, iTree);
@@ -884,9 +884,9 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
                 for (size_t j = 0; j < treeSize; ++j)
                 {
                     const DecisionTreeNode & node = aNode[j];
-                    fi[displace + j] = node.featureIndex;
-                    lc[displace + j] = node.leftIndexOrClass;
-                    fv[displace + j] = (float)node.featureValueOrResponse;
+                    fi[displace + j]              = node.featureIndex;
+                    lc[displace + j]              = node.leftIndexOrClass;
+                    fv[displace + j]              = (float)node.featureValueOrResponse;
                 }
                 disp[iTree + i] = displace;
                 displace += treeSize;
@@ -1075,7 +1075,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
                 {
                     algorithmFPType sum(0);
 
-                    PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                     for (size_t j = 0; j < _nClasses; ++j)
                     {
                         sum += commonBufVal[i * _nClasses + j];
@@ -1126,7 +1126,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
                     {
                         algorithmFPType sum(0);
 
-                        PRAGMA_OMP_SIMD_ARGS(reduction(+:sum))
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                         for (size_t j = 0; j < _nClasses; ++j)
                         {
                             sum += commonBufVal[i * _nClasses + j];
