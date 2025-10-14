@@ -307,10 +307,8 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             totalWeights      = sumsOfWeights[0];
             double var_deltas = 0;
             size_t iBatch;
-            for (iBatch = 1; iBatch < simdBatchSize; iBatch++)
-            {
-                if (sumsOfWeights[iBatch]) break;
-            }
+            for (iBatch = 1; iBatch < simdBatchSize && !sumsOfWeights[iBatch]; iBatch++)
+                ;
             for (; iBatch < simdBatchSize; iBatch++)
             {
                 const double weightNew  = sumsOfWeights[iBatch];
