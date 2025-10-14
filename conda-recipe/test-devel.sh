@@ -15,8 +15,8 @@
 # limitations under the License.
 #===============================================================================
 
-test -f $PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc
-test -f $PREFIX/lib/pkgconfig/dal-static-threading-host.pc
+test -f $CONDA_PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc
+test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 
 source $CONDA_PREFIX/env/vars.sh
 

@@ -20,6 +20,7 @@
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
 # TODO: automate binary version getting
+{% set major_binary_version = 3 %}
 
 package:
   name: dal-feedstock
@@ -67,9 +68,9 @@ outputs:
         - tbb
     test:
       commands:
-        - test -f $PREFIX/lib/libonedal_core.so.3  # [linux]
-        - test -f $PREFIX/lib/libonedal_dpc.so.3  # [linux]
-        - test -f $PREFIX/lib/libonedal_thread.so.3  # [linux]
+        - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
