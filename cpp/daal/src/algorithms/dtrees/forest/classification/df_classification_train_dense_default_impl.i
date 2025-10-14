@@ -186,10 +186,11 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
         if (!nFeatIdx[i]) continue;
         intermSummFPType thisFeatWeights = featWeights[i];
 
-        nLeft       = (split.featureUnordered ? nFeatIdx[i] : nLeft + nFeatIdx[i]);
-        leftWeights = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        nLeft                               = (split.featureUnordered ? nFeatIdx[i] : nLeft + nFeatIdx[i]);
+        leftWeights                         = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        const intermSummFPType rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf))
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
 
         if (!split.featureUnordered)
@@ -198,7 +199,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
             PRAGMA_VECTOR_ALWAYS
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * _nClasses + iClass];
         }
-        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf) continue;
+        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf || !leftWeights) continue;
 
         if (split.featureUnordered)
         {
@@ -220,7 +221,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
             sumRight += (histTotal[iClass] - histLeft[iClass]) * (histTotal[iClass] - histLeft[iClass]);
         }
 
-        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / (totalWeights - leftWeights);
+        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / rightWeights;
         if (decrease > bestImpDecrease)
         {
             split.left.hist     = _histLeft;
@@ -290,17 +291,18 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitFewClasses(int nDiff
             }
         }
 
-        nLeft       = (split.featureUnordered ? thisNFeatIdx : nLeft + thisNFeatIdx);
-        leftWeights = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        nLeft                               = (split.featureUnordered ? thisNFeatIdx : nLeft + thisNFeatIdx);
+        leftWeights                         = (split.featureUnordered ? thisFeatWeights : leftWeights + thisFeatWeights);
+        const intermSummFPType rightWeights = totalWeights - leftWeights;
         if ((nLeft == n) //last split
-            || ((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf))
+            || ((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || rightWeights <= 0)
             break;
 
         if (!split.featureUnordered)
         {
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
         }
-        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf) continue;
+        if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf || !leftWeights) continue;
 
         if (split.featureUnordered)
         {
@@ -318,7 +320,7 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitFewClasses(int nDiff
             sumRight += (histTotal[iClass] - histLeft[iClass]) * (histTotal[iClass] - histLeft[iClass]);
         }
 
-        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / (totalWeights - leftWeights);
+        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / rightWeights;
         if (decrease > bestImpDecrease)
         {
             split.left.hist     = _histLeft;
@@ -483,15 +485,16 @@ bool UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitCategoricalFeature(
             leftWeights += weights;
             _impLeft.hist[xi] += weights;
         }
-        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+        const intermSummFPType rightWeights = totalWeights - leftWeights;
+        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
+            || !leftWeights || rightWeights <= 0)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _nClasses; ++j) _impRight.hist[j] = curImpurity.hist[j] - _impLeft.hist[j];
         calcGini(leftWeights, _impLeft);
-        calcGini(totalWeights - leftWeights, _impRight);
-        const intermSummFPType v = leftWeights * _impLeft.var + (totalWeights - leftWeights) * _impRight.var;
+        calcGini(rightWeights, _impRight);
+        const intermSummFPType v = leftWeights * _impLeft.var + rightWeights * _impRight.var;
         if (iBest < 0)
         {
             if (bBestFromOtherFeatures && isGreater<intermSummFPType, cpu>(v, vBestFromOtherFeatures)) continue;
@@ -1116,8 +1119,9 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         }
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart)
-          || (leftWeights < minWeightLeaf)))
+    const intermSummFPType rightWeights = totalWeights - leftWeights;
+    if (!(((n - nLeft) < nMinSplitPart) || (rightWeights < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf)) && leftWeights
+        && rightWeights)
     {
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
@@ -1131,7 +1135,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
             sumRight += (histTotal[iClass] - histLeft[iClass]) * (histTotal[iClass] - histLeft[iClass]);
         }
 
-        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / (totalWeights - leftWeights);
+        const intermSummFPType decrease = sumLeft / leftWeights + sumRight / rightWeights;
         if (decrease > bestImpDecrease)
         {
             split.left.hist     = this->_histLeft;
@@ -1328,8 +1332,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         for (size_t iClass = 0; iClass < K; ++iClass) leftWeights += histLeft[iClass];
     }
 
-    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart)
-          || (leftWeights < minWeightLeaf)))
+    if (!(((n - nLeft) < nMinSplitPart) || ((totalWeights - leftWeights) < minWeightLeaf) || (nLeft < nMinSplitPart) || (leftWeights < minWeightLeaf))
+        && leftWeights)
     {
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
@@ -1441,20 +1445,22 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitOrderedFeature(co
     }
 
     this->calcGini(leftWeights, this->_impLeft);
-    this->calcGini(totalWeights - leftWeights, this->_impRight);
+    const intermSummFPType rightWeights = totalWeights - leftWeights;
+    this->calcGini(rightWeights, this->_impRight);
 
 #ifdef DEBUG_CHECK_IMPURITY
     checkImpurity(aIdx, leftWeights, this->_impLeft);
-    checkImpurity(aIdx + i - 1, totalWeights - leftWeights, this->_impRight);
+    checkImpurity(aIdx + i - 1, rightWeights, this->_impRight);
 #endif
 
-    if ((leftWeights >= minWeightLeaf) && ((totalWeights - leftWeights) >= minWeightLeaf)) //it is a valid split with enought leaf weights
+    if ((leftWeights >= minWeightLeaf) && (rightWeights >= minWeightLeaf) && leftWeights
+        && rightWeights) //it is a valid split with enought leaf weights
     {
         //check if bFound condition below
         if (!isPositive<intermSummFPType, cpu>(this->_impLeft.var)) this->_impLeft.var = 0;   //set left impurity to 0 if negative
         if (!isPositive<intermSummFPType, cpu>(this->_impRight.var)) this->_impRight.var = 0; //set right impurity to 0 if negative
 
-        v = leftWeights * this->_impLeft.var + (totalWeights - leftWeights) * this->_impRight.var; //calculate overall weighted Gini index
+        v = leftWeights * this->_impLeft.var + rightWeights * this->_impRight.var; //calculate overall weighted Gini index
 
         if (!(bBestFromOtherFeatures
               && isGreater<intermSummFPType, cpu>(v, vBestFromOtherFeatures))) //if it has a better weighted gini overwite parameters
@@ -1549,15 +1555,16 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
             leftWeights += weights;
             this->_impLeft.hist[xi] += weights;
         }
-        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf)
-            || ((totalWeights - leftWeights) < minWeightLeaf))
+        const intermSummFPType rightWeights = totalWeights - leftWeights;
+        if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
+            || !leftWeights || rightWeights <= 0)
             continue;
         PRAGMA_FORCE_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < this->_nClasses; ++j) this->_impRight.hist[j] = curImpurity.hist[j] - this->_impLeft.hist[j];
         this->calcGini(leftWeights, this->_impLeft);
-        this->calcGini(totalWeights - leftWeights, this->_impRight);
-        const intermSummFPType v = leftWeights * this->_impLeft.var + (totalWeights - leftWeights) * this->_impRight.var;
+        this->calcGini(rightWeights, this->_impRight);
+        const intermSummFPType v = leftWeights * this->_impLeft.var + rightWeights * this->_impRight.var;
 
         if (iBest < 0)
         {
