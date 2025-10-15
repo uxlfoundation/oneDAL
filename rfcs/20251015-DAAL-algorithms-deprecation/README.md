@@ -7,7 +7,7 @@ to cover broad variety of data analysis tasks.
 
 Since then the importance of some algorithms lowered.
 Having those algorithm in oneDAL doesn't add value to the product, but creates
-additional maintanance costs.
+additional maintenance costs.
 
 The long-term goal is to cover all the functionality with oneDAL API.
 
