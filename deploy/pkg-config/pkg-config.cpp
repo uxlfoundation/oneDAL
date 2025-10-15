@@ -28,7 +28,7 @@
         #error Unknown CPU architecture
     #endif
 
-    #define OTHER_LIBS -ltbb -ltbbmalloc -lpthread -ldl
+    #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -lpthread -ldl
     #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
 
     #ifdef STATIC
@@ -44,7 +44,7 @@
 #elif defined(__APPLE__) && defined(__MACH__)
     #define LIBDIR lib
 
-    #define OTHER_LIBS -ltbb -ltbbmalloc -ldl
+    #define OTHER_LIBS -lmkl_core -lmkl_intel_lp64 -lmkl_tbb_thread -ltbb -ltbbmalloc -ldl
     #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread) PATH(onedal_parameters)
 
     #ifdef STATIC
@@ -60,7 +60,7 @@
 #elif defined(_WIN32) || defined(_WIN64)
     #define LIBDIR lib/intel64
 
-    #define OTHER_LIBS tbb12.lib tbbmalloc.lib
+    #define OTHER_LIBS mkl_core.lib mkl_intel_lp64.lib mkl_tbb_thread.lib tbb12.lib tbbmalloc.lib
 
     #ifdef STATIC
         #define ONEDAL_LIBS PATH(onedal) PATH(onedal_core) PATH(onedal_thread)
