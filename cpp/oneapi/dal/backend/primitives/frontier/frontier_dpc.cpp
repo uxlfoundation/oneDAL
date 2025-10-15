@@ -22,7 +22,7 @@ namespace oneapi::dal::backend::primitives {
 #ifdef ONEDAL_DATA_PARALLEL
 
 template <typename ElementType>
-frontier<ElementType>::frontier(sycl::queue& queue, std::size_t num_items, sycl::usm::alloc alloc)
+frontier<ElementType>::frontier(sycl::queue& queue, std::uint64_t num_items, sycl::usm::alloc alloc)
         : _queue(queue),
           _num_items(num_items) {
     std::int64_t array_size = (num_items + bitset<ElementType>::element_bitsize - 1) /
@@ -105,9 +105,9 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
     auto offsets_pointer = _offsets.get_mutable_data() + 1;
 
     const uint32_t element_bitsize = bitmap.get_element_bitsize();
-    const size_t local_range = 256; // propose_wg_size(this->_queue);
-    const size_t mlb_count = _mlb_layer.get_count();
-    const size_t global_range = (mlb_count % local_range == 0)
+    const std::uint64_t local_range = 256; // propose_wg_size(this->_queue);
+    const std::uint64_t mlb_count = _mlb_layer.get_count();
+    const std::uint64_t global_range = (mlb_count % local_range == 0)
                                     ? mlb_count
                                     : (mlb_count + local_range - (mlb_count % local_range));
 
@@ -145,7 +145,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
                                      offsets_size_ref{ offsets_size[0] };
 
                                  ElementType data = data_layer[idx];
-                                 for (size_t i = 0; i < element_bitsize; i++) {
+                                 for (std::uint64_t i = 0; i < element_bitsize; i++) {
                                      if (data & (static_cast<ElementType>(1) << i)) {
                                          offsets[offsets_size_ref++] = i + idx * element_bitsize;
                                      }
@@ -185,7 +185,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
                     for (uint32_t gid = item.get_global_linear_id(); gid < size;
                          gid += item.get_global_range(0)) {
                         ElementType data = data_layer[gid];
-                        for (size_t i = 0; i < element_bitsize; i++) {
+                        for (std::uint64_t i = 0; i < element_bitsize; i++) {
                             if (data & (static_cast<ElementType>(1) << i)) {
                                 local_offsets[local_size_ref++] = i + gid * element_bitsize;
                             }
@@ -194,12 +194,12 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
 
                     sycl::group_barrier(group);
 
-                    size_t data_offset = 0;
+                    std::uint64_t data_offset = 0;
                     if (group.leader()) {
                         data_offset = offsets_size_ref.fetch_add(local_size_ref.load());
                     }
                     data_offset = sycl::group_broadcast(group, data_offset, 0);
-                    for (size_t i = item.get_local_linear_id(); i < local_size_ref.load();
+                    for (std::uint64_t i = item.get_local_linear_id(); i < local_size_ref.load();
                          i += item.get_local_range(0)) {
                         offsets[data_offset + i] = local_offsets[i];
                     }

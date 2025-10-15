@@ -28,7 +28,7 @@ template <typename ElementType = std::uint32_t>
 class bitset {
 public:
     using element_t = ElementType;
-    static constexpr size_t element_bitsize = sizeof(element_t) * 8; // Number of bits in an element
+    static constexpr std::uint64_t element_bitsize = sizeof(element_t) * 8; // Number of bits in an element
 
     bitset(element_t* data) : _data(data) {}
 
@@ -98,7 +98,7 @@ public:
     }
 
     /// override operator []
-    inline element_t& operator[](std::size_t index) {
+    inline element_t& operator[](std::uint64_t index) {
         return _data[index];
     }
 
