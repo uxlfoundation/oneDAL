@@ -25,6 +25,7 @@
 namespace oneapi::dal::backend::primitives {
 
 /// @brief A view of a frontier that provides an interface for the kernel to interact with the frontier data structure.
+/// \tparam ElementType the type of the elements in the frontier (e.g., std::uint32_t).
 template <typename ElementType>
 class frontier_view {
 public:
@@ -38,8 +39,8 @@ public:
                   std::uint32_t* offsets_size, // Pointer to store the size of the offsets array
                   std::uint64_t num_items) // Maximum number of items that can be stored in the frontier
             : _num_items(num_items),
-              _data_layer(bitset<bitmap_t>{ data_layer }),
-              _mlb_layer(bitset<bitmap_t>{ mlb_layer }),
+              _data_layer(bitset<bitmap_t>{ data_layer, num_items }), // first layer size is num_items
+              _mlb_layer(bitset<bitmap_t>{ mlb_layer, num_items / divide_factor }), // second layer size is (num_items / divide_factor) because each bit in the second layer represents an element in the first layer
               _offsets(offsets),
               _offsets_size(offsets_size) {}
 
@@ -83,6 +84,7 @@ private:
 };
 
 /// @brief The Two-Layer bitmap frontier class
+/// \tparam ElementType the type that describes the bitmap integers type (e.g., std::uint32_t).
 template <typename ElementType>
 class frontier {
     using buffer_t = std::uint32_t;
@@ -154,6 +156,8 @@ private:
     const std::uint64_t _CAF_FLAG = 1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
 
+/// Swaps the contents of two frontiers.
+/// \tparam ElementType the type that describes the bitmap integers type (e.g., std::uint32_t). Inferred from the frontier.
 template <typename ElementType>
 void swap_frontiers(frontier<ElementType>& f1, frontier<ElementType>& f2) {
     frontier<ElementType>::swap(f1, f2);
