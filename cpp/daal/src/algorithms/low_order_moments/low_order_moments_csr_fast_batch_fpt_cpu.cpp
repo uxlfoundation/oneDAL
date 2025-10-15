@@ -23,7 +23,6 @@
 
 #include "src/services/service_profiler.h"
 
-#include "src/algorithms/low_order_moments/low_order_moments_container.h"
 #include "src/algorithms/low_order_moments/low_order_moments_batch_impl.i"
 
 namespace daal
@@ -32,10 +31,6 @@ namespace algorithms
 {
 namespace low_order_moments
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
 namespace internal
 {
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
