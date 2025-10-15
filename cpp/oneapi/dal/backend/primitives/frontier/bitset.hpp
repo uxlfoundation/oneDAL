@@ -21,21 +21,24 @@
 
 namespace oneapi::dal::backend::primitives {
 
-/**
- * @brief A bitset class that provides a set of operations on a bitset.
- */
+/// A bitset class that provides a set of operations on a bitset implemented using an array of integers.
+/// \tparam ElementType the type of the elements in the bitset (e.g., std::uint32_t).
 template <typename ElementType = std::uint32_t>
 class bitset {
 public:
     using element_t = ElementType;
     static constexpr std::uint64_t element_bitsize = sizeof(element_t) * 8; // Number of bits in an element
 
-    bitset(element_t* data, const size_t num_items) : _data(data), _num_items(num_items) {}
+    /// Constructs a bitset with the given data pointer and number of items.
+    /// \param data pointer to the underlying data.
+    /// \param num_items number of items in the bitset.
+    bitset(element_t* data, const size_t num_items) : _data(data), _num_items((num_items + element_bitsize - 1) / element_bitsize) {}
 
     /// Sets the bit at the specified index to 1.
     inline void set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         _data[element_index] |= (element_t(1) << bit_index);
     }
 
@@ -43,6 +46,7 @@ public:
     inline void unset(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         _data[element_index] &= ~(element_t(1) << bit_index);
     }
 
@@ -50,6 +54,7 @@ public:
     inline bool test(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         return (_data[element_index] & (element_t(1) << bit_index)) != 0;
     }
 
@@ -59,6 +64,7 @@ public:
     inline void atomic_set(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         atomic_element |= (element_t(1) << bit_index);
     }
@@ -69,6 +75,7 @@ public:
     inline void atomic_unset(std::uint32_t index) {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         atomic_element &= ~(element_t(1) << bit_index);
     }
@@ -79,6 +86,7 @@ public:
     inline bool atomic_test(std::uint32_t index) const {
         element_t element_index = index / element_bitsize;
         element_t bit_index = index % element_bitsize;
+        ONEDAL_ASSERT(element_index < _num_items, "Index out of bounds");
         sycl::atomic_ref<element_t, mem_order, mem_scope> atomic_element(_data[element_index]);
         return (atomic_element.load() & (element_t(1) << bit_index)) != 0;
     }
@@ -99,6 +107,7 @@ public:
 
     /// override operator []
     inline element_t& operator[](std::uint64_t index) {
+        ONEDAL_ASSERT(index < _num_items, "Index out of bounds");
         return _data[index];
     }
 
