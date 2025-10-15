@@ -63,7 +63,7 @@ in oneDAL 2025.1X with complete removal planned for the next major release,
 oneDAL 2026.0:
 
 ### Analysis algorithms to be deprecated:
-- [Assocoation Rules](https://uxlfoundation.github.io/oneDAL/daal/algorithms/association_rules/association-rules.html)
+- [Association Rules](https://uxlfoundation.github.io/oneDAL/daal/algorithms/association_rules/association-rules.html)
 - [Multivariate Outlier Detection](https://uxlfoundation.github.io/oneDAL/daal/algorithms/outlier_detection/multivariate.html)
 - [Multivariate BACON Outlier Detection](https://uxlfoundation.github.io/oneDAL/daal/algorithms/outlier_detection/multivariate-bacon.html)
 - [Univariate Outlier Detection](https://uxlfoundation.github.io/oneDAL/daal/algorithms/outlier_detection/univariate.html)
