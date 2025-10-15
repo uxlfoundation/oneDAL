@@ -70,7 +70,7 @@ class csr_graph_view {
     };
 
 public:
-    csr_graph_view(std::size_t num_nodes, vertex_t* row_ptr, edge_t* col_indices, weight_t* weights)
+    csr_graph_view(std::uint64_t num_nodes, vertex_t* row_ptr, edge_t* col_indices, weight_t* weights)
             : _num_nodes(num_nodes),
               _row_ptr(row_ptr),
               _col_indices(col_indices),
@@ -100,7 +100,7 @@ public:
     }
 
 private:
-    std::size_t _num_nodes;
+    std::uint64_t _num_nodes;
     vertex_t* _row_ptr;
     edge_t* _col_indices;
     weight_t* _weights;
@@ -162,13 +162,13 @@ public:
         return _queue;
     }
 
-    std::size_t get_vertex_count() const {
+    std::uint64_t get_vertex_count() const {
         return _num_nodes;
     }
 
 private:
     sycl::queue& _queue;
-    std::size_t _num_nodes;
+    std::uint64_t _num_nodes;
     ndarray<vertex_t, 1> _row_ptr;
     ndarray<edge_t, 1> _col_indices;
     ndarray<weight_t, 1> _weights;
