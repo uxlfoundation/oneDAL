@@ -26,7 +26,6 @@ on:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
-  PYTHON_VERSION: '3.12'
   TBB_VERSION: v2022.2.0
   OPENBLAS_VERSION: v0.3.29
   OPENRNG_VERSION: 'v24.04'
@@ -89,11 +88,6 @@ jobs:
       - name: Build openBLAS
         run: |
           .ci/env/openblas.sh
-
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install compiler
         if: matrix.os.cxx == 'clang'
@@ -175,11 +169,6 @@ jobs:
       - name: Build openRNG
         run: |
           .ci/env/openrng.sh --version ${{ env.OPENRNG_VERSION }}
-
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: System Info
         run: .ci/scripts/describe_system.sh

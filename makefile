@@ -1022,8 +1022,17 @@ $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(R
 endif
 endif
 
-_release_c: ./deploy/pkg-config/pkg-config.tpl
-	python ./deploy/pkg-config/generate_pkgconfig.py --output_dir $(RELEASEDIR.pkgconfig) --template_name ./deploy/pkg-config/pkg-config.tpl
+_release_c: ./deploy/pkg-config/pkg-config.cpp
+	mkdir -p $(RELEASEDIR.pkgconfig)
+# use the compiler's preprocessor to define the pkg-config file as it can handle cross-compilation, OS and ISA determination for all OSes.
+	$(COMPILER.$(_OS).$(COMPILER)) -E -DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER)) -E ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
+# insert license header, remove preprocessor header, swap to .pc file compliant comments, and remove quotes from the URL
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+
 
 #----- releasing examples
 define .release.x
