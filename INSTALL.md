@@ -21,7 +21,7 @@
 
 You can build and install oneDAL using few simple command with `conda` environment manager.
 It automatically creates temporal environments for building and testing of oneDAL and outputs
-portable conda packages with shared and statis libraries, library headers and development files.
+portable conda packages with shared and static libraries, library headers and development files.
 
 Follow next steps to build and install oneDAL:
 
