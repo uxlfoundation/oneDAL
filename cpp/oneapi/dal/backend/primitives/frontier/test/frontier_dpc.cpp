@@ -24,10 +24,10 @@ namespace oneapi::dal::backend::primitives::test {
 namespace pr = dal::backend::primitives;
 
 template <typename T>
-void print_frontier(const T* data, size_t count, size_t num_items) {
-    size_t element_bitsize = sizeof(T) * 8;
-    for (size_t i = 0; i < count; ++i) {
-        for (size_t j = 0; j < element_bitsize; ++j) {
+void print_frontier(const T* data, std::uint64_t count, std::uint64_t num_items) {
+    std::uint64_t element_bitsize = sizeof(T) * 8;
+    for (std::uint64_t i = 0; i < count; ++i) {
+        for (std::uint64_t j = 0; j < element_bitsize; ++j) {
             std::cout << ((data[i] & (static_cast<T>(1) << j)) ? "1" : "0");
         }
     }
@@ -38,7 +38,7 @@ TEST("frontier queue basic operations", "[frontier]") {
     auto& queue = policy.get_queue();
     print_device_name(queue);
 
-    const std::size_t num_items = 100;
+    const std::uint64_t num_items = 100;
     auto f = pr::frontier<std::uint32_t>(queue, num_items, sycl::usm::alloc::shared);
 
     REQUIRE(f.empty() == true);
