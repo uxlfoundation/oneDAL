@@ -29,14 +29,14 @@ template <typename ElementType>
 class frontier_view {
 public:
     using bitmap_t = ElementType;
-    static constexpr std::size_t divide_factor = bitset<bitmap_t>::element_bitsize;
+    static constexpr std::uint64_t divide_factor = bitset<bitmap_t>::element_bitsize;
 
     frontier_view() = default;
-    frontier_view(bitmap_t* data_layer,
-                  bitmap_t* mlb_layer,
-                  std::uint32_t* offsets,
-                  std::uint32_t* offsets_size,
-                  size_t num_items)
+    frontier_view(bitmap_t* data_layer, // First layer (tracks vertices in the frontier)
+                  bitmap_t* mlb_layer, // Second layer (to track non-zero elements in the first layer)
+                  std::uint32_t* offsets, // Array to store the indices of the non-zero elements
+                  std::uint32_t* offsets_size, // Pointer to store the size of the offsets array
+                  std::uint64_t num_items) // Maximum number of items that can be stored in the frontier
             : _num_items(num_items),
               _data_layer(bitset<bitmap_t>{ data_layer }),
               _mlb_layer(bitset<bitmap_t>{ mlb_layer }),
@@ -60,7 +60,7 @@ public:
         return _data_layer.atomic_test(idx);
     }
 
-    inline size_t get_element_bitsize() const {
+    inline std::uint64_t get_element_bitsize() const {
         return bitset<bitmap_t>::element_bitsize;
     }
 
@@ -73,7 +73,7 @@ public:
     }
 
 private:
-    size_t _num_items;
+    std::uint64_t _num_items;
 
     bitset<bitmap_t> _data_layer;
     bitset<bitmap_t> _mlb_layer;
@@ -89,7 +89,7 @@ class frontier {
 
 public:
     frontier(sycl::queue& queue,
-             std::size_t num_items,
+             std::uint64_t num_items,
              sycl::usm::alloc alloc = sycl::usm::alloc::shared);
 
     const frontier_view<ElementType> get_device_view() const {
@@ -100,7 +100,7 @@ public:
                  _mlb_layer.get_mutable_data(),
                  offsets_pointer,
                  offsets_size_pointer,
-                 static_cast<std::size_t>(_data_layer.get_count()) };
+                 static_cast<std::uint64_t>(_data_layer.get_count()) };
     }
 
     inline ndview<ElementType, 1> get_data() const {
@@ -144,14 +144,14 @@ public:
 
 private:
     sycl::queue& _queue;
-    size_t _num_items;
+    std::uint64_t _num_items;
 
     ndarray<ElementType, 1> _data_layer;
     ndarray<ElementType, 1> _mlb_layer;
     ndarray<std::uint32_t, 1> _offsets;
     ndarray<buffer_t, 1> _buffer;
-    const size_t _TMP_VAR = 0;
-    const size_t _CAF_FLAG = 1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
+    const std::uint64_t _TMP_VAR = 0;
+    const std::uint64_t _CAF_FLAG = 1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
 
 template <typename ElementType>
