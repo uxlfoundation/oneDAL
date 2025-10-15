@@ -27,9 +27,9 @@ namespace oneapi::dal::backend::primitives {
 /// It includes the group offset, coarsening factor, offsets size, and the SYCL
 /// nd_item for the current work item.
 struct frontier_context_state {
-    size_t group_offset;
-    const uint16_t coarsening_factor;
-    const uint32_t offsets_size;
+    std::uint64_t group_offset; // Offset of the current group being processed
+    const uint16_t coarsening_factor; // Number of integers a single work-group should handle
+    const uint32_t offsets_size; // Size of the offsets buffer array
     const sycl::nd_item<1> item;
 };
 
@@ -39,10 +39,12 @@ struct frontier_context_state {
 /// the context state, check if there are more elements to process, get the
 /// assigned element, check if a vertex is in the frontier, and insert a vertex
 /// into the output frontier.
+/// \tparam InFrontierDevT input frontier device view type. Inferred from the input frontier.
+/// \tparam OutFrontierDevT output frontier device view type. Inferred from the output frontier.
 template <typename InFrontierDevT, typename OutFrontierDevT>
 class frontier_context {
 public:
-    frontier_context(size_t limit, InFrontierDevT in_dev_frontier, OutFrontierDevT out_dev_frontier)
+    frontier_context(std::uint64_t limit, InFrontierDevT in_dev_frontier, OutFrontierDevT out_dev_frontier)
             : limit(limit),
               in_dev_frontier(in_dev_frontier),
               out_dev_frontier(out_dev_frontier) {}
@@ -56,39 +58,39 @@ public:
         };
     }
 
-    /// This method checks if there are more elements to process in the current group.
+    /// checks if there are more elements to process in the current group.
     inline bool need_to_process(frontier_context_state& state) const {
         return (state.group_offset * state.coarsening_factor < state.offsets_size);
     }
 
-    /// This method completes the current iteration by updating the group offset.
+    /// completes the current iteration by updating the group offset.
     inline void complete_iteration(frontier_context_state& state) const {
         state.group_offset += state.item.get_group_range(0);
     }
 
-    /// This method retrieves the assigned element for the current work item.
+    /// retrieves the assigned element for the current work item.
     inline size_t get_assigned_element(const frontier_context_state& state) const {
         const uint16_t element_bitsize = in_dev_frontier.get_element_bitsize();
-        const uint32_t acutal_id_offset = (state.group_offset * state.coarsening_factor) +
+        const uint32_t actual_id_offset = (state.group_offset * state.coarsening_factor) +
                                           (state.item.get_local_linear_id() / element_bitsize);
+        ONEDAL_ASSERT(actual_id_offset < in_dev_frontier.get_offsets_size()[0]);
         const uint32_t* bitmap_offsets = in_dev_frontier.get_offsets();
-        ONEDAL_ASSERT(acutal_id_offset < in_dev_frontier.get_offsets_size()[0]);
-        const auto assigned_vertex = (bitmap_offsets[acutal_id_offset] * element_bitsize) +
+        const auto assigned_vertex = (bitmap_offsets[actual_id_offset] * element_bitsize) +
                                      (state.item.get_local_linear_id() % element_bitsize);
         return assigned_vertex;
     }
 
-    /// This method checks if a vertex is in the input frontier.
-    inline bool check(const frontier_context_state& state, size_t vertex) const {
+    /// checks if a vertex is in the input frontier.
+    inline bool check(std::uint64_t vertex) const {
         return vertex < limit && in_dev_frontier.check(vertex);
     }
 
-    /// This method inserts a vertex into the output frontier.
-    inline void insert(const frontier_context_state& state, size_t vertex) const {
+    /// inserts a vertex into the output frontier.
+    inline void insert(std::uint64_t vertex) const {
         out_dev_frontier.insert(vertex);
     }
 
-    size_t limit;
+    std::uint64_t limit;
     InFrontierDevT in_dev_frontier;
     OutFrontierDevT out_dev_frontier;
 };
@@ -100,12 +102,12 @@ struct BitmapKernel {
     /// This function distributes the workload among the workgroup, subgroup, and individual work items
     template <typename VertexT>
     inline void distribute_workload(frontier_context_state& state, const VertexT& vertex) const {
-        const size_t lid = state.item.get_local_linear_id();
+        const std::uint64_t lid = state.item.get_local_linear_id();
         const auto wgroup = state.item.get_group();
-        const size_t wgroup_size = wgroup.get_local_range(0);
+        const std::uint64_t wgroup_size = wgroup.get_local_range(0);
         const auto sgroup = state.item.get_sub_group();
         const auto sgroup_id = sgroup.get_group_id();
-        const size_t sgroup_size = sgroup.get_local_range()[0];
+        const std::uint64_t sgroup_size = sgroup.get_local_range()[0];
 
         if (sgroup.leader()) {
             subgroup_reduce_tail[sgroup_id] = 0;
@@ -120,7 +122,7 @@ struct BitmapKernel {
             wg_tail{ workgroup_reduce_tail[0] };
         const uint32_t offset = sgroup_id * sgroup_size;
 
-        if (context.check(state, vertex)) {
+        if (context.check(vertex)) {
             uint32_t n_edges = graph_dev.get_degree(vertex);
             // if the number of edges is large enough, we can assign the vertex to the workgroup
             if (n_edges >= wgroup_size * wgroup_size) {
@@ -149,12 +151,12 @@ struct BitmapKernel {
             wg_tail{ workgroup_reduce_tail[0] };
 
         const auto wgroup = state.item.get_group();
-        const size_t lid = state.item.get_local_linear_id();
-        const size_t wgroup_size = wgroup.get_local_range(0);
+        const std::uint64_t lid = state.item.get_local_linear_id();
+        const std::uint64_t wgroup_size = wgroup.get_local_range(0);
 
-        for (size_t i = 0; i < wg_tail.load(); i++) {
+        for (std::uint64_t i = 0; i < wg_tail.load(); i++) {
             auto vertex = workgroup_reduce[i];
-            size_t n_edges = n_edges_wg[i];
+            std::uint64_t n_edges = n_edges_wg[i];
             auto start = graph_dev.begin(vertex);
 
             for (auto j = lid; j < n_edges; j += wgroup_size) {
@@ -163,7 +165,7 @@ struct BitmapKernel {
                 auto weight = graph_dev.get_weight(edge);
                 auto neighbor = *n;
                 if (functor(vertex, neighbor, edge, weight)) {
-                    context.insert(state, neighbor);
+                    context.insert(neighbor);
                 }
             }
 
@@ -177,18 +179,18 @@ struct BitmapKernel {
     inline void process_subgroup_reduction(frontier_context_state& state) const {
         const auto sgroup = state.item.get_sub_group();
         const auto sgroup_id = sgroup.get_group_id();
-        const size_t sgroup_size = sgroup.get_local_range()[0];
-        const size_t llid = sgroup.get_local_linear_id();
+        const std::uint64_t sgroup_size = sgroup.get_local_range()[0];
+        const std::uint64_t llid = sgroup.get_local_linear_id();
         const uint32_t offset = sgroup_id * sgroup_size;
 
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::sub_group>
             sg_tail{ subgroup_reduce_tail[sgroup_id] };
 
-        for (size_t i = 0; i < subgroup_reduce_tail[sgroup_id]; i++) {
+        for (std::uint64_t i = 0; i < subgroup_reduce_tail[sgroup_id]; i++) {
             // active_elements_tail[subgroup_id] is always less or equal than subgroup_size
-            size_t vertex_id = offset + i;
+            std::uint64_t vertex_id = offset + i;
             auto vertex = subgroup_reduce[vertex_id];
-            size_t n_edges = n_edges_sg[vertex_id];
+            std::uint64_t n_edges = n_edges_sg[vertex_id];
 
             auto start = graph_dev.begin(vertex);
 
@@ -198,7 +200,7 @@ struct BitmapKernel {
                 auto weight = graph_dev.get_weight(edge);
                 auto neighbor = *n;
                 if (functor(vertex, neighbor, edge, weight)) {
-                    context.insert(state, neighbor);
+                    context.insert(neighbor);
                 }
             }
 
@@ -212,7 +214,7 @@ struct BitmapKernel {
     template <typename VertexT>
     inline void process_workitem_reduction(frontier_context_state& state,
                                            const VertexT& vertex) const {
-        const size_t lid = state.item.get_local_linear_id();
+        const std::uint64_t lid = state.item.get_local_linear_id();
 
         if (!visited[lid]) {
             auto start = graph_dev.begin(vertex);
@@ -223,7 +225,7 @@ struct BitmapKernel {
                 auto weight = graph_dev.get_weight(edge);
                 auto neighbor = *n;
                 if (functor(vertex, neighbor, edge, weight)) {
-                    context.insert(state, neighbor);
+                    context.insert(neighbor);
                 }
             }
         }
@@ -284,18 +286,18 @@ sycl::event advance(const GraphT& graph,
 
     sycl::queue& q = graph.get_queue();
 
-    size_t num_nodes = graph.get_vertex_count();
+    std::uint64_t num_nodes = graph.get_vertex_count();
 
     auto in_dev_frontier = in.get_device_view();
     auto out_dev_frontier = out.get_device_view();
     auto graph_dev = graph.get_device_view();
 
     /// The coarsening factor represents the number of integers a single work-group should handle.
-    size_t coarsening_factor = 1; // it should be Compute Unit Size / num subgroups;
+    std::uint64_t coarsening_factor = 1; // it should be Compute Unit Size / num subgroups;
 
-    size_t element_bitsize = in_dev_frontier.get_element_bitsize(); // in bits
+    std::uint64_t element_bitsize = in_dev_frontier.get_element_bitsize(); // in bits
     sycl::range<1> local_range = { element_bitsize * coarsening_factor };
-    size_t global_size;
+    std::uint64_t global_size;
 
     sycl::event to_wait =
         in.compute_active_frontier(); // kernel launch to compute active bitmap regions
