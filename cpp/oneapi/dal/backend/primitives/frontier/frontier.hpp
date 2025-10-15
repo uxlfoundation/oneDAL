@@ -1,5 +1,4 @@
 /*******************************************************************************
-* Copyright 2025 Intel Corporation
 * Copyright contributors to the oneDAL project
 * Copyright 2025 University of Salerno
 *
