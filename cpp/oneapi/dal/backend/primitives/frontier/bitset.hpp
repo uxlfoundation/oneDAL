@@ -30,7 +30,7 @@ public:
     using element_t = ElementType;
     static constexpr std::uint64_t element_bitsize = sizeof(element_t) * 8; // Number of bits in an element
 
-    bitset(element_t* data) : _data(data) {}
+    bitset(element_t* data, const size_t num_items) : _data(data), _num_items(num_items) {}
 
     /// Sets the bit at the specified index to 1.
     inline void set(std::uint32_t index) const {
@@ -104,6 +104,7 @@ public:
 
 private:
     element_t* _data;
+    std::uint64_t _num_items;
 };
 
 } // namespace oneapi::dal::backend::primitives
