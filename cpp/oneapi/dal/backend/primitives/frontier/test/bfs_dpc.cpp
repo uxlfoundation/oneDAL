@@ -41,7 +41,7 @@ std::vector<std::uint32_t> host_bfs(const std::vector<T>& row_offsets,
         T node = q.front();
         q.pop();
 
-        for (size_t i = row_offsets[node]; i < row_offsets[node + 1]; ++i) {
+        for (std::uint64_t i = row_offsets[node]; i < row_offsets[node + 1]; ++i) {
             auto neighbor = col_indices[i];
             if (distances[neighbor] == std::numeric_limits<std::uint32_t>::max()) {
                 distances[neighbor] = distances[node] + 1;
@@ -59,7 +59,7 @@ TEST("test BFS", "[bfs]") {
 
     const std::uint32_t seed = GENERATE(42u, 313u, 2025u);
     const double edge_probability = GENERATE(0.05, 0.1, 0.2);
-    const std::size_t num_nodes = GENERATE(128, 512, 1024);
+    const std::uint64_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
     auto graph =
@@ -83,7 +83,7 @@ TEST("test BFS", "[bfs]") {
         .wait_and_throw();
 
     in_frontier.insert(src);
-    size_t iter = 0;
+    std::uint64_t iter = 0;
 
     /// Start BFS
     while (!in_frontier.empty()) {
@@ -107,7 +107,7 @@ TEST("test BFS", "[bfs]") {
     auto expected_distances =
         host_bfs<std::uint32_t>(graph_data.row_ptr, graph_data.col_indices, src);
     auto actual_distances = distance.to_host(queue).get_data();
-    for (size_t i = 0; i < num_nodes; ++i) {
+    for (std::uint64_t i = 0; i < num_nodes; ++i) {
         REQUIRE(actual_distances[i] == expected_distances[i]);
     }
 } // TEST "test advance operation"
