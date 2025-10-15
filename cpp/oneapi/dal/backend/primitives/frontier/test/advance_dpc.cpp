@@ -27,10 +27,10 @@ namespace oneapi::dal::backend::primitives::test {
 namespace pr = dal::backend::primitives;
 
 template <typename T>
-void print_frontier(const T* data, size_t count, size_t num_items) {
-    size_t element_bitsize = sizeof(T) * 8;
-    for (size_t i = 0; i < count; ++i) {
-        for (size_t j = 0; j < element_bitsize; ++j) {
+void print_frontier(const T* data, std::uint64_t count, std::uint64_t num_items) {
+    std::uint64_t element_bitsize = sizeof(T) * 8;
+    for (std::uint64_t i = 0; i < count; ++i) {
+        for (std::uint64_t j = 0; j < element_bitsize; ++j) {
             std::cout << ((data[i] & (static_cast<T>(1) << j)) ? "1" : "0");
         }
     }
@@ -41,14 +41,14 @@ std::vector<bool> compute_next_frontier(const std::vector<std::uint32_t>& row_pt
                                         const std::vector<bool>& frontier) {
     std::vector<bool> next_frontier(frontier.size(), false);
 
-    for (size_t node = 0; node < frontier.size(); ++node) {
+    for (std::uint64_t node = 0; node < frontier.size(); ++node) {
         if (!frontier[node])
             continue;
 
         auto start = row_ptr[node];
         auto end = row_ptr[node + 1];
 
-        for (size_t i = start; i < end; ++i) {
+        for (std::uint64_t i = start; i < end; ++i) {
             auto neighbor = col_indices[i];
             next_frontier[neighbor] = true;
         }
@@ -59,8 +59,8 @@ std::vector<bool> compute_next_frontier(const std::vector<std::uint32_t>& row_pt
 template <typename T>
 void compare_frontiers(T& device_frontier,
                        const std::vector<bool>& host_frontier,
-                       size_t num_nodes) {
-    for (size_t i = 0; i < num_nodes; ++i) {
+                       std::uint64_t num_nodes) {
+    for (std::uint64_t i = 0; i < num_nodes; ++i) {
         bool tmpd = device_frontier.check(i);
         bool tmph = host_frontier[i];
         if (tmpd != tmph) {
@@ -78,7 +78,7 @@ TEST("test advance operation", "[advance]") {
 
     const std::uint32_t seed = GENERATE(42u, 313u, 2025u);
     const double edge_probability = GENERATE(0.05, 0.1, 0.2);
-    const std::size_t num_nodes = GENERATE(128, 512, 1024);
+    const std::uint64_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
     auto graph =
@@ -92,7 +92,7 @@ TEST("test advance operation", "[advance]") {
     std::mt19937 frontier_rng(seed ^ 0x9e3779b9u);
     std::bernoulli_distribution frontier_dist(0.1);
 
-    for (std::size_t vertex = 0; vertex < num_nodes; ++vertex) {
+    for (std::uint64_t vertex = 0; vertex < num_nodes; ++vertex) {
         if (frontier_dist(frontier_rng)) {
             in_frontier.insert(static_cast<std::uint32_t>(vertex));
             host_frontier[vertex] = true;

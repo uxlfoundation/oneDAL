@@ -33,7 +33,7 @@ struct csr_graph_data {
     std::vector<std::uint32_t> weights;
 };
 
-csr_graph_data generate_random_graph(std::size_t vertex_count,
+csr_graph_data generate_random_graph(std::uint64_t vertex_count,
                                      double edge_probability,
                                      std::uint32_t seed) {
     if (vertex_count == 0) {
@@ -50,9 +50,9 @@ csr_graph_data generate_random_graph(std::size_t vertex_count,
     std::vector<std::uint32_t> col_indices;
     col_indices.reserve(vertex_count);
 
-    for (std::size_t src = 0; src < vertex_count; ++src) {
+    for (std::uint64_t src = 0; src < vertex_count; ++src) {
         const auto edges_before = col_indices.size();
-        for (std::size_t dst = 0; dst < vertex_count; ++dst) {
+        for (std::uint64_t dst = 0; dst < vertex_count; ++dst) {
             if (src == dst) {
                 continue;
             }
