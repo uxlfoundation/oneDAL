@@ -1,0 +1,75 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+name: CI Conda Recipe
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'conda-recipe/**'
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  LinuxCondaRecipe:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cxx_compiler: "gxx"
+            cxx_compiler_version: "15"
+          - cxx_compiler: "clangxx"
+            # clang-21 gives compilation errors coming from immintrin.h header
+            cxx_compiler_version: "20"
+          - cxx_compiler: "dpcpp"
+            cxx_compiler_version: "2025"
+    name: LinuxCondaRecipe(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0 # fetch tags for conda-build
+      - name: System Info
+        run: .ci/scripts/describe_system.sh
+      - name: Conda update
+        run: |
+          echo -e "default_channels:\n  - https://conda.anaconda.org/conda-forge" >> ~/.condarc
+          conda config --add channels conda-forge
+          conda config --set channel_priority strict
+          conda update -y -q conda python
+      - name: Conda create
+        run: conda create -y -q -n build-env conda-build
+      - name: Conda build and test
+        run: |
+          . /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate build-env
+          conda build . --variants "{cxx_compiler: ${{ matrix.cxx_compiler }}, cxx_compiler_version: ${{ matrix.cxx_compiler_version }}}"
+        env:
+          # Note: AVX2 is used as the most common denominator for CI systems
+          REQCPU: avx2
