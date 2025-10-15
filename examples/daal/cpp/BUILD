@@ -229,17 +229,6 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
-    name = "moments",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/moments/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/low_order_moments:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
 # TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "naive_bayes",

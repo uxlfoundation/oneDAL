@@ -33,25 +33,31 @@ namespace low_order_moments
 {
 namespace internal
 {
+// fastCSR templates
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
 template class LowOrderMomentsOnlineKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
+// singlePassCSR templates
 template class LowOrderMomentsBatchKernel<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
+// sumCSR templates
 template class LowOrderMomentsBatchKernel<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
 template class LowOrderMomentsOnlineKernel<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
-template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+// singlePassDense templates
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, singlePassDense, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, singlePassDense, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, singlePassDense, DAAL_CPU>;
+// sumDense templates
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
+// defaultDense templates
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace low_order_moments
 } // namespace algorithms
 } // namespace daal
