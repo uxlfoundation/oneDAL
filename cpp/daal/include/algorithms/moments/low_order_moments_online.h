@@ -38,44 +38,6 @@ namespace low_order_moments
 namespace interface1
 {
 /**
- * @defgroup low_order_moments_online Online
- * @ingroup low_order_moments
- * @{
- */
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__ONLINECONTAINER"></a>
- * \brief Provides methods to run implementations of the low order moments algorithm.
- *        This class is associated with daal::algorithms::low_order_moments::Online class
-
- *
- * \tparam method           Computation method for the low order moments algorithm, \ref daal::algorithms::low_order_moments::Method
- * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for the low order moments algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-    /**
-     * Computes a partial result of the low order moments algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the low order moments algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__ONLINE"></a>
  * \brief Computes moments of low order in the online processing mode.
  * <!-- \n<a href="DAAL-REF-LOW_ORDER_MOMENTS-ALGORITHM">Low order moments algorithm description and usage models</a> -->
@@ -189,9 +151,8 @@ protected:
 
     void initialize()
     {
-        Analysis<online>::_ac = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in                   = &input;
-        _par                  = &parameter;
+        _in  = &input;
+        _par = &parameter;
         _result.reset(new ResultType());
         _partialResult.reset(new PartialResultType());
     }
@@ -204,7 +165,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace low_order_moments

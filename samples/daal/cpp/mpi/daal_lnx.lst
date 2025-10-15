@@ -33,8 +33,6 @@ MPI  =  svd_fast_distributed_mpi                           \
         kmeans_csr_distributed_mpi                         \
         kmeans_init_dense_distributed_mpi                  \
         kmeans_init_csr_distributed_mpi                    \
-        low_order_moments_csr_distributed_mpi              \
-        low_order_moments_dense_distributed_mpi            \
         implicit_als_csr_distributed_mpi                   \
         ridge_regression_norm_eq_distributed_mpi           \
         dbscan_dense_distributed_mpi

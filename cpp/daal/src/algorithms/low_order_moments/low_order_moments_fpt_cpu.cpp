@@ -24,6 +24,7 @@
 #include "src/algorithms/low_order_moments/low_order_moments_batch_impl.i"
 #include "src/algorithms/low_order_moments/low_order_moments_online_impl.i"
 #include "src/algorithms/low_order_moments/low_order_moments_distributed_impl.i"
+#include "src/algorithms/low_order_moments/moments_batch.h"
 
 namespace daal
 {
@@ -31,6 +32,10 @@ namespace algorithms
 {
 namespace low_order_moments
 {
+template DAAL_EXPORT services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
+                                                                    const int method);
+template DAAL_EXPORT services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::PartialResult * input, daal::algorithms::Parameter * par,
+                                                                    const int method);
 namespace internal
 {
 // fastCSR templates
@@ -54,7 +59,6 @@ template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, sumDense, DAA
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 // defaultDense templates
-template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 } // namespace internal
