@@ -58,18 +58,18 @@ public:
         };
     }
 
-    /// checks if there are more elements to process in the current group.
+    /// Checks if there are more elements to process in the current group.
     inline bool need_to_process(frontier_context_state& state) const {
         return (state.group_offset * state.coarsening_factor < state.offsets_size);
     }
 
-    /// completes the current iteration by updating the group offset.
+    /// Completes the current iteration by updating the group offset.
     inline void complete_iteration(frontier_context_state& state) const {
         state.group_offset += state.item.get_group_range(0);
     }
 
-    /// retrieves the assigned element for the current work item.
-    inline size_t get_assigned_element(const frontier_context_state& state) const {
+    /// Retrieves the assigned element for the current work item.
+    inline std::uint64_t get_assigned_element(const frontier_context_state& state) const {
         const uint16_t element_bitsize = in_dev_frontier.get_element_bitsize();
         const uint32_t actual_id_offset = (state.group_offset * state.coarsening_factor) +
                                           (state.item.get_local_linear_id() / element_bitsize);
@@ -80,12 +80,12 @@ public:
         return assigned_vertex;
     }
 
-    /// checks if a vertex is in the input frontier.
+    /// Checks if a vertex is in the input frontier.
     inline bool check(std::uint64_t vertex) const {
         return vertex < limit && in_dev_frontier.check(vertex);
     }
 
-    /// inserts a vertex into the output frontier.
+    /// Inserts a vertex into the output frontier.
     inline void insert(std::uint64_t vertex) const {
         out_dev_frontier.insert(vertex);
     }
@@ -95,11 +95,15 @@ public:
     OutFrontierDevT out_dev_frontier;
 };
 
-/// BitmapKernel is a template struct that defines the kernel to be executed on the device.
+/// bitmap_kernel is a template struct that defines the kernel to be executed on the device.
 /// It processes the input frontier and advances it based on the provided functor.
+/// \tparam T the type of the elements in the frontier (e.g., std::uint32_t).
+/// \tparam ContextT the type of the frontier context. Inferred from the frontier_context.
+/// \tparam GraphDevT the type of the graph device view. Inferred from the graph.
+/// \tparam LambdaT the type of the functor to be applied to each edge.
 template <typename T, typename ContextT, typename GraphDevT, typename LambdaT>
-struct BitmapKernel {
-    /// This function distributes the workload among the workgroup, subgroup, and individual work items
+struct bitmap_kernel {
+    /// Distributes the workload among the workgroup, subgroup, and individual work items
     template <typename VertexT>
     inline void distribute_workload(frontier_context_state& state, const VertexT& vertex) const {
         const std::uint64_t lid = state.item.get_local_linear_id();
@@ -144,9 +148,8 @@ struct BitmapKernel {
         }
     }
 
-    /// This function processes the vertices assigned to the workgroup.
+    /// Processes the vertices assigned to the workgroup.
     inline void process_workgroup_reduction(frontier_context_state& state) const {
-        /// This function processes the vertices assigned to the workgroup.
         sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::work_group>
             wg_tail{ workgroup_reduce_tail[0] };
 
@@ -175,7 +178,7 @@ struct BitmapKernel {
         }
     }
 
-    /// This function processes the vertices assigned to the subgroup.
+    /// Processes the vertices assigned to the subgroup.
     inline void process_subgroup_reduction(frontier_context_state& state) const {
         const auto sgroup = state.item.get_sub_group();
         const auto sgroup_id = sgroup.get_group_id();
@@ -210,7 +213,8 @@ struct BitmapKernel {
         }
     }
 
-    /// This function processes the vertices that were not assigned to the workgroup or subgroup.
+    /// Processes the vertices that were not assigned to the workgroup or subgroup.
+    /// \tparam VertexT the type of the vertex. Inferred from the graph.
     template <typename VertexT>
     inline void process_workitem_reduction(frontier_context_state& state,
                                            const VertexT& vertex) const {
@@ -231,6 +235,7 @@ struct BitmapKernel {
         }
     }
 
+    /// The main operator that executes the kernel logic.
     void operator()(sycl::nd_item<1> item) const {
         auto state = context.init(item);
         const auto wgroup = item.get_group();
@@ -272,11 +277,12 @@ struct BitmapKernel {
     const LambdaT functor;
 };
 
-/// advance is a function that launches the BitmapKernel on the device to advance the frontier.
+/// Advance is a function that launches the bitmap_kernel on the device to advance the frontier.
 /// It takes the graph, input frontier, output frontier, and the functor.
-/// The expected_size parameter is used to specify the expected size of the input frontier, in order
-/// to optimize the kernel launch parameters. If expected_size is zero, a default size is used.
 /// It returns a sycl::event that can be used to synchronize the execution.
+/// \tparam FrontierSizeT the type of the elements in the frontier (e.g., std::uint32_t).
+/// \tparam GraphT the type of the graph. Inferred from the csr_graph.
+/// \tparam LambdaT the type of the functor to be applied to each edge.
 template <typename FrontierSizeT, typename GraphT, typename LambdaT>
 sycl::event advance(const GraphT& graph,
                     frontier<FrontierSizeT>& in,
@@ -315,56 +321,23 @@ sycl::event advance(const GraphT& graph,
         out_dev_frontier
     };
     using bitmap_kernel_t =
-        BitmapKernel<element_t, decltype(context), decltype(graph_dev), LambdaT>;
+        bitmap_kernel<element_t, decltype(context), decltype(graph_dev), LambdaT>;
 
     const uint32_t max_num_subgroups = device_max_sg_count(q);
 
     auto e = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(to_wait);
-        sycl::local_accessor<uint32_t, 1> n_edges_wg{
-            local_range,
-            cgh
-        }; // number of edges of vertices to process at work-group granularity
-        sycl::local_accessor<uint32_t, 1> n_edges_sg{
-            local_range,
-            cgh
-        }; // number of edges of vertices to process at sub-group granularity
-        sycl::local_accessor<bool, 1> visited{
-            local_range,
-            cgh
-        }; // tracks the vertices already visited at work-group and sub-group granularity
-        sycl::local_accessor<element_t, 1> subgroup_reduce{
-            local_range,
-            cgh
-        }; // stores the vertices to process at sub-group granularity
-        sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{
-            max_num_subgroups,
-            cgh
-        }; // stores the tail of the subgroup reduction
-        sycl::local_accessor<uint32_t, 1> subgroup_ids{
-            local_range,
-            cgh
-        }; // stores the thread id that found the vertex to process at sub-group level
-        sycl::local_accessor<element_t, 1> workgroup_reduce{
-            local_range,
-            cgh
-        }; // stores the vertices to process at work-group granularity
-        sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{
-            1,
-            cgh
-        }; // stores the tail of the work-group reduction
-        sycl::local_accessor<uint32_t, 1> workgroup_ids{
-            local_range,
-            cgh
-        }; // stores the thread id that found the vertex to process at work-group level
-        sycl::local_accessor<element_t, 1> individual_reduce{
-            local_range,
-            cgh
-        }; // stores the vertices to process at individual thread granularity
-        sycl::local_accessor<uint32_t, 1> individual_reduce_tail{
-            1,
-            cgh
-        }; // stores the tail of the individual thread reduction
+        sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh}; // number of edges of vertices to process at work-group granularity
+        sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh}; // number of edges of vertices to process at sub-group granularity
+        sycl::local_accessor<bool, 1> visited{local_range, cgh}; // tracks the vertices already visited at work-group and sub-group granularity
+        sycl::local_accessor<element_t, 1> subgroup_reduce{local_range, cgh}; // stores the vertices to process at sub-group granularity
+        sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{max_num_subgroups, cgh}; // stores the tail of the subgroup reduction
+        sycl::local_accessor<uint32_t, 1> subgroup_ids{local_range, cgh}; // stores the thread id that found the vertex to process at sub-group level
+        sycl::local_accessor<element_t, 1> workgroup_reduce{local_range, cgh}; // stores the vertices to process at work-group granularity
+        sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{1, cgh}; // stores the tail of the work-group reduction
+        sycl::local_accessor<uint32_t, 1> workgroup_ids{local_range, cgh}; // stores the thread id that found the vertex to process at work-group level
+        sycl::local_accessor<element_t, 1> individual_reduce{local_range, cgh}; // stores the vertices to process at individual thread granularity
+        sycl::local_accessor<uint32_t, 1> individual_reduce_tail{1, cgh}; // stores the tail of the individual thread reduction
 
         cgh.parallel_for(sycl::nd_range<1>{ global_range, local_range },
                          bitmap_kernel_t{ context,
