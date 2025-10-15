@@ -40,7 +40,7 @@ public:
                   std::uint64_t num_items) // Maximum number of items that can be stored in the frontier
             : _num_items(num_items),
               _data_layer(bitset<bitmap_t>{ data_layer, num_items }), // first layer size is num_items
-              _mlb_layer(bitset<bitmap_t>{ mlb_layer, num_items / divide_factor }), // second layer size is (num_items / divide_factor) because each bit in the second layer represents an element in the first layer
+              _mlb_layer(bitset<bitmap_t>{ mlb_layer, (num_items + divide_factor - 1) / divide_factor }), // second layer size is ceil(num_items / divide_factor) because each bit in the second layer represents an element in the first layer
               _offsets(offsets),
               _offsets_size(offsets_size) {}
 
