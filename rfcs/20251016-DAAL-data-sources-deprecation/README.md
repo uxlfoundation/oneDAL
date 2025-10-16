@@ -14,7 +14,7 @@ However, the data ingestion landscape has evolved with the development
 of scikit-learn-intelex, which has established Python as the primary interface
 for DAAL algorithms.
 
-Python's ecosystem of data manipulation libraries, including pandas, parquet,
+Python's ecosystem of data manipulation libraries, including pandas, Parquet,
 and specialized database connectors, now provides improved flexibility
 and functionality for data import tasks.
 This evolution has reduced the value of DAAL's native data source
