@@ -25,6 +25,8 @@
 #ifndef __DF_REGRESSION_TRAIN_DENSE_DEFAULT_IMPL_I__
 #define __DF_REGRESSION_TRAIN_DENSE_DEFAULT_IMPL_I__
 
+#include <numeric_limits>
+
 #include "src/algorithms/dtrees/forest/df_train_dense_default_impl.i"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_model_impl.h"
@@ -175,8 +177,16 @@ template <bool noWeights>
 void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType * aIdx, size_t n, ImpurityData & imp,
                                                                intermSummFPType & totalWeights) const
 {
+#if (__CPUID__(DAAL_CPU) == __avx512__)
     constexpr const size_t simdBatchSize        = 8;
     constexpr const size_t minObsVectorizedPath = 32;
+#elif (__CPUID__(DAAL_CPU) == __avx2__)
+    constexpr const size_t simdBatchSize        = 4;
+    constexpr const size_t minObsVectorizedPath = 32;
+#else
+    constexpr const size_t simdBatchSize        = 1;
+    constexpr const size_t minObsVectorizedPath = std::numeric_limits<size_t>::max();
+#endif
     if (noWeights)
     {
         if (n < minObsVectorizedPath)
