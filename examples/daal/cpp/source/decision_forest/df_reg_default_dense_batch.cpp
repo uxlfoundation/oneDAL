@@ -44,20 +44,20 @@ const size_t nFeatures = 13; /* Number of features in training and testing data 
 /* Decision forest parameters */
 const size_t nTrees = 100;
 
-training::ResultPtr trainModel();
-void testModel(const training::ResultPtr& res);
+ModelPtr trainModel();
+void testModel(const ModelPtr& model);
 void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
 
-    training::ResultPtr trainingResult = trainModel();
-    testModel(trainingResult);
+    ModelPtr model = trainModel();
+    testModel(model);
 
     return 0;
 }
 
-training::ResultPtr trainModel() {
+ModelPtr trainModel() {
     /* Create Numeric Tables for training data and dependent variables */
     NumericTablePtr trainData;
     NumericTablePtr trainDependentVariable;
@@ -82,16 +82,22 @@ training::ResultPtr trainModel() {
 
     /* Retrieve the algorithm results */
     training::ResultPtr trainingResult = algorithm.getResult();
+
     printNumericTable(trainingResult->get(training::variableImportance),
-                      "Variable importance results: ");
-    printNumericTable(trainingResult->get(training::outOfBagError), "OOB error: ");
+                      "Variable importance results:");
+    printNumericTable(trainingResult->get(training::outOfBagError), "OOB error:");
     printNumericTable(trainingResult->get(training::outOfBagErrorPerObservation),
                       "OOB error per observation (first 10 rows):",
                       10);
-    return trainingResult;
+
+    /* Extract the trained model */
+    ModelPtr model = trainingResult->get(training::model);
+
+    /* Allow trainingResult and algorithm internals to be destroyed here */
+    return model;
 }
 
-void testModel(const training::ResultPtr& trainingResult) {
+void testModel(const ModelPtr& model) {
     /* Create Numeric Tables for testing data and ground truth values */
     NumericTablePtr testData;
     NumericTablePtr testGroundTruth;
@@ -103,13 +109,14 @@ void testModel(const training::ResultPtr& trainingResult) {
 
     /* Pass a testing data set and the trained model to the algorithm */
     algorithm.input.set(prediction::data, testData);
-    algorithm.input.set(prediction::model, trainingResult->get(training::model));
+    algorithm.input.set(prediction::model, model);
 
     /* Predict values of decision forest regression */
     algorithm.compute();
 
     /* Retrieve the algorithm results */
     prediction::ResultPtr predictionResult = algorithm.getResult();
+
     printNumericTable(predictionResult->get(prediction::prediction),
                       "Decision forest prediction results (first 10 rows):",
                       10);
@@ -134,7 +141,8 @@ void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTableP
     for (size_t i = 0,
                 n = sizeof(categoricalFeaturesIndices) / sizeof(categoricalFeaturesIndices[0]);
          i < n;
-         ++i)
+         ++i) {
         (*pDictionary)[categoricalFeaturesIndices[i]].featureType =
             data_feature_utils::DAAL_CATEGORICAL;
+    }
 }
