@@ -104,7 +104,8 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_parameter.minObservationsInLeafNode =
         dal::detail::integral_cast<std::size_t>(desc.get_min_observations_in_leaf_node());
     // TODO take engines from desc
-    daal_parameter.engine = daal::algorithms::engines::mt2203::Batch<>::create(desc.get_seed());
+    daal_parameter.engine =
+        daal::algorithms::engines::philox4x32x10::Batch<>::create(desc.get_seed());
     daal_parameter.impurityThreshold = desc.get_impurity_threshold();
     daal_parameter.memorySavingMode = desc.get_memory_saving_mode();
     daal_parameter.bootstrap = desc.get_bootstrap();
