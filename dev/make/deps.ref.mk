@@ -55,6 +55,9 @@ ifeq ($(RNG_OPENRNG), yes)
 	daaldep.math_backend.thr += $(daaldep.rng_backend.lib)
 endif
 
-daaldep.math_backend.ext := $(daaldep.math_backend.thr)
-daaldep.math_backend.sycl := $(daaldep.math_backend.thr)
+# Symbols from OpenBLAS are copied into libonedal_core library.
+# The user doesn't need to link OpenBLAS manually when building their application.
+daaldep.math_backend.static_link_deps := $(daaldep.math_backend.thr)
+# Static OpenBLAS libraries linked into the shared oneDAL library.
+daaldep.math_backend.shared_link_deps := $(daaldep.math_backend.thr)
 daaldep.math_backend.oneapi := $(daaldep.math_backend.thr)
