@@ -20,5 +20,5 @@ export DPL_ROOT=$PREFIX
 
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
-
+# CONDA_CXX_COMPILER is set by the conda recipe
 make -j$(nproc) daal oneapi REQCPU="$REQCPU" COMPILER=$CONDA_CXX_COMPILER

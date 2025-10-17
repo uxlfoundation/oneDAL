@@ -22,6 +22,7 @@ on:
       - main
     paths:
       - 'conda-recipe/**'
+      - '.github/workflows/ci-conda-recipe.yml'
   push:
     branches:
       - main
@@ -47,7 +48,7 @@ jobs:
             cxx_compiler_version: "20"
           - cxx_compiler: "dpcpp"
             cxx_compiler_version: "2025"
-    name: LinuxCondaRecipe(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
+    name: Linux(${{ matrix.cxx_compiler }}-${{ matrix.cxx_compiler_version }})
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
