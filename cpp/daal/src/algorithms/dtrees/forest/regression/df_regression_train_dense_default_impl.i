@@ -25,7 +25,7 @@
 #ifndef __DF_REGRESSION_TRAIN_DENSE_DEFAULT_IMPL_I__
 #define __DF_REGRESSION_TRAIN_DENSE_DEFAULT_IMPL_I__
 
-#include <numeric_limits>
+#include <limits>
 
 #include "src/algorithms/dtrees/forest/df_train_dense_default_impl.i"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
