@@ -1191,17 +1191,10 @@ bool OrderedRespHelperRandom<algorithmFPType, cpu>::findBestSplitOrderedFeature(
     ImpurityData right;
     IndexType iBest = -1;
     algorithmFPType vBest;
-<<<<<<< HEAD
-    double leftWeights;
-    double rightWeights;
-    auto aResponse = this->_aResponse.get();
-    auto aWeights  = this->_aWeights.get();
-=======
     intermSummFPType leftWeights  = 0.;
     intermSummFPType rightWeights = 0.;
     auto aResponse                = this->_aResponse.get();
     auto aWeights                 = this->_aWeights.get();
->>>>>>> main
     algorithmFPType idx;
     vBest = split.impurityDecrease < 0 ? daal::services::internal::MaxVal<intermSummFPType>::get() :
                                          (curImpurity.var - split.impurityDecrease) * totalWeights;
