@@ -17,6 +17,42 @@
 
 # Installation from Sources
 
+## Installation with `conda-build` (`Linux-x86_64`-only)
+
+You can build and install oneDAL using few simple command with `conda` environment manager.
+It automatically creates temporal environments for building and testing of oneDAL and outputs
+portable conda packages with shared and static libraries, library headers and development files.
+
+Follow next steps to build and install oneDAL:
+
+1. Install `conda` environment manager. Recommended installer is [Miniforge](https://github.com/conda-forge/miniforge).
+2. Install `conda-build` tool:
+
+        conda install conda-build
+
+3. Clone oneDAL repository and go to its root:
+
+        git clone https://github.com/uxlfoundation/oneDAL.git && cd oneDAL
+
+4. Build oneDAL conda packages:
+
+        conda build .
+
+5. Install built packages from local conda index where they are stored:
+
+        conda install -c local dal-devel dal-static
+
+`conda-build` produces next oneDAL conda packages:
+
+| Package | Content |
+|---------|---------|
+| `dal` | Dynamic libraries |
+| `dal-static` | Static libraries |
+| `dal-include` | Library headers |
+| `dal-devel` | Development files (CMake files, environment variables script, etc.) |
+
+## Manual Installation
+
 Required Software:
 * C/C++ Compiler
 * [DPC++ Compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html) and [oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) if building with SYCL support
