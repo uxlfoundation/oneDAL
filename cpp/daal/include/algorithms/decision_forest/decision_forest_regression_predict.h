@@ -96,7 +96,7 @@ public:
     ParameterType parameter; /*!< \ref algorithms::interface1::Parameter "Parameters" of prediction */
 
     /** Default constructor */
-    Batch(): algorithms::regression::prediction::Batch() {initialize();};
+    Batch();
 
     /**
      * Constructs a decision forest prediction algorithm by copying input objects and parameters
@@ -104,10 +104,7 @@ public:
      * \param[in] other Algorithm to use as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other) : super(other), input(other.input), parameter(other.parameter)
-    {
-        initialize();
-    }
+    Batch(const Batch<algorithmFPType, method> & other);
 
     virtual InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
 

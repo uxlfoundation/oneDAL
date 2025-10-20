@@ -127,7 +127,7 @@ public:
      * Construct parameters of decision forest algorithm
      */
     Parameter();
-
+    virtual ~Parameter() {}
     size_t nTrees;                         /*!< Number of trees in the forest. Default is 10 */
     double observationsPerTreeFraction;    /*!< Fraction of observations used for a training of one tree, 0 to 1.
                                                   Default is 1 (sampling with replacement) */

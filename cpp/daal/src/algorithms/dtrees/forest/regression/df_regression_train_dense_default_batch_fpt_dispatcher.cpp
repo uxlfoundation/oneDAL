@@ -42,6 +42,7 @@ using BatchType = Batch<DAAL_FPTYPE, decision_forest::regression::training::defa
 template <>
 DAAL_EXPORT BatchType::Batch()
 {
+    _par = new ParameterType();
     initialize();
     parameter().minObservationsInLeafNode = 5;
 }
@@ -49,6 +50,7 @@ DAAL_EXPORT BatchType::Batch()
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
 {
+    _par = new ParameterType(other.parameter());
     initialize();
 }
 } // namespace interface2
