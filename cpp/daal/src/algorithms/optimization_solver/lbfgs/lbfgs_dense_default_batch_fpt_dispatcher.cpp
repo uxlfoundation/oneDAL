@@ -35,16 +35,17 @@ namespace interface2
 {
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, optimization_solver::lbfgs::defaultDense>::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
-    : parameter(objectiveFunction)
 {
+    _par = new algorithms::optimization_solver::lbfgs::Parameter(objectiveFunction);
     initialize();
 }
 
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::lbfgs::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input), parameter(other.parameter)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : iterative_solver::Batch(other), input(other.input)
 {
+    _par = new algorithms::optimization_solver::lbfgs::Parameter(other.parameter());
     initialize();
 }
 

@@ -108,7 +108,7 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    ~Batch() DAAL_C11_OVERRIDE { delete _par; }
+    virtual ~Batch() { delete _par; }
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm

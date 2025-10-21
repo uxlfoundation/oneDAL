@@ -107,7 +107,7 @@ public:
      */
     Batch(size_t numberOfTerms);
 
-    virtual ~Batch() {}
+    virtual ~Batch() { delete _par; }
 
     /**
      * Constructs an the Mean squared error objective function algorithm by copying input objects and parameters
