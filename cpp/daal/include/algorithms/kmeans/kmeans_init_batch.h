@@ -124,7 +124,7 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /** Destructor */
-    ~Batch() DAAL_C11_OVERRIDE { delete _par; }
+    virtual ~Batch() { delete _par; }
 
     /**
     * Returns the method of the algorithm
