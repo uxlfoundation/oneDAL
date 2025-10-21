@@ -115,7 +115,7 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual ~Batch() {delete _par;}
+    virtual ~Batch() { delete _par; }
 
     /**
      * Get input objects for the Decision forest training algorithm

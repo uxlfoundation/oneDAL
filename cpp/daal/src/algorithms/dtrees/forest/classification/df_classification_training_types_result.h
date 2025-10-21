@@ -55,7 +55,7 @@ public:
     void setEngine(engines::EnginePtr engine) { _engine = engine; }
     engines::EnginePtr getEngine()
     {
-        if (!_engine) _engine = engines::philox4x32x10::Batch<>::create();
+        if (!_engine) _engine = engines::mt2203::Batch<>::create();
         return _engine;
     }
 

@@ -28,7 +28,7 @@
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
 #include "services/daal_defines.h"
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "algorithms/engines/mt2203/mt2203.h"
 
 namespace daal
 {
@@ -127,7 +127,7 @@ public:
      * Construct parameters of decision forest algorithm
      */
     Parameter();
-    virtual ~Parameter() {}
+
     size_t nTrees;                         /*!< Number of trees in the forest. Default is 10 */
     double observationsPerTreeFraction;    /*!< Fraction of observations used for a training of one tree, 0 to 1.
                                                   Default is 1 (sampling with replacement) */
