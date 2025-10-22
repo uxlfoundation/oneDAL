@@ -115,7 +115,7 @@ public:
      * Destructor.
      * Releases dynamically allocated resources held by the object.
      */
-    ~Batch() { delete _par; }
+    ~Batch() {}
 
     virtual regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
 
