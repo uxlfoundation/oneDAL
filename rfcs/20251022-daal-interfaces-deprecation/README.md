@@ -48,11 +48,38 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 - [decision_forest::regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_training_batch.h#L59)
 - [decision_forest::regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_training_batch.h#L94)
 
-#### [k Nearest Neighbors Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/k_nearest_neighbors/k-nearest-neighbors-knn-classifier.html)
+#### [k-Nearest Neighbors Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/k_nearest_neighbors/k-nearest-neighbors-knn-classifier.html)
 
 - [bf_knn_classification::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_predict.h#L53)
 - [bf_knn_classification::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_predict.h#L87)
 - [bf_knn_classification::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h#L53)
 - [bf_knn_classification::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h#L87)
 
-- ...
+#### [k-Means Clustering](https://uxlfoundation.github.io/oneDAL/daal/algorithms/kmeans/k-means-clustering.html)
+
+- [kmeans::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_batch.h#L56)
+- [kmeans::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_batch.h#L87)
+- [kmeans::init::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_init_batch.h#L58)
+- [kmeans::init::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_init_batch.h#L109)
+
+#### [Linear and Ridge Regression](https://uxlfoundation.github.io/oneDAL/daal/algorithms/linear_ridge_regression/index.html)
+
+- [linear_regression::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_predict.h#L88)
+- [linear_regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_training_batch.h#L56)
+- [linear_regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_training_batch.h#L93)
+- [ridge_regression::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_predict.h#L87)
+- [ridge_regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_training_batch.h#L54)
+- [ridge_regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_training_batch.h#L91)
+
+#### [Principal Component Analysis](https://uxlfoundation.github.io/oneDAL/daal/algorithms/pca/principal-component-analysis.html)
+
+- [pca::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L55)
+- [pca::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L108)
+
+#### [Support Vector Machine Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/svm/support-vector-machine-classifier.html)
+
+- [svm::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_predict.h#L60)
+- [svm::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_predict.h#L96)
+- [svm::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L56)
+- [svm::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L93)
+
