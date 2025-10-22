@@ -17,11 +17,46 @@
 
 # Installation from Sources
 
+## Installation with `conda-build` (`Linux-x86_64`-only)
+
+You can build and install oneDAL using few simple command with `conda` environment manager.
+It automatically creates temporal environments for building and testing of oneDAL and outputs
+portable conda packages with shared and static libraries, library headers and development files.
+
+Follow next steps to build and install oneDAL:
+
+1. Install `conda` environment manager. Recommended installer is [Miniforge](https://github.com/conda-forge/miniforge).
+2. Install `conda-build` tool:
+
+        conda install conda-build
+
+3. Clone oneDAL repository and go to its root:
+
+        git clone https://github.com/uxlfoundation/oneDAL.git && cd oneDAL
+
+4. Build oneDAL conda packages:
+
+        conda build .
+
+5. Install built packages from local conda index where they are stored:
+
+        conda install -c local dal-devel dal-static
+
+`conda-build` produces next oneDAL conda packages:
+
+| Package | Content |
+|---------|---------|
+| `dal` | Dynamic libraries |
+| `dal-static` | Static libraries |
+| `dal-include` | Library headers |
+| `dal-devel` | Development files (CMake files, environment variables script, etc.) |
+
+## Manual Installation
+
 Required Software:
 * C/C++ Compiler
 * [DPC++ Compiler](https://www.intel.com/content/www/us/en/developer/tools/oneapi/dpc-compiler.html) and [oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) if building with SYCL support
 * BLAS and LAPACK libraries - both provided by oneMKL
-* Python version 3.9 or higher
 * oneTBB library (repository contains script to download it)
 * oneDPL library
 * Microsoft Visual Studio\* (Windows\* only)
@@ -121,9 +156,7 @@ is available as an alternative to the manual setup.
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
 
-7. Download and install Python (version 3.9 or higher).
-
-8. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -305,13 +338,11 @@ conda create -y -n onedal_env
 conda activate onedal_env
 ```
 
-Then, install the necessary dependencies from the appropriate channels with `conda`:
+Then, install the necessary dependencies with `conda` - note that these are not available in the Anaconda main channel, but can be installed from either `conda-forge` or from Intel's conda channel (https://software.repos.intel.com/python/conda/):
 
 ```shell
-conda install -y \
-    -c https://software.repos.intel.com/python/conda/ `# Intel's repository` \
-    -c conda-forge `# for tools like 'make'` \
-    make "python>=3.9" `# used by the build system` \
+conda install -c conda-forge \
+    make `# used by the build system` \
     dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt `# Intel compiler packages` \
     tbb tbb-devel `# required TBB packages` \
     onedpl-devel `# required oneDPL package` \

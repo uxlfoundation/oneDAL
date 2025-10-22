@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env sh
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -15,27 +15,10 @@
 # limitations under the License.
 #===============================================================================
 
-VERSION=v3.4.1
-UNPACKED=ec-linux-amd64
-ASSET=$UNPACKED.tar.gz
-CHECKSUMS=checksums.txt
-BASE_LINK=https://github.com/editorconfig-checker/editorconfig-checker/releases/download/$VERSION
+export TBBROOT=$PREFIX
+export DPL_ROOT=$PREFIX
 
-# Download asset
-wget $BASE_LINK/$ASSET
-
-# Download checksum file
-wget $BASE_LINK/$CHECKSUMS
-
-# Verify checksum file
-if ! grep -E "$ASSET$" $CHECKSUMS | sha256sum --check; then
-    echo "Checksum verification failed"
-    exit 1
-fi
-
-# Install
-mkdir $UNPACKED && tar -xzf "$ASSET" -C $UNPACKED
-mv $UNPACKED/bin/$UNPACKED /usr/local/bin/editorconfig-checker
-
-# Clean up the downloaded files
-rm -rf "$UNPACKED" "$ASSET" "$CHECKSUMS"
+# default flags set by conda-build create problems with oneDAL build system
+unset CFLAGS LDFLAGS CXXFLAGS
+# CONDA_CXX_COMPILER is set by the conda recipe
+make -j$(nproc) daal oneapi REQCPU="$REQCPU" COMPILER=$CONDA_CXX_COMPILER
