@@ -111,7 +111,7 @@ public:
     Batch(size_t nClasses);
 
     /** Destructor */
-    virtual ~Batch() { delete _par; }
+    ~Batch() { delete _par; }
 
     /**
     * Gets parameter of the algorithm

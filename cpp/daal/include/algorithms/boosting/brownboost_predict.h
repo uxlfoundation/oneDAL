@@ -127,7 +127,7 @@ public:
      * Destructor.
      * Releases dynamically allocated resources held by the object.
      */
-    virtual ~Batch() { delete _par; }
+    ~Batch() { delete _par; }
 
     /**
     * Gets parameter of the algorithm
