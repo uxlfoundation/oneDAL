@@ -116,12 +116,6 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /**
-     * Destructor.
-     * Releases dynamically allocated resources held by the object.
-     */
-    ~Batch() { delete _par; }
-
-    /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
