@@ -393,8 +393,6 @@ private:
     void *voidLambda;
     tls_deleter *d;
 };
-
-
 class mutex {
 public:
     mutex() : impl_(_onedal_new_mutex()) {}
