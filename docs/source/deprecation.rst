@@ -18,6 +18,26 @@ Deprecation Notice
 
 This page provides information about the deprecations of a specific oneAPI Data Analytics Library (oneDAL) functionality.
 
+DAAL Algorithms
+***************
+
+**Deprecation:** Selected DAAL algorithms in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL algorithms includes:
+
+- Association Rules
+- Multivariate Outlier Detection
+- Multivariate BACON Outlier Detection
+- Univariate Outlier Detection
+- SAGA Optimization Solver
+- SGD Optimization Solver
+- Adaptive Subgradient Method (AdaGrad)
+- Sorting
+- Quantile
+
+**Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
+
+**Alternatives:** Consider using other libraries that provide similar functionality. For example, mlxtend for Association Rules: https://rasbt.github.io/mlxtend/
+
 Java* Interfaces
 ****************
 

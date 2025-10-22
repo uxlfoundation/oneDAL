@@ -58,8 +58,9 @@ public:
      * Constructs a container for the association rules algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -89,9 +90,11 @@ public:
     typedef algorithms::association_rules::Parameter ParameterType;
     typedef algorithms::association_rules::Result ResultType;
 
-    /** Default constructor */
+    /** Default constructor
+     * \DAAL_DEPRECATED
+     */
     // defined elsewhere in order to prevent implicit instantation of AlgorithmBatchContainer
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an association rules algorithm by copying input objects and parameters

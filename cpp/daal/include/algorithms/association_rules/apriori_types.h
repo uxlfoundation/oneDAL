@@ -107,12 +107,13 @@ namespace interface1
  * \brief Parameters for the association rules compute() method
  *
  * \snippet association_rules/apriori_types.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(double minSupport = 0.01, double minConfidence = 0.6, size_t nUniqueItems = 0, size_t nTransactions = 0, bool discoverRules = true,
-              ItemsetsOrder itemsetsOrder = itemsetsUnsorted, RulesOrder rulesOrder = rulesUnsorted, size_t minSize = 0, size_t maxSize = 0);
+    DAAL_DEPRECATED Parameter(double minSupport = 0.01, double minConfidence = 0.6, size_t nUniqueItems = 0, size_t nTransactions = 0, bool discoverRules = true,
+                              ItemsetsOrder itemsetsOrder = itemsetsUnsorted, RulesOrder rulesOrder = rulesUnsorted, size_t minSize = 0, size_t maxSize = 0);
 
     double minSupport;           /*!< Minimum support    0.0 <= minSupport    < 1.0 */
     double minConfidence;        /*!< Minimum confidence 0.0 <= minConfidence < 1.0 */
@@ -135,11 +136,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ASSOCIATION_RULES__INPUT"></a>
  * \brief %Input for the association rules algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other) : daal::algorithms::Input(other) {}
 
     virtual ~Input() {}
@@ -169,12 +171,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ASSOCIATION_RULES__RESULT"></a>
  * \brief Results obtained with the compute() method of the association rules algorithm in the batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
     virtual ~Result() {};
 
     /**
