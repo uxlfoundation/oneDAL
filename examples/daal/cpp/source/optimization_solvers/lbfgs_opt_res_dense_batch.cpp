@@ -67,11 +67,11 @@ int main(int argc, char* argv[]) {
 
     /* Create objects to compute LBFGS result using the default method */
     optimization_solver::lbfgs::Batch<> algorithm(mseObjectiveFunction);
-    algorithm.parameter().nIterations = nIterations / 2;
+    algorithm.parameter.nIterations = nIterations / 2;
 
-    algorithm.parameter().stepLengthSequence =
+    algorithm.parameter.stepLengthSequence =
         NumericTablePtr(new HomogenNumericTable<>(1, 1, NumericTableIface::doAllocate, stepLength));
-    algorithm.parameter().optionalResultRequired = true;
+    algorithm.parameter.optionalResultRequired = true;
 
     /* Set input objects for LBFGS algorithm */
     algorithm.input.set(optimization_solver::iterative_solver::inputArgument,

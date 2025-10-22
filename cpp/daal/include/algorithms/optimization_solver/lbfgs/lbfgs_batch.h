@@ -99,7 +99,8 @@ public:
     typedef algorithms::optimization_solver::lbfgs::Parameter ParameterType;
     typedef algorithms::optimization_solver::lbfgs::Result ResultType;
 
-    InputType input; /*!< %Input data structure */
+    InputType input;         /*!< %Input data structure */
+    ParameterType parameter; /*!< %Parameters of the algorithm */
 
     /**
      * Constructs the LBFGS algorithm with the input objective function
@@ -114,18 +115,11 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
     virtual ~Batch() { delete _par; }
-    /**
-    * Gets parameter of the algorithm
-    * \return parameter of the algorithm
-    */
-    ParameterType & parameter() { return *static_cast<ParameterType *>(_par); }
-
-    /**
-    * Gets parameter of the algorithm
-    * \return parameter of the algorithm
-    */
-    const ParameterType & parameter() const { return *static_cast<const ParameterType *>(_par); }
 
     /**
      * Returns method of the algorithm
@@ -143,7 +137,7 @@ public:
      * Get parameters of the iterative solver algorithm
      * \return Parameters of the iterative solver algorithm
      */
-    virtual iterative_solver::Parameter * getParameter() DAAL_C11_OVERRIDE { return &parameter(); }
+    virtual iterative_solver::Parameter * getParameter() DAAL_C11_OVERRIDE { return &parameter; }
 
     /**
      * Creates user-allocated memory to store results of the iterative solver algorithm
@@ -175,7 +169,7 @@ protected:
 
     virtual services::Status allocateResult() DAAL_C11_OVERRIDE
     {
-        services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, _par, (int)method);
+        services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();
         return s;
     }
@@ -183,6 +177,7 @@ protected:
     void initialize()
     {
         Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
+        _par                 = &parameter;
         _in                  = &input;
         _result.reset(new ResultType());
     }

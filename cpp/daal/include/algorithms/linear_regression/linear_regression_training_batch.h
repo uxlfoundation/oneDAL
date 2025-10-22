@@ -111,7 +111,11 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    ~Batch() {}
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
+    virtual ~Batch() { delete _par; }
 
     virtual regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
 

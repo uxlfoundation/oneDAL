@@ -110,12 +110,11 @@ public:
     */
     Batch(size_t nClasses);
 
-    /** Destructor */
-    ~Batch()
-    {
-        delete _par;
-        _par = NULL;
-    }
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
+    virtual ~Batch() { delete _par; }
 
     /**
     * Gets parameter of the algorithm

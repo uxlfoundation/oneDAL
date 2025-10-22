@@ -116,7 +116,7 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /** Destructor */
-    ~Batch() { delete _par; }
+    virtual ~Batch() { delete _par; }
 
     /**
     * Gets parameter of the algorithm
