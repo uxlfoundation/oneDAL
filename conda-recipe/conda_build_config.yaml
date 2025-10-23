@@ -1,5 +1,5 @@
 #===============================================================================
-# Copyright 2021 Intel Corporation
+# Copyright contributors to the oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-prefix=${{pcfiledir}}/../../
-exec_prefix=${{prefix}}
-libdir=${{exec_prefix}}/{libdir}
-includedir=${{prefix}}/include
-
-#info
-Name: oneDAL
-Description: oneAPI Data Analytics Library
-Version: 2025.10
-URL: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal.html
-#Link line
-Libs: {libs}
-#Compiler line
-Cflags: {opts}
+cxx_compiler:          # [linux64 or win]
+- dpcpp                # [linux64 or win]
+cxx_compiler_version:  # [linux64 or win]
+- 2025                 # [linux64 or win]

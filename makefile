@@ -143,8 +143,8 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
--sanitize   := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
--lsanitize  := $(if $(REQSAN),$(if $(COMPILER_is_vc),/,-)fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
+-sanitize   := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
+-lsanitize  := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
 -EHsc       := $(if $(OS_is_win),-EHsc,)
 -isystem    := $(if $(OS_is_win),-I,-isystem)
 -sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
@@ -507,7 +507,7 @@ $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. 
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
-$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.ext) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
+$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
@@ -518,7 +518,7 @@ $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y
 endif
 # TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
-$(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.ext) $(VTUNESDK.LIBS_A) \
+$(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_deps) $(VTUNESDK.LIBS_A) \
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
@@ -783,7 +783,7 @@ endif
 $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y)/dll.res,) | $(ONEAPI.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y): \
-    $(daaldep.math_backend.ext) \
+    $(daaldep.math_backend.shared_link_deps) \
     $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
@@ -819,7 +819,7 @@ endif
 $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
-    $(daaldep.math_backend.ext) \
+    $(daaldep.math_backend.shared_link_deps) \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
@@ -828,7 +828,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.math_backend.sycl)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.math_backend.oneapi)
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -1022,14 +1022,22 @@ $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(R
 endif
 endif
 
-_release_c: ./deploy/pkg-config/pkg-config.tpl
-	python ./deploy/pkg-config/generate_pkgconfig.py --output_dir $(RELEASEDIR.pkgconfig) --template_name ./deploy/pkg-config/pkg-config.tpl
+_release_c: ./deploy/pkg-config/pkg-config.cpp
+	mkdir -p $(RELEASEDIR.pkgconfig)
+# use the compiler's preprocessor to define the pkg-config file as it can handle cross-compilation, OS and ISA determination for all OSes.
+	$(COMPILER.$(_OS).$(COMPILER)) -E -DSTATIC ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-static-threading-host.pc
+	$(COMPILER.$(_OS).$(COMPILER)) -E ./deploy/pkg-config/pkg-config.cpp $(if $(OS_is_win),>,-o) $(WORKDIR.lib)/dal-dynamic-threading-host.pc
+# insert license header, remove preprocessor header, swap to .pc file compliant comments, and remove quotes from the URL
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-static-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-static-threading-host.pc
+	{ head -n 16 ./deploy/pkg-config/pkg-config.cpp; cat $(WORKDIR.lib)/dal-dynamic-threading-host.pc; } > $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+	sed $(sed.-i) '0,/^prefix/ { /^\/\//! { /^prefix/!d } }; /^#/d; /^\/\//s|^//|#|; /^URL:/s/"//g' $(RELEASEDIR.pkgconfig)/dal-dynamic-threading-host.pc
+
 
 #----- releasing examples
 define .release.x
 $3: $2/$(subst _$(_OS),,$1)
-$2/$(subst _$(_OS),,$1): $(DIR)/$1 | $(dir $2/$1)/.
-	$(if $(filter %makefile_win,$1),python ./deploy/local/generate_win_makefile.py $(dir $(DIR)/$1) $(dir $2/$1),$(value cpy))
+$2/$(subst _$(_OS),,$1): $(DIR)/$1 | $(dir $2/$1)/. ; $(value cpy)
 	$(if $(filter %.sh %.bat,$1),chmod +x $$@)
 endef
 $(foreach x,$(release.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))

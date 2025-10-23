@@ -40,7 +40,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^\\.github\\/workflows\\/ci.+$"],
+      "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$", "^dev\\/download_tbb.sh"],
       "matchStrings": [
         "\\s*TBB_DEFAULT_VERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
         "\\s*set\\s+TBBVERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",

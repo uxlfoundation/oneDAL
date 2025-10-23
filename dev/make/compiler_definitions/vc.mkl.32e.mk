@@ -31,7 +31,7 @@ else
     $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
 endif
 
--optlevel.vc = /$(OPTFLAG)
+-optlevel.vc = -$(OPTFLAG)
 -Zl.vc = -Zl
 -DEBC.vc = -DEBUG -Z7
 
