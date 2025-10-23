@@ -296,6 +296,28 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
 }
 
 template <typename algorithmFPType, CpuType cpu>
+services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDescending(size_t nFeatures, algorithmFPType * eigenvectors,
+                                                                                      algorithmFPType * eigenvalues)
+{
+    for (size_t i = 0; i < nFeatures / 2; i++)
+    {
+        const algorithmFPType tmp      = eigenvalues[i];
+        eigenvalues[i]                 = eigenvalues[nFeatures - 1 - i];
+        eigenvalues[nFeatures - 1 - i] = tmp;
+    }
+
+    TArray<algorithmFPType, cpu> eigenvectorTmp(nFeatures);
+    DAAL_CHECK_MALLOC(eigenvectorTmp.get());
+    for (size_t i = 0; i < nFeatures / 2; i++)
+    {
+        copyArray(nFeatures, eigenvectors + i * nFeatures, eigenvectorTmp.get());
+        copyArray(nFeatures, eigenvectors + nFeatures * (nFeatures - 1 - i), eigenvectors + i * nFeatures);
+        copyArray(nFeatures, eigenvectorTmp.get(), eigenvectors + nFeatures * (nFeatures - 1 - i));
+    }
+    return services::Status();
+}
+
+template <typename algorithmFPType, CpuType cpu>
 services::Status PCACorrelationBase<algorithmFPType, cpu>::sortEigenvectorsDescending(size_t nFeatures, size_t nComponents,
                                                                                       algorithmFPType * eigenvectors, algorithmFPType * eigenvalues)
 {
