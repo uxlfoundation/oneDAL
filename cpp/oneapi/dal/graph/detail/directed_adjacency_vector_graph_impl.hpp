@@ -146,8 +146,8 @@ public:
     inline const EdgeValue& get_edge_value(vertex_type u, vertex_type v) const {
         if (_edge_values.get_count() == 0)
             throw range_error(dal::detail::error_messages::edge_values_are_empty());
-        const auto u_neighs = _topology.get_vertex_neighbors(u);
-        for (auto i = u_neighs.first; i < u_neighs.second; i++) {
+        const auto [begin, end] = _topology.get_vertex_neighbors(u);
+        for (auto i = begin; i < end; i++) {
             if (v == *i) {
                 return _edge_values[i - _topology._cols_ptr];
             }

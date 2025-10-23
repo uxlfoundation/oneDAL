@@ -53,14 +53,14 @@ sycl::event copy_convert_impl(sycl::queue& queue,
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
 
-        const auto range = propose_range<InpType, OutType>(queue, shape);
+        const auto [row_count, col_count] = shape;
+        const auto [range_rows, range_cols] = propose_range<InpType, OutType>(queue, shape);
         const sycl::range<2> range_2d{ //
-                                       detail::integral_cast<std::size_t>(range.first),
-                                       detail::integral_cast<std::size_t>(range.second)
+                                       detail::integral_cast<std::size_t>(range_rows),
+                                       detail::integral_cast<std::size_t>(range_cols)
         };
 
-        const std::int64_t col_count = shape.second;
-        const std::int64_t wi_per_row = range.second;
+        const std::int64_t wi_per_row = range_cols;
 
         h.parallel_for(range_2d, [=](sycl::id<2> idx) -> void {
             const std::int64_t row = idx[0];

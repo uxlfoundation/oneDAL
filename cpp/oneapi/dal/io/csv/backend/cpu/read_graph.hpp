@@ -27,9 +27,11 @@ namespace oneapi::dal::preview::csv::backend {
 
 template <typename Cpu>
 std::int64_t get_vertex_count_from_edge_list(const edge_list<std::int32_t> &edges) {
-    std::int32_t max_id = edges[0].first;
+    const auto [first_src, first_dst] = edges[0];
+    std::int32_t max_id = first_src;
     for (std::int64_t i = 0; i < edges.size(); i++) {
-        std::int32_t edge_max = std::max(edges[i].first, edges[i].second);
+        const auto [src, dst] = edges[i];
+        std::int32_t edge_max = std::max(src, dst);
         max_id = std::max(max_id, edge_max);
     }
     const std::int64_t vertex_count = max_id + 1;

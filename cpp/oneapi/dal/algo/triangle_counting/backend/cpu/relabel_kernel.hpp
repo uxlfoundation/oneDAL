@@ -48,8 +48,9 @@ void fill_new_degrees_and_ids(const std::pair<std::int32_t, std::size_t>* degree
                               std::int32_t* degrees_relabel,
                               std::int64_t vertex_count) {
     dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t n) {
-        degrees_relabel[n] = degree_id_pairs[n].first;
-        new_ids[degree_id_pairs[n].second] = n;
+        const auto [degree, id] = degree_id_pairs[n];
+        degrees_relabel[n] = degree;
+        new_ids[id] = n;
     });
 }
 
