@@ -78,6 +78,16 @@ public:
     virtual void join(Reducer * other) = 0;
 
     virtual ~Reducer() {}
+
+    enum ErrorCode
+    {
+        ok                  = 0, /// No error
+        memAllocationFailed = 1, /// Memory allocation failed
+        intOverflow         = 2, /// Integer overflow
+        badCast             = 3  /// Cannot cast base daal::Reducer to derived class
+    };
+    /// Status of the computation.
+    ErrorCode errorCode;
 };
 
 typedef internal::UniquePtr<Reducer, DAAL_BASE_CPU> ReducerUniquePtr;
