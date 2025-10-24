@@ -51,7 +51,7 @@ jobs:
     name: oneDAL Linux nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 120
 
     steps:
       - name: Checkout oneDAL
@@ -87,7 +87,7 @@ jobs:
     name: oneDAL Windows nightly build
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: windows-2025
-    timeout-minutes: 150
+    timeout-minutes: 180
 
     steps:
       - name: Checkout oneDAL
