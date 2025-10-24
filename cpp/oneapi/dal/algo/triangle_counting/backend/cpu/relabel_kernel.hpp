@@ -64,20 +64,50 @@ void parallel_prefix_sum(const std::int32_t* degrees_relabel,
     dal::detail::threader_for(num_blocks, num_blocks, [&](std::int64_t block) {
         std::int64_t local_sum = 0;
         std::int64_t block_end = min((std::int64_t)((block + 1) * block_size), vertex_count);
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : local_sum))
         for (std::int64_t i = block * block_size; i < block_end; i++) {
             local_sum += degrees_relabel[i];
         }
         local_sums[block] = local_sum;
     });
 
-    std::int64_t total = 0;
-    PRAGMA_VECTOR_ALWAYS
-    for (std::int64_t block = 0; block < num_blocks; block++) {
-        part_prefix[block] = total;
-        total += local_sums[block];
+    constexpr unsigned int simd_width = 4;
+    if (num_blocks < simd_width + 1) {
+        std::int64_t total = 0;
+        for (std::int64_t block = 0; block < num_blocks; block++) {
+            part_prefix[block] = total;
+            total += local_sums[block];
+        }
     }
-    part_prefix[num_blocks] = total;
+    else {
+        part_prefix[0] = 0;
+        // TODO: vectorize with _mm_bslli_si128
+        PRAGMA_OMP_SIMD
+        for (std::int64_t block = 1; block < num_blocks - simd_width + 1; block += simd_width) {
+            const std::int64_t shuffle1[simd_width] = { 0,
+                                                        local_sums[block - 1],
+                                                        local_sums[block],
+                                                        local_sums[block + 1] };
+            const std::int64_t shuffle2[simd_width] = { 0,
+                                                        0,
+                                                        local_sums[block - 1],
+                                                        local_sums[block - 1] + local_sums[block] };
+            part_prefix[block + 0] = part_prefix[block - 1] + local_sums[block - 1];
+            part_prefix[block + 1] = part_prefix[block - 1] + local_sums[block + 0];
+            part_prefix[block + 2] = part_prefix[block - 1] + local_sums[block + 1];
+            part_prefix[block + 3] = part_prefix[block - 1] + local_sums[block + 2];
+            part_prefix[block + 0] += shuffle1[0] + shuffle2[0];
+            part_prefix[block + 1] += shuffle1[1] + shuffle2[1];
+            part_prefix[block + 2] += shuffle1[2] + shuffle2[2];
+            part_prefix[block + 3] += shuffle1[3] + shuffle2[3];
+        }
+        for (std::int64_t block = ((num_blocks + 2) / simd_width - 1) * simd_width;
+             block < num_blocks;
+             block++) {
+            part_prefix[block] = part_prefix[block - 1] + local_sums[block - 1];
+        }
+    }
+    part_prefix[num_blocks] = part_prefix[num_blocks - 1] + local_sums[num_blocks - 1];
 
     dal::detail::threader_for(num_blocks, num_blocks, [&](std::int64_t block) {
         std::int64_t local_total = part_prefix[block];
