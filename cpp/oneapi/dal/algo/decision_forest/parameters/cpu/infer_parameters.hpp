@@ -35,7 +35,7 @@ constexpr std::int64_t propose_min_number_of_rows_for_vect_seq_compute() {
 }
 
 constexpr double propose_scale_factor_for_vect_seq_compute() {
-    return 0.3f;
+    return 100.0f; // 0.3f in main
 }
 
 template <typename Float, typename Method, typename Task>
