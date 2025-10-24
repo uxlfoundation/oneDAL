@@ -87,7 +87,8 @@ std::pair<std::int64_t, std::int64_t> heterogen_shape(const table_metadata& meta
 }
 
 std::int64_t heterogen_row_count(const table_metadata& meta, const heterogen_data& data) {
-    return heterogen_shape(meta, data).first;
+    const auto [row_count, col_count] = heterogen_shape(meta, data);
+    return row_count;
 }
 
 template <typename Policy>

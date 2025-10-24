@@ -242,8 +242,9 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ false> {
                     AtomicEdge *rows_vec_atomic,
                     Vertex *unfiltered_neighs) {
         dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
-            unfiltered_neighs[++rows_vec_atomic[edges[u].first] - 1] = edges[u].second;
-            unfiltered_neighs[++rows_vec_atomic[edges[u].second] - 1] = edges[u].first;
+            const auto [src, dst] = edges[u];
+            unfiltered_neighs[++rows_vec_atomic[src] - 1] = dst;
+            unfiltered_neighs[++rows_vec_atomic[dst] - 1] = src;
         });
     }
 
@@ -267,7 +268,8 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ true> {
                     AtomicEdge *rows_vec_atomic,
                     Vertex *unfiltered_neighs) {
         dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
-            unfiltered_neighs[++rows_vec_atomic[edges[u].first] - 1] = edges[u].second;
+            const auto [src, dst] = edges[u];
+            unfiltered_neighs[++rows_vec_atomic[src] - 1] = dst;
         });
     }
 

@@ -164,11 +164,11 @@ private:
         }
 
         std::size_t check_cache_size = 0;
-        for (const auto& pair : map_) {
-            const std::size_t gen = pair.second.get_generation();
+        for (const auto& [key, value] : map_) {
+            const std::size_t gen = value.get_generation();
             ONEDAL_ASSERT(gen < size_stack_vec.size());
 
-            std::size_t df_size = pair.second.get_df().get_size();
+            std::size_t df_size = value.get_df().get_size();
             std::size_t gen_size = size_stack_vec[gen];
             ONEDAL_ASSERT(df_size == gen_size);
 
