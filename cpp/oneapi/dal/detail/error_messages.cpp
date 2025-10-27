@@ -47,6 +47,15 @@ MSG(spmd_version_of_algorithm_is_not_implemented,
 MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device,
     "SPMD version of the algorithm is not implemented for this device. "
     "Consider running on it on the other device.")
+MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_1,
+    "SPMD version of the algorithm is not implemented for this device. "
+    "Consider running on it on the other device.111111111")
+MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_2,
+    "SPMD version of the algorithm is not implemented for this device. "
+    "Consider running on it on the other device.222222222")
+MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_3,
+    "SPMD version of the algorithm is not implemented for this device. "
+    "Consider running on it on the other device.33333333")
 MSG(integral_type_conversion_overflow, "Integral type conversion overflow")
 MSG(integral_type_conversion_underflow, "Integral type conversion underflow")
 MSG(invalid_data_block_size, "Invalid data block size")
