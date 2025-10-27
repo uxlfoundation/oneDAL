@@ -168,7 +168,7 @@ void copy_convert(const detail::host_policy& policy,
                   const shape_t& shape) {
     const auto [row_count, col_count] = shape;
 
-    detail::threader_for_int64(row_count, [&](std::int64_t i) -> void {
+    detail::threader_for_int64(row_count, [&, col_count](std::int64_t i) -> void {
         auto* out_raw_ptr = out_ptrs[i];
         const auto* inp_raw_ptr = inp_ptrs[i];
 
