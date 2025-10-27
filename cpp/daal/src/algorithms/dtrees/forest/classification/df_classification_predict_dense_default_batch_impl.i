@@ -1186,8 +1186,11 @@ Status PredictClassificationTask<algorithmFPType, cpu>::run(services::HostAppIfa
         _sumTreeSize     = 0;
     }
 
+    constexpr size_t minNumberOfFeaturesForVectParallelCompute = 100;
+
     if (hasUnorderedFeatures
-        || (_blockSize < _averageTreeSize * _scaleFactorForVectParallelCompute && daal::threader_get_threads_number() > 1)
+        || (_blockSize < _averageTreeSize * _scaleFactorForVectParallelCompute
+            && _data->getNumberOfColumns() >= minNumberOfFeaturesForVectParallelCompute && daal::threader_get_threads_number() > 1)
         || (_data->getNumberOfRows() < _minNumberOfRowsForVectSeqCompute && daal::threader_get_threads_number() == 1))
     {
         const auto treeSize = _aTree[0]->getNumberOfRows() * sizeof(dtrees::internal::DecisionTreeNode);
