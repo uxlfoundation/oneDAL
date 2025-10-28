@@ -120,9 +120,6 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     // std::cerr << "Block of size " << vectorBlockSize << std::endl;
     for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
     {
-        // std::cerr << "level: " << itr << std::endl;
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
         {
             const FeatureIndexType idx          = i[k];
@@ -142,7 +139,7 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     // }
     // std::cerr << "------------" << std::endl;
 
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
     {

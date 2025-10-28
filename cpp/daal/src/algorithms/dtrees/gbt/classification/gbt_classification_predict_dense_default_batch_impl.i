@@ -465,7 +465,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             const size_t finishRow = (((iBlock + 1) == nBlocks) ? nRows : (iBlock + 1) * blockSize);
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, res + startRow, expVal + startRow);
 
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
@@ -518,7 +518,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
         {
             // convert the score to a class label
             typedef services::internal::SignBit<algorithmFPType, cpu> SignBit;
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             for (size_t iRow = 0; iRow < nRows; ++iRow)
             {
                 // probability is a sigmoid(f) hence sign(f) can be checked
@@ -790,7 +790,7 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predictByTreesVector(algorithm
         gbt::prediction::internal::predictForTreeVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(
             *this->_aTree[iTree], this->_featHelper, x, v, dispatcher);
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < vectorBlockSize; ++j) val[(iTree % nClasses) + j * nClasses] += v[j];
     }

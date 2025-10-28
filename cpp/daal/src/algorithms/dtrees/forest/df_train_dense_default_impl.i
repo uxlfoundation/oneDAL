@@ -244,7 +244,7 @@ void TreeThreadCtxBase<algorithmFPType, cpu>::finalizeVarImp(training::VariableI
         }
         else
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < nVars; ++i)
             {
@@ -365,13 +365,15 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
         const size_t iStart = iBlock * sizeOfBlock;
         const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > nRows) ? nRows : iStart + sizeOfBlock);
 
-        for (size_t i = iStart; i < iEnd; ++i)
+        for (size_t j = 0; j < nCols; ++j)
         {
-            PRAGMA_FORCE_SIMD
+            BinIndexType * binIndexPtr        = (*binIndex) + nRows * j;
+            const IndexType * featureIndexPtr = featureIndex + nRows * j;
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nCols; ++j)
+            for (size_t i = iStart; i < iEnd; ++i)
             {
-                (*binIndex)[nRows * j + i] = static_cast<BinIndexType>(featureIndex[nRows * j + i]);
+                binIndexPtr[i] = static_cast<BinIndexType>(featureIndexPtr[i]);
             }
         }
     });
@@ -755,7 +757,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     else
     {
         auto aSample = _aSample.get();
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nSamples; ++i)
         {
@@ -766,7 +768,7 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     DAAL_CHECK_MALLOC(_helper.init(_data, _resp, _aSample.get(), _weights));
 
     //use _aSample as an array of response indices stored by helper from now on
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < _aSample.size(); ++i)
     {
