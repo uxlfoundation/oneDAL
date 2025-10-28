@@ -42,7 +42,7 @@ using BatchType = Batch<DAAL_FPTYPE, decision_forest::regression::training::hist
 template <>
 DAAL_EXPORT BatchType::Batch()
 {
-    _par = new ParameterType;
+    _par = new ParameterType();
     initialize();
     parameter().minObservationsInLeafNode = 5;
 }

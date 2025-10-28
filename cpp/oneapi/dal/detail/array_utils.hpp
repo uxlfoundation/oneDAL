@@ -43,7 +43,7 @@ public:
 };
 
 template <typename T, typename Body>
-inline auto dispath_by_policy(const dal::array<T>& data, Body&& body) {
+inline auto dispatch_by_policy(const dal::array<T>& data, Body&& body) {
 #ifdef ONEDAL_DATA_PARALLEL
     const auto optional_queue = data.get_queue();
     if (optional_queue) {
@@ -80,7 +80,7 @@ inline dal::array<T> discard_mutable_data(const dal::array<T>& ary) {
 
 } // namespace v1
 using v1::array_via_policy;
-using v1::dispath_by_policy;
+using v1::dispatch_by_policy;
 using v1::reinterpret_array_cast;
 using v1::discard_mutable_data;
 
