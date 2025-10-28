@@ -65,7 +65,7 @@ public:
             const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             if (sampleInd)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -75,7 +75,7 @@ public:
             }
             else
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -139,7 +139,7 @@ protected:
             const size_t start    = iBlock + 1 > nSurplus ? nPerBlock * iBlock + nSurplus : (nPerBlock + 1) * iBlock;
             const size_t end      = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             algorithmFPType lpval = 0;
-            PRAGMA_ICC_NO16(omp simd reduction(+ : lpval))
+            PRAGMA_OMP_SIMD_ARGS(reduction(+ : lpval))
             for (size_t i = start; i < end; i++) lpval += div * py[i];
             pvals[iBlock] = lpval;
         });

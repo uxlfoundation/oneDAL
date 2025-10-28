@@ -169,10 +169,10 @@ public:
         const FPType * const aa = normBufferA.get() + aOffset;
         const FPType * const bb = (&_a == &_b) ? normBufferA.get() + bOffset : normBufferB.get() + bOffset;
 
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < nRowsC; i++)
         {
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
                 res[i * nColsC + j] = aa[i] + bb[j] - 2 * res[i * nColsC + j];
@@ -276,8 +276,7 @@ protected:
             for (size_t i = 0; i < end - begin; i++)
             {
                 FPType sum = FPType(0);
-                PRAGMA_FORCE_SIMD
-                PRAGMA_ICC_NO16(omp simd reduction(+ : sum))
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t j = 0; j < nCols; j++)
                 {
                     sum += data[i * nCols + j] * data[i * nCols + j];
@@ -354,7 +353,7 @@ public:
 
         for (size_t i = 0; i < nRowsC; i++)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nColsC; j++)
             {
@@ -775,7 +774,6 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     DAAL_INT num_taken = static_cast<DAAL_INT>(n) - num_discarded;
     daal::internal::MathInst<FPType, cpu>::vSqrt(num_taken, eigenvalues.get() + num_discarded, eigenvalues.get() + num_discarded);
     DAAL_INT one = 1;
-    PRAGMA_FORCE_SIMD
     for (size_t col = num_discarded; col < n; col++)
     {
         const FPType scale = eigenvalues[col];

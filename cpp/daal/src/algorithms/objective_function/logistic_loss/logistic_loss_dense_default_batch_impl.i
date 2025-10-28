@@ -61,7 +61,7 @@ static void applyBetaImpl(const algorithmFPType * x, const algorithmFPType * bet
     }
     if (bIntercept)
     {
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < n; ++i)
         {
@@ -81,7 +81,7 @@ template <typename algorithmFPType, CpuType cpu>
 static void vexp(const algorithmFPType * f, algorithmFPType * exp, size_t n)
 {
     const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -100,7 +100,7 @@ static void sigmoids(algorithmFPType * exp, size_t n, size_t offset)
     // If modified, should be modified simulatenously in both files.
     const algorithmFPType bottom = sizeof(algorithmFPType) == 4 ? 1e-7 : 1e-15;
     const algorithmFPType top    = algorithmFPType(1.0) - bottom;
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -121,7 +121,7 @@ void LogLossKernel<algorithmFPType, method, cpu>::sigmoid_clipped(const algorith
     //s = exp(-f)
     vexp<algorithmFPType, cpu>(f, s, n);
     //s = sigm(f)
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -138,7 +138,7 @@ void LogLossKernel<algorithmFPType, method, cpu>::sigmoid(const algorithmFPType 
     //s = exp(-f)
     vexp<algorithmFPType, cpu>(f, s, n);
     //s = sigm(f)
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < n; ++i)
     {
@@ -396,7 +396,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 const DAAL_INT nN          = static_cast<DAAL_INT>(nRowsToProcess);
                 algorithmFPType * const pg = grads.get() + iBlock * p;
 
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {
@@ -406,7 +406,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
                 daal::internal::BlasInst<algorithmFPType, cpu>::xxgemm(&notrans, &notrans, &dim, &yDim, &nN, &one, xLocal, &dim, sgPtrLocal, &nN,
                                                                        &zero, pg, &dim);
 
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRowsToProcess; ++i)
                 {
@@ -444,7 +444,7 @@ services::Status LogLossKernel<algorithmFPType, method, cpu>::doCompute(const Nu
             if (bL2)
             {
                 algorithmFPType sumSquaresBeta = 0;
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumSquaresBeta))
                 for (size_t i = 1; i < nBeta; ++i)
                 {
                     sumSquaresBeta += b[i] * b[i];
