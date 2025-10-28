@@ -34,7 +34,8 @@ template <typename InpType, typename OutType>
 auto propose_range(const sycl::queue& queue, const shape_t& shape) {
     using prop_t = longer_preferred_vector_desc_t<InpType, OutType>;
 
-    const auto [row_count, col_count] = shape;
+    const auto row_count = shape.first;
+    const auto col_count = shape.second;
     const sycl::device device = queue.get_device();
     const std::size_t vec = device.template get_info<prop_t>();
     const auto pref_vec = detail::integral_cast<std::int64_t>(vec);
@@ -53,8 +54,11 @@ sycl::event copy_convert_impl(sycl::queue& queue,
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
 
-        const auto [row_count, col_count] = shape;
-        const auto [range_rows, range_cols] = propose_range<InpType, OutType>(queue, shape);
+        const auto row_count = shape.first;
+        const auto col_count = shape.second;
+        const auto range_pair = propose_range<InpType, OutType>(queue, shape);
+        const auto range_rows = range_pair.first;
+        const auto range_cols = range_pair.second;
         const sycl::range<2> range_2d{ //
                                        detail::integral_cast<std::size_t>(range_rows),
                                        detail::integral_cast<std::size_t>(range_cols)
