@@ -48,7 +48,6 @@ void run(sycl::queue &queue) {
     auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>();
     auto rank_id = comm.get_rank();
     auto rank_count = comm.get_rank_count();
-    std::cout << "Sample has been launched on" << rank_count << std::endl;
 
     auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
     auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);
@@ -57,8 +56,17 @@ void run(sycl::queue &queue) {
 
     const auto lr_desc = lr::descriptor<float>{};
 
-    [[maybe_unused]] const auto result_train =
+    const auto result_train =
         dal::preview::train(comm, lr_desc, x_train_vec.at(rank_id), y_train_vec.at(rank_id));
+
+    const auto result_infer =
+        dal::preview::infer(comm, lr_desc, x_test_vec.at(rank_id), result_train.get_model());
+
+    if (comm.get_rank() == 0) {
+        std::cout << "Prediction results:\n" << result_infer.get_responses() << std::endl;
+
+        std::cout << "Ground truth:\n" << y_test_vec.at(rank_id) << std::endl;
+    }
 }
 
 int main(int argc, char const *argv[]) {
