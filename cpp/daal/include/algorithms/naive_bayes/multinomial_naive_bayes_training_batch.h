@@ -87,6 +87,7 @@ public:
  *  \par Enumerations
  *      - \ref Method %Training methods for the multinomial naive Bayes algorithm
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -105,7 +106,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters

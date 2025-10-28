@@ -87,6 +87,7 @@ public:
  *      - \ref Method   Computation methods for Adaptive gradient descent
  *      - \ref iterative_solver::InputId  Identifiers of input objects for Adaptive gradient descent
  *      - \ref iterative_solver::ResultId %Result identifiers for the Adaptive gradient descent
+ * \DAAL_DEPRECATE
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public iterative_solver::Batch
@@ -100,7 +101,7 @@ public:
     ParameterType parameter; /*!< %Parameter data structure */
 
     /** Default constructor */
-    Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr());
+    DAAL_DEPRECATE Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
      * Constructs a Adaptive gradient descent algorithm by copying input objects
