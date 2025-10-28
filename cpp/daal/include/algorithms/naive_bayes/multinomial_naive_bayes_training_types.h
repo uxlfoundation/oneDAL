@@ -75,13 +75,14 @@ namespace interface1
  * \brief Provides methods to access partial results obtained with the compute() method of the
  *        naive Bayes training algorithm
  *        in the online or distributed processing
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT PartialResult : public classifier::training::PartialResult
 {
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
 
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
     virtual ~PartialResult() {}
 
     /**
@@ -156,12 +157,13 @@ typedef services::SharedPtr<PartialResult> PartialResultPtr;
  *        naive Bayes training algorithm
  *        in the batch processing mode or with the finalizeCompute() method
  *       in the distributed or online processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public classifier::training::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
     virtual ~Result() {}
 
     /**
@@ -230,11 +232,12 @@ typedef services::SharedPtr<Result> ResultPtr;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__TRAINING__DISTRIBUTEDINPUT"></a>
  * \brief Input objects of the naive Bayes training algorithm in the distributed processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT DistributedInput : public classifier::training::InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other) : classifier::training::InputIface(other) {}
 
     virtual ~DistributedInput() {}
@@ -273,11 +276,12 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__TRAINING__INPUT"></a>
  * \brief Input objects of the naive Bayes training algorithm in the batch and online processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public classifier::training::Input
 {
 public:
-    Input(size_t nElements = classifier::training::lastInputId + 1) : classifier::training::Input(nElements) {}
+    DAAL_DEPRECATED Input(size_t nElements = classifier::training::lastInputId + 1) : classifier::training::Input(nElements) {}
     Input(const Input & other) : classifier::training::Input(other) {}
 
     virtual ~Input() {}
