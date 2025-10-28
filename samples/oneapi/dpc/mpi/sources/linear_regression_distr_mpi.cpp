@@ -48,6 +48,7 @@ void run(sycl::queue &queue) {
     auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>();
     auto rank_id = comm.get_rank();
     auto rank_count = comm.get_rank_count();
+    std::cout << "Sample has been launched on" << rank_count << std::endl;
 
     auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
     auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);

@@ -213,22 +213,17 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
                 // infer it from a body that consist of single `throw` expression
                 using msg = detail::error_messages;
                 throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device_3()
+                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
                 };
             });
     }
-#endif
-
-#ifdef ONEDAL_DATA_PARALLEL
     template <typename... Args>
     auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const
         -> cpu_kernel_return_t<CpuKernel, Args...> {
         // We have to specify return type for this function as compiler cannot
         // infer it from a body that consist of single `throw` expression
         using msg = detail::error_messages;
-        throw unimplemented{
-            msg::spmd_version_of_algorithm_is_not_implemented_for_this_device_3()
-        };
+        throw unimplemented{ msg::spmd_version_of_algorithm_is_not_implemented_for_this_device() };
     }
 #endif
 };
@@ -261,9 +256,6 @@ struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>> {
                 throw unimplemented{ msg::algorithm_is_not_implemented_for_this_device() };
             });
     }
-#endif
-
-#ifdef ONEDAL_DATA_PARALLEL
     template <typename... Args>
     auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const
         -> cpu_kernel_return_t<CpuKernel, Args...> {
@@ -354,9 +346,8 @@ struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>,
             [&]() {
                 using msg = detail::error_messages;
                 throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device_1()
+                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
                 };
-                //return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
             });
     }
 
@@ -367,9 +358,8 @@ struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>,
             [&]() {
                 using msg = detail::error_messages;
                 throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device_2()
+                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
                 };
-                //return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
             },
             [&]() {
                 return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);

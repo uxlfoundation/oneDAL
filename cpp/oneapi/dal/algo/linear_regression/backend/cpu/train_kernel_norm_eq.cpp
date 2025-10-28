@@ -74,7 +74,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
             desc,
             params,
             partial_input);
-    std::cout << "here correct branch 1" << std::endl;
+    std::cout << "here correct branch 2" << std::endl;
     /// Get local partial X^T * X and X^T * y as array<Float> to pass to collective allgatherv
     const auto& xtx_local = partial_result.get_partial_xtx();
     const auto& xty_local = partial_result.get_partial_xty();
@@ -84,7 +84,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
         dal::array<Float>::wrap(xtx_local_nd.get_data(), xtx_local_nd.get_count());
     const auto xty_local_ary =
         dal::array<Float>::wrap(xty_local_nd.get_data(), xty_local_nd.get_count());
-
+    std::cout << "here correct branch 3" << std::endl;
     /// Allocate storage for gathered X^T * X and X^T * y across all ranks
     auto rank_count = comm.get_rank_count();
     const std::int64_t ext_feature_count = xtx_local.get_row_count();
@@ -105,7 +105,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
         xtx_displs_ary[i] = i * ext_feature_count * ext_feature_count;
         xty_displs_ary[i] = i * response_count * ext_feature_count;
     }
-
+    std::cout << "here correct branch 4" << std::endl;
     /// Collectively gather X^T * X and X^T * y across all ranks
     comm.allgatherv(xtx_local_ary,
                     xtx_gathered_ary,
@@ -128,7 +128,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
     const Float* xty_gathered = xty_gathered_ary.get_data();
     Float* xtx = xtx_ary.get_mutable_data();
     Float* xty = xty_ary.get_mutable_data();
-
+    std::cout << "here correct branch 5" << std::endl;
     for (std::int64_t r = 0; r < rank_count; ++r) {
         const Float* xtx_gathered_r = xtx_gathered + xtx_displs_ary[r];
         for (std::int64_t i = 0; i < xtx_recv_counts_ary[r]; ++i) {
@@ -139,11 +139,11 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
             xty[i] += xty_gathered_r[i];
         }
     }
-
+    std::cout << "here correct branch 6" << std::endl;
     /// Wrap the gathered X^T * X and X^T * y into homogen tables
     auto xtx_table = homogen_table::wrap(xtx_ary, ext_feature_count, ext_feature_count);
     auto xty_table = homogen_table::wrap(xty_ary, response_count, ext_feature_count);
-
+    std::cout << "here correct branch 7" << std::endl;
     /// Compute regression coefficients
     partial_train_result<Task> partial_result_final;
     partial_result_final.set_partial_xtx(xtx_table);
@@ -154,7 +154,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
             desc,
             params,
             partial_result_final);
-
+    std::cout << "here correct branch 8" << std::endl;
     return result;
 }
 

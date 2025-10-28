@@ -79,9 +79,6 @@ public:
     MSG(small_data_block);
     MSG(spmd_version_of_algorithm_is_not_implemented);
     MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device);
-    MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_1);
-    MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_2);
-    MSG(spmd_version_of_algorithm_is_not_implemented_for_this_device_3);
     MSG(unknown_memcpy_error);
     MSG(unknown_status_code);
     MSG(unknown_usm_pointer_type);
