@@ -89,6 +89,8 @@ public:
  * \par References
  *      - Parameter<defaultDense> class
  *      - Parameter<BACONDense> class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -106,8 +108,9 @@ public:
      * of another algorithm for computing BACON outlier detection
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
+     * \DAAL_DEPRECATED
      */
-    Batch(const Batch<algorithmFPType, method> & other);
+    DAAL_DEPRECATED Batch(const Batch<algorithmFPType, method> & other);
 
     /**
     * Returns method of the algorithm
