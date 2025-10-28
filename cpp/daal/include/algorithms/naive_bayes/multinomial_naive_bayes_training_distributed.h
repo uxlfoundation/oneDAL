@@ -98,6 +98,7 @@ public:
  *  \par Enumerations
  *      - \ref Method %Training methods for the naive Bayes algorithm
  *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Distributed
@@ -115,6 +116,7 @@ class DAAL_EXPORT Distributed
  *  \par Enumerations
  *      - \ref Method %Training methods for the multinomial naive Bayes on the first step in the distributed processing mode
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method>
 class Distributed<step1Local, algorithmFPType, method> : public Online<algorithmFPType, method>
@@ -131,7 +133,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Distributed(size_t nClasses) : Online<algorithmFPType, method>::Online(nClasses) {}
+    DAAL_DEPRECATED Distributed(size_t nClasses) : Online<algorithmFPType, method>::Online(nClasses) {}
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters
@@ -173,6 +175,7 @@ private:
  *  \par Enumerations
  *      - \ref Method %Training methods for the multinomial naive Bayes algorithm
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method>
 class Distributed<step2Master, algorithmFPType, method> : public Training<distributed>
@@ -190,7 +193,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Distributed(size_t nClasses);
+    DAAL_DEPRECATED Distributed(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters

@@ -86,6 +86,7 @@ public:
  *      - \ref Method   Computation methods for Stochastic average gradient descent
  *      - \ref iterative_solver::InputId  Identifiers of input objects for Stochastic average gradient descent
  *      - \ref iterative_solver::ResultId %Result identifiers for the Stochastic average gradient descent
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public iterative_solver::Batch
@@ -98,7 +99,7 @@ public:
     InputType input; /*!< %Input data structure */
 
     /** Default constructor */
-    Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
+    DAAL_DEPRECATED Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
      * Constructs a Stochastic average gradient descent algorithm by copying input objects
