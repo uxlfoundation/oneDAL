@@ -61,6 +61,7 @@ namespace interface2
  * \brief AdaBoost algorithm parameters
  *
  * \snippet boosting/adaboost_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public classifier::Parameter
@@ -69,7 +70,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
      * Default contructor
      * @param nClasses The number of classes
      */
-    Parameter(size_t nClasses = 2);
+    DAAL_DEPRECATED Parameter(size_t nClasses = 2);
 
     /**
      * Constructs the AdaBoost parameter structure
@@ -81,9 +82,9 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
      * \param[in] resToCompute           The 64-bit integer flag that specifies which extra characteristics of the AdaBoost compute from \ref ResultToComputeId
      * \param[in] nCl                    Number of classes
      */
-    Parameter(services::SharedPtr<classifier::training::Batch> wlTrainForParameter,
-              services::SharedPtr<classifier::prediction::Batch> wlPredictForParameter, double acc = 0.0, size_t maxIter = 10, double learnRate = 1.0,
-              DAAL_UINT64 resToCompute = computeWeakLearnersErrors, size_t nCl = 2);
+    DAAL_DEPRECATED Parameter(services::SharedPtr<classifier::training::Batch> wlTrainForParameter,
+                              services::SharedPtr<classifier::prediction::Batch> wlPredictForParameter, double acc = 0.0, size_t maxIter = 10,
+                              double learnRate = 1.0, DAAL_UINT64 resToCompute = computeWeakLearnersErrors, size_t nCl = 2);
 
     services::SharedPtr<classifier::training::Batch> weakLearnerTraining;     /*!< The algorithm for weak learner model training */
     services::SharedPtr<classifier::prediction::Batch> weakLearnerPrediction; /*!< The algorithm for prediction based on a weak learner model */
@@ -102,6 +103,8 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
  * \par References
  *      - \ref training::interface2::Batch "training::Batch" class
  *      - \ref prediction::interface2::Batch "prediction::Batch" class
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public classifier::Model
 {
@@ -114,24 +117,27 @@ public:
      * \param[in] nFeatures Number of features in the dataset
      * \param[in] dummy     Dummy variable for the templated constructor
      * \DAAL_DEPRECATED_USE{ Model::create }
+     * \DAAL_DEPRECATED
      */
     template <typename modelFPType>
-    DAAL_EXPORT Model(size_t nFeatures, modelFPType dummy);
+    DAAL_DEPRECATED DAAL_EXPORT Model(size_t nFeatures, modelFPType dummy);
 
     /**
      * Empty constructor for deserialization
      * \DAAL_DEPRECATED_USE{ Model::create }
+     * \DAAL_DEPRECATED
      */
-    Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _alpha() {}
+    DAAL_DEPRECATED Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _alpha() {}
 
     /**
      * Constructs the AdaBoost model
      * \tparam modelFPType   Data type to store AdaBoost model data, double or float
      * \param[in]  nFeatures Number of features in the dataset
      * \param[out] stat      Status of the model construction
+     * \DAAL_DEPRECATED
      */
     template <typename modelFPType>
-    DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, services::Status * stat = NULL);
+    DAAL_DEPRECATED DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, services::Status * stat = NULL);
 
     virtual ~Model() {}
 
