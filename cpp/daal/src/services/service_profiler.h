@@ -31,6 +31,7 @@
 #include <iostream>
 #include <mutex>
 #include <algorithm>
+#include <exception>
 
 #include "services/library_version_info.h"
 
@@ -299,30 +300,43 @@ public:
     {
         if (is_analyzer_enabled())
         {
-            merge_tasks();
-            const auto & tasks_info  = get_instance()->get_task();
-            std::uint64_t total_time = 0;
-            std::cerr << "Algorithm tree analyzer" << '\n';
-
-            for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+            try
             {
-                const auto & entry = tasks_info.kernels[i];
-                if (entry.level == 0) total_time += entry.duration;
-            }
+#endif
+                merge_tasks();
+                const auto & tasks_info  = get_instance()->get_task();
+                std::uint64_t total_time = 0;
+                std::cerr << "Algorithm tree analyzer" << '\n';
 
-            for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
-            {
-                const auto & entry = tasks_info.kernels[i];
-                std::string prefix;
-                for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
-                bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
-                prefix += is_last ? "|-- " : "|-- ";
-                std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed << std::setprecision(2)
-                          << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count << " times"
-                          << " in a " << entry.threading_task << " region" << '\n';
+                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+                {
+                    const auto & entry = tasks_info.kernels[i];
+                    if (entry.level == 0) total_time += entry.duration;
+                }
+
+                for (size_t i = 0; i < tasks_info.kernels.size(); ++i)
+                {
+                    const auto & entry = tasks_info.kernels[i];
+                    std::string prefix;
+                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
+                    bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
+                    prefix += is_last ? "|-- " : "|-- ";
+                    std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
+                              << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
+                              << " times"
+                              << " in a " << entry.threading_task << " region" << '\n';
+                }
+                std::cerr << "|---(end)" << '\n';
+                std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
+
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
             }
-            std::cerr << "|---(end)" << '\n';
-            std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
+            catch (std::exception & e)
+            {
+                std::cerr << e.what() << std::endl;
+            }
+#endif
         }
     }
 
@@ -512,9 +526,18 @@ public:
         }
     }
 
-    inline task & get_task() { return task_; }
-    inline std::int64_t & get_current_level() { return current_level_; }
-    inline std::int64_t & get_kernel_count() { return kernel_count_; }
+    inline task & get_task()
+    {
+        return task_;
+    }
+    inline std::int64_t & get_current_level()
+    {
+        return current_level_;
+    }
+    inline std::int64_t & get_kernel_count()
+    {
+        return kernel_count_;
+    }
 
 private:
     std::int64_t current_level_ = 0;
@@ -526,10 +549,21 @@ inline profiler_task::~profiler_task()
 {
     if (task_name_)
     {
-        if (is_thread_)
-            profiler::end_threading_task(task_name_, idx_);
-        else
-            profiler::end_task(task_name_, idx_);
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+        try
+        {
+#endif
+            if (is_thread_)
+                profiler::end_threading_task(task_name_, idx_);
+            else
+                profiler::end_task(task_name_, idx_);
+#if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+        }
+        catch (std::exception & e)
+        {
+            std::cerr << e.what() << std::endl;
+        }
+#endif
     }
 }
 
