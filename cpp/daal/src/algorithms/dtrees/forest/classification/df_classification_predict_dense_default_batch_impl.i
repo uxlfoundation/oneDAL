@@ -68,8 +68,6 @@ DAAL_FORCEINLINE void fillResults(const size_t nClasses, const enum VotingMethod
 {
     if (votingMethod == VotingMethod::unweighted || probas == nullptr)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < blockSize; ++i)
         {
             const size_t cl = classes[leafsIndexes[i]];
@@ -80,8 +78,6 @@ DAAL_FORCEINLINE void fillResults(const size_t nClasses, const enum VotingMethod
     {
         for (size_t i = 0; i < blockSize; ++i)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < nClasses; ++j)
             {
                 resPtr[i * nClasses + j] += probas[leafsIndexes[i] * nClasses + j];
@@ -340,8 +336,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTrees(const siz
         }
         else if (_votingMethod == VotingMethod::weighted)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t i = 0; i < _nClasses; ++i)
             {
                 resPtr[i] += probas[idx * _nClasses + i];
@@ -351,14 +346,13 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTrees(const siz
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
                 }
 
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     resPtr[i] = resPtr[i] / sum;
@@ -403,8 +397,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
         }
         else if (_votingMethod == VotingMethod::weighted)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t i = 0; i < _nClasses; ++i)
             {
                 resPtr[i] += probas[idx * _nClasses + i];
@@ -414,14 +407,13 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
             {
                 algorithmFPType sum(0);
 
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
                 }
 
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     resPtr[i] = resPtr[i] / sum;
@@ -449,13 +441,13 @@ Status PredictClassificationTask<algorithmFPType, cpu>::parallelPredict(const al
 
     SafeStatus safeStat;
 
-    PRAGMA_FORCE_SIMD
-    PRAGMA_VECTOR_ALWAYS
+    PRAGMA_OMP_SIMD
     for (size_t i = 0; i < treeSize; ++i)
     {
-        fi[i] = aNode[i].featureIndex;
-        lc[i] = aNode[i].leftIndexOrClass;
-        fv[i] = (algorithmFPType)aNode[i].featureValueOrResponse;
+        const DecisionTreeNode & node = aNode[i];
+        fi[i]                         = node.featureIndex;
+        lc[i]                         = node.leftIndexOrClass;
+        fv[i]                         = (algorithmFPType)node.featureValueOrResponse;
     }
     daal::threader_for(nBlocks, nBlocks, [&, nCols](const size_t iBlock) {
         safeStat |= predictByTree(aX + iBlock * blockSize * nCols, blockSize, nCols, fi, lc, fv, prob + iBlock * blockSize * _nClasses, iTree);
@@ -769,8 +761,6 @@ DAAL_FORCEINLINE Status PredictClassificationTask<algorithmFPType, cpu>::predict
     }
     if (probPtr != nullptr)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < _nClasses; ++j)
         {
             probPtr[j] = prob_d[j];
@@ -891,13 +881,12 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
             {
                 const size_t treeSize          = _aTree[iTree + i]->getNumberOfRows();
                 const DecisionTreeNode * aNode = (const DecisionTreeNode *)(*_aTree[iTree + i]).getArray();
-                PRAGMA_FORCE_SIMD
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j < treeSize; ++j)
                 {
-                    fi[displace + j] = aNode[j].featureIndex;
-                    lc[displace + j] = aNode[j].leftIndexOrClass;
-                    fv[displace + j] = (float)aNode[j].featureValueOrResponse;
+                    const DecisionTreeNode & node = aNode[j];
+                    fi[displace + j]              = node.featureIndex;
+                    lc[displace + j]              = node.leftIndexOrClass;
+                    fv[displace + j]              = (float)node.featureValueOrResponse;
                 }
                 disp[iTree + i] = displace;
                 displace += treeSize;
@@ -1002,8 +991,7 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
     }
     if (probPtr != nullptr)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < _nClasses; ++j)
         {
             probPtr[j] = prob_d[j];
@@ -1073,6 +1061,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
                 algorithmFPType * buf = tlsData.local(tid);
                 for (size_t i = begin; i < end; ++i)
                 {
+                    PRAGMA_OMP_SIMD
                     for (size_t j = 0; j < _nClasses; ++j)
                     {
                         commonBufVal[i * _nClasses + j] += buf[i * _nClasses + j];
@@ -1086,12 +1075,14 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
                 {
                     algorithmFPType sum(0);
 
+                    PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                     for (size_t j = 0; j < _nClasses; ++j)
                     {
                         sum += commonBufVal[i * _nClasses + j];
                     }
                     sum = daal::algorithms::dtrees::training::internal::isZero<algorithmFPType, cpu>(sum) ? algorithmFPType(1) : sum;
 
+                    PRAGMA_OMP_SIMD
                     for (size_t j = 0; j < _nClasses; ++j)
                     {
                         commonBufVal[i * _nClasses + j] = commonBufVal[i * _nClasses + j] / sum;
@@ -1135,12 +1126,14 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
                     {
                         algorithmFPType sum(0);
 
+                        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                         for (size_t j = 0; j < _nClasses; ++j)
                         {
                             sum += commonBufVal[i * _nClasses + j];
                         }
                         sum = daal::algorithms::dtrees::training::internal::isZero<algorithmFPType, cpu>(sum) ? algorithmFPType(1) : sum;
 
+                        PRAGMA_OMP_SIMD
                         for (size_t j = 0; j < _nClasses; ++j)
                         {
                             commonBufVal[i * _nClasses + j] = commonBufVal[i * _nClasses + j] / sum;
@@ -1193,8 +1186,11 @@ Status PredictClassificationTask<algorithmFPType, cpu>::run(services::HostAppIfa
         _sumTreeSize     = 0;
     }
 
+    constexpr size_t minNumberOfFeaturesForVectParallelCompute = 100;
+
     if (hasUnorderedFeatures
-        || (_data->getNumberOfRows() < _averageTreeSize * _scaleFactorForVectParallelCompute && daal::threader_get_threads_number() > 1)
+        || (_blockSize < _averageTreeSize * _scaleFactorForVectParallelCompute
+            && _data->getNumberOfColumns() >= minNumberOfFeaturesForVectParallelCompute && daal::threader_get_threads_number() > 1)
         || (_data->getNumberOfRows() < _minNumberOfRowsForVectSeqCompute && daal::threader_get_threads_number() == 1))
     {
         const auto treeSize = _aTree[0]->getNumberOfRows() * sizeof(dtrees::internal::DecisionTreeNode);

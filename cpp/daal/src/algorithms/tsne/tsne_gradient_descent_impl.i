@@ -115,7 +115,7 @@ struct MemoryCtxType
         const DataType * xInit = xInitDataBlock.get();
         const DataType * yInit = yInitDataBlock.get();
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < capacity; i++)
         {
@@ -133,7 +133,7 @@ struct MemoryCtxType
         DataType * xInit = xInitDataBlock.get();
         DataType * yInit = yInitDataBlock.get();
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _capacity; i++)
         {
@@ -452,8 +452,7 @@ services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
     tlsHist1024.reduce([&](int * ptr) -> void {
         if (ptr == nullptr) return;
 
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(mHist, ptr : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (int i = 0; i < 1024; i++) mHist[i] += ptr[i];
 
         services::internal::service_free<int, cpu>(ptr);
