@@ -406,8 +406,9 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
             if (iTree + 1 == nTreesTotal)
             {
                 algorithmFPType sum(0);
-
+#ifndef __clang__ // TODO: Temporary workaround. Clang 21 fails to vectoize this simple loop
                 PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+#endif
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
@@ -425,6 +426,22 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
     return Status();
 }
 
+/*
+// Predict by one [sub-]tree in parallel for all rows in data set.
+// The data is split into blocks and each block is processed in parallel.
+//
+// @param[in]  aX           Pointer to the input data set
+// @param[in]  aNode        Pointer to the tree node array
+// @param[in]  treeSize     Number of nodes in the [sub-]tree
+// @param[in]  nBlocks      Number of data blocks
+// @param[in]  nCols        Number of features in the data set
+// @param[in]  blockSize    Number of rows in one data block
+// @param[in]  residualSize Number of rows in the last data block (if any)
+// @param[out] prob         Pointer to the class probabilities array
+// @param[in]  iTree        Index of the tree in the forest
+//
+// @return Status of computations
+*/
 template <typename algorithmFPType, CpuType cpu>
 Status PredictClassificationTask<algorithmFPType, cpu>::parallelPredict(const algorithmFPType * const aX, const DecisionTreeNode * const aNode,
                                                                         const size_t treeSize, const size_t nBlocks, const size_t nCols,
@@ -498,6 +515,21 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreeCommon(cons
     return Status();
 }
 
+/*
+// Predict by one [sub-]tree for a block of data points.
+// Generic template implementation for all supported data types and various instruction set architectures.
+//
+// @param[in]  x            Pointer to the input data block
+// @param[in]  sizeOfBlock  Number of rows in the data block
+// @param[in]  nCols        Number of features in the data set
+// @param[in]  tFI          Pointer to the array of feature indices for tree nodes
+// @param[in]  tLC          Pointer to the array of left child indices for split nodes, or class indices for leaf nodes
+// @param[in]  tFV          Pointer to the array of feature values for nodes, i.e. the values that define the splits (x[k][tFI[j]] > tFV[j])
+// @param[out] prob         Pointer to the class probabilities array
+// @param[in]  iTree        Index of the tree in the forest
+//
+// @return Status of computations
+*/
 template <typename algorithmFPType, CpuType cpu>
 DAAL_FORCEINLINE Status PredictClassificationTask<algorithmFPType, cpu>::predictByTree(const algorithmFPType * const x, const size_t sizeOfBlock,
                                                                                        const size_t nCols, const featureIndexType * const tFI,
@@ -510,6 +542,21 @@ DAAL_FORCEINLINE Status PredictClassificationTask<algorithmFPType, cpu>::predict
 
 #if defined(__AVX512F__) && defined(DAAL_INTEL_CPP_COMPILER)
 
+/*
+// Predict by one [sub-]tree for a block of data points.
+// Template specialization for single precision data and AVX512 ISA
+//
+// @param[in]  x            Pointer to the input data block
+// @param[in]  sizeOfBlock  Number of rows in the data block
+// @param[in]  nCols        Number of features in the data set
+// @param[in]  feat_idx     Pointer to the array of feature indices for tree nodes
+// @param[in]  left_son     Pointer to the array of left child indices for split nodes, or class indices for leaf nodes
+// @param[in]  split_point  Pointer to the array of feature values for nodes, i.e. the values that define the splits (x[k][feat_idx[j]] > split_point[k][j])
+// @param[out] resPtr       Pointer to the class probabilities array
+// @param[in]  iTree        Index of the tree in the forest
+//
+// @return Status of computations
+*/
 template <>
 DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictByTree(const float * const x, const size_t sizeOfBlock, const size_t nCols,
                                                                                 const featureIndexType * const feat_idx,
@@ -572,6 +619,21 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictByTree(
     }
 }
 
+/*
+// Predict by one [sub-]tree for a block of data points.
+// Template specialization for double precision data and AVX512 ISA
+//
+// @param[in]  x            Pointer to the input data block
+// @param[in]  sizeOfBlock  Number of rows in the data block
+// @param[in]  nCols        Number of features in the data set
+// @param[in]  feat_idx     Pointer to the array of feature indices for tree nodes
+// @param[in]  left_son     Pointer to the array of left child indices for split nodes, or class indices for leaf nodes
+// @param[in]  split_point  Pointer to the array of feature values for nodes, i.e. the values that define the splits (x[k][feat_idx[j]] > split_point[k][j])
+// @param[out] resPtr       Pointer to the class probabilities array
+// @param[in]  iTree        Index of the tree in the forest
+//
+// @return Status of computations
+*/
 template <>
 DAAL_FORCEINLINE Status PredictClassificationTask<double, avx512>::predictByTree(const double * const x, const size_t sizeOfBlock, const size_t nCols,
                                                                                  const featureIndexType * const feat_idx,
@@ -631,6 +693,15 @@ DAAL_FORCEINLINE Status PredictClassificationTask<double, avx512>::predictByTree
 }
 #endif // if defined(__AVX512F__) && defined(DAAL_INTEL_CPP_COMPILER)
 
+/*
+// Predict by all trees for all rows in data set.
+//
+// Parallelism is organized in two levels:
+//
+// 1) Data set is split into blocks and the outer parallel loop processes the blocks.
+// 2) For each block, the inner parallel loop computes the predictions in parallel
+//    for each row across all trees in the forest.
+*/
 template <typename algorithmFPType, CpuType cpu>
 Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const size_t nTreesTotal, const DimType & dim)
 {
@@ -638,7 +709,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const 
     DAAL_CHECK_BLOCK_STATUS(resBD);
     WriteOnlyRows<algorithmFPType, cpu> probBD(_prob, 0, dim.nRowsTotal);
     DAAL_CHECK_BLOCK_STATUS(probBD);
-    const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
+    const bool bUseTLS(_nClasses > s_cMaxClassesBufSize); //// check if dynamically allocated local storage is needed
     const size_t nCols(_data->getNumberOfColumns());
     daal::SafeStatus safeStat;
     algorithmFPType * const probPtr = probBD.get();
@@ -665,6 +736,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByAllTrees(const 
     }
     else
     {
+        // Dynamically allocated thread-local storage for class counters
         ClassesCounterTls lsData(_nClasses);
         daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](const size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;
@@ -1002,6 +1074,31 @@ DAAL_FORCEINLINE Status PredictClassificationTask<float, avx512>::predictOneRowB
 }
 #endif
 
+/*
+// Predicts classes for all input data points using all trees in the forest.
+//
+// The computations are done in two steps:
+//
+// Variant A (disabled due to performance issues):
+// 1) Parallel prediction over trees:
+//    Each thread processes a subset of trees and accumulates the results in
+//    thread-local storage.
+// 2) The results from different threads are merged by summing the probabilities
+//    for each class across all threads and computing the final predictions
+//    as the class with the maximum probability.
+//
+// Variant B (used currently):
+// 1) Sequential prediction over trees:
+//    The trees are processed one after another, with each tree's predictions being
+//    computed and accumulated before moving on to the next tree.
+//    When computing the predictions for each tree, parallelism is used over data points.
+// 2) After all trees have been processed, the final predictions are computed
+//    as the class with the maximum accumulated probability.
+//
+// @param[in] nTreesTotal  Total number of trees in the forest
+//
+// @return Status of computation
+*/
 template <typename algorithmFPType, CpuType cpu>
 Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTrees(size_t nTreesTotal)
 {
@@ -1037,8 +1134,13 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
     // (excessive memory and CPU resources usage), especially on systems with high number of cores
     if (false)
     {
+        // Variant A: Parallel prediction over trees with thread-local storage
+
+        // Use thread local storage to accumulate results from different trees:
+        // Each thread stores the results for all rows of the input data, but only for the subset of trees processed by the thread.
         daal::static_tls<algorithmFPType *> tlsData([=]() { return service_scalable_calloc<algorithmFPType, cpu>(_nClasses * nRowsOfRes); });
 
+        // Parallel prediction over trees
         daal::static_threader_for(numberOfTrees, [&, nCols](const size_t iTree, size_t tid) {
             const size_t treeSize                = _aTree[iTree]->getNumberOfRows();
             const DecisionTreeNode * const aNode = (const DecisionTreeNode *)(*_aTree[iTree]).getArray();
@@ -1049,6 +1151,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
         const size_t localBlockSize = 256; // TODO: Why can't this be the class value _blockSize?
         const size_t nBlocks        = nRowsOfRes / localBlockSize + !!(nRowsOfRes % localBlockSize);
 
+        // Merge results from different threads by summing the class counters for each class across all threads
         daal::threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
             const size_t begin = iBlock * localBlockSize;
             const size_t end   = services::internal::min<cpu, size_t>(nRowsOfRes, begin + localBlockSize);
@@ -1056,6 +1159,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
             services::internal::service_memset_seq<algorithmFPType, cpu>(commonBufVal + begin * _nClasses, algorithmFPType(0),
                                                                          (end - begin) * _nClasses);
 
+            // Sum class counters results from different threads
             for (size_t tid = 0; tid < nThreads; ++tid)
             {
                 algorithmFPType * buf = tlsData.local(tid);
@@ -1071,6 +1175,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
 
             if (prob != nullptr)
             {
+                // Normalize to get class probabilities
                 for (size_t i = begin; i < end; ++i)
                 {
                     algorithmFPType sum(0);
@@ -1103,12 +1208,14 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
     }
     else
     {
+        // Variant B: Sequential prediction over trees with parallelism over data points
         services::internal::service_memset<algorithmFPType, cpu>(commonBufVal, algorithmFPType(0), nRowsOfRes * _nClasses);
 
         for (size_t iTree = 0; iTree < numberOfTrees; ++iTree)
         {
             const size_t treeSize                = _aTree[iTree]->getNumberOfRows();
             const DecisionTreeNode * const aNode = (const DecisionTreeNode *)(*_aTree[iTree]).getArray();
+            // Predict using the current tree, split the work over data points in parallel
             parallelPredict(aX, aNode, treeSize, nBlocks, nCols, _blockSize, residualSize, commonBufVal, iTree);
         }
         if (prob != nullptr || res != nullptr)
@@ -1122,6 +1229,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
 
                 if (prob != nullptr)
                 {
+                    // Normalize to get class probabilities
                     for (size_t i = begin; i < end; ++i)
                     {
                         algorithmFPType sum(0);
@@ -1143,6 +1251,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
 
                 if (res != nullptr)
                 {
+                    // Determine predicted classes as those with maximum votes/probabilities
                     for (size_t i = begin; i < end; ++i)
                     {
                         res[i] = algorithmFPType(getMaxClass(commonBufVal + i * _nClasses));
