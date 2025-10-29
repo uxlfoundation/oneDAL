@@ -54,7 +54,6 @@ sycl::event copy_convert_impl(sycl::queue& queue,
     return queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
 
-        const auto row_count = shape.first;
         const auto col_count = shape.second;
         const auto range_pair = propose_range<InpType, OutType>(queue, shape);
         const auto range_rows = range_pair.first;
