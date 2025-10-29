@@ -220,13 +220,13 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const auto aIdxStart        = aIdx + iStart;
                 const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
 
-#pragma omp simd simdlen(simdBatchSize)
+                PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
                     yBatch[iSub] = this->_aResponse[aIdxStart[iSub]].val;
                 }
 
-#pragma omp simd
+                PRAGMA_OMP_SIMD
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
                     const intermSummFPType y     = yBatch[iSub];
@@ -305,14 +305,14 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const size_t iStart  = iMain * simdBatchSize;
                 const auto aIdxStart = aIdx + iStart;
 
-#pragma omp simd simdlen(simdBatchSize)
+                PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
                     yBatch[iSub]       = this->_aResponse[aIdxStart[iSub]].val;
                     weightsBatch[iSub] = this->_aWeights[aIdxStart[iSub]].val;
                 }
 
-#pragma omp simd
+                PRAGMA_OMP_SIMD
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
                     const intermSummFPType y      = yBatch[iSub];
