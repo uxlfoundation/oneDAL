@@ -248,10 +248,8 @@ T * service_memset(T * const ptr, const T value, const size_t num)
             end = num;
         }
 
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
         PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
-#endif
         for (size_t i = block * blockSize; i < end; i++)
         {
             ptr[i] = value;
