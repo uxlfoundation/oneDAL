@@ -406,6 +406,8 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
             if (iTree + 1 == nTreesTotal)
             {
                 double sum = 0;
+
+                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
