@@ -116,7 +116,7 @@ enum DataFormat
     #define PRAGMA_NOVECTOR         _Pragma("novector")
     #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
     #if defined(_MSC_VER) && defined(_DEBUG)
-        // TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows.
+// TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows.
         #define PRAGMA_VECTOR_ALWAYS
         #define PRAGMA_OMP_SIMD
         #define PRAGMA_OMP_SIMD_ARGS(ARGS)
