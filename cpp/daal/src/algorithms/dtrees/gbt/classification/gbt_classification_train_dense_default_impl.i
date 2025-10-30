@@ -71,7 +71,7 @@ public:
             const size_t end   = iBlock + 1 > nSurplus ? start + nPerBlock : start + (nPerBlock + 1);
             if (sampleInd)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -83,7 +83,7 @@ public:
             }
             else
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -96,7 +96,7 @@ public:
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(end - start, exp + start, exp + start);
             if (sampleInd)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -107,7 +107,7 @@ public:
             }
             else
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
@@ -135,22 +135,20 @@ public:
         const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
         daal::TlsMem<algorithmFPType, cpu> lsData(_nClasses);
         daal::threader_for(n, n, [&](size_t i) {
+            constexpr algorithmFPType one(1.0);
+            constexpr algorithmFPType two(2.0);
             algorithmFPType buf[s_cMaxClassesBufSize];
             algorithmFPType * p  = bUseTLS ? lsData.local() : buf;
             const size_t iSample = (sampleInd ? sampleInd[i] : i);
             getSoftmax(f + _nClasses * iSample, p);
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t k = 0; k < _nClasses; ++k)
             {
                 const algorithmFPType pk = p[k];
-                const algorithmFPType h  = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);
                 algorithmFPType * gh_ik  = gh + 2 * (k * nRows + iSample);
-                gh_ik[1]                 = h;
-                if (size_t(y[iSample]) == k)
-                    gh_ik[0] = (pk - algorithmFPType(1.));
-                else
-                    gh_ik[0] = pk;
+                gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - one) : pk; // gradient
+                gh_ik[1]                 = two * pk * (one - pk);                       // hessian
             }
         });
     }
@@ -160,12 +158,14 @@ protected:
     {
         const algorithmFPType expThreshold = daal::internal::MathInst<algorithmFPType, cpu>::vExpThreshold();
         algorithmFPType maxArg             = arg[0];
-        PRAGMA_VECTOR_ALWAYS
+#ifndef __clang__ // TODO: Temporary workaround. Clang 18 fails to vectoize this simple loop
+        PRAGMA_OMP_SIMD_ARGS(reduction(max : maxArg))
+#endif
         for (size_t i = 1; i < _nClasses; ++i)
         {
-            if (maxArg < arg[i]) maxArg = arg[i];
+            maxArg = (maxArg < arg[i]) ? arg[i] : maxArg;
         }
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i)
         {
@@ -176,11 +176,11 @@ protected:
         }
         daal::internal::MathInst<algorithmFPType, cpu>::vExp(_nClasses, res, res);
         algorithmFPType sum(0.);
-        PRAGMA_VECTOR_ALWAYS
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
         for (size_t i = 0; i < _nClasses; ++i) sum += res[i];
 
         sum = algorithmFPType(1.) / sum;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 0; i < _nClasses; ++i) res[i] *= sum;
     }
