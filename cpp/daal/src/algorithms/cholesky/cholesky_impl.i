@@ -151,18 +151,14 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
 
             for (size_t i = iBlock * blockSize; i < endBlock; i++)
             {
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t j = 0; j <= i; j++)
                 {
                     pL[i * dim + j] = pA[i * dim + j];
                 }
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t j = (i + 1); j < dim; j++)
                 {
                     pL[i * dim + j] = algorithmFPType(0);
@@ -180,18 +176,14 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
             {
                 const size_t ind = (i + 1) * i / 2;
 
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t j = 0; j <= i; j++)
                 {
                     pL[i * dim + j] = pA[ind + j];
                 }
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t j = (i + 1); j < dim; j++)
                 {
                     pL[i * dim + j] = algorithmFPType(0);
@@ -209,18 +201,14 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
             {
                 const size_t ind = (2 * dim - j + 1) * j / 2;
 
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t i = 0; i < j; i++)
                 {
                     pL[i * dim + j] = algorithmFPType(0);
                 }
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t i = j; i < dim; i++)
                 {
                     pL[i * dim + j] = pA[ind + i - j];
@@ -259,10 +247,8 @@ services::Status CholeskyKernel<algorithmFPType, method, cpu>::copyToLowerTriang
             {
                 const size_t ind = (i + 1) * i / 2;
 
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t j = 0; j <= i; j++)
                 {
                     pL[ind + j] = pA[i * dim + j];
@@ -290,10 +276,8 @@ services::Status CholeskyKernel<algorithmFPType, method, cpu>::copyToLowerTriang
             {
                 const size_t ind = (j + 1) * j / 2;
 
-#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
                 PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
-#endif
                 for (size_t i = 0; i <= j; i++)
                 {
                     pL[ind + i] = pA[(dim * i - i * (i - 1) / 2 - i) + j];
