@@ -25,6 +25,7 @@
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
+#ifndef __SERVICE_DEFINES_H__
 #define PRAGMA_TO_STR(ARGS)  _Pragma(#ARGS)
 #define PRAGMA_TO_STR_(ARGS) PRAGMA_TO_STR(ARGS)
 
@@ -36,7 +37,7 @@
 #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
 #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
 #elif defined(__GNUC__) || defined(__clang__)
-#define PRAGMA_IVDEP
+#define PRAGMA_IVDEP _Pragma("ivdep")
 #define PRAGMA_NOVECTOR
 #define PRAGMA_VECTOR_UNALIGNED
 #define PRAGMA_VECTOR_ALWAYS
@@ -57,6 +58,7 @@
 #define PRAGMA_OMP_SIMD
 #define PRAGMA_OMP_SIMD_ARGS(ARGS)
 #endif
+#endif // ifndef __SERVICE_DEFINES_H__
 
 namespace oneapi::dal::backend {
 
