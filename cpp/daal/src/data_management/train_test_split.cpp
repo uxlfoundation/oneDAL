@@ -170,8 +170,10 @@ services::Status assignColumnValues(const DataType * origDataPtr, const NumericT
     DataType * dataPtr = dataBlock.get();
     DAAL_CHECK_MALLOC(dataPtr);
 
+#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
     PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
+#endif
     for (size_t i = 0; i < nRows; ++i)
     {
         dataPtr[i] = origDataPtr[idxPtr[i]];
@@ -232,8 +234,10 @@ services::Status assignRows(const DataType * origDataPtr, const NumericTablePtr 
 
     for (size_t i = 0; i < nRows; ++i)
     {
+#if !(defined(_MSC_VER) && defined(_DEBUG)) // TODO: Temporary workaround. icx fails to vectorize this loop in debug build on Windows.
         PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
+#endif
         for (size_t j = 0; j < nColumns; ++j)
         {
             dataPtr[i * nColumns + j] = origDataPtr[idxPtr[i] * nColumns + j];

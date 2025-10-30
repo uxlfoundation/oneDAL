@@ -405,10 +405,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByTreesWithoutCon
 
             if (iTree + 1 == nTreesTotal)
             {
-                algorithmFPType sum(0);
-#ifndef __clang__ // TODO: Temporary workaround. Clang 21 fails to vectoize this simple loop
-                PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-#endif
+                double sum = 0;
                 for (size_t i = 0; i < _nClasses; ++i)
                 {
                     sum += resPtr[i];
