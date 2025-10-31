@@ -104,6 +104,7 @@ public:
  *      - \ref interface2::Model "Model" class
  *      - classifier::prediction::Input class
  *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -121,7 +122,7 @@ public:
      * Constructs LogitBoost prediction algorithm
      * \param[in] nClasses  Number of classes
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs a LogitBoost prediction algorithm by copying input objects and parameters

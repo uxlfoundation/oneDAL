@@ -48,12 +48,13 @@ namespace interface1
  * \brief %Base class for the input objects of the weak learner training and prediction algorithm
  *
  * \snippet weak_learner/weak_learner_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 class Parameter : public classifier::interface2::Parameter
 {
 public:
-    Parameter() {}
+    DAAL_DEPRECATED Parameter() {}
     virtual ~Parameter() {}
 };
 /* [Parameter source code] */
@@ -61,11 +62,12 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__WEAK_LEARNER__MODEL"></a>
  * \brief %Base class for the weak learner model
+ * \DAAL_DEPRECATED
  */
 class Model : public classifier::interface1::Model
 {
 public:
-    Model() {}
+    DAAL_DEPRECATED Model() {}
     virtual ~Model() {}
 };
 typedef services::SharedPtr<Model> ModelPtr;

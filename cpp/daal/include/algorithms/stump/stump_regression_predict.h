@@ -105,6 +105,7 @@ public:
  *      - \ref interface1::Model "Model" class
  *      - \ref daal::algorithms::regression::prediction::interface1::Input "regression::prediction::Input" class
  *      - \ref daal::algorithms::regression::prediction::interface1::Result "regression::prediction::Result" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::regression::prediction::Batch
@@ -118,7 +119,7 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs decision stump regression algorithm by copying input objects

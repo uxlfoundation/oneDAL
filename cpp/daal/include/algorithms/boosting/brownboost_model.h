@@ -53,12 +53,13 @@ namespace interface2
  * \brief BrownBoost algorithm parameters
  *
  * \snippet boosting/brownboost_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public classifier::Parameter
 {
     /** Default constructor */
-    Parameter();
+    DAAL_DEPRECATED Parameter();
 
     /**
      * Constructs BrownBoost parameter structure
@@ -70,9 +71,9 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
      * \param[in] nrMaxIter                 Maximal number of Newton-Raphson iterations in the BrownBoost training algorithm
      * \param[in] dcThreshold               Threshold needed  to avoid degenerate cases in the BrownBoost training algorithm
      */
-    Parameter(services::SharedPtr<classifier::training::Batch> wlTrainForParameter,
-              services::SharedPtr<classifier::prediction::Batch> wlPredictForParameter, double acc = 0.3, size_t maxIter = 10, double nrAcc = 1.0e-3,
-              size_t nrMaxIter = 100, double dcThreshold = 1.0e-2);
+    DAAL_DEPRECATED Parameter(services::SharedPtr<classifier::training::Batch> wlTrainForParameter,
+                              services::SharedPtr<classifier::prediction::Batch> wlPredictForParameter, double acc = 0.3, size_t maxIter = 10,
+                              double nrAcc = 1.0e-3, size_t nrMaxIter = 100, double dcThreshold = 1.0e-2);
 
     services::SharedPtr<classifier::training::Batch> weakLearnerTraining;     /*!< The algorithm for weak learner model training */
     services::SharedPtr<classifier::prediction::Batch> weakLearnerPrediction; /*!< The algorithm for prediction based on a weak learner model */
@@ -92,6 +93,8 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
  * \par References
  *      - \ref training::interface2::Batch "training::Batch" class
  *      - \ref prediction::interface2::Batch "prediction::Batch" class
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public classifier::Model
 {
@@ -106,13 +109,13 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     template <typename modelFPType>
-    DAAL_EXPORT Model(size_t nFeatures, modelFPType dummy);
+    DAAL_DEPRECATED DAAL_EXPORT Model(size_t nFeatures, modelFPType dummy);
 
     /**
      * Empty constructor for deserialization
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
-    Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _alpha() {}
+    DAAL_DEPRECATED Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _alpha() {}
 
     /**
      * Constructs the BrownBoost model
@@ -121,7 +124,7 @@ public:
      * \param[out] stat      Status of the model construction
      */
     template <typename modelFPType>
-    DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, services::Status * stat = NULL);
+    DAAL_DEPRECATED DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, services::Status * stat = NULL);
 
     virtual ~Model() {}
 

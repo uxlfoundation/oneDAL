@@ -132,6 +132,7 @@ struct Parameter : public BaseParameter
  * \brief %Parameter for the Stochastic gradient descent algorithm
  *
  * \snippet optimization_solver/sgd/sgd_types.h ParameterDefaultDense source code
+ * \DAAL_DEPRECATED
  */
 /* [ParameterDefaultDense source code] */
 template <>
@@ -146,11 +147,11 @@ struct DAAL_EXPORT Parameter<defaultDense> : public BaseParameter
      * \param[in] learningRateSequence Numeric table that contains values of the learning rate sequence
      * \param[in] seed                 Seed for random generation of 32 bit integer indices of terms in the objective function. \DAAL_DEPRECATED_USE{ engine }
      */
-    Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
-              data_management::NumericTablePtr batchIndices         = data_management::NumericTablePtr(),
-              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
-              size_t seed = 777);
+    DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
+                              data_management::NumericTablePtr batchIndices         = data_management::NumericTablePtr(),
+                              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                              size_t seed = 777);
 
     /**
      * Checks the correctness of the parameter
@@ -168,6 +169,7 @@ struct DAAL_EXPORT Parameter<defaultDense> : public BaseParameter
  * \brief %Parameter for the Stochastic gradient descent algorithm
  *
  * \snippet optimization_solver/sgd/sgd_types.h ParameterMiniBatch source code
+ * \DAAL_DEPRECATED
  */
 /* [ParameterMiniBatch source code] */
 template <>
@@ -188,14 +190,14 @@ struct DAAL_EXPORT Parameter<miniBatch> : public BaseParameter
      * \param[in] learningRateSequence Numeric table that contains values of the learning rate sequence
      * \param[in] seed                 Seed for random generation of 32 bit integer indices of terms in the objective function. \DAAL_DEPRECATED_USE{ engine }
      */
-    Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
-              data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), size_t batchSize = 128,
-              data_management::NumericTablePtr conservativeSequence = data_management::NumericTablePtr(
-                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
-              size_t innerNIterations                               = 5,
-              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
-              size_t seed = 777);
+    DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
+                              data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), size_t batchSize = 128,
+                              data_management::NumericTablePtr conservativeSequence = data_management::NumericTablePtr(
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                              size_t innerNIterations                               = 5,
+                              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                              size_t seed = 777);
 
     /**
      * Checks the correctness of the parameter
@@ -217,6 +219,7 @@ struct DAAL_EXPORT Parameter<miniBatch> : public BaseParameter
  * \brief %Parameter for the Stochastic gradient descent algorithm
  *
  * \snippet optimization_solver/sgd/sgd_types.h ParameterMomentum source code
+ * \DAAL_DEPRECATED
  */
 /* [ParameterMomentum source code] */
 template <>
@@ -236,11 +239,12 @@ struct DAAL_EXPORT Parameter<momentum> : public BaseParameter
      * \param[in] learningRateSequence Numeric table that contains values of the learning rate sequence
      * \param[in] seed                 Seed for random generation of 32 bit integer indices of terms in the objective function. \DAAL_DEPRECATED_USE{ engine }
      */
-    Parameter(const sum_of_functions::BatchPtr & function, double momentum = 0.9, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
-              data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), size_t batchSize = 128,
-              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
-              size_t seed = 777);
+    DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, double momentum = 0.9, size_t nIterations = 100,
+                              double accuracyThreshold = 1.0e-05, data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(),
+                              size_t batchSize                                      = 128,
+                              data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                              size_t seed = 777);
 
     /**
      * Checks the correctness of the parameter
@@ -261,13 +265,14 @@ struct DAAL_EXPORT Parameter<momentum> : public BaseParameter
 * \brief %Input for the Stochastic gradient descent algorithm
 *
 * \snippet optimization_solver/sgd/sgd_types.h Input source code
+* \DAAL_DEPRECATED
 */
 /* [Input source code] */
 class DAAL_EXPORT Input : public optimization_solver::iterative_solver::Input
 {
 public:
     typedef optimization_solver::iterative_solver::Input super;
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     using super::set;
     using super::get;
@@ -301,6 +306,7 @@ public:
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__SGD__RESULT"></a>
 * \brief Results obtained with the compute() method of the sgd algorithm in the batch processing mode
+* \DAAL_DEPRECATED
 */
 /* [Result source code] */
 class DAAL_EXPORT Result : public optimization_solver::iterative_solver::Result
@@ -309,7 +315,7 @@ public:
     DECLARE_SERIALIZABLE_CAST(Result)
     typedef optimization_solver::iterative_solver::Result super;
 
-    Result() {}
+    DAAL_DEPRECATED Result() {}
     using super::set;
     using super::get;
 

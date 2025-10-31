@@ -89,6 +89,8 @@ public:
  * \par References
  *      - Parameter<defaultDense> class
  *      - Parameter<baconDense> class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -98,7 +100,7 @@ public:
     typedef algorithms::multivariate_outlier_detection::Result ResultType;
 
     /** Default constructor */
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an algorithm for computing multivariate outlier detection by copying input objects and parameters

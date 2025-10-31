@@ -89,11 +89,12 @@ namespace interface1
  * \brief Parameters of the outlier detection computation using the baconDense method
  *
  * \snippet outlier_detection/outlier_detection_bacon_types.h ParameterBacon source code
+ * \DAAL_DEPRECATED
  */
 /* [ParameterBacon source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(InitializationMethod initMethod = baconMedian, double alpha = 0.05, double toleranceToConverge = 0.005);
+    DAAL_DEPRECATED Parameter(InitializationMethod initMethod = baconMedian, double alpha = 0.05, double toleranceToConverge = 0.005);
 
     InitializationMethod initMethod; /*!< Initialization method, \ref InitializationMethod */
     double alpha;                    /*!< One-tailed probability that defines the \f$(1 - \alpha)\f$ quantile
@@ -108,11 +109,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BACON_OUTLIER_DETECTION__INPUT"></a>
  * \brief %Input objects for the BACON outlier detection algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -145,12 +147,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BACON_OUTLIER_DETECTION__RESULT"></a>
  * \brief Results obtained with the compute() method of the BACON outlier detection algorithm in the %batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
 
