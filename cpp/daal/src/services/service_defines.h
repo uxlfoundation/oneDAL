@@ -49,6 +49,42 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
 #define PRAGMA_TO_STR(ARGS)  _Pragma(#ARGS)
 #define PRAGMA_TO_STR_(ARGS) PRAGMA_TO_STR(ARGS)
 
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+    #define PRAGMA_IVDEP            _Pragma("ivdep")
+    #define PRAGMA_NOVECTOR         _Pragma("novector")
+    #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
+    #if defined(_MSC_VER) && defined(_DEBUG) // TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows.
+        #define PRAGMA_VECTOR_ALWAYS
+        #define PRAGMA_OMP_SIMD
+        #define PRAGMA_OMP_SIMD_ARGS(ARGS)
+    #else
+        #define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
+        #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+        #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+    #endif
+#elif defined(__GNUC__) || defined(__clang__)
+    #define PRAGMA_IVDEP _Pragma("ivdep")
+    #define PRAGMA_NOVECTOR
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#elif defined(_MSC_VER)
+    #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+    #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#else
+    #define PRAGMA_IVDEP
+    #define PRAGMA_NOVECTOR
+    #define PRAGMA_VECTOR_UNALIGNED
+    #define PRAGMA_VECTOR_ALWAYS
+    #define PRAGMA_OMP_SIMD
+    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#endif
+
 #ifdef DEBUG_ASSERT
     #include <assert.h>
     #define DAAL_ASSERT(cond) assert(cond);
@@ -110,43 +146,6 @@ enum DataFormat
 #define __GLUE__(a, b)   a##b
 #define __CPUID__(cpu)   __GLUE__(CPU_, cpu)
 #define __FPTYPE__(type) __GLUE__(FPTYPE_, type)
-
-#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-    #define PRAGMA_IVDEP            _Pragma("ivdep")
-    #define PRAGMA_NOVECTOR         _Pragma("novector")
-    #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
-    #if defined(_MSC_VER) && defined(_DEBUG)
-// TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows.
-        #define PRAGMA_VECTOR_ALWAYS
-        #define PRAGMA_OMP_SIMD
-        #define PRAGMA_OMP_SIMD_ARGS(ARGS)
-    #else
-        #define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
-        #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
-        #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-    #endif
-#elif defined(__GNUC__) || defined(__clang__)
-    #define PRAGMA_IVDEP _Pragma("ivdep")
-    #define PRAGMA_NOVECTOR
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
-    #define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
-#elif defined(_MSC_VER)
-    #define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
-    #define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_OMP_SIMD
-    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
-#else
-    #define PRAGMA_IVDEP
-    #define PRAGMA_NOVECTOR
-    #define PRAGMA_VECTOR_UNALIGNED
-    #define PRAGMA_VECTOR_ALWAYS
-    #define PRAGMA_OMP_SIMD
-    #define PRAGMA_OMP_SIMD_ARGS(ARGS)
-#endif
 
 /*
 //  Set of macro definitions
