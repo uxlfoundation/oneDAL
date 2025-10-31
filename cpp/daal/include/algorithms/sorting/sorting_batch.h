@@ -82,6 +82,8 @@ public:
  *      - \ref Method   Sorting computation methods
  *      - \ref InputId  Identifiers of sorting input objects
  *      - \ref ResultId Identifiers of sorting results
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -92,14 +94,17 @@ public:
 
     InputType input; /*!< %input data structure */
 
-    /** Default constructor     */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs sorting algorithm by copying input objects and parameters
      * of another sorting algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
-     *                  and parameters of the algorithm
+     *                  and parameters of the algorithm\
      */
     Batch(const Batch<algorithmFPType, method> & other);
 

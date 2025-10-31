@@ -105,6 +105,7 @@ public:
  *      - \ref interface1::Model "Model" class
  *      - \ref classifier::prediction::interface1::Input "classifier::prediction::Input" class
  *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -118,7 +119,7 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    Batch(size_t nClasses = 2);
+    DAAL_DEPRECATED Batch(size_t nClasses = 2);
 
     /**
      * Constructs decision stump classification algorithm by copying input objects

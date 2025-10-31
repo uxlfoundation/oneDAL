@@ -81,6 +81,7 @@ public:
  *      - \ref Method   Quantiles computation methods
  *      - \ref InputId  Identifiers of quantiles input objects
  *      - \ref ResultId Identifiers of quantiles results
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -93,8 +94,11 @@ public:
     InputType input;         /*!< %input data structure */
     ParameterType parameter; /*!< Quantiles parameters structure */
 
-    /** Default constructor     */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs algorithm that computes quantiles by copying input objects and parameters
