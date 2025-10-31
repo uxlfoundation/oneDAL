@@ -63,13 +63,14 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__STUMP__CLASSIFICATION__PREDICTION__INPUT"></a>
  * \brief Input objects in the prediction stage of the stump algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public classifier::prediction::Input
 {
     typedef classifier::prediction::Input super;
 
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
 
     virtual ~Input() {}

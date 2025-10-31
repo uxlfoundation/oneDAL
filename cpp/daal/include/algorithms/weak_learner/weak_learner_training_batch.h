@@ -55,6 +55,7 @@ namespace interface1
  *      - \ref interface1::Input "Input" class
  *      - \ref interface1::Model "Model" class
  *      - Result class
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public classifier::training::Batch
 {
@@ -65,7 +66,7 @@ public:
     typedef super::ParameterType ParameterType;
     typedef algorithms::weak_learner::training::Result ResultType;
 
-    Batch() {}
+    DAAL_DEPRECATED Batch() {}
 
     /**
      * Constructs algorithm for training the weak learner model
