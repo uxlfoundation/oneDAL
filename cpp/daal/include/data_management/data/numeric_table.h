@@ -113,7 +113,7 @@ public:
      *  \return Buffer to the block
      *  \DAAL_DEPRECATED
      */
-    inline services::internal::Buffer<DataType> getBuffer() const
+    DAAL_DEPRECATED inline services::internal::Buffer<DataType> getBuffer() const
     {
         if (_rawPtr)
         {
@@ -229,7 +229,7 @@ public:
      *  \param[in] nRows Number of rows
      *  \DAAL_DEPRECATED
      */
-    inline void setBuffer(const daal::services::internal::Buffer<DataType> & buffer, size_t nColumns, size_t nRows)
+    DAAL_DEPRECATED inline void setBuffer(const daal::services::internal::Buffer<DataType> & buffer, size_t nColumns, size_t nRows)
     {
         _xBuffer = buffer;
         _hostSharedPtr.reset();
@@ -248,7 +248,7 @@ public:
      *  \return true if memory of (\p nColumns * \p nRows + \p auxMemorySize) size is allocated successfully
      *  \DAAL_DEPRECATED
      */
-    inline bool resizeBuffer(size_t nColumns, size_t nRows, size_t auxMemorySize = 0)
+    DAAL_DEPRECATED inline bool resizeBuffer(size_t nColumns, size_t nRows, size_t auxMemorySize = 0)
     {
         // TOOD: Resize _xBuffer
         _xBuffer.reset();
@@ -347,7 +347,7 @@ public:
      *  \return pointer
      *  \DAAL_DEPRECATED
      */
-    void * getAdditionalBufferPtr() const
+    DAAL_DEPRECATED void * getAdditionalBufferPtr() const
     {
         return _aux_ptr.get();
     }
@@ -355,7 +355,7 @@ public:
     /**
      *  \DAAL_DEPRECATED
      */
-    inline services::SharedPtr<DataType> getAdditionalBufferSharedPtr() const
+    DAAL_DEPRECATED inline services::SharedPtr<DataType> getAdditionalBufferSharedPtr() const
     {
         return _aux_ptr;
     }
@@ -399,18 +399,18 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
-#if (INTEL_DAAL_VERSION < 202600000)        /// 2026.0.0
-    services::SharedPtr<DataType> _aux_ptr; /*<! \DAAL_DEPRECATED */
+#if (INTEL_DAAL_VERSION < 202600000)                        /// 2026.0.0
+    DAAL_DEPRECATED services::SharedPtr<DataType> _aux_ptr; /*<! \DAAL_DEPRECATED */
 
-    services::SharedPtr<DataType> _buffer; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
-    size_t _capacity;                      /*<! Buffer size in bytes. \DAAL_DEPRECATED */
+    DAAL_DEPRECATED services::SharedPtr<DataType> _buffer; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
+    DAAL_DEPRECATED size_t _capacity;                      /*<! Buffer size in bytes. \DAAL_DEPRECATED */
 
-    services::SharedPtr<byte> * _pPtr; /*<! \DAAL_DEPRECATED */
-    byte * _rawPtr;                    /*<! \DAAL_DEPRECATED */
+    DAAL_DEPRECATED services::SharedPtr<byte> * _pPtr; /*<! \DAAL_DEPRECATED */
+    DAAL_DEPRECATED byte * _rawPtr;                    /*<! \DAAL_DEPRECATED */
 
-    daal::services::internal::Buffer<DataType> _xBuffer;  /*<! \DAAL_DEPRECATED */
-    mutable services::SharedPtr<DataType> _hostSharedPtr; /*<! owns pointer returned from getBlockPtr() method \DAAL_DEPRECATED */
-#endif                                                    // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+    DAAL_DEPRECATED daal::services::internal::Buffer<DataType> _xBuffer;  /*<! \DAAL_DEPRECATED */
+    DAAL_DEPRECATED mutable services::SharedPtr<DataType> _hostSharedPtr; /*<! owns pointer returned from getBlockPtr() method \DAAL_DEPRECATED */
+#endif                                                                    // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 };
 
 /**
