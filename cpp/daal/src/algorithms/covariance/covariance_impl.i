@@ -674,6 +674,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     }
 
     /* Calculate resulting mean vector */
+    PRAGMA_OMP_SIMD
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
@@ -690,6 +691,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
 
         for (size_t i = 0; i < nFeatures; i++)
         {
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j < i; j++)
             {
                 cov[i * nFeatures + j] = crossProduct[i * nFeatures + j] * diagInvSqrts[i] * diagInvSqrts[j];
@@ -702,6 +704,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
         /* Calculate resulting covariance matrix */
         for (size_t i = 0; i < nFeatures; i++)
         {
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j <= i; j++)
             {
                 cov[i * nFeatures + j] = crossProduct[i * nFeatures + j] * multiplier;
@@ -712,6 +715,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     /* Copy results into symmetric upper triangle */
     for (size_t i = 0; i < nFeatures; i++)
     {
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < i; j++)
         {
             cov[j * nFeatures + i] = cov[i * nFeatures + j];
