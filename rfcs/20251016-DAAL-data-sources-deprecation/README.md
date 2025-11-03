@@ -1,4 +1,4 @@
-# Deprecation of certain DAAL data sources in oneDAL 2025.1X
+# Deprecation of certain DAAL data sources in oneDAL 2025.10
 
 ## Introduction
 
@@ -26,7 +26,7 @@ algorithms, creating a more streamlined workflow.
 
 ## Proposal
 
-The following data sources will be marked as deprecated in oneDAL 2025.1X
+The following data sources will be marked as deprecated in oneDAL 2025.10
 with complete removal planned for the next major release, oneDAL 2026.0:
 
 - [ODBC Data Source](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/data_management/data_source/odbc_data_source.h#L97)

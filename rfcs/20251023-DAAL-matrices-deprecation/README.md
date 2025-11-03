@@ -1,4 +1,4 @@
-# Deprecation of certain DAAL numeric tables in oneDAL 2025.1X
+# Deprecation of certain DAAL numeric tables in oneDAL 2025.10
 
 ## Introduction
 
@@ -17,7 +17,7 @@ overhead.
 ## Proposal
 
 The following types of [homogeneous numeric tables](https://uxlfoundation.github.io/oneDAL/daal/data-management/numeric-tables-types.html#homogeneous-numeric-tables)
-will be marked as deprecated in oneDAL 2025.1X with complete removal planned
+will be marked as deprecated in oneDAL 2025.10 with complete removal planned
 for the next major release, oneDAL 2026.0:
 
 - [Matrix](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/data_management/data/matrix.h#L49)
