@@ -309,6 +309,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const size_t iStart  = iMain * simdBatchSize;
                 const auto aIdxStart = aIdx + iStart;
 
+                // Pack the data from indices into contiguous blocks
                 PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
@@ -316,6 +317,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                     weightsBatch[iSub] = this->_aWeights[aIdxStart[iSub]].val;
                 }
 
+                // Update the vectors of means, variances, and cumulative weights
                 PRAGMA_OMP_SIMD
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
@@ -331,6 +333,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 }
             }
 
+            // Merge the aggregates
             imp.mean                    = means[0];
             imp.var                     = sumsOfSquares[0];
             totalWeights                = sumsOfWeights[0];
@@ -351,6 +354,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             }
             imp.var += var_deltas;
 
+            // Process tail elements, if any
             size_t i;
             for (i = sizeSimdLoop; i < n && !this->_aWeights[aIdx[i]].val; i++)
                 ;
