@@ -18,25 +18,69 @@ Deprecation Notice
 
 This page provides information about the deprecations of a specific oneAPI Data Analytics Library (oneDAL) functionality.
 
-DAAL Algorithms
-***************
+Selected DAAL Algorithms
+************************
 
 **Deprecation:** Selected DAAL algorithms in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
-The list of the deprecated DAAL algorithms includes:
+The list of the deprecated DAAL analysis algorithms includes:
 
-- Association Rules
-- Multivariate Outlier Detection
-- Multivariate BACON Outlier Detection
-- Univariate Outlier Detection
-- SAGA Optimization Solver
-- SGD Optimization Solver
-- Adaptive Subgradient Method (AdaGrad)
-- Sorting
-- Quantile
+- `Association Rules <daal_alg_association_rules>`_
+- `Multivariate Outlier Detection <daal_alg_multivariate_outlier_detection>`_
+- `Multivariate BACON Outlier Detection <daal_alg_multivariate_bacon_outlier_detection>`_
+- `Univariate Outlier Detection <daal_alg_univariate_outlier_detection>`_
+- `SAGA Optimization Solver <saga_solver>`_
+- `SGD Optimization Solver <sgd_solver>`_
+- `Adaptive Subgradient Method (AdaGrad) <adagrad_solver>`_
+- `Sorting <daal_alg_sorting>`_
+- `Quantile <daal_alg_quantile>`_
+
+The list of the deprecated DAAL training and prediction algorithms includes:
+
+- `AdaBoost Classifier <daal_alg_adaboost_classifier>`_
+- `AdaBoost Multiclass Classifier <daal_alg_adaboost_multiclass_classifier>`_
+- `BrownBoost Classifier <daal_alg_brownboost_classifier>`_
+- `Decision Tree Classifier <_dt_classification>`_
+- `Decision Tree Regressor <_dt_regression>`_
+- `LogitBoost Classifier <daal_alg_logitboost_classifier>`_
+- `Multinomial Naive Bayes Classifier <daal_alg_naive_bayes_classifier>`_
+- `Stump Classifier <daal_alg_stump_classifier>`_
+- `Stump Regressor <daal_alg_stump_regressor>`_
 
 **Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
 
 **Alternatives:** Consider using other libraries that provide similar functionality. For example, mlxtend for Association Rules: https://rasbt.github.io/mlxtend/
+
+Selected DAAL Data Sources
+**************************
+
+**Deprecation:** Selected DAAL data sources in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL data sources includes:
+
+- KDB Data Source
+- MySQL Data Source
+- ODBC Data Source
+
+**Reasons for deprecation:** The value of DAAL's native data source implementations has diminished as Python's ecosystem of data manipulation libraries,
+including pandas, Parquet, and specialized database connectors, now provides improved flexibility and functionality for data import.
+
+**Alternatives:** For data access, consider using other packages that provide similar functionality. For example, `SQLAlchemy <https://www.sqlalchemy.org/>`,
+or `pyodbc <https://pypi.org/project/pyodbc/>` for Python users.
+
+DAAL Matrices
+*************
+
+**Deprecation:** DAAL matrices in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL classes includes:
+
+- Matrix
+- PackedSymmetricMatrix
+- PackedTriangularMatrix
+
+**Reasons for deprecation:** These data layouts have limited adoption outside of DAAL and are not widely used in the broader data science ecosystem.
+Maintaining these specialized data layouts in oneDAL no longer provides meaningful value to users while continuing to impose substantial maintenance overhead.
+
+**Alternatives:** Consider using HomogenNumericTable or oneapi::dal::homogen_table or other widely adopted data structures
+such as NumPy arrays or pandas DataFrames for data representation in Python.
 
 Java* Interfaces
 ****************

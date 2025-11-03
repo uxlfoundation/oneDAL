@@ -49,6 +49,7 @@ namespace interface1
  * \brief Connects to data sources with the KDB API.
  *
  * \tparam _featureManager       Type of a data source, supports only \ref KDBFeatureManager
+ * \DAAL_DEPRECATED
  */
 
 template <typename _featureManager, typename summaryStatisticsType = DAAL_SUMMARY_STATISTICS_TYPE>
@@ -89,11 +90,11 @@ public:
      *                                                     loadDataBlock() method
      *
      */
-    KDBDataSource(const std::string & dbname, size_t port, const std::string & tablename, const std::string & username = "",
-                  const std::string & password                                          = "",
-                  DataSourceIface::NumericTableAllocationFlag doAllocateNumericTable    = DataSource::notAllocateNumericTable,
-                  DataSourceIface::DictionaryCreationFlag doCreateDictionaryFromContext = DataSource::notDictionaryFromContext,
-                  size_t initialMaxRows                                                 = 10)
+    DAAL_DEPRECATED KDBDataSource(const std::string & dbname, size_t port, const std::string & tablename, const std::string & username = "",
+                                  const std::string & password                                          = "",
+                                  DataSourceIface::NumericTableAllocationFlag doAllocateNumericTable    = DataSource::notAllocateNumericTable,
+                                  DataSourceIface::DictionaryCreationFlag doCreateDictionaryFromContext = DataSource::notDictionaryFromContext,
+                                  size_t initialMaxRows                                                 = 10)
         : DataSourceTemplate<DefaultNumericTableType, summaryStatisticsType>(doAllocateNumericTable, doCreateDictionaryFromContext),
           _port(port),
           _idx_last_read(0)

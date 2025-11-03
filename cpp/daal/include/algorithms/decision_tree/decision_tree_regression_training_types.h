@@ -95,11 +95,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__REGRESSION__TRAINING__INPUT"></a>
  * \brief Base class for the input objects in the training stage of the regression algorithms
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public algorithms::regression::training::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
 
     /**
@@ -142,12 +143,13 @@ protected:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__REGRESSION__TRAINING__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of Decision tree model-based training
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public algorithms::regression::training::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     /**
      * Returns the result of Decision tree model-based training

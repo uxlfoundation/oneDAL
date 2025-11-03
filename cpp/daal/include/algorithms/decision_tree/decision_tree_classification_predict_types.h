@@ -71,6 +71,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__CLASSIFICATION__PREDICTION__INPUT"></a>
  * \brief Provides an interface for input objects for making Decision tree model-based prediction
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public classifier::prediction::Input
 {
@@ -78,7 +79,7 @@ class DAAL_EXPORT Input : public classifier::prediction::Input
 
 public:
     /** Default constructor */
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other) : super(other) {}
 
     using super::get;

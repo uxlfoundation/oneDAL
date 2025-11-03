@@ -84,16 +84,16 @@ public:
     /**
      * Constructs the model trained with the Decision tree algorithm
      * \param[in] nFeatures Number of features in the dataset
-     * \DAAL_DEPRECATED_USE{ Model::create }
+     * \DAAL_DEPRECATED
      */
-    Model(size_t nFeatures = 0);
+    DAAL_DEPRECATED Model(size_t nFeatures = 0);
 
     /**
      * Constructs the model trained with the boosting algorithm
      * \param[in]  nFeatures Number of features in the dataset
      * \param[out] stat      Status of the model construction
      */
-    static services::SharedPtr<Model> create(size_t nFeatures = 0, services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(size_t nFeatures = 0, services::Status * stat = NULL);
 
     virtual ~Model();
 
@@ -178,6 +178,7 @@ namespace interface2
  * \brief Decision tree algorithm parameters
  *
  * \snippet decision_tree/decision_tree_classification_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
@@ -186,7 +187,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      *  Main constructor
      *  \param[in] nClasses                         Number of classes
      */
-    Parameter(size_t nClasses = 2)
+    DAAL_DEPRECATED Parameter(size_t nClasses = 2)
         : daal::algorithms::classifier::Parameter(nClasses),
           pruning(reducedErrorPruning),
           maxTreeDepth(0),
