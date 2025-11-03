@@ -253,6 +253,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             }
             imp.var += var_deltas * itersSimdLoop;
 
+            // Process tail elements, if any
             for (size_t i = sizeSimdLoop; i < n; i++)
             {
                 const intermSummFPType y     = this->_aResponse[aIdx[i]].val;
