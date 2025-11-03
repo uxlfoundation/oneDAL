@@ -24,7 +24,6 @@ interface.
 The following APIs will be marked as deprecated in the next minor oneDAL 2025.X,
 with complete API removal scheduled for the next major release, oneDAL 2026.0:
 
-
 #### [Distance Matrix](https://uxlfoundation.github.io/oneDAL/daal/algorithms/distance/index.html)
 
 - [correlation_distance::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distance/correlation_distance.h#L55)
@@ -75,6 +74,8 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 
 - [pca::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L55)
 - [pca::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L108)
+- [pca::transform::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/transform/pca_transform_batch.h#L56)
+- [pca::transform::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/transform/pca_transform_batch.h#L85)
 
 #### [Support Vector Machine Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/svm/support-vector-machine-classifier.html)
 
@@ -82,4 +83,3 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 - [svm::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_predict.h#L96)
 - [svm::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L56)
 - [svm::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L93)
-
