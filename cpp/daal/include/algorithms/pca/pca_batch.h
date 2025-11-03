@@ -50,7 +50,9 @@ class BatchContainer : public AnalysisContainerIface<batch>
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
- * \brief Class containing methods to compute the results of the PCA algorithm */
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ * \DAAL_DEPRECATED
+ */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<batch>
 {
@@ -59,8 +61,9 @@ public:
      * Constructs a container for the PCA algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -75,7 +78,9 @@ public:
  */
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
- * \brief Class containing methods to compute the results of the PCA algorithm */
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ * \DAAL_DEPRECATED
+ */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<batch>
 {
@@ -84,8 +89,9 @@ public:
      * Constructs a container for the PCA algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -103,6 +109,7 @@ public:
  *
  * \par Enumerations
  *      - \ref Method  Computation methods for the algorithm
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = correlationDense>
 class DAAL_EXPORT Batch : public Analysis<batch>
@@ -112,8 +119,11 @@ public:
     typedef algorithms::pca::BatchParameter<algorithmFPType, method> ParameterType;
     typedef algorithms::pca::Result ResultType;
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm

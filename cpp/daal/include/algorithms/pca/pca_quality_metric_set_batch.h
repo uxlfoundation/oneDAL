@@ -55,6 +55,7 @@ namespace interface1
  *
  * \par References
  *      - \ref algorithms::quality_metric_set::interface1::InputAlgorithmsCollection "algorithms::quality_metric_set::InputAlgorithmsCollection" class
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public algorithms::quality_metric_set::Batch
 {
@@ -67,7 +68,7 @@ public:
      * \param[in] nFeatures             Number of features of source dataset
      * \param[in] useDefaultMetrics     Flag. If true, a quality metric set is initialized with the quality metrics provided by the library
      */
-    Batch(size_t nComponents = 0, size_t nFeatures = 0, bool useDefaultMetrics = true)
+    DAAL_DEPRECATED Batch(size_t nComponents = 0, size_t nFeatures = 0, bool useDefaultMetrics = true)
         : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nComponents, nFeatures)
     {
         _inputData = InputDataCollectionPtr(new InputDataCollection());

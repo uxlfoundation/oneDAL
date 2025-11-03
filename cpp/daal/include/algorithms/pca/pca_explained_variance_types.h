@@ -85,11 +85,12 @@ namespace interface1
  * \brief Parameters for the compute() method of explained variance quality metrics
  *
  * \snippet pca/pca_explained_variance_types.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct Parameter : public daal::algorithms::Parameter
 {
-    DAAL_EXPORT Parameter(size_t nFeatures, size_t nComponents);
+    DAAL_DEPRECATED DAAL_EXPORT Parameter(size_t nFeatures, size_t nComponents);
     virtual ~Parameter() {}
 
     size_t nFeatures;   /*!< Number of features */
@@ -107,6 +108,7 @@ struct Parameter : public daal::algorithms::Parameter
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__PCA__QUALITY_METRIC__EXPLAINED_VARIANCE__INPUT"></a>
 * \brief %Input objects for explained variance quality metrics
+* \DAAL_DEPRECATED
 */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
@@ -114,8 +116,11 @@ public:
     DAAL_CAST_OPERATOR(Input)
     DAAL_DOWN_CAST_OPERATOR(Input, daal::algorithms::Input)
 
-    /** Default constructor */
-    Input();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Input();
 
     virtual ~Input() {}
 
@@ -147,6 +152,7 @@ typedef services::SharedPtr<Input> InputPtr;
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__PCA__QUALITY_METRIC__EXPLAINED_VARIANCE__RESULT"></a>
 * \brief Provides interface for the result of linear regression quality metrics
+* \DAAL_DEPRECATED
 */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
@@ -154,7 +160,7 @@ public:
     DECLARE_SERIALIZABLE_CAST(Result)
     DAAL_DOWN_CAST_OPERATOR(Result, daal::algorithms::Result)
 
-    Result();
+    DAAL_DEPRECATED Result();
 
     /**
     * Returns the result of linear regression quality metrics

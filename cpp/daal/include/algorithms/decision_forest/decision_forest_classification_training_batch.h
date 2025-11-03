@@ -51,6 +51,7 @@ namespace interface3
 *
  * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
  * \tparam method           Decision forest model training method, \ref Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -61,7 +62,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -88,6 +89,7 @@ public:
  * \par References
  *      - \ref decision_forest::classification::interface1::Model "Model" class
  *      - \ref classifier::training::interface1::Input "classifier::training::Input" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -104,8 +106,9 @@ public:
     /**
      * Constructs the Decision forest training algorithm
      * \param[in] nClasses  Number of classes
+     * \DAAL_DEPRECATED
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs a Decision forest training algorithm by copying input objects and parameters

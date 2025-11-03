@@ -53,6 +53,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of initial clusters for K-Means algorithm, double or float
  * \tparam method           Method of computing initial clusters for the algorithm, \ref daal::algorithms::kmeans::init::Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -62,8 +63,9 @@ public:
      * Constructs a container for initializing K-Means algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -75,6 +77,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__BATCHBASE"></a>
  *  \brief Base class representing K-Means algorithm initialization in the batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT BatchBase : public daal::algorithms::Analysis<batch>
 {
@@ -104,6 +107,7 @@ protected:
  *      - \ref Method   Methods of computing initial clusters for K-Means algorithm
  *      - \ref InputId  Identifiers of input objects for computing initial clusters for K-Means algorithm
  *      - \ref ResultId Identifiers of results of computing initial clusters for K-Means algorithm
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public BatchBase
@@ -112,8 +116,9 @@ public:
     /**
      *  Main constructor
      *  \param[in] nClusters   Number of clusters
+     *  \DAAL_DEPRECATED
      */
-    Batch(size_t nClusters);
+    DAAL_DEPRECATED Batch(size_t nClusters);
 
     /**
      * Constructs an algorithm that computes initial clusters for K-Means algorithm
