@@ -243,6 +243,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             imp.mean                    = means[0];
             imp.var                     = sumsOfSquares[0];
             intermSummFPType var_deltas = 0;
+            // Compute means and sum of squares for the first `sizeSimdLoop` responses
             for (size_t i = 1; i < simdBatchSize; i++)
             {
                 const intermSummFPType delta = means[i] - imp.mean;
