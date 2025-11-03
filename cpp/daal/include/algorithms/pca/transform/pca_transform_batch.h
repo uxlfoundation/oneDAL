@@ -50,7 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the PCA transformation algorithm, double or float
  * \tparam method           Computation method of the PCA transformation algorithm, \ref daal::algorithms::pca::transform::Method
- *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,8 +60,9 @@ public:
     * Constructs a container for the PCA transformation algorithm with a specified environment
     * in the batch processing mode
     * \param[in] daalEnv   Environment object
+    * \DAAL_DEPRECATED
     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -80,6 +81,7 @@ public:
 *
 * \par Enumerations
 *      - \ref Method   Computation methods for the PCA transformation algorithm
+* \DAAL_DEPRECATED
 */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -95,8 +97,9 @@ public:
     /**
     * Constructs a PCA transformation algorithm
     * \param[in] nComponents Number of principal components
+    * \DAAL_DEPRECATED
     */
-    Batch(size_t nComponents = 0);
+    DAAL_DEPRECATED Batch(size_t nComponents = 0);
 
     /**
     * Constructs a PCA transformation algorithm by copying input objects and parameters

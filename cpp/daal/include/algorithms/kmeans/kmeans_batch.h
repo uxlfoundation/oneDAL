@@ -51,6 +51,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,8 +61,9 @@ public:
      * Constructs a container for K-Means algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -82,6 +84,7 @@ public:
  *      - \ref Method   Computation methods for K-Means algorithm
  *      - \ref InputId  Identifiers of input objects for K-Means algorithm
  *      - \ref ResultId Identifiers of results of K-Means algorithm
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = lloydDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -95,8 +98,9 @@ public:
      *  Main constructor
      *  \param[in] nClusters   Number of clusters
      *  \param[in] nIterations Number of iterations
+     *  \DAAL_DEPRECATED
      */
-    Batch(size_t nClusters, size_t nIterations = 1);
+    DAAL_DEPRECATED Batch(size_t nClusters, size_t nIterations = 1);
 
     /**
      * Constructs K-Means algorithm by copying input objects and parameters

@@ -50,6 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the cosine distance, double or float
  * \tparam method           Cosine distance computation method, \ref Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -59,8 +60,9 @@ public:
      * Constructs a container for the cosine distance algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default constructor */
     ~BatchContainer();
     /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */
@@ -85,6 +87,7 @@ public:
  *      - \ref Method   Cosine distance computation methods
  *      - \ref InputId  Identifiers of cosine distance input objects
  *      - \ref ResultId Identifiers of cosine distance results
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -93,7 +96,7 @@ public:
     typedef algorithms::cosine_distance::Input InputType;
     typedef algorithms::cosine_distance::Result ResultType;
 
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a cosine distance algorithm by copying input objects

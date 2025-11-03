@@ -85,6 +85,8 @@ public:
  *      - \ref Method         Computation method for the metric
  *      - \ref DataInputId    Identifiers of input objects for the metric algorithm
  *      - \ref ResultId       Result identifiers for the metric algorithm
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::quality_metric::Batch
@@ -98,7 +100,7 @@ public:
     ParameterType parameter; /*!< Parameters of the algorithm */
 
     /** Default constructor */
-    Batch(size_t nBeta, size_t nBetaReducedModel);
+    DAAL_DEPRECATED Batch(size_t nBeta, size_t nBetaReducedModel);
 
     /**
      * Constructs an algorithm by copying input objects and parameters

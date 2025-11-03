@@ -51,6 +51,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of DBSCAN, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::dbscan::Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -61,7 +62,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -82,6 +83,7 @@ public:
  *      - \ref Method   Computation methods for the DBSCAN algorithm
  *      - \ref InputId  Identifiers of input objects for the DBSCAN algorithm
  *      - \ref ResultId Identifiers of results of the DBSCAN algorithm
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -95,8 +97,9 @@ public:
      *  Main constructor
      *  \param[in] epsilon         Radius of neighborhood
      *  \param[in] minObservations Minimal total weight of observations in neighborhood of core observation
+     *  \DAAL_DEPRECATED
      */
-    Batch(algorithmFPType epsilon, size_t minObservations);
+    DAAL_DEPRECATED Batch(algorithmFPType epsilon, size_t minObservations);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
