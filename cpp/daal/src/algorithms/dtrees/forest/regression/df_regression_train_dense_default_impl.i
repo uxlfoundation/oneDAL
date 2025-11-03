@@ -227,6 +227,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                     yBatch[iSub] = this->_aResponse[aIdxStart[iSub]].val;
                 }
 
+                // Update vector of partial means and sum of squares using an incremental algorithm
                 PRAGMA_OMP_SIMD
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
