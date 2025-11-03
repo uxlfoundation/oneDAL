@@ -220,6 +220,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
                 const auto aIdxStart        = aIdx + iStart;
                 const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
 
+                // Pack the responses into a continuous memory block
                 PRAGMA_OMP_SIMD_ARGS(simdlen(simdBatchSize))
                 for (size_t iSub = 0; iSub < simdBatchSize; iSub++)
                 {
