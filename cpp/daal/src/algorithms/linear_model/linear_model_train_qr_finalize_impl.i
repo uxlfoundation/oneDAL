@@ -104,6 +104,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & rTable
         LapackInst<algorithmFPType, cpu>::xtrtrs(&up, &trans, &nodiag, const_cast<DAAL_INT *>(&nBetasIntercept), const_cast<DAAL_INT *>(&nResponses),
                                                  const_cast<algorithmFPType *>(r), const_cast<DAAL_INT *>(&nBetasIntercept), betaBuffer,
                                                  const_cast<DAAL_INT *>(&nBetasIntercept), &info);
+        std::cout << "point5" << std::endl;
         DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
     }
 

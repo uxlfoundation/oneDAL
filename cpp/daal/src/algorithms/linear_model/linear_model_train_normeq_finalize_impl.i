@@ -59,22 +59,24 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
                                                      const KernelHelperIface<algorithmFPType, cpu> & helper,
                                                      const HyperparameterType * hyperparameter)
 {
+    std::cout << "here tracker1" << std::endl;
     DAAL_PROFILER_TASK(computeFinalize);
     const size_t nBetas(betaTable.getNumberOfColumns());
     const size_t nResponses(betaTable.getNumberOfRows());
     const size_t nBetasIntercept = (interceptFlag ? nBetas : (nBetas - 1));
-
+    std::cout << "here tracker2" << std::endl;
     const size_t xtxSizeInBytes(sizeof(algorithmFPType) * nBetasIntercept * nBetasIntercept);
     const size_t xtySizeInBytes(sizeof(algorithmFPType) * nBetasIntercept * nResponses);
 
     TArray<algorithmFPType, cpu> betaBufferArray;
     algorithmFPType * betaBuffer(nullptr);
+    std::cout << "here tracker3" << std::endl;
     Status st;
     {
         ReadRowsType xtxBlock(const_cast<NumericTable &>(xtxTable), 0, nBetasIntercept);
         DAAL_CHECK_BLOCK_STATUS(xtxBlock);
         algorithmFPType * xtx = const_cast<algorithmFPType *>(xtxBlock.get());
-
+        std::cout << "here tracker4" << std::endl;
         if (&xtxTable != &xtxFinalTable)
         {
             DAAL_PROFILER_TASK(computeFinalize.copyToxtxFinalTable);
@@ -84,6 +86,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
         {
             ReadRowsType xtyBlock(const_cast<NumericTable &>(xtyTable), 0, nResponses);
             DAAL_CHECK_BLOCK_STATUS(xtyBlock);
+            std::cout << "here tracker5" << std::endl;
             algorithmFPType * xty = const_cast<algorithmFPType *>(xtyBlock.get());
 
             if (&xtyTable != &xtyFinalTable)
@@ -91,11 +94,11 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
                 DAAL_PROFILER_TASK(computeFinalize.copyToxtyFinalTable);
                 DAAL_CHECK_STATUS(st, copyDataToTable(xty, xtySizeInBytes, xtyFinalTable));
             }
-
+            std::cout << "here tracker6" << std::endl;
             betaBufferArray.reset(nResponses * nBetasIntercept);
             betaBuffer = betaBufferArray.get();
             DAAL_CHECK_MALLOC(betaBuffer);
-
+            std::cout << "here tracker7" << std::endl;
             DAAL_PROFILER_TASK(computeFinalize.betaBufCopy);
             int result = daal::services::internal::daal_memcpy_s(betaBuffer, xtySizeInBytes, xty, xtySizeInBytes);
             DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
@@ -104,20 +107,22 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
             TArray<algorithmFPType, cpu> xtxCopyArray(nBetasIntercept * nBetasIntercept);
             algorithmFPType * xtxCopy = xtxCopyArray.get();
             DAAL_CHECK_MALLOC(xtxCopy);
-
+            std::cout << "here tracker7" << std::endl;
             {
                 DAAL_PROFILER_TASK(computeFinalize.xtxCopy);
+                std::cout << "here tracker8" << std::endl;
                 int result = daal::services::internal::daal_memcpy_s(xtxCopy, xtxSizeInBytes, xtx, xtxSizeInBytes);
                 DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
             }
 
             {
                 DAAL_PROFILER_TASK(computeFinalize.computeBetasImpl);
+                std::cout << "here tracker8.1" << std::endl;
                 DAAL_CHECK_STATUS(st, helper.computeBetasImpl(nBetasIntercept, xtx, xtxCopy, nResponses, betaBuffer, interceptFlag));
             }
         }
     }
-
+    std::cout << "here tracker9" << std::endl;
     WriteOnlyRowsType betaBlock(betaTable, 0, nResponses);
     DAAL_CHECK_BLOCK_STATUS(betaBlock);
     algorithmFPType * beta = betaBlock.get();
@@ -125,6 +130,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     DAAL_PROFILER_TASK(computeFinalize.copyBetaToResult);
     if (nBetasIntercept == nBetas)
     {
+        std::cout << "here tracker10" << std::endl;
         for (size_t i = 0; i < nResponses; i++)
         {
             PRAGMA_OMP_SIMD
@@ -138,6 +144,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
     }
     else
     {
+        std::cout << "here tracker11" << std::endl;
         for (size_t i = 0; i < nResponses; i++)
         {
             PRAGMA_OMP_SIMD
@@ -167,14 +174,8 @@ template <typename algorithmFPType, CpuType cpu>
 Status FinalizeKernel<algorithmFPType, cpu>::solveSystem(DAAL_INT p, algorithmFPType * a, DAAL_INT ny, algorithmFPType * b,
                                                          const ErrorID & internalError)
 {
-    if (daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false))
-    {
-        return Status();
-    }
-    else
-    {
-        return Status(internalError);
-    }
+    daal::algorithms::internal::solveSymmetricEquationsSystem<algorithmFPType, cpu>(a, b, p, ny, false);
+    return Status();
 }
 
 } // namespace internal

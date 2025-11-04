@@ -91,6 +91,7 @@ Status OnlineKernel<algorithmFPType, training::normEqDense, cpu>::finalizeComput
                                                                                   NumericTable & beta, bool interceptFlag,
                                                                                   const HyperparameterType * hyperparameter) const
 {
+    std::cout << "here finalize compute" << std::endl;
     services::SharedPtr<linear_model::internal::Hyperparameter> lmHyperparameter;
     DAAL_CHECK_STATUS_VAR(linear_regression::internal::convert(hyperparameter, lmHyperparameter));
     return FinalizeKernelType::compute(xtx, xty, xtxFinal, xtyFinal, beta, interceptFlag, KernelHelper<algorithmFPType, cpu>(),

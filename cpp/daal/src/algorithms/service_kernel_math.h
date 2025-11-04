@@ -691,6 +691,7 @@ template <typename FPType, CpuType cpu>
 bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
 {
     DAAL_PROFILER_TASK_WITH_ARGS(solveEquationsSystemWithSpectralDecomposition, n, nX);
+    std::cout << "solveEquationsSystemWithSpectralDecomposition1" << std::endl;
     /* Storage for the eigenvalues.
     Note: this allocates more size than they might require when nX > 1, because the same
     buffer will get reused later on and needs the extra size. Those additional entries
@@ -711,13 +712,14 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     FPType zero      = 0;
     DAAL_INT info;
     DAAL_INT num_eigenvalues;
-
+    std::cout << "solveEquationsSystemWithSpectralDecomposition2" << std::endl;
     /* Query the procedure for size of required buffer */
     DAAL_INT lwork_query_indicator = -1;
     FPType buffer_size_work        = 0;
     DAAL_INT buffer_size_iwork     = 0;
     if (sequential)
     {
+        std::cout << "solveEquationsSystemWithSpectralDecomposition3" << std::endl;
         LapackInst<FPType, cpu>::xxsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
                                          &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
                                          &buffer_size_work, &lwork_query_indicator, &buffer_size_iwork, &lwork_query_indicator, &info);
@@ -725,6 +727,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
 
     else
     {
+        std::cout << "solveEquationsSystemWithSpectralDecomposition4" << std::endl;
         LapackInst<FPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
                                         &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
                                         &buffer_size_work, &lwork_query_indicator, &buffer_size_iwork, &lwork_query_indicator, &info);
@@ -746,34 +749,41 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     /* Perform Q*diag(l)*Q' factorization of A */
     if (sequential)
     {
+        std::cout << "solveEquationsSystemWithSpectralDecomposition5" << std::endl;
         LapackInst<FPType, cpu>::xxsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
                                          &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
                                          work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
     }
     else
     {
-        LapackInst<FPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
-                                        &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
-                                        work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
+        std::cout << "solveEquationsSystemWithSpectralDecomposition6" << std::endl;
+        LapackInst<FPType, cpu>::xxsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
+                                         &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
+                                         work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
+        std::cout << "solveEquationsSystemWithSpectralDecomposition61" << std::endl;
     }
     if (info) return false;
-
+    std::cout << "solveEquationsSystemWithSpectralDecomposition62" << std::endl;
     /* Components with small singular values get eliminated using the exact same logic as 'gelsd' with default parameters
     Note: these are hard-coded versions of machine epsilon for single and double precision. They aren't obtained through
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
     const FPType eps = std::is_same<FPType, float>::value ? 1.1920929e-07 : 2.220446049250313e-16;
+    std::cout << "solveEquationsSystemWithSpectralDecomposition621" << std::endl;
+    std::cout << "eigen equals:" << eigenvalues[n - 1] << std::endl;
     if (eigenvalues[n - 1] <= eps) return false;
+    std::cout << "solveEquationsSystemWithSpectralDecomposition63" << std::endl;
     const double component_threshold = eps * eigenvalues[n - 1];
     DAAL_INT num_discarded;
     for (num_discarded = 0; num_discarded < static_cast<DAAL_INT>(n) - 1; num_discarded++)
     {
         if (eigenvalues[num_discarded] > component_threshold) break;
     }
-
+    std::cout << "solveEquationsSystemWithSpectralDecomposition7" << std::endl;
     /* Create the square root of the inverse: Qis = Q * diag(1 / sqrt(l)) */
     DAAL_INT num_taken = static_cast<DAAL_INT>(n) - num_discarded;
     daal::internal::MathInst<FPType, cpu>::vSqrt(num_taken, eigenvalues.get() + num_discarded, eigenvalues.get() + num_discarded);
     DAAL_INT one = 1;
+    std::cout << "solveEquationsSystemWithSpectralDecomposition8" << std::endl;
     for (size_t col = num_discarded; col < n; col++)
     {
         const FPType scale = eigenvalues[col];
@@ -787,7 +797,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
             LapackInst<FPType, cpu>::xrscl((DAAL_INT *)&n, &scale, eigenvectors.get() + col * n, &one);
         }
     }
-
+    std::cout << "solveEquationsSystemWithSpectralDecomposition9" << std::endl;
     /* Now calculate the actual solution: Qis * Qis' * B */
     char trans_yes                   = 'T';
     char trans_no                    = 'N';
@@ -795,6 +805,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     const size_t eigenvectors_offset = static_cast<size_t>(num_discarded) * n;
     if (sequential)
     {
+        std::cout << "solveEquationsSystemWithSpectralDecomposition12" << std::endl;
         if (nX == 1)
         {
             BlasInst<FPType, cpu>::xxgemv(&trans_yes, (DAAL_INT *)&n, &num_taken, &one_fp, eigenvectors.get() + eigenvectors_offset, (DAAL_INT *)&n,
@@ -813,9 +824,9 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
                                           (DAAL_INT *)&n);
         }
     }
-
     else
     {
+        std::cout << "solveEquationsSystemWithSpectralDecomposition13" << std::endl;
         if (nX == 1)
         {
             BlasInst<FPType, cpu>::xgemv(&trans_yes, (DAAL_INT *)&n, &num_taken, &one_fp, eigenvectors.get() + eigenvectors_offset, (DAAL_INT *)&n, b,
@@ -823,9 +834,9 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
             BlasInst<FPType, cpu>::xgemv(&trans_no, (DAAL_INT *)&n, &num_taken, &one_fp, eigenvectors.get() + eigenvectors_offset, (DAAL_INT *)&n,
                                          eigenvalues.get(), &one, &zero, b, &one);
         }
-
         else
         {
+            std::cout << "solveEquationsSystemWithSpectralDecomposition11" << std::endl;
             BlasInst<FPType, cpu>::xgemm(&trans_yes, &trans_no, &num_taken, (DAAL_INT *)&nX, (DAAL_INT *)&n, &one_fp,
                                          eigenvectors.get() + eigenvectors_offset, (DAAL_INT *)&n, b, (DAAL_INT *)&n, &zero, eigenvalues.get(),
                                          &num_taken);
@@ -841,29 +852,36 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
 template <typename FPType, CpuType cpu>
 bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, bool sequential)
 {
+    std::cout << "here symmetric system1" << std::endl;
     DAAL_PROFILER_TASK_WITH_ARGS(solveSymmetricEquationsSystem, n, nX);
     /* Copy data for fallback from Cholesky to spectral decomposition */
     TArrayScalable<FPType, cpu> aCopy(n * n);
     TArrayScalable<FPType, cpu> bCopy(n * nX);
     DAAL_CHECK_MALLOC(aCopy.get());
     DAAL_CHECK_MALLOC(bCopy.get());
-
+    std::cout << "here symmetric system2" << std::endl;
     int copy_status = services::internal::daal_memcpy_s(aCopy.get(), n * n * sizeof(FPType), a, n * n * sizeof(FPType));
     copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
 
     if (copy_status != 0) return false;
-
+    std::cout << "here symmetric system3" << std::endl;
     /* Try to solve with Cholesky factorization */
     if (!solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential))
     {
+        std::cout << "here symmetric system4" << std::endl;
         /* Fall back to spectral decomposition */
         bool status = solveEquationsSystemWithSpectralDecomposition<FPType, cpu>(aCopy.get(), bCopy.get(), n, nX, sequential);
+        std::cout << "here symmetric system5" << std::endl;
         if (status)
         {
+            std::cout << "here symmetric system5" << std::endl;
             status = status && (services::internal::daal_memcpy_s(b, n * nX * sizeof(FPType), bCopy.get(), n * nX * sizeof(FPType)) == 0);
+            std::cout << "here symmetric system6" << std::endl;
         }
+        std::cout << "here symmetric system5555" << std::endl;
         return status;
     }
+    std::cout << "here symmetric system55556" << std::endl;
     return true;
 }
 } // namespace internal

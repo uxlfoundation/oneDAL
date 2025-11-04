@@ -148,6 +148,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
     partial_train_result<Task> partial_result_final;
     partial_result_final.set_partial_xtx(xtx_table);
     partial_result_final.set_partial_xty(xty_table);
+    std::cout << "here correct branch 7.1" << std::endl;
     auto result =
         dal::linear_regression::backend::finalize_train_kernel_cpu<Float, method::norm_eq, Task>{}(
             ctx,

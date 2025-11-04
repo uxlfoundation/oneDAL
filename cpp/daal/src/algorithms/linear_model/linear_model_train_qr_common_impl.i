@@ -48,6 +48,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeWorkSize(DAAL_INT nRows, DAAL_
     algorithmFPType workLocal;
 
     DAAL_INT lwork1 = -1;
+    std::cout << "point1" << std::endl;
     LapackInst<algorithmFPType, cpu>::xxgerqf(&nCols, &nRows, NULL, &nCols, NULL, &workLocal, &lwork1, &info);
     DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
@@ -58,6 +59,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeWorkSize(DAAL_INT nRows, DAAL_
     DAAL_INT lwork2 = -1;
     LapackInst<algorithmFPType, cpu>::xxormrq(&side, &trans, &nResponses, &nRows, &nCols, NULL, &nCols, NULL, NULL, &nResponses, &workLocal, &lwork2,
                                               &info);
+    std::cout << "point2" << std::endl;
     DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
     lwork2 = (DAAL_INT)workLocal;
@@ -75,6 +77,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
 
     /* Calculate RQ decomposition of X */
     LapackInst<algorithmFPType, cpu>::xxgerqf(&p, &n, const_cast<algorithmFPType *>(x), &p, tau, work, &lwork, &info);
+    std::cout << "point3" << std::endl;
     DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
     /* Copy result into matrix R */
@@ -100,6 +103,7 @@ Status CommonKernel<algorithmFPType, cpu>::computeQRForBlock(DAAL_INT p, DAAL_IN
     char trans = 'T';
     LapackInst<algorithmFPType, cpu>::xxormrq(&side, &trans, &ny, &n, const_cast<DAAL_INT *>(&nRowsInR), const_cast<algorithmFPType *>(x + jOffset),
                                               &p, tau, const_cast<algorithmFPType *>(y), &ny, work, &lwork, &info);
+    std::cout << "point4" << std::endl;
     DAAL_CHECK(info == 0, services::ErrorLinearRegressionInternal);
 
     if (p > n)
