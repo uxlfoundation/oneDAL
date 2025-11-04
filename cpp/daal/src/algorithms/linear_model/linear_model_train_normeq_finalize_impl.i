@@ -74,6 +74,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
         ReadRowsType xtxBlock(const_cast<NumericTable &>(xtxTable), 0, nBetasIntercept);
         DAAL_CHECK_BLOCK_STATUS(xtxBlock);
         algorithmFPType * xtx = const_cast<algorithmFPType *>(xtxBlock.get());
+
         if (&xtxTable != &xtxFinalTable)
         {
             DAAL_PROFILER_TASK(computeFinalize.copyToxtxFinalTable);
@@ -90,9 +91,11 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
                 DAAL_PROFILER_TASK(computeFinalize.copyToxtyFinalTable);
                 DAAL_CHECK_STATUS(st, copyDataToTable(xty, xtySizeInBytes, xtyFinalTable));
             }
+
             betaBufferArray.reset(nResponses * nBetasIntercept);
             betaBuffer = betaBufferArray.get();
             DAAL_CHECK_MALLOC(betaBuffer);
+
             DAAL_PROFILER_TASK(computeFinalize.betaBufCopy);
             int result = daal::services::internal::daal_memcpy_s(betaBuffer, xtySizeInBytes, xty, xtySizeInBytes);
             DAAL_CHECK(!result, services::ErrorMemoryCopyFailedInternal);
@@ -101,6 +104,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
             TArray<algorithmFPType, cpu> xtxCopyArray(nBetasIntercept * nBetasIntercept);
             algorithmFPType * xtxCopy = xtxCopyArray.get();
             DAAL_CHECK_MALLOC(xtxCopy);
+
             {
                 DAAL_PROFILER_TASK(computeFinalize.xtxCopy);
                 int result = daal::services::internal::daal_memcpy_s(xtxCopy, xtxSizeInBytes, xtx, xtxSizeInBytes);
@@ -113,6 +117,7 @@ Status FinalizeKernel<algorithmFPType, cpu>::compute(const NumericTable & xtxTab
             }
         }
     }
+
     WriteOnlyRowsType betaBlock(betaTable, 0, nResponses);
     DAAL_CHECK_BLOCK_STATUS(betaBlock);
     algorithmFPType * beta = betaBlock.get();

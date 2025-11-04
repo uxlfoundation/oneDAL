@@ -89,8 +89,10 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
     const std::int64_t response_count = xty_local.get_row_count();
 
     /// Collectively gather X^T * X and X^T * y across all ranks
-    comm.allreduce(xtx_local_ary).wait();;
-    comm.allreduce(xty_local_ary).wait();;
+    comm.allreduce(xtx_local_ary).wait();
+    ;
+    comm.allreduce(xty_local_ary).wait();
+    ;
 
     auto xtx_table = homogen_table::wrap(xtx_local_ary, ext_feature_count, ext_feature_count);
     auto xty_table = homogen_table::wrap(xty_local_ary, response_count, ext_feature_count);

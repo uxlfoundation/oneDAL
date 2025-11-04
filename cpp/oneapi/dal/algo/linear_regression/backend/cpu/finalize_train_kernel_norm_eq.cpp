@@ -60,7 +60,7 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
 
     using model_t = model<Task>;
     using model_impl_t = detail::model_impl<Task>;
-    std::cout << "here correct branch 10" << std::endl;
+
     const bool compute_intercept = desc.get_compute_intercept();
 
     const auto response_count = input.get_partial_xty().get_row_count();
@@ -70,17 +70,17 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
 
     const auto betas_size = check_mul_overflow(response_count, feature_count + 1);
     auto betas_arr = array<Float>::zeros(betas_size);
-    std::cout << "here correct branch 11" << std::endl;
+
     auto xtx_daal_table = interop::convert_to_daal_table<Float>(input.get_partial_xtx());
     auto xty_daal_table = interop::convert_to_daal_table<Float>(input.get_partial_xty());
     auto betas_daal_table =
         interop::convert_to_daal_homogen_table(betas_arr, response_count, feature_count + 1);
-    std::cout << "here correct branch 12" << std::endl;
+
     double alpha = desc.get_alpha();
     if (alpha != 0.0) {
         auto ridge_matrix_array = array<Float>::full(1, static_cast<Float>(alpha));
         auto ridge_matrix = interop::convert_to_daal_homogen_table<Float>(ridge_matrix_array, 1, 1);
-        std::cout << "here correct branch 13" << std::endl;
+
         interop::status_to_exception(
             interop::call_daal_kernel_finalize_compute<Float, online_rr_kernel_t>(ctx,
                                                                                   *xtx_daal_table,
@@ -92,7 +92,6 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
                                                                                   *ridge_matrix));
     }
     else {
-        std::cout << "here correct branch 14" << std::endl;
         const daal_lr_hyperparameters_t& hp = convert_parameters<Float>(params);
         interop::status_to_exception(
             interop::call_daal_kernel_finalize_compute<Float, online_lr_kernel_t>(ctx,
@@ -109,13 +108,11 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
 
     const auto model_impl = std::make_shared<model_impl_t>(betas_table);
     const auto model = dal::detail::make_private<model_t>(model_impl);
-    std::cout << "here correct branch 15" << std::endl;
     const auto options = desc.get_result_options();
     auto result = train_result<Task>().set_model(model).set_result_options(options);
 
     const pr::ndshape<2> betas_shape{ response_count, feature_count + 1 };
     auto betas = pr::ndarray<Float, 2>::wrap(betas_arr, betas_shape);
-    std::cout << "here correct branch 16" << std::endl;
     if (options.test(result_options::intercept)) {
         auto arr = array<Float>::zeros(response_count);
         auto dst = pr::ndarray<Float, 2>::wrap_mutable(arr, { 1l, response_count });
@@ -139,7 +136,6 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
         auto coefficients = homogen_table::wrap(arr, response_count, feature_count);
         result.set_coefficients(coefficients);
     }
-    std::cout << "here correct branch 20" << std::endl;
     return result;
 }
 
