@@ -108,11 +108,13 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
 
     const auto model_impl = std::make_shared<model_impl_t>(betas_table);
     const auto model = dal::detail::make_private<model_t>(model_impl);
+
     const auto options = desc.get_result_options();
     auto result = train_result<Task>().set_model(model).set_result_options(options);
 
     const pr::ndshape<2> betas_shape{ response_count, feature_count + 1 };
     auto betas = pr::ndarray<Float, 2>::wrap(betas_arr, betas_shape);
+
     if (options.test(result_options::intercept)) {
         auto arr = array<Float>::zeros(response_count);
         auto dst = pr::ndarray<Float, 2>::wrap_mutable(arr, { 1l, response_count });
@@ -136,6 +138,7 @@ static train_result<Task> call_daal_kernel_finalize(const context_cpu& ctx,
         auto coefficients = homogen_table::wrap(arr, response_count, feature_count);
         result.set_coefficients(coefficients);
     }
+
     return result;
 }
 

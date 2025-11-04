@@ -752,11 +752,12 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     }
     else
     {
-        LapackInst<FPType, cpu>::xxsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
+        LapackInst<FPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
                                          &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
                                          work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
     }
     if (info) return false;
+
     /* Components with small singular values get eliminated using the exact same logic as 'gelsd' with default parameters
     Note: these are hard-coded versions of machine epsilon for single and double precision. They aren't obtained through
     'std::numeric_limits' in order to avoid potential template instantiation errors with some types. */
@@ -785,6 +786,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
             LapackInst<FPType, cpu>::xrscl((DAAL_INT *)&n, &scale, eigenvectors.get() + col * n, &one);
         }
     }
+
     /* Now calculate the actual solution: Qis * Qis' * B */
     char trans_yes                   = 'T';
     char trans_no                    = 'N';
@@ -810,6 +812,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
                                           (DAAL_INT *)&n);
         }
     }
+
     else
     {
         if (nX == 1)
@@ -819,6 +822,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
             BlasInst<FPType, cpu>::xgemv(&trans_no, (DAAL_INT *)&n, &num_taken, &one_fp, eigenvectors.get() + eigenvectors_offset, (DAAL_INT *)&n,
                                          eigenvalues.get(), &one, &zero, b, &one);
         }
+
         else
         {
             BlasInst<FPType, cpu>::xgemm(&trans_yes, &trans_no, &num_taken, (DAAL_INT *)&nX, (DAAL_INT *)&n, &one_fp,
@@ -847,6 +851,7 @@ bool solveSymmetricEquationsSystem(FPType * a, FPType * b, size_t n, size_t nX, 
     copy_status += services::internal::daal_memcpy_s(bCopy.get(), n * nX * sizeof(FPType), b, n * nX * sizeof(FPType));
 
     if (copy_status != 0) return false;
+
     /* Try to solve with Cholesky factorization */
     if (!solveEquationsSystemWithCholesky<FPType, cpu>(a, b, n, nX, sequential))
     {
