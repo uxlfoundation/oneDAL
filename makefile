@@ -140,6 +140,7 @@ y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
 -DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
 -DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+-GCOV_BUILD  := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
@@ -522,7 +523,7 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_d
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-GCOV_BUILD)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -531,7 +532,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-GCOV_BUILD)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -1150,7 +1151,7 @@ Flags:
   REQCPU - list of CPU optimizations to be included into library
       possible values: $(CPUs)
   REQDBG - flag that enables build in debug mode. Debug mode enables oneDAL
-      assertions and adds debug symbols. Any value will enable debug mode, 
+      assertions and adds debug symbols. Any value will enable debug mode,
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
@@ -1158,7 +1159,7 @@ Flags:
       The sanitizer must be specified as the flag value, except for the
       value of "static". This value will link with the static ASan library,
       ASan is otherwise linked dynamically by default for all compilers.
-      Use of sanitizers on Windows is unverified, with the available 
+      Use of sanitizers on Windows is unverified, with the available
       sanitizers and their default linking mode dependent on the compiler.
       It is recommended to use in tandem with REQDBG.
       special values: static, address, memory, thread, leak, undefined
