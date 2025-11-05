@@ -753,8 +753,8 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     else
     {
         LapackInst<FPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)&n, a, (DAAL_INT *)&n, nullptr, nullptr, nullptr, nullptr, &zero,
-                                         &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
-                                         work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
+                                        &num_eigenvalues, eigenvalues.get(), eigenvectors.get(), (DAAL_INT *)&n, buffer_isuppz.get(),
+                                        work_buffer.get(), &work_buffer_size, iwork_buffer.get(), &buffer_size_iwork, &info);
     }
     if (info) return false;
 
@@ -769,6 +769,7 @@ bool solveEquationsSystemWithSpectralDecomposition(FPType * a, FPType * b, size_
     {
         if (eigenvalues[num_discarded] > component_threshold) break;
     }
+
     /* Create the square root of the inverse: Qis = Q * diag(1 / sqrt(l)) */
     DAAL_INT num_taken = static_cast<DAAL_INT>(n) - num_discarded;
     daal::internal::MathInst<FPType, cpu>::vSqrt(num_taken, eigenvalues.get() + num_discarded, eigenvalues.get() + num_discarded);

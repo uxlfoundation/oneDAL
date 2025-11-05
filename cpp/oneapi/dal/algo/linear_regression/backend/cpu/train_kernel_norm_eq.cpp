@@ -63,7 +63,9 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
                                                 const detail::train_parameters<Task>& params,
                                                 const table& data,
                                                 const table& resp) {
+    // Will be removed with final commit.
     std::cout << "here correct cpu spmd branch" << std::endl;
+
     auto& comm = ctx.get_communicator();
 
     /// Compute partial X^T * X and X^T * y on each rank
@@ -90,9 +92,7 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
 
     /// Collectively gather X^T * X and X^T * y across all ranks
     comm.allreduce(xtx_local_ary).wait();
-    ;
     comm.allreduce(xty_local_ary).wait();
-    ;
 
     auto xtx_table = homogen_table::wrap(xtx_local_ary, ext_feature_count, ext_feature_count);
     auto xty_table = homogen_table::wrap(xty_local_ary, response_count, ext_feature_count);
