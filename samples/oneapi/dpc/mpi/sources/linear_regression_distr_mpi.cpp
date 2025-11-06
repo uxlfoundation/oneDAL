@@ -45,7 +45,7 @@ void run(sycl::queue &queue) {
     const auto y_test =
         dal::read<dal::table>(queue, dal::csv::data_source{ test_response_file_name });
 
-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>();
+    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue);
     auto rank_id = comm.get_rank();
     auto rank_count = comm.get_rank_count();
 
@@ -59,12 +59,13 @@ void run(sycl::queue &queue) {
     const auto result_train =
         dal::preview::train(comm, lr_desc, x_train_vec.at(rank_id), y_train_vec.at(rank_id));
 
-    const auto result_infer = dal::infer(lr_desc, x_test, result_train.get_model());
+    const auto result_infer =
+        dal::preview::infer(comm, lr_desc, x_test_vec.at(rank_id), result_train.get_model());
 
     if (comm.get_rank() == 0) {
         std::cout << "Prediction results:\n" << result_infer.get_responses() << std::endl;
 
-        std::cout << "Ground truth:\n" << y_test << std::endl;
+        std::cout << "Ground truth:\n" << y_test_vec.at(rank_id) << std::endl;
     }
 }
 

@@ -212,9 +212,7 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>> {
                 // We have to specify return type for this lambda as compiler cannot
                 // infer it from a body that consist of single `throw` expression
                 using msg = detail::error_messages;
-                throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
-                };
+                throw unimplemented{ msg::algorithm_is_not_implemented_for_this_device() };
             });
     }
     template <typename... Args>
@@ -318,8 +316,39 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy.get_local(),
             [&]() -> gpu_kernel_return_t<GpuKernel, Args...> {
-                // We have to specify return type for this lambda as compiler cannot
-                // infer it from a body that consist of single `throw` expression
+                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+            },
+            [&]() {
+                return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
+            });
+    }
+};
+
+/// Dispatcher for the case of multi-node CPU algorithm based on universal SPMD kernel and
+/// multi-node GPU algorithm based on universal SPMD kernel
+template <typename CpuKernel, typename GpuKernel>
+struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>,
+                         kernel_spec<universal_spmd_gpu_kernel, GpuKernel>> {
+    template <typename... Args>
+    auto operator()(const detail::spmd_host_policy& policy, Args&&... args) const {
+        return dispatch_by_device(
+            policy,
+            [&]() {
+                return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
+            },
+            [&]() {
+                using msg = detail::error_messages;
+                throw unimplemented{
+                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
+                };
+            });
+    }
+
+    template <typename... Args>
+    auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const {
+        return dispatch_by_device(
+            policy.get_local(),
+            [&]() {
                 using msg = detail::error_messages;
                 throw unimplemented{
                     msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()

@@ -117,7 +117,7 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
                                            const table& data,
                                            const table& resp) {
     using dal::detail::check_mul_overflow;
-
+    std::cout << "here cpu branch" << std::endl;
     using model_t = model<Task>;
     using model_impl_t = detail::model_impl<Task>;
 
