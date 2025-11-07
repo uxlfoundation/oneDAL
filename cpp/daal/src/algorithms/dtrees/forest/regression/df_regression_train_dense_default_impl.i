@@ -26,6 +26,7 @@
 #define __DF_REGRESSION_TRAIN_DENSE_DEFAULT_IMPL_I__
 
 #include <limits>
+#include <cstddef>
 
 #include "src/algorithms/dtrees/forest/df_train_dense_default_impl.i"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
@@ -216,7 +217,10 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
-                const size_t iStart         = iMain * simdBatchSize;
+                const size_t iStart = iMain * simdBatchSize;
+#ifdef __GNUC__
+                __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
+#endif
                 const auto aIdxStart        = aIdx + iStart;
                 const intermSummFPType mult = 1.0 / static_cast<intermSummFPType>(iMain + 1);
 
@@ -306,7 +310,10 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
 
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
-                const size_t iStart  = iMain * simdBatchSize;
+                const size_t iStart = iMain * simdBatchSize;
+#ifdef __GNUC__
+                __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
+#endif
                 const auto aIdxStart = aIdx + iStart;
 
                 // Pack the data from indices into contiguous blocks
