@@ -218,7 +218,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
                 const size_t iStart = iMain * simdBatchSize;
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
                 __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
 #endif
                 const auto aIdxStart        = aIdx + iStart;
@@ -311,7 +311,7 @@ void OrderedRespHelperBest<algorithmFPType, cpu>::calcImpurity(const IndexType *
             for (size_t iMain = 0; iMain < itersSimdLoop; iMain++)
             {
                 const size_t iStart = iMain * simdBatchSize;
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__clang__)
                 __attribute__((__assume__(iStart < std::numeric_limits<std::ptrdiff_t>::max())));
 #endif
                 const auto aIdxStart = aIdx + iStart;
