@@ -85,6 +85,8 @@ public:
  * \par References
  *      - \ref decision_tree::classification::interface1::Model "decision_tree::classification::Model" class
  *      - \ref training::interface2::Batch "training::Batch" class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -100,7 +102,7 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of prediction */
 
     /** Default constructor */
-    Batch(size_t nClasses = 2);
+    DAAL_DEPRECATED Batch(size_t nClasses = 2);
 
     /**
      * Constructs a Decision tree prediction algorithm by copying input objects and parameters

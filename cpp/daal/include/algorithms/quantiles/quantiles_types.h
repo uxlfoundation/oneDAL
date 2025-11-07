@@ -78,21 +78,23 @@ namespace interface1
 /**
  * <a name="DAAL-STRUCT-ALGORITHMS__QUANTILES__PARAMETER"></a>
  * \brief Parameters of the quantiles algorithm
+ * \DAAL_DEPRECATED
  */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(const data_management::NumericTablePtr quantileOrders = data_management::NumericTablePtr());
+    DAAL_DEPRECATED Parameter(const data_management::NumericTablePtr quantileOrders = data_management::NumericTablePtr());
     data_management::NumericTablePtr quantileOrders; /*!< Numeric table with quantile orders. Default value is 0.5 (median) */
 };
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__QUANTILES__INPUT"></a>
  * \brief %Input objects for the quantiles algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -124,12 +126,13 @@ public:
  * <a name="DAAL-CLASS-ALGORITHMS__QUANTILES__RESULT"></a>
  * \brief Provides methods to access final results obtained with the compute() method of the
  *        quantiles algorithm in the batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
 

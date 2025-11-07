@@ -48,6 +48,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for BF kNN model-based training using algorithmFPType precision arithmetic
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -56,8 +57,9 @@ public:
     /**
      * Constructs a container for BF kNN model-based training with a specified environment in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
 
     /** Default destructor */
     ~BatchContainer();
@@ -82,6 +84,7 @@ public:
  * \par References
  *      - \ref bf_knn_classification::interface1::Model "bf_knn_classification::Model" class
  *      - \ref training::interface1::Batch "training::Batch" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -93,8 +96,11 @@ public:
     typedef algorithms::bf_knn_classification::Parameter ParameterType;
     typedef algorithms::bf_knn_classification::training::Result ResultType;
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a BF kNN training algorithm by copying input objects and parameters
@@ -107,8 +113,9 @@ public:
     /**
      * Constructs a BF kNN training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
-    Batch(size_t nClasses);
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /** Destructor */
     ~Batch() { delete _par; }

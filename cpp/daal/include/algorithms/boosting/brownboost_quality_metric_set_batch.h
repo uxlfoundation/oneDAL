@@ -55,6 +55,7 @@ namespace interface1
  *
  * \par References
  *      - \ref algorithms::quality_metric_set::interface1::InputAlgorithmsCollection "algorithms::quality_metric_set::InputAlgorithmsCollection" class
+ * \DAAL_DEPRECATED
  */
 class Batch : public algorithms::quality_metric_set::Batch
 {
@@ -63,7 +64,7 @@ public:
      * Constructs a quality metric set for the model trained with the BrownBoost algorithm
      * \param[in] useDefaultMetrics     Flag. If true, a quality metric set is initialized with the quality metrics provided by the library
      */
-    Batch(bool useDefaultMetrics = true) : algorithms::quality_metric_set::Batch(useDefaultMetrics)
+    DAAL_DEPRECATED Batch(bool useDefaultMetrics = true) : algorithms::quality_metric_set::Batch(useDefaultMetrics)
     {
         _inputData = InputDataCollectionPtr(new InputDataCollection());
         if (_useDefaultMetrics)

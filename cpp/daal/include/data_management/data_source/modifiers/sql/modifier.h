@@ -112,6 +112,7 @@ typedef services::SharedPtr<FeatureModifierIface> FeatureModifierIfacePtr;
 /**
  * <a name="DAAL-CLASS-DATA_MANAGEMENT__MODIFIERS__SQL__FEATUREMODIFIER"></a>
  * \brief Base class for feature modifier, intended for inheritance from the user side
+ * \DAAL_DEPRECATED
  */
 class FeatureModifier : public Base, public FeatureModifierIface
 {
@@ -120,7 +121,7 @@ public:
      * Default implementation of interface method
      * \param config  The configuration of the modifier
      */
-    virtual void initialize(Config & config) DAAL_C11_OVERRIDE {}
+    DAAL_DEPRECATED virtual void initialize(Config & config) DAAL_C11_OVERRIDE {}
 
     /**
      * Default implementation of interface method

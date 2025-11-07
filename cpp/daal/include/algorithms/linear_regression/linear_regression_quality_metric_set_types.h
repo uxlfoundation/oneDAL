@@ -63,11 +63,12 @@ namespace interface1
 * \brief Parameters for the quality metrics set compute() method
 *
 * \snippet linear_regression/linear_regression_quality_metric_set_types.h Parameter source code
+* \DAAL_DEPRECATED
 */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(size_t nBeta, size_t nBetaReducedModel, double alphaVal = 0.05, double accuracyVal = 0.001);
+    DAAL_DEPRECATED Parameter(size_t nBeta, size_t nBetaReducedModel, double alphaVal = 0.05, double accuracyVal = 0.001);
 
     virtual ~Parameter() {}
 
@@ -90,11 +91,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__QUALITY_METRIC_SET__RESULTCOLLECTION"></a>
  * \brief Class that implements functionality of the collection of result objects of the quality metrics algorithm
  *        specialized for using with the linear regression training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT ResultCollection : public algorithms::quality_metric_set::ResultCollection
 {
 public:
-    ResultCollection() {}
+    DAAL_DEPRECATED ResultCollection() {}
     virtual ~ResultCollection() {}
 
     /**
@@ -110,11 +112,12 @@ typedef services::SharedPtr<ResultCollection> ResultCollectionPtr;
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__QUALITY_METRIC_SET__INPUTDATACOLLECTION"></a>
  * \brief Class that implements functionality of the collection of input objects of the quality metrics algorithm
  *        specialized for using with the linear regression training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT InputDataCollection : public algorithms::quality_metric_set::InputDataCollection
 {
 public:
-    InputDataCollection() {}
+    DAAL_DEPRECATED InputDataCollection() {}
     virtual ~InputDataCollection() {}
 
     /**

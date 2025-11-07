@@ -82,11 +82,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CLASSIFIER__TRAINING__INPUT"></a>
  * \brief Base class for the input objects in the training stage of the classification algorithms
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public classifier::training::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other) : classifier::training::Input(other) {}
 
     using classifier::training::Input::get;
@@ -123,12 +124,13 @@ typedef services::SharedPtr<const Input> InputConstPtr;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__CLASSIFICATION__TRAINING__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of Decision tree model-based training
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public classifier::training::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     /**
      * Returns the result of Decision tree model-based training

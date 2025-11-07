@@ -78,11 +78,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__SORTING__INPUT"></a>
  * \brief %Input objects for the sorting algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
 
     virtual ~Input() {}
@@ -113,12 +114,13 @@ public:
  * <a name="DAAL-CLASS-ALGORITHMS__SORTING__RESULT"></a>
  * \brief Provides methods to access final results obtained with the compute() method of the
  *        sorting algorithm in the batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
 

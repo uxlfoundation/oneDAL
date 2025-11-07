@@ -47,13 +47,14 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__QUALITY_METRIC_SET__BATCH"></a>
  * \brief Provides methods to compute a quality metric set of an algorithm in the batch processing mode.
+ * \DAAL_DEPRECATED
  */
 class Batch
 {
 public:
     InputAlgorithmsCollection inputAlgorithms; /*!< Collection of quality metrics algorithms */
 
-    Batch(bool useDefaultMetrics = true) : _useDefaultMetrics(useDefaultMetrics) {}
+    DAAL_DEPRECATED Batch(bool useDefaultMetrics = true) : _useDefaultMetrics(useDefaultMetrics) {}
 
     virtual ~Batch() {}
     /**

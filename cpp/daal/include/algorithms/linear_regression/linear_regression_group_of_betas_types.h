@@ -91,11 +91,14 @@ namespace interface1
  * \brief Parameters for the compute() method of a group of betas quality metrics
  *
  * \snippet linear_regression/linear_regression_group_of_betas_types.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(size_t nBeta, size_t nBetaReducedModel) : numBeta(nBeta), numBetaReducedModel(nBetaReducedModel), accuracyThreshold(0.001) {}
+    DAAL_DEPRECATED Parameter(size_t nBeta, size_t nBetaReducedModel)
+        : numBeta(nBeta), numBetaReducedModel(nBetaReducedModel), accuracyThreshold(0.001)
+    {}
     virtual ~Parameter() {}
 
     size_t numBeta; /*!< Number of beta coefficients (p) of linear regression model used for prediction */
@@ -115,6 +118,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__QUALITY_METRIC__GROUP_OF_BETAS__INPUT"></a>
 * \brief %Input objects for a group of betas quality metrics
+* \DAAL_DEPRECATED
 */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
@@ -122,8 +126,11 @@ public:
     DAAL_CAST_OPERATOR(Input)
     DAAL_DOWN_CAST_OPERATOR(Input, daal::algorithms::Input)
 
-    /** Default constructor */
-    Input() : daal::algorithms::Input(lastDataInputId + 1) {}
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Input() : daal::algorithms::Input(lastDataInputId + 1) {}
 
     virtual ~Input() {}
 
@@ -155,6 +162,7 @@ typedef services::SharedPtr<Input> InputPtr;
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__QUALITY_METRIC__GROUP_OF_BETAS__RESULT"></a>
 * \brief Provides interface for the result of linear regression quality metrics
+* \DAAL_DEPRECATED
 */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
@@ -162,7 +170,7 @@ public:
     DAAL_CAST_OPERATOR(Result)
     DAAL_DOWN_CAST_OPERATOR(Result, daal::algorithms::Result)
 
-    Result() : daal::algorithms::Result(lastResultId + 1) {};
+    DAAL_DEPRECATED Result() : daal::algorithms::Result(lastResultId + 1) {};
 
     /**
     * Returns the result of linear regression quality metrics

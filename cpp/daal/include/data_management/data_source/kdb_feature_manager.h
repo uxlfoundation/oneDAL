@@ -40,11 +40,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-KDBFEATUREMANAGER"></a>
  * \brief Contains KDB-specific commands
+ * \DAAL_DEPRECATED
  */
 class KDBFeatureManager
 {
 public:
-    KDBFeatureManager() : _errors(new services::ErrorCollection()) {}
+    DAAL_DEPRECATED KDBFeatureManager() : _errors(new services::ErrorCollection()) {}
 
     /**
      *  Creates a data dictionary from a KDB table

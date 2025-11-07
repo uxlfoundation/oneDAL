@@ -48,7 +48,8 @@ namespace interface3
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
- *  \brief Class containing computation methods for KD-tree based kNN model-based prediction
+ * \brief Class containing computation methods for KD-tree based kNN model-based prediction
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -57,8 +58,9 @@ public:
     /**
      * Constructs a container for KD-tree based kNN model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
 
     ~BatchContainer();
 
@@ -83,6 +85,7 @@ public:
  * \par References
  *      - \ref kdtree_knn_classification::interface1::Model "kdtree_knn_classification::Model" class
  *      - \ref training::interface3::Batch "training::Batch" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -97,8 +100,11 @@ public:
     InputType input;         /*!< %Input data structure */
     ParameterType parameter; /*!< \ref kdtree_knn_classification::interface3::Parameter "Parameters" of prediction */
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a KD-tree based kNN prediction algorithm by copying input objects and parameters
@@ -111,8 +117,9 @@ public:
     /**
      * Constructs a KD-tree based kNN prediction algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
-    Batch(size_t nClasses);
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Get input objects for the KD-tree based kNN prediction algorithm

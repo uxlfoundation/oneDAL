@@ -101,11 +101,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__REGRESSION__PREDICTION__INPUT"></a>
  * \brief Provides an interface for input objects for making Decision tree model-based prediction
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public algorithms::regression::prediction::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
 
     /**
@@ -147,12 +148,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_TREE__PREDICTION__RESULT"></a>
  * \brief Provides interface for the result of decision tree model-based prediction
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public algorithms::regression::prediction::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     /**
      * Returns the result of decision tree model-based prediction

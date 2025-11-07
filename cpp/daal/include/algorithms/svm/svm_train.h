@@ -51,6 +51,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
  * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -60,8 +61,9 @@ public:
      * Constructs a container for SVM model-based training with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -88,6 +90,7 @@ public:
  * \par References
  *      - \ref interface1::Input "Input" class
  *      - \ref interface1::Model "Model" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = boser>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -102,14 +105,18 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the algorithm */
     InputType input;         /*!< %Input objects of the algorithm */
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an SVM training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
-    Batch(size_t nClasses);
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs an SVM training algorithm by copying input objects and parameters

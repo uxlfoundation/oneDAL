@@ -90,6 +90,8 @@ public:
  *
  * \par References
  *      - Result class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public iterative_solver::Batch
@@ -106,7 +108,7 @@ public:
      * Constructs the SGD algorithm with the input objective function
      * \param[in] objectiveFunction Objective function that can be represented as a sum of functions
      */
-    Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
+    DAAL_DEPRECATED Batch(const sum_of_functions::BatchPtr & objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
       * Constructs a Stochastic gradient descent algorithm by copying input objects

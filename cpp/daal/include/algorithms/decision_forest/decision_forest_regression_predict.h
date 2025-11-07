@@ -47,7 +47,8 @@ namespace interface1
  */
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__PREDICTION__BATCHCONTAINER"></a>
- *  \brief Class containing computation methods for decision forest model-based prediction
+ * \brief Class containing computation methods for decision forest model-based prediction
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -56,8 +57,9 @@ public:
     /**
      * Constructs a container for decision forest model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
      *  Computes the result of decision forest model-based prediction
@@ -81,6 +83,7 @@ public:
  * \par References
  *      - \ref decision_forest::regression::interface1::Model "decision_forest::regression::Model" class
  *      - \ref training::interface2::Batch "training::Batch" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public algorithms::regression::prediction::Batch
@@ -95,8 +98,11 @@ public:
     InputType input;         /*!< %Input data structure */
     ParameterType parameter; /*!< \ref algorithms::interface1::Parameter "Parameters" of prediction */
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a decision forest prediction algorithm by copying input objects and parameters
