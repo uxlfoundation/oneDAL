@@ -45,27 +45,57 @@ void run(sycl::queue &queue) {
     const auto y_test =
         dal::read<dal::table>(queue, dal::csv::data_source{ test_response_file_name });
 
-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue);
-    auto rank_id = comm.get_rank();
-    auto rank_count = comm.get_rank_count();
+    bool is_cpu = queue.get_device().is_cpu();
 
-    auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
-    auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);
-    auto x_test_vec = split_table_by_rows<float>(queue, x_test, rank_count);
-    auto y_test_vec = split_table_by_rows<float>(queue, y_test, rank_count);
+    std::cout << "Device type: " << (is_cpu ? "CPU" : "GPU") << std::endl;
 
-    const auto lr_desc = lr::descriptor<float>{};
+    if (is_cpu) {
+        auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>();
 
-    const auto result_train =
-        dal::preview::train(comm, lr_desc, x_train_vec.at(rank_id), y_train_vec.at(rank_id));
+        auto rank_id = comm.get_rank();
+        auto rank_count = comm.get_rank_count();
 
-    const auto result_infer =
-        dal::preview::infer(comm, lr_desc, x_test_vec.at(rank_id), result_train.get_model());
+        auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
+        auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);
+        auto x_test_vec = split_table_by_rows<float>(queue, x_test, rank_count);
+        auto y_test_vec = split_table_by_rows<float>(queue, y_test, rank_count);
 
-    if (comm.get_rank() == 0) {
-        std::cout << "Prediction results:\n" << result_infer.get_responses() << std::endl;
+        const auto lr_desc = lr::descriptor<float>{};
 
-        std::cout << "Ground truth:\n" << y_test_vec.at(rank_id) << std::endl;
+        const auto result_train =
+            dal::preview::train(comm, lr_desc, x_train_vec.at(rank_id), y_train_vec.at(rank_id));
+
+        const auto result_infer =
+            dal::preview::infer(comm, lr_desc, x_test_vec.at(rank_id), result_train.get_model());
+
+        if (comm.get_rank() == 0) {
+            std::cout << "Prediction results:\n" << result_infer.get_responses() << std::endl;
+            std::cout << "Ground truth:\n" << y_test_vec.at(rank_id) << std::endl;
+        }
+    }
+    else {
+        auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue);
+
+        auto rank_id = comm.get_rank();
+        auto rank_count = comm.get_rank_count();
+
+        auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
+        auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);
+        auto x_test_vec = split_table_by_rows<float>(queue, x_test, rank_count);
+        auto y_test_vec = split_table_by_rows<float>(queue, y_test, rank_count);
+
+        const auto lr_desc = lr::descriptor<float>{};
+
+        const auto result_train =
+            dal::preview::train(comm, lr_desc, x_train_vec.at(rank_id), y_train_vec.at(rank_id));
+
+        const auto result_infer =
+            dal::preview::infer(comm, lr_desc, x_test_vec.at(rank_id), result_train.get_model());
+
+        if (comm.get_rank() == 0) {
+            std::cout << "Prediction results:\n" << result_infer.get_responses() << std::endl;
+            std::cout << "Ground truth:\n" << y_test_vec.at(rank_id) << std::endl;
+        }
     }
 }
 
@@ -75,11 +105,13 @@ int main(int argc, char const *argv[]) {
         throw std::runtime_error{ "Problem occurred during MPI init" };
     }
 
-    auto device = sycl::device(sycl::cpu_selector_v);
-    std::cout << "Running on " << device.get_platform().get_info<sycl::info::platform::name>()
-              << ", " << device.get_info<sycl::info::device::name>() << std::endl;
-    sycl::queue q{ device };
-    run(q);
+    for (auto d : list_devices()) {
+        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
+                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+                  << std::endl;
+        auto q = sycl::queue{ d };
+        run(q);
+    }
 
     status = MPI_Finalize();
     if (status != MPI_SUCCESS) {

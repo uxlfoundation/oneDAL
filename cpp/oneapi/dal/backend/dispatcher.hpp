@@ -323,42 +323,6 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
             });
     }
 };
-
-/// Dispatcher for the case of multi-node CPU algorithm based on universal SPMD kernel and
-/// multi-node GPU algorithm based on universal SPMD kernel
-template <typename CpuKernel, typename GpuKernel>
-struct kernel_dispatcher<kernel_spec<universal_spmd_cpu_kernel, CpuKernel>,
-                         kernel_spec<universal_spmd_gpu_kernel, GpuKernel>> {
-    template <typename... Args>
-    auto operator()(const detail::spmd_host_policy& policy, Args&&... args) const {
-        return dispatch_by_device(
-            policy,
-            [&]() {
-                return CpuKernel{}(context_cpu{ policy }, std::forward<Args>(args)...);
-            },
-            [&]() {
-                using msg = detail::error_messages;
-                throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
-                };
-            });
-    }
-
-    template <typename... Args>
-    auto operator()(const detail::spmd_data_parallel_policy& policy, Args&&... args) const {
-        return dispatch_by_device(
-            policy.get_local(),
-            [&]() {
-                using msg = detail::error_messages;
-                throw unimplemented{
-                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
-                };
-            },
-            [&]() {
-                return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
-            });
-    }
-};
 #endif
 
 inline bool test_cpu_extension(detail::cpu_extension mask, detail::cpu_extension test) {

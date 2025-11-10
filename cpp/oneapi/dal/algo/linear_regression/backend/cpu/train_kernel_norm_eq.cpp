@@ -63,9 +63,6 @@ static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
                                                 const detail::train_parameters<Task>& params,
                                                 const table& data,
                                                 const table& resp) {
-    // Will be removed with final commit.
-    std::cout << "here correct cpu spmd branch" << std::endl;
-
     auto& comm = ctx.get_communicator();
 
     /// Compute partial X^T * X and X^T * y on each rank
@@ -117,7 +114,6 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
                                            const table& data,
                                            const table& resp) {
     using dal::detail::check_mul_overflow;
-    std::cout << "here cpu branch" << std::endl;
     using model_t = model<Task>;
     using model_impl_t = detail::model_impl<Task>;
 
