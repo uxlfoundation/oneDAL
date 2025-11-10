@@ -38,58 +38,6 @@ namespace low_order_moments
 namespace interface1
 {
 /**
- * @defgroup low_order_moments_distributed Distributed
- * @ingroup low_order_moments
- * @{
- */
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__DISTRIBUTEDCONTAINER_STEP_ALGORITHMFPTYPE_METHOD"></a>
- * \brief Provides methods to run implementations of the low order moments algorithm in the distributed processing mode.
- *        This class is associated with daal::algorithms::low_order_moments::Distributed class
- *
- * \tparam step             Step of distributed processing, \ref ComputeStep
- * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
- * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
- *
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * \brief Provides methods to run implementations of the second step of the low order moments algorithm
- *        in the distributed processing mode.
- *        This class is associated with daal::algorithms::low_order_moments::Distributed class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
- * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
- *
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for the low order moments algorithm with a specified environment
-     * in the second step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the low order moments algorithm
-     * in the second step of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the low order moments algorithm
-     * in the second step of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__DISTRIBUTED"></a>
  * \brief Computes moments of low order in the distributed processing mode.
  * <!-- \n<a href="DAAL-REF-LOW_ORDER_MOMENTS-ALGORITHM">Low order moments algorithm description and usage models</a> -->
@@ -285,9 +233,8 @@ protected:
 
     void initialize()
     {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _par                       = &parameter;
+        _in  = &input;
+        _par = &parameter;
         _result.reset(new ResultType());
         _partialResult.reset(new PartialResultType());
     }
@@ -301,7 +248,6 @@ private:
 /** @} */
 } // namespace interface1
 using interface1::DistributedInput;
-using interface1::DistributedContainer;
 using interface1::Distributed;
 
 } // namespace low_order_moments
