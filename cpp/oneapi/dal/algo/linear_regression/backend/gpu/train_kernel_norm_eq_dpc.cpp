@@ -45,6 +45,7 @@ static train_result<Task> call_dal_kernel(const context_gpu& ctx,
                                           const table& data,
                                           const table& resp) {
     using dal::detail::check_mul_overflow;
+
     using model_t = model<Task>;
     using model_impl_t = detail::model_impl<Task>;
 

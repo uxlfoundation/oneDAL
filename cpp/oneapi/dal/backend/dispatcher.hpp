@@ -316,7 +316,12 @@ struct kernel_dispatcher<kernel_spec<single_node_cpu_kernel, CpuKernel>,
         return dispatch_by_device(
             policy.get_local(),
             [&]() -> gpu_kernel_return_t<GpuKernel, Args...> {
-                return CpuKernel{}(context_cpu{}, std::forward<Args>(args)...);
+                // We have to specify return type for this lambda as compiler cannot
+                // infer it from a body that consist of single `throw` expression
+                using msg = detail::error_messages;
+                throw unimplemented{
+                    msg::spmd_version_of_algorithm_is_not_implemented_for_this_device()
+                };
             },
             [&]() {
                 return GpuKernel{}(context_gpu{ policy }, std::forward<Args>(args)...);
