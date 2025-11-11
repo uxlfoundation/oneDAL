@@ -319,15 +319,15 @@ public:
                 {
                     const auto & entry = tasks_info.kernels[i];
                     std::string prefix;
-                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
+                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "| ";
                     bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
-                    prefix += is_last ? "|-- " : "|-- ";
+                    prefix += is_last ? "|-" : "|-";
                     std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
                               << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
                               << " times"
                               << " in a " << entry.threading_task << " region" << '\n';
                 }
-                std::cerr << "|---(end)" << '\n';
+                std::cerr << "|-(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
 
 #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
@@ -353,6 +353,9 @@ public:
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
+            static std::mutex mutex;
+
+        std::lock_guard<std::mutex> lock(mutex);
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
         auto & current_level_        = get_instance()->get_current_level();
