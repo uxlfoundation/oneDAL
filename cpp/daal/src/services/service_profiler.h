@@ -324,8 +324,7 @@ public:
                     prefix += is_last ? "|-" : "|-";
                     std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
                               << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
-                              << " times"
-                              << " in a " << entry.threading_task << " region" << '\n';
+                              << " times in a " << (entry.threading_task ? "parallel" : "sequential") << " region" << '\n';
                 }
                 std::cerr << "|-(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
@@ -353,7 +352,7 @@ public:
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
-            static std::mutex mutex;
+        static std::mutex mutex;
 
         std::lock_guard<std::mutex> lock(mutex);
         auto ns_start                = get_time();
