@@ -118,37 +118,38 @@ AR_is_$(subst $(space),_,$(origin AR)) := yes
 
 OSList          := lnx win mac
 
-o           := $(if $(OS_is_win),obj,o)
-a           := $(if $(OS_is_win),lib,a)
-d           := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),d,),)
-dtbb        := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
-plib        := $(if $(OS_is_win),,lib)
-scr         := $(if $(OS_is_win),bat,sh)
-y           := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
--Fo         := $(if $(OS_is_win),-Fo,-o)
--Q          := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
--cxx17      := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
--optlevel   := $(-optlevel.$(COMPILER))
--fPIC       := $(if $(OS_is_win),,-fPIC)
--visibility := $(if $(OS_is_win),,-fvisibility=hidden)
--DMKL_ILP64 := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
--Zl         := $(-Zl.$(COMPILER))
--Zl_DPCPP   := $(-Zl.dpcpp)
+o            := $(if $(OS_is_win),obj,o)
+a            := $(if $(OS_is_win),lib,a)
+d            := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),d,),)
+dtbb         := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
+plib         := $(if $(OS_is_win),,lib)
+scr          := $(if $(OS_is_win),bat,sh)
+y            := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
+-Fo          := $(if $(OS_is_win),-Fo,-o)
+-Q           := $(if $(OS_is_win),$(if $(COMPILER_is_vc),-,-Q),-)
+-cxx17       := $(if $(COMPILER_is_vc),/std:c++17,$(-Q)std=c++17)
+-optlevel    := $(-optlevel.$(COMPILER))
+-fPIC        := $(if $(OS_is_win),,-fPIC)
+-visibility  := $(if $(OS_is_win),,-fvisibility=hidden)
+-DMKL_ILP64  := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
+-Zl          := $(-Zl.$(COMPILER))
+-Zl_DPCPP    := $(-Zl.dpcpp)
 # if REQDBG set to 'symbols', it will disable assert checking.
 # Debug flags are defined per compiler in dev/make/compiler_definitions/ under -DEBC,
 # they are always enabled when the REQDBG flag is set.
--DEBC       := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
--DEBC_DPCPP := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
--DEBL       := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+-DEBC        := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
+-DEBC_DPCPP  := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
+-DEBL        := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
+-DGCOV_BUILD := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
 # quietly hide the lack of support (e.g. gnu will fail with REQSAN=memory). The sanitizer must be
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
--sanitize   := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
--lsanitize  := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
--EHsc       := $(if $(OS_is_win),-EHsc,)
--isystem    := $(if $(OS_is_win),-I,-isystem)
--sGRP       := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
--eGRP       := $(if $(OS_is_lnx),-Wl$(comma)--end-group,)
+-sanitize    := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
+-lsanitize   := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
+-EHsc        := $(if $(OS_is_win),-EHsc,)
+-isystem     := $(if $(OS_is_win),-I,-isystem)
+-sGRP        := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
+-eGRP        := $(if $(OS_is_lnx),-Wl$(comma)--end-group,)
 daalmake = make
 
 $(eval $(call set_uarch_options_for_compiler,$(COMPILER)))
@@ -522,7 +523,7 @@ $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_d
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
@@ -531,7 +532,7 @@ $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER)
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
 $(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
                         -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
@@ -1150,7 +1151,7 @@ Flags:
   REQCPU - list of CPU optimizations to be included into library
       possible values: $(CPUs)
   REQDBG - flag that enables build in debug mode. Debug mode enables oneDAL
-      assertions and adds debug symbols. Any value will enable debug mode, 
+      assertions and adds debug symbols. Any value will enable debug mode,
       except value "symbols" which will only add debug symbols.
       special value: symbols
   REQPROFILE - flag that enables kernel profiling using <ittnotify.h>
@@ -1158,7 +1159,7 @@ Flags:
       The sanitizer must be specified as the flag value, except for the
       value of "static". This value will link with the static ASan library,
       ASan is otherwise linked dynamically by default for all compilers.
-      Use of sanitizers on Windows is unverified, with the available 
+      Use of sanitizers on Windows is unverified, with the available
       sanitizers and their default linking mode dependent on the compiler.
       It is recommended to use in tandem with REQDBG.
       special values: static, address, memory, thread, leak, undefined

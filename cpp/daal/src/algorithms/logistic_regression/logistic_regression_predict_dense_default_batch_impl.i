@@ -184,7 +184,7 @@ protected:
             s |= gemvSoa(x, beta + 1, xb, nRows, nCols, xOffset);
             if (bIntercept)
             {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < nRows; ++i) xb[i] += beta[0];
             }
