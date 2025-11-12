@@ -1,0 +1,148 @@
+#===============================================================================
+# Copyright 2021 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+##  Content:
+##     oneAPI Data Analytics Library samples build and run
+##******************************************************************************
+
+help:
+	@echo "Usage: make {lib|so|help}"
+	@echo "[sample=name] [compiler=compiler_name] [mode=mode_name]"
+	@echo
+	@echo "name              - sample name. Please see onedal.lst file"
+	@echo
+	@echo "compiler_name     - currently can be dpcpp only that stands
+	@echo "                    for Intel(R) oneAPI DPC++ Compiler."
+	@echo
+	@echo "mode_name         - can be build or run. Default is run"
+
+##------------------------------------------------------------------------------
+## examples of using:
+##
+## make lib sample=kmeans_distr_mpi   - build by Intel(R) oneAPI DPC++ Compiler (as default)
+##                                          and run kmeans_distr_mpi sample, static linking
+##
+## make so                                - build by Intel(R) oneAPI DPC++ Compiler (as default)
+##                                          and run all samples, dynamic linking
+##
+## make so mode=build                     - build only (not run) by Intel(R) oneAPI DPC++ Compiler
+##                                          (as default) all samples, dynamic linking
+##
+## make help                              - show help
+##
+##------------------------------------------------------------------------------
+
+include onedal.lst
+
+ifndef sample
+    sample= $(MPI)
+endif
+
+
+ifneq ($(mode),build)
+    override mode = run
+endif
+
+ifndef DALROOT
+    DALROOT = ./../../../..
+endif
+DAAL_PATH = $(DALROOT)/lib/intel64
+
+ifndef TBBROOT
+    TBBROOT = ./../../../../../tbb/latest
+endif
+
+OLD_TBB_LAYOUT := $(if $(wildcard $(TBBROOT)/lib/intel64/),yes,no)
+
+ifeq ($(OLD_TBB_LAYOUT),no)
+    TBB_PATH = $(TBBROOT)/lib
+else
+    TBB_PATH = $(TBBROOT)/lib/intel64/gcc4.8
+endif
+
+MPI_PATH = $(I_MPI_ROOT)
+
+# This file uses an outdated build system that is no longer supported.
+# Please use CMake for building, as dependencies for this file are not updated.
+ifeq ($(RES_EXT),so)
+    ONEDAL_LIBS := -lonedal_dpc                              \
+                   -lonedal_core                             \
+                   -lonedal_thread                           \
+                   -lonedal_parameters_dpc                   \
+                   "$(DAAL_PATH)"/libonedal_sycl.a
+else
+    ONEDAL_LIBS := "$(DAAL_PATH)"/libonedal_dpc.a            \
+                   "$(DAAL_PATH)"/libonedal_core.a           \
+                   "$(DAAL_PATH)"/libonedal_thread.a         \
+                   "$(DAAL_PATH)"/libonedal_sycl.a           \
+                   "$(DAAL_PATH)"/libonedal_parameters_dpc.a
+endif
+
+COPTS := -std=c++17 \
+         -pedantic \
+         -Wall \
+         -Wextra \
+         -Werror \
+         -Wno-unused-parameter \
+         -fsycl-device-code-split=per_kernel \
+         -I./source \
+         -I$(MPI_PATH)/include \
+         -I"$(DALROOT)/include"
+
+LIBS := $(ONEDAL_LIBS) \
+        -lmpicxx \
+        -lmpi \
+        -ltbb \
+        -ltbbmalloc \
+        -lpthread \
+        -lOpenCL \
+        -ldl
+
+LOPTS := -L"$(DAAL_PATH)" \
+         -L"$(TBB_PATH)" \
+         -L"$(MPI_PATH)" \
+         $(LIBS)
+
+RES_DIR=_results/$(compiler)_intel64_$(RES_EXT)
+
+EXT_LIB := $(LOPTS) $(LIBS)
+
+override proc = 4
+
+RES = $(addprefix $(RES_DIR)/, $(if $(filter run, $(mode)), $(addsuffix .res ,$(sample)), $(addsuffix .exe,$(sample))))
+
+CC = icpx -fsycl
+CRUN = mpirun
+RUNOPTS = -n $(proc) -ppn $(proc)
+
+
+.SECONDARY:
+$(RES_DIR)/%.exe: ./sources/%.cpp | $(RES_DIR)/.
+	$(CC) $(COPTS) $< -o $@ $(LOPTS)
+
+$(RES_DIR)/%.res: $(RES_DIR)/%.exe
+	$(CRUN) $(RUNOPTS) $< > $@
+
+LOPTS := -Wl,--start-group $(EXT_LIB) -Wl,--end-group
+
+_make_ex: $(RES)
+
+%/.:; mkdir -p $*
+
+libintel64:
+	$(MAKE) _make_ex RES_EXT=a
+sointel64:
+	$(MAKE) _make_ex RES_EXT=so
