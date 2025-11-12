@@ -32,7 +32,7 @@
 #include <mutex>
 #include <algorithm>
 #include <exception>
-
+#include <unordered_map>
 #include "services/library_version_info.h"
 
 #ifdef _WIN32
@@ -270,25 +270,38 @@ class profiler_task
 public:
     inline profiler_task(const char * task_name, int idx) : task_name_(task_name), idx_(idx) {}
     inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
+
     inline ~profiler_task();
 
-    inline profiler_task(const profiler_task & other) : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_) {}
+    profiler_task(const profiler_task &)             = delete;
+    profiler_task & operator=(const profiler_task &) = delete;
 
-    inline profiler_task & operator=(const profiler_task & other)
+    profiler_task(profiler_task && other) noexcept : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_)
+    {
+        other.task_name_ = nullptr;
+        other.idx_       = -1;
+        other.is_thread_ = false;
+    }
+
+    profiler_task & operator=(profiler_task && other) noexcept
     {
         if (this != &other)
         {
             task_name_ = other.task_name_;
             idx_       = other.idx_;
             is_thread_ = other.is_thread_;
+
+            other.task_name_ = nullptr;
+            other.idx_       = -1;
+            other.is_thread_ = false;
         }
         return *this;
     }
 
 private:
-    const char * task_name_;
-    int idx_;
-    bool is_thread_ = false;
+    const char * task_name_ = nullptr;
+    int idx_                = -1;
+    bool is_thread_         = false;
 };
 
 class profiler
@@ -352,9 +365,8 @@ public:
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
-        static std::mutex mutex;
 
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(global_mutex());
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
         auto & current_level_        = get_instance()->get_current_level();
@@ -379,9 +391,8 @@ public:
     inline static profiler_task start_threading_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
-        static std::mutex mutex;
 
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(global_mutex());
         if (is_logger_enabled())
         {
             if (!is_service_debug_enabled())
@@ -425,8 +436,8 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        static std::mutex mutex;
-        std::lock_guard<std::mutex> lock(mutex);
+
+        std::lock_guard<std::mutex> lock(global_mutex());
         auto & entry          = tasks_info.kernels[idx_];
         auto duration         = ns_end - entry.duration;
         entry.duration        = duration;
@@ -448,9 +459,7 @@ public:
     {
         if (!task_name) return;
 
-        static std::mutex mutex;
-
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(global_mutex());
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
 
@@ -498,34 +507,62 @@ public:
         {
             return;
         }
+
         auto & tasks_info = get_instance()->get_task();
         auto & kernels    = tasks_info.kernels;
-        size_t i          = 0;
-        while (i < kernels.size())
+
+        struct Key
         {
-            size_t start      = i;
-            int current_level = kernels[i].level;
-            size_t end        = start;
-            while (end < kernels.size() && kernels[end].level == current_level) ++end;
-            for (size_t j = start; j < end; ++j)
+            int level;
+            std::string name;
+
+            bool operator==(const Key & other) const noexcept { return level == other.level && name == other.name; }
+        };
+
+        struct KeyHash
+        {
+            std::size_t operator()(const Key & k) const noexcept
             {
-                for (size_t k = j + 1; k < end; ++k)
-                {
-                    if (kernels[j].name == kernels[k].name)
-                    {
-                        if (kernels[j].threading_task)
-                            kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
-                        else
-                            kernels[j].duration += kernels[k].duration;
-                        kernels.erase(kernels.begin() + k);
-                        --k;
-                        --end;
-                        kernels[j].count++;
-                    }
-                }
+                std::size_t h1 = std::hash<int>()(k.level);
+                std::size_t h2 = std::hash<std::string>()(k.name);
+                return h1 ^ (h2 << 1);
             }
-            i = end;
+        };
+
+        std::unordered_map<Key, task_entry, KeyHash> merged;
+        merged.reserve(kernels.size());
+
+        for (const auto & entry : kernels)
+        {
+            Key key { static_cast<int>(entry.level), entry.name };
+            auto it = merged.find(key);
+
+            if (it == merged.end())
+            {
+                merged.emplace(key, entry);
+            }
+            else
+            {
+                auto & dst = it->second;
+                if (dst.threading_task)
+                    dst.duration = std::max(dst.duration, entry.duration);
+                else
+                    dst.duration += entry.duration;
+                dst.count += entry.count;
+            }
         }
+
+        kernels.clear();
+        kernels.reserve(merged.size());
+        for (auto & pair : merged)
+        {
+            kernels.push_back(std::move(pair.second));
+        }
+
+        std::sort(kernels.begin(), kernels.end(), [](const task_entry & a, const task_entry & b) {
+            if (a.level != b.level) return a.level < b.level;
+            return a.name < b.name;
+        });
     }
 
     inline task & get_task()
@@ -545,6 +582,11 @@ private:
     std::int64_t current_level_ = 0;
     std::int64_t kernel_count_  = 0;
     task task_;
+    static std::mutex & global_mutex()
+    {
+        static std::mutex m;
+        return m;
+    }
 };
 
 inline profiler_task::~profiler_task()
