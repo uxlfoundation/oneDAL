@@ -228,7 +228,7 @@ public:
                 /* Sum input array elements in case of non-normalized data */
                 for (DAAL_INT i = 0; i < nRows; i++)
                 {
-                    PRAGMA_FORCE_SIMD
+                    PRAGMA_OMP_SIMD
                     PRAGMA_VECTOR_ALWAYS
                     for (DAAL_INT j = 0; j < _nFeatures; j++)
                     {
@@ -270,9 +270,7 @@ public:
         }
 
         /// It is safe to use aligned loads and stores because the data in TArrayScalableCalloc data structures is aligned
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
-        PRAGMA_VECTOR_ALIGNED
+        PRAGMA_OMP_SIMD_ARGS(aligned(thisCrossProduct, otherCrossProduct : DAAL_MALLOC_DEFAULT_ALIGNMENT))
         for (size_t i = 0; i < (_nFeatures * _nFeatures); i++)
         {
             thisCrossProduct[i] += otherCrossProduct[i];
@@ -287,9 +285,7 @@ public:
                 return;
             }
             /// It is safe to use aligned loads and stores because the data is aligned
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
-            PRAGMA_VECTOR_ALIGNED
+            PRAGMA_OMP_SIMD_ARGS(aligned(thisSums, otherSums : DAAL_MALLOC_DEFAULT_ALIGNMENT))
             for (size_t i = 0; i < _nFeatures; i++)
             {
                 thisSums[i] += otherSums[i];
@@ -394,8 +390,7 @@ services::Status computeDenseCrossProductsAndSumsBatched(const size_t nFeatures,
         daal::services::internal::daal_memcpy_s(sums, nFeatures * sizeof(algorithmFPType), resultSums, nFeatures * sizeof(algorithmFPType));
         for (size_t i = 0; i < nFeatures; i++)
         {
-            PRAGMA_FORCE_SIMD
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j < nFeatures; j++)
             {
                 crossProduct[i * nFeatures + j] = resultCrossProduct[i * nFeatures + j] - (nVectorsInv * sums[i] * sums[j]);
@@ -621,7 +616,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
         if (nObsValue == 0)
         {
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -637,7 +632,7 @@ void mergeCrossProductAndSums(size_t nFeatures, const algorithmFPType * partialC
             algorithmFPType invNewNObs     = 1.0 / (nObsValue + partialNObsValue);
 
             daal::threader_for(nFeatures, nFeatures, [=](size_t i) {
-                PRAGMA_FORCE_SIMD
+                PRAGMA_OMP_SIMD
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t j = 0; j <= i; j++)
                 {
@@ -679,6 +674,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     }
 
     /* Calculate resulting mean vector */
+    PRAGMA_OMP_SIMD
     for (size_t i = 0; i < nFeatures; i++)
     {
         mean[i] = sums[i] * invNObservations;
@@ -695,6 +691,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
 
         for (size_t i = 0; i < nFeatures; i++)
         {
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j < i; j++)
             {
                 cov[i * nFeatures + j] = crossProduct[i * nFeatures + j] * diagInvSqrts[i] * diagInvSqrts[j];
@@ -707,6 +704,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
         /* Calculate resulting covariance matrix */
         for (size_t i = 0; i < nFeatures; i++)
         {
+            PRAGMA_OMP_SIMD
             for (size_t j = 0; j <= i; j++)
             {
                 cov[i * nFeatures + j] = crossProduct[i * nFeatures + j] * multiplier;
@@ -717,6 +715,7 @@ services::Status finalizeCovariance(size_t nFeatures, algorithmFPType nObservati
     /* Copy results into symmetric upper triangle */
     for (size_t i = 0; i < nFeatures; i++)
     {
+        PRAGMA_OMP_SIMD
         for (size_t j = 0; j < i; j++)
         {
             cov[j * nFeatures + i] = cov[i * nFeatures + j];
