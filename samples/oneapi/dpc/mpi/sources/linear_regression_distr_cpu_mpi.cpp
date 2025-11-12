@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2022 Intel Corporation
+* Copyright 2025 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -37,15 +37,12 @@ void run(sycl::queue &queue) {
     const auto test_data_file_name = get_data_path("linear_regression_test_data.csv");
     const auto test_response_file_name = get_data_path("linear_regression_test_responses.csv");
 
-    const auto x_train =
-        dal::read<dal::table>(queue, dal::csv::data_source{ train_data_file_name });
-    const auto y_train =
-        dal::read<dal::table>(queue, dal::csv::data_source{ train_response_file_name });
-    const auto x_test = dal::read<dal::table>(queue, dal::csv::data_source{ test_data_file_name });
-    const auto y_test =
-        dal::read<dal::table>(queue, dal::csv::data_source{ test_response_file_name });
+    const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
+    const auto y_train = dal::read<dal::table>(dal::csv::data_source{ train_response_file_name });
+    const auto x_test = dal::read<dal::table>(dal::csv::data_source{ test_data_file_name });
+    const auto y_test = dal::read<dal::table>(dal::csv::data_source{ test_response_file_name });
 
-    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>(queue);
+    auto comm = dal::preview::spmd::make_communicator<dal::preview::spmd::backend::mpi>();
     auto rank_id = comm.get_rank();
     auto rank_count = comm.get_rank_count();
 
@@ -75,7 +72,7 @@ int main(int argc, char const *argv[]) {
         throw std::runtime_error{ "Problem occurred during MPI init" };
     }
 
-    auto device = sycl::device(sycl::gpu_selector_v);
+    auto device = sycl::device(sycl::cpu_selector_v);
     std::cout << "Running on " << device.get_platform().get_info<sycl::info::platform::name>()
               << ", " << device.get_info<sycl::info::device::name>() << std::endl;
     sycl::queue q{ device };

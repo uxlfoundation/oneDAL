@@ -21,21 +21,6 @@
 #include <sycl/sycl.hpp>
 #include "oneapi/dal/table/row_accessor.hpp"
 
-void try_add_device(std::vector<sycl::device>& devices, int (*selector)(const sycl::device&)) {
-    try {
-        devices.push_back(sycl::ext::oneapi::detail::select_device(selector));
-    }
-    catch (...) {
-    }
-}
-
-std::vector<sycl::device> list_devices() {
-    std::vector<sycl::device> devices;
-    try_add_device(devices, &sycl::cpu_selector_v);
-    try_add_device(devices, &sycl::gpu_selector_v);
-    return devices;
-}
-
 template <typename Comm, typename D = float>
 dal::table combine_tables(const Comm& comm, const dal::table& t) {
     sycl::queue queue = comm.get_queue();
