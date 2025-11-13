@@ -428,7 +428,7 @@ release.SAMPLES.CPP  := $(if $(wildcard $(SAMPLES.srcdir)/daal/cpp/*),          
                             $(filter $(spat),$(shell find $(SAMPLES.srcdir)/daal/cpp -type f))                           \
                           )                                                                                              \
                         )
-release.SAMPLES.ONEDAL.CPP  := $(if $(wildcard $(SAMPLES.srcdir)/oneapi/cpp/*),                                          \
+cdrelease.SAMPLES.ONEDAL.CPP  := $(if $(wildcard $(SAMPLES.srcdir)/oneapi/cpp/*),                                          \
                           $(if $(OS_is_mac),                                                                             \
                             $(filter $(spat),$(shell find $(SAMPLES.srcdir)/oneapi/cpp -not -wholename '*mpi*' -type f)) \
                           ,                                                                                              \
