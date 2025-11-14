@@ -554,23 +554,31 @@ auto compute_correlation_from_covariance(sycl::queue& queue,
 ///
 /// @return The resulting 2d array of eigenvalues
 template <typename Float>
-auto compute_eigenvalues_on_host(sycl::queue& queue,
-                                 pr::ndarray<Float, 1> singular_values,
-                                 std::int64_t row_count,
-                                 const dal::backend::event_vector& deps = {}) {
-    ONEDAL_PROFILER_TASK(compute_eigenvalues_on_host);
+auto compute_eigenvalues(sycl::queue& queue,
+                         pr::ndarray<Float, 1> singular_values,
+                         std::int64_t row_count,
+                         const bk::event_vector& deps = {}) {
+    const std::int64_t component_count = singular_values.get_count();
 
-    const std::int64_t component_count = singular_values.get_dimension(0);
+    auto eigenvalues =
+        pr::ndarray<Float, 1>::empty(queue, { component_count }, sycl::usm::alloc::shared);
 
-    auto eigenvalues = pr::ndarray<Float, 1>::empty(component_count);
+    const Float* src = singular_values.get_data();
+    Float* dst = eigenvalues.get_mutable_data();
 
-    auto singular_values_ptr = singular_values.get_data();
-    auto eigvals_ptr = eigenvalues.get_mutable_data();
+    const Float factor = static_cast<Float>(row_count - 1);
 
-    const Float factor = row_count - 1;
-    for (std::int64_t i = 0; i < component_count; ++i) {
-        eigvals_ptr[i] = singular_values_ptr[i] * singular_values_ptr[i] / factor;
-    }
+    auto event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+
+        h.parallel_for(sycl::range<1>(component_count), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const Float s = src[i];
+            dst[i] = s * s / factor;
+        });
+    });
+
+    event.wait_and_throw();
     return eigenvalues;
 }
 

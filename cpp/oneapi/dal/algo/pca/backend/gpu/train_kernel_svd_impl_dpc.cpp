@@ -127,34 +127,33 @@ result_t train_kernel_svd_impl<Float>::operator()(const descriptor_t& desc, cons
     auto [U, S, V_T, gesvd_event] =
         svd_decomposition(q_, data_nd, component_count, { scaled_event, mean_centered_event });
 
-    auto S_host = S.to_host(q_);
-    auto eigenvalues = compute_eigenvalues_on_host(q_, S_host, row_count, { gesvd_event });
+    auto eigenvalues = compute_eigenvalues(q_, S, row_count, { gesvd_event });
     if (desc.get_result_options().test(result_options::singular_values)) {
         if (zscore) {
             result.set_singular_values(
                 homogen_table::wrap(eigenvalues.flatten(), 1, component_count));
         }
         else {
-            result.set_singular_values(homogen_table::wrap(S_host.flatten(), 1, component_count));
+            result.set_singular_values(homogen_table::wrap(S.flatten(q_), 1, component_count));
         }
     }
 
     result.set_means(homogen_table::wrap(means.flatten(q_, { gesvd_event }), 1, column_count));
 
+    if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
+        auto explained_variances_ratio =
+            compute_explained_variances(q_, eigenvalues, vars, { gesvd_event });
+        result.set_explained_variances_ratio(
+            homogen_table::wrap(explained_variances_ratio.flatten(q_), 1, component_count));
+    }
+
     if (desc.get_result_options().test(result_options::eigenvalues)) {
-        result.set_eigenvalues(homogen_table::wrap(eigenvalues.flatten(), 1, component_count));
+        result.set_eigenvalues(homogen_table::wrap(eigenvalues.flatten(q_), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::vars)) {
         result.set_variances(
             homogen_table::wrap(vars.flatten(q_, { gesvd_event }), 1, column_count));
-    }
-
-    if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
-        auto explained_variances_ratio =
-            compute_explained_variances(q_, eigenvalues, vars, { gesvd_event });
-        result.set_explained_variances_ratio(
-            homogen_table::wrap(explained_variances_ratio.flatten(), 1, component_count));
     }
 
     auto eigenvectors_final =
