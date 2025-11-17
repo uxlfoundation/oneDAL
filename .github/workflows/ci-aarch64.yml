@@ -26,7 +26,7 @@ on:
 
 env:
   DEP_DIR: ${{ github.workspace }}/__deps
-  TBB_VERSION: v2022.2.0
+  TBB_VERSION: v2022.3.0
   OPENBLAS_VERSION: v0.3.29
   OPENRNG_VERSION: 'v24.04'
 
