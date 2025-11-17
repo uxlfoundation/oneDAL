@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
     /* Get the number of threads that is used by the library by default */
     nThreadsInit = services::Environment::getInstance()->getNumberOfThreads();
 
+    /* Set the maximum number of threads to be used by the library */
     services::Environment::getInstance()->setNumberOfThreads(nThreads);
 
     /* Get the number of threads that is used by the library after changing */
@@ -81,26 +82,6 @@ int main(int argc, char* argv[]) {
     std::cout << "Initial number of threads:        " << nThreadsInit << std::endl;
     std::cout << "Number of threads to set:         " << nThreads << std::endl;
     std::cout << "Number of threads after setting:  " << nThreadsNew << std::endl;
-    services::Environment::getInstance()->setNumberOfThreads(nThreadsInit);
-    kmeans::init::Batch<float, kmeans::init::randomDense> init_(nClusters);
 
-    init_.input.set(kmeans::init::data, dataSource.getNumericTable());
-    init_.compute();
-
-    NumericTablePtr centroids_ = init_.getResult()->get(kmeans::init::centroids);
-
-    /* Create an algorithm object for the K-Means algorithm */
-    kmeans::Batch<> algorithm_(nClusters, nIterations);
-
-    algorithm_.input.set(kmeans::data, dataSource.getNumericTable());
-    algorithm_.input.set(kmeans::inputCentroids, centroids_);
-
-    /* Run computations */
-    algorithm_.compute();
-
-    std::cout << "Initial number of threads:        " << nThreadsInit << std::endl;
-    std::cout << "Number of threads to set:         " << nThreads << std::endl;
-    std::cout << "Number of threads after setting:  " << nThreadsNew << std::endl;
-    /* Set the maximum number of threads to be used by the library */
     return 0;
 }

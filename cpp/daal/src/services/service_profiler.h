@@ -270,7 +270,6 @@ class profiler_task
 public:
     inline profiler_task(const char * task_name, int idx) : task_name_(task_name), idx_(idx) {}
     inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
-
     inline ~profiler_task();
 
     profiler_task(const profiler_task &)             = delete;
@@ -514,7 +513,7 @@ public:
         struct Key
         {
             int level;
-            std::string name;
+            std::string_view name;
 
             bool operator==(const Key & other) const noexcept { return level == other.level && name == other.name; }
         };
@@ -524,7 +523,7 @@ public:
             std::size_t operator()(const Key & k) const noexcept
             {
                 std::size_t h1 = std::hash<int>()(k.level);
-                std::size_t h2 = std::hash<std::string>()(k.name);
+                std::size_t h2 = std::hash<std::string_view>()(k.name);
                 return h1 ^ (h2 << 1);
             }
         };
