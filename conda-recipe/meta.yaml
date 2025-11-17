@@ -71,6 +71,8 @@ outputs:
         - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
+      requires:
+        - mpi * impi  # [not win]
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
@@ -92,6 +94,8 @@ outputs:
         - test -f $PREFIX/lib/libonedal_core.a  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
+      requires:
+        - mpi * impi  # [not win]
     about:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
 
