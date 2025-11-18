@@ -54,7 +54,7 @@ DAAL_EXPORT bool daal_check_is_intel_cpu();
     #define PRAGMA_NOVECTOR         _Pragma("novector")
     #define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
     // TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows or with gcov.
-    #if (defined(_MSC_VER) && defined(_DEBUG)) || defined(GCOV_BUILD)
+    #if (defined(_MSC_VER) && defined(_DEBUG)) || defined(GCOV_BUILD) || defined(DEBUG_ASSERT)
         #define PRAGMA_VECTOR_ALWAYS
         #define PRAGMA_OMP_SIMD
         #define PRAGMA_OMP_SIMD_ARGS(ARGS)
