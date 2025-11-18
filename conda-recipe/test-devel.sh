@@ -58,7 +58,51 @@ run_examples() {
     )
 }
 
+run_samples() {
+    local interface_name=$1
+    local linking_type=$2
+    local device_type=$3
+    local communicator_type=$4
+
+    if [ "$linking_type" == "dynamic" ]; then
+        library_postfix="so"
+    else
+        library_postfix="a"
+    fi
+
+    (
+        cd samples/$interface_name/$device_type/$communicator_type
+        mkdir build_$linking_type
+
+        (
+            cd build_$linking_type
+
+            cmake_args="-DONEDAL_LINK=$linking_type"
+            # Note: MKL cmake config is required for static build only and
+            # doesn't work with conda-forge distribution of tbb-devel.
+            # Thus, tbb is set to "found" manually.
+            if [ "$linking_type" == "static" ]; then
+                cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
+            fi
+
+            cmake .. $cmake_args
+            make -j$(nproc)
+        )
+
+        for sample in _cmake_results/intel_intel64_$library_postfix/*; do
+            echo "================"
+            echo "Running example: $interface_name-$linking_type-$(basename $sample)"
+            echo "================"
+            mpirun -n 2 "$sample"
+        done
+    )
+}
+
 run_examples oneapi dynamic
 run_examples oneapi static
 run_examples daal dynamic
 run_examples daal static
+run_samples oneapi dynamic cpp mpi
+run_samples oneapi dynamic cpp ccl
+run_samples oneapi static cpp ccl
+run_samples oneapi static cpp ccl
