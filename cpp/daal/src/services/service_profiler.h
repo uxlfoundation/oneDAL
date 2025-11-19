@@ -331,14 +331,13 @@ public:
                 {
                     const auto & entry = tasks_info.kernels[i];
                     std::string prefix;
-                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "| ";
-                    bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
-                    prefix += is_last ? "|-" : "|-";
+                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|  ";
+                    prefix += "|-- ";
                     std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
                               << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
                               << " times in a " << (entry.threading_task ? "parallel" : "sequential") << " region" << '\n';
                 }
-                std::cerr << "|-(end)" << '\n';
+                std::cerr << "|--(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
 
 #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
@@ -506,62 +505,34 @@ public:
         {
             return;
         }
-
         auto & tasks_info = get_instance()->get_task();
         auto & kernels    = tasks_info.kernels;
-
-        struct Key
+        size_t i          = 0;
+        while (i < kernels.size())
         {
-            int level;
-            std::string_view name;
-
-            bool operator==(const Key & other) const noexcept { return level == other.level && name == other.name; }
-        };
-
-        struct KeyHash
-        {
-            std::size_t operator()(const Key & k) const noexcept
+            size_t start      = i;
+            int current_level = kernels[i].level;
+            size_t end        = start;
+            while (end < kernels.size() && kernels[end].level == current_level) ++end;
+            for (size_t j = start; j < end; ++j)
             {
-                std::size_t h1 = std::hash<int>()(k.level);
-                std::size_t h2 = std::hash<std::string_view>()(k.name);
-                return h1 ^ (h2 << 1);
+                for (size_t k = j + 1; k < end; ++k)
+                {
+                    if (kernels[j].name == kernels[k].name)
+                    {
+                        if (kernels[j].threading_task)
+                            kernels[j].duration = std::max(kernels[j].duration, kernels[k].duration);
+                        else
+                            kernels[j].duration += kernels[k].duration;
+                        kernels.erase(kernels.begin() + k);
+                        --k;
+                        --end;
+                        kernels[j].count++;
+                    }
+                }
             }
-        };
-
-        std::unordered_map<Key, task_entry, KeyHash> merged;
-        merged.reserve(kernels.size());
-
-        for (const auto & entry : kernels)
-        {
-            Key key { static_cast<int>(entry.level), entry.name };
-            auto it = merged.find(key);
-
-            if (it == merged.end())
-            {
-                merged.emplace(key, entry);
-            }
-            else
-            {
-                auto & dst = it->second;
-                if (dst.threading_task)
-                    dst.duration = std::max(dst.duration, entry.duration);
-                else
-                    dst.duration += entry.duration;
-                dst.count += entry.count;
-            }
+            i = end;
         }
-
-        kernels.clear();
-        kernels.reserve(merged.size());
-        for (auto & pair : merged)
-        {
-            kernels.push_back(std::move(pair.second));
-        }
-
-        std::sort(kernels.begin(), kernels.end(), [](const task_entry & a, const task_entry & b) {
-            if (a.level != b.level) return a.level < b.level;
-            return a.name < b.name;
-        });
     }
 
     inline task & get_task()
