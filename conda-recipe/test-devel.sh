@@ -183,9 +183,9 @@ run_samples() {
     )
 }
 
-# run_examples oneapi dynamic
+run_examples oneapi dynamic
 # run_examples oneapi static
 # run_examples daal dynamic
 # run_examples daal static
 run_samples oneapi dynamic cpp mpi
-run_samples oneapi static cpp mpi
+# run_samples oneapi static cpp mpi
