@@ -32,7 +32,7 @@
 #include <mutex>
 #include <algorithm>
 #include <exception>
-
+#include <unordered_map>
 #include "services/library_version_info.h"
 
 #ifdef _WIN32
@@ -272,23 +272,35 @@ public:
     inline profiler_task(const char * task_name, int idx, bool thread) : task_name_(task_name), idx_(idx), is_thread_(thread) {}
     inline ~profiler_task();
 
-    inline profiler_task(const profiler_task & other) : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_) {}
+    profiler_task(const profiler_task &)             = delete;
+    profiler_task & operator=(const profiler_task &) = delete;
 
-    inline profiler_task & operator=(const profiler_task & other)
+    profiler_task(profiler_task && other) noexcept : task_name_(other.task_name_), idx_(other.idx_), is_thread_(other.is_thread_)
+    {
+        other.task_name_ = nullptr;
+        other.idx_       = -1;
+        other.is_thread_ = false;
+    }
+
+    profiler_task & operator=(profiler_task && other) noexcept
     {
         if (this != &other)
         {
             task_name_ = other.task_name_;
             idx_       = other.idx_;
             is_thread_ = other.is_thread_;
+
+            other.task_name_ = nullptr;
+            other.idx_       = -1;
+            other.is_thread_ = false;
         }
         return *this;
     }
 
 private:
-    const char * task_name_;
-    int idx_;
-    bool is_thread_ = false;
+    const char * task_name_ = nullptr;
+    int idx_                = -1;
+    bool is_thread_         = false;
 };
 
 class profiler
@@ -319,15 +331,13 @@ public:
                 {
                     const auto & entry = tasks_info.kernels[i];
                     std::string prefix;
-                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|   ";
-                    bool is_last = (i + 1 < tasks_info.kernels.size()) && (tasks_info.kernels[i + 1].level >= entry.level) ? false : true;
-                    prefix += is_last ? "|-- " : "|-- ";
+                    for (std::int64_t lvl = 0; lvl < entry.level; ++lvl) prefix += "|  ";
+                    prefix += "|-- ";
                     std::cerr << prefix << entry.name << " time: " << format_time_for_output(entry.duration) << " " << std::fixed
                               << std::setprecision(2) << (total_time > 0 ? (double(entry.duration) / total_time) * 100 : 0.0) << "% " << entry.count
-                              << " times"
-                              << " in a " << entry.threading_task << " region" << '\n';
+                              << " times in a " << (entry.threading_task ? "parallel" : "sequential") << " region" << '\n';
                 }
-                std::cerr << "|---(end)" << '\n';
+                std::cerr << "|--(end)" << '\n';
                 std::cerr << "DAAL KERNEL_PROFILER: kernels total time " << format_time_for_output(total_time) << '\n';
 
 #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
@@ -353,6 +363,8 @@ public:
     inline static profiler_task start_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
+
+        std::lock_guard<std::mutex> lock(global_mutex());
         auto ns_start                = get_time();
         auto & tasks_info            = get_instance()->get_task();
         auto & current_level_        = get_instance()->get_current_level();
@@ -377,9 +389,8 @@ public:
     inline static profiler_task start_threading_task(const char * task_name)
     {
         if (!task_name) return profiler_task(nullptr, -1);
-        static std::mutex mutex;
 
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(global_mutex());
         if (is_logger_enabled())
         {
             if (!is_service_debug_enabled())
@@ -423,8 +434,8 @@ public:
         if (!task_name) return;
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
-        static std::mutex mutex;
-        std::lock_guard<std::mutex> lock(mutex);
+
+        std::lock_guard<std::mutex> lock(global_mutex());
         auto & entry          = tasks_info.kernels[idx_];
         auto duration         = ns_end - entry.duration;
         entry.duration        = duration;
@@ -446,9 +457,7 @@ public:
     {
         if (!task_name) return;
 
-        static std::mutex mutex;
-
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(global_mutex());
         const std::uint64_t ns_end = get_time();
         auto & tasks_info          = get_instance()->get_task();
 
@@ -543,6 +552,11 @@ private:
     std::int64_t current_level_ = 0;
     std::int64_t kernel_count_  = 0;
     task task_;
+    static std::mutex & global_mutex()
+    {
+        static std::mutex m;
+        return m;
+    }
 };
 
 inline profiler_task::~profiler_task()
