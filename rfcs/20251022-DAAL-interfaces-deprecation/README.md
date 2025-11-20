@@ -1,85 +1,74 @@
-# Deprecation of DAAL API layers of certain algorithms in oneDAL 2025.1X
+# Deprecation of DAAL API layers of certain algorithms in oneDAL 2025.10
 
 ## Introduction
 
-Since the introduction of the modern oneDAL interface, certain functionality
-now exists with dual APIs: the legacy DAAL interface and the newer oneDAL
-interface.
+While certain classes are present in the DAAL API, these classes are intended
+for internal use and provide limited value to end users.
+Maintaining these APIs in the public interface reduces product flexibility
+and clarity.
 
-Maintaining both APIs for the same functionality creates unnecessary complexity
-and maintenance overhead.
-
-It is now appropriate to remove DAAL API components that have equivalent
-oneDAL implementations.
-
-In contrast to [PR \#3400](https://github.com/uxlfoundation/oneDAL/pull/3400),
-this RFC proposes removing only the API layers while preserving all underlying
-algorithmic computational kernels.
-These kernels remain valuable as they are currently used,
-or may be used in the future, to perform CPU computations beneath the oneDAL
-interface.
+In contrast to [20251015-DAAL-algorithms-deprecation](https://github.com/uxlfoundation/oneDAL/tree/rfcs/rfcs/20251015-DAAL-algorithms-deprecation),
+this RFC proposes first deprecating these API layers, then removing them
+from DAAL API by moving to the ``daal::*::internal`` namespace while preserving
+all underlying algorithmic computational kernels, as these kernels are used
+internally by other algorithms.
 
 ## Proposal
 
-The following APIs will be marked as deprecated in the next minor oneDAL 2025.X,
+The following APIs will be marked as deprecated in the next minor oneDAL 2025.10,
 with complete API removal scheduled for the next major release, oneDAL 2026.0:
 
-#### [Distance Matrix](https://uxlfoundation.github.io/oneDAL/daal/algorithms/distance/index.html)
+#### [Distributions](https://uxlfoundation.github.io/oneDAL/daal/algorithms/distributions/index.html)
 
-- [correlation_distance::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distance/correlation_distance.h#L55)
-- [correlation_distance::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distance/correlation_distance.h#L90)
-- [cosine_distance::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distance/cosine_distance.h#L55)
-- [cosine_distance::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distance/cosine_distance.h#L90)
+- [distributions::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/distribution_types.h#L88)
+- [distributions::Result](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/distribution_types.h#L128)
 
-#### [DBSCAN](https://uxlfoundation.github.io/oneDAL/daal/algorithms/dbscan/index.html)
+- [distributions::bernoulli::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/bernoulli/bernoulli.h#L89)
+- [distributions::bernoulli::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/bernoulli/bernoulli.h#L56)
+- [distributions::bernoulli::Parameter](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/bernoulli/bernoulli_types.h#L65)
 
-- [dbscan::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/dbscan/dbscan_batch.h#L56)
-- [dbscan::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/dbscan/dbscan_batch.h#L87)
+- [distributions::normal::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/normal/normal.h#L89)
+- [distributions::normal::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/normal/normal.h#L56)
+- [distributions::normal::Parameter](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/normal/normal_types.h#L66)
 
-#### [Decision Forest](https://uxlfoundation.github.io/oneDAL/daal/algorithms/decision_forest/index.html)
+- [distributions::uniform::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/uniform/uniform.h#L89)
+- [distributions::uniform::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/uniform/uniform.h#L56)
+- [distributions::uniform::Parameter](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/distributions/uniform/uniform_types.h#L65)
 
-- [decision_forest::classification::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_classification_predict.h#L75)
-- [decision_forest::classification::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_classification_predict.h#L113)
-- [decision_forest::classification::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_classification_training_batch.h#L56)
-- [decision_forest::classification::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_classification_training_batch.h#L93)
-- [decision_forest::regression::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_predict.h#L53)
-- [decision_forest::regression::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_predict.h#L86)
-- [decision_forest::regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_training_batch.h#L59)
-- [decision_forest::regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/decision_forest/decision_forest_regression_training_batch.h#L94)
+#### [Engines](https://uxlfoundation.github.io/oneDAL/daal/algorithms/engines/index.html)
 
-#### [k-Nearest Neighbors Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/k_nearest_neighbors/k-nearest-neighbors-knn-classifier.html)
+- [engines::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/engine_types.h#L74)
+- [engines::Result](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/engine_types.h#L114)
 
-- [bf_knn_classification::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_predict.h#L53)
-- [bf_knn_classification::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_predict.h#L87)
-- [bf_knn_classification::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h#L53)
-- [bf_knn_classification::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h#L87)
+- [engines::mcg59::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mcg59/mcg59.h#L56)
+- [engines::mcg59::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mcg59/mcg59.h#L89)
 
-#### [k-Means Clustering](https://uxlfoundation.github.io/oneDAL/daal/algorithms/kmeans/k-means-clustering.html)
+- [engines::mrg32k3a::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h#L57)
+- [engines::mrg32k3a::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h#L90)
 
-- [kmeans::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_batch.h#L56)
-- [kmeans::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_batch.h#L87)
-- [kmeans::init::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_init_batch.h#L58)
-- [kmeans::init::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kmeans/kmeans_init_batch.h#L109)
+- [engines::mt19937::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mt19937/mt19937.h#L56)
+- [engines::mt19937::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mt19937/mt19937.h#L89)
 
-#### [Linear and Ridge Regression](https://uxlfoundation.github.io/oneDAL/daal/algorithms/linear_ridge_regression/index.html)
+- [engines::mt2203::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mt2203/mt2203.h#L56)
+- [engines::mt2203::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/mt2203/mt2203.h#L89)
 
-- [linear_regression::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_predict.h#L88)
-- [linear_regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_training_batch.h#L56)
-- [linear_regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/linear_regression/linear_regression_training_batch.h#L93)
-- [ridge_regression::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_predict.h#L87)
-- [ridge_regression::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_training_batch.h#L54)
-- [ridge_regression::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/ridge_regression/ridge_regression_training_batch.h#L91)
+- [engines::philox4x32x10::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h#L57)
+- [engines::philox4x32x10::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h#L90)
 
-#### [Principal Component Analysis](https://uxlfoundation.github.io/oneDAL/daal/algorithms/pca/principal-component-analysis.html)
+#### [Kernel Functions](https://uxlfoundation.github.io/oneDAL/daal/algorithms/kernel_function/kernel-functions.html)
 
-- [pca::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L55)
-- [pca::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/pca_batch.h#L108)
-- [pca::transform::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/transform/pca_transform_batch.h#L56)
-- [pca::transform::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/pca/transform/pca_transform_batch.h#L85)
+- [kernel_function::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types.h#L103)
+- [kernel_function::Result](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types.h#L135)
 
-#### [Support Vector Machine Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/svm/support-vector-machine-classifier.html)
+- [kernel_function::linear::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_linear.h#L58)
+- [kernel_function::linear::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_linear.h#L92)
+- [kernel_function::linear::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types_linear.h#L83)
 
-- [svm::prediction::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_predict.h#L60)
-- [svm::prediction::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_predict.h#L96)
-- [svm::training::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L56)
-- [svm::training::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/svm/svm_train.h#L93)
+- [kernel_function::rbf::BatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_rbf.h#L57)
+- [kernel_function::rbf::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_rbf.h#L91)
+- [kernel_function::rbf::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types_rbf.h#L82)
+
+#### Other APIs
+
+- [AlgorithmDispatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/algorithm_container_base_common.h#L66)
+- [AlgorithmDispatchContainer<batch, ...>](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/algorithm_container_base_batch.h#L164)
