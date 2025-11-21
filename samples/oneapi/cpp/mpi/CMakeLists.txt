@@ -16,28 +16,18 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(ONEDAL_USE_DPCPP yes)
 set(ONEDAL_INTERFACE yes)
 set(ONEDAL_DISTRIBUTED yes)
 set(ONEDAL_USE_CCL no)
 set(MPIEXEC_MAX_NUMPROCS "4" CACHE STRING "Number of processes")
 set(MPIEXEC_NUMPROCS_PER_NODE "4" CACHE STRING "Number of processes per node")
 
-set(MPI_C_COMPILER "mpiicx")
-set(CMAKE_C_COMPILER "icx")
-if(WIN32)
-    set(MPI_CXX_COMPILER "mpiicx")
-    set(CMAKE_CXX_COMPILER "icx")
-elseif(UNIX)
-    set(MPI_CXX_COMPILER "mpiicpx")
-    set(CMAKE_CXX_COMPILER "icpx")
-endif()
 
 # Add cmake scripts and modules to CMake search path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/")
 include(setup_samples)
 
-project(oneapi_dpc_samples)
+project(oneapi_cpp_samples)
 
 find_package(oneDAL REQUIRED)
 

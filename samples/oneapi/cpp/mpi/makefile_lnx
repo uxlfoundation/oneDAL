@@ -78,16 +78,12 @@ MPI_PATH = $(I_MPI_ROOT)
 # This file uses an outdated build system that is no longer supported.
 # Please use CMake for building, as dependencies for this file are not updated.
 ifeq ($(RES_EXT),so)
-    ONEDAL_LIBS := -lonedal_dpc                              \
-                   -lonedal_core                             \
+    ONEDAL_LIBS := -lonedal_core                             \
                    -lonedal_thread                           \
-                   -lonedal_parameters_dpc                   \
-                   "$(DAAL_PATH)"/libonedal_sycl.a
+                   -lonedal_parameters_dpc
 else
-    ONEDAL_LIBS := "$(DAAL_PATH)"/libonedal_dpc.a            \
-                   "$(DAAL_PATH)"/libonedal_core.a           \
+    ONEDAL_LIBS := "$(DAAL_PATH)"/libonedal_core.a           \
                    "$(DAAL_PATH)"/libonedal_thread.a         \
-                   "$(DAAL_PATH)"/libonedal_sycl.a           \
                    "$(DAAL_PATH)"/libonedal_parameters_dpc.a
 endif
 
@@ -97,7 +93,6 @@ COPTS := -std=c++17 \
          -Wextra \
          -Werror \
          -Wno-unused-parameter \
-         -fsycl-device-code-split=per_kernel \
          -I./source \
          -I$(MPI_PATH)/include \
          -I"$(DALROOT)/include"
