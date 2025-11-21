@@ -596,13 +596,13 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
                                                                   1.0,  2.0,  2.0,  1.0 };
     const auto x = homogen_table::wrap(x_data.data(), row_count_train, column_count);
 
-    responses_pair_t responses =
-        GENERATE_COPY(responses_pair_t({ -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 }, { -1.0, 1.0 }),
-                      responses_pair_t({ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 }, { 0.0, 1.0 }),
-                      responses_pair_t({ 0.0, 0.0, 0.0, 2.0, 2.0, 2.0 }, { 0.0, 2.0 }),
-                      responses_pair_t({ -1.0, -1.0, -1.0, 0.0, 0.0, 0.0 }, { -1.0, 0.0 }));
+    const auto [responses_data, unique_responses] = GENERATE_COPY(
+        responses_pair_t({ -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 }, { -1.0, 1.0 }),
+        responses_pair_t({ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 }, { 0.0, 1.0 }),
+        responses_pair_t({ 0.0, 0.0, 0.0, 2.0, 2.0, 2.0 }, { 0.0, 2.0 }),
+        responses_pair_t({ -1.0, -1.0, -1.0, 0.0, 0.0, 0.0 }, { -1.0, 0.0 }));
 
-    const auto y = homogen_table::wrap(responses.first.data(), row_count_train, 1);
+    const auto y = homogen_table::wrap(responses_data.data(), row_count_train, 1);
 
     const double scale = 1.0;
     const double c = 1e-1;
@@ -623,7 +623,7 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
                                     svm_desc,
                                     support_vector_count,
                                     support_indices,
-                                    responses.second.data());
+                                    unique_responses.data());
 }
 
 TEMPLATE_LIST_TEST_M(svm_batch_test,
@@ -653,12 +653,12 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     };
     const auto y = homogen_table::wrap(y_data.data(), row_count_train, 1);
 
-    weights_pair_t weights_data =
-        GENERATE_COPY(weights_pair_t({ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 }, { 0.0 }),
-                      weights_pair_t({ 10.0, 0.1, 0.1, 0.1, 0.1, 10.0 }, { -0.44 }),
-                      weights_pair_t({ 0.1, 0.1, 10.0, 10.0, 0.1, 0.1 }, { 0.44 }));
+    const auto [weights_data_array, decision_function_data] = GENERATE_COPY(
+        weights_pair_t({ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 }, { 0.0 }),
+        weights_pair_t({ 10.0, 0.1, 0.1, 0.1, 0.1, 10.0 }, { -0.44 }),
+        weights_pair_t({ 0.1, 0.1, 10.0, 10.0, 0.1, 0.1 }, { 0.44 }));
 
-    const auto weights = homogen_table::wrap(weights_data.first.data(), row_count_train, 1);
+    const auto weights = homogen_table::wrap(weights_data_array.data(), row_count_train, 1);
 
     constexpr std::array<float_t, 2> x_test_data = { -1.0, 1.0 };
     const auto x_test = homogen_table::wrap(x_test_data.data(), 1, column_count);
@@ -677,7 +677,7 @@ TEMPLATE_LIST_TEST_M(svm_batch_test,
     const auto support_indices =
         homogen_table::wrap(support_indices_data.data(), support_vector_count, 1);
 
-    const auto decision_function = homogen_table::wrap(weights_data.second.data(), 1, 1);
+    const auto decision_function = homogen_table::wrap(decision_function_data.data(), 1, 1);
 
     this->check_weights(x,
                         y,
