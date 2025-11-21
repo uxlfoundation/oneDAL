@@ -45,7 +45,7 @@ public:
 };
 
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public KernelIface
+class Batch : public KernelIface
 {
 public:
     typedef KernelIface super;
@@ -58,6 +58,8 @@ public:
     InputType input;         /*!< %Input data structure */
 
     Batch();
+
+    ~Batch();
 
     Batch(const Batch<algorithmFPType, method> & other);
 

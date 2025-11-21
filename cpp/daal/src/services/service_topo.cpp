@@ -226,7 +226,7 @@ unsigned int _internal_daal_GetMaxCPUSupportedByOS()
     for (unsigned int i = 0; i < grpCnt; i++)
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
-        _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned int, lcl_OSProcessorCount, activeProcCount);
+        _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, lcl_OSProcessorCount, activeProcCount);
         if (glbl_obj.error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
         lcl_OSProcessorCount += activeProcCount;
     }

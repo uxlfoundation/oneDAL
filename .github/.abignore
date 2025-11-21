@@ -17,55 +17,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect daal::internal namespace
+; deselect daal::internal namespaces
+
 [suppress_type]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = .*daal.*internal.*
+drop = yes
 
 [suppress_variable]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = .*daal.*internal.*
+drop = yes
 
 [suppress_function]
-  name_regexp = daal::internal::.*
-
-; deselect tbb::* namespaces
-[suppress_type]
-  name_regexp = tbb::.*
-
-[suppress_variable]
-  name_regexp = tbb::.*
-
-[suppress_function]
-  name_regexp = tbb::.*
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; oneDAL DESELECTIONS ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect oneapi::dal backend namespaces
-[suppress_type]
-  name_regexp = oneapi::dal::.*backend::.*
-
-[suppress_variable]
-  name_regexp = oneapi::dal::.*backend::.*
-
-[suppress_function]
-  name_regexp = oneapi::dal::.*backend::.*
-
-; deselect oneapi::dal detail namespaces
-[suppress_type]
-  name_regexp = oneapi::dal::.*detail::.*
-
-[suppress_variable]
-  name_regexp = oneapi::dal::.*detail::.*
-
-[suppress_function]
-  name_regexp = oneapi::dal::.*detail::.*
-
-; deselect oneapi::dal preview namespaces
-[suppress_type]
-  name_regexp = oneapi::dal::.*preview::.*
-
-[suppress_variable]
-  name_regexp = oneapi::dal::.*preview::.*
-
-[suppress_function]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = .*daal.*internal.*
+drop = yes

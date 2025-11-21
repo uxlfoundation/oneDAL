@@ -148,6 +148,7 @@ public:
         return s;
     }
 
+    ~Batch();
 protected:
     Batch(size_t seed = 777);
 
