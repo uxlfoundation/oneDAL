@@ -159,14 +159,9 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     size_t * const indexes = static_cast<data_management::HomogenNumericTable<size_t> *>(r->impl()->getIndices().get())->getArray();
 
     Queue<BuildNode, cpu> q;
-    BBox * bboxQ    = nullptr;
-    // auto oldThreads = services::Environment::getInstance()->getNumberOfThreads();
+    BBox * bboxQ = nullptr;
     DAAL_CHECK_STATUS(status, buildFirstPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
-    // Temporary workaround for threading issues in `buildSecondPartOfKDTree()`
-    // Fix to be provided in https://github.com/uxlfoundation/oneDAL/pull/2925
-    // services::Environment::getInstance()->setNumberOfThreads(1);
     DAAL_CHECK_STATUS(status, buildSecondPartOfKDTree(q, bboxQ, *x, *r, indexes, engine));
-    // services::Environment::getInstance()->setNumberOfThreads(oldThreads);
     DAAL_CHECK_STATUS(status, rearrangePoints(*x, indexes));
     if (y)
     {
@@ -1139,6 +1134,11 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                         local->extraKDTreeNodesCapacity = newCapacity;
                                         daal_free(oldNodes);
                                         oldNodes = nullptr;
+
+                                        if (bn.nodePos >= firstExtraNodeIndex)
+                                        {
+                                            curNode = &(local->extraKDTreeNodes[bn.nodePos - firstExtraNodeIndex]);
+                                        }
                                     }
                                 }
                                 else
@@ -1181,6 +1181,8 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                 local->bboxes          = newBboxes;
                                 local->bboxesCapacity  = newCapacity;
                                 service_scalable_free<BBox, cpu>(oldBboxes);
+
+                                bboxCur = &local->bboxes[(local->bboxPos - 2) * xColumnCount];
                             }
                             bboxLeft = &local->bboxes[bnLeft.queueOrStackPos * xColumnCount];
                             this->copyBBox(bboxLeft, bboxCur, xColumnCount);
