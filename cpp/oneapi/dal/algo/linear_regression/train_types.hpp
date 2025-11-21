@@ -119,6 +119,8 @@ public:
 
     train_input(const table& data);
 
+    virtual ~train_input() = default;
+
     /// The training set X
     /// @remark default = table{}
     const table& get_data() const;
@@ -265,6 +267,8 @@ public:
 
     partial_train_input(const partial_train_result<Task>& prev,
                         const partial_train_input<Task>& input);
+
+    virtual ~partial_train_input() = default;
 
     const table& get_data() const {
         return train_input<Task>::get_data();

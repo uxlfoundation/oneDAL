@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2022 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,17 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "oneapi/dal/algo/linear_regression/test/spmd_backend_template.hpp"
+#pragma once
 
-namespace oneapi::dal::linear_regression::test {
-
-TEMPLATE_LIST_TEST_M(lr_spmd_test, "LR common flow", "[lr][spmd]", lr_types) {
-    SKIP_IF(this->not_float64_friendly());
-
-    this->generate(777);
-    this->set_rank_count(GENERATE(2, 3));
-
-    this->run_and_check_linear();
-}
-
-} // namespace oneapi::dal::linear_regression::test
+#include "input_helpers.hpp"
+#include "output_helpers.hpp"
+#include "comm_helpers.hpp"

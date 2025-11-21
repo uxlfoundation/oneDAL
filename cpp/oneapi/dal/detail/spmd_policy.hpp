@@ -28,7 +28,7 @@ template <typename MemoryAccessKind>
 class spmd_policy_impl;
 
 template <typename MemoryAccessKind>
-class spmd_policy_base : public base {
+class ONEDAL_EXPORT spmd_policy_base : public base {
 public:
     explicit spmd_policy_base(const spmd::communicator<MemoryAccessKind>& comm);
 

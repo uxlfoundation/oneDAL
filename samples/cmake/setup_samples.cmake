@@ -30,7 +30,7 @@ function(find_dependencies)
     if(ONEDAL_DISTRIBUTED STREQUAL "yes")
         find_package(MPI REQUIRED)
         set(MPI_DEPENDENCIES MPI::MPI_C MPI::MPI_CXX PARENT_SCOPE)
-        if(ONEDAL_USE_CCL STREQUAL "yes")
+        if(ONEDAL_USE_CCL STREQUAL "yes" AND ONEDAL_DISTRIBUTED_CPU STREQUAL "no")
             # This policy allows finding modules using _ROOT variables
             cmake_policy(SET CMP0074 NEW)
             find_package(CCL REQUIRED)
