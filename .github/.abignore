@@ -20,13 +20,55 @@
 ; deselect daal::internal namespaces
 
 [suppress_type]
-symbol_name_regexp = .*daal.*internal.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = .*daal.*internal.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = .*daal.*internal.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; oneDAL DESELECTIONS ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; deselect oneapi::dal backend namespaces
+[suppress_type]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
+
+; deselect oneapi::dal detail namespaces
+[suppress_type]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
+
+; deselect oneapi::dal preview namespaces
+[suppress_type]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
 drop = yes
