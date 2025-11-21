@@ -50,17 +50,8 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
     return engPtr;
 }
 
-template <typename algorithmFPType, Method method>
-Batch<algorithmFPType, method>::~Batch()
-{
-    delete Analysis<batch>::_ac;
-    Analysis<batch>::_ac = NULL;
-}
-
 template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
 template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
-template DAAL_EXPORT Batch<double, defaultDense>::~Batch();
-template DAAL_EXPORT Batch<float, defaultDense>::~Batch();
 
 } // namespace interface1
 } // namespace mrg32k3a
