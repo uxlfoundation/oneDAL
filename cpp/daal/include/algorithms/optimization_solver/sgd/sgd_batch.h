@@ -117,6 +117,11 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /**
+     * NOTE: Coverity's rule-of-three violation cannot be fixed here as adding a destructor
+     * adds a new virtual function and breaks the ABI
+     */
+
+    /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */

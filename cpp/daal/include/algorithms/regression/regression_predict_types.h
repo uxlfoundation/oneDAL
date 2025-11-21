@@ -93,6 +93,11 @@ public:
     Input & operator=(const Input & other);
 
     /**
+     * NOTE: Coverity's rule-of-three violation cannot be fixed here as adding a destructor
+     * adds a new virtual function and breaks the ABI
+     */
+
+    /**
      * Returns an input object for making the regression model-based prediction
      * \param[in] id    Identifier of the input object
      * \return          %Input object that corresponds to the given identifier
