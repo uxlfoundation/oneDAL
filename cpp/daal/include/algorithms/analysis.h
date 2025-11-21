@@ -60,7 +60,7 @@ public:
 
     AnalysisContainerIface(const AnalysisContainerIface &)                               = delete;
     AnalysisContainerIface<mode> & operator=(const AnalysisContainerIface<mode> & other) = delete;
-    ~AnalysisContainerIface() DAAL_C11_OVERRIDE = default;
+    ~AnalysisContainerIface() DAAL_C11_OVERRIDE                                          = default;
 };
 
 /**
