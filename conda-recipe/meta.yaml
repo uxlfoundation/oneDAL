@@ -57,6 +57,8 @@ requirements:
     - mkl-static  # [linux64 or win]
     - mkl-devel-dpcpp  # [linux64 or win]
     - onemkl-sycl-include  # [linux64 or win]
+    - impi_rt
+    - impi-devel
   host:
     - tbb-devel
 
@@ -71,8 +73,6 @@ outputs:
         - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
-      requires:
-        - openmpi  # [not win]
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
@@ -94,8 +94,6 @@ outputs:
         - test -f $PREFIX/lib/libonedal_core.a  # [linux]
         - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
-      requires:
-        - openmpi  # [not win]
     about:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
 
@@ -114,6 +112,8 @@ outputs:
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
+        - impi_rt
+        - impi-devel
       source_files:
         - examples
         - samples
