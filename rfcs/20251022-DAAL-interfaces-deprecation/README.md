@@ -68,7 +68,7 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 - [kernel_function::rbf::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_rbf.h#L91)
 - [kernel_function::rbf::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types_rbf.h#L82)
 
-#### CPU Features Dispatching(https://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html#cpu-features-dispatching)
+#### [CPU Features Dispatching](https://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html#cpu-features-dispatching)
 
 - [CpuType](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/services/cpu_type.h#L27)
 - [CpuFeature](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/services/cpu_type.h#L52)
