@@ -1063,7 +1063,8 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                     {
                         bn = local->buildStack.pop();
                         --local->bboxPos;
-                        bboxCur = &(local->bboxes[local->bboxPos * xColumnCount]);
+                        const size_t bboxCurIndex = local->bboxPos * xColumnCount;
+                        bboxCur = &(local->bboxes[bboxCurIndex]);
                         curNode = (bn.nodePos < firstExtraNodeIndex) ? static_cast<KDTreeNode *>(kdTreeTable.getArray()) + bn.nodePos :
                                                                        &(local->extraKDTreeNodes[bn.nodePos - firstExtraNodeIndex]);
 
@@ -1182,7 +1183,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                                 local->bboxesCapacity  = newCapacity;
                                 service_scalable_free<BBox, cpu>(oldBboxes);
 
-                                bboxCur = &local->bboxes[(local->bboxPos - 2) * xColumnCount];
+                                bboxCur = &local->bboxes[bboxCurIndex];
                             }
                             bboxLeft = &local->bboxes[bnLeft.queueOrStackPos * xColumnCount];
                             this->copyBBox(bboxLeft, bboxCur, xColumnCount);
