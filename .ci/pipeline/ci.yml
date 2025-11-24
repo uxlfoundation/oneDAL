@@ -410,52 +410,92 @@ jobs:
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-release-static'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-static'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-release-dynamic'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-dynamic'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-tests-thread-dev'
-
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
   - script: |
       # Clear cache if its size exceeds some predefined value
       cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)
