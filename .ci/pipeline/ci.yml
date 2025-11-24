@@ -350,7 +350,7 @@ jobs:
   steps:
   - script: |
       echo "===== DISK AFTER Beginning ====="
-      du -sh .[!.]* *
+      du -hs /*
       du -ah . | sort -rh | head -n 20
     displayName: 'Disk debug'
   - script: |
