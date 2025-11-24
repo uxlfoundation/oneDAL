@@ -106,7 +106,7 @@ jobs:
   steps:
   - script: |
       echo "===== Bazel cahcke size ====="
-      df -hs $(BAZEL_CACHE_DIR)
+      du -hs $(BAZEL_CACHE_DIR)
     displayName: 'Bazel cache size'
   - script: .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
@@ -349,7 +349,7 @@ jobs:
   steps:
   - script: |
       echo "===== Bazel cahcke size ====="
-      df -hs $(BAZEL_CACHE_DIR)
+      du -hs $(BAZEL_CACHE_DIR)
     displayName: 'Bazel cache size'
   - script: |
       echo "===== DISK AFTER MINIFORGE ====="
