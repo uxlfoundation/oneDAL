@@ -68,7 +68,6 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 - [kernel_function::rbf::Batch](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_rbf.h#L91)
 - [kernel_function::rbf::Input](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/kernel_function/kernel_function_types_rbf.h#L82)
 
-<<<<<<< HEAD
 #### CPU Features Dispatching(https://uxlfoundation.github.io/oneDAL/contribution/cpu_features.html#cpu-features-dispatching)
 
 - [CpuType](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/services/cpu_type.h#L27)
@@ -80,9 +79,3 @@ with complete API removal scheduled for the next major release, oneDAL 2026.0:
 - ``BatchContainer`` classes in all algorithms
 - ``OnlineContainer`` classes in all algorithms
 - ``DistributedContainer`` classes in all algorithms
-=======
-#### Other APIs
-
-- [AlgorithmDispatchContainer](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/algorithm_container_base_common.h#L66)
-- [AlgorithmDispatchContainer<batch, ...>](https://github.com/uxlfoundation/oneDAL/blob/main/cpp/daal/include/algorithms/algorithm_container_base_batch.h#L164)
->>>>>>> b25a44038d5cb76e9d60bfcf41873dc724ec52bf
