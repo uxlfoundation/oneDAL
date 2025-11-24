@@ -45,9 +45,6 @@ variables:
   SYSROOT_OS: 'noble'
   PY_VERSION: '3.11'
   SKL_VERSION: '1.5'
-  # Link to latest version can be taken from basekit download page:
-  # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
-  # Check section 'Install through a Command Line':
   WINDOWS_BASEKIT_URL: 'https://registrationcenter-download.intel.com/akdlm/IRC_NAS/09a8acaf-265f-4460-866c-a3375ed5b4ff/intel-oneapi-base-toolkit-2025.2.0.591_offline.exe'
   WINDOWS_DPCPP_COMPONENTS: 'intel.oneapi.win.mkl.devel:intel.oneapi.win.tbb.devel:intel.oneapi.win.dpl'
 
@@ -59,6 +56,17 @@ resources:
       ref: main
       endpoint: intel-daal-connection
 
+# ===================================================================
+# UNIVERSAL DISK DEBUG BLOCK (reused everywhere)
+# ===================================================================
+# Use as:
+# - template: disk-debug.yml
+# But to simplify, we embed inline each time.
+
+# ===================================================================
+# FormatterChecks
+# ===================================================================
+
 jobs:
 - job: 'FormatterChecks'
   pool:
@@ -69,13 +77,24 @@ jobs:
         .ci/env/editorconfig-checker.sh
       displayName: 'Install Dependencies'
     - script: |
-        .ci/scripts/clang-format.sh
+        echo "===== DISK USAGE ====="
+        df -h
+        du -sh .
+        du -ah . | sort -rh | head -n 20
+      displayName: 'Disk debug'
+      continueOnError: true
+
+    - script: .ci/scripts/clang-format.sh
       displayName: 'clang-format check'
       failOnStderr: true
-    - script: |
-        editorconfig-checker
+
+    - script: editorconfig-checker
       displayName: 'editorconfig-checker'
       failOnStderr: true
+
+# ===================================================================
+# LinuxMakeGNU_MKL
+# ===================================================================
 
 - job: 'LinuxMakeGNU_MKL'
   timeoutInMinutes: 0
@@ -85,51 +104,130 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
   steps:
-  - script: |
-      .ci/env/apt.sh dev-base
+
+  - script: .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
+
   - script: |
-      .ci/env/apt.sh mkl
+      echo "===== DISK AFTER APT ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
+  - script: .ci/env/apt.sh mkl
     displayName: 'mkl installation'
+
+  - script: |
+      echo "===== DISK AFTER MKL ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
     displayName: 'System info'
+
+  - script: |
+      echo "===== DISK BEFORE DAAL BUILD ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
     displayName: 'make daal'
+
+  - script: |
+      echo "===== DISK AFTER DAAL ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c
     displayName: 'make onedal_c'
+
+  - script: |
+      echo "===== DISK AFTER ONEDAL_C ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) build'
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Upload build artifacts'
     continueOnError: true
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: 'oneDAL environment'
       targetPath: '$(Build.Repository.LocalPath)/.ci/env'
     displayName: 'Upload environment artifacts'
     continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
     displayName: 'daal/cpp examples'
+
+  - script: |
+      echo "===== DISK AFTER DAAL EXAMPLES ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
+
   - script: |
-      .ci/env/apt.sh miniforge
+      echo "===== DISK AFTER ONEAPI EXAMPLES ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
+  - script: .ci/env/apt.sh miniforge
     displayName: 'conda install'
+
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
   - script: |
       deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
       tree -h -I include __nuget/inteldal*/
@@ -286,6 +384,13 @@ jobs:
       echo
     displayName: 'bazel-configure'
   - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
+  - script: |
       bazel build :release
     displayName: 'release'
   - task: PublishPipelineArtifact@1
@@ -293,6 +398,13 @@ jobs:
       artifactName: '$(platform.type) Bazel build'
       targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
     displayName: 'Upload build artifacts'
+  - script: |
+      echo "===== DISK AFTER MINIFORGE ====="
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+    continueOnError: true
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
