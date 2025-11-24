@@ -32,7 +32,7 @@ namespace polynomial
 namespace internal
 {
 template <>
-Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::defaultDense>::Batch()
+DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::defaultDense>::Batch()
 {
     initialize();
 }
@@ -40,13 +40,13 @@ Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::defaultDense>::Batch()
 using BatchType = Batch<DAAL_FPTYPE, kernel_function::polynomial::internal::defaultDense>;
 
 template <>
-BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }
 
 template <>
-BatchType::~Batch()
+DAAL_EXPORT BatchType::~Batch()
 {
     delete Analysis<batch>::_ac;
     Analysis<batch>::_ac = NULL;

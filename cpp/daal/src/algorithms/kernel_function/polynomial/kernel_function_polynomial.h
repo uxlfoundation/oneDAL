@@ -45,7 +45,7 @@ public:
 };
 
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class Batch : public KernelIface
+class DAAL_EXPORT Batch : public KernelIface
 {
 public:
     typedef KernelIface super;
