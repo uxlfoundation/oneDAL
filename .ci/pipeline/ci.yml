@@ -349,6 +349,11 @@ jobs:
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
   - script: |
+      echo "===== DISK AFTER Beginning ====="
+      du -sh .[!.]* *
+      du -ah . | sort -rh | head -n 20
+    displayName: 'Disk debug'
+  - script: |
       # Clear cache if its size exceeds some predefined value
       cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)
       cache_size_mb=$(du -sm "${BAZEL_CACHE_DIR}" | cut -f1)
