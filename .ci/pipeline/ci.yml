@@ -106,6 +106,7 @@ jobs:
   steps:
   - script: |
       echo "===== Bazel cahcke size ====="
+      find . -name .bazel-cache
       du -hs $(BAZEL_CACHE_DIR)
     displayName: 'Bazel cache size'
   - script: .ci/env/apt.sh dev-base
@@ -349,6 +350,7 @@ jobs:
   steps:
   - script: |
       echo "===== Bazel cahcke size ====="
+      find . -name .bazel-cache
       du -hs $(BAZEL_CACHE_DIR)
     displayName: 'Bazel cache size'
   - script: |
