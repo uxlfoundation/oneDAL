@@ -1,4 +1,4 @@
-# Deprecation of certain DAAL algorithms in oneDAL 2025.1X
+# Deprecation of certain DAAL algorithms in oneDAL 2025.10
 
 ## Introduction
 
@@ -41,7 +41,7 @@ based on their current relevance:
   cannot be utilized with scikit-learn-intelex.
 
 The following **Tier 1** algorithms will be marked as deprecated
-in oneDAL 2025.1X with complete removal planned for the next major release,
+in oneDAL 2025.10 with complete removal planned for the next major release,
 oneDAL 2026.0:
 
 ### Analysis algorithms to be deprecated:
@@ -53,6 +53,7 @@ oneDAL 2026.0:
 - [SGD Optimization Solver](https://uxlfoundation.github.io/oneDAL/daal/algorithms/optimization-solvers/solvers/stochastic-gradient-descent-algorithm.html)
 - [Adaptive Subgradient Method (AdaGrad)](https://uxlfoundation.github.io/oneDAL/daal/algorithms/optimization-solvers/solvers/adaptive-subgradient-method.html)
 - [Sorting](https://uxlfoundation.github.io/oneDAL/daal/algorithms/sorting/index.html)
+- [Quality Metrics](https://uxlfoundation.github.io/oneDAL/daal/algorithms/quality_metrics/index.html)
 - [Quantile](https://uxlfoundation.github.io/oneDAL/daal/algorithms/quantiles/index.html)
 
 ### Training and prediction algorithms to be deprecated:
@@ -60,7 +61,11 @@ oneDAL 2026.0:
 - [AdaBoost Multiclass Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/boosting/adaboost-multiclass.html)
 - [BrownBoost Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/boosting/brownboost.html)
 - [LogitBoost Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/boosting/logitboost.html)
+- [Classification Decision Tree](https://uxlfoundation.github.io/oneDAL/daal/algorithms/decision_tree/decision-tree-classification.html)
+- [Regression Decision Tree](https://uxlfoundation.github.io/oneDAL/daal/algorithms/decision_tree/decision-tree-regression.html)
 - [Naive Bayes Classifier](https://uxlfoundation.github.io/oneDAL/daal/algorithms/naive_bayes/naive-bayes-classifier.html)
+- [Classificaton Stump](https://uxlfoundation.github.io/oneDAL/daal/algorithms/stump/classification.html)
+- [Regression Stump](https://uxlfoundation.github.io/oneDAL/daal/algorithms/stump/regression.html)
 
 **Tier 2** algorithms under consideration for future deprecation:
 
