@@ -350,7 +350,9 @@ jobs:
   steps:
   - script: |
       echo "===== DISK AFTER Beginning ====="
-      du -hs /*
+      du -hs $(Build.Repository.LocalPath)
+      du -hs /opt/*
+      du -hs /home/*
       du -ah . | sort -rh | head -n 20
     displayName: 'Disk debug'
   - script: |
