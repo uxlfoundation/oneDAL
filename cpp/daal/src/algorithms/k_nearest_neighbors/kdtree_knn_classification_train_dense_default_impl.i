@@ -1064,7 +1064,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
                         bn = local->buildStack.pop();
                         --local->bboxPos;
                         const size_t bboxCurIndex = local->bboxPos * xColumnCount;
-                        bboxCur = &(local->bboxes[bboxCurIndex]);
+                        bboxCur                   = &(local->bboxes[bboxCurIndex]);
                         curNode = (bn.nodePos < firstExtraNodeIndex) ? static_cast<KDTreeNode *>(kdTreeTable.getArray()) + bn.nodePos :
                                                                        &(local->extraKDTreeNodes[bn.nodePos - firstExtraNodeIndex]);
 
