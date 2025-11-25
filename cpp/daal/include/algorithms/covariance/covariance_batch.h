@@ -246,7 +246,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    DAAL_DEPRECATEDBatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 

@@ -84,7 +84,6 @@ public:
  * \par References
  *      - \ref bf_knn_classification::interface1::Model "bf_knn_classification::Model" class
  *      - \ref training::interface1::Batch "training::Batch" class
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -98,9 +97,8 @@ public:
 
     /**
      * Default constructor
-     * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch();
+    Batch();
 
     /**
      * Constructs a BF kNN prediction algorithm by copying input objects and parameters
@@ -113,9 +111,8 @@ public:
     /**
      * Constructs a BF kNN prediction algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-     * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch(size_t nClasses);
+    Batch(size_t nClasses);
 
     /**
      * Destructor.

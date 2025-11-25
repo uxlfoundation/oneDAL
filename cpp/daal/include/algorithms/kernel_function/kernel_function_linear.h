@@ -52,6 +52,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
  * \tparam method           Computation method of the algorithm, \ref Method
+ * 
+ * \DAAL_DEPRECATED
  */
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -63,7 +65,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -87,6 +89,8 @@ public:
  *
  * \par References
  *      - \ref interface1::Result "Result" class
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public KernelIface
@@ -102,7 +106,7 @@ public:
     InputType input;         /*!< %Input data structure */
 
     /** Default constructor */
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs linear kernel function algorithm by copying input objects and parameters
