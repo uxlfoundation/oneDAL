@@ -60,6 +60,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__PARAMETER"></a>
  * \brief Bernoulli distribution parameters
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
 class DAAL_EXPORT Parameter : public distributions::ParameterBase
@@ -69,7 +71,7 @@ public:
      *  Main constructor
      *  \param[in] _p    Success probability of a trial, value from [0.0; 1.0]
      */
-    Parameter(algorithmFPType _p) : p(_p) {}
+    DAAL_DEPRECATED Parameter(algorithmFPType _p) : p(_p) {}
 
     algorithmFPType p; /*!< Success probability of a trial, value from [0.0; 1.0] */
 

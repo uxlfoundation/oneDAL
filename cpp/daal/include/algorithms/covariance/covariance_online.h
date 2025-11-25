@@ -103,7 +103,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    DAAL_DEPRECATEDOnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 

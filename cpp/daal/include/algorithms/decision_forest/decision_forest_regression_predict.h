@@ -83,7 +83,6 @@ public:
  * \par References
  *      - \ref decision_forest::regression::interface1::Model "decision_forest::regression::Model" class
  *      - \ref training::interface2::Batch "training::Batch" class
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public algorithms::regression::prediction::Batch
@@ -100,9 +99,8 @@ public:
 
     /**
      * Default constructor
-     * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch();
+    Batch();
 
     /**
      * Constructs a decision forest prediction algorithm by copying input objects and parameters

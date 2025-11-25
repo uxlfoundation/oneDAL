@@ -110,7 +110,6 @@ public:
  *      - \ref interface1::Model "Model" class
  *      - \ref classifier::prediction::interface1::Input "classifier::prediction::Input" class
  *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -127,9 +126,8 @@ public:
     /**
      * Constructs Decision forest prediction algorithm
      * \param[in] nClasses  Number of classes
-     * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch(size_t nClasses);
+    Batch(size_t nClasses);
 
     /**
      * Constructs a Decision forest prediction algorithm by copying input objects and parameters

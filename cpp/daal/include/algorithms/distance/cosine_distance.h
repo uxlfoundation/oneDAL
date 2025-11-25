@@ -87,7 +87,6 @@ public:
  *      - \ref Method   Cosine distance computation methods
  *      - \ref InputId  Identifiers of cosine distance input objects
  *      - \ref ResultId Identifiers of cosine distance results
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -96,7 +95,7 @@ public:
     typedef algorithms::cosine_distance::Input InputType;
     typedef algorithms::cosine_distance::Result ResultType;
 
-    DAAL_DEPRECATED Batch();
+    Batch();
 
     /**
      * Constructs a cosine distance algorithm by copying input objects

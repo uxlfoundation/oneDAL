@@ -51,6 +51,8 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
  * \tparam method           Computation method of the engine, mcg59::Method
  * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -61,7 +63,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
      * Computes the result of the mcg59 engine in the batch processing mode
@@ -84,6 +86,8 @@ public:
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
  *      - \ref engines::interface1::Result "engines::Result" class
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public engines::BatchBase
@@ -100,7 +104,7 @@ public:
      *
      * \return Pointer to mcg59 engine
      */
-    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine

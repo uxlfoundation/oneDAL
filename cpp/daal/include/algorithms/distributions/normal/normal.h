@@ -51,6 +51,8 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
  * \tparam method           Computation method of the distribution, normal::Method
  * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -61,7 +63,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
      * Computes the result of the normal distribution in the batch processing mode
@@ -84,6 +86,8 @@ public:
  * \par References
  *      - \ref distributions::interface1::Input "distributions::Input" class
  *      - \ref distributions::interface1::Result "distributions::Result" class
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public distributions::BatchBase
@@ -100,7 +104,7 @@ public:
      *  \param[in] a     Mean
      *  \param[in] sigma standard deviation
      */
-    Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
+    DAAL_DEPRECATED Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
 
     /**
      * Constructs normal distribution by copying input objects and parameters of another normal distribution

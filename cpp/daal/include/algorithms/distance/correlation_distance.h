@@ -86,7 +86,6 @@ public:
  *      - \ref Method   Correlation distance computation methods
  *      - \ref InputId  Identifiers of correlation distance input objects
  *      - \ref ResultId Identifiers of correlation distance results
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -95,7 +94,7 @@ public:
     typedef algorithms::correlation_distance::Input InputType;
     typedef algorithms::correlation_distance::Result ResultType;
 
-    DAAL_DEPRECATED Batch();
+    Batch();
 
     /**
      * Constructs a correlation distance algorithm by copying input objects
