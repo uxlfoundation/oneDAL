@@ -83,7 +83,6 @@ public:
  *      - \ref Method   Computation methods for the DBSCAN algorithm
  *      - \ref InputId  Identifiers of input objects for the DBSCAN algorithm
  *      - \ref ResultId Identifiers of results of the DBSCAN algorithm
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -97,9 +96,8 @@ public:
      *  Main constructor
      *  \param[in] epsilon         Radius of neighborhood
      *  \param[in] minObservations Minimal total weight of observations in neighborhood of core observation
-     *  \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch(algorithmFPType epsilon, size_t minObservations);
+    Batch(algorithmFPType epsilon, size_t minObservations);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters

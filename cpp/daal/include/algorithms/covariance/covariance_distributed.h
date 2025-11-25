@@ -92,6 +92,7 @@ public:
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
  * \tparam method           Computation method, \ref daal::algorithms::covariance::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
@@ -112,7 +113,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -132,6 +133,8 @@ public:
  * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using single-pass computation method in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, singlePassDense, cpu> : public DistributedContainerIface<step2Master>
@@ -142,7 +145,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -162,6 +165,8 @@ public:
  * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using sum computation method in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, sumDense, cpu> : public DistributedContainerIface<step2Master>
@@ -172,7 +177,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -193,6 +198,8 @@ public:
  *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, fastCSR, cpu> : public DistributedContainerIface<step2Master>
@@ -203,7 +210,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -224,6 +231,8 @@ public:
  *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, singlePassCSR, cpu> : public DistributedContainerIface<step2Master>
@@ -234,7 +243,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -255,6 +264,8 @@ public:
  *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, sumCSR, cpu> : public DistributedContainerIface<step2Master>
@@ -265,7 +276,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**

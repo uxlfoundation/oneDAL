@@ -50,6 +50,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the binary confusion matrix, double or float
  * \tparam method           Computation method for the binary confusion matrix, \ref Method
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,7 +62,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -81,6 +83,8 @@ public:
  *      - \ref InputId          Identifiers of input objects for the binary confusion matrix algorithm
  *      - \ref ResultId         Result identifiers for the binary confusion matrix algorithm
  *      - \ref BinaryMetricsId  Identifiers of resulting metrics associated with the binary confusion matrix
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::quality_metric::Batch
@@ -94,7 +98,7 @@ public:
     ParameterType parameter; /*!< Parameters of the algorithm */
 
     /** Default constructor */
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a confusion matrix algorithm by copying input objects and parameters
