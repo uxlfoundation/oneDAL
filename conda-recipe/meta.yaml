@@ -57,8 +57,7 @@ requirements:
     - mkl-static  # [linux64 or win]
     - mkl-devel-dpcpp  # [linux64 or win]
     - onemkl-sycl-include  # [linux64 or win]
-    - impi_rt
-    - impi-devel
+    - mpi * impi
   host:
     - tbb-devel
 
@@ -112,8 +111,7 @@ outputs:
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
-        - impi_rt
-        - impi-devel
+        - mpi * impi
       source_files:
         - examples
         - samples
