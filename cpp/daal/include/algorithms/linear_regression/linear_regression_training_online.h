@@ -48,6 +48,8 @@ namespace interface1
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__ONLINECONTAINER"></a>
  * \brief Class containing methods for linear regression model-based training
  * in the online processing mode
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public TrainingContainerIface<online>
@@ -58,7 +60,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~OnlineContainer();
 

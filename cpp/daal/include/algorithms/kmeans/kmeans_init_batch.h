@@ -107,7 +107,6 @@ protected:
  *      - \ref Method   Methods of computing initial clusters for K-Means algorithm
  *      - \ref InputId  Identifiers of input objects for computing initial clusters for K-Means algorithm
  *      - \ref ResultId Identifiers of results of computing initial clusters for K-Means algorithm
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public BatchBase
@@ -116,9 +115,8 @@ public:
     /**
      *  Main constructor
      *  \param[in] nClusters   Number of clusters
-     *  \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch(size_t nClusters);
+    Batch(size_t nClusters);
 
     /**
      * Constructs an algorithm that computes initial clusters for K-Means algorithm

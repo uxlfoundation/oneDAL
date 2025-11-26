@@ -54,10 +54,12 @@ namespace interface2
  */
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__TRAINING__BATCHCONTAINER"></a>
- *  \brief Class containing methods to compute the results of multi-class classifier model-based training
+ * \brief Class containing methods to compute the results of multi-class classifier model-based training
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class classifier, double or float
  * \tparam method           Computation method of the algprithm, \ref daal::algorithms::multi_class_classifier::training::Method
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -68,7 +70,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**

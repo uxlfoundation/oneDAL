@@ -50,6 +50,8 @@ namespace interface1
  * \tparam step             Step of distributed processing, \ref ComputeStep
  * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
  * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
+ * 
+ * \DAAL_DEPRECATED
  *
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
@@ -64,6 +66,7 @@ class DistributedContainer
  * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
  * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -74,7 +77,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**

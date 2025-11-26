@@ -84,7 +84,6 @@ public:
  *      - \ref Method   Computation methods for K-Means algorithm
  *      - \ref InputId  Identifiers of input objects for K-Means algorithm
  *      - \ref ResultId Identifiers of results of K-Means algorithm
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = lloydDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -98,9 +97,8 @@ public:
      *  Main constructor
      *  \param[in] nClusters   Number of clusters
      *  \param[in] nIterations Number of iterations
-     *  \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch(size_t nClusters, size_t nIterations = 1);
+    Batch(size_t nClusters, size_t nIterations = 1);
 
     /**
      * Constructs K-Means algorithm by copying input objects and parameters
@@ -111,6 +109,7 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     ~Batch() { delete _par; }
+
     /**
     * Returns the method of the algorithm
     * \return Method of the algorithm

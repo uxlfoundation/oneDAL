@@ -62,10 +62,11 @@ public:
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the low order moments algorithm.
  *        This class is associated with daal::algorithms::low_order_moments::Batch class
-
  *
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::low_order_moments::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public BatchContainerIface
@@ -76,7 +77,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
