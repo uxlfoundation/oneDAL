@@ -55,6 +55,8 @@ namespace interface1
  * \par References
  *      - Input class
  *      - Result class
+ * 
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
 {
@@ -66,7 +68,7 @@ public:
     /**
      *  Main constructor
      */
-    Batch() { initialize(); }
+    DAAL_DEPRECATED Batch() { initialize(); }
 
     /**
      * Constructs an Objective function by copying input objects and parameters

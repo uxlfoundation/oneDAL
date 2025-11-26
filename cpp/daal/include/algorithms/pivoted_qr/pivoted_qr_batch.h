@@ -49,7 +49,8 @@ namespace interface1
  *
  * \tparam method           Pivoted QR computation method, \ref daal::algorithms::pivoted_qr::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations for the pivoted QR, double or float
- *
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,7 +61,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**

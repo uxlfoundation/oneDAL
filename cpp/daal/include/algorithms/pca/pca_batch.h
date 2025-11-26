@@ -109,7 +109,6 @@ public:
  *
  * \par Enumerations
  *      - \ref Method  Computation methods for the algorithm
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = correlationDense>
 class DAAL_EXPORT Batch : public Analysis<batch>
@@ -121,9 +120,8 @@ public:
 
     /**
      * Default constructor
-     * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED Batch();
+    Batch();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm

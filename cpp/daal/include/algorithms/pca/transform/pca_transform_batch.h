@@ -81,7 +81,6 @@ public:
 *
 * \par Enumerations
 *      - \ref Method   Computation methods for the PCA transformation algorithm
-* \DAAL_DEPRECATED
 */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -97,9 +96,8 @@ public:
     /**
     * Constructs a PCA transformation algorithm
     * \param[in] nComponents Number of principal components
-    * \DAAL_DEPRECATED
     */
-    DAAL_DEPRECATED Batch(size_t nComponents = 0);
+    Batch(size_t nComponents = 0);
 
     /**
     * Constructs a PCA transformation algorithm by copying input objects and parameters

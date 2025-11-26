@@ -53,13 +53,15 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the quality metric, double or float
  * \tparam method           Computation method for the metric, \ref Method
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
 {
 public:
     /** Default constructor */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 

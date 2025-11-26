@@ -53,6 +53,8 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the objective function with precomputed characteristics, double or float
  * \tparam method           The objective function with precomputed characteristics method
+ * 
+ * \DAAL_DEPRECATED
  */
 
 template <typename algorithmFPType, Method method>
@@ -64,7 +66,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv) {}
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv) {}
     virtual ~BatchContainer() {}
     /**
      * Runs implementations of the objective function with precomputed characteristics in the batch processing mode

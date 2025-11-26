@@ -46,6 +46,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public AnalysisContainerIface<online>
@@ -54,6 +56,8 @@ class OnlineContainer : public AnalysisContainerIface<online>
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<online>
@@ -64,7 +68,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~OnlineContainer();
 
@@ -81,6 +85,8 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<online>
@@ -91,7 +97,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~OnlineContainer();
 

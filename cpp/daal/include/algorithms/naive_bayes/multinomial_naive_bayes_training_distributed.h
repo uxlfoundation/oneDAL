@@ -50,6 +50,8 @@ namespace interface2
  * \tparam algorithmFPType  Data type to use in intermediate computations for the naive Bayes training algorithm in the distributed processing mode,
  *                          double or float
  * \tparam method           Naive Bayes training method on the first step in distributed processing mode, \ref Method
+ * 
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer;
@@ -57,6 +59,8 @@ class DistributedContainer;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__TRAINING__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing methods to train naive Bayes in the distributed processing mode
+ * 
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
@@ -67,7 +71,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
