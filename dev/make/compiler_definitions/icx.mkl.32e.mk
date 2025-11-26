@@ -60,7 +60,7 @@ else
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
