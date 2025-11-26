@@ -120,6 +120,7 @@ OSList          := lnx win mac
 
 o            := $(if $(OS_is_win),obj,o)
 a            := $(if $(OS_is_win),lib,a)
+so           := $(if $(OS_is_win),dll,so)
 d            := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),d,),)
 dtbb         := $(if $(OS_is_win),$(if $(MSVC_RT_is_debug),_debug,),)
 plib         := $(if $(OS_is_win),,lib)
