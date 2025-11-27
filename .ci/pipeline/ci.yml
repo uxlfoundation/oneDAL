@@ -294,27 +294,36 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
     displayName: 'Upload build artifacts'
   - script: |
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
+  - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-dev'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-dev'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
@@ -322,11 +331,12 @@ jobs:
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-release-static'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
@@ -334,11 +344,12 @@ jobs:
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-static'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
@@ -346,11 +357,12 @@ jobs:
                  --test_thread_mode=par
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
@@ -358,20 +370,22 @@ jobs:
                  --test_thread_mode=par
     displayName: 'cpp-examples-thread-release-dynamic'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
@@ -379,11 +393,12 @@ jobs:
                  --test_thread_mode=par
     displayName: 'cpp-tests-thread-dev'
   - script: |
-      echo "=== Cleaning test-related cache ==="
-      bazel clean --expunge_test_caches
-      rm -rf $(bazel info bazel-testlogs) || echo "No testlogs directory"
-      echo "=== Test cache cleaned ==="
-    displayName: 'Clean test cache & testlogs'
+      echo "Clean before running example tests"
+      df -h
+      du -sh .
+      du -ah . | sort -rh | head -n 20
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       # Clear cache if its size exceeds some predefined value
       cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)
