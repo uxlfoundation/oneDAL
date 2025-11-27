@@ -57,7 +57,6 @@ requirements:
     - mkl-static  # [linux64 or win]
     - mkl-devel-dpcpp  # [linux64 or win]
     - onemkl-sycl-include  # [linux64 or win]
-    - mpi * impi
   host:
     - tbb-devel
 
@@ -111,10 +110,8 @@ outputs:
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
-        - mpi * impi
       source_files:
         - examples
-        - samples
       script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
