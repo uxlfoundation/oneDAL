@@ -73,7 +73,7 @@ public:
      *  \param[in] _a     Mean
      *  \param[in] _sigma Standard deviation
      */
-    DAAL_DEPRECATEDParameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
+    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
 
     algorithmFPType a;     /*!< Mean */
     algorithmFPType sigma; /*!< Standard deviation */
