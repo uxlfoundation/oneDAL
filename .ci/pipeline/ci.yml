@@ -298,7 +298,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       bazel test //examples/daal/cpp:all \
@@ -310,7 +310,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       bazel test //examples/oneapi/cpp:all \
@@ -322,7 +322,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
@@ -335,7 +335,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
@@ -348,7 +348,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
@@ -361,7 +361,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
@@ -374,7 +374,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       bazel test //cpp/daal:tests
@@ -384,7 +384,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
@@ -397,7 +397,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean --expunge
+      bazel clean
     displayName: 'bazel-clean'
   - script: |
       # Clear cache if its size exceeds some predefined value
