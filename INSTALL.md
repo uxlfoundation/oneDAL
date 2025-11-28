@@ -293,7 +293,7 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 
 DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
 
-oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running the samples requires a DPC++ compiler such as ICX, and multi-process execution requires MPI/CCL.
+oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running the samples requires a DPC++ compiler such as ICX, and MPI/CCL.
 
 * oneAPI samples:
 
@@ -307,8 +307,14 @@ make -j$(nproc)
 
 Once built, the samples can be run with mpirun specifying the number of processes:
 
+* On Linux:
 ```shell
 mpirun -n {num_processes} ./_cmake_results/{platform_name}/{example}
+```
+
+* On Windows:
+```shell
+mpiexec -n {num_processes} ./_cmake_results/{platform_name}/{example}
 ```
 
 ### Executing examples with ASAN
