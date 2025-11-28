@@ -371,7 +371,8 @@ conda install -c conda-forge \
     tbb tbb-devel `# required TBB packages` \
     onedpl-devel `# required oneDPL package` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
-    cmake `# required to build the examples only`
+    cmake `# required to build the examples only` \
+    impi-devel impi_rt `# required to build the samples only`
 ```
 
 Then modify the relevant environment variables to point to the conda-installed libraries:
