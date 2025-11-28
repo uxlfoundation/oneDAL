@@ -243,6 +243,7 @@ jobs:
   variables:
     platform.type : 'lnx32e'
     BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
+    BAZEL_TEST_CACHE_DIR: $(Pipeline.Workspace)/rm_cache
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
@@ -303,7 +304,11 @@ jobs:
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'daal-cpp-examples-thread-dev'
   - script: |
       echo "Clean before running example tests"
@@ -315,7 +320,11 @@ jobs:
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'cpp-examples-thread-dev'
   - script: |
       echo "Clean before running example tests"
@@ -328,7 +337,11 @@ jobs:
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'daal-cpp-examples-thread-release-static'
   - script: |
       echo "Clean before running example tests"
@@ -341,7 +354,11 @@ jobs:
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'cpp-examples-thread-release-static'
   - script: |
       echo "Clean before running example tests"
@@ -354,7 +371,11 @@ jobs:
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
       echo "Clean before running example tests"
@@ -367,7 +388,11 @@ jobs:
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'cpp-examples-thread-release-dynamic'
   - script: |
       echo "Clean before running example tests"
@@ -390,7 +415,11 @@ jobs:
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
+      cd $(BAZEL_TEST_CACHE_DIR)
+      rm -rf *
+      cd ..
     displayName: 'cpp-tests-thread-dev'
   - script: |
       echo "Clean before running example tests"
