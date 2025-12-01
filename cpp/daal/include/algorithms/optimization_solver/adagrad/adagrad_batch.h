@@ -53,7 +53,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Adaptive gradient descent algorithm, double or float
  * \tparam method           Adaptive gradient descent computation method, daal::algorithms::optimization_solver::adagrad::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

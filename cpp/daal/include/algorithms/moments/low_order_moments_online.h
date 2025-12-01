@@ -50,7 +50,7 @@ namespace interface1
  *
  * \tparam method           Computation method for the low order moments algorithm, \ref daal::algorithms::low_order_moments::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -51,7 +51,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the BACON outlier detection, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::bacon_outlier_detection::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

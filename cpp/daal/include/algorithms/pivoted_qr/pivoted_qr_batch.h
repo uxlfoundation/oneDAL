@@ -49,7 +49,7 @@ namespace interface1
  *
  * \tparam method           Pivoted QR computation method, \ref daal::algorithms::pivoted_qr::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations for the pivoted QR, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

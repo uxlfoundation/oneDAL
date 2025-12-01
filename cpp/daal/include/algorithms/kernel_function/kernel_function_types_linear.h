@@ -66,7 +66,7 @@ namespace interface1
  * \brief Parameters for the linear kernel function k(X,Y) + b
  *
  * \snippet kernel_function/kernel_function_types_linear.h Linear input object source code
- * 
+ *
  * \DAAL_DEPRECATED
  */
 /* [Linear input object source code] */
@@ -81,7 +81,7 @@ struct DAAL_EXPORT Parameter : public ParameterBase
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__LINEAR__INPUT"></a>
  * \brief %Input objects for the kernel function linear algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public kernel_function::Input

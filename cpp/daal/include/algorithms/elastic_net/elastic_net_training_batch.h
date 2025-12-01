@@ -49,7 +49,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ELASTIC_NET__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for normal equations elastic net model-based training using algorithmFPType precision arithmetic
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

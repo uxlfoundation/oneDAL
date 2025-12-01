@@ -49,7 +49,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the EM for GMM algorithm, double or float
  * \tparam method           EM for GMM computation method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

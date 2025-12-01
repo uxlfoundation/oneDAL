@@ -56,7 +56,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the quality metric, double or float
  * \tparam method           Computation method for the metric, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

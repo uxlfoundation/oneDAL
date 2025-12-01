@@ -53,7 +53,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the LBFGS algorithm, double or float
  * \tparam method           Stochastic gradient descent computation method, daal::algorithms::optimization_solver::lbfgs::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

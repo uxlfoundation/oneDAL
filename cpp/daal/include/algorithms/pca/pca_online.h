@@ -46,7 +46,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -56,7 +56,7 @@ class OnlineContainer : public AnalysisContainerIface<online>
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -85,7 +85,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>

@@ -50,7 +50,7 @@ namespace interface1
  * \tparam step             Step of the computing algorithm in the distributed processing mode, \ref ComputeStep
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  * \tparam method           Computation method, \ref daal::algorithms::svd::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>

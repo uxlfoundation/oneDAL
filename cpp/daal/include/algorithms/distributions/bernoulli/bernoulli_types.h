@@ -60,7 +60,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__PARAMETER"></a>
  * \brief Bernoulli distribution parameters
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>

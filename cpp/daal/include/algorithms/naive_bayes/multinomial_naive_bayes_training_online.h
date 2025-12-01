@@ -50,7 +50,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the naive Bayes in the online processing mode, double or float
  * \tparam method           Naive Bayes computation method, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

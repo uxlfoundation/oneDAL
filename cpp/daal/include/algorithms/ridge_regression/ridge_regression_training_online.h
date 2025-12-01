@@ -46,7 +46,7 @@ namespace interface1
 /**
  * \brief Class containing methods for ridge regression model-based training
  * in the online processing mode
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

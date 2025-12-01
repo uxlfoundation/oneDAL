@@ -52,7 +52,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Coordinate descent algorithm, double or float
  * \tparam method           Coordinate descent computation method, daal::algorithms::optimization_solver::coordinate_descent::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

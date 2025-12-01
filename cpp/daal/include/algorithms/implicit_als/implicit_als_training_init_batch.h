@@ -48,7 +48,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__INIT__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the implicit ALS initialization algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

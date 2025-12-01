@@ -49,7 +49,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LASSO_REGRESSION__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for normal equations lasso regression model-based training using algorithmFPType precision arithmetic
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

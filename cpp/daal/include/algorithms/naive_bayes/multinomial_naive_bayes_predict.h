@@ -55,7 +55,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for prediction based on the multinomial naive Bayes model, double or float
  * \tparam method           Multinomial naive Bayes prediction method, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>

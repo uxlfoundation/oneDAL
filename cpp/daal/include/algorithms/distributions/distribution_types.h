@@ -71,7 +71,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__PARAMETERBASE"></a>
  * Parameters of the distributions
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
@@ -86,7 +86,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__INPUT"></a>
  * \brief %Input objects for distributions
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
@@ -128,7 +128,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTION__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of the distribution
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result

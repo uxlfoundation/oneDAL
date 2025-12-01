@@ -50,7 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the binary confusion matrix, double or float
  * \tparam method           Computation method for the binary confusion matrix, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -83,7 +83,7 @@ public:
  *      - \ref InputId          Identifiers of input objects for the binary confusion matrix algorithm
  *      - \ref ResultId         Result identifiers for the binary confusion matrix algorithm
  *      - \ref BinaryMetricsId  Identifiers of resulting metrics associated with the binary confusion matrix
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>

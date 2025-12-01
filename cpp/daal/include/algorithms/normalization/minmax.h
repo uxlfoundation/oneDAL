@@ -52,7 +52,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the min-max normalization algorithms, double or float
  * \tparam method           Min-max normalization computation method, daal::algorithms::normalization::minmax::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

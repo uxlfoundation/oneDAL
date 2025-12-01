@@ -60,7 +60,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__PARAMETER"></a>
  * \brief Uniform distribution parameters
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>

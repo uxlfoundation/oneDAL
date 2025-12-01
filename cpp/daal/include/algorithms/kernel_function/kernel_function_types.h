@@ -83,7 +83,7 @@ namespace interface1
  * \brief Optional %input objects for the kernel function algorithm
  *
  * \snippet kernel_function/kernel_function_types.h ParameterBase source code
- * 
+ *
  * \DAAL_DEPRECATED
  */
 /* [ParameterBase source code] */
@@ -102,7 +102,7 @@ struct DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__INPUT"></a>
  * \brief %Input objects for the kernel function algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
@@ -136,7 +136,7 @@ protected:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RESULT"></a>
  * \brief Results obtained with the compute() method of the kernel function algorithm in the batch processing mode
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result

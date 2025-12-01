@@ -50,7 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the quantile algorithms, double or float
  * \tparam method           Quantiles computation method, \ref daal::algorithms::quantiles::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

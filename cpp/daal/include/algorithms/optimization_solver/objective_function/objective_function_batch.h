@@ -55,7 +55,7 @@ namespace interface1
  * \par References
  *      - Input class
  *      - Result class
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>

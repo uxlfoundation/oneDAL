@@ -50,7 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class confusion matrix, double or float
  * \tparam method           Method for computing the multi-class confusion matrix, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -83,7 +83,7 @@ public:
  *      - \ref InputId              Identifiers of input objects for the multi-class confusion matrix algorithm
  *      - \ref ResultId             Result identifiers for the multi-class confusion matrix algorithm
  *      - \ref MultiClassMetricsId  Identifiers of resulting metrics associated with the multi-class confusion matrix
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>

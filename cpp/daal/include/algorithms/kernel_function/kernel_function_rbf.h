@@ -52,7 +52,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
  * \tparam method           Computation method of the algorithm, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -88,7 +88,7 @@ public:
  *
  * \par References
  *      - \ref interface1::Result "Result" class
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>

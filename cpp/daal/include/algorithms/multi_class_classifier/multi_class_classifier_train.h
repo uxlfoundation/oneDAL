@@ -58,7 +58,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class classifier, double or float
  * \tparam method           Computation method of the algprithm, \ref daal::algorithms::multi_class_classifier::training::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

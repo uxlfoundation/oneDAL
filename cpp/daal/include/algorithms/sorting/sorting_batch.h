@@ -51,7 +51,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the sorting algorithms, double or float
  * \tparam method           Sorting computation method, \ref daal::algorithms::sorting::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -53,7 +53,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the the decision stump training algorithm, double or float
  * \tparam method           the decision stump training method, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -46,7 +46,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
  * \tparam method           Gradient Boosted Trees model training method, \ref Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -60,7 +60,7 @@ namespace interface2
  * \tparam algorithmFPType  Data type to use in intermediate computations for the multi-class classifier algorithm, double or float
  * \tparam pmethod          Computation method for the algorithm, \ref prediction::Method
  * \tparam tmethod          Computation method that was used to train the multi-class classifier model, \ref training::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, prediction::Method pmethod, training::Method tmethod, CpuType cpu>

@@ -133,7 +133,7 @@ public:
  * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using single-pass computation method in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -165,7 +165,7 @@ public:
  * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using sum computation method in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -198,7 +198,7 @@ public:
  *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -231,7 +231,7 @@ public:
  *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -264,7 +264,7 @@ public:
  *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>

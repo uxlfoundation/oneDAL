@@ -61,7 +61,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__PARAMETER"></a>
  * \brief Normal distribution parameters
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>

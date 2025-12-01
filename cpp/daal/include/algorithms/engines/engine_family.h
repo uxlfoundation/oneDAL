@@ -41,7 +41,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__FAMILYBATCHBASE"></a>
  *  \brief Class representing an engine that has collection of independent streams obtained from RNGs from same family.
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT FamilyBatchBase : public engines::BatchBase

@@ -51,7 +51,7 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
  * \tparam method           Computation method of the distribution, bernoulli::Method
  * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -86,7 +86,7 @@ public:
  * \par References
  *      - \ref distributions::interface1::Input "distributions::Input" class
  *      - \ref distributions::interface1::Result "distributions::Result" class
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>

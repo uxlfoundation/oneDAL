@@ -51,7 +51,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the univariate outlier detection algorithm, double or float
  * \tparam method           Univariate outlier detection computation method, \ref daal::algorithms::univariate_outlier_detection::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

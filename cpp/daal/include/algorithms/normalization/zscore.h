@@ -52,7 +52,7 @@ namespace interface3
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the z-score normalization algorithms, double or float
  * \tparam method           Z-score normalization computation method, daal::algorithms::normalization::zscore::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

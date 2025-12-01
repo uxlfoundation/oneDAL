@@ -77,7 +77,7 @@ public:
  *
  * \tparam method           Computation method for correlation or variance-covariance matrix, \ref daal::algorithms::covariance::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -91,7 +91,7 @@ class OnlineContainer
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -126,7 +126,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -161,7 +161,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -196,7 +196,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -231,7 +231,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -266,7 +266,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>

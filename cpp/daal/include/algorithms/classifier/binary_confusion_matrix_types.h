@@ -110,7 +110,7 @@ namespace interface1
  * \brief Parameters for the binary confusion matrix compute() method
  *
  * \snippet classifier/binary_confusion_matrix_types.h Parameter source code
- * 
+ *
  * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
@@ -130,7 +130,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CLASSIFIER__QUALITY_METRIC__BINARY_CONFUSION_MATRIX__INPUT"></a>
  * \brief Base class for input objects of the binary confusion matrix algorithm
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
@@ -169,7 +169,7 @@ typedef services::SharedPtr<Input> InputPtr;
  * <a name="DAAL-CLASS-ALGORITHMS__CLASSIFIER__QUALITY_METRIC__BINARY_CONFUSION_MATRIX__RESULT"></a>
  * \brief Results obtained with the compute() method of the binary confusion matrix algorithm
  *        in the batch processing mode
- * 
+ *
  * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result

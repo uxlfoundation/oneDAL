@@ -48,7 +48,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__GBT__PREDICTION__BATCHCONTAINER"></a>
  *  \brief Class containing computation methods for model-based prediction
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

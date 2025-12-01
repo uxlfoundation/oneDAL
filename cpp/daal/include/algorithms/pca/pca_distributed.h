@@ -48,7 +48,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
@@ -58,7 +58,7 @@ class DistributedContainer
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the local node
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -74,7 +74,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the master node
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -105,7 +105,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the local node
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -120,7 +120,7 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the master node
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>

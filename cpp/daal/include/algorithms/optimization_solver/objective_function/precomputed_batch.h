@@ -53,7 +53,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the objective function with precomputed characteristics, double or float
  * \tparam method           The objective function with precomputed characteristics method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 

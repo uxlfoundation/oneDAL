@@ -54,7 +54,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Cross-entropy loss objective function, double or float
  * \tparam method           the Cross-entropy loss objective function computation method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -50,7 +50,7 @@ namespace interface1
  * \tparam step             Step of distributed processing, \ref ComputeStep
  * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
  * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
- * 
+ *
  * \DAAL_DEPRECATED
  *
  */

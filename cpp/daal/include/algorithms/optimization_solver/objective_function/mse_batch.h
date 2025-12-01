@@ -55,7 +55,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Mean squared error objective function, double or float
  * \tparam method           the mean squared error objective function computation method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -49,7 +49,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Cholesky decomposition algorithm, double or float
  * \tparam method           Cholesky decomposition computation method, \ref daal::algorithms::cholesky::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

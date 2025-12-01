@@ -70,7 +70,7 @@ public:
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::covariance::Method
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -84,7 +84,7 @@ class BatchContainer
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -114,7 +114,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -144,7 +144,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -174,7 +174,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -204,7 +204,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
@@ -234,7 +234,7 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * 
+ *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
