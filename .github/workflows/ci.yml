@@ -70,7 +70,7 @@ jobs:
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
-          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
+          # if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
       - name: Make onedal debug
         id: onedal-dbg
         run: |

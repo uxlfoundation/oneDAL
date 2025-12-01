@@ -299,7 +299,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
+      bazel clean --expunge
     displayName: 'bazel-clean'
   - script: |
       bazel test //examples/daal/cpp:all \
@@ -315,8 +315,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-space'
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
@@ -331,8 +330,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-space'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
@@ -348,8 +346,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-space'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
@@ -365,8 +362,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-space'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
@@ -382,8 +378,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-clean'
   - script: |
       export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
@@ -399,8 +394,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-clean'
   - script: |
       bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
@@ -409,8 +403,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-clean'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
@@ -426,8 +419,7 @@ jobs:
       df -h
       du -sh .
       du -ah . | sort -rh | head -n 20
-      bazel clean
-    displayName: 'bazel-clean'
+    displayName: 'disk-clean'
   - script: |
       # Clear cache if its size exceeds some predefined value
       cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)
