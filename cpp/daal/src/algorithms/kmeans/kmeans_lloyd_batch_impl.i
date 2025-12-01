@@ -182,14 +182,14 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         }
         {
             DAAL_PROFILER_TASK(kmeansUpdateObjectiveFunction);
-            if (par->accuracyThreshold > (algorithmFPType)0.0)
+            if (par->accuracyThreshold >= (algorithmFPType)0.0)
             {
                 algorithmFPType newTargetFunc = (algorithmFPType)0.0;
 
                 task->kmeansClearClusters(&newTargetFunc);
                 newTargetFunc -= newCentersGoalFunc;
 
-                if (l2Norm < par->accuracyThreshold)
+                if (l2Norm <= par->accuracyThreshold)
                 {
                     kIter++;
                     break;
