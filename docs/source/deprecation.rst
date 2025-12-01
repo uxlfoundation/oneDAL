@@ -64,8 +64,8 @@ The list of the deprecated DAAL data sources includes:
 **Reasons for deprecation:** The value of DAAL's native data source implementations has diminished as Python's ecosystem of data manipulation libraries,
 including pandas, Parquet, and specialized database connectors, now provides improved flexibility and functionality for data import.
 
-**Alternatives:** For data access, consider using other packages that provide similar functionality. For example, `SQLAlchemy <https://www.sqlalchemy.org/>`,
-or `pyodbc <https://pypi.org/project/pyodbc/>` for Python users.
+**Alternatives:** For data access, consider using other packages that provide similar functionality. For example, `SQLAlchemy <https://www.sqlalchemy.org/>`_,
+or `pyodbc <https://pypi.org/project/pyodbc/>`_ for Python users.
 
 DAAL Matrices
 *************
