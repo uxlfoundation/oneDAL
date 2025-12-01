@@ -40,8 +40,8 @@ The list of the deprecated DAAL training and prediction algorithms includes:
 - :ref:`AdaBoost Classifier <daal_alg_adaboost_classifier>`
 - :ref:`AdaBoost Multiclass Classifier <daal_alg_adaboost_multiclass_classifier>`
 - :ref:`BrownBoost Classifier <daal_alg_brownboost_classifier>`
-- :ref:`Decision Tree Classifier <_dt_classification>`
-- :ref:`Decision Tree Regressor <_dt_regression>`
+- :ref:`Decision Tree Classifier <dt_classification>`
+- :ref:`Decision Tree Regressor <dt_regression>`
 - :ref:`LogitBoost Classifier <daal_alg_logitboost_classifier>`
 - :ref:`Multinomial Naive Bayes Classifier <daal_alg_naive_bayes_classifier>`
 - :ref:`Stump Classifier <daal_alg_stump_classifier>`
@@ -90,7 +90,7 @@ Interface layers of certain DAAL algorithms
 The 2025.x releases are the last to provide it.
 The list of the deprecated DAAL classes includes:
 
-:ref:`<daal/algorithms/distributions/index>`:
+:doc:`daal/algorithms/distributions/index`
 
 - ``distributions::Input``
 - ``distributions::Result``
@@ -107,7 +107,7 @@ The list of the deprecated DAAL classes includes:
 - ``distributions::uniform::BatchContainer``
 - ``distributions::uniform::Parameter``
 
-:doc:`<daal/algorithms/engines/index>`:
+:doc:`daal/algorithms/engines/index`
 
 - ``engines::Input``
 - ``engines::Result``
@@ -127,7 +127,7 @@ The list of the deprecated DAAL classes includes:
 - ``engines::philox4x32x10::BatchContainer``
 - ``engines::philox4x32x10::Batch``
 
-:doc:`<daal/algorithms/kernel_function/kernel-functions>`:
+:doc:`daal/algorithms/kernel_function/kernel-functions`
 
 - ``kernel_function::Input``
 - ``kernel_function::Result``
@@ -140,7 +140,7 @@ The list of the deprecated DAAL classes includes:
 - ``kernel_function::rbf::Batch``
 - ``kernel_function::rbf::Input``
 
-:doc:`<source/contribution/cpu_features>`
+:doc:`contribution/cpu_features`
 
 - ``CpuType``
 - ``CpuFeature``
