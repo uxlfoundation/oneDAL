@@ -67,7 +67,8 @@ public:
      * \param[in] nClasses          Number of classes
      * \param[in] useDefaultMetrics Flag. If true, a quality metric set is initialized with the quality metrics provided by the library
      */
-    DAAL_DEPRECATED Batch(size_t nClasses = 2, bool useDefaultMetrics = true) : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nClasses)
+    DAAL_DEPRECATED Batch(size_t nClasses = 2, bool useDefaultMetrics = true)
+        : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nClasses)
     {
         _inputData = InputDataCollectionPtr(new InputDataCollection());
         if (_useDefaultMetrics)

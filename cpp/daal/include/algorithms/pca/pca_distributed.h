@@ -66,7 +66,8 @@ class DistributedContainer<step1Local, algorithmFPType, correlationDense, cpu> :
 {
 public:
     /** \brief Constructor */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, correlationDense, cpu>(daalEnv) {};
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv)
+        : OnlineContainer<algorithmFPType, correlationDense, cpu>(daalEnv) {};
     virtual ~DistributedContainer() {}
 };
 

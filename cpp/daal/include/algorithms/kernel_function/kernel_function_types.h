@@ -89,7 +89,8 @@ namespace interface1
 /* [ParameterBase source code] */
 struct DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
 {
-    DAAL_DEPRECATED ParameterBase(size_t rowIndexX = 0, size_t rowIndexY = 0, size_t rowIndexResult = 0, ComputationMode computationMode = matrixMatrix);
+    DAAL_DEPRECATED ParameterBase(size_t rowIndexX = 0, size_t rowIndexY = 0, size_t rowIndexResult = 0,
+                                  ComputationMode computationMode = matrixMatrix);
 
     size_t rowIndexX;                /*!< Index of the vector in the set X */
     size_t rowIndexY;                /*!< Index of the vector in the set Y */
