@@ -289,10 +289,21 @@ jobs:
   - script: |
       bazel build :release
     displayName: 'release'
+  - script: |
+      echo "Move Bazel release output to standalone directory"
+      rm -rf standalone_release
+      mkdir -p standalone_release
+
+      # Move instead of copy to save disk
+      mv bazel-bin/release/* standalone_release/
+
+      # Expose DALROOT for subsequent tasks
+      echo "##vso[task.setvariable variable=DALROOT]$(pwd)/standalone_release/daal/latest"
+    displayName: 'Prepare standalone release directory'
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
-      targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
+      targetPath: '$(DALROOT)'
     displayName: 'Upload build artifacts'
   - script: |
       echo "Clean before running example tests"
@@ -304,11 +315,8 @@ jobs:
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-dev'
   - script: |
       echo "Clean before running example tests"
@@ -319,11 +327,8 @@ jobs:
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-dev'
   - script: |
       echo "Clean before running example tests"
@@ -332,14 +337,12 @@ jobs:
       du -ah . | sort -rh | head -n 20
     displayName: 'disk-space'
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      export DALROOT="$(DALROOT)"
+      echo "Using DALROOT = $DALROOT"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-static'
   - script: |
       echo "Clean before running example tests"
@@ -348,14 +351,12 @@ jobs:
       du -ah . | sort -rh | head -n 20
     displayName: 'disk-space'
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      export DALROOT="$(DALROOT)"
+      echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-static'
   - script: |
       echo "Clean before running example tests"
@@ -364,14 +365,12 @@ jobs:
       du -ah . | sort -rh | head -n 20
     displayName: 'disk-space'
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      export DALROOT="$(DALROOT)"
+      echo "Using DALROOT = $DALROOT"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
       echo "Clean before running example tests"
@@ -380,14 +379,12 @@ jobs:
       du -ah . | sort -rh | head -n 20
     displayName: 'disk-clean'
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
+      export DALROOT="$(DALROOT)"
+      echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-dynamic'
   - script: |
       echo "Clean before running example tests"
@@ -397,6 +394,7 @@ jobs:
     displayName: 'disk-clean'
   - script: |
       bazel test //cpp/daal:tests
+      bazel clean --expunge
     displayName: 'daal-tests-algorithms'
   - script: |
       echo "Clean before running example tests"
@@ -408,11 +406,8 @@ jobs:
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
-                 --test_thread_mode=par \
-                 --disk_cache=$(BAZEL_TEST_CACHE_DIR)
-      cd $(BAZEL_TEST_CACHE_DIR)
-      rm -rf *
-      cd ..
+                 --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-tests-thread-dev'
   - script: |
       echo "Clean before running example tests"
