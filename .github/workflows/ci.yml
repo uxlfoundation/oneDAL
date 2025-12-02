@@ -64,6 +64,11 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
+      - name: directory size
+        run: |
+          df -h
+          du -sh ..
+          du -ah .. | sort -rh | head -n 30
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
@@ -71,6 +76,11 @@ jobs:
           # clean up build directory due to space limitations
           rm -rf __work
           # if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
+      - name: directory size
+        run: |
+          df -h
+          du -sh ..
+          du -ah .. | sort -rh | head -n 30
       - name: Make onedal debug
         id: onedal-dbg
         run: |
@@ -79,6 +89,11 @@ jobs:
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: directory size
+        run: |
+          df -h
+          du -sh ..
+          du -ah .. | sort -rh | head -n 30
       - name: Prepare Cache build
         if: github.event_name != 'pull_request'
         run: cp -r __release_lnx __release_lnx_main
