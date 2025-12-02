@@ -20,7 +20,6 @@
 #include <string>
 #include <fstream>
 
-#include <sycl/sycl.hpp>
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace dal = oneapi::dal;
@@ -43,9 +42,7 @@ inline std::string get_data_path(const std::string& name) {
 }
 
 template <typename Float>
-std::vector<dal::table> split_table_by_rows(sycl::queue& queue,
-                                            const dal::table& t,
-                                            std::int64_t split_count) {
+std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {
     ONEDAL_ASSERT(split_count > 0);
     ONEDAL_ASSERT(split_count <= t.get_row_count());
 
@@ -62,8 +59,7 @@ std::vector<dal::table> split_table_by_rows(sycl::queue& queue,
         const std::int64_t block_size = block_size_regular + tail;
 
         const auto row_range = dal::range{ row_offset, row_offset + block_size };
-        const auto block =
-            dal::row_accessor<const Float>{ t }.pull(queue, row_range, sycl::usm::alloc::device);
+        const auto block = dal::row_accessor<const Float>{ t }.pull(row_range);
         result[i] = dal::homogen_table::wrap(block, block_size, column_count);
         row_offset += block_size;
     }

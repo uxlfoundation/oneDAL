@@ -18,19 +18,17 @@
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-#include <sycl/sycl.hpp>
 #include "oneapi/dal/table/row_accessor.hpp"
 
 template <typename Comm, typename D = float>
 dal::table combine_tables(const Comm& comm, const dal::table& t) {
-    sycl::queue queue = comm.get_queue();
     const std::int64_t row_count = t.get_row_count();
     const std::int64_t column_count = t.get_column_count();
     const std::int64_t count = row_count * column_count;
     std::int64_t total_count = count;
     comm.allreduce(total_count).wait();
 
-    auto recv_buffer = dal::array<D>::empty(queue, total_count, sycl::usm::alloc::device);
+    auto recv_buffer = dal::array<D>::empty(total_count);
     auto recv_counts = dal::array<std::int64_t>::zeros(comm.get_rank_count());
     recv_counts.get_mutable_data()[comm.get_rank()] = count;
     comm.allreduce(recv_counts).wait();
@@ -42,8 +40,7 @@ dal::table combine_tables(const Comm& comm, const dal::table& t) {
         offset += recv_counts[i];
     }
 
-    auto send_buffer =
-        dal::row_accessor<const D>{ t }.pull(queue, dal::range{ 0, -1 }, sycl::usm::alloc::device);
+    auto send_buffer = dal::row_accessor<const D>{ t }.pull(dal::range{ 0, -1 });
     comm.allgatherv(send_buffer, recv_buffer, recv_counts.get_data(), displs.get_data()).wait();
     return dal::homogen_table::wrap(recv_buffer, total_count, column_count);
 }

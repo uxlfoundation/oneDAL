@@ -14,13 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <sycl/sycl.hpp>
 #include <iomanip>
 #include <iostream>
-
-#ifndef ONEDAL_DATA_PARALLEL
-#define ONEDAL_DATA_PARALLEL
-#endif
 
 #include "oneapi/dal/algo/linear_regression.hpp"
 #include "oneapi/dal/io/csv.hpp"
@@ -31,7 +26,7 @@
 namespace dal = oneapi::dal;
 namespace lr = dal::linear_regression;
 
-void run(sycl::queue &queue) {
+void run() {
     const auto train_data_file_name = get_data_path("linear_regression_train_data.csv");
     const auto train_response_file_name = get_data_path("linear_regression_train_responses.csv");
     const auto test_data_file_name = get_data_path("linear_regression_test_data.csv");
@@ -46,10 +41,10 @@ void run(sycl::queue &queue) {
     auto rank_id = comm.get_rank();
     auto rank_count = comm.get_rank_count();
 
-    auto x_train_vec = split_table_by_rows<float>(queue, x_train, rank_count);
-    auto y_train_vec = split_table_by_rows<float>(queue, y_train, rank_count);
-    auto x_test_vec = split_table_by_rows<float>(queue, x_test, rank_count);
-    auto y_test_vec = split_table_by_rows<float>(queue, y_test, rank_count);
+    auto x_train_vec = split_table_by_rows<float>(x_train, rank_count);
+    auto y_train_vec = split_table_by_rows<float>(y_train, rank_count);
+    auto x_test_vec = split_table_by_rows<float>(x_test, rank_count);
+    auto y_test_vec = split_table_by_rows<float>(y_test, rank_count);
 
     const auto lr_desc = lr::descriptor<float>{};
 
@@ -72,11 +67,7 @@ int main(int argc, char const *argv[]) {
         throw std::runtime_error{ "Problem occurred during MPI init" };
     }
 
-    auto device = sycl::device(sycl::cpu_selector_v);
-    std::cout << "Running on " << device.get_platform().get_info<sycl::info::platform::name>()
-              << ", " << device.get_info<sycl::info::device::name>() << std::endl;
-    sycl::queue q{ device };
-    run(q);
+    run();
 
     status = MPI_Finalize();
     if (status != MPI_SUCCESS) {
