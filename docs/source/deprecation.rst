@@ -161,6 +161,15 @@ all underlying algorithmic computational kernels, as these kernels are used inte
 use :ref:`engine_type <api_df>` parameter of the oneDAL Decision Forest algorithm instead of the deprecated
 DAAL ``engines::mt19937::Batch`` class.
 
+ABI Compatibility
+*****************
+
+**Deprecation:** ABI compatibility is to be broken as part of the 2024.0 and 2026.0 releases of oneDAL. The library's major version is to be incremented to two to enforce the relinking of existing applications.
+
+**Reasons for deprecation:**  The clean-up process of the deprecated functionality, interfaces, and symbols.
+
+**Alternatives:** Relink to a newer version.
+
 Java* Interfaces
 ****************
 
@@ -179,15 +188,6 @@ Compression Functionality
 **Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
 
 **Alternatives:** The external compression mechanics with optimized into your application implementation. For example, Intel(R) IPP.
-
-ABI Compatibility
-*****************
-
-**Deprecation:** ABI compatibility is to be broken as part of the 2024.0 release of oneDAL. The library's major version is to be incremented to two to enforce the relinking of existing applications.
-
-**Reasons for deprecation:**  The clean-up process of the deprecated functionality, interfaces, and symbols.
-
-**Alternatives:** Relink to a newer version.
 
 macOS* Support
 **************
