@@ -74,13 +74,14 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__STUMP__REGRESSION__PREDICTION__INPUT"></a>
  * \brief Input objects in the prediction stage of the stump algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::regression::prediction::Input
 {
     typedef daal::algorithms::regression::prediction::Input super;
 
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
 
     virtual ~Input() {}
@@ -127,12 +128,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__STUMP__REGRESSION__PREDICTION__RESULT"></a>
  * \brief Provides interface for the result of stump model-based prediction
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public algorithms::regression::prediction::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     /**
      * Returns the result of decision tree model-based prediction

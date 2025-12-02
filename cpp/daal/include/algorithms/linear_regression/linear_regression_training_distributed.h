@@ -52,6 +52,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods for linear regression model-based training in the distributed processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
@@ -61,6 +63,8 @@ class DistributedContainer
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing methods for linear regression model-based training
  * in the second step of the distributed processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
@@ -71,7 +75,7 @@ public:
      * in the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 

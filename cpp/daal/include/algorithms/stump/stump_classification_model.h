@@ -73,6 +73,7 @@ namespace interface1
  * \brief Stump algorithm parameters
  *
  * \snippet stump/stump_classification_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
@@ -81,7 +82,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      *  Main constructor
      *  \param[in] nClasses Number of classes
      */
-    Parameter(size_t nClasses = 2)
+    DAAL_DEPRECATED Parameter(size_t nClasses = 2)
         : daal::algorithms::classifier::Parameter(nClasses), splitCriterion(decision_tree::classification::gini), varImportance(none)
     {}
     decision_tree::classification::SplitCriterion splitCriterion; /*!< Split criterion for stump classification */
@@ -101,6 +102,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
  * \par References
  *      - \ref training::interface1::Batch "training::Batch" class
  *      - \ref prediction::interface1::Batch "prediction::Batch" class
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public daal::algorithms::decision_tree::classification::Model
 {
@@ -114,13 +116,15 @@ public:
      * \param[in]  nClasses Number of classes in the dataset
      * \param[out] stat      Status of the model construction
      * \return Decision stump model
+     * \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Model> create(size_t nFeatures = 0, size_t nClasses = 2, services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(size_t nFeatures = 0, size_t nClasses = 2, services::Status * stat = NULL);
 
     /**
      * Default constructor for Model to creator
+     * \DAAL_DEPRECATED
      */
-    Model();
+    DAAL_DEPRECATED Model();
 
     virtual ~Model();
 

@@ -18,6 +18,158 @@ Deprecation Notice
 
 This page provides information about the deprecations of a specific oneAPI Data Analytics Library (oneDAL) functionality.
 
+Selected DAAL Algorithms
+************************
+
+**Deprecation:** Selected DAAL algorithms in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL analysis algorithms includes:
+
+- :ref:`Association Rules <daal_alg_association_rules>`
+- :ref:`Multivariate Outlier Detection <daal_alg_multivariate_outlier_detection>`
+- :ref:`Multivariate BACON Outlier Detection <daal_alg_multivariate_bacon_outlier_detection>`
+- :ref:`Univariate Outlier Detection <daal_alg_univariate_outlier_detection>`
+- :ref:`SAGA Optimization Solver <saga_solver>`
+- :ref:`SGD Optimization Solver <sgd_solver>`
+- :ref:`Adaptive Subgradient Method (AdaGrad) <adagrad_solver>`
+- :ref:`Sorting <daal_alg_sorting>`
+- :ref:`Quality Metrics <daal_alg_quality_metrics>`
+- :ref:`Quantile <daal_alg_quantile>`
+
+The list of the deprecated DAAL training and prediction algorithms includes:
+
+- :ref:`AdaBoost Classifier <daal_alg_adaboost_classifier>`
+- :ref:`AdaBoost Multiclass Classifier <daal_alg_adaboost_multiclass_classifier>`
+- :ref:`BrownBoost Classifier <daal_alg_brownboost_classifier>`
+- :ref:`Decision Tree Classifier <dt_classification>`
+- :ref:`Decision Tree Regressor <dt_regression>`
+- :ref:`LogitBoost Classifier <daal_alg_logitboost_classifier>`
+- :ref:`Multinomial Naive Bayes Classifier <daal_alg_naive_bayes_classifier>`
+- :ref:`Stump Classifier <daal_alg_stump_classifier>`
+- :ref:`Stump Regressor <daal_alg_stump_regressor>`
+
+**Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
+
+**Alternatives:** Consider using other libraries that provide similar functionality. For example, mlxtend for Association Rules: https://rasbt.github.io/mlxtend/
+
+Selected DAAL Data Sources
+**************************
+
+**Deprecation:** Selected DAAL data sources in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL data sources includes:
+
+- KDB Data Source
+- MySQL Data Source
+- ODBC Data Source
+
+**Reasons for deprecation:** The value of DAAL's native data source implementations has diminished as Python's ecosystem of data manipulation libraries,
+including pandas, Parquet, and specialized database connectors, now provides improved flexibility and functionality for data import.
+
+**Alternatives:** For data access, consider using other packages that provide similar functionality. For example, `SQLAlchemy <https://www.sqlalchemy.org/>`_,
+or `pyodbc <https://pypi.org/project/pyodbc/>`_ for Python users.
+
+DAAL Matrices
+*************
+
+**Deprecation:** DAAL matrices in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL classes includes:
+
+- Matrix
+- PackedSymmetricMatrix
+- PackedTriangularMatrix
+
+**Reasons for deprecation:** These data layouts have limited adoption outside of DAAL and are not widely used in the broader data science ecosystem.
+Maintaining these specialized data layouts in oneDAL no longer provides meaningful value to users while continuing to impose substantial maintenance overhead.
+
+**Alternatives:** Consider using ``HomogenNumericTable`` or ``oneapi::dal::homogen_table`` or other widely adopted data structures
+such as NumPy arrays or pandas DataFrames for data representation in Python.
+
+Interface layers of certain DAAL algorithms
+*******************************************
+
+**Deprecation:** ``Batch`` and ``BatchContainer`` classes of certain DAAL algorithms in the oneDAL library are marked as deprecated.
+The 2025.x releases are the last to provide it.
+The list of the deprecated DAAL classes includes:
+
+:doc:`daal/algorithms/distributions/index`
+
+- ``distributions::Input``
+- ``distributions::Result``
+
+- ``distributions::bernoulli::Batch``
+- ``distributions::bernoulli::BatchContainer``
+- ``distributions::bernoulli::Parameter``
+
+- ``distributions::normal::Batch``
+- ``distributions::normal::BatchContainer``
+- ``distributions::normal::Parameter``
+
+- ``distributions::uniform::Batch``
+- ``distributions::uniform::BatchContainer``
+- ``distributions::uniform::Parameter``
+
+:doc:`daal/algorithms/engines/index`
+
+- ``engines::Input``
+- ``engines::Result``
+
+- ``engines::mcg59::BatchContainer``
+- ``engines::mcg59::Batch``
+
+- ``engines::mrg32k3a::BatchContainer``
+- ``engines::mrg32k3a::Batch``
+
+- ``engines::mt19937::BatchContainer``
+- ``engines::mt19937::Batch``
+
+- ``engines::mt2203::BatchContainer``
+- ``engines::mt2203::Batch``
+
+- ``engines::philox4x32x10::BatchContainer``
+- ``engines::philox4x32x10::Batch``
+
+:doc:`daal/algorithms/kernel_function/kernel-functions`
+
+- ``kernel_function::Input``
+- ``kernel_function::Result``
+
+- ``kernel_function::linear::BatchContainer``
+- ``kernel_function::linear::Batch``
+- ``kernel_function::linear::Input``
+
+- ``kernel_function::rbf::BatchContainer``
+- ``kernel_function::rbf::Batch``
+- ``kernel_function::rbf::Input``
+
+:doc:`contribution/cpu_features`
+
+- ``CpuType``
+- ``CpuFeature``
+
+- ``AlgorithmDispatchContainer``
+- ``AlgorithmDispatchContainer<batch, ...>``
+
+- ``BatchContainer`` classes in all algorithms
+- ``OnlineContainer`` classes in all algorithms
+- ``DistributedContainer`` classes in all algorithms
+
+**Reasons for deprecation:** These classes are intended for internal use and provide limited value to end users.
+Maintaining these APIs in the public interface reduces product flexibility and clarity.
+These API layers will be removed from DAAL API and moved to the ``daal::*::internal`` namespace while preserving
+all underlying algorithmic computational kernels, as these kernels are used internally by other algorithms.
+
+**Alternatives:** Use the oneDAL interface equivalents of the deprecated DAAL classes. For example,
+use :ref:`engine_type <api_df>` parameter of the oneDAL Decision Forest algorithm instead of the deprecated
+DAAL ``engines::mt19937::Batch`` class.
+
+ABI Compatibility
+*****************
+
+**Deprecation:** ABI compatibility is to be broken as part of the 2024.0 and 2026.0 releases of oneDAL. The library's major version is to be incremented to two to enforce the relinking of existing applications.
+
+**Reasons for deprecation:**  The clean-up process of the deprecated functionality, interfaces, and symbols.
+
+**Alternatives:** Relink to a newer version.
+
 Java* Interfaces
 ****************
 
@@ -36,15 +188,6 @@ Compression Functionality
 **Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
 
 **Alternatives:** The external compression mechanics with optimized into your application implementation. For example, Intel(R) IPP.
-
-ABI Compatibility
-*****************
-
-**Deprecation:** ABI compatibility is to be broken as part of the 2024.0 release of oneDAL. The library's major version is to be incremented to two to enforce the relinking of existing applications.
-
-**Reasons for deprecation:**  The clean-up process of the deprecated functionality, interfaces, and symbols.
-
-**Alternatives:** Relink to a newer version.
 
 macOS* Support
 **************

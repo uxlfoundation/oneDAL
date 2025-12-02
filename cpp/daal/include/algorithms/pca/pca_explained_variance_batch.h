@@ -53,13 +53,15 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the quality metric, double or float
  * \tparam method           Computation method for the metric, \ref Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
 {
 public:
     /** Default constructor */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -82,6 +84,7 @@ public:
  *      - \ref Method         Computation method for the metric
  *      - \ref InputId        Identifiers of input objects for the metric algorithm
  *      - \ref ResultId       %Result identifiers for the metric algorithm
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::quality_metric::Batch
@@ -95,7 +98,7 @@ public:
     ParameterType parameter; /*!< Parameters of the algorithm */
 
     /** Default constructor */
-    Batch(size_t nFeatures = 0, size_t nComponents = 0);
+    DAAL_DEPRECATED Batch(size_t nFeatures = 0, size_t nComponents = 0);
 
     /**
      * Constructs an algorithm by copying input objects and parameters

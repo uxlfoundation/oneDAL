@@ -50,6 +50,7 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the correlation distance algorithm, double or float
  * \tparam method           Correlation distance computation method, \ref Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,7 +61,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */

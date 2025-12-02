@@ -45,6 +45,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_MODEL__PREDICTION__BATCHCONTAINER"></a>
  *  \brief Class containing computation methods for the regression model-based prediction
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -54,7 +55,7 @@ public:
      * Constructs a container for the regression model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
      *  Computes the result of the regression model-based prediction

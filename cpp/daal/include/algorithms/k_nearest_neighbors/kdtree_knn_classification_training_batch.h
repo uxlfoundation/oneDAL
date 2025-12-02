@@ -48,6 +48,7 @@ namespace interface3
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for KD-tree based kNN model-based training using algorithmFPType precision arithmetic
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -56,8 +57,9 @@ public:
     /**
      * Constructs a container for KD-tree based kNN model-based training with a specified environment in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
 
     /** Default destructor */
     ~BatchContainer();
@@ -96,7 +98,9 @@ public:
     ParameterType parameter; /*!< \ref interface3::Parameter "Parameters" of the algorithm */
     InputType input;         /*!< %Input objects of the algorithm */
 
-    /** Default constructor */
+    /**
+     * Default constructor
+     */
     Batch();
 
     /**
@@ -110,7 +114,7 @@ public:
     /**
      * Constructs a KD-tree based kNN training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
-    */
+     */
     Batch(size_t nClasses);
 
     /**

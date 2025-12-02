@@ -54,12 +54,13 @@ namespace interface2
  * \brief LogitBoost algorithm parameters
  *
  * \snippet boosting/logitboost_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public classifier::Parameter
 {
     /** Default constructor */
-    Parameter();
+    DAAL_DEPRECATED Parameter();
 
     /**
      * Constructs LogitBoost parameter structure
@@ -71,9 +72,9 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
      * \param[in] wThr                      Threshold to avoid degenerate cases when calculating weights W
      * \param[in] zThr                      Threshold to avoid degenerate cases when calculating responses Z
      */
-    Parameter(const services::SharedPtr<regression::training::Batch> & wlTrainForParameter,
-              const services::SharedPtr<regression::prediction::Batch> & wlPredictForParameter, double acc = 0.0, size_t maxIter = 10, size_t nC = 0,
-              double wThr = 1e-10, double zThr = 1e-10);
+    DAAL_DEPRECATED Parameter(const services::SharedPtr<regression::training::Batch> & wlTrainForParameter,
+                              const services::SharedPtr<regression::prediction::Batch> & wlPredictForParameter, double acc = 0.0, size_t maxIter = 10,
+                              size_t nC = 0, double wThr = 1e-10, double zThr = 1e-10);
 
     services::SharedPtr<regression::training::Batch> weakLearnerTraining;     /*!< The algorithm for weak learner model training */
     services::SharedPtr<regression::prediction::Batch> weakLearnerPrediction; /*!< The algorithm for prediction based on a weak learner model */
@@ -92,6 +93,8 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
  * \par References
  *      - \ref training::interface2::Batch "training::Batch" class
  *      - \ref prediction::interface2::Batch "prediction::Batch" class
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public classifier::Model
 {
@@ -107,13 +110,13 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     template <typename modelFPType>
-    DAAL_EXPORT Model(size_t nFeatures, const Parameter * par, modelFPType dummy);
+    DAAL_DEPRECATED DAAL_EXPORT Model(size_t nFeatures, const Parameter * par, modelFPType dummy);
 
     /**
      * Empty constructor for deserialization
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
-    Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _nIterations(0) {}
+    DAAL_DEPRECATED Model(size_t nFeatures = 0) : _nFeatures(nFeatures), _models(new data_management::DataCollection()), _nIterations(0) {}
 
     /**
      * Constructs the LogitBoost model
@@ -121,7 +124,7 @@ public:
      * \param[in]  par       Pointer to the parameter structure of the LogitBoost algorithm
      * \param[out] stat      Status of the model construction
      */
-    static services::SharedPtr<Model> create(size_t nFeatures, const Parameter * par, services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(size_t nFeatures, const Parameter * par, services::Status * stat = NULL);
 
     virtual ~Model() {}
 

@@ -70,6 +70,8 @@ public:
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::covariance::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer
@@ -82,6 +84,8 @@ class BatchContainer
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, defaultDense, cpu> : public BatchContainerIface
@@ -92,7 +96,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -110,6 +114,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, singlePassDense, cpu> : public BatchContainerIface
@@ -120,7 +126,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -138,6 +144,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, sumDense, cpu> : public BatchContainerIface
@@ -148,7 +156,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -166,6 +174,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, fastCSR, cpu> : public BatchContainerIface
@@ -176,7 +186,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -194,6 +204,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, singlePassCSR, cpu> : public BatchContainerIface
@@ -204,7 +216,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 
@@ -222,6 +234,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Batch class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class BatchContainer<algorithmFPType, sumCSR, cpu> : public BatchContainerIface
@@ -232,7 +246,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
 

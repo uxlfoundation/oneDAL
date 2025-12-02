@@ -67,6 +67,7 @@ namespace interface1
  *      - \ref interface1::Model "Model" class
  *      - \ref interface1::Input "Input" class
  *      - \ref interface1::Result "Result" class
+ * \DAAL_DEPRECATED
  */
 class Batch : public classifier::prediction::Batch
 {
@@ -77,7 +78,7 @@ public:
     typedef super::ParameterType ParameterType;
     typedef super::ResultType ResultType;
 
-    Batch() {}
+    DAAL_DEPRECATED Batch() {}
 
     /**
      * Constructs algorithm for making predictions based on the weak learner model
