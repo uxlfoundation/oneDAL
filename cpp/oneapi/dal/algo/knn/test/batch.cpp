@@ -69,9 +69,9 @@ class knn_batch_test : public knn_test<TestType, knn_batch_test<TestType>> {};
                          "[small-dataset][knn][integration][batch][test]", \
                          knn_cls_types)
 
-#define KNN_KDTREE_SINGLE_RUN_TEST(name)                                       \
-    TEMPLATE_LIST_TEST_M(knn_batch_test,                                       \
-                         name,                                                 \
+#define KNN_KDTREE_SINGLE_RUN_TEST(name)                                                \
+    TEMPLATE_LIST_TEST_M(knn_batch_test,                                                \
+                         name,                                                          \
                          "[synthetic-dataset][knn][integration][batch][test][nightly]", \
                          knn_kdtree_cls_float_only)
 
