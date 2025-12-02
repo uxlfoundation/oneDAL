@@ -16,10 +16,10 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+set(ONEDAL_USE_DPCPP no)
 set(ONEDAL_INTERFACE yes)
 set(ONEDAL_DISTRIBUTED yes)
 set(ONEDAL_USE_CCL no)
-set(ONEDAL_DISTRIBUTED_CPU yes)
 set(MPIEXEC_MAX_NUMPROCS "4" CACHE STRING "Number of processes")
 set(MPIEXEC_NUMPROCS_PER_NODE "4" CACHE STRING "Number of processes per node")
 
