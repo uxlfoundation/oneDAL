@@ -243,7 +243,6 @@ jobs:
   variables:
     platform.type : 'lnx32e'
     BAZEL_CACHE_DIR: $(Pipeline.Workspace)/.bazel-cache
-    BAZEL_TEST_CACHE_DIR: $(Pipeline.Workspace)/rm_cache
     BAZEL_VERSION: $(Pipeline.Workspace)/bazelisk-linux-amd64
     BAZEL_CACHE_MAX_SIZE_KB: 4194304 # Size in kilobytes ~ 4Gb
   steps:
@@ -308,8 +307,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
       bazel clean --expunge
     displayName: 'bazel-clean'
   - script: |
@@ -321,8 +320,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-space'
   - script: |
       bazel test //examples/oneapi/cpp:all \
@@ -333,8 +332,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-space'
   - script: |
       export DALROOT="$(DALROOT)"
@@ -347,8 +346,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-space'
   - script: |
       export DALROOT="$(DALROOT)"
@@ -361,8 +360,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-space'
   - script: |
       export DALROOT="$(DALROOT)"
@@ -375,8 +374,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-clean'
   - script: |
       export DALROOT="$(DALROOT)"
@@ -389,8 +388,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-clean'
   - script: |
       bazel test //cpp/daal:tests
@@ -399,8 +398,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-clean'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
@@ -412,8 +411,8 @@ jobs:
   - script: |
       echo "Clean before running example tests"
       df -h
-      du -sh .
-      du -ah . | sort -rh | head -n 20
+      du -sh ..
+      du -ah .. | sort -rh | head -n 30
     displayName: 'disk-clean'
   - script: |
       # Clear cache if its size exceeds some predefined value

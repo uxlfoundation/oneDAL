@@ -45,7 +45,7 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
-    timeout-minutes: 240
+    timeout-minutes: 600
 
     steps:
       - name: Checkout oneDAL
