@@ -49,6 +49,7 @@ namespace interface1
  * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
@@ -59,7 +60,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
     /**

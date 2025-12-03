@@ -67,6 +67,7 @@ namespace interface1
  * \brief Decision tree algorithm parameters
  *
  * \snippet decision_tree/decision_tree_regression_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
@@ -74,7 +75,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     /**
      *  Main constructor
      */
-    Parameter() : daal::algorithms::Parameter(), pruning(reducedErrorPruning), maxTreeDepth(0), minObservationsInLeafNodes(5) {}
+    DAAL_DEPRECATED Parameter() : daal::algorithms::Parameter(), pruning(reducedErrorPruning), maxTreeDepth(0), minObservationsInLeafNodes(5) {}
 
     /**
      * Checks a parameter of the Decision tree algorithm
@@ -95,6 +96,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
  *      - Parameter class
  *      - \ref training::interface2::Batch "training::Batch" class
  *      - \ref prediction::interface2::Batch "prediction::Batch" class
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public algorithms::regression::Model
 {
@@ -103,9 +105,9 @@ public:
 
     /**
      * Constructs the model for decision tree regression
-     * \DAAL_DEPRECATED_USE{ Model::create }
+     * \DAAL_DEPRECATED
      */
-    Model();
+    DAAL_DEPRECATED Model();
 
     virtual ~Model();
 
@@ -127,8 +129,9 @@ public:
     /**
      * Constructs the model of decision tree algorithm
      * \param[out] stat      Status of the model construction
+     * \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Model> create(services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(services::Status * stat = NULL);
 
     /**
      * \copydoc regression::Model::getNumberOfFeatures
