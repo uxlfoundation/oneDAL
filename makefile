@@ -985,10 +985,12 @@ $(if $(phony-upd),$(eval .PHONY: $2/$1))
 $2/$1: $(WORKDIR.lib)/$1 | $2/.
 	cp -fp $(WORKDIR.lib)/$1 $2/$(subst .$y,$(y_full_name_postfix),$1) && cd $2 && ln -sf $(subst .$y,$(y_full_name_postfix),$1) $(subst .$y,$(y_major_name_postfix),$1) && ln -sf $(subst .$y,$(y_major_name_postfix),$1) $1
 endef
+
+mov = mv -f "$<" "$@"
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value upd)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mov)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
