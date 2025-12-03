@@ -775,6 +775,20 @@ $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.obj
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc)))
 endif
 
+
+.PHONY: clean_after_static_libs
+clean_after_static_libs: $(WORKDIR.lib)/$(oneapi_a) $(WORKDIR.lib)/$(oneapi_a.dpc)
+clean_after_static_libs: $(if $(BUILD_PARAMETERS_LIB),$(WORKDIR.lib)/$(parameters_a) $(WORKDIR.lib)/$(parameters_a.dpc))
+	@echo "=== Cleaning after static libraries creation ==="
+	-rm -f $(ONEAPI.tmpdir_a)/*.o
+	-rm -f $(ONEAPI.tmpdir_a.dpc)/*.o
+	-rm -f $(PARAMETERS.tmpdir_a)/*.o 2>/dev/null || true
+	-rm -f $(PARAMETERS.tmpdir_a.dpc)/*.o 2>/dev/null || true
+
+
+$(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): | clean_after_static_libs
+$(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): | clean_after_static_libs
+
 ONEAPI.objs_y.lib := $(ONEAPI.objs_y.filtered)
 ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.lib += $(PARAMETERS.objs_y.filtered)
