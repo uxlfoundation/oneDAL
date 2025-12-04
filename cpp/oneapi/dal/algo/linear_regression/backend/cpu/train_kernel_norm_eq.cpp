@@ -23,6 +23,7 @@
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/utils.hpp"
 
 #include "oneapi/dal/table/row_accessor.hpp"
 
@@ -31,6 +32,8 @@
 #include "oneapi/dal/algo/linear_regression/backend/model_impl.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel.hpp"
 #include "oneapi/dal/algo/linear_regression/backend/cpu/train_kernel_common.hpp"
+#include "oneapi/dal/algo/linear_regression/backend/cpu/partial_train_kernel.hpp"
+#include "oneapi/dal/algo/linear_regression/backend/cpu/finalize_train_kernel.hpp"
 
 namespace oneapi::dal::linear_regression::backend {
 
@@ -53,6 +56,56 @@ using batch_lr_kernel_t = daal_lr::training::internal::BatchKernel<Float, daal_l
 
 template <typename Float, daal::CpuType Cpu>
 using batch_rr_kernel_t = daal_rr::training::internal::BatchKernel<Float, daal_rr_method, Cpu>;
+
+template <typename Float, typename Task>
+static train_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
+                                                const detail::descriptor_base<Task>& desc,
+                                                const detail::train_parameters<Task>& params,
+                                                const table& data,
+                                                const table& resp) {
+    auto& comm = ctx.get_communicator();
+
+    /// Compute partial X^T * X and X^T * y on each rank
+    partial_train_input<Task> partial_input(data, resp);
+    auto partial_result =
+        dal::linear_regression::backend::partial_train_kernel_cpu<Float, method::norm_eq, Task>{}(
+            ctx,
+            desc,
+            params,
+            partial_input);
+    /// Get local partial X^T * X and X^T * y as array<Float> to pass to collective allgatherv
+    const auto& xtx_local = partial_result.get_partial_xtx();
+    const auto& xty_local = partial_result.get_partial_xty();
+    const auto xtx_local_nd = pr::table2ndarray<Float>(xtx_local);
+    const auto xty_local_nd = pr::table2ndarray<Float>(xty_local);
+    const auto xtx_local_ary =
+        dal::array<Float>::wrap(xtx_local_nd.get_mutable_data(), xtx_local_nd.get_count());
+    const auto xty_local_ary =
+        dal::array<Float>::wrap(xty_local_nd.get_mutable_data(), xty_local_nd.get_count());
+    /// Allocate storage for gathered X^T * X and X^T * y across all ranks
+    //auto rank_count = comm.get_rank_count();
+    const std::int64_t ext_feature_count = xtx_local.get_row_count();
+    const std::int64_t response_count = xty_local.get_row_count();
+
+    /// Collectively gather X^T * X and X^T * y across all ranks
+    comm.allreduce(xtx_local_ary).wait();
+    comm.allreduce(xty_local_ary).wait();
+
+    auto xtx_table = homogen_table::wrap(xtx_local_ary, ext_feature_count, ext_feature_count);
+    auto xty_table = homogen_table::wrap(xty_local_ary, response_count, ext_feature_count);
+    /// Compute regression coefficients
+    partial_train_result<Task> partial_result_final;
+    partial_result_final.set_partial_xtx(xtx_table);
+    partial_result_final.set_partial_xty(xty_table);
+    auto result =
+        dal::linear_regression::backend::finalize_train_kernel_cpu<Float, method::norm_eq, Task>{}(
+            ctx,
+            desc,
+            params,
+            partial_result_final);
+
+    return result;
+}
 
 template <typename Float, typename Task>
 static train_result<Task> call_daal_kernel(const context_cpu& ctx,
@@ -171,6 +224,13 @@ static train_result<Task> train(const context_cpu& ctx,
                                 const detail::descriptor_base<Task>& desc,
                                 const detail::train_parameters<Task>& params,
                                 const train_input<Task>& input) {
+    if (ctx.get_communicator().get_rank_count() > 1) {
+        return call_daal_spmd_kernel<Float, Task>(ctx,
+                                                  desc,
+                                                  params,
+                                                  input.get_data(),
+                                                  input.get_responses());
+    }
     return call_daal_kernel<Float, Task>(ctx,
                                          desc,
                                          params,
