@@ -293,7 +293,7 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 
 DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
 
-oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running the samples requires a DPC++ compiler such as ICX, and MPI/CCL.
+oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running these samples requires a DPC++ compiler for GPU (such as ICX), as well as MPI/CCL for CPU/GPU execution.
 
 * oneAPI samples:
 
