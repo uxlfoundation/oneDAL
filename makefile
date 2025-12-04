@@ -470,6 +470,7 @@ $(info CORE.incdirs: $(CORE.incdirs))
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
+mov = mv -f "$<" "$@"
 
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
@@ -507,8 +508,13 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
-$(WORKDIR.lib)/$(core_a):                   LOPT:=
-$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
+$(WORKDIR.lib)/$(core_a): LOPT:=
+$(WORKDIR.lib)/$(core_a): $(daaldep.math_backend.static_link_deps) \
+                          $(VTUNESDK.LIBS_A) \
+                          $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a)
+	$(LINK.STATIC)
+	@echo "[core static] removing temporary build files..."
+	@rm -rf $(CORE.tmpdir_a)/*
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
@@ -960,6 +966,7 @@ _release_oneapi_dpc: _release_oneapi_c _release_oneapi_common
 # Populating RELEASEDIR
 #-------------------------------------------------------------------------------
 upd = $(cpy)
+mv = $(mov)
 
 _release: info.building.release
 
@@ -988,7 +995,7 @@ endef
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value upd)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mv)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
