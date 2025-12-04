@@ -306,44 +306,20 @@ jobs:
     displayName: 'Upload build artifacts'
   - script: |
       echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
       bazel clean --expunge
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
     displayName: 'bazel-clean'
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
       bazel clean --expunge
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
     displayName: 'daal-cpp-examples-thread-dev'
-  - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-space'
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
       bazel clean --expunge
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
     displayName: 'cpp-examples-thread-dev'
-  - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-space'
   - script: |
       export DALROOT="$(DALROOT)"
       echo "Using DALROOT = $DALROOT"
@@ -353,12 +329,6 @@ jobs:
       bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-static'
   - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-space'
-  - script: |
       export DALROOT="$(DALROOT)"
       echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
@@ -366,12 +336,6 @@ jobs:
                  --test_thread_mode=par
       bazel clean --expunge
     displayName: 'cpp-examples-thread-release-static'
-  - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-space'
   - script: |
       export DALROOT="$(DALROOT)"
       echo "Using DALROOT = $DALROOT"
@@ -381,12 +345,6 @@ jobs:
       bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-dynamic'
   - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-clean'
-  - script: |
       export DALROOT="$(DALROOT)"
       echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
@@ -395,21 +353,9 @@ jobs:
       bazel clean --expunge
     displayName: 'cpp-examples-thread-release-dynamic'
   - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-clean'
-  - script: |
       bazel test //cpp/daal:tests
       bazel clean --expunge
     displayName: 'daal-tests-algorithms'
-  - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-clean'
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
@@ -417,12 +363,6 @@ jobs:
                  --test_thread_mode=par
       bazel clean --expunge
     displayName: 'cpp-tests-thread-dev'
-  - script: |
-      echo "Clean before running example tests"
-      df -h
-      du -sh ..
-      du -ah .. | sort -rh | head -n 30
-    displayName: 'disk-clean'
   - script: |
       # Clear cache if its size exceeds some predefined value
       cache_size=$(du -sk "${BAZEL_CACHE_DIR}" | cut -f1)

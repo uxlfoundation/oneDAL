@@ -45,7 +45,7 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
-    timeout-minutes: 600
+    timeout-minutes: 240
 
     steps:
       - name: Checkout oneDAL
@@ -75,12 +75,6 @@ jobs:
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
-          # if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
-      - name: directory size
-        run: |
-          df -h
-          du -sh ..
-          du -ah .. | sort -rh | head -n 30
       - name: Make onedal debug
         id: onedal-dbg
         run: |
@@ -117,8 +111,7 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          rm -rf __work
-          mv __work_daal __work
+          rm -rf __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
