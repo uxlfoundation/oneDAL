@@ -92,6 +92,7 @@ private:
  * \brief Connects to data sources with the ODBC API
  * \tparam FeatureManager         Type of a data source, supports only \ref SQLFeatureManager
  * \tparam SummaryStatisticsType  The floating point type to compute summary statics for numeric table
+ * \DAAL_DEPRECATED
  */
 template <typename FeatureManager, typename SummaryStatisticsType = DAAL_SUMMARY_STATISTICS_TYPE>
 class ODBCDataSource : public DataSourceTemplate<data_management::HomogenNumericTable<DAAL_DATA_TYPE>, SummaryStatisticsType>
@@ -122,11 +123,11 @@ public:
      * \param[in]  initialMaxRows                          Initial value of maximum number of rows in Numeric Table allocated in
      *                                                     loadDataBlock() method
      */
-    ODBCDataSource(const std::string & dbname, const std::string & tableName = "", const std::string & userName = "",
-                   const std::string & password                                          = "",
-                   DataSourceIface::NumericTableAllocationFlag doAllocateNumericTable    = DataSource::notAllocateNumericTable,
-                   DataSourceIface::DictionaryCreationFlag doCreateDictionaryFromContext = DataSource::notDictionaryFromContext,
-                   size_t initialMaxRows                                                 = 10)
+    DAAL_DEPRECATED ODBCDataSource(const std::string & dbname, const std::string & tableName = "", const std::string & userName = "",
+                                   const std::string & password                                          = "",
+                                   DataSourceIface::NumericTableAllocationFlag doAllocateNumericTable    = DataSource::notAllocateNumericTable,
+                                   DataSourceIface::DictionaryCreationFlag doCreateDictionaryFromContext = DataSource::notDictionaryFromContext,
+                                   size_t initialMaxRows                                                 = 10)
         : super(doAllocateNumericTable, doCreateDictionaryFromContext)
     {
         initialize(initialMaxRows);
@@ -154,8 +155,8 @@ public:
      * \param[in]  initialMaxRows  Initial value of maximum number of rows in Numeric Table allocated in
      *                             loadDataBlock() method
      */
-    ODBCDataSource(const std::string & dbname, const std::string & tableName, const std::string & userName, const std::string & password,
-                   const ODBCDataSourceOptions & options, size_t initialMaxRows = 10)
+    DAAL_DEPRECATED ODBCDataSource(const std::string & dbname, const std::string & tableName, const std::string & userName,
+                                   const std::string & password, const ODBCDataSourceOptions & options, size_t initialMaxRows = 10)
         : super(options.getNumericTableAllocationFlag(), options.getDictionaryCreationFlag())
     {
         initialize(initialMaxRows);
@@ -180,7 +181,7 @@ public:
      * \param[in]  initialMaxRows    Initial value of maximum number of rows in Numeric Table allocated in
      *                               loadDataBlock() method
      */
-    ODBCDataSource(const std::string & connectionString, const ODBCDataSourceOptions & options, size_t initialMaxRows = 10)
+    DAAL_DEPRECATED ODBCDataSource(const std::string & connectionString, const ODBCDataSourceOptions & options, size_t initialMaxRows = 10)
         : super(options.getNumericTableAllocationFlag(), options.getDictionaryCreationFlag())
     {
         initialize(initialMaxRows);

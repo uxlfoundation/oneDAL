@@ -100,7 +100,10 @@ public:
  * \par References
  *      - \ref interface2::Model "Model" class
  *      - classifier::prediction::Input class
- *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class */
+ *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
+ *
+ * \DAAL_DEPRECATED
+ */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
 {
@@ -113,7 +116,7 @@ public:
 
     InputType input; /*!< %Input objects of the algorithm */
 
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a BrownBoost prediction algorithm by copying input objects and parameters
@@ -123,6 +126,10 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
     ~Batch() { delete _par; }
 
     /**

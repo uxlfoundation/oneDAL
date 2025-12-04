@@ -84,6 +84,8 @@ public:
  * \par References
  *      - \ref interface2::Model "Model" class
  *      - classifier::training::Input class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -97,7 +99,7 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs an AdaBoost training algorithm by copying input objects and parameters

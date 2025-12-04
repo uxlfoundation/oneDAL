@@ -51,6 +51,8 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer;
@@ -68,7 +70,7 @@ public:
      * in the first step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -86,6 +88,8 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing computation methods for K-Means algorithm in the second step of the distributed processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -96,7 +100,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**

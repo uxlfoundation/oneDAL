@@ -83,6 +83,8 @@ public:
  * \par References
  *      - \ref interface2::Model "Model" class
  *      - classifier::training::Input class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = friedman>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -100,7 +102,7 @@ public:
      * Constructs the LogitBoost training algorithm
      * \param[in] nClasses  Number of classes
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs a LogitBoost training algorithm by copying input objects and parameters

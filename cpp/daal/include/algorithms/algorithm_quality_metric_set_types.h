@@ -45,6 +45,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__QUALITY_METRIC_SET__INPUTALGORITHMSCOLLECTION"></a>
  * \brief Class that implements functionality of the collection of quality metrics algorithms
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT InputAlgorithmsCollection
 {
@@ -53,7 +54,7 @@ public:
      * Constructs the collection of quality metrics algorithms
      * \param[in] n     Number of elements in the collection
      */
-    InputAlgorithmsCollection(size_t n = 0);
+    DAAL_DEPRECATED InputAlgorithmsCollection(size_t n = 0);
 
     virtual ~InputAlgorithmsCollection();
 
@@ -103,11 +104,12 @@ protected:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__QUALITY_METRIC_SET__INPUTDATACOLLECTION"></a>
  * \brief Class that implements functionality of the collection of input objects of the quality metrics algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT InputDataCollection : public data_management::KeyValueInputCollection
 {
 public:
-    InputDataCollection();
+    DAAL_DEPRECATED InputDataCollection();
 
     /**
      * Adds an element with a key to the collection
@@ -130,11 +132,12 @@ typedef services::SharedPtr<InputDataCollection> InputDataCollectionPtr;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__QUALITY_METRIC_SET__RESULTCOLLECTION"></a>
  * \brief Class that implements functionality of the collection of result objects of the quality metrics algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT ResultCollection : public data_management::KeyValueDataCollection
 {
 public:
-    ResultCollection();
+    DAAL_DEPRECATED ResultCollection();
 
     void add(size_t key, const algorithms::ResultPtr & ptr);
 

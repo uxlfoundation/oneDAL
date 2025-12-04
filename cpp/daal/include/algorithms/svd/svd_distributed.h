@@ -51,6 +51,7 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  * \tparam method           Computation method, \ref daal::algorithms::svd::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
@@ -63,13 +64,14 @@ class DistributedContainer
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public OnlineContainer<algorithmFPType, method, cpu>
 {
 public:
     /** Default constructor */
-    DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, method, cpu>(daalEnv) {}
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, method, cpu>(daalEnv) {}
     /** Default destructor */
     virtual ~DistributedContainer() {}
 };
@@ -81,6 +83,7 @@ public:
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -91,7 +94,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -113,6 +116,7 @@ public:
  * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
  * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -123,7 +127,7 @@ public:
      * in the third step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**

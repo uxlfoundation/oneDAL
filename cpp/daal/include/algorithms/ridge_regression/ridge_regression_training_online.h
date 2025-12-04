@@ -46,6 +46,8 @@ namespace interface1
 /**
  * \brief Class containing methods for ridge regression model-based training
  * in the online processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public TrainingContainerIface<online>
@@ -55,7 +57,7 @@ public:
      * Constructs a container for ridge regression model-based training with a specified environment in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
 
     /** Default destructor */
     ~OnlineContainer();

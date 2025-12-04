@@ -51,6 +51,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the multivariate outlier detection, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::multivariate_outlier_detection::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -61,7 +63,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -89,6 +91,8 @@ public:
  * \par References
  *      - Parameter<defaultDense> class
  *      - Parameter<baconDense> class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -98,7 +102,7 @@ public:
     typedef algorithms::multivariate_outlier_detection::Result ResultType;
 
     /** Default constructor */
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an algorithm for computing multivariate outlier detection by copying input objects and parameters

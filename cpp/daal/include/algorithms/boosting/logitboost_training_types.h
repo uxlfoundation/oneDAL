@@ -69,6 +69,7 @@ namespace interface2
  * <a name="DAAL-CLASS-ALGORITHMS__LOGITBOOST__TRAINING__RESULT"></a>
  * \brief Provides methods to access final results obtained with the compute() method
  *        of the LogitBoost training algorithm in the batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public classifier::training::Result
 {

@@ -22,6 +22,9 @@ lnx_cc_common_flags = [
     "-Wformat",
     "-Wformat-security",
     "-Wreturn-type",
+    # TODO: This option was added to suppress deprecation warnings.
+    #       To be removed in oneDAL 2026.0.
+    "-Wno-deprecated-declarations",
 ]
 
 lnx_cc_pedantic_flags = [
@@ -54,12 +57,20 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
                 "-no-canonical-prefixes",
             ]
         if compiler_id == "icpx":
-            flags = flags + ["-fsycl"] + ["-fno-canonical-system-headers"]+["-no-canonical-prefixes"]
+            flags = flags + [
+                "-fsycl",
+                "-fno-canonical-system-headers",
+                "-no-canonical-prefixes",
+                "-Wno-gnu-zero-variadic-macro-arguments",
+            ]
         if compiler_id == "icpx" and category == "pedantic":
             # TODO: Consider removing
             flags = flags + ["-Wno-unused-command-line-argument"]
-        if compiler_id == "gcc" or compiler_id == "icpx":
-            flags = flags + ["-Wno-gnu-zero-variadic-macro-arguments"]
+        if compiler_id == "gcc":
+            flags = flags + [
+                "-Wno-gnu-zero-variadic-macro-arguments",
+                "-fopenmp-simd",
+            ]
         if compiler_id not in ["icx", "icpx"]:
             flags = flags + ["-fno-strict-overflow"]
         return flags

@@ -49,6 +49,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Cholesky decomposition algorithm, double or float
  * \tparam method           Cholesky decomposition computation method, \ref daal::algorithms::cholesky::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -58,7 +60,7 @@ public:
      * Constructs a container for the Cholesky decomposition algorithm with a specified environment
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
