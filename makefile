@@ -470,7 +470,7 @@ $(info CORE.incdirs: $(CORE.incdirs))
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
-
+mov = mv -f "$<" "$@"
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
 CORE.srcs     := $(notdir $(wildcard $(CORE.srcdirs:%=%/*.cpp)))
@@ -775,20 +775,6 @@ $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.obj
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc)))
 endif
 
-
-.PHONY: clean_after_static_libs
-clean_after_static_libs: $(WORKDIR.lib)/$(oneapi_a) $(WORKDIR.lib)/$(oneapi_a.dpc)
-clean_after_static_libs: $(if $(BUILD_PARAMETERS_LIB),$(WORKDIR.lib)/$(parameters_a) $(WORKDIR.lib)/$(parameters_a.dpc))
-	@echo "=== Cleaning after static libraries creation ==="
-	-rm -f $(ONEAPI.tmpdir_a)/*.o
-	-rm -f $(ONEAPI.tmpdir_a.dpc)/*.o
-	-rm -f $(PARAMETERS.tmpdir_a)/*.o 2>/dev/null || true
-	-rm -f $(PARAMETERS.tmpdir_a.dpc)/*.o 2>/dev/null || true
-
-
-$(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): | clean_after_static_libs
-$(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): | clean_after_static_libs
-
 ONEAPI.objs_y.lib := $(ONEAPI.objs_y.filtered)
 ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.lib += $(PARAMETERS.objs_y.filtered)
@@ -974,6 +960,7 @@ _release_oneapi_dpc: _release_oneapi_c _release_oneapi_common
 # Populating RELEASEDIR
 #-------------------------------------------------------------------------------
 upd = $(cpy)
+mv = $(mov)
 
 _release: info.building.release
 
@@ -1000,11 +987,10 @@ $2/$1: $(WORKDIR.lib)/$1 | $2/.
 	cp -fp $(WORKDIR.lib)/$1 $2/$(subst .$y,$(y_full_name_postfix),$1) && cd $2 && ln -sf $(subst .$y,$(y_full_name_postfix),$1) $(subst .$y,$(y_major_name_postfix),$1) && ln -sf $(subst .$y,$(y_major_name_postfix),$1) $1
 endef
 
-mov = mv -f "$<" "$@"
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mov)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mv)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
@@ -1054,7 +1040,7 @@ _release_c: ./deploy/pkg-config/pkg-config.cpp
 #----- releasing examples
 define .release.x
 $3: $2/$(subst _$(_OS),,$1)
-$2/$(subst _$(_OS),,$1): $(DIR)/$1 | $(dir $2/$1)/. ; $(value cpy)
+$2/$(subst _$(_OS),,$1): $(DIR)/$1 | $(dir $2/$1)/. ; $(value mov)
 	$(if $(filter %.sh %.bat,$1),chmod +x $$@)
 endef
 $(foreach x,$(release.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))
@@ -1068,7 +1054,7 @@ $(foreach x,$(release.EXAMPLES.CMAKE),$(eval $(call .release.x,$x,$(RELEASEDIR.d
 # Note: Requires GNU sed for -z support
 define .release.x
 $4: $3/$2
-$3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
+$3/$2: $(DIR)/$1 | $3/. ; $(value mov)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MAJOR_BINARY__/$(MAJORBINARY)/' $3/$2)
 	$(if $(filter %.sh %.bat dal,$2),sed -i -e 's/__DAL_MINOR_BINARY__/$(MINORBINARY)/' $3/$2)
 	$(if $(OS_is_win),sed -i -n -z -e 's/\r*\n/\r\n/g;p' $3/$2)
@@ -1082,7 +1068,7 @@ $(foreach x,$(release.CONF),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS)
 _release_doc:
 define .release.d
 _release_doc: $2
-$2: $1 | $(dir $2)/. ; $(value cpy)
+$2: $1 | $(dir $2)/. ; $(value mov)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach d,$(release.DOC.COMMON),    $(eval $(call .release.d,$d,$(subst $(DOC.srcdir),    $(RELEASEDIR.doc),    $(subst _$(_OS),,$d)))))
@@ -1091,7 +1077,7 @@ $(foreach d,$(release.DOC.OSSPEC),    $(eval $(call .release.d,$d,$(subst $(DOC.
 #----- releasing samples and headers
 define .release.d
 $3: $2
-$2: $1 | $(dir $2)/. ; $(value cpy)
+$2: $1 | $(dir $2)/. ; $(value mov)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach d,$(release.SAMPLES.CPP),   $(eval $(call .release.d,$d,$(subst $(SAMPLES.srcdir),$(RELEASEDIR.samples),$(subst _$(_OS),,$d)),_release_c)))
@@ -1103,7 +1089,7 @@ $(CORE.incdirs): _release_c_h
 define .release.dd
 $3: $2
 $2: $1 ; $(value mkdir)
-	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version, $(value cpy))
+	$(if $(filter %library_version_info.h,$2),+$(daalmake) -f makefile update_headers_version, $(value mov))
 	$(if $(USECPUS.out.defs.filter),$(if $(filter %daal_kernel_defines.h,$2),$(USECPUS.out.defs.filter) $2; rm -rf $(subst .h,.h.bak,$2)))
 endef
 $(foreach d,$(release.HEADERS.COMMON),$(eval $(call .release.dd,$d,$(subst $(CPPDIR.daal)/include/,$(RELEASEDIR.include)/,$d),_release_c_h)))
@@ -1111,7 +1097,7 @@ $(foreach d,$(release.HEADERS.OSSPEC),$(eval $(call .release.dd,$d,$(subst $(CPP
 
 define .release.oneapi.dd
 $3: $2
-$2: $1 ; $(value mkdir)$(value cpy)
+$2: $1 ; $(value mkdir)$(value mov)
 endef
 $(foreach d,$(release.ONEAPI.HEADERS.COMMON),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$d),_release_oneapi_c_h)))
 $(foreach d,$(release.ONEAPI.HEADERS.OSSPEC),$(eval $(call .release.oneapi.dd,$d,$(subst $(CPPDIR)/,$(RELEASEDIR.include)/,$(subst _$(_OS),,$d)),_release_oneapi_c_h)))
@@ -1121,7 +1107,7 @@ $(RELEASEDIR.tbb.libia) $(RELEASEDIR.tbb.soia): _release_common
 
 define .release.t
 _release_common: $2/$(notdir $1)
-$2/$(notdir $1): $(call frompf1,$1) | $2/. ; $(value cpy)
+$2/$(notdir $1): $(call frompf1,$1) | $2/. ; $(value mov)
 endef
 $(foreach t,$(releasetbb.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.soia))))
 $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.libia))))
