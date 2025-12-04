@@ -329,38 +329,34 @@ jobs:
     displayName: 'cpp-examples-thread-dev'
 
   - script: |
-      export DALROOT="$(DALROOT)"
-      echo "Using DALROOT = $DALROOT"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
       bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT="$(DALROOT)"
-      echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
       bazel clean --expunge
     displayName: 'cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT="$(DALROOT)"
-      echo "Using DALROOT = $DALROOT"
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
       bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
-      export DALROOT="$(DALROOT)"
-      echo "Using DALROOT = $DALROOT"
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
       bazel clean --expunge
     displayName: 'cpp-examples-thread-release-dynamic'
 
