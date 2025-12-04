@@ -100,9 +100,9 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          rm -rf __work
-          mv __work_daal __work
+          rm -rf __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
+          rm -rf __work_daal __work
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
