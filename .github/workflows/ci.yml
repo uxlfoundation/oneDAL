@@ -45,7 +45,7 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
-    timeout-minutes: 240
+    timeout-minutes: 150
 
     steps:
       - name: Checkout oneDAL
@@ -64,17 +64,11 @@ jobs:
           echo "NEOReadDebugKeys=1" >> "$GITHUB_ENV"
           echo "EnableRecoverablePageFaults=1" >> "$GITHUB_ENV"
           echo "GpuFaultCheckThreshold=0" >> "$GITHUB_ENV"
-      - name: directory size
-        run: |
-          df -h
-          du -sh ..
-          du -ah .. | sort -rh | head -n 30
       - name: Make daal debug
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
-          # clean up build directory due to space limitations
-          rm -rf __work
+          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
       - name: Make onedal debug
         id: onedal-dbg
         run: |
@@ -83,11 +77,6 @@ jobs:
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: directory size
-        run: |
-          df -h
-          du -sh ..
-          du -ah .. | sort -rh | head -n 30
       - name: Prepare Cache build
         if: github.event_name != 'pull_request'
         run: cp -r __release_lnx __release_lnx_main
@@ -111,7 +100,8 @@ jobs:
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
           source /opt/intel/oneapi/setvars.sh
-          rm -rf __work_daal __work
+          rm -rf __work
+          mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
       - name: daal/cpp examples
         run: |
