@@ -112,8 +112,6 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
 
     for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
     {
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
         {
             const FeatureIndexType idx          = i[k];
@@ -122,7 +120,7 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
         }
     }
 
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
     {

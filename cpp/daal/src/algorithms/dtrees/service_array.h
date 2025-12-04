@@ -115,9 +115,8 @@ public:
 
     void resize(size_t n)
     {
-        T * ptr = (T *)Allocator::alloc((n) * sizeof(T));
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < (_size > n ? n : _size); ++i) ptr[i] = _data[i];
+        T * ptr = (T *)Allocator::alloc(n * sizeof(T));
+        services::internal::daal_memcpy_s(ptr, n * sizeof(T), _data, _size * sizeof(T));
         Allocator::free(_data);
         _data = ptr;
         _size = n;

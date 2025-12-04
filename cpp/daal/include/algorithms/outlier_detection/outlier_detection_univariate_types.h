@@ -120,11 +120,12 @@ struct DAAL_EXPORT DefaultInit : public InitIface
  * \brief Parameters of the univariate outlier detection algorithm \DAAL_DEPRECATED
  *
  * \snippet outlier_detection/outlier_detection_univariate_types.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter() {}
+    DAAL_DEPRECATED Parameter() {}
     services::SharedPtr<InitIface> initializationProcedure; /*!< Initialization procedure for setting initial parameters of the algorithm*/
 
     /**
@@ -139,11 +140,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__UNIVARIATE_OUTLIER_DETECTION__INPUT"></a>
  * \brief %Input objects for the univariate outlier detection algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -176,12 +178,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__UNIVARIATE_OUTLIER_DETECTION__RESULT"></a>
  * \brief Results obtained with the compute() method of the univariate outlier detection algorithm in the %batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
 

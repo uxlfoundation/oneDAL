@@ -19,16 +19,38 @@ load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 def _download_and_extract(repo_ctx, url, sha256, output, strip_prefix):
     # Workaround Python wheel extraction. Bazel cannot determine file
     # type automatically as does not support wheels out-of-the-box.
-    archive_type = ""
-    if url.endswith(".whl"):
-        archive_type = "zip"
-    repo_ctx.download_and_extract(
+    filename = url.split("/")[-1]
+    downloaded_path = repo_ctx.path(filename)
+    repo_ctx.download(
         url = url,
+        output = downloaded_path,
         sha256 = sha256,
-        output = output,
-        stripPrefix = strip_prefix,
-        type = archive_type,
     )
+
+    if filename.endswith(".conda"):
+        repo_ctx.execute(["unzip", downloaded_path, "-d", output])
+        for entry in repo_ctx.path(output).readdir():
+            if entry.basename.startswith("pkg-") and entry.basename.endswith(".tar.zst"):
+                repo_ctx.execute(["sh", "-c", "unzstd '%s' --stdout | tar -xf - -C '%s'" % (entry, output)])
+
+    elif filename.endswith(".whl") or filename.endswith(".zip"):
+        repo_ctx.download_and_extract(
+            url = url,
+            sha256 = sha256,
+            output = output,
+            strip_prefix = strip_prefix,
+            type = "zip",
+        )
+
+    else:
+        repo_ctx.download_and_extract(
+            url = url,
+            sha256 = sha256,
+            output = output,
+            strip_prefix = strip_prefix,
+        )
+
+
 
 def _create_download_info(repo_ctx):
     if repo_ctx.attr.url and repo_ctx.attr.urls:
@@ -71,8 +93,8 @@ def _normalize_download_info(repo_ctx):
 
 def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
     for entry in entries:
-        entry_fmt = utils.substitude(entry, substitutions)
-        src_entry_path = utils.substitude(paths.join(root, entry_fmt), mapping)
+        entry_fmt = utils.substitute(entry, substitutions)
+        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
         dst_entry_path = entry_fmt
         repo_ctx.symlink(src_entry_path, dst_entry_path)
 

@@ -46,11 +46,12 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-DATA_MANAGEMENT__SQLFEATUREMANAGER"></a>
  * \brief Interprets the response of SQL data base and fill provided numeric table and dictionary
+ * \DAAL_DEPRECATED
  */
 class SQLFeatureManager
 {
 public:
-    SQLFeatureManager() : _fetchBuffer(), _errors(services::SharedPtr<services::ErrorCollection>(new services::ErrorCollection)) {}
+    DAAL_DEPRECATED SQLFeatureManager() : _fetchBuffer(), _errors(services::SharedPtr<services::ErrorCollection>(new services::ErrorCollection)) {}
 
     /**
      * Adds extended feature modifier

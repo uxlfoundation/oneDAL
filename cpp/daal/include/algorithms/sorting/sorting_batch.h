@@ -51,6 +51,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the sorting algorithms, double or float
  * \tparam method           Sorting computation method, \ref daal::algorithms::sorting::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -61,7 +63,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -82,6 +84,8 @@ public:
  *      - \ref Method   Sorting computation methods
  *      - \ref InputId  Identifiers of sorting input objects
  *      - \ref ResultId Identifiers of sorting results
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::Analysis<batch>
@@ -92,14 +96,17 @@ public:
 
     InputType input; /*!< %input data structure */
 
-    /** Default constructor     */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs sorting algorithm by copying input objects and parameters
      * of another sorting algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
-     *                  and parameters of the algorithm
+     *                  and parameters of the algorithm\
      */
     Batch(const Batch<algorithmFPType, method> & other);
 

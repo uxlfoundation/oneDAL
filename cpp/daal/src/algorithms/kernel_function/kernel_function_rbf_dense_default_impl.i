@@ -65,7 +65,7 @@ services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInter
     //compute
     const algorithmFPType invSqrSigma = (algorithmFPType)(1.0 / (par->sigma * par->sigma));
     algorithmFPType factor            = 0.0;
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < nFeatures; i++)
     {
@@ -102,7 +102,7 @@ services::Status KernelImplRBF<defaultDense, algorithmFPType, cpu>::computeInter
     for (size_t i = 0; i < nVectors1; i++)
     {
         algorithmFPType factor = 0.0;
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t j = 0; j < nFeatures; j++)
         {

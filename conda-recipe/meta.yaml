@@ -1,0 +1,139 @@
+#===============================================================================
+# Copyright contributors to the oneDAL project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
+
+# Note: fetching tags from https://github.com/uxlfoundation/oneDAL
+# is required for the proper versioning of the package using GIT_DESCRIBE_TAG
+{% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0') %}
+{% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
+{% set buildnumber = 0 %}
+# TODO: automate binary version getting
+{% set major_binary_version = 3 %}
+
+package:
+  name: dal-feedstock
+  version: {{ version }}
+
+source:
+  - path: ..
+
+build:
+  skip: true  # [not (linux64 or win)]
+  number: {{ buildnumber }}
+  string: h{{ git_hash }}_{{ buildnumber }}_{{ cxx_compiler }}
+  include_recipe: False
+  ignore_run_exports_from:
+    - dpcpp_impl_linux-64  # [linux64 or win]
+  script_env:
+    # All build targets are used by default and AVX2 only for CI.
+    # Override REQCPU to reduce manual build time if needed: `REQCPU=avx512 conda build .`
+    - REQCPU={{ environ.get('REQCPU', 'sse42 avx2 avx512') }}  # [linux64 or win]
+    # Converting compiler name from "conda-forge" to "oneDAL Make" naming scheme
+    - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
+    - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
+    - CONDA_CXX_COMPILER=gnu  # [ cxx_compiler == "gxx" ]
+
+requirements:
+  build:
+    - python
+    - make  # [linux]
+    - cmake  # [linux64 or win]
+    - {{ compiler('cxx') }}
+    - dpcpp_impl_linux-64  # [linux64 or win]
+    - onedpl-devel  # [linux64 or win]
+    - mkl-devel  # [linux64 or win]
+    - mkl-static  # [linux64 or win]
+    - mkl-devel-dpcpp  # [linux64 or win]
+    - onemkl-sycl-include  # [linux64 or win]
+  host:
+    - tbb-devel
+
+outputs:
+  - name: dal
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - tbb
+    test:
+      commands:
+        - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
+    about:
+      summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
+
+  - name: dal-include
+    script: pack.sh  # [linux]
+    test:
+      commands:
+        - test -f $PREFIX/include/oneapi/dal.hpp
+    about:
+      summary: Headers for building against oneAPI Data Analytics Library (oneDAL)
+
+  - name: dal-static
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - {{ pin_subpackage('dal-include', exact=True) }}
+    test:
+      commands:
+        - test -f $PREFIX/lib/libonedal_core.a  # [linux]
+        - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
+    about:
+      summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
+
+  - name: dal-devel
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - {{ pin_subpackage('dal', exact=True) }}
+        - {{ pin_subpackage('dal-include', exact=True) }}
+        - tbb-devel
+    test:
+      requires:
+        - cmake  # [linux64 or win]
+        - {{ compiler('cxx') }}
+        - dal-static =={{ version }}
+        - mkl-devel
+        - mkl-static
+        - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
+      source_files:
+        - examples
+      script: test-devel.sh  # [linux]
+    about:
+      summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
+
+about:
+  home: https://uxlfoundation.github.io/oneDAL
+  license: Apache-2.0
+  license_file:
+    - LICENSE
+    - third-party-programs.txt
+  summary: oneAPI Data Analytics Library (oneDAL)
+  description: |
+    OneAPI Data Analytics Library (oneDAL) is a C++ and DPC++ library (powering the
+    <a href="https://uxlfoundation.github.io/scikit-learn-intelex" target="_blank">Extension for Scikit-learn in Python</a>)
+    which implements accelerated machine learning routines for tabular data (e.g. linear regression, K-means clustering,
+    random forests, etc.) for CPUs, GPUs, and multi-node distributed setups.
+    <br/><br/>
+    Acceleration on CPUs is achieved by leveraging SIMD instructions and exploiting cache structures of modern hardware,
+    while GPU acceleration leverages the SYCL framework and the oneMKL library.
+    <br/><br/>
+    OneDAL is part of the <a href="http://www.uxlfoundation.org" target="_blank">UXL Foundation</a>
+    and is an implementation of the <a href="https://oneapi-spec.uxlfoundation.org" target="_blank">oneAPI specification</a>
+    for the oneDAL component.
+  dev_url: https://github.com/uxlfoundation/oneDAL
+  doc_url: https://uxlfoundation.github.io/oneDAL

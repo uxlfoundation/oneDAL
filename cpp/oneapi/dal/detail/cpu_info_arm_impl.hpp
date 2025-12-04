@@ -24,13 +24,17 @@ namespace v1 {
 class cpu_info_arm : public cpu_info_impl {
 public:
     cpu_info_arm() {
-        info_["top_cpu_extension"] = cpu_extension::sve;
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = detect_onedal_cpu_extension();
         info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
     }
 
     explicit cpu_info_arm(const cpu_extension cpu_extension) {
-        info_["top_cpu_extension"] = cpu_extension;
+        info_["top_cpu_extension"] = detect_top_cpu_extension();
+        info_["onedal_cpu_extension"] = cpu_extension;
         info_["vendor"] = cpu_vendor::arm;
+        info_["cpu_features"] = detect_cpu_features();
     }
 };
 

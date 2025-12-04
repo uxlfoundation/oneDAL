@@ -13,7 +13,7 @@ dal_test_module(
     extra_deps = [{
         "@config//:backend_ref": [ "@openblas//:openblas",
                                     ],
-        "//conditions:default": [ "@mkl//:mkl_thr", 
+        "//conditions:default": [ "@mkl//:mkl_core", 
                                 ],
         }],
 )

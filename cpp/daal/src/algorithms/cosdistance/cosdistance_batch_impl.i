@@ -29,6 +29,7 @@
 #include "src/data_management/service_numeric_table.h"
 
 static const int blockSizeDefault = 128;
+#include "src/algorithms/cosdistance/cosdistance_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_full_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_up_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_lp_impl.i"
@@ -63,7 +64,19 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
 
     if (isFull<algorithmFPType, cpu>(rLayout))
     {
-        return cosDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        if (na == 1)
+        {
+            return cosDistanceFull<algorithmFPType, cpu>(xTable, rTable);
+        }
+        else if (na == 2)
+        {
+            NumericTable * yTable = const_cast<NumericTable *>(a[1]); /* y Input data */
+            return cosDistanceFull<algorithmFPType, cpu>(xTable, yTable, rTable);
+        }
+        else
+        {
+            return services::Status(services::ErrorIncorrectNumberOfInputNumericTables);
+        }
     }
     else
     {

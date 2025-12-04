@@ -52,6 +52,7 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations of the QR decomposition algorithm, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::qr::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
@@ -64,6 +65,7 @@ class DistributedContainer
  * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
  * \tparam method           Computation method, \ref daal::algorithms::qr::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -74,7 +76,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -96,6 +98,7 @@ public:
  * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
  * \tparam method           Computation method, \ref daal::algorithms::qr::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
@@ -106,7 +109,7 @@ public:
      * in the third step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
     /**
@@ -396,11 +399,7 @@ public:
         {
             return _partialResult->check(_par, method);
         }
-        else
-        {
-            return services::Status(services::ErrorNullResult);
-        }
-        return services::Status();
+        return services::Status(services::ErrorNullResult);
     }
 
     /**

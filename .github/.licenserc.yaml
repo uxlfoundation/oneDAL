@@ -1,4 +1,5 @@
-# Copyright contributors to the oneDAL project
+#===============================================================================
+# Copyright Contributors to the oneDAL Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#===============================================================================
 
 header:
   license:
@@ -41,7 +43,6 @@ header:
     - '.bazelrc'
     - '.bazelversion'
     - 'BUILD'
-    - 'WORKSPACE'
     - 'MODULE.bazel'
     - '**/*.tpl.BUILD'
     # Clang-format config
@@ -63,19 +64,14 @@ header:
     - 'docs/source/_templates/layout.html'
     - 'docs/source/substitutions_common.txt'
     - 'docs/source/substitutions_specific.txt'
-    # TODO: Remove `conformance-scripts` from the ignore list after the files will be deleted
-    - '.ci/scripts/conformance-scripts/algorithms.txt'
-    - '.ci/scripts/conformance-scripts/run_tests_with_context.py'
     # Some files from .ci/.github
-    - '.ci/pipeline/**/*.yml'
-    - '.ci/env/environment.yml'
-    - '.github/workflows/*.yml'
-    - '.github/.mergify.yml'
+    - '.github/instructions/*.md'
     - '.github/CODEOWNERS'
     - '.github/pull_request_template.md'
     - '.github/renovate.json'
     # Specific files
     - 'LICENSE'
+    - 'AGENTS.md'
     - 'third-party-programs-mkl.txt'
     - 'third-party-programs.txt'
     - 'deploy/local/config.txt'

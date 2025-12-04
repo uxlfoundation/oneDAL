@@ -26,13 +26,38 @@ include dev/make/compiler_definitions/clang.mk
 
 PLATs.clang = lnx32e mac32e
 
-COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
-                     -Werror -Wreturn-type
-COMPILER.lnx.clang = clang++ -m64 \
-                     -Werror -Wreturn-type
+OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
-link.dynamic.mac.clang = clang++ -m64
-link.dynamic.lnx.clang = clang++ -m64
+LINKERS_SUPPORTED := bfd gold lld
+
+ifneq ($(LINKER),)
+    ifneq ($(filter $(LINKER),bfd gold lld),$(LINKER))
+        $(error Invalid LINKER '$(LINKER)'. Supported on Linux: bfd gold lld)
+    endif
+endif
+
+ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
+else
+    $(error Invalid OPTFLAG '$(OPTFLAG)' for $(COMPILER). Supported: $(OPTFLAGS_SUPPORTED))
+endif
+
+
+ifeq ($(filter $(OPTFLAG),O0 Og),$(OPTFLAG))
+    -optlevel.clang = -$(OPTFLAG)
+else ifeq ($(OPTFLAG),Ofast)
+    -optlevel.clang = -O3 -ffast-math -D_FORTIFY_SOURCE=2
+else
+    -optlevel.clang = -$(OPTFLAG) -D_FORTIFY_SOURCE=2
+endif
+
+COMPILER.mac.clang = clang++ -m64 -fgnu-runtime -stdlib=libc++ -mmacosx-version-min=10.15 -fwrapv \
+                     -Werror -Wreturn-type ${CXXFLAGS}
+COMPILER.lnx.clang = clang++ -m64 \
+                     -Werror -Wreturn-type -fopenmp-simd ${CXXFLAGS}
+
+linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
+link.dynamic.mac.clang = clang++ $(linker.ld.flag) -m64
+link.dynamic.lnx.clang = clang++ $(linker.ld.flag) -m64 ${LDFLAGS}
 
 pedantic.opts.mac.clang = $(pedantic.opts.clang)
 pedantic.opts.lnx.clang = $(pedantic.opts.clang)

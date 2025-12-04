@@ -255,7 +255,7 @@ private:
             throw invalid_argument{ msg::rc_and_cc_do_not_match_element_count_in_array() };
         }
 
-        detail::dispath_by_policy(data, [&](auto policy) {
+        detail::dispatch_by_policy(data, [&](auto policy) {
             init_impl(policy,
                       row_count,
                       column_count,
