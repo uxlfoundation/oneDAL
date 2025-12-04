@@ -101,10 +101,6 @@ write.prereqs.args = $(or $1,$(^.no-mkdeps))
 write.prereqs.impl = $(call xargs,write.prereqs.dump,$1,$2)
 write.prereqs.dump = $(call exec,printf -- "$(subst $(space),$2,$1)$(if $6,$2)" >> $@)
 
-# Dynamically generate EXCLUDE_LIBS from MATH_LIBS_TO_EXCLUDE
-# Each library in MATH_LIBS_TO_EXCLUDE is prefixed with `-Wl,--exclude-libs=`
-EXCLUDE_LIBS = $(foreach lib,$(MATH_LIBS_TO_EXCLUDE),-Wl$(comma)--exclude-libs=$(lib))
-
 # Link static lib
 # In the current oneDAL static build, all symbols from MKL are copied
 # directly into the resulting oneDAL libraries. This ensures that
