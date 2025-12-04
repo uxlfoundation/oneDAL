@@ -101,6 +101,7 @@ public:
  *  <a name="DAAL-CLASS-DATA_MANAGEMENT__PACKEDSYMMETRICMATRIX"></a>
  *  \brief Class that provides methods to access symmetric matrices stored as a one-dimensional array.
  *  \tparam DataType Defines the underlying data type that describes the Numeric Table
+ *  \DAAL_DEPRECATED
  */
 template <NumericTableIface::StorageLayout packedLayout, typename DataType = DAAL_DATA_TYPE>
 class DAAL_EXPORT PackedSymmetricMatrix : public NumericTable, public PackedArrayNumericTableIface
@@ -119,9 +120,9 @@ public:
      *  Constructor for a Numeric Table with user-allocated memory
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(DataType * const ptr = 0, size_t nDim = 0) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(DataType * const ptr = 0, size_t nDim = 0) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()));
@@ -135,9 +136,9 @@ public:
      *  Constructor for a Numeric Table with user-allocated memory
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(ptr);
@@ -147,7 +148,7 @@ public:
         this->_status |= _ddict->setAllFeatures(df);
     }
 
-    PackedSymmetricMatrix(size_t nDim /*= 0*/) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(size_t nDim /*= 0*/) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -162,8 +163,10 @@ public:
      *  \param[in]  nDim        Matrix dimension
      *  \param[out] stat        Status of the table construction
      *  \return Numeric table with user-allocated memory
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(DataType * const ptr = 0, size_t nDim = 0, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(DataType * const ptr = 0, size_t nDim = 0,
+                                                                             services::Status * stat = NULL)
     {
         return create(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nDim, stat);
     }
@@ -174,8 +177,10 @@ public:
      *  \param[in]  nDim        Matrix dimension
      *  \param[out] stat        Status of the table construction
      *  \return Numeric table with user-allocated memory
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim,
+                                                                             services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(PackedSymmetricMatrix, DAAL_TEMPLATE_ARGUMENTS(packedLayout, DataType), ptr, nDim);
     }
@@ -185,9 +190,9 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(DataType * const ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(DataType * const ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()));
@@ -204,9 +209,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue)
+        : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(ptr);
@@ -225,9 +231,10 @@ public:
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
      *  \param[out] stat        Status of the table construction
      *  \return     Numeric table with user-allocated memory initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(DataType * const ptr, size_t nDim, const DataType & constValue,
-                                                             services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(DataType * const ptr, size_t nDim, const DataType & constValue,
+                                                                             services::Status * stat = NULL)
     {
         return create(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nDim, constValue, stat);
     }
@@ -239,9 +246,10 @@ public:
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
      *  \param[out] stat        Status of the table construction
      *  \return     Numeric table with user-allocated memory initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue,
-                                                             services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim,
+                                                                             const DataType & constValue, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(PackedSymmetricMatrix, DAAL_TEMPLATE_ARGUMENTS(packedLayout, DataType), ptr, nDim, constValue);
     }
@@ -250,9 +258,9 @@ public:
      *  Constructor for a Numeric Table with memory allocation controlled via a flag
      *  \param[in]  nDim                    Matrix dimension
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(size_t nDim, AllocationFlag memoryAllocationFlag) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(size_t nDim, AllocationFlag memoryAllocationFlag) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -269,8 +277,10 @@ public:
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[out] stat                    Status of the table construction
      *  \return     Numeric table
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(size_t nDim, AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(size_t nDim, AllocationFlag memoryAllocationFlag,
+                                                                             services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(PackedSymmetricMatrix, DAAL_TEMPLATE_ARGUMENTS(packedLayout, DataType), nDim, memoryAllocationFlag);
     }
@@ -280,9 +290,10 @@ public:
      *  \param[in]  nDim                    Matrix dimension
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the packed symmetric matrix
-     *  \DAAL_DEPRECATED_USE{ PackedSymmetricMatrix::create }
+     *  \DAAL_DEPRECATED
      */
-    PackedSymmetricMatrix(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedSymmetricMatrix(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
+        : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -301,9 +312,10 @@ public:
      *  \param[in]  constValue              Constant to initialize entries of the packed symmetric matrix
      *  \param[out] stat                    Status of the table construction
      *  \return     Numeric table initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<PackedSymmetricMatrix> create(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag,
-                                                             const DataType & constValue, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedSymmetricMatrix> create(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                             const DataType & constValue, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(PackedSymmetricMatrix, DAAL_TEMPLATE_ARGUMENTS(packedLayout, DataType), nDim, memoryAllocationFlag,
                                              constValue);
@@ -796,6 +808,7 @@ protected:
  *  <a name="DAAL-CLASS-DATA_MANAGEMENT__PACKEDTRIANGULARMATRIX"></a>
  *  \brief Class that provides methods to access a packed triangular matrix stored as a one-dimensional array.
  *  \tparam DataType Defines the underlying data type that describes the packed triangular matrix
+ *  \DAAL_DEPRECATED
  */
 template <NumericTableIface::StorageLayout packedLayout, typename DataType = DAAL_DATA_TYPE>
 class DAAL_EXPORT PackedTriangularMatrix : public NumericTable, public PackedArrayNumericTableIface
@@ -813,8 +826,9 @@ public:
      *  Constructor for a Numeric Table with user-allocated memory
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(DataType * const ptr = 0, size_t nDim = 0) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(DataType * const ptr = 0, size_t nDim = 0) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()));
@@ -828,8 +842,9 @@ public:
      *  Constructor for a Numeric Table with user-allocated memory
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(ptr);
@@ -839,7 +854,7 @@ public:
         this->_status |= _ddict->setAllFeatures(df);
     }
 
-    PackedTriangularMatrix(size_t nDim /*= 0*/) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(size_t nDim /*= 0*/) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -848,12 +863,14 @@ public:
         this->_status |= _ddict->setAllFeatures(df);
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(DataType * const ptr = 0, size_t nDim = 0, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(DataType * const ptr = 0, size_t nDim = 0,
+                                                                              services::Status * stat = NULL)
     {
         return create(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nDim, stat);
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(const services::SharedPtr<DataType> & ptr, size_t nDim,
+                                                                              services::Status * stat = NULL)
     {
         services::SharedPtr<PackedTriangularMatrix> ntPtr(new PackedTriangularMatrix(nDim));
         if (ntPtr.get())
@@ -874,8 +891,9 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(DataType * const ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(DataType * const ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()));
@@ -892,8 +910,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  nDim        Matrix dimension
      *  \param[in]  constValue  Constant to initialize entries of the packed symmetric matrix
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(const services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue)
+        : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
         this->_status |= setArray(ptr);
@@ -905,8 +925,8 @@ public:
         this->_status |= assign(constValue);
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(DataType * const ptr, size_t nDim, const DataType & constValue,
-                                                              services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(DataType * const ptr, size_t nDim, const DataType & constValue,
+                                                                              services::Status * stat = NULL)
     {
         services::SharedPtr<PackedTriangularMatrix> ntPtr(new PackedTriangularMatrix(nDim));
         if (ntPtr.get())
@@ -923,8 +943,8 @@ public:
         return ntPtr;
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(services::SharedPtr<DataType> & ptr, size_t nDim, const DataType & constValue,
-                                                              services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(services::SharedPtr<DataType> & ptr, size_t nDim,
+                                                                              const DataType & constValue, services::Status * stat = NULL)
     {
         services::SharedPtr<PackedTriangularMatrix> ntPtr(new PackedTriangularMatrix(nDim));
         if (ntPtr.get())
@@ -945,8 +965,9 @@ public:
      *  Constructor for a Numeric Table with memory allocation controlled via a flag
      *  \param[in]  nDim                    Matrix dimension
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(size_t nDim, AllocationFlag memoryAllocationFlag) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(size_t nDim, AllocationFlag memoryAllocationFlag) : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -957,7 +978,8 @@ public:
         if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(size_t nDim, AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(size_t nDim, AllocationFlag memoryAllocationFlag,
+                                                                              services::Status * stat = NULL)
     {
         services::SharedPtr<PackedTriangularMatrix> ntPtr(new PackedTriangularMatrix(nDim));
         if (ntPtr.get())
@@ -983,8 +1005,10 @@ public:
      *  \param[in]  nDim                    Matrix dimension
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the packed symmetric matrix
+     *  \DAAL_DEPRECATED
      */
-    PackedTriangularMatrix(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue) : NumericTable(nDim, nDim)
+    DAAL_DEPRECATED PackedTriangularMatrix(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
+        : NumericTable(nDim, nDim)
     {
         _layout = packedLayout;
 
@@ -996,8 +1020,8 @@ public:
         this->_status |= assign(constValue);
     }
 
-    static services::SharedPtr<PackedTriangularMatrix> create(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag,
-                                                              const DataType & constValue, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<PackedTriangularMatrix> create(size_t nDim, NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                              const DataType & constValue, services::Status * stat = NULL)
     {
         services::SharedPtr<PackedTriangularMatrix> ntPtr(new PackedTriangularMatrix(nDim));
         if (ntPtr.get())

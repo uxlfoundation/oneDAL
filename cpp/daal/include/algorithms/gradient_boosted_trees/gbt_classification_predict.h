@@ -60,6 +60,8 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
  * \tparam method           gradient boosted trees computation method, \ref Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -69,7 +71,7 @@ public:
      * Constructs a container for gradient boosted trees model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**

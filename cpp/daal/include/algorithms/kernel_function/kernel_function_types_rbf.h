@@ -66,11 +66,13 @@ namespace interface1
  * \brief Parameters for the radial basis function (RBF) kernel
  *
  * \snippet kernel_function/kernel_function_types_rbf.h RBF input object source code
+ *
+ * \DAAL_DEPRECATED
  */
 /* [RBF input object source code] */
 struct DAAL_EXPORT Parameter : public ParameterBase
 {
-    Parameter(double sigma = 1.0);
+    DAAL_DEPRECATED Parameter(double sigma = 1.0);
     double sigma; /*!< RBF kernel coefficient */
 };
 /* [RBF input object source code] */
@@ -78,11 +80,13 @@ struct DAAL_EXPORT Parameter : public ParameterBase
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RBF__INPUT"></a>
  * \brief %Input objects for the RBF kernel algorithm
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public kernel_function::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
     virtual ~Input() {}
