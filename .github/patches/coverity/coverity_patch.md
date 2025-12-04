@@ -41,3 +41,7 @@ By applying this patch, the project can meet the CCU threshold and ensure that C
 ### Support
 
 The patch is expected (not required) to be reviewed after each Coverity Build Tool version upgrade (~once an year) for relevance of the changes it contains, some of which may become obsolete due to improved Intel compiler support in future versions of the Coverity Build Tool.
+
+### Patch update acceptance criteria
+
+Any update in patch must meet the basic criterion - the total percentage of captured compilation units must be equal or greater than 95%. Otherwise, the analysis will not start because of server-side limitation.
