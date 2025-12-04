@@ -50,11 +50,12 @@ namespace interface1
  *        Quality metric is a numerical characteristic or a set of connected numerical characteristics
  *        that represents the qualitative aspect of a computed statistical estimate, model,
  *        or decision-making result.
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public Analysis<batch>
 {
 public:
-    Batch() : Analysis<batch>() {}
+    DAAL_DEPRECATED Batch() : Analysis<batch>() {}
     virtual ~Batch() {}
 
     /**

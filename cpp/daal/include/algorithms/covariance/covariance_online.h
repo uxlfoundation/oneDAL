@@ -77,6 +77,8 @@ public:
  *
  * \tparam method           Computation method for correlation or variance-covariance matrix, \ref daal::algorithms::covariance::Method
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer
@@ -89,6 +91,8 @@ class OnlineContainer
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, defaultDense, cpu> : public OnlineContainerIface
@@ -99,7 +103,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 
@@ -122,6 +126,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, singlePassDense, cpu> : public OnlineContainerIface
@@ -132,7 +138,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 
@@ -155,6 +161,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, sumDense, cpu> : public OnlineContainerIface
@@ -165,7 +173,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 
@@ -188,6 +196,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class.
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, fastCSR, cpu> : public OnlineContainerIface
@@ -198,7 +208,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 
@@ -221,6 +231,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, singlePassCSR, cpu> : public OnlineContainerIface
@@ -231,7 +243,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 
@@ -254,6 +266,8 @@ public:
  *        This class is associated with daal::algorithms::covariance::Online class
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class OnlineContainer<algorithmFPType, sumCSR, cpu> : public OnlineContainerIface
@@ -264,7 +278,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
 

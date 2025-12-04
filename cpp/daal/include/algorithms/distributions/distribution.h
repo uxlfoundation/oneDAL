@@ -40,7 +40,7 @@ namespace interface1
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BATCHBASE"></a>
- *  \brief Class representing distributions
+ * \brief Class representing distributions
  */
 class DAAL_EXPORT BatchBase : public daal::algorithms::Analysis<batch>
 {

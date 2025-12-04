@@ -55,6 +55,8 @@ namespace interface1
  *
  * \par References
  *      - \ref algorithms::quality_metric_set::interface1::InputAlgorithmsCollection "algorithms::quality_metric_set::InputAlgorithmsCollection" class
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Batch : public algorithms::quality_metric_set::Batch
 {
@@ -67,7 +69,7 @@ public:
      * \param[in] nBeta                 Number of beta coefficients (p) of linear regression model used for prediction
      * \param[in] nBetaReducedModel     Number of beta coefficients (p0) used for prediction with reduced linear regression model where p - p0 of p beta coefficients are set to 0
      */
-    Batch(size_t nBeta, size_t nBetaReducedModel, bool useDefaultMetrics = true)
+    DAAL_DEPRECATED Batch(size_t nBeta, size_t nBetaReducedModel, bool useDefaultMetrics = true)
         : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nBeta, nBetaReducedModel)
     {
         _inputData = InputDataCollectionPtr(new InputDataCollection());

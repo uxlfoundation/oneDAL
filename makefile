@@ -428,6 +428,13 @@ release.SAMPLES.CPP  := $(if $(wildcard $(SAMPLES.srcdir)/daal/cpp/*),          
                             $(filter $(spat),$(shell find $(SAMPLES.srcdir)/daal/cpp -type f))                           \
                           )                                                                                              \
                         )
+release.SAMPLES.ONEDAL.CPP  := $(if $(wildcard $(SAMPLES.srcdir)/oneapi/cpp/*),                                          \
+                          $(if $(OS_is_mac),                                                                             \
+                            $(filter $(spat),$(shell find $(SAMPLES.srcdir)/oneapi/cpp -not -wholename '*mpi*' -type f)) \
+                          ,                                                                                              \
+                            $(filter $(spat),$(shell find $(SAMPLES.srcdir)/oneapi/cpp -type f))                         \
+                          )                                                                                              \
+                        )
 release.SAMPLES.ONEDAL.DPC  := $(if $(wildcard $(SAMPLES.srcdir)/oneapi/dpc/*),                                          \
                           $(if $(OS_is_mac),                                                                             \
                             $(filter $(spat),$(shell find $(SAMPLES.srcdir)/oneapi/dpc -not -wholename '*mpi*' -type f)) \
@@ -1086,6 +1093,7 @@ $2: $1 | $(dir $2)/. ; $(value cpy)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
 $(foreach d,$(release.SAMPLES.CPP),   $(eval $(call .release.d,$d,$(subst $(SAMPLES.srcdir),$(RELEASEDIR.samples),$(subst _$(_OS),,$d)),_release_c)))
+$(foreach d,$(release.SAMPLES.ONEDAL.CPP),   $(eval $(call .release.d,$d,$(subst $(SAMPLES.srcdir),$(RELEASEDIR.samples),$(subst _$(_OS),,$d)),_release_c)))
 $(foreach d,$(release.SAMPLES.ONEDAL.DPC),   $(eval $(call .release.d,$d,$(subst $(SAMPLES.srcdir),$(RELEASEDIR.samples),$(subst _$(_OS),,$d)),_release_oneapi_dpc)))
 $(foreach d,$(release.SAMPLES.CMAKE),   $(eval $(call .release.d,$d,$(subst $(SAMPLES.srcdir),$(RELEASEDIR.samples),$d),_release_common)))
 

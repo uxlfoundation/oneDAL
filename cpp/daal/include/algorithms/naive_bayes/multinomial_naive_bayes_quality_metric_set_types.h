@@ -62,11 +62,12 @@ namespace interface1
 * \brief Parameters for the Naive Bayes compute() method
 *
 * \snippet naive_bayes/multinomial_naive_bayes_quality_metric_set_types.h Parameter source code
+* \DAAL_DEPRECATED
 */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(size_t nClasses = 2);
+    DAAL_DEPRECATED Parameter(size_t nClasses = 2);
     virtual ~Parameter() {}
 
     size_t nClasses; /*!< Number of classes */
@@ -77,11 +78,12 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__QUALITY_METRIC_SET__RESULTCOLLECTION"></a>
  * \brief Class that implements functionality of the collection of result objects of the quality metrics algorithm
  *        specialized for using with the Naive Bayes training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT ResultCollection : public algorithms::quality_metric_set::ResultCollection
 {
 public:
-    ResultCollection() {}
+    DAAL_DEPRECATED ResultCollection() {}
     virtual ~ResultCollection() {}
 
     /**
@@ -97,11 +99,12 @@ typedef services::SharedPtr<ResultCollection> ResultCollectionPtr;
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__QUALITY_METRIC_SET__INPUTDATACOLLECTION"></a>
  * \brief Class that implements functionality of the collection of input objects for the quality metrics algorithm
  *        specialized for using with the Naive Bayes training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT InputDataCollection : public algorithms::quality_metric_set::InputDataCollection
 {
 public:
-    InputDataCollection() {}
+    DAAL_DEPRECATED InputDataCollection() {}
     virtual ~InputDataCollection() {}
 
     /**
