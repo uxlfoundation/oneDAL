@@ -12,6 +12,8 @@
 .. See the License for the specific language governing permissions and
 .. limitations under the License.
 
+.. _daal_alg_logitboost_classifier:
+
 LogitBoost Classifier
 =====================
 

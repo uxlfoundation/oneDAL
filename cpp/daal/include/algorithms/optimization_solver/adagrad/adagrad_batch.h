@@ -53,6 +53,8 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the Adaptive gradient descent algorithm, double or float
  * \tparam method           Adaptive gradient descent computation method, daal::algorithms::optimization_solver::adagrad::Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -63,7 +65,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -87,6 +89,7 @@ public:
  *      - \ref Method   Computation methods for Adaptive gradient descent
  *      - \ref iterative_solver::InputId  Identifiers of input objects for Adaptive gradient descent
  *      - \ref iterative_solver::ResultId %Result identifiers for the Adaptive gradient descent
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public iterative_solver::Batch
@@ -100,7 +103,7 @@ public:
     ParameterType parameter; /*!< %Parameter data structure */
 
     /** Default constructor */
-    Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr());
+    DAAL_DEPRECATED Batch(sum_of_functions::BatchPtr objectiveFunction = sum_of_functions::BatchPtr());
 
     /**
      * Constructs a Adaptive gradient descent algorithm by copying input objects

@@ -54,6 +54,7 @@ namespace interface2
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__REGRESSION__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for decision forest regression
  *        model-based training using algorithmFPType precision arithmetic
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -64,7 +65,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -100,7 +101,9 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    /** Default constructor */
+    /**
+     * Default constructor
+     */
     Batch();
 
     /**

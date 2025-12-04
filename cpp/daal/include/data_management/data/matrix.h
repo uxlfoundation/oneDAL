@@ -44,6 +44,7 @@ namespace interface1
  *  <a name="DAAL-CLASS-DATA_MANAGEMENT__MATRIX"></a>
  *  \brief Represents a two-dimensional table of numbers of the same type
  *  \tparam DataType Defines the underlying data type that describes the matrix
+ *  \DAAL_DEPRECATED
  */
 template <typename DataType = DAAL_DATA_TYPE>
 class DAAL_EXPORT Matrix : public HomogenNumericTable<DataType>
@@ -56,8 +57,9 @@ public:
      *  \param[in]  nColumns    Number of columns in the table
      *  \param[in]  nRows       Number of rows in the table
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
+     *  \DAAL_DEPRECATED
      */
-    Matrix(size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0)
+    DAAL_DEPRECATED Matrix(size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0)
         : HomogenNumericTable<DataType>(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows)
     {}
 
@@ -68,9 +70,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[out] stat        Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0,
+                                                                         services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), stat);
     }
@@ -82,7 +85,9 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \DAAL_DEPRECATED_USE{ Matrix::create }
      */
-    Matrix(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr) : HomogenNumericTable<DataType>(ptr, nColumns, nRows) {}
+    DAAL_DEPRECATED Matrix(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr)
+        : HomogenNumericTable<DataType>(ptr, nColumns, nRows)
+    {}
 
     /**
      *  Constructs a matrix
@@ -91,9 +96,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[out] stat        Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, services::SharedPtr<DataType> & ptr,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, services::SharedPtr<DataType> & ptr,
+                                                                         services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, ptr, stat);
     }
@@ -104,8 +110,9 @@ public:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns = 0, size_t nRows = 0, DataType * const ptr = 0)
         : HomogenNumericTable<DataType>(featuresEqual, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows)
     {}
 
@@ -117,9 +124,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[out] stat        Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns = 0, size_t nRows = 0,
-                                                         DataType * const ptr = 0, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns = 0,
+                                                                         size_t nRows = 0, DataType * const ptr = 0, services::Status * stat = NULL)
     {
         return create(featuresEqual, nColumns, nRows, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), stat);
     }
@@ -130,8 +138,9 @@ public:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr)
         : HomogenNumericTable<DataType>(featuresEqual, ptr, nColumns, nRows)
     {}
 
@@ -143,9 +152,10 @@ public:
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[out] stat        Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                         const services::SharedPtr<DataType> & ptr, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                         const services::SharedPtr<DataType> & ptr, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Matrix, DataType, featuresEqual, nColumns, nRows, ptr);
     }
@@ -155,8 +165,9 @@ public:
      *  \param[in]  nColumns                Number of columns in the table
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag)
+    DAAL_DEPRECATED Matrix(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag)
         : HomogenNumericTable<DataType>(nColumns, nRows, memoryAllocationFlag)
     {}
 
@@ -167,9 +178,11 @@ public:
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[out] stat                    Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows,
+                                                                         NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                         services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, memoryAllocationFlag, stat);
     }
@@ -180,8 +193,10 @@ public:
      *  \param[in]  nColumns                Number of columns in the table
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                           NumericTable::AllocationFlag memoryAllocationFlag)
         : HomogenNumericTable<DataType>(featuresEqual, nColumns, nRows, memoryAllocationFlag)
     {}
 
@@ -193,9 +208,11 @@ public:
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[out] stat                    Status of the matrix construction
      *  \return Matrix
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                         NumericTable::AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                         NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                         services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Matrix, DataType, featuresEqual, nColumns, nRows, memoryAllocationFlag);
     }
@@ -206,8 +223,9 @@ public:
      *  \param[in]  nRows       Number of rows in the table
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  constValue  Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(size_t nColumns, size_t nRows, DataType * const ptr, const DataType & constValue)
+    DAAL_DEPRECATED Matrix(size_t nColumns, size_t nRows, DataType * const ptr, const DataType & constValue)
         : HomogenNumericTable<DataType>(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, constValue)
     {}
 
@@ -219,9 +237,10 @@ public:
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat           Status of the matrix construction
      *  \return     Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, DataType * const ptr, const DataType & constValue,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, DataType * const ptr,
+                                                                         const DataType & constValue, services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), constValue, stat);
     }
@@ -232,8 +251,9 @@ public:
      *  \param[in]  nRows       Number of rows in the table
      *  \param[in]  ptr         Pointer to and an array with a homogeneous data set
      *  \param[in]  constValue  Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr, const DataType & constValue)
+    DAAL_DEPRECATED Matrix(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr, const DataType & constValue)
         : HomogenNumericTable<DataType>(ptr, nColumns, nRows, constValue)
     {}
 
@@ -245,9 +265,10 @@ public:
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat           Status of the matrix construction
      *  \return     Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr,
-                                                         const DataType & constValue, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr,
+                                                                         const DataType & constValue, services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, ptr, constValue, stat);
     }
@@ -259,8 +280,10 @@ public:
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, DataType * const ptr, const DataType & constValue)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, DataType * const ptr,
+                           const DataType & constValue)
         : HomogenNumericTable<DataType>(featuresEqual, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, constValue)
     {}
 
@@ -273,9 +296,11 @@ public:
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat           Status of the matrix construction
      *  \return     Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                         DataType * const ptr, const DataType & constValue, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                         DataType * const ptr, const DataType & constValue,
+                                                                         services::Status * stat = NULL)
     {
         return create(featuresEqual, nColumns, nRows, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), constValue, stat);
     }
@@ -287,9 +312,10 @@ public:
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr,
-           const DataType & constValue)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, const services::SharedPtr<DataType> & ptr,
+                           const DataType & constValue)
         : HomogenNumericTable<DataType>(featuresEqual, ptr, nColumns, nRows, constValue)
     {}
 
@@ -302,10 +328,11 @@ public:
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat           Status of the matrix construction
      *  \return     Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                         const services::SharedPtr<DataType> & ptr, const DataType & constValue,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                         const services::SharedPtr<DataType> & ptr, const DataType & constValue,
+                                                                         services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Matrix, DataType, featuresEqual, nColumns, nRows, ptr, constValue);
     }
@@ -316,8 +343,9 @@ public:
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
+    DAAL_DEPRECATED Matrix(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
         : HomogenNumericTable<DataType>(nColumns, nRows, memoryAllocationFlag, constValue)
     {}
 
@@ -329,9 +357,11 @@ public:
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat                    Status of the matrix construction
      *  \return Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag,
-                                                         const DataType & constValue, services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(size_t nColumns, size_t nRows,
+                                                                         NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                         const DataType & constValue, services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, memoryAllocationFlag, constValue, stat);
     }
@@ -343,9 +373,10 @@ public:
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED
      */
-    Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag,
-           const DataType & constValue)
+    DAAL_DEPRECATED Matrix(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                           NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
         : HomogenNumericTable<DataType>(featuresEqual, nColumns, nRows, memoryAllocationFlag, constValue)
     {}
 
@@ -358,10 +389,11 @@ public:
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
      *  \param[out] stat                    Status of the matrix construction
      *  \return Matrix initialized with a constant
+     *  \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                         NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue,
-                                                         services::Status * stat = NULL)
+    DAAL_DEPRECATED static services::SharedPtr<Matrix<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                         NumericTable::AllocationFlag memoryAllocationFlag,
+                                                                         const DataType & constValue, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Matrix, DataType, featuresEqual, nColumns, nRows, memoryAllocationFlag, constValue);
     }

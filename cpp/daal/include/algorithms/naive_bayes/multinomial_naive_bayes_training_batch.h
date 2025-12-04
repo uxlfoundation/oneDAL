@@ -55,6 +55,8 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the naive Bayes training algorithm, double or float
  * \tparam method           Naive Bayes computation method, \ref Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -65,7 +67,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -87,6 +89,7 @@ public:
  *  \par Enumerations
  *      - \ref Method %Training methods for the multinomial naive Bayes algorithm
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -105,7 +108,7 @@ public:
      * Default constructor
      * \param nClasses  Number of classes
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs multinomial naive Bayes training algorithm by copying input objects and parameters

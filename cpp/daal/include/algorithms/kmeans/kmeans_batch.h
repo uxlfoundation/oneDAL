@@ -51,6 +51,7 @@ namespace interface2
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
  * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,8 +61,9 @@ public:
      * Constructs a container for K-Means algorithm with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -107,6 +109,7 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     ~Batch() { delete _par; }
+
     /**
     * Returns the method of the algorithm
     * \return Method of the algorithm
