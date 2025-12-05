@@ -477,6 +477,7 @@ $(info CORE.incdirs: $(CORE.incdirs))
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
+mov = mv -f "$<" "$@"
 
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
@@ -550,12 +551,12 @@ $(eval $(call append_uarch_copt,$(CORE.objs_y)))
 
 vpath
 vpath %.cpp $(CORE.srcdirs)
-vpath %.rc $(CORE.srcdirs)
+vpath %.rc  $(CORE.srcdirs)
 
 $(CORE.tmpdir_a)/inc_a_folders.txt: makefile.lst | $(CORE.tmpdir_a)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
 $(CORE.tmpdir_y)/inc_y_folders.txt: makefile.lst | $(CORE.tmpdir_y)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
 
-$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE)
+$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE) ; rm -rf $(CORE.tmpdir_a)/*
 $(CORE.tmpdir_y)/library_version_info.$(o): $(VERSION_DATA_FILE)
 
 # Used as $(eval $(call .compile.template.ay,obj_file))
@@ -967,6 +968,7 @@ _release_oneapi_dpc: _release_oneapi_c _release_oneapi_common
 # Populating RELEASEDIR
 #-------------------------------------------------------------------------------
 upd = $(cpy)
+mv = $(mov)
 
 _release: info.building.release
 
@@ -995,7 +997,7 @@ endef
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value upd)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mv)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
