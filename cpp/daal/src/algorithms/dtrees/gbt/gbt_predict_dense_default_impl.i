@@ -57,47 +57,118 @@ struct PredictDispatcher
     typedef PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> type;
 };
 
-template <typename algorithmFPType>
+
+
+// template <typename algorithmFPType>
+// inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+//                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
+// {
+//     return idx * 2 + (valueFromDataSet > splitPoints[idx]);
+// }
+
+// template <typename algorithmFPType>
+// inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+//                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
+// {
+//     return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
+// }
+
+// template <typename algorithmFPType>
+// inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+//                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
+// {
+//     if (checkFinitenessByComparison(valueFromDataSet))
+//     {
+//         return idx * 2 + (defaultLeft[idx] != 1);
+//     }
+//     else
+//     {
+//         return idx * 2 + (valueFromDataSet > splitPoints[idx]);
+//     }
+// }
+
+// template <typename algorithmFPType>
+// inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+//                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
+// {
+//     if (checkFinitenessByComparison(valueFromDataSet))
+//     {
+//         return idx * 2 + (defaultLeft[idx] != 1);
+//     }
+//     else
+//     {
+//         return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
+//     }
+// }
+
+
+template <typename algorithmFPType, bool useDenseIdx = false>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
 {
-    return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (valueFromDataSet > splitAndLeftIds[idx].splitPoint));
-}
-
-template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
-                                    FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
-{
-    // std::cerr << idx << std::endl;
-    return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint));
-}
-
-template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
-                                    FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
-{
-    if (checkFinitenessByComparison(valueFromDataSet))
-    {
-        return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (defaultLeft[idx] != 1));
-    }
-    else
-    {
+    if constexpr (useDenseIdx) {
+        return idx * 2 + (valueFromDataSet > splitAndLeftIds[idx].splitPoint);
+    } else {
         return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (valueFromDataSet > splitAndLeftIds[idx].splitPoint));
     }
 }
 
-template <typename algorithmFPType>
+template <typename algorithmFPType, bool useDenseIdx = false>
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
+{
+    // std::cerr << idx << std::endl;
+    if constexpr (useDenseIdx) {
+        return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint);
+    } else {
+        return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint));
+    }
+}
+
+template <typename algorithmFPType, bool useDenseIdx = false>
+inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
+{
+    if constexpr(useDenseIdx) {
+        if (checkFinitenessByComparison(valueFromDataSet)) {
+            return idx * 2 + (defaultLeft[idx] != 1);
+        }
+        else {
+            return idx * 2 + (valueFromDataSet > splitAndLeftIds[idx].splitPoint);
+        }
+    } else {
+        if (checkFinitenessByComparison(valueFromDataSet))
+        {
+            return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (defaultLeft[idx] != 1));
+        }
+        else
+        {
+            return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (valueFromDataSet > splitAndLeftIds[idx].splitPoint));
+        }
+    }
+}
+
+template <typename algorithmFPType, bool useDenseIdx = false>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
 {
-    if (checkFinitenessByComparison(valueFromDataSet))
-    {
-        return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (defaultLeft[idx] != 1));
-    }
-    else
-    {
-        return splitAndLeftIds[idx].leftId
-               + ((idx != splitAndLeftIds[idx].leftId) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint));
+    if constexpr (useDenseIdx) {
+        if (checkFinitenessByComparison(valueFromDataSet)) {
+            return idx * 2 + (defaultLeft[idx] != 1);
+        }
+        else {
+            return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint);
+        }
+    } else {
+        if (checkFinitenessByComparison(valueFromDataSet))
+        {
+            return splitAndLeftIds[idx].leftId + ((idx != splitAndLeftIds[idx].leftId) && (defaultLeft[idx] != 1));
+        }
+        else
+        {
+            return splitAndLeftIds[idx].leftId
+                + ((idx != splitAndLeftIds[idx].leftId) && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint));
+        }
     }
 }
 
@@ -116,19 +187,36 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     services::internal::service_memset_seq<FeatureIndexType, cpu>(i, FeatureIndexType(1), vectorBlockSize);
     // prediction goes here
     const FeatureIndexType maxLvl = t.getMaxLvl();
+    const FeatureIndexType numDenseLayers = t.getNumDenseLayers();
     // std::vector<std::vector<size_t>> printids(vectorBlockSize);
     // std::cerr << "Block of size " << vectorBlockSize << std::endl;
-    for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
+    for (FeatureIndexType itr = 0; itr < std::min(maxLvl, numDenseLayers); itr++)
     {
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
         {
             const FeatureIndexType idx          = i[k];
             const FeatureIndexType splitFeature = fIndexes[idx];
-            i[k] = updateIndex(idx, x[splitFeature + k * nFeat], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+            i[k] = updateIndex<algorithmFPType, true>(idx, x[splitFeature + k * nFeat], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
             // printids[k].push_back(i[k]);
         }
         // std::cerr << "---------" << std::endl;
     }
+
+    for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
+    {
+        // std::cerr << "level: " << itr << std::endl;
+        PRAGMA_FORCE_SIMD
+        PRAGMA_VECTOR_ALWAYS
+        for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
+        {
+            const FeatureIndexType idx          = i[k];
+            const FeatureIndexType splitFeature = fIndexes[idx];
+            i[k] = updateIndex<algorithmFPType, false>(idx, x[splitFeature + k * nFeat], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+            // printids[k].push_back(i[k]);
+        }
+        // std::cerr << "---------" << std::endl;
+    }
+
     // for (int i = 0; i < vectorBlockSize; i++)
     // {
     //     for (size_t j = 0; j < printids[i].size(); j++)
@@ -158,16 +246,24 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
 
     const FeatureIndexType maxLvl = t.getMaxLvl();
+    const FeatureIndexType numDenseLayers = t.getNumDenseLayers();
 
     FeatureIndexType i = 1;
 
     // std::cerr << "Inside prediction for tree" << std::endl;
 
-    for (FeatureIndexType itr = 0; itr < maxLvl; itr++)
+    for (FeatureIndexType itr = 0; itr < std::min(numDenseLayers, maxLvl); itr++)
     {
         const FeatureIndexType splitFeature = fIndexes[i];
-        i                                   = updateIndex(i, x[splitFeature], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+        i                                   = updateIndex<algorithmFPType, true>(i, x[splitFeature], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
     }
+
+    for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
+    {
+        const FeatureIndexType splitFeature = fIndexes[i];
+        i                                   = updateIndex<algorithmFPType, false>(i, x[splitFeature], splitAndLeftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+    }
+
     return splitAndLeftIds[i].splitPoint;
 }
 
