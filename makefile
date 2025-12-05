@@ -512,14 +512,10 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 -include $(CORE.tmpdir_y)/*.d
 
 
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/.
-	$(WRITE.PREREQS)
-
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a): LOPT:=
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a): $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/.
-	$(LINK.STATIC)
-
-
+# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
 $(WORKDIR.lib)/$(core_a): LOPT:=
 $(WORKDIR.lib)/$(core_a): \
         $(daaldep.math_backend.static_link_deps) \
