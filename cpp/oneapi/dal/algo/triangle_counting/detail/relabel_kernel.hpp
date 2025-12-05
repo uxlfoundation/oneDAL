@@ -87,8 +87,10 @@ struct relabel_by_greater_degree {
         std::int64_t* offsets =
             oneapi::dal::preview::detail::allocate(int64_allocator, vertex_count + 1);
 
-        const std::size_t block_size = 1 << 20;
-        const std::int64_t num_blocks = (vertex_count + block_size - 1) / block_size;
+        constexpr std::size_t block_size = 1 << 20;
+        constexpr std::int64_t block_size_int64 = std::int64_t(block_size);
+        dal::detail::check_sum_overflow(vertex_count, block_size_int64 - 1);
+        const std::int64_t num_blocks = (vertex_count + block_size_int64 - 1) / block_size_int64;
         std::int64_t* local_sums =
             oneapi::dal::preview::detail::allocate(int64_allocator, num_blocks);
         std::int64_t* part_prefix =

@@ -59,6 +59,8 @@ public:
 
     Batch();
 
+    ~Batch();
+
     Batch(const Batch<algorithmFPType, method> & other);
 
     virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
