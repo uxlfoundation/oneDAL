@@ -511,12 +511,6 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 -include $(CORE.tmpdir_a)/*.d
 -include $(CORE.tmpdir_y)/*.d
 
-# -------------------------------
-.INTERMEDIATE: $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt)
-.INTERMEDIATE: $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a)
-.INTERMEDIATE: $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt)
-# -------------------------------
-
 # TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
@@ -583,6 +577,16 @@ $(CORE.tmpdir_y)/dll.res: $(VERSION_DATA_FILE)
 $(CORE.tmpdir_y)/dll.res: RCOPT += $(addprefix -I, $(CORE.incdirs.common))
 $(CORE.tmpdir_y)/%.res: %.rc | $(CORE.tmpdir_y)/. ; $(RC.COMPILE)
 
+$(CORE.objs_a): | $(CORE.tmpdir_a)/.clean.stamp
+$(CORE.objs_y): | $(CORE.tmpdir_y)/.clean.stamp
+
+$(CORE.tmpdir_a)/.clean.stamp:
+	find $(CORE.tmpdir_a) -mindepth 1 ! -name '.clean.stamp' -delete
+	touch $@
+
+$(CORE.tmpdir_y)/.clean.stamp:
+	find $(CORE.tmpdir_y) -mindepth 1 ! -name '.clean.stamp' -delete
+	touch $@
 
 #===============================================================================
 # oneAPI part
