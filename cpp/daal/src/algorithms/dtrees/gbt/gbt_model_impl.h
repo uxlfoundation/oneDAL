@@ -55,6 +55,7 @@ struct SplitLeftIdPair {
     size_t leftId;
     ModelFPType splitPoint;
 };
+const size_t defaultNumDenseLayers = 4;
 
 // static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
 // {
@@ -82,9 +83,10 @@ public:
     using leftChildIndexType         = HomogenNumericTable<size_t>;
     // using splitLeftIdPairType = AOSNumericTable;
 
-    GbtDecisionTree(const size_t nNodes, const size_t maxLvl)
+    GbtDecisionTree(const size_t nNodes, const size_t maxLvl, const size_t numDenseLayers)
         : _nNodes(nNodes),
           _maxLvl(maxLvl),
+          _numDenseLayers(numDenseLayers),
           _splitPoints(SplitPointType::create(1, nNodes, NumericTableIface::doAllocate)),
           _featureIndexes(FeatureIndexesForSplitType::create(1, nNodes, NumericTableIface::doAllocate)),
           _nodeCoverValues(NodeCoverType::create(1, nNodes, NumericTableIface::doAllocate)),
@@ -113,7 +115,7 @@ public:
     }
 
     // for serialization only
-    GbtDecisionTree() : _nNodes(0), _maxLvl(0) {}
+    GbtDecisionTree() : _nNodes(0), _maxLvl(0), _numDenseLayers(0) {}
 
     ModelFPType * getSplitPoints() { return _splitPoints->getArray(); }
 
@@ -157,9 +159,11 @@ public:
 
     FeatureIndexType getMaxLvl() const { return _maxLvl; }
 
+    size_t getNumDenseLayers() const { return _numDenseLayers; }
+
     // recursive build of tree (breadth-first)
     template <typename NodeType, typename NodeBase>
-    static services::Status internalTreeToGbtDecisionTree(const NodeBase & root, const size_t nNodes, const size_t nLvls, GbtDecisionTree * tree,
+    static services::Status internalTreeToGbtDecisionTree(const NodeBase & root, const size_t nNodes, const size_t nLvls, const size_t nDenseLayers, GbtDecisionTree * tree,
                                                           double * impVals, int * nNodeSamplesVals, size_t countFeature)
     {
         using SplitType = const typename NodeType::Split *;
@@ -205,9 +209,9 @@ public:
             for (size_t iParent = 0; iParent < nParents; ++iParent)
             {
                 const typename NodeType::Split * p = parents[iParent];
-
                 if (p->isSplit())
-                {
+                {   
+                    // std::cerr << idxInTable << " (split .h): " << idxChild << std::endl;
                     tree->nNodeSplitFeature[p->featureIdx] += 1;
                     tree->CoverFeature[p->featureIdx] += p->count;
                     tree->GainFeature[p->featureIdx] -= p->impurity - p->left()->impurity - p->right()->impurity;
@@ -215,6 +219,7 @@ public:
                     sons[nSons++]                = NodeType::castSplit(p->left());
                     sons[nSons++]                = NodeType::castSplit(p->right());
                     featureIndexes[idxInTable]   = p->featureIdx;
+
                     leftChildIndexes[idxInTable] = idxChild;
                     SplitAndLeftIds[idxInTable].leftId = idxChild;
                     // std::cerr << idxInTable << " " << idxChild - 1 << std::endl;
@@ -222,17 +227,29 @@ public:
                     idxChild += 2;
                 }
                 else
-                {
-                    // sons[nSons++]              = p;
-                    // sons[nSons++]              = p;
-                    featureIndexes[idxInTable]   = 0;
-                    leftChildIndexes[idxInTable] = idxInTable + 1;
-                    SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
+                {   
+                    if (lvl < std::min(nDenseLayers, nLvls)) {
+                        // std::cerr << idxInTable << " (no-split fake sons .h): " << idxChild << std::endl;
+                        sons[nSons++]              = p;
+                        sons[nSons++]              = p;
+                        featureIndexes[idxInTable] = 0;
+
+                        leftChildIndexes[idxInTable] = idxChild;
+                        SplitAndLeftIds[idxInTable].leftId = idxChild;
+                        idxChild += 2;
+                    } else {
+                        // std::cerr << idxInTable << " (no-split .h): " << idxInTable + 1 << std::endl;
+                        featureIndexes[idxInTable]   = 0;
+                        leftChildIndexes[idxInTable] = idxInTable + 1;
+                        SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
+                    }
+                    
                 }
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 nNodeSamplesVals[idxInTable] = (int)p->count;
                 impVals[idxInTable]          = p->impurity;
                 splitPoints[idxInTable]      = p->featureValue;
+
                 SplitAndLeftIds[idxInTable].splitPoint = p->featureValue;
                 // leftChildIndexes[idxInTable] = (idxInTable + 1) * 2; // we consider nodes in a tree are numbered from 1
                 idxInTable++;
@@ -266,6 +283,7 @@ protected:
 
 protected:
     size_t _nNodes;
+    size_t _numDenseLayers;
     FeatureIndexType _maxLvl;
     services::SharedPtr<SplitPointType> _splitPoints;
     services::SharedPtr<FeatureIndexesForSplitType> _featureIndexes;
@@ -292,14 +310,31 @@ public:
                                            size_t nFeature) const
     {
         // std::cerr << "convertGbtTreeToTable" << std::endl;
-        size_t nLvls = 1;
+        size_t nLvls = 0;
+        size_t nNodes = 0;
+        size_t nDenseLayers = defaultNumDenseLayers;
         services::Status status;
-        getMaxLvl(*super::top(), nLvls, static_cast<size_t>(-1));
+        // getMaxLvLAndNumNodes(const typename TNodeType::Base & node, size_t & maxLvl, size_t& numNodes, const size_t numDenseLayers, size_t curLvl = 0)
+        getMaxLvLAndNumNodes(*super::top(), nLvls, nNodes, nDenseLayers, 0);
+        
+        // std::cerr << "===============================================" << std::endl;
+        // std::cerr << "Info: " << nNodes << " " << nLvls << " " << nDenseLayers << std::endl;
+        
+        nNodes += (static_cast<size_t>(1) << (std::min(nLvls, nDenseLayers) + 1)) - 1;
+
+        // std::cerr << "New nnodes: " <<  nNodes << std::endl;
+        // std::cerr << "Actual nnodes: " << super::getNumberOfNodes() << std::endl;
+
+
+
+        // getMaxLvl(*super::top(), nLvls, static_cast<size_t>(-1));
         // TODO change
-        const size_t nNodes = super::getNumberOfNodes();
+        
+        // const size_t nNodes = super::getNumberOfNodes();
+        
         // const size_t nNodes = getNumberOfNodesByLvls(nLvls);
         // std::cerr << "convertGbtTreeToTable: " <<  nNodes << " " << nLvls << std::endl;
-        *pTbl        = new GbtDecisionTree(nNodes, nLvls);
+        *pTbl        = new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
         *pTblImp     = new HomogenNumericTable<double>(1, nNodes, NumericTable::doAllocate);
         *pTblSmplCnt = new HomogenNumericTable<int>(1, nNodes, NumericTable::doAllocate);
 
@@ -311,13 +346,16 @@ public:
         if (super::top())
         {
             status |= GbtDecisionTree::internalTreeToGbtDecisionTree<TNodeType, typename TNodeType::Base>(
-                *super::top(), nNodes, nLvls, *pTbl, (*pTblImp)->getArray(), (*pTblSmplCnt)->getArray(), nFeature);
+                *super::top(), nNodes, nLvls, nDenseLayers, *pTbl, (*pTblImp)->getArray(), (*pTblSmplCnt)->getArray(), nFeature);
         }
 
         return status;
     }
 
 protected:
+
+
+
     void getMaxLvl(const typename TNodeType::Base & node, size_t & maxLvl, size_t curLvl = 0) const
     {
         curLvl++;
@@ -330,6 +368,19 @@ protected:
         }
         else
         {
+            if (maxLvl < curLvl) maxLvl = curLvl;
+        }
+    }
+
+    void getMaxLvLAndNumNodes(const typename TNodeType::Base & node, size_t & maxLvl, size_t& numNodes, const size_t numDenseLayers, size_t curLvl = 0) const {
+        if (curLvl > numDenseLayers) {
+            numNodes++;
+        }
+        const auto p = TNodeType::castSplit(&node);
+        if (p->isSplit()) {
+            getMaxLvLAndNumNodes(*static_cast<const typename NodeType::Split *>(p->left()), maxLvl, numNodes, numDenseLayers, curLvl + 1);
+            getMaxLvLAndNumNodes(*static_cast<const typename NodeType::Split *>(p->right()), maxLvl, numNodes, numDenseLayers, curLvl + 1);
+        } else {
             if (maxLvl < curLvl) maxLvl = curLvl;
         }
     }
@@ -431,16 +482,26 @@ protected:
 
     static void getMaxLvl(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t curLvl = 0);
 
+    static void getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t& numNodes, const size_t numDenseLayers, size_t curLvl = 0);
+
     static GbtDecisionTree * allocateGbtTree(const DecisionTreeTable & tree)
     {
         const dtrees::internal::DecisionTreeNode * const arr = (const dtrees::internal::DecisionTreeNode *)tree.getArray();
 
-        size_t nLvls = 1;
-        getMaxLvl(arr, 0, nLvls, static_cast<size_t>(-1));
+        size_t nLvls = 0;
+        size_t nNodes = 0;
+        size_t nDenseLayers = defaultNumDenseLayers;
+
+
+
+        // getMaxLvl(arr, 0, nLvls, static_cast<size_t>(-1));
+        getMaxLvLAndNumNodes(arr, 0, nLvls, nNodes, nDenseLayers, 0);
+        nNodes += (static_cast<size_t>(1) << (std::min(nLvls, nDenseLayers) + 1)) - 1;
+        
         // TODO: change get real number of nodes
         // const size_t nNodes = getNumberOfNodesByLvls(nLvls);
-        const size_t nNodes = tree.getNumberOfRows();
-        return new GbtDecisionTree(nNodes, nLvls);
+        // const size_t nNodes = tree.getNumberOfRows();
+        return new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
     }
 
     template <typename OnSplitFunctor, typename OnLeafFunctor>
@@ -483,6 +544,7 @@ protected:
             {
                 const size_t iRowInTable       = aCur[i] + j;
                 const size_t oneBasedNodeIndex = iRowInTable + 1;
+                // std::cerr << level << " " << iRowInTable << ": " << SplitAndLeftIds[iRowInTable].leftId << " " << leftChildIndexes[iRowInTable] << std::endl;
                 assert(SplitAndLeftIds[iRowInTable].leftId == leftChildIndexes[iRowInTable]);
                 // std::cerr << level << " " << iRowInTable << std::endl;
                 if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree, level))

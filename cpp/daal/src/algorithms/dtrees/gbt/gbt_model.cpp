@@ -280,6 +280,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 {
     const size_t nSourceNodes = tree.getNumberOfRows();
     const size_t nLvls        = newTree.getMaxLvl();
+    const size_t nDenseLayers = newTree.getNumDenseLayers();
 
     using NodeType = const dtrees::internal::DecisionTreeNode *;
     services::Collection<NodeType> sonsArr(newTree.getNumberOfNodes() + 1);
@@ -316,6 +317,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 
             if (p->isSplit())
             {
+                // std::cerr << idxInTable << " (split .cpp): " << idxChild << std::endl;
                 sons[nSons++]               = arr + p->leftIndexOrClass;
                 sons[nSons++]               = arr + p->leftIndexOrClass + 1;
                 featureIndexes[idxInTable]  = p->featureIndex;
@@ -323,26 +325,40 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 defaultLeft[idxInTable]     = p->defaultLeft;
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 splitPoints[idxInTable]      = p->featureValueOrResponse;
+
                 leftChildIndexes[idxInTable] = idxChild;
                 SplitAndLeftIds[idxInTable].leftId = idxChild;
                 SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
                 idxChild += 2;
             }
             else
-            {
-                //sons[nSons++]               = p;
-                //sons[nSons++]               = p;
-                featureIndexes[idxInTable]  = 0;
-                nodeCoverValues[idxInTable] = p->cover;
-                defaultLeft[idxInTable]     = 0;
-                splitPoints[idxInTable]     = p->featureValueOrResponse;
+            {   
+                if (lvl < std::min(nDenseLayers, nLvls)) {
+                    // std::cerr << idxInTable << " (no-split fake sons .cpp): " << idxChild << std::endl;
+                    sons[nSons++]               = p;
+                    sons[nSons++]               = p;
 
-                //leftChildIndexes[idxInTable] = idxChild;
-                //idxChild += 2;
-                leftChildIndexes[idxInTable] = idxInTable + 1;
+                    featureIndexes[idxInTable]  = 0;
+                    nodeCoverValues[idxInTable] = p->cover;
+                    defaultLeft[idxInTable]     = 0;
+                    splitPoints[idxInTable]      = p->featureValueOrResponse;
 
-                SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
-                SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
+                    leftChildIndexes[idxInTable] = idxChild;
+                    SplitAndLeftIds[idxInTable].leftId = idxChild;
+                    featureIndexes[idxInTable] = 0;
+                    
+                    idxChild += 2;
+                } else {
+                    // std::cerr << idxInTable << " (no-split .cpp): " << idxInTable + 1 << std::endl;
+                    featureIndexes[idxInTable]  = 0;
+                    nodeCoverValues[idxInTable] = p->cover;
+                    defaultLeft[idxInTable]     = 0;
+                    splitPoints[idxInTable]     = p->featureValueOrResponse;
+
+                    leftChildIndexes[idxInTable] = idxInTable + 1;
+                    SplitAndLeftIds[idxInTable].leftId = idxInTable + 1;
+                    SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
+                }
             }
             // leftChildIndexes[idxInTable] = (idxInTable + 1) * 2;
             idxInTable++;
@@ -377,6 +393,23 @@ void ModelImpl::getMaxLvl(const dtrees::internal::DecisionTreeNode * const arr, 
     {
         getMaxLvl(arr, arr[idx].leftIndexOrClass, maxLvl, curLvl);
         getMaxLvl(arr, arr[idx].leftIndexOrClass + 1, maxLvl, curLvl);
+    }
+    else
+    {
+        if (maxLvl < curLvl) maxLvl = curLvl;
+    }
+}
+
+void ModelImpl::getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t& numNodes, const size_t numDenseLayers, size_t curLvl) {
+    if (curLvl > numDenseLayers) {
+        numNodes++;
+    }
+    if (arr[idx].isSplit())
+    {
+        getMaxLvLAndNumNodes(arr, arr[idx].leftIndexOrClass, maxLvl, numNodes, numDenseLayers, curLvl + 1);
+        getMaxLvLAndNumNodes(arr, arr[idx].leftIndexOrClass + 1, maxLvl, numNodes, numDenseLayers, curLvl + 1);
+        // getMaxLvl(arr, arr[idx].leftIndexOrClass, maxLvl, curLvl);
+        // getMaxLvl(arr, arr[idx].leftIndexOrClass + 1, maxLvl, curLvl);
     }
     else
     {
