@@ -42,7 +42,7 @@ namespace interface1
  * \return  Shared pointer to the modifier
  */
 template <typename Modifier>
-inline FeatureModifierIfacePtr custom()
+DAAL_DEPRECATED inline FeatureModifierIfacePtr custom()
 {
     return services::internal::wrapSharedAndTryThrow<Modifier>(new Modifier());
 }
@@ -51,7 +51,7 @@ inline FeatureModifierIfacePtr custom()
  * Creates continuous feature modifier which parses input column values as real numbers
  * \return Shared pointer to the continuous feature modifier
  */
-inline FeatureModifierIfacePtr continuous()
+DAAL_DEPRECATED inline FeatureModifierIfacePtr continuous()
 {
     return services::internal::wrapSharedAndTryThrow<FeatureModifier>(new internal::ContinuousFeatureModifier());
 }

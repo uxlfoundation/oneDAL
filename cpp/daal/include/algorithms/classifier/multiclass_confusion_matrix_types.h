@@ -106,11 +106,13 @@ namespace interface1
  * \brief Parameters for the compute() method of the multi-class confusion matrix
  *
  * \snippet classifier/multiclass_confusion_matrix_types.h Parameter source code
+ *
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 {
-    Parameter(size_t nClasses = 0, double beta = 1.0);
+    DAAL_DEPRECATED Parameter(size_t nClasses = 0, double beta = 1.0);
     Parameter(const Parameter & other);
     Parameter & operator=(const Parameter & other);
     virtual ~Parameter() {}
@@ -125,11 +127,13 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CLASSIFIER__QUALITY_METRIC__MULTICLASS_CONFUSION_MATRIX__INPUT"></a>
  * \brief Base class for the input objects of the confusion matrix algorithm in the training stage of the classification algorithm
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -162,12 +166,14 @@ typedef services::SharedPtr<Input> InputPtr;
  * <a name="DAAL-CLASS-ALGORITHMS__CLASSIFIER__QUALITY_METRIC__MULTICLASS_CONFUSION_MATRIX__RESULT"></a>
  * \brief Results obtained with the compute() method of the multi-class confusion matrix algorithm
  *        in the batch processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
     virtual ~Result() {}
 
     /**
