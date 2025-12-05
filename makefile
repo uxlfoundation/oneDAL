@@ -556,7 +556,7 @@ vpath %.rc  $(CORE.srcdirs)
 $(CORE.tmpdir_a)/inc_a_folders.txt: makefile.lst | $(CORE.tmpdir_a)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
 $(CORE.tmpdir_y)/inc_y_folders.txt: makefile.lst | $(CORE.tmpdir_y)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
 
-$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE)
+$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE) ; rm -rf $(CORE.tmpdir_a)/*
 $(CORE.tmpdir_y)/library_version_info.$(o): $(VERSION_DATA_FILE)
 
 # Used as $(eval $(call .compile.template.ay,obj_file))
@@ -577,16 +577,6 @@ $(CORE.tmpdir_y)/dll.res: $(VERSION_DATA_FILE)
 $(CORE.tmpdir_y)/dll.res: RCOPT += $(addprefix -I, $(CORE.incdirs.common))
 $(CORE.tmpdir_y)/%.res: %.rc | $(CORE.tmpdir_y)/. ; $(RC.COMPILE)
 
-$(CORE.objs_a): | $(CORE.tmpdir_a)/.clean.stamp
-$(CORE.objs_y): | $(CORE.tmpdir_y)/.clean.stamp
-
-$(CORE.tmpdir_a)/.clean.stamp:
-	find $(CORE.tmpdir_a) -mindepth 1 ! -name '.clean.stamp' -delete
-	touch $@
-
-$(CORE.tmpdir_y)/.clean.stamp:
-	find $(CORE.tmpdir_y) -mindepth 1 ! -name '.clean.stamp' -delete
-	touch $@
 
 #===============================================================================
 # oneAPI part
