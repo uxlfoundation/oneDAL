@@ -511,17 +511,18 @@ CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
 -include $(CORE.tmpdir_a)/*.d
 -include $(CORE.tmpdir_y)/*.d
 
+# -------------------------------
+.INTERMEDIATE: $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt)
+.INTERMEDIATE: $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a)
+.INTERMEDIATE: $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt)
+# -------------------------------
 
 # TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
 $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
-$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC) @touch $(CORE.tmpdir_a)/.core_link_done
-
-$(CORE.tmpdir_a)/.core_link_done:
-	@echo "[core static] removing temporary build files..."
-	@rm -rf $(CORE.tmpdir_a)/*
-
+$(WORKDIR.lib)/$(core_a):                   LOPT:=
+$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
