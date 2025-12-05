@@ -205,8 +205,6 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
     {
         // std::cerr << "level: " << itr << std::endl;
-        PRAGMA_FORCE_SIMD
-        PRAGMA_VECTOR_ALWAYS
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
         {
             const FeatureIndexType idx          = i[k];
