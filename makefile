@@ -450,7 +450,7 @@ release.DOC.COMMON := $(foreach fn,$(release.DOC),$(if $(filter $(addprefix %,$(
 release.DOC.OSSPEC := $(foreach fn,$(release.DOC),$(if $(filter %$(_OS),$(basename $(fn))),$(fn)))
 
 #===============================================================================
-# Core part
+# Core part (optimized, auto-clean objects)
 #===============================================================================
 include makefile.lst
 
@@ -474,108 +474,168 @@ CORE.incdirs := $(CORE.incdirs.common) $(CORE.incdirs.thirdp)
 
 $(info CORE.incdirs: $(CORE.incdirs))
 
+# Helpers
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
 mov = mv -f "$<" "$@"
 
+# Temporary dirs
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
-CORE.srcs     := $(notdir $(wildcard $(CORE.srcdirs:%=%/*.cpp)))
-CORE.srcs     := $(if $(OS_is_mac),$(CORE.srcs),$(call notcontaining,_mac,$(CORE.srcs)))
-CORE.objs_a   := $(CORE.srcs:%.cpp=$(CORE.tmpdir_a)/%.$o)
-CORE.objs_a   := $(filter-out %core_threading_win_dll.$o,$(CORE.objs_a))
-CORE.objs_y   := $(CORE.srcs:%.cpp=$(CORE.tmpdir_y)/%.$o)
-CORE.objs_y   := $(if $(OS_is_win),$(CORE.objs_y),$(filter-out %core_threading_win_dll.$o,$(CORE.objs_y)))
 
+# Source scanning
+CORE.srcs := $(notdir $(wildcard $(CORE.srcdirs:%=%/*.cpp)))
+CORE.srcs := $(if $(OS_is_mac),$(CORE.srcs),$(call notcontaining,_mac,$(CORE.srcs)))
+
+# Base object lists
+CORE.objs_a := $(CORE.srcs:%.cpp=$(CORE.tmpdir_a)/%.$o)
+CORE.objs_a := $(filter-out %core_threading_win_dll.$o,$(CORE.objs_a))
+CORE.objs_y := $(CORE.srcs:%.cpp=$(CORE.tmpdir_y)/%.$o)
+CORE.objs_y := $(if $(OS_is_win),$(CORE.objs_y),$(filter-out %core_threading_win_dll.$o,$(CORE.objs_y)))
+
+# FPT expansions
 CORE.objs_a_tmp := $(call containing,_fpt,$(CORE.objs_a))
-CORE.objs_a     := $(call notcontaining,_fpt,$(CORE.objs_a))
-CORE.objs_a_tpl := $(subst _fpt,_fpt_flt,$(CORE.objs_a_tmp)) $(subst _fpt,_fpt_dbl,$(CORE.objs_a_tmp))
-CORE.objs_a     := $(CORE.objs_a) $(CORE.objs_a_tpl)
-
-CORE.objs_a_tmp := $(call containing,_cpu,$(CORE.objs_a))
-CORE.objs_a     := $(call notcontaining,_cpu,$(CORE.objs_a))
-CORE.objs_a_tpl := $(foreach ccc,$(USECPUS.files),$(subst _cpu,_cpu_$(ccc),$(CORE.objs_a_tmp)))
-CORE.objs_a     := $(CORE.objs_a) $(CORE.objs_a_tpl)
+CORE.objs_a := $(call notcontaining,_fpt,$(CORE.objs_a))
+CORE.objs_a := $(CORE.objs_a) \
+               $(subst _fpt,_fpt_flt,$(CORE.objs_a_tmp)) \
+               $(subst _fpt,_fpt_dbl,$(CORE.objs_a_tmp))
 
 CORE.objs_y_tmp := $(call containing,_fpt,$(CORE.objs_y))
-CORE.objs_y     := $(call notcontaining,_fpt,$(CORE.objs_y))
-CORE.objs_y_tpl := $(subst _fpt,_fpt_flt,$(CORE.objs_y_tmp)) $(subst _fpt,_fpt_dbl,$(CORE.objs_y_tmp))
-CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
+CORE.objs_y := $(call notcontaining,_fpt,$(CORE.objs_y))
+CORE.objs_y := $(CORE.objs_y) \
+               $(subst _fpt,_fpt_flt,$(CORE.objs_y_tmp)) \
+               $(subst _fpt,_fpt_dbl,$(CORE.objs_y_tmp))
+
+# CPU expansions
+CORE.objs_a_tmp := $(call containing,_cpu,$(CORE.objs_a))
+CORE.objs_a := $(call notcontaining,_cpu,$(CORE.objs_a))
+CORE.objs_a := $(CORE.objs_a) \
+               $(foreach ccc,$(USECPUS.files),$(subst _cpu,_cpu_$(ccc),$(CORE.objs_a_tmp)))
 
 CORE.objs_y_tmp := $(call containing,_cpu,$(CORE.objs_y))
-CORE.objs_y     := $(call notcontaining,_cpu,$(CORE.objs_y))
-CORE.objs_y_tpl := $(foreach ccc,$(USECPUS.files),$(subst _cpu,_cpu_$(ccc),$(CORE.objs_y_tmp)))
-CORE.objs_y     := $(CORE.objs_y) $(CORE.objs_y_tpl)
+CORE.objs_y := $(call notcontaining,_cpu,$(CORE.objs_y))
+CORE.objs_y := $(CORE.objs_y) \
+               $(foreach ccc,$(USECPUS.files),$(subst _cpu,_cpu_$(ccc),$(CORE.objs_y_tmp)))
 
+# Include dependency files
 -include $(CORE.tmpdir_a)/*.d
 -include $(CORE.tmpdir_y)/*.d
 
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  LOPT:=
-$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
-$(WORKDIR.lib)/$(core_a):                   LOPT:=
-$(WORKDIR.lib)/$(core_a):                   $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a) ; $(LINK.STATIC)
+# =============
+# AUTO-CLEAN LISTS
+# =============
+CORE.temp_files_a := $(CORE.objs_a) $(CORE.tmpdir_a)/*.d $(CORE.tmpdir_a)/*_link.*
+CORE.temp_files_y := $(CORE.objs_y) $(CORE.tmpdir_y)/*.d $(CORE.tmpdir_y)/*_link.*
 
-$(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
-$(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
-$(WORKDIR.lib)/$(core_y): LOPT += $(-lsanitize)
-$(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
+#-------------------------
+# Linking static (core_a)
+#-------------------------
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt): $(CORE.objs_a) | $(CORE.tmpdir_a)/. ; $(WRITE.PREREQS)
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a): LOPT :=
+$(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a): \
+        $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.txt) | $(CORE.tmpdir_a)/. ; $(LINK.STATIC)
+
+$(WORKDIR.lib)/$(core_a): LOPT :=
+$(WORKDIR.lib)/$(core_a): \
+        $(daaldep.math_backend.static_link_deps) \
+        $(VTUNESDK.LIBS_A) \
+        $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a)
+	$(LINK.STATIC)
+	rm -f $(CORE.temp_files_a)
+
+#-------------------------
+# Linking dynamic (core_y)
+#-------------------------
+$(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): \
+        $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
+
+$(WORKDIR.lib)/$(core_y): \
+        $(daaldep.math_backend.shared_link_deps) \
+        $(VTUNESDK.LIBS_A) \
+        $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt)
+	$(LINK.DYNAMIC)
+	$(LINK.DYNAMIC.POST)
+	rm -f $(CORE.temp_files_y)
+
 ifdef OS_is_win
 $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y)
 endif
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
-$(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
-$(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_deps) $(VTUNESDK.LIBS_A) \
-                                            $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 
+#-------------------------
+# Compile flags: core_static
+#-------------------------
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
-$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
+$(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) \
+                        $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
 $(CORE.objs_a): COPT += -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
                         -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_a): COPT += @$(CORE.tmpdir_a)/inc_a_folders.txt
-
 $(eval $(call append_uarch_copt,$(CORE.objs_a)))
 
+#-------------------------
+# Compile flags: core_dynamic
+#-------------------------
 $(CORE.objs_y): $(CORE.tmpdir_y)/inc_y_folders.txt
-$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
-$(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION \
-                        -D__TBB_NO_IMPLICIT_LINKAGE -DDAAL_NOTHROW_EXCEPTIONS \
-                        -DDAAL_HIDE_DEPRECATED -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
+$(CORE.objs_y): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-visibility) \
+                        $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
+$(CORE.objs_y): COPT += -D__DAAL_IMPLEMENTATION -D__TBB_NO_IMPLICIT_LINKAGE \
+                        -DDAAL_NOTHROW_EXCEPTIONS -DDAAL_HIDE_DEPRECATED \
+                        -DTBB_USE_ASSERT=0 -D_ENABLE_ATOMIC_ALIGNMENT_FIX \
                         $(if $(CHECK_DLL_SIG),-DDAAL_CHECK_DLL_SIG)
 $(CORE.objs_y): COPT += @$(CORE.tmpdir_y)/inc_y_folders.txt
-
 $(eval $(call append_uarch_copt,$(CORE.objs_y)))
 
+#-------------------------
+# vpath
+#-------------------------
 vpath
 vpath %.cpp $(CORE.srcdirs)
 vpath %.rc  $(CORE.srcdirs)
 
-$(CORE.tmpdir_a)/inc_a_folders.txt: makefile.lst | $(CORE.tmpdir_a)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
-$(CORE.tmpdir_y)/inc_y_folders.txt: makefile.lst | $(CORE.tmpdir_y)/. $(CORE.incdirs) ; $(call WRITE.PREREQS,$(addprefix -I, $(CORE.incdirs)),$(space))
+#-------------------------
+# Include directory files
+#-------------------------
+$(CORE.tmpdir_a)/inc_a_folders.txt: makefile.lst | $(CORE.tmpdir_a)/. $(CORE.incdirs)
+	$(call WRITE.PREREQS,$(addprefix -I,$(CORE.incdirs)),$(space))
 
-$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE) ; rm -rf $(CORE.tmpdir_a)/*
+$(CORE.tmpdir_y)/inc_y_folders.txt: makefile.lst | $(CORE.tmpdir_y)/. $(CORE.incdirs)
+	$(call WRITE.PREREQS,$(addprefix -I,$(CORE.incdirs)),$(space))
+
+#-------------------------
+# Version info
+#-------------------------
+$(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE)
+	rm -f $(CORE.tmpdir_a)/library_version_info.* $(CORE.tmpdir_a)/*.d
+
 $(CORE.tmpdir_y)/library_version_info.$(o): $(VERSION_DATA_FILE)
+	rm -f $(CORE.tmpdir_y)/library_version_info.* $(CORE.tmpdir_y)/*.d
 
-# Used as $(eval $(call .compile.template.ay,obj_file))
+#-------------------------
+# Compile rule generator
+#-------------------------
 define .compile.template.ay
 $(eval template_source_cpp := $(subst .$o,.cpp,$(notdir $1)))
 $(eval template_source_cpp := $(subst _fpt_flt,_fpt,$(template_source_cpp)))
 $(eval template_source_cpp := $(subst _fpt_dbl,_fpt,$(template_source_cpp)))
-
 $(eval $(call subst_arch_cpu_in_var,template_source_cpp))
-
-$1: $(template_source_cpp) ; $(value C.COMPILE)
+$1: $(template_source_cpp)
+	$(value C.COMPILE)
 endef
 
 $(foreach a,$(CORE.objs_a),$(eval $(call .compile.template.ay,$a)))
 $(foreach a,$(CORE.objs_y),$(eval $(call .compile.template.ay,$a)))
 
+#-------------------------
+# Resource compilation (Windows)
+#-------------------------
 $(CORE.tmpdir_y)/dll.res: $(VERSION_DATA_FILE)
-$(CORE.tmpdir_y)/dll.res: RCOPT += $(addprefix -I, $(CORE.incdirs.common))
-$(CORE.tmpdir_y)/%.res: %.rc | $(CORE.tmpdir_y)/. ; $(RC.COMPILE)
+$(CORE.tmpdir_y)/dll.res: RCOPT += $(addprefix -I,$(CORE.incdirs.common))
+
+$(CORE.tmpdir_y)/%.res: %.rc | $(CORE.tmpdir_y)/.
+	$(RC.COMPILE)
+
 
 
 #===============================================================================
