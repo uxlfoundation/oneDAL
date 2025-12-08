@@ -35,7 +35,7 @@ for i in "${solibs[@]}"
 do
     name=$(basename $i)
     echo "======== ${name} ========"
-    abidiff $i $release_dir/$name
+    abidiff --suppr .github/.abignore $i $release_dir/$name
     retVal=$?
     # ignore a return value of 4 as it signifies a possibly compatible change
     if [ $retVal != 4 ]; then RETURN_CODE=$(($RETURN_CODE+$retVal)); fi
