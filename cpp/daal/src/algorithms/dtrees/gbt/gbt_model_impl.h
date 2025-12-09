@@ -55,7 +55,7 @@ struct SplitLeftIdPair {
     size_t leftId;
     ModelFPType splitPoint;
 };
-const size_t defaultNumDenseLayers = 4;
+const size_t defaultNumDenseLayers = 10;
 
 // static inline size_t getNumberOfNodesByLvls(const size_t nLvls)
 // {

@@ -106,6 +106,7 @@ template <typename algorithmFPType, bool useDenseIdx = false>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
 {
+    // std::cerr << "Pred1: " << useDenseIdx << std::endl;
     if constexpr (useDenseIdx) {
         return idx * 2 + (valueFromDataSet > splitAndLeftIds[idx].splitPoint);
     } else {
@@ -118,6 +119,7 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
                                     FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
 {
     // std::cerr << idx << std::endl;
+    // std::cerr << "Pred2: " << useDenseIdx << std::endl;
     if constexpr (useDenseIdx) {
         return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitAndLeftIds[idx].splitPoint : valueFromDataSet > splitAndLeftIds[idx].splitPoint);
     } else {
@@ -129,6 +131,7 @@ template <typename algorithmFPType, bool useDenseIdx = false>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
 {
+    // std::cerr << "Pred3: " << useDenseIdx << std::endl;
     if constexpr(useDenseIdx) {
         if (checkFinitenessByComparison(valueFromDataSet)) {
             return idx * 2 + (defaultLeft[idx] != 1);
@@ -152,6 +155,7 @@ template <typename algorithmFPType, bool useDenseIdx = false>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const SplitLeftIdPair* splitAndLeftIds, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
 {
+    // std::cerr << "Pred4: " << useDenseIdx << std::endl;
     if constexpr (useDenseIdx) {
         if (checkFinitenessByComparison(valueFromDataSet)) {
             return idx * 2 + (defaultLeft[idx] != 1);

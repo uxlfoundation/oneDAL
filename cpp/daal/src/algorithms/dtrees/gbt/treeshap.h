@@ -40,7 +40,6 @@
 
 #include "services/daal_defines.h"
 #include "services/error_handling.h"
-#include "src/algorithms/dtrees/dtrees_feature_type_helper.h"
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
 #include "src/services/service_arrays.h"
 #include "src/algorithms/dtrees/gbt/gbt_predict_dense_default_impl.i"
@@ -141,7 +140,8 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
 
     // TODO: fix indexing
     size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitAndLeftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
-    const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+    // const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+    const size_t coldIndex = splitAndLeftIds[nodeIndex].leftId + (hotIndex == splitAndLeftIds[nodeIndex].leftId);
 
     const float w = nodeCoverValues[nodeIndex];
     DAAL_ASSERT(w > 0);
@@ -246,6 +246,8 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
                      PathElement * parentUniquePath, float * parentPWeights, algorithmFPType pWeightsResidual, float parentZeroFraction,
                      float parentOneFraction, int parentFeatureIndex, int condition, FeatureIndexType conditionFeature, float conditionFraction)
 {
+
+    // std::cerr << "nodeIdx: " << nodeIndex << std::endl;
     // stop if we have no weight coming down to us
     if (conditionFraction < FLT_EPSILON) return;
 
@@ -255,6 +257,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
+
+    // std::cerr << "nodeIdx: " << nodeIndex << ", left: " << splitAndLeftIds[nodeIndex].leftId << std::endl;
+
 
     // extend the unique path
     PathElement * uniquePath = parentUniquePath + uniqueDepth + 1;
@@ -279,6 +284,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     }
 
     const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree, depth);
+    // std::cerr << "nodeIdx: " << nodeIndex << ", isLeaf: " << isLeaf << std::endl;
 
     if (isLeaf)
     {

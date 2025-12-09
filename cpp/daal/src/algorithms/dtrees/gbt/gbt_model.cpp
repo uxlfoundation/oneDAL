@@ -254,9 +254,20 @@ void ModelImpl::destroy()
 bool ModelImpl::nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const size_t lvl)
 {
     // TODO: fix
-    const size_t * leftChildIdx = gbtTree.getLeftChildIndexes();
+    // const size_t * leftChildIdx = gbtTree.getLeftChildIndexes();
+
+    const SplitLeftIdPair* splitAndLeftIds = gbtTree.getSplitsAndLeftIds();
+    size_t leftId = splitAndLeftIds[idx - 1].leftId;
+    if (leftId == idx) {
+        return true;
+    }
+
+    const FeatureIndexType * splitFeatures = gbtTree.getFeatureIndexesForSplit();
+    return (splitAndLeftIds[leftId - 1].splitPoint == splitAndLeftIds[idx - 1].splitPoint && splitFeatures[leftId - 1] == splitFeatures[idx - 1]);
+
     // std::cerr << "nodeIsLeaf: " << idx - 1 << " " << leftChildIdx[idx - 1] << std::endl;
-    return leftChildIdx[idx - 1] == idx;
+    // return leftChildIdx[idx - 1] == idx;
+    
     // if (lvl == gbtTree.getMaxLvl())
     // {
     //     return true;
@@ -345,6 +356,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 
                     leftChildIndexes[idxInTable] = idxChild;
                     SplitAndLeftIds[idxInTable].leftId = idxChild;
+                    SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
                     featureIndexes[idxInTable] = 0;
                     
                     idxChild += 2;
