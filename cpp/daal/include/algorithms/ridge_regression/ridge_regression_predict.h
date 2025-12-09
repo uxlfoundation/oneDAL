@@ -82,6 +82,7 @@ class Batch
  *      - \ref training::interface1::Batch "training::Batch" class
  *      - \ref training::interface1::Online "training::Online" class
  *      - \ref training::interface1::Distributed "training::Distributed" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
 class DAAL_EXPORT Batch<algorithmFPType, defaultDense>
@@ -96,8 +97,11 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    /** Default constructor */
-    Batch() { initialize(); }
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch() { initialize(); }
 
     /**
      * Constructs a ridge regression prediction algorithm by copying input objects

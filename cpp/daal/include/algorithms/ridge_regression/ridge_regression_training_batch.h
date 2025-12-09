@@ -49,6 +49,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__RIDGE_REGRESSION__TRAINING__BATCHCONTAINER"></a>
  * \brief Class containing methods for normal equations ridge regression model-based training using algorithmFPType precision arithmetic
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -57,8 +58,9 @@ public:
     /**
      * Constructs a container for ridge regression model-based training with a specified environment in the batch processing mode
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
 
     /** Default destructor */
     ~BatchContainer();
@@ -86,6 +88,7 @@ public:
  *      - \ref ridge_regression::interface1::Model "ridge_regression::Model" class
  *      - \ref ridge_regression::interface1::ModelNormEq "ridge_regression::ModelNormEq" class
  *      - \ref prediction::interface1::Batch "prediction::Batch" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = normEqDense>
 class DAAL_EXPORT Batch : public linear_model::training::Batch
@@ -98,8 +101,11 @@ public:
     InputType input;         /*!< %Input data structure */
     ParameterType parameter; /*!< %Training \ref interface1::Parameter "parameters" */
 
-    /** Default constructor */
-    Batch();
+    /**
+     * Default constructor
+     * \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs a ridge regression training algorithm by copying input objects

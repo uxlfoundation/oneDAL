@@ -50,6 +50,7 @@ namespace interface1
  * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
  * \tparam method           Computation method, \ref daal::algorithms::qr::Method
  *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
@@ -60,7 +61,7 @@ public:
      * in the online processing mode
      * \param[in] daalEnv   Environment object
      */
-    OnlineContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~OnlineContainer();
     /**

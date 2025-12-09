@@ -31,11 +31,13 @@ function add_repo {
 }
 
 function install_dpcpp {
-    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp-2025.2 intel-oneapi-runtime-libs
+    # DPC++ compiler version monitored by Renovate and sets exact value available via apt
+    sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2025.3.1-760 intel-oneapi-runtime-libs
 }
 
 function install_tbb {
-    sudo apt-get install -y intel-oneapi-tbb-devel-2022.2
+    # TBB version monitored by Renovate and sets exact value available via apt
+    sudo apt-get install -y intel-oneapi-tbb-devel=2022.3.0-381
 }
 
 function install_dpl {
@@ -43,7 +45,8 @@ function install_dpl {
 }
 
 function install_mkl {
-    sudo apt-get install -y intel-oneapi-mkl-devel-2025.2
+    # MKL version monitored by Renovate and sets exact value available via apt
+    sudo apt-get install -y intel-oneapi-mkl-devel=2025.3.0-461
     install_tbb
     install_dpl
 }
@@ -155,7 +158,6 @@ elif [ "${component}" == "clang-format" ]; then
 elif [ "${component}" == "dev-base" ]; then
     update
     install_dev-base
-    install_dev-base-conda
 elif [ "${component}" == "qemu-apt" ]; then
     update
     install_qemu_emulation_apt

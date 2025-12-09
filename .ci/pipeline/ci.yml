@@ -1,4 +1,18 @@
-# Copyright contributors to the oneDAL project
+#===============================================================================
+# Copyright Contributors to the oneDAL Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#===============================================================================
 # C/C++ with GCC
 # Build your C/C++ project with GCC using make.
 # Add steps that publish test results, save build artifacts, deploy, and more:
@@ -73,7 +87,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
@@ -83,7 +97,7 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -109,6 +123,9 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples'
+  - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'conda install'
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
@@ -142,7 +159,7 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh dev-base
-    displayName: 'apt-get and conda install'
+    displayName: 'apt-get install'
   - script: |
       .ci/env/apt.sh gnu-cross-compilers riscv64
     displayName: 'riscv64-compiler installation'
@@ -184,7 +201,7 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --conda-env ci-env --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
       .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
@@ -231,11 +248,13 @@ jobs:
   steps:
   - script: |
       .ci/env/apt.sh opencl
+    displayName: 'install opencl'
   - script: |
       # sourcing done to set bazel version value from script
       source .ci/env/bazelisk.sh
       echo "##vso[task.setvariable variable=BAZEL_VERSION]${BAZEL_VERSION}"
     displayName: 'install-bazel'
+
   - script: |
       .ci/scripts/describe_system.sh
     displayName: 'System info'
@@ -268,56 +287,82 @@ jobs:
       cat bazel-bin/external/+_repo_rules+config/config.json
       echo
     displayName: 'bazel-configure'
+
   - script: |
       bazel build :release
     displayName: 'release'
+
+  - script: |
+      echo "Move Bazel release output to standalone directory"
+      rm -rf standalone_release
+      mkdir -p standalone_release
+
+      # Move instead of copy to save disk
+      mv bazel-bin/release/* standalone_release/
+
+      # Expose DALROOT for subsequent tasks
+      echo "##vso[task.setvariable variable=DALROOT]$(pwd)/standalone_release/daal/latest"
+    displayName: 'Prepare standalone release directory'
+
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) Bazel build'
-      targetPath: '$(Build.Repository.LocalPath)/bazel-bin/release'
+      targetPath: '$(DALROOT)'
     displayName: 'Upload build artifacts'
+
+  - script: |
+      echo "Clean before running example tests"
+      bazel clean --expunge
+    displayName: 'bazel-clean'
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-dev'
 
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-dev'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-static'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
+      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-dynamic'
 
   - script: |
-      export DALROOT=`pwd`/bazel-bin/release/daal/latest
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
-                 --test_thread_mode=par
+                 --test_thread_mode=par \
+                 --test_env DALROOT
+      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-dynamic'
 
   - script: |
       bazel test //cpp/daal:tests
+      bazel clean --expunge
     displayName: 'daal-tests-algorithms'
 
   - script: |
@@ -325,6 +370,7 @@ jobs:
                  --config=host \
                  --test_link_mode=dev \
                  --test_thread_mode=par
+      bazel clean --expunge
     displayName: 'cpp-tests-thread-dev'
 
   - script: |

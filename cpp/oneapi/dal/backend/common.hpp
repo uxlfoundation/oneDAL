@@ -25,17 +25,47 @@
 #include "oneapi/dal/array.hpp"
 #include "oneapi/dal/detail/common.hpp"
 
-#if defined(__INTEL_COMPILER)
-#define PRAGMA_FORCE_SIMD    _Pragma("ivdep")
-#define PRAGMA_VECTOR_ALWAYS _Pragma("vector always")
-#else
-#if defined(TARGET_ARM)
-#define PRAGMA_FORCE_SIMD _Pragma("omp simd")
-#else
-#define PRAGMA_FORCE_SIMD
-#endif
+#ifndef __SERVICE_DEFINES_H__
+#define PRAGMA_TO_STR(ARGS)  _Pragma(#ARGS)
+#define PRAGMA_TO_STR_(ARGS) PRAGMA_TO_STR(ARGS)
+
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#define PRAGMA_IVDEP            _Pragma("ivdep")
+#define PRAGMA_NOVECTOR         _Pragma("novector")
+#define PRAGMA_VECTOR_UNALIGNED _Pragma("vector unaligned")
+// TODO: Temporary workaround. icx fails to vectorize some loops in debug build on Windows or with gcov.
+#if (defined(_MSC_VER) && defined(_DEBUG)) || defined(GCOV_BUILD)
 #define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD
+#define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#else
+#define PRAGMA_VECTOR_ALWAYS       _Pragma("vector always")
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
 #endif
+#elif defined(__GNUC__) || defined(__clang__)
+#define PRAGMA_IVDEP _Pragma("ivdep")
+#define PRAGMA_NOVECTOR
+#define PRAGMA_VECTOR_UNALIGNED
+#define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD            PRAGMA_TO_STR(omp simd)
+#define PRAGMA_OMP_SIMD_ARGS(ARGS) PRAGMA_TO_STR_(omp simd ARGS)
+#elif defined(_MSC_VER)
+#define PRAGMA_IVDEP    _Pragma("loop(ivdep)")
+#define PRAGMA_NOVECTOR _Pragma("loop(no_vector)")
+#define PRAGMA_VECTOR_UNALIGNED
+#define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD
+#define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#else
+#define PRAGMA_IVDEP
+#define PRAGMA_NOVECTOR
+#define PRAGMA_VECTOR_UNALIGNED
+#define PRAGMA_VECTOR_ALWAYS
+#define PRAGMA_OMP_SIMD
+#define PRAGMA_OMP_SIMD_ARGS(ARGS)
+#endif
+#endif // ifndef __SERVICE_DEFINES_H__
 
 namespace oneapi::dal::backend {
 

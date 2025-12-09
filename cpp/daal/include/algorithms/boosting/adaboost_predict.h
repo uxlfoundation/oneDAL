@@ -104,6 +104,8 @@ public:
  *      - \ref interface2::Model "Model" class
  *      - classifier::prediction::Input class
  *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -121,7 +123,7 @@ public:
      * Constructs AdaBoost prediction algorithm
      * \param[in] nClasses  Number of classes
      */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs an AdaBoost prediction algorithm by copying input objects and parameters
@@ -131,6 +133,10 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
+    /**
+     * Destructor.
+     * Releases dynamically allocated resources held by the object.
+     */
     ~Batch() { delete _par; }
 
     /**
