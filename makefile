@@ -517,7 +517,6 @@ $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a):  $(CORE.tmpdir_a)/$(core_a:%.$a=%_lin
 $(WORKDIR.lib)/$(core_a):                   LOPT:=
 $(WORKDIR.lib)/$(core_a): $(daaldep.math_backend.static_link_deps) $(VTUNESDK.LIBS_A) $(CORE.tmpdir_a)/$(core_a:%.$a=%_link.$a)
 	$(LINK.STATIC)
-	$(MAKE) clean-core-tmpdir-a
 
 $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
@@ -532,7 +531,6 @@ $(WORKDIR.lib)/$(core_y): $(daaldep.math_backend.shared_link_deps) $(VTUNESDK.LI
                           $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt)
 	$(LINK.DYNAMIC)
 	$(LINK.DYNAMIC.POST)
-	$(MAKE) clean-core-tmpdir-y
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
 $(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
@@ -562,15 +560,6 @@ $(CORE.tmpdir_y)/inc_y_folders.txt: makefile.lst | $(CORE.tmpdir_y)/. $(CORE.inc
 
 $(CORE.tmpdir_a)/library_version_info.$(o): $(VERSION_DATA_FILE)
 $(CORE.tmpdir_y)/library_version_info.$(o): $(VERSION_DATA_FILE)
-
-
-clean-core-tmpdir-a:
-	@echo "Cleaning $(CORE.tmpdir_a)"
-	rm -rf "$(CORE.tmpdir_a)"
-
-clean-core-tmpdir-y:
-	@echo "Cleaning $(CORE.tmpdir_y)"
-	rm -rf "$(CORE.tmpdir_y)"
 
 # Used as $(eval $(call .compile.template.ay,obj_file))
 define .compile.template.ay
