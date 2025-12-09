@@ -68,11 +68,11 @@ jobs:
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols
-          if [[ ${{ matrix.runner }} != ubuntu-24.04 ]];then cp -r __work __work_daal;fi
       - name: Make onedal debug
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
+          rm -rf __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols
           # clean up build directory due to space limitations
           rm -rf __work
