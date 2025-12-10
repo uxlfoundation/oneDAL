@@ -421,7 +421,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             const_cast<NumericTable &>(x).getBlockOfColumnValues(j, 0, xRowCount, readOnly, columnBD);
             const algorithmFpType * const dx = columnBD.getBlockPtr();
 
-            PRAGMA_FORCE_SIMD
             for (size_t i = 0; i < elementCount; ++i)
             {
                 sampleValues[i] = dx[indexes[start + i]];
@@ -463,7 +462,6 @@ size_t KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
             const_cast<NumericTable &>(x).getBlockOfColumnValues(j, 0, xRowCount, readOnly, columnBD);
             const algorithmFpType * const dx = columnBD.getBlockPtr();
 
-            PRAGMA_VECTOR_ALWAYS
             for (size_t i = 0; i < elementCount; ++i)
             {
                 sampleValues[i] = dx[indexes[sampleIndexes[i]]];
@@ -585,7 +583,7 @@ algorithmFpType KNNClassificationTrainBatchKernel<algorithmFpType, training::def
     histTLS.reduce([=, &masterHist](Hist * v) -> void {
         if (v)
         {
-            PRAGMA_FORCE_SIMD
+            PRAGMA_OMP_SIMD
             PRAGMA_VECTOR_ALWAYS
             for (size_t j = 0; j < sampleCount; ++j)
             {

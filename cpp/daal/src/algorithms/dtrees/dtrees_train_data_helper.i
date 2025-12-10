@@ -104,17 +104,18 @@ void shuffle(void * state, size_t n, IndexType * dst, int * auxBuf)
 template <typename algorithmFPType, typename TImpurityData>
 struct SplitData
 {
+    using intermSummFPType = typename TImpurityData::intermSummFPType;
     TImpurityData left;
     algorithmFPType featureValue;
-    algorithmFPType impurityDecrease;
+    intermSummFPType impurityDecrease;
     size_t nLeft;
     size_t iStart;
     bool featureUnordered;
-    algorithmFPType totalWeights;
-    algorithmFPType leftWeights;
+    intermSummFPType totalWeights;
+    intermSummFPType leftWeights;
 
     SplitData()
-        : impurityDecrease(-daal::services::internal::MaxVal<algorithmFPType>::get()),
+        : impurityDecrease(-daal::services::internal::MaxVal<intermSummFPType>::get()),
           left {},
           featureValue(0.0),
           nLeft(0),
@@ -122,7 +123,7 @@ struct SplitData
           totalWeights(0.0),
           leftWeights(0.0)
     {}
-    SplitData(algorithmFPType impDecr, bool bFeatureUnordered)
+    SplitData(intermSummFPType impDecr, bool bFeatureUnordered)
         : impurityDecrease(impDecr), featureUnordered(bFeatureUnordered), featureValue(0.0), nLeft(0), iStart(0), totalWeights(0.0), leftWeights(0.0)
     {}
     SplitData(const SplitData & o) = delete;
@@ -241,7 +242,6 @@ public:
                 {
                     ReadRows<algorithmFPType, cpu> bdw(const_cast<NumericTable *>(weights), firstRow, lastRow - firstRow + 1);
                     const auto pbdw = bdw.get();
-                    PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _aResponse.size(); ++i)
                     {
                         _aResponse[i].idx = aSample[i];
@@ -253,7 +253,6 @@ public:
                 }
                 else
                 {
-                    PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _aResponse.size(); ++i)
                     {
                         _aResponse[i].idx = aSample[i];
@@ -271,7 +270,6 @@ public:
                 {
                     ReadRows<algorithmFPType, cpu> bdw(const_cast<NumericTable *>(weights), 0, _aResponse.size());
                     const auto pbdw = bdw.get();
-                    PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _aResponse.size(); ++i)
                     {
                         _aResponse[i].idx = i;
@@ -282,7 +280,6 @@ public:
                 }
                 else
                 {
-                    PRAGMA_VECTOR_ALWAYS
                     for (size_t i = 0; i < _aResponse.size(); ++i)
                     {
                         _aResponse[i].idx = i;
@@ -302,7 +299,6 @@ public:
                 const size_t lastRow  = aSample[_aResponse.size() - 1];
                 ReadRows<algorithmFPType, cpu> bd(const_cast<NumericTable *>(resp), firstRow, lastRow - firstRow + 1);
                 const auto pbd = bd.get();
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _aResponse.size(); ++i)
                 {
                     _aResponse[i].idx = aSample[i];
@@ -313,7 +309,6 @@ public:
             {
                 ReadRows<algorithmFPType, cpu> bd(const_cast<NumericTable *>(resp), 0, _aResponse.size());
                 const auto pbd = bd.get();
-                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < _aResponse.size(); ++i)
                 {
                     _aResponse[i].idx = i;
@@ -419,7 +414,7 @@ int doPartition(SizeType n, const IndexType * aIdx, const ResponseType * aRespon
     SizeType iRight  = 0;
     int iRowSplitVal = -1;
 
-    PRAGMA_FORCE_SIMD
+    PRAGMA_OMP_SIMD
     PRAGMA_VECTOR_ALWAYS
     for (SizeType i = 0; i < n; ++i)
     {
@@ -457,7 +452,7 @@ int doPartitionIdx(SizeType n, const IndexType * aIdx, const IndexType * aIdx2, 
 
     if (aIdx2)
     {
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (SizeType i = 0; i < n; ++i)
         {
@@ -478,7 +473,7 @@ int doPartitionIdx(SizeType n, const IndexType * aIdx, const IndexType * aIdx2, 
     }
     else
     {
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (SizeType i = 0; i < n; ++i)
         {

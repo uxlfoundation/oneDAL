@@ -50,6 +50,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class confusion matrix, double or float
  * \tparam method           Method for computing the multi-class confusion matrix, \ref Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -60,7 +62,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~BatchContainer();
     /**
@@ -81,6 +83,8 @@ public:
  *      - \ref InputId              Identifiers of input objects for the multi-class confusion matrix algorithm
  *      - \ref ResultId             Result identifiers for the multi-class confusion matrix algorithm
  *      - \ref MultiClassMetricsId  Identifiers of resulting metrics associated with the multi-class confusion matrix
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public daal::algorithms::quality_metric::Batch
@@ -97,7 +101,7 @@ public:
      * Default constructor
      * \param[in] nClasses  Number of classes
      */
-    Batch(size_t nClasses = 2);
+    DAAL_DEPRECATED Batch(size_t nClasses = 2);
 
     /**
      * Constructs a confusion matrix algorithm by copying input objects and parameters
@@ -105,7 +109,7 @@ public:
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
-    Batch(const Batch<algorithmFPType, method> & other);
+    DAAL_DEPRECATED Batch(const Batch<algorithmFPType, method> & other);
 
     /**
      * Returns the method of the algorithm

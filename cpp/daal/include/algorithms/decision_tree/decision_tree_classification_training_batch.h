@@ -99,7 +99,7 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the algorithm */
 
     /** Default constructor */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs a Decision tree training algorithm by copying input objects

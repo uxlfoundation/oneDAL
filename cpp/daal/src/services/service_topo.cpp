@@ -178,6 +178,12 @@ FILE * stderr = __stderrp;
     #define _INTERNAL_DAAL_MEMSET(a1, a2, a3)     __internal_daal_memset((a1), (a2), (a3))
     #define _INTERNAL_DAAL_MEMCPY(a1, a2, a3, a4) daal::services::internal::daal_memcpy_s((a1), (a2), (a3), (a4))
 
+    #define _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(type, op1, op2)            \
+        {                                                                      \
+            volatile type r = (op1) + (op2);                                   \
+            r -= (op1);                                                        \
+            if (!(r == (op2))) glbl_obj.error |= _MSGTYP_TOPOLOGY_NOTANALYZED; \
+        }
 namespace daal
 {
 namespace services
@@ -697,8 +703,14 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
         error |= _MSGTYP_UNKNOWNERR_OS;
         return 0;
     }
-    for (unsigned int i = 0; i < grpCnt; i++) OSProcessorCount += pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
 
+    for (unsigned int i = 0; i < grpCnt; i++)
+    {
+        const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
+        _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
+        if (glbl_obj.error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
+        OSProcessorCount += activeProcCount;
+    }
     #endif
     return OSProcessorCount;
 }

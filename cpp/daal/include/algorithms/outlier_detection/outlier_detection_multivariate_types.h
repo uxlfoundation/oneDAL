@@ -159,12 +159,14 @@ struct DAAL_EXPORT Parameter<defaultDense> : public daal::algorithms::Parameter
  * \DAAL_DEPRECATED_USE{\ref daal::algorithms::bacon_outlier_detection::interface1::Parameter "bacon_outlier_detection::Parameter"}
  *
  * \snippet outlier_detection/outlier_detection_multivariate_types.h ParameterBacon source code
+ * \DAAL_DEPRECATED
  */
 /* [ParameterBacon source code] */
 template <>
 struct DAAL_EXPORT Parameter<baconDense> : public daal::algorithms::Parameter
 {
-    Parameter(BaconInitializationMethod /*initMethod*/ = baconMedian, double /*alpha*/ = 0.05, double /*toleranceToConverge*/ = 0.005) {}
+    DAAL_DEPRECATED Parameter(BaconInitializationMethod /*initMethod*/ = baconMedian, double /*alpha*/ = 0.05, double /*toleranceToConverge*/ = 0.005)
+    {}
 
     BaconInitializationMethod initMethod; /*!< Initialization method, \ref BaconInitializationMethod */
     double alpha;                         /*!< One-tailed probability that defines the \f$(1 - \alpha)\f$ quantile
@@ -179,11 +181,12 @@ struct DAAL_EXPORT Parameter<baconDense> : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTIVARIATE_OUTLIER_DETECTION__INPUT"></a>
  * \brief %Input objects for the multivariate outlier detection algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -216,12 +219,13 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTIVARIATE_OUTLIER_DETECTION__RESULT"></a>
  * \brief Results obtained with the compute() method of the multivariate outlier detection algorithm in the %batch processing mode
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
 

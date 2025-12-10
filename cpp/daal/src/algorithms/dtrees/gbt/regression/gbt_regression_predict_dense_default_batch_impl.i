@@ -302,7 +302,6 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const gbt::reg
     _aTree.reset(nTreesTotal);
     DAAL_CHECK_MALLOC(_aTree.get());
 
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = m->at(i);
 
     return runInternal(pHostApp, this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);
@@ -397,8 +396,6 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
     algorithmFPType * contribsOn   = buffer + 2 * elementsInMatrix;
 
     // Copy nominal values (for bias term) to the condition = 0 buffer
-    PRAGMA_FORCE_SIMD
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0ul; i < nRowsData; ++i)
     {
         contribsDiag[i * nColumnsPhi + biasTermIndex] = nominal[i];
@@ -557,7 +554,7 @@ void PredictRegressionTask<algorithmFPType, cpu>::predictByTreesVector(size_t iF
         gbt::prediction::internal::predictForTreeVector<algorithmFPType, TreeType, cpu, hasUnorderedFeatures, hasAnyMissing, vectorBlockSize>(
             *_aTree[iTree], _featHelper, x, v, dispatcher);
 
-        PRAGMA_FORCE_SIMD
+        PRAGMA_OMP_SIMD
         PRAGMA_VECTOR_ALWAYS
         for (size_t row = 0ul; row < vectorBlockSize; ++row)
         {

@@ -83,6 +83,8 @@ public:
  * \par References
  *      - \ref interface2::Model "Model" class
  *      - classifier::training::Input class
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::training::Batch
@@ -96,13 +98,13 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    Batch();
+    DAAL_DEPRECATED Batch();
 
     /**
      * Constructs an BrownBoost training algorithm with nClasses parameter
      * \param[in] nClasses   number of classes
     */
-    Batch(size_t nClasses);
+    DAAL_DEPRECATED Batch(size_t nClasses);
 
     /**
      * Constructs a BrownBoost training algorithm by copying input objects and parameters

@@ -70,6 +70,7 @@ namespace interface3
  * \tparam algorithmFPType  Data type to use in intermediate computations for the decision_forest, double or float
  * \tparam method           decision_forest computation method, \ref Method
  * \tparam cpu              Type of CPU
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -78,8 +79,9 @@ public:
     /**
      * Constructs a container for decision_forest model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
+     * \DAAL_DEPRECATED
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
