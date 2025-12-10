@@ -178,11 +178,11 @@ FILE * stderr = __stderrp;
     #define _INTERNAL_DAAL_MEMSET(a1, a2, a3)     __internal_daal_memset((a1), (a2), (a3))
     #define _INTERNAL_DAAL_MEMCPY(a1, a2, a3, a4) daal::services::internal::daal_memcpy_s((a1), (a2), (a3), (a4))
 
-    #define _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(type, op1, op2)            \
-        {                                                                      \
-            volatile type r = (op1) + (op2);                                   \
-            r -= (op1);                                                        \
-            if (!(r == (op2))) glbl_obj.error |= _MSGTYP_TOPOLOGY_NOTANALYZED; \
+    #define _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(type, op1, op2)   \
+        {                                                             \
+            volatile type r = (op1) + (op2);                          \
+            r -= (op1);                                               \
+            if (!(r == (op2))) error |= _MSGTYP_TOPOLOGY_NOTANALYZED; \
         }
 namespace daal
 {
@@ -708,7 +708,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
-        if (glbl_obj.error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
+        if (error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
         OSProcessorCount += activeProcCount;
     }
     #endif
@@ -1579,7 +1579,7 @@ int glktsn::allocArrays(const unsigned cpus)
     perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES);
     // workspace for storing hierarchical counts relative to the cache topology
     // of the largest unified cache (may be shared by several cores)
-    perCache_detectedCoreCount   = Dyn1Arr_str(cpus);
+    perCache_detectedCoreCount       = Dyn1Arr_str(cpus);
     perEachCache_detectedThreadCount = Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS);
     if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty() || perEachCache_detectedThreadCount.isEmpty()
         || perCache_detectedCoreCount.isEmpty())
@@ -2249,10 +2249,10 @@ static __inline void detect_data_caches(int cache_sizes_len, volatile long long 
     }
 }
 
-    #define MAX_CACHE_LEVELS 4
-    #define DEFAULT_L1_CACHE_SIZE   32 * 1024
-    #define DEFAULT_L2_CACHE_SIZE   256 * 1024
-    #define DEFAULT_LL_CACHE_SIZE   25 * 1024 * 1024
+    #define MAX_CACHE_LEVELS      4
+    #define DEFAULT_L1_CACHE_SIZE 32 * 1024
+    #define DEFAULT_L2_CACHE_SIZE 256 * 1024
+    #define DEFAULT_LL_CACHE_SIZE 25 * 1024 * 1024
 volatile static bool cache_sizes_read                   = false;
 volatile static long long cache_sizes[MAX_CACHE_LEVELS] = { DEFAULT_L1_CACHE_SIZE, DEFAULT_L2_CACHE_SIZE, DEFAULT_LL_CACHE_SIZE, 0 };
 
