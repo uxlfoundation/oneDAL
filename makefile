@@ -608,18 +608,19 @@ ONEAPI.srcdirs.base := $(ONEAPI.srcdir) \
                        $(ONEAPI.srcdir)/io \
                        $(addprefix $(ONEAPI.srcdir)/algo/, $(ONEAPI.ALGOS)) \
                        $(addprefix $(ONEAPI.srcdir)/io/, $(ONEAPI.IO))
-ONEAPI.srcdirs.detail := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name detail))
-ONEAPI.srcdirs.backend := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name backend))
-ONEAPI.srcdirs.parameters := $(ONEAPI.srcdir)/detail/parameters \
-                             $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name parameters))
+ONEAPI.srcdirs.detail := $(sort $(wildcard $(addsuffix /detail,$(ONEAPI.srcdirs.base))))
+ONEAPI.srcdirs.backend := $(sort $(wildcard $(addsuffix /backend,$(ONEAPI.srcdirs.base))))
+ONEAPI.srcdirs.parameters := $(sort $(wildcard \
+    $(ONEAPI.srcdir)/detail/parameters \
+    $(addsuffix /parameters,$(ONEAPI.srcdirs.base)) \
+))
 ONEAPI.srcdirs := $(ONEAPI.srcdirs.base) $(ONEAPI.srcdirs.detail) $(ONEAPI.srcdirs.backend) $(ONEAPI.srcdirs.parameters)
 
 ONEAPI.srcs.all.exclude := ! -path "*_test.*" ! -path "*/test/*" ! -path "*/detail/parameters/*"
 ONEAPI.srcs.parameters.exclude := ! -path "*_test.*" ! -path "*/test/*"
-ONEAPI.srcs.all := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type f -name "*.cpp" $(ONEAPI.srcs.all.exclude))) \
-                   $(foreach x,$(ONEAPI.srcdirs.detail),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.all.exclude))) \
-                   $(foreach x,$(ONEAPI.srcdirs.backend),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.all.exclude))) \
-                   $(foreach x,$(ONEAPI.srcdirs.parameters),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.parameters.exclude)))
+ONEAPI.srcs.all := $(sort $(wildcard $(addsuffix /*.cpp,$(ONEAPI.srcdirs.base) $(ONEAPI.srcdirs.detail) $(ONEAPI.srcdirs.backend)))) \
+                   $(sort $(wildcard $(addsuffix /*.cpp,$(ONEAPI.srcdirs.parameters))))
+
 ONEAPI.srcs.all	:= $(ONEAPI.srcs.all:./%=%)
 ONEAPI.srcs.dpc := $(filter %_dpc.cpp,$(ONEAPI.srcs.all))
 ONEAPI.srcs     := $(filter-out %_dpc.cpp,$(ONEAPI.srcs.all))
