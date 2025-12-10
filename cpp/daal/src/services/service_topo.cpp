@@ -2250,13 +2250,14 @@ static __inline void detect_data_caches(int cache_sizes_len, volatile long long 
 }
 
     #define MAX_CACHE_LEVELS 4
+    #define DEFAULT_L1_CACHE_SIZE   32 * 1024
+    #define DEFAULT_L2_CACHE_SIZE   256 * 1024
+    #define DEFAULT_LL_CACHE_SIZE   25 * 1024 * 1024
 volatile static bool cache_sizes_read                   = false;
-volatile static long long cache_sizes[MAX_CACHE_LEVELS] = { 0 };
+volatile static long long cache_sizes[MAX_CACHE_LEVELS] = { DEFAULT_L1_CACHE_SIZE, DEFAULT_L2_CACHE_SIZE, DEFAULT_LL_CACHE_SIZE, 0 };
 
 static __inline void update_cache_sizes()
 {
-    int cbwr_branch;
-
     if (cache_sizes_read) return;
 
     if (!cache_sizes_read) detect_data_caches(MAX_CACHE_LEVELS, cache_sizes);
@@ -2366,17 +2367,17 @@ namespace internal
 {
 size_t getL1CacheSize()
 {
-    return 32 * 1024;
+    return DEFAULT_L1_CACHE_SIZE;
 }
 
 size_t getL2CacheSize()
 {
-    return 256 * 1024;
+    return DEFAULT_L2_CACHE_SIZE;
 }
 
 size_t getLLCacheSize()
 {
-    return 25 * 1024 * 1024; //estimate based on mac pro
+    return DEFAULT_LL_CACHE_SIZE; //estimate based on mac pro
 }
 
 } // namespace internal
