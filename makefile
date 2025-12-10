@@ -528,8 +528,6 @@ endif
 $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt): $(CORE.objs_y) $(if $(OS_is_win),$(CORE.tmpdir_y)/dll.res,) | $(CORE.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(core_y):                   $(daaldep.math_backend.shared_link_deps) $(VTUNESDK.LIBS_A) \
                                             $(CORE.tmpdir_y)/$(core_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
-	$(LINK.DYNAMIC)
-	$(LINK.DYNAMIC.POST)
 
 $(CORE.objs_a): $(CORE.tmpdir_a)/inc_a_folders.txt
 $(CORE.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(-DEBC) $(-DMKL_ILP64) $(-DPROFILER) $(-DGCOV_BUILD)
@@ -607,12 +605,12 @@ ONEAPI.srcdirs.base := $(ONEAPI.srcdir) \
                        $(ONEAPI.srcdir)/io \
                        $(addprefix $(ONEAPI.srcdir)/algo/, $(ONEAPI.ALGOS)) \
                        $(addprefix $(ONEAPI.srcdir)/io/, $(ONEAPI.IO))
-ONEAPI.srcdirs.detail := $(sort $(wildcard $(addsuffix /detail,$(ONEAPI.srcdirs.base))))
-ONEAPI.srcdirs.backend := $(sort $(wildcard $(addsuffix /backend,$(ONEAPI.srcdirs.base))))
-ONEAPI.srcdirs.parameters := $(sort $(wildcard \
+ONEAPI.srcdirs.detail := $(wildcard $(addsuffix /detail,$(ONEAPI.srcdirs.base)))
+ONEAPI.srcdirs.backend := $(wildcard $(addsuffix /backend,$(ONEAPI.srcdirs.base)))
+ONEAPI.srcdirs.parameters := $(wildcard \
     $(ONEAPI.srcdir)/detail/parameters \
     $(addsuffix /parameters,$(ONEAPI.srcdirs.base)) \
-))
+)
 ONEAPI.srcdirs := $(ONEAPI.srcdirs.base) $(ONEAPI.srcdirs.detail) $(ONEAPI.srcdirs.backend) $(ONEAPI.srcdirs.parameters)
 
 ONEAPI.srcs.all.exclude := ! -path "*_test.*" ! -path "*/test/*" ! -path "*/detail/parameters/*"
@@ -621,7 +619,6 @@ ONEAPI.srcs.all := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 
                    $(foreach x,$(ONEAPI.srcdirs.detail),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.all.exclude))) \
                    $(foreach x,$(ONEAPI.srcdirs.backend),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.all.exclude))) \
                    $(foreach x,$(ONEAPI.srcdirs.parameters),$(shell find $x -type f -name "*.cpp" $(ONEAPI.srcs.parameters.exclude)))
-
 ONEAPI.srcs.all	:= $(ONEAPI.srcs.all:./%=%)
 ONEAPI.srcs.dpc := $(filter %_dpc.cpp,$(ONEAPI.srcs.all))
 ONEAPI.srcs     := $(filter-out %_dpc.cpp,$(ONEAPI.srcs.all))
