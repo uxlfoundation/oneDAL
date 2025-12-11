@@ -42,7 +42,9 @@ static bool tryToCopyFuncAVX512(const size_t nrows, const size_t ncols, void * d
 
     if (!ptr)
     {
-        int cpuid = (int)daal::services::Environment::getInstance()->getCpuId();
+        daal::services::Environment * env = daal::services::Environment::getInstance();
+        if (!env) return false; // Environment not initialized
+        int cpuid = (int)env->getCpuId();
 
         switch (cpuid)
         {
