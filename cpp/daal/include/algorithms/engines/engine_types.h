@@ -70,6 +70,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__INPUT"></a>
  * \brief %Input objects for engines
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
@@ -77,7 +79,7 @@ public:
     /**
      * Default constructor
      */
-    Input();
+    DAAL_DEPRECATED Input();
     /** Copy constructor */
     Input(const Input & other);
 
@@ -110,12 +112,14 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of the engine
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     /** \brief Constructor */
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {}
 

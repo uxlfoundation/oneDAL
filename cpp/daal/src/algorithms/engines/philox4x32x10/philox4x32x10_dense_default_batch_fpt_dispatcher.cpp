@@ -46,6 +46,13 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
     initialize();
 }
 
+template <>
+BatchType::~Batch()
+{
+    delete Analysis<batch>::_ac;
+    Analysis<batch>::_ac = NULL;
+}
+
 } // namespace interface1
 } // namespace philox4x32x10
 } // namespace engines

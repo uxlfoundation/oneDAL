@@ -164,11 +164,11 @@ is available as an alternative to the manual setup.
 
     - DAAL interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=gnu OPTLEVEL=O0 LINKER=bfd
+            make -f makefile daal PLAT=lnx32e COMPILER=gnu OPTFLAG=O0 LINKER=bfd
 
     - DAAL interfaces on **Linux\*** using **Clang\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTLEVEL=O1 LINKER=gold
+            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTFLAG=O1 LINKER=gold
 
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
@@ -176,11 +176,11 @@ is available as an alternative to the manual setup.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 
-            make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTLEVEL=O2
+            make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTFLAG=O2
 
     - DAAL and oneAPI C++ interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu OPTLEVEL=O3 LINKER=lld
+            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu OPTFLAG=O3 LINKER=lld
 
 It is possible to build oneDAL libraries with selected set of algorithms and/or CPU optimizations. `CORE.ALGORITHMS.CUSTOM` and `REQCPUS` makefile defines are used for it.
 
@@ -221,12 +221,12 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
     _Note: Clang and Clang-derived compilers (including the Intel DPC++ compiler) support additional sanitizers such MSan, TSan, and UBSan_
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=memory REQDBG=yes
-  
+
 - To build oneDAL with gcov code coverage tool integration, run:
 
     _Note: Only available when building with the Intel DPC++ compiler on Linux operating systems_
 
-            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
+            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
@@ -247,7 +247,7 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
 
 ---
 
-After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main) or for executing the usage examples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
+After having built the library, if one wishes to use it for building [scikit-learn-intelex](https://github.com/uxlfoundation/scikit-learn-intelex/tree/main) or for executing the usage examples or samples, one can set the required environment variables to point to the generated build by sourcing the script that it creates under the `env` folder. The script will be located under `__release_{os_name}[_{compiler_name}]/daal/latest/env/vars.sh` and can be sourced with a POSIX-compliant shell such as `bash`, by executing something like the following from inside the `__release*` folder:
 
 ```shell
 cd daal/latest
@@ -292,6 +292,30 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ```
 
 DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
+
+oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running these samples requires a DPC++ compiler for GPU (such as ICX), as well as MPI/CCL for CPU/GPU execution.
+
+* oneAPI samples:
+
+```shell
+cd daal/latest/samples/oneapi/cpp/mpi
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+Once built, the samples can be run with mpirun specifying the number of processes:
+
+* On Linux:
+```shell
+mpirun -n {num_processes} ./_cmake_results/{platform_name}/{example}
+```
+
+* On Windows:
+```shell
+mpiexec -n {num_processes} ./_cmake_results/{platform_name}/{example}
+```
 
 ### Executing examples with ASAN
 
@@ -347,7 +371,8 @@ conda install -c conda-forge \
     tbb tbb-devel `# required TBB packages` \
     onedpl-devel `# required oneDPL package` \
     mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp `# required MKL packages` \
-    cmake `# required to build the examples only`
+    cmake `# required to build the examples only` \
+    impi-devel impi_rt `# required to build the samples only`
 ```
 
 Then modify the relevant environment variables to point to the conda-installed libraries:

@@ -55,13 +55,14 @@ namespace interface2
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOGITBOOST__PREDICTION__INPUT"></a>
  * \brief Input objects in the prediction stage of the logitboost algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public classifier::prediction::Input
 {
     typedef classifier::prediction::Input super;
 
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
     virtual ~Input();

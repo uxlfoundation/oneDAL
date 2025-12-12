@@ -83,11 +83,14 @@ namespace interface1
  * \brief Optional %input objects for the kernel function algorithm
  *
  * \snippet kernel_function/kernel_function_types.h ParameterBase source code
+ *
+ * \DAAL_DEPRECATED
  */
 /* [ParameterBase source code] */
 struct DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
 {
-    ParameterBase(size_t rowIndexX = 0, size_t rowIndexY = 0, size_t rowIndexResult = 0, ComputationMode computationMode = matrixMatrix);
+    DAAL_DEPRECATED ParameterBase(size_t rowIndexX = 0, size_t rowIndexY = 0, size_t rowIndexResult = 0,
+                                  ComputationMode computationMode = matrixMatrix);
 
     size_t rowIndexX;                /*!< Index of the vector in the set X */
     size_t rowIndexY;                /*!< Index of the vector in the set Y */
@@ -99,11 +102,13 @@ struct DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__INPUT"></a>
  * \brief %Input objects for the kernel function algorithm
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Input : public daal::algorithms::Input
 {
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
     virtual ~Input() {}
@@ -131,12 +136,14 @@ protected:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RESULT"></a>
  * \brief Results obtained with the compute() method of the kernel function algorithm in the batch processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Result : public daal::algorithms::Result
 {
 public:
     DECLARE_SERIALIZABLE_CAST(Result)
-    Result();
+    DAAL_DEPRECATED Result();
 
     virtual ~Result() {};
     /**
