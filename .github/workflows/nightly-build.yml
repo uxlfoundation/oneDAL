@@ -73,12 +73,12 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations avx2 --target onedal
       - name: Archive build
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: __release_lnx
           path: ./__release_lnx
       - name: Archive oneDAL environment
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: oneDAL_env
           path: .ci/env
@@ -134,17 +134,17 @@ jobs:
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
           tar -cvzf oneapi.tar.gz .\oneapi
       - name: Archive build
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: __release_win
           path: .\__release_win_vc
       - name: Archive Intel BaseKit
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: intel_oneapi_basekit
           path: .\oneapi.tar.gz
       - name: Archive Intel OpenCL CPU runtime
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: opencl_rt_installer
           path: .\opencl_rt.msi
