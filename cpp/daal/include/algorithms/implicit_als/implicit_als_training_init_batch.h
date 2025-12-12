@@ -48,6 +48,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__INIT__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the implicit ALS initialization algorithm
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public TrainingContainerIface<batch>
@@ -58,7 +60,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**

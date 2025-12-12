@@ -116,7 +116,7 @@ template <typename T>
 class HostBuffer : public Base, public BufferIface<T>
 {
 public:
-    static HostBuffer<T> * create(const SharedPtr<T> & data, size_t size, Status & status)
+    DAAL_DEPRECATED static HostBuffer<T> * create(const SharedPtr<T> & data, size_t size, Status & status)
     {
         if (!data && size != size_t(0))
         {
@@ -128,7 +128,7 @@ public:
         return newBuffer;
     }
 
-    static HostBuffer<T> * create(T * data, size_t size, Status & status)
+    DAAL_DEPRECATED static HostBuffer<T> * create(T * data, size_t size, Status & status)
     {
         return create(SharedPtr<T>(data, services::EmptyDeleter()), size, status);
     }
@@ -161,7 +161,7 @@ template <typename T>
 class ConvertToHost : public BufferVisitor<T>
 {
 public:
-    explicit ConvertToHost(const data_management::ReadWriteMode & rwFlag) : _rwFlag(rwFlag) {}
+    DAAL_DEPRECATED explicit ConvertToHost(const data_management::ReadWriteMode & rwFlag) : _rwFlag(rwFlag) {}
 
     Status operator()(const HostBuffer<T> & buffer) DAAL_C11_OVERRIDE
     {
@@ -213,7 +213,7 @@ template <typename T>
 class HostBufferConverter
 {
 public:
-    SharedPtr<T> toHost(const internal::BufferIface<T> & buffer, const data_management::ReadWriteMode & rwMode, Status & status)
+    DAAL_DEPRECATED SharedPtr<T> toHost(const internal::BufferIface<T> & buffer, const data_management::ReadWriteMode & rwMode, Status & status)
     {
         ConvertToHost<T> action(rwMode);
         status |= buffer.apply(action);

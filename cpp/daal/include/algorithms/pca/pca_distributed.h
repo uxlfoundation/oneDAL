@@ -48,6 +48,8 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
+ *
+ * \DAAL_DEPRECATED
  */
 template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
@@ -56,19 +58,24 @@ class DistributedContainer
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the local node
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step1Local, algorithmFPType, correlationDense, cpu> : public OnlineContainer<algorithmFPType, correlationDense, cpu>
 {
 public:
     /** \brief Constructor */
-    DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, correlationDense, cpu>(daalEnv) {};
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv)
+        : OnlineContainer<algorithmFPType, correlationDense, cpu>(daalEnv) {};
     virtual ~DistributedContainer() {}
 };
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the master node
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<distributed>
@@ -79,7 +86,7 @@ public:
      * in the first step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     virtual ~DistributedContainer();
 
@@ -98,19 +105,23 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the local node
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step1Local, algorithmFPType, svdDense, cpu> : public OnlineContainer<algorithmFPType, svdDense, cpu>
 {
 public:
     /** \brief Constructor */
-    DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, svdDense, cpu>(daalEnv) {};
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv) : OnlineContainer<algorithmFPType, svdDense, cpu>(daalEnv) {};
     virtual ~DistributedContainer() {}
 };
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm on the master node
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, CpuType cpu>
 class DistributedContainer<step2Master, algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<distributed>
@@ -121,7 +132,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 

@@ -57,6 +57,8 @@ namespace interface2
  *      - \ref algorithms::quality_metric_set::interface1::InputAlgorithmsCollection "algorithms::quality_metric_set::InputAlgorithmsCollection" class
  *      - InputDataCollection class
  *      - ResultCollection class
+ *
+ * \DAAL_DEPRECATED
  */
 class Batch : public algorithms::quality_metric_set::Batch
 {
@@ -67,7 +69,8 @@ public:
      * \param[in] nClasses Number of classes
      * \param[in] useDefaultMetrics Flag. If true, a quality metric set is initialized with the quality metrics provided by the library
      */
-    Batch(size_t nClasses = 2, bool useDefaultMetrics = true) : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nClasses)
+    DAAL_DEPRECATED Batch(size_t nClasses = 2, bool useDefaultMetrics = true)
+        : algorithms::quality_metric_set::Batch(useDefaultMetrics), parameter(nClasses)
     {
         _inputData = InputDataCollectionPtr(new InputDataCollection());
         if (_useDefaultMetrics)

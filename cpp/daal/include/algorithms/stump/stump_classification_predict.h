@@ -68,6 +68,8 @@ namespace interface1
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations for the decision stump prediction algorithm, double or float
  * \tparam method           Decision stump model-based prediction method, \ref Method
+ *
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public PredictionContainerIface
@@ -77,7 +79,7 @@ public:
      * Constructs a container for decision stump model-based prediction with a specified environment
      * \param[in] daalEnv   Environment object
      */
-    BatchContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~BatchContainer();
     /**
@@ -105,6 +107,7 @@ public:
  *      - \ref interface1::Model "Model" class
  *      - \ref classifier::prediction::interface1::Input "classifier::prediction::Input" class
  *      - \ref classifier::prediction::interface2::Result "classifier::prediction::Result" class
+ * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class DAAL_EXPORT Batch : public classifier::prediction::Batch
@@ -118,7 +121,7 @@ public:
 
     InputType input; /*!< %Input data structure */
 
-    Batch(size_t nClasses = 2);
+    DAAL_DEPRECATED Batch(size_t nClasses = 2);
 
     /**
      * Constructs decision stump classification algorithm by copying input objects

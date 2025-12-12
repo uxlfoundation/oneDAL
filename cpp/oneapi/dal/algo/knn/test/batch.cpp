@@ -69,6 +69,12 @@ class knn_batch_test : public knn_test<TestType, knn_batch_test<TestType>> {};
                          "[small-dataset][knn][integration][batch][test]", \
                          knn_cls_types)
 
+#define KNN_KDTREE_SINGLE_RUN_TEST(name)                                                \
+    TEMPLATE_LIST_TEST_M(knn_batch_test,                                                \
+                         name,                                                          \
+                         "[synthetic-dataset][knn][integration][batch][test][nightly]", \
+                         knn_kdtree_cls_float_only)
+
 KNN_SMALL_TEST("knn nearest points test predefined 7x5x2") {
     SKIP_IF(this->not_available_on_device());
     SKIP_IF(this->not_float64_friendly());
@@ -171,6 +177,35 @@ KNN_CLS_SYNTHETIC_TEST("knn nearest points test random uniform 16390x20x5") {
     constexpr std::int64_t train_row_count = 16390;
     constexpr std::int64_t infer_row_count = 20;
     constexpr std::int64_t column_count = 5;
+
+    CAPTURE(train_row_count, infer_row_count, column_count);
+
+    const auto train_dataframe = GENERATE_DATAFRAME(
+        te::dataframe_builder{ train_row_count, column_count }.fill_uniform(-0.2, 0.5));
+    const table x_train_table = train_dataframe.get_table(this->get_homogen_table_id());
+    const auto infer_dataframe = GENERATE_DATAFRAME(
+        te::dataframe_builder{ infer_row_count, column_count }.fill_uniform(-0.3, 1.));
+    const table x_infer_table = infer_dataframe.get_table(this->get_homogen_table_id());
+
+    const table y_train_table = this->arange(train_row_count);
+
+    const auto knn_desc = this->get_descriptor(train_row_count, 1);
+
+    auto train_result = this->train(knn_desc, x_train_table, y_train_table);
+    auto infer_result = this->infer(knn_desc, x_infer_table, train_result.get_model());
+
+    this->exact_nearest_indices_check(x_train_table, x_infer_table, infer_result);
+}
+
+KNN_KDTREE_SINGLE_RUN_TEST("knn nearest points test random uniform 1'000'000x20x10") {
+    // this test triggers issue with KD-Tree training on large datasets
+    // that leads to crash due to use-after-free in multithreaded execution
+    SKIP_IF(this->not_available_on_device());
+    SKIP_IF(this->not_float64_friendly());
+
+    constexpr std::int64_t train_row_count = 1'000'000;
+    constexpr std::int64_t infer_row_count = 20;
+    constexpr std::int64_t column_count = 10;
 
     CAPTURE(train_row_count, infer_row_count, column_count);
 
