@@ -69,6 +69,7 @@ public:
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
+                    // TODO: fix
                     gh[2 * sampleInd[i]]     = f[sampleInd[i]] - y[sampleInd[i]]; //gradient
                     gh[2 * sampleInd[i] + 1] = 1;                                 //hessian
                 }
@@ -79,6 +80,7 @@ public:
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
+                    // TODO: fix
                     gh[2 * i]     = f[i] - y[i]; //gradient
                     gh[2 * i + 1] = 1;           //hessian
                 }
