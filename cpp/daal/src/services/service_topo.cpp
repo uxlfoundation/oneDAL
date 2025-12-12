@@ -83,13 +83,13 @@ static void * __internal_daal_memset(void * s, int c, size_t n)
  * in 64-bit mode, 32 in 32-bit mode, the size limit is checked.
  * Starting with Windows OS version 0601H (e.g. Windows 7), it supports up to 4 sets of
  * affinity masks, referred to as "GROUP_AFFINITY".
- * Constext switch within the same group is done by the same API as was done in previous
+ * Context switch within the same group is done by the same API as was done in previous
  * generations of windows (such as Vista). In order to bind the current executing
  * process context to a logical processor in a different group, it must be be binded
  * using a new API to the target processor group, followed by a similar
  * SetThreadAffinityMask API
  * New API related to GROUP_AFFINITY are present only in kernel32.dll of the OS with the
- * relevant version signatures. So we dynamically examine the presence of thse API
+ * relevant version signatures. So we dynamically examine the presence of the API
  * and fall back of legacy AffinityMask API if the new APIs are not available.
  * Limitation, New Windows APIs that support GROUP_AFFINITY requires
  *  Windows platform SDK 7.0a. The executable
@@ -160,7 +160,7 @@ static int __internal_daal_bindContext(unsigned int cpu, void * prevAffinity)
         #else // If SDK version does not support GROUP_AFFINITY,
     DWORD_PTR affinity;
 
-    // only the active processor group and be succesfully queried and analyzed for topology information
+    // only the active processor group and be successfully queried and analyzed for topology information
     if (cpu >= MAX_PREWIN7_LOG_CPU) return ret;
     // flip on the bit in the affinity mask corresponding to the input ordinal index
 
@@ -406,7 +406,7 @@ static void __internal_daal_getCpuidInfo(CPUIDinfo * info, unsigned int eax, uns
  * __internal_daal_cpuid_
  *
  * Returns the raw data reported in 4 registers by _internal_daal_CPUID, support sub-leaf reporting
- *          The _internal_daal_CPUID instrinsic in MSC does not support sub-leaf reporting
+ *          The _internal_daal_CPUID intrinsic in MSC does not support sub-leaf reporting
  *
  * Arguments:
  *     info       Point to strucrture to get output from CPIUD instruction
@@ -599,7 +599,7 @@ static void __internal_daal_clearGenericAffinityMask(GenericAffinityMask * pAffi
  * Arguments:
  *     pAffinityMap - pointer to a generic affinity mask
  *     cpu - an ordinal number that reference a logical processor visible to the OS
- * Return: none, abort if error occured
+ * Return: none, abort if error occurred
  */
 static void __internal_daal_setGenericAffinityBit(GenericAffinityMask * pAffinityMap, unsigned cpu)
 {
@@ -666,8 +666,8 @@ static int __internal_daal_compareEqualGenericAffinity(GenericAffinityMask * pAf
  * Clear (set to 0) the cpu'th bit in the generic affinity mask.
  *
  * Arguments:
- *     generic affinty mask ptr
- * Return: 0 if no error, -1 otherise
+ *     generic affinity mask ptr
+ * Return: 0 if no error, -1 otherwise
  */
 static int __internal_daal_clearGenericAffinityBit(GenericAffinityMask * pAffinityMap, unsigned cpu)
 {
@@ -688,7 +688,7 @@ static int __internal_daal_clearGenericAffinityBit(GenericAffinityMask * pAffini
  * check the cpu'th bit of the affinity mask and return 1 if the bit is set and 0 if the bit is 0.
  *
  * Arguments:
- *     generic affinty mask ptr
+ *     generic affinity mask ptr
  *     cpu - cpu number. Signifies bit in the unsigned char affinity mask to be checked
  * Return: 0 if the cpu's bit is clear, returns 1 if the bit is set, -1 if an error
  *   The error condition makes it where you can't just check for '0' or 'not 0'
@@ -736,7 +736,7 @@ static unsigned __internal_daal_getApicID()
 // within the entity specified from the hierarchical ordinal number scheme
 // package: ordinal number of a package; ENUM_ALL means any package
 // core   : ordinal number of a core in the specified package; ENUM_ALL means any core
-// logical: ordinal number of a logical processor within the specifed core; ; ENUM_ALL means any thread
+// logical: ordinal number of a logical processor within the specified core; ; ENUM_ALL means any thread
 // returns: the system wide ordinal number of the first logical processor that matches the
 //    specified (package, core, logical) triplet specification.
 static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core, unsigned logical)
@@ -884,7 +884,7 @@ static int __internal_daal_cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD m
 /*
  * __internal_daal_getCacheTotalLize
  *
- * Caluculates the total capacity (bytes) from the cache parameters reported by __internal_daal_cpuid leaf 4
+ * Calculates the total capacity (bytes) from the cache parameters reported by __internal_daal_cpuid leaf 4
  *          the caller provides the raw data reported by the target sub leaf of cpuid leaf 4
  *
  * Arguments:
@@ -1242,7 +1242,7 @@ static int __internal_daal_allocArrays(unsigned cpus)
  *
  * Arguments:
  *      i - the ordinal index to reference a logical processor in the system
- *      numMappings - running count ot how many processors we've parsed
+ *      numMappings - running count of how many processors we've parsed
  * Return: 0 is no error
  */
 static unsigned __internal_daal_parseIDS4EachThread(unsigned i, unsigned numMappings)
@@ -1321,7 +1321,7 @@ static int __internal_daal_queryParseSubIDs(void)
 
     for (i = 0; i < glbl_obj.OSProcessorCount; i++)
     {
-        // can't asume OS affinity bit mask is contiguous,
+        // can't assume OS affinity bit mask is contiguous,
         // but we are using our generic bitmap representation for affinity
         if (__internal_daal_testGenericAffinityBit(&glbl_obj.cpu_generic_processAffinity, i) == 1)
         {
@@ -1386,7 +1386,7 @@ static int __internal_daal_analyzeCPUHierarchy(unsigned numMappings)
     // as we sort thru each logical processor
     _INTERNAL_DAAL_MEMSET(pDetectCoreIDsperPkg, 0xff, ckDim * sizeof(unsigned));
 
-    // iterate throught each logical processor in the system.
+    // iterate through each logical processor in the system.
     // mark up each unique physical package with a zero-based numbering scheme
     // Within each distinct package, mark up distinct cores within that package
     // with a zero-based numbering scheme
@@ -1413,7 +1413,7 @@ static int __internal_daal_analyzeCPUHierarchy(unsigned numMappings)
                     if (coreID == pDetectCoreIDsperPkg[h * numMappings + k])
                     {
                         foundCore = TRUE;
-                        // add thread - can't be that the thread already exists, breaks uniqe APICID spec
+                        // add thread - can't be that the thread already exists, breaks unique APICID spec
                         glbl_obj.pApicAffOrdMapping[i].coreORD   = k;
                         glbl_obj.pApicAffOrdMapping[i].threadORD = glbl_obj.perCore_detectedThreadsCount.data[h * MAX_CORES + k];
                         glbl_obj.perCore_detectedThreadsCount.data[h * MAX_CORES + k]++;
@@ -1746,7 +1746,7 @@ unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
  *
  * Arguments:
  *     package - ordinal
- * Return: number of cores active on specified package, 0 if can not calulate
+ * Return: number of cores active on specified package, 0 if can not calculate
  */
 unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
 {
@@ -1764,7 +1764,7 @@ unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
  *
  * Arguments:
  *     package - ordinal and core ordinal
- * Return: number of threads active on specified package and core, 0 if can not calulate
+ * Return: number of threads active on specified package and core, 0 if can not calculate
  */
 unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsigned core_ordinal)
 {
@@ -1868,7 +1868,7 @@ unsigned _internal_daal_GetSysProcessorPackageCount()
  * Returns numbers of cores active sharing the target level cache
  *
  * Arguments: Cache ordinal
- * Return: number of cores active on specified target level cache, 0 if can not calulate
+ * Return: number of cores active on specified target level cache, 0 if can not calculate
  */
 unsigned _internal_daal_GetCoreCountPerEachCache(unsigned subleaf, unsigned cache_ordinal)
 {

@@ -146,15 +146,15 @@ public:
 
     void finalize(size_t k, algorithmFPType denominator)
     {
-        algorithmFPType multplier = 1.0 / denominator;
+        algorithmFPType multiplier = 1.0 / denominator;
         for (size_t i = 0; i < nFeatures; i++)
         {
             for (size_t j = 0; j < i; j++)
             {
-                sigma[k][i * nFeatures + j] *= multplier;
+                sigma[k][i * nFeatures + j] *= multiplier;
                 sigma[k][j * nFeatures + i] = sigma[k][i * nFeatures + j];
             }
-            sigma[k][i * nFeatures + i] *= multplier;
+            sigma[k][i * nFeatures + i] *= multiplier;
         }
     }
 
@@ -270,10 +270,10 @@ public:
 
     void finalize(size_t k, algorithmFPType denominator)
     {
-        algorithmFPType multplier = 1.0 / denominator;
+        algorithmFPType multiplier = 1.0 / denominator;
         for (size_t i = 0; i < nFeatures; i++)
         {
-            sigma[k][i] *= multplier;
+            sigma[k][i] *= multiplier;
         }
     }
 

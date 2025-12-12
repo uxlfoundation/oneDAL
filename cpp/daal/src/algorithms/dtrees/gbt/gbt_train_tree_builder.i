@@ -220,7 +220,7 @@ protected:
 
         ImpurityType imp;
         getInitialImpurity(imp);
-        typename NodeType::Base * res = buildLeaf(0, nSamples, 0, imp); // use node creater
+        typename NodeType::Base * res = buildLeaf(0, nSamples, 0, imp); // use node creator
         if (res) return res;
 
         SplitJobType job(0, nSamples, 0, imp, res);

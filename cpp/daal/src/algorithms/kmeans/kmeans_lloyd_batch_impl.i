@@ -80,17 +80,17 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         clusters = tClusters.get();
     }
 
-    NumericTable * assignmetsNT = nullptr;
+    NumericTable * assignmentsNT = nullptr;
     NumericTablePtr assignmentsPtr;
     if (r[1])
     {
-        assignmetsNT = const_cast<NumericTable *>(r[1]);
+        assignmentsNT = const_cast<NumericTable *>(r[1]);
     }
     else if (par->resultsToEvaluate & computeExactObjectiveFunction)
     {
         assignmentsPtr = HomogenNumericTableCPU<int, cpu>::create(1, n, &s);
         DAAL_CHECK_MALLOC(s);
-        assignmetsNT = assignmentsPtr.get();
+        assignmentsNT = assignmentsPtr.get();
     }
 
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, p, sizeof(double));
@@ -120,8 +120,9 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         DAAL_CHECK(task.get(), services::ErrorMemoryAllocationFailed);
         {
             DAAL_PROFILER_TASK(addNTToTaskThreaded);
-            /* For the last iteration we do not need to recount of assignmets */
-            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize, assignmetsNT && (kIter == nIter - 1) ? assignmetsNT : nullptr);
+            /* For the last iteration we do not need to recount of assignments */
+            s = task->template addNTToTaskThreaded<method>(ntData, nullptr, blockSize,
+                                                           assignmentsNT && (kIter == nIter - 1) ? assignmentsNT : nullptr);
         }
 
         if (!s)
@@ -213,7 +214,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
 
     if (par->resultsToEvaluate & computeAssignments || par->assignFlag || par->resultsToEvaluate & computeExactObjectiveFunction)
     {
-        PostProcessing<method, algorithmFPType, cpu>::computeAssignments(p, nClusters, clusters, ntData, nullptr, assignmetsNT, blockSize);
+        PostProcessing<method, algorithmFPType, cpu>::computeAssignments(p, nClusters, clusters, ntData, nullptr, assignmentsNT, blockSize);
     }
 
     if (par->resultsToEvaluate & computeExactObjectiveFunction)
@@ -221,7 +222,7 @@ Status KMeansBatchKernel<method, algorithmFPType, cpu>::compute(const NumericTab
         WriteOnlyRows<algorithmFPType, cpu> mtTarget(*const_cast<NumericTable *>(r[2]), 0, 1);
         DAAL_CHECK_BLOCK_STATUS(mtTarget);
         algorithmFPType exactTargetFunc = algorithmFPType(0);
-        PostProcessing<method, algorithmFPType, cpu>::computeExactObjectiveFunction(p, nClusters, clusters, ntData, nullptr, assignmetsNT,
+        PostProcessing<method, algorithmFPType, cpu>::computeExactObjectiveFunction(p, nClusters, clusters, ntData, nullptr, assignmentsNT,
                                                                                     exactTargetFunc, blockSize);
 
         *mtTarget.get() = exactTargetFunc;
