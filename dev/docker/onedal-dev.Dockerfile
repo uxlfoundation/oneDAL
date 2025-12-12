@@ -14,7 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
-FROM ubuntu:24.04@sha256:b59d21599a2b151e23eea5f6602f4af4d7d31c4e236d22bf0b62b86d2e386b8f
+FROM ubuntu:24.04@sha256:c35e29c9450151419d9448b0fd75374fec4fff364a27f176fb458d472dfc9e54
 
 ARG workdirectory="/sources/oneDAL"
 WORKDIR ${workdirectory}
@@ -33,7 +33,7 @@ RUN wget --quiet \
 ENV PATH=$CONDA_DIR/bin:$PATH
 
 # Installing environment for bazel
-RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.18.0/bazelisk-linux-amd64 && \
+RUN wget https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64 && \
     chmod 755 bazelisk-linux-amd64 && \
     mv bazelisk-linux-amd64 /usr/bin/bazel
 
