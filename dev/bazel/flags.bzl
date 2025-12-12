@@ -28,11 +28,12 @@ lnx_cc_common_flags = [
 ]
 
 lnx_cc_pedantic_flags = [
-    "-pedantic",
     "-Wall",
     "-Wextra",
+    "-pedantic",
     "-Wno-unused-parameter",
     "-Wno-unused-but-set-parameter",
+    "-Wno-c2y-extensions",
 ]
 
 lnx_cc_flags = {
