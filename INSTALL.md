@@ -164,11 +164,11 @@ is available as an alternative to the manual setup.
 
     - DAAL interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=gnu OPTLEVEL=O0 LINKER=bfd
+            make -f makefile daal PLAT=lnx32e COMPILER=gnu OPTFLAG=O0 LINKER=bfd
 
     - DAAL interfaces on **Linux\*** using **Clang\***:
 
-            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTLEVEL=O1 LINKER=gold
+            make -f makefile daal PLAT=lnx32e COMPILER=clang OPTFLAG=O1 LINKER=gold
 
     - oneAPI C++/DPC++ interfaces on **Windows\*** using **Intel(R) DPC++ compiler**:
 
@@ -176,11 +176,11 @@ is available as an alternative to the manual setup.
 
     - oneAPI C++ interfaces on **Windows\*** using **Microsoft Visual\* C++ Compiler**:
 
-            make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTLEVEL=O2
+            make -f makefile oneapi_c PLAT=win32e COMPILER=vc OPTFLAG=O2
 
     - DAAL and oneAPI C++ interfaces on **Linux\*** using **GNU Compiler Collection\***:
 
-            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu OPTLEVEL=O3 LINKER=lld
+            make -f makefile daal oneapi_c PLAT=lnx32e COMPILER=gnu OPTFLAG=O3 LINKER=lld
 
 It is possible to build oneDAL libraries with selected set of algorithms and/or CPU optimizations. `CORE.ALGORITHMS.CUSTOM` and `REQCPUS` makefile defines are used for it.
 
@@ -221,12 +221,12 @@ It is possible to integrate various sanitizers by specifying the REQSAN flag, av
     _Note: Clang and Clang-derived compilers (including the Intel DPC++ compiler) support additional sanitizers such MSan, TSan, and UBSan_
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQSAN=memory REQDBG=yes
-  
+
 - To build oneDAL with gcov code coverage tool integration, run:
 
     _Note: Only available when building with the Intel DPC++ compiler on Linux operating systems_
 
-            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes  
+            make -f makefile daal oneapi_c PLAT=lnx32e CODE_COVERAGE=yes
 
 - To build oneDAL with kernel profiling information (`REQPROFILE=yes`):
 
