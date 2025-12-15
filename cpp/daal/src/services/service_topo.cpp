@@ -23,10 +23,15 @@
 */
 #include "services/daal_defines.h"
 
-#include <array>
-#include <limits>
+#define MAX_CACHE_LEVELS      4
+#define DEFAULT_L1_CACHE_SIZE 32 * 1024
+#define DEFAULT_L2_CACHE_SIZE 256 * 1024
+#define DEFAULT_LL_CACHE_SIZE 4 * 1024 * 1024
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
+
+#include <array>
+#include <limits>
 
     #if defined(__linux__) || defined(__FreeBSD__)
 
@@ -2236,10 +2241,6 @@ static __inline void detect_data_caches(int cache_sizes_len, volatile long long 
     }
 }
 
-    #define MAX_CACHE_LEVELS      4
-    #define DEFAULT_L1_CACHE_SIZE 32 * 1024
-    #define DEFAULT_L2_CACHE_SIZE 256 * 1024
-    #define DEFAULT_LL_CACHE_SIZE 4 * 1024 * 1024
 volatile static bool cache_sizes_read                   = false;
 volatile static long long cache_sizes[MAX_CACHE_LEVELS] = { DEFAULT_L1_CACHE_SIZE, DEFAULT_L2_CACHE_SIZE, DEFAULT_LL_CACHE_SIZE, 0 };
 
@@ -2344,7 +2345,7 @@ void delete_topology(void * ptr)
     daal::services::daal_free(ptr);
 }
 
-#else
+#else // DAAL_CPU_TOPO_DISABLED
 
 namespace daal
 {
