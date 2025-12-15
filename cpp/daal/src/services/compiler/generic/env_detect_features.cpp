@@ -59,7 +59,7 @@ void __daal_serv_CPUHasAVX512f_enable_it_mac();
 #if defined(TARGET_X86_64)
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
 {
-    #if defined(_MSC_VER) || (defined(__clang__) && __clang_major__ > 18)  || (defined(__GNUC__) && !defined(__clang__))
+    #if defined(_MSC_VER) || (defined(__clang__) && __clang_major__ > 18) || (defined(__GNUC__) && !defined(__clang__))
     __cpuidex(reinterpret_cast<int *>(abcd), eax, ecx);
     #else
 

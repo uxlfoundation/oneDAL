@@ -30,8 +30,8 @@
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
-#include <array>
-#include <limits>
+    #include <array>
+    #include <limits>
 
     #if defined(__linux__) || defined(__FreeBSD__)
 
@@ -321,7 +321,6 @@ static int __internal_daal_countBits(DWORD_PTR x)
 
     return res;
 }
-
 
 /* __internal_daal_createMask
  *
@@ -617,8 +616,8 @@ struct glktsn
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    unsigned maxCPUIDLeaf;                  // highest CPUID leaf index in a processor
-    CPUIDinfox * cpuid_values = nullptr;    // CPUID info storage of size [maxCPUIDLeaf + 1]
+    unsigned maxCPUIDLeaf;               // highest CPUID leaf index in a processor
+    CPUIDinfox * cpuid_values = nullptr; // CPUID info storage of size [maxCPUIDLeaf + 1]
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
@@ -1287,7 +1286,7 @@ void glktsn::initStructuredLeafBuffers()
             return;
         }
         cpuid_values[j].subleaf[0][0] = info;
-        cpuid_values[j].subleaf_max = 1;
+        cpuid_values[j].subleaf_max   = 1;
 
         if (j == 0xd)
         {
