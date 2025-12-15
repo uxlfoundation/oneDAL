@@ -146,15 +146,12 @@ typedef unsigned __int32 AFFINITY_MASK;
 
     #define MAX_LOG_CPU            (8 * sizeof(DWORD_PTR) * 8)
     #define MAX_WIN7_LOG_CPU       (4 * sizeof(DWORD_PTR) * 8)
-    #define MAX_PREWIN7_LOG_CPU    (sizeof(DWORD_PTR) * 8)
     #define MAX_PACKAGES           MAX_LOG_CPU
     #define MAX_CORES              MAX_LOG_CPU
     #define BLOCKSIZE_4K           4096
     #define MAX_THREAD_GROUPS_WIN7 4
 
-    #define MAX_LEAFS          80
     #define MAX_CACHE_SUBLEAFS 16 // max allocation limit of data structure per sub leaf of cpuid leaf 4 enumerated results
-    #define MAX_LEAFS_EXT      MAX_LEAFS
 
     #define ENUM_ALL (0xffffffff)
 
@@ -208,6 +205,27 @@ struct leaf2_cache_struct
 struct CPUIDinfo
 {
     unsigned __int32 EAX = 0, EBX = 0, ECX = 0, EDX = 0;
+
+    /*
+     * Stores the raw data reported in 4 registers by CPUID into the structure,
+     * supports sub-leaf reporting.
+     * Note: The CPUID instrinsic in MSVC does not support sub-leaf reporting.
+     *
+     * \param func       CPUID leaf number
+     * \param subfunc    CPUID subleaf number
+     */
+    void get(unsigned int func, unsigned int subfunc = 0) { get_info(func, subfunc); }
+
+private:
+    void get_info(unsigned int eax, unsigned int ecx)
+    {
+        uint32_t abcd[4];
+        run_cpuid(eax, ecx, abcd);
+        EAX = abcd[0];
+        EBX = abcd[1];
+        ECX = abcd[2];
+        EDX = abcd[3];
+    }
 };
 
 struct CPUIDinfox
@@ -215,39 +233,6 @@ struct CPUIDinfox
     std::array<CPUIDinfo *, MAX_CACHE_SUBLEAFS> subleaf;
     unsigned __int32 subleaf_max = 0;
 };
-
-static void __internal_daal_getCpuidInfo(CPUIDinfo * info, unsigned int eax, unsigned int ecx)
-{
-    uint32_t abcd[4];
-    run_cpuid(eax, ecx, abcd);
-    info->EAX = abcd[0];
-    info->EBX = abcd[1];
-    info->ECX = abcd[2];
-    info->EDX = abcd[3];
-}
-
-/*
- * __internal_daal_cpuid_
- *
- * Returns the raw data reported in 4 registers by _internal_daal_CPUID, support sub-leaf reporting
- *          The _internal_daal_CPUID instrinsic in MSC does not support sub-leaf reporting
- *
- * Arguments:
- *     info       Point to strucrture to get output from CPIUD instruction
- *     func       _internal_daal_CPUID Leaf number
- *     subfunc    _internal_daal_CPUID Subleaf number
- * Return:        None
- */
-static void __cdecl __internal_daal_cpuid_(CPUIDinfo * info, const unsigned int func, const unsigned int subfunc)
-{
-    __internal_daal_getCpuidInfo(info, func, subfunc);
-}
-
-// Simpler version for __internal_daal_cpuid leaf that do not require sub-leaf reporting
-static void __internal_daal_cpuid(CPUIDinfo * info, const unsigned int func)
-{
-    __internal_daal_cpuid_(info, func, 0);
-}
 
 /*
  * __internal_daal_getBitsFromDWORD
@@ -587,8 +572,6 @@ struct glktsn
     Dyn2Arr_str perEachCache_detectedThreadCount;
     // we use an error code to indicate any abnoral situation
     unsigned error;
-    // If CPUID full reporting capability has been restricted, we need to be aware of it.
-    unsigned Alert_BiosCPUIDmaxLimitSetting;
 
     unsigned OSProcessorCount = 0; // how many logical processor the OS sees
     bool hasLeafB;                 // flag to keep track of whether CPUID leaf 0BH is supported
@@ -781,20 +764,19 @@ private:
 
 glktsn::glktsn()
 {
-    isInit                         = false;
-    error                          = 0;
-    hasLeafB                       = false;
-    Alert_BiosCPUIDmaxLimitSetting = 0;
-    maxCacheSubleaf                = -1;
-    EnumeratedPkgCount             = 0;
-    EnumeratedCoreCount            = 0;
-    EnumeratedThreadCount          = 0;
-    HWMT_SMTperCore                = 0;
-    HWMT_SMTperPkg                 = 0;
+    isInit                = false;
+    error                 = 0;
+    hasLeafB              = false;
+    maxCacheSubleaf       = -1;
+    EnumeratedPkgCount    = 0;
+    EnumeratedCoreCount   = 0;
+    EnumeratedThreadCount = 0;
+    HWMT_SMTperCore       = 0;
+    HWMT_SMTperPkg        = 0;
 
     // call CPUID with leaf 0 to get the maximum supported CPUID leaf index
     CPUIDinfo info;
-    __internal_daal_cpuid(&info, 0);
+    info.get(0);
     maxCPUIDLeaf = info.EAX;
 
     // call OS-specific service to find out how many logical processors
@@ -1025,12 +1007,11 @@ void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
 
     if (hasLeafB)
     {
-        __internal_daal_cpuid(&info, 0xB); // query subleaf 0 of leaf B
-        APICID = info.EDX;                 //  x2APIC ID
+        info.get(0xB);     // query subleaf 0 of leaf B
+        APICID = info.EDX; //  x2APIC ID
     }
 
-    __internal_daal_cpuid(&info, 1);
-
+    info.get(1);
     APICID = (BYTE)(__internal_daal_getBitsFromDWORD(info.EBX, 24, 31)); // zero extend 8-bit initial APIC ID
 }
 
@@ -1063,8 +1044,8 @@ static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core,
 }
 
 // Derive bitmask extraction parameters used to extract/decompose x2APIC ID.
-// The algorithm assumes __internal_daal_cpuid feature symmetry across all physical packages.
-// Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
+// The algorithm assumes CPUID feature symmetry across all physical packages.
+// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
 // on one logical processor to derive these system-wide parameters
 int glktsn::cpuTopologyLeafBConstants()
 {
@@ -1076,8 +1057,8 @@ int glktsn::cpuTopologyLeafBConstants()
 
     do
     {
-        // we already tested __internal_daal_cpuid leaf 0BH contain valid sub-leaves
-        __internal_daal_cpuid_(&infoB, 0xB, subLeaf);
+        // we already tested CPUID leaf 0BH contain valid sub-leaves
+        infoB.get(0xB, subLeaf);
         if (infoB.EBX == 0)
         {
             // if EBX == 0 then this subleaf is not valid, we can exit the loop
@@ -1132,11 +1113,11 @@ int glktsn::cpuTopologyLeafBConstants()
 }
 
 // Calculate parameters used to extract/decompose Initial APIC ID.
-// The algorithm assumes __internal_daal_cpuid feature symmetry across all physical packages.
-// Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
+// The algorithm assumes CPUID feature symmetry across all physical packages.
+// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
 // on one logical processor to derive these system-wide parameters
 /*
- * Derive bitmask extraction parameter using __internal_daal_cpuid leaf 1 and leaf 4
+ * Derive bitmask extraction parameter using CPUID leaf 1 and leaf 4
  *
  * Arguments:
  *     info - Point to strucrture containing CPIUD instruction leaf 1 data
@@ -1152,23 +1133,14 @@ int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo)
     if (maxCPUIDLeaf >= 4)
     {
         CPUIDinfo info4;
-        __internal_daal_cpuid_(&info4, 4, 0);
+        info4.get(4, 0);
         coreIDMaxCnt       = __internal_daal_getBitsFromDWORD(info4.EAX, 26, 31) + 1; // related to coreMaskWidth
         SMTIDPerCoreMaxCnt = corePlusSMTIDMaxCnt / coreIDMaxCnt;
     }
     else
     {
-        // no support for __internal_daal_cpuid leaf 4 but caller has verified  HT support
-        if (!Alert_BiosCPUIDmaxLimitSetting)
-        {
-            coreIDMaxCnt       = 1;
-            SMTIDPerCoreMaxCnt = corePlusSMTIDMaxCnt / coreIDMaxCnt;
-        }
-        else
-        {
-            // we got here most likely because IA32_MISC_ENABLES[22] was set to 1 by BIOS
-            error |= _MSGTYP_CHECKBIOS_CPUIDMAXSETTING; // IA32_MISC_ENABLES[22] may have been set to 1, will cause inaccurate reporting
-        }
+        coreIDMaxCnt       = 1;
+        SMTIDPerCoreMaxCnt = corePlusSMTIDMaxCnt / coreIDMaxCnt;
     }
 
     SMTSelectMask  = __internal_daal_createMask(SMTIDPerCoreMaxCnt, &SMTMaskWidth);
@@ -1184,14 +1156,14 @@ int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo)
 /*
  * __internal_daal_getCacheTotalLize
  *
- * Caluculates the total capacity (bytes) from the cache parameters reported by __internal_daal_cpuid leaf 4
+ * Caluculates the total capacity (bytes) from the cache parameters reported by CPUID leaf 4
  *          the caller provides the raw data reported by the target sub leaf of cpuid leaf 4
  *
  * Arguments:
  *     cache_type - the cache type encoding recognized by CPIUD instruction leaf 4 for the target cache level
  * Return: the sub-leaf index corresponding to the largest cache of specified cache type
  */
-static unsigned long __internal_daal_getCacheTotalLize(CPUIDinfo info)
+static unsigned long __internal_daal_getCacheTotalLize(const CPUIDinfo & info)
 {
     unsigned long LnSz, SectorSz, WaySz, SetSz;
 
@@ -1204,7 +1176,7 @@ static unsigned long __internal_daal_getCacheTotalLize(CPUIDinfo info)
 }
 
 /*
- * Find the subleaf index of __internal_daal_cpuid leaf 4 corresponding to the input subleaf
+ * Find the subleaf index of CPUID leaf 4 corresponding to the input subleaf
  *
  * Arguments:
  *     cache_subleaf - the cache subleaf encoding recognized by CPIUD instruction leaf 4 for the target cache level
@@ -1231,7 +1203,7 @@ int glktsn::findEachCacheIndex(unsigned cache_subleaf)
         return -1;
     }
 
-    __internal_daal_cpuid_(&info4, 4, cache_subleaf);
+    info4.get(4, cache_subleaf);
     type = __internal_daal_getBitsFromDWORD(info4.EAX, 0, 4);
     cap  = __internal_daal_getCacheTotalLize(info4);
 
@@ -1263,6 +1235,7 @@ void glktsn::initStructuredLeafBuffers()
 {
     unsigned j, kk, qeidmsk;
     CPUIDinfo info;
+    info.get(0);
 
     cpuid_values[0].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
     if (!cpuid_values[0].subleaf[0])
@@ -1278,7 +1251,7 @@ void glktsn::initStructuredLeafBuffers()
 
     for (j = 1; j <= maxCPUIDLeaf; j++)
     {
-        __internal_daal_cpuid(&info, j);
+        info.get(j);
         cpuid_values[j].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
         if (!cpuid_values[j].subleaf[0])
         {
@@ -1292,18 +1265,18 @@ void glktsn::initStructuredLeafBuffers()
         {
             int subleaf                 = 2;
             cpuid_values[j].subleaf_max = 1;
-            __internal_daal_cpuid_(&info, j, subleaf);
+            info.get(j, subleaf);
             while (info.EAX && subleaf < MAX_CACHE_SUBLEAFS)
             {
                 cpuid_values[j].subleaf_max = subleaf;
                 subleaf++;
-                __internal_daal_cpuid_(&info, j, subleaf);
+                info.get(j, subleaf);
             }
         }
         else if (j == 0x10 || j == 0xf)
         {
             int subleaf = 1;
-            __internal_daal_cpuid_(&info, j, subleaf);
+            info.get(j, subleaf);
             if (j == 0xf)
                 qeidmsk = info.EDX; // sub-leaf value are derived from valid resource id's
             else
@@ -1311,7 +1284,7 @@ void glktsn::initStructuredLeafBuffers()
             kk = 1;
             while (kk < 32)
             {
-                __internal_daal_cpuid_(&info, j, kk);
+                info.get(j, kk);
                 if ((qeidmsk & (1 << kk)) != 0) cpuid_values[j].subleaf_max = kk;
                 kk++;
             }
@@ -1322,7 +1295,7 @@ void glktsn::initStructuredLeafBuffers()
             unsigned int type = 1;
             while (type && (subleaf < MAX_CACHE_SUBLEAFS))
             {
-                __internal_daal_cpuid_(&info, j, subleaf);
+                info.get(j, subleaf);
                 if (j == 0x4)
                     type = __internal_daal_getBitsFromDWORD(info.EAX, 0, 4);
                 else
@@ -1354,23 +1327,23 @@ int glktsn::eachCacheTopologyParams(unsigned targ_subleaf)
     unsigned long SMTMaxCntPerEachCache;
     CPUIDinfo info;
 
-    __internal_daal_cpuid(&info, 1);
+    info.get(1);
     if (maxCPUIDLeaf >= 4)
     {
-        // __internal_daal_cpuid leaf 4 and HT are supported
+        // CPUID leaf 4 and HT are supported
         CPUIDinfo info4;
-        __internal_daal_cpuid_(&info4, 4, targ_subleaf);
+        info4.get(4, targ_subleaf);
 
         SMTMaxCntPerEachCache = __internal_daal_getBitsFromDWORD(info4.EAX, 14, 25) + 1;
     }
     else if (__internal_daal_getBitsFromDWORD(info.EDX, 28, 28))
     {
-        // no support for __internal_daal_cpuid leaf 4 but HT is supported
+        // no support for CPUID leaf 4 but HT is supported
         SMTMaxCntPerEachCache = __internal_daal_getBitsFromDWORD(info.EBX, 16, 23);
     }
     else
     {
-        // no support for __internal_daal_cpuid leaf 4 and no HT
+        // no support for CPUID leaf 4 and no HT
         SMTMaxCntPerEachCache = 1;
     }
 
@@ -1380,13 +1353,12 @@ int glktsn::eachCacheTopologyParams(unsigned targ_subleaf)
 }
 
 // Calculate parameters used to extract/decompose APIC ID for cache topology
-// The algorithm assumes __internal_daal_cpuid feature symmetry across all physical packages.
-// Since __internal_daal_cpuid reporting by each logical processor in a physical package are identical, we only execute __internal_daal_cpuid
+// The algorithm assumes CPUID feature symmetry across all physical packages.
+// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
 // on one logical processor to derive these system-wide parameters
 // return 0 if successful, non-zero if error occurred
 int glktsn::cacheTopologyParams()
 {
-    CPUIDinfo info;
     int targ_index;
     unsigned subleaf_max = 0;
 
@@ -1426,40 +1398,40 @@ int glktsn::cacheTopologyParams()
 }
 
 // Derive parameters used to extract/decompose APIC ID for CPU topology
-// The algorithm assumes __internal_daal_cpuid feature symmetry across all physical packages.
-// Since __internal_daal_cpuid reporting by each logical processor in a physical package are
-// identical, we only execute __internal_daal_cpuid on one logical processor to derive these
+// The algorithm assumes CPUID feature symmetry across all physical packages.
+// Since CPUID reporting by each logical processor in a physical package are
+// identical, we only execute CPUID on one logical processor to derive these
 // system-wide parameters
 // return 0 if successful, non-zero if error occurred
 int glktsn::cpuTopologyParams()
 {
-    CPUIDinfo info; // data structure to store register data reported by __internal_daal_cpuid
+    CPUIDinfo info; // data structure to store register data reported by CPUID
 
     // cpuid leaf B detection
     if (maxCPUIDLeaf >= 0xB)
     {
         CPUIDinfo CPUInfoB;
-        __internal_daal_cpuid_(&CPUInfoB, 0xB, 0);
+        CPUInfoB.get(0xB, 0);
         //glbl_ptr points to assortment of global data, workspace, etc
         hasLeafB = (CPUInfoB.EBX != 0);
     }
 
-    __internal_daal_cpuid_(&info, 1, 0);
+    info.get(1, 0);
 
-    // Use HWMT feature flag __internal_daal_cpuid.01:EDX[28] to treat three configurations:
+    // Use HWMT feature flag CPUID.01:EDX[28] to treat three configurations:
     if (__internal_daal_getBitsFromDWORD(info.EDX, 28, 28))
     {
         // Processors that support Hyper-Threading
         if (hasLeafB)
         {
-            // #1, Processors that support __internal_daal_cpuid leaf 0BH
-            // use __internal_daal_cpuid leaf B to derive extraction parameters
+            // #1, Processors that support CPUID leaf 0BH
+            // use CPUID leaf B to derive extraction parameters
             cpuTopologyLeafBConstants();
         }
         else
         {
             //#2, Processors that support legacy parameters
-            //  using __internal_daal_cpuid leaf 1 and leaf 4
+            //  using CPUID leaf 1 and leaf 4
             cpuTopologyLegacyConstants(&info);
         }
     }
@@ -1624,7 +1596,7 @@ idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsi
 /*
  * Use OS specific service to find out how many logical processors can be accessed
  * by this application.
- * Querying __internal_daal_cpuid on each logical processor requires using OS-specific API to
+ * Querying CPUID on each logical processor requires using OS-specific API to
  * bind current context to each logical processor first.
  * After gathering the APIC ID's for each logical processor,
  * we can parse APIC ID into sub IDs for each topological levels
