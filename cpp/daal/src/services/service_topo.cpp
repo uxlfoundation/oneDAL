@@ -147,7 +147,6 @@ typedef unsigned __int32 AFFINITY_MASK;
     #define BLOCKSIZE_4K           4096
     #define MAX_THREAD_GROUPS_WIN7 4
 
-    #define MAX_CPUS_ARRAY     64
     #define MAX_LEAFS          80
     #define MAX_CACHE_SUBLEAFS 16 // max allocation limit of data structure per sub leaf of cpuid leaf 4 enumerated results
     #define MAX_LEAFS_EXT      MAX_LEAFS
@@ -211,6 +210,149 @@ struct CPUIDinfox
     std::array<CPUIDinfo *, MAX_CACHE_SUBLEAFS> subleaf;
     unsigned __int32 subleaf_max = 0;
 };
+
+static void __internal_daal_getCpuidInfo(CPUIDinfo * info, unsigned int eax, unsigned int ecx)
+{
+    uint32_t abcd[4];
+    run_cpuid(eax, ecx, abcd);
+    info->EAX = abcd[0];
+    info->EBX = abcd[1];
+    info->ECX = abcd[2];
+    info->EDX = abcd[3];
+}
+
+/*
+ * __internal_daal_cpuid_
+ *
+ * Returns the raw data reported in 4 registers by _internal_daal_CPUID, support sub-leaf reporting
+ *          The _internal_daal_CPUID instrinsic in MSC does not support sub-leaf reporting
+ *
+ * Arguments:
+ *     info       Point to strucrture to get output from CPIUD instruction
+ *     func       _internal_daal_CPUID Leaf number
+ *     subfunc    _internal_daal_CPUID Subleaf number
+ * Return:        None
+ */
+static void __cdecl __internal_daal_cpuid_(CPUIDinfo * info, const unsigned int func, const unsigned int subfunc)
+{
+    __internal_daal_getCpuidInfo(info, func, subfunc);
+}
+
+// Simpler version for __internal_daal_cpuid leaf that do not require sub-leaf reporting
+static void __internal_daal_cpuid(CPUIDinfo * info, const unsigned int func)
+{
+    __internal_daal_cpuid_(info, func, 0);
+}
+
+/*
+ * __internal_daal_getBitsFromDWORD
+ *
+ * Returns of bits [to:from] of DWORD
+ *
+ * Arguments:
+ *     val        DWORD to extract bits from
+ *     from       Low order bit
+ *     to         High order bit
+ * Return:        Specified bits from DWORD val
+ */
+static unsigned long __internal_daal_getBitsFromDWORD(const unsigned int val, const char from, const char to)
+{
+    if (to == 31) return val >> from;
+
+    unsigned long mask = (1 << (to + 1)) - 1;
+
+    return (val & mask) >> from;
+}
+
+/*
+ * __internal_daal_myBitScanReverse
+ *
+ * Returns of bits [to:from] of DWORD
+ * This c-emulation of the BSR instruction is shown here for tool portability
+ *
+ * \param index      Bit offset of the most significant bit that's not 0 found in mask
+ * \param mask       Input data to search the most significant bit
+ *
+ * \return        1 if a non-zero bit is found, otherwise 0
+ */
+static unsigned char __internal_daal_myBitScanReverse(unsigned * index, unsigned long mask)
+{
+    unsigned long i;
+
+    for (i = (8 * sizeof(unsigned long)); i > 0; i--)
+    {
+        if ((mask & (LNX_MY1CON << (i - 1))) != 0)
+        {
+            *index = (unsigned long)(i - 1);
+            break;
+        }
+    }
+
+    return (unsigned char)(mask != 0);
+}
+
+/*
+ * __internal_daal_countBits
+ *
+ *  count the number of bits that are set to 1 from the input
+ *
+ * Arguments:
+ *     x - Argument to count set bits in, no restriction on set bits distribution
+ * Return: Number of bits set to 1
+ */
+static int __internal_daal_countBits(DWORD_PTR x)
+{
+    int res = 0, i;
+    LNX_PTR2INT myll;
+
+    myll = (LNX_PTR2INT)(x);
+    for (i = 0; i < (8 * sizeof(myll)); i++)
+    {
+        if ((myll & (LNX_MY1CON << i)) != 0)
+        {
+            res++;
+        }
+    }
+
+    return res;
+}
+
+
+/* __internal_daal_createMask
+ *
+ * Derive a bit mask and associated mask width (# of bits) such that
+ *  the bit mask is wide enough to select the specified number of
+ *  distinct values "numEntries" within the bit field defined by maskWidth.
+ *
+ * Arguments:
+ *     numEntries - The number of entries in the bit field for which a mask needs to be created
+ *     maskWidth - Optional argument, pointer to argument that get the mask width (# of bits)
+ * Return: Created mask of all 1's up to the maskWidth
+ */
+static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskWidth)
+{
+    unsigned i;
+    unsigned long k;
+
+    // NearestPo2(numEntries) is the nearest power of 2 integer that is not less than numEntries
+    // The most significant bit of (numEntries * 2 -1) matches the above definition
+
+    k = (unsigned long)(numEntries)*2 - 1;
+
+    if (__internal_daal_myBitScanReverse(&i, k) == 0)
+    {
+        // No bits set
+        if (maskWidth) *maskWidth = 0;
+
+        return 0;
+    }
+
+    if (maskWidth) *maskWidth = i;
+
+    if (i == 31) return (unsigned)-1;
+
+    return (1 << i) - 1;
+}
 
 struct GenericAffinityMask
 {
@@ -470,7 +612,8 @@ struct glktsn
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    CPUIDinfox * cpuid_values = nullptr;
+    unsigned maxCPUIDLeaf;                  // highest CPUID leaf index in a processor
+    CPUIDinfox * cpuid_values = nullptr;    // CPUID info storage of size [maxCPUIDLeaf + 1]
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
@@ -489,11 +632,11 @@ private:
     unsigned getMaxCPUSupportedByOS();
     int cpuTopologyParams();
     int cpuTopologyLeafBConstants();
-    int cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID);
+    int cpuTopologyLegacyConstants(CPUIDinfo * pinfo);
     int cacheTopologyParams();
     void initStructuredLeafBuffers();
-    int findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf);
-    int eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID);
+    int findEachCacheIndex(unsigned cache_subleaf);
+    int eachCacheTopologyParams(unsigned targ_subleaf);
 
     void setChkProcessAffinityConsistency();
     int initEnumeratedThreadCountAndParseAPICIDs();
@@ -645,6 +788,11 @@ glktsn::glktsn()
     HWMT_SMTperCore                = 0;
     HWMT_SMTperPkg                 = 0;
 
+    // call CPUID with leaf 0 to get the maximum supported CPUID leaf index
+    CPUIDinfo info;
+    __internal_daal_cpuid(&info, 0);
+    maxCPUIDLeaf = info.EAX;
+
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
     OSProcessorCount = getMaxCPUSupportedByOS();
@@ -713,59 +861,6 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     }
     #endif
     return OSProcessorCount;
-}
-
-/*
- * __internal_daal_myBitScanReverse
- *
- * Returns of bits [to:from] of DWORD
- * This c-emulation of the BSR instruction is shown here for tool portability
- *
- * \param index      Bit offset of the most significant bit that's not 0 found in mask
- * \param mask       Input data to search the most significant bit
- *
- * \return        1 if a non-zero bit is found, otherwise 0
- */
-static unsigned char __internal_daal_myBitScanReverse(unsigned * index, unsigned long mask)
-{
-    unsigned long i;
-
-    for (i = (8 * sizeof(unsigned long)); i > 0; i--)
-    {
-        if ((mask & (LNX_MY1CON << (i - 1))) != 0)
-        {
-            *index = (unsigned long)(i - 1);
-            break;
-        }
-    }
-
-    return (unsigned char)(mask != 0);
-}
-
-/*
- * __internal_daal_countBits
- *
- *  count the number of bits that are set to 1 from the input
- *
- * Arguments:
- *     x - Argument to count set bits in, no restriction on set bits distribution
- * Return: Number of bits set to 1
- */
-static int __internal_daal_countBits(DWORD_PTR x)
-{
-    int res = 0, i;
-    LNX_PTR2INT myll;
-
-    myll = (LNX_PTR2INT)(x);
-    for (i = 0; i < (8 * sizeof(myll)); i++)
-    {
-        if ((myll & (LNX_MY1CON << i)) != 0)
-        {
-            res++;
-        }
-    }
-
-    return res;
 }
 
 /*
@@ -883,95 +978,6 @@ void glktsn::setChkProcessAffinityConsistency()
         _INTERNAL_DAAL_FREE(grpCntArg);
     }
     #endif
-}
-
-static void __internal_daal_getCpuidInfo(CPUIDinfo * info, unsigned int eax, unsigned int ecx)
-{
-    uint32_t abcd[4];
-    run_cpuid(eax, ecx, abcd);
-    info->EAX = abcd[0];
-    info->EBX = abcd[1];
-    info->ECX = abcd[2];
-    info->EDX = abcd[3];
-}
-
-/*
- * __internal_daal_cpuid_
- *
- * Returns the raw data reported in 4 registers by _internal_daal_CPUID, support sub-leaf reporting
- *          The _internal_daal_CPUID instrinsic in MSC does not support sub-leaf reporting
- *
- * Arguments:
- *     info       Point to strucrture to get output from CPIUD instruction
- *     func       _internal_daal_CPUID Leaf number
- *     subfunc    _internal_daal_CPUID Subleaf number
- * Return:        None
- */
-static void __cdecl __internal_daal_cpuid_(CPUIDinfo * info, const unsigned int func, const unsigned int subfunc)
-{
-    __internal_daal_getCpuidInfo(info, func, subfunc);
-}
-
-// Simpler version for __internal_daal_cpuid leaf that do not require sub-leaf reporting
-static void __internal_daal_cpuid(CPUIDinfo * info, const unsigned int func)
-{
-    __internal_daal_cpuid_(info, func, 0);
-}
-
-/*
- * __internal_daal_getBitsFromDWORD
- *
- * Returns of bits [to:from] of DWORD
- *
- * Arguments:
- *     val        DWORD to extract bits from
- *     from       Low order bit
- *     to         High order bit
- * Return:        Specified bits from DWORD val
- */
-static unsigned long __internal_daal_getBitsFromDWORD(const unsigned int val, const char from, const char to)
-{
-    if (to == 31) return val >> from;
-
-    unsigned long mask = (1 << (to + 1)) - 1;
-
-    return (val & mask) >> from;
-}
-
-/* __internal_daal_createMask
- *
- * Derive a bit mask and associated mask width (# of bits) such that
- *  the bit mask is wide enough to select the specified number of
- *  distinct values "numEntries" within the bit field defined by maskWidth.
- *
- * Arguments:
- *     numEntries - The number of entries in the bit field for which a mask needs to be created
- *     maskWidth - Optional argument, pointer to argument that get the mask width (# of bits)
- * Return: Created mask of all 1's up to the maskWidth
- */
-static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskWidth)
-{
-    unsigned i;
-    unsigned long k;
-
-    // NearestPo2(numEntries) is the nearest power of 2 integer that is not less than numEntries
-    // The most significant bit of (numEntries * 2 -1) matches the above definition
-
-    k = (unsigned long)(numEntries)*2 - 1;
-
-    if (__internal_daal_myBitScanReverse(&i, k) == 0)
-    {
-        // No bits set
-        if (maskWidth) *maskWidth = 0;
-
-        return 0;
-    }
-
-    if (maskWidth) *maskWidth = i;
-
-    if (i == 31) return (unsigned)-1;
-
-    return (1 << i) - 1;
 }
 
 GenericAffinityMask::GenericAffinityMask(const unsigned numCpus)
@@ -1130,17 +1136,16 @@ int glktsn::cpuTopologyLeafBConstants()
  *
  * Arguments:
  *     info - Point to strucrture containing CPIUD instruction leaf 1 data
- *     maxCPUID - Maximum __internal_daal_cpuid Leaf number supported by the processor
  * Return: 0 is no error
  */
-int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID)
+int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo)
 {
     unsigned corePlusSMTIDMaxCnt;
     unsigned coreIDMaxCnt       = 1;
     unsigned SMTIDPerCoreMaxCnt = 1;
 
     corePlusSMTIDMaxCnt = __internal_daal_getBitsFromDWORD(pinfo->EBX, 16, 23);
-    if (maxCPUID >= 4)
+    if (maxCPUIDLeaf >= 4)
     {
         CPUIDinfo info4;
         __internal_daal_cpuid_(&info4, 4, 0);
@@ -1179,7 +1184,6 @@ int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo, DWORD maxCPUID)
  *          the caller provides the raw data reported by the target sub leaf of cpuid leaf 4
  *
  * Arguments:
- *     maxCPUID - Maximum __internal_daal_cpuid Leaf number supported by the processor, provided by parent
  *     cache_type - the cache type encoding recognized by CPIUD instruction leaf 4 for the target cache level
  * Return: the sub-leaf index corresponding to the largest cache of specified cache type
  */
@@ -1199,21 +1203,20 @@ static unsigned long __internal_daal_getCacheTotalLize(CPUIDinfo info)
  * Find the subleaf index of __internal_daal_cpuid leaf 4 corresponding to the input subleaf
  *
  * Arguments:
- *     maxCPUID - Maximum __internal_daal_cpuid Leaf number supported by the processor, provided by parent
  *     cache_subleaf - the cache subleaf encoding recognized by CPIUD instruction leaf 4 for the target cache level
  * Return: the sub-leaf index corresponding to the largest cache of specified cache type
  */
-int glktsn::findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf)
+int glktsn::findEachCacheIndex(unsigned cache_subleaf)
 {
     unsigned i, type;
     unsigned long cap;
     CPUIDinfo info4;
     int target_index = -1;
 
-    if (maxCPUID < 4)
+    if (maxCPUIDLeaf < 4)
     {
         // if we can't get detailed parameters from cpuid leaf 4, this is stub pointers for older processors
-        if (maxCPUID >= 2)
+        if (maxCPUIDLeaf >= 2)
         {
             if (!cache_subleaf)
             {
@@ -1246,7 +1249,7 @@ int glktsn::findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf)
 /*
  * __internal_daal_initStructuredLeafBuffers
  *
- * Allocate buffers to store cpuid leaf data including buffers for subleaves within leaf 4 and 11
+ * Allocate buffers to store cpuid leaf data including buffers for subleaves within leaf 4 and 11 (0x4 and 0xb)
  *
  * Arguments: none
  * Return: none
@@ -1255,11 +1258,7 @@ int glktsn::findEachCacheIndex(DWORD maxCPUID, unsigned cache_subleaf)
 void glktsn::initStructuredLeafBuffers()
 {
     unsigned j, kk, qeidmsk;
-    unsigned maxCPUID;
     CPUIDinfo info;
-
-    __internal_daal_cpuid(&info, 0);
-    maxCPUID = info.EAX;
 
     cpuid_values[0].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
     if (!cpuid_values[0].subleaf[0])
@@ -1269,11 +1268,11 @@ void glktsn::initStructuredLeafBuffers()
     }
 
     cpuid_values[0].subleaf[0][0] = info;
-    // _INTERNAL_DAAL_MEMCPY(cpuid_values[0].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
+
     // Mark this combo of cpu, leaf, subleaf is valid
     cpuid_values[0].subleaf_max = 1;
 
-    for (j = 1; j <= maxCPUID; j++)
+    for (j = 1; j <= maxCPUIDLeaf; j++)
     {
         __internal_daal_cpuid(&info, j);
         cpuid_values[j].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
@@ -1283,7 +1282,6 @@ void glktsn::initStructuredLeafBuffers()
             return;
         }
         cpuid_values[j].subleaf[0][0] = info;
-        // _INTERNAL_DAAL_MEMCPY(globalCPUTopology.cpuid_values[j].subleaf[0], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
         cpuid_values[j].subleaf_max = 1;
 
         if (j == 0xd)
@@ -1318,7 +1316,7 @@ void glktsn::initStructuredLeafBuffers()
         {
             int subleaf       = 1;
             unsigned int type = 1;
-            while (type && subleaf < MAX_CACHE_SUBLEAFS)
+            while (type && (subleaf < MAX_CACHE_SUBLEAFS))
             {
                 __internal_daal_cpuid_(&info, j, subleaf);
                 if (j == 0x4)
@@ -1332,8 +1330,6 @@ void glktsn::initStructuredLeafBuffers()
                     return;
                 }
                 cpuid_values[j].subleaf[subleaf][0] = info;
-
-                // _INTERNAL_DAAL_MEMCPY(globalCPUTopology.cpuid_values[j].subleaf[subleaf], sizeof(CPUIDinfo), &info, 4 * sizeof(unsigned int));
                 subleaf++;
                 cpuid_values[j].subleaf_max = subleaf;
             }
@@ -1346,17 +1342,16 @@ void glktsn::initStructuredLeafBuffers()
  * The caller must specify which target cache level it wishes to extract Cache_IDs
  *
  * \param targ_subleaf  The subleaf index to execute CPIUD instruction leaf 4 for the target cache level, provided by parent
- * \param maxCPUID      Maximum __internal_daal_cpuid Leaf number supported by the processor, provided by parent
  *
  * \return 0 is no error
  */
-int glktsn::eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID)
+int glktsn::eachCacheTopologyParams(unsigned targ_subleaf)
 {
     unsigned long SMTMaxCntPerEachCache;
     CPUIDinfo info;
 
     __internal_daal_cpuid(&info, 1);
-    if (maxCPUID >= 4)
+    if (maxCPUIDLeaf >= 4)
     {
         // __internal_daal_cpuid leaf 4 and HT are supported
         CPUIDinfo info4;
@@ -1387,17 +1382,13 @@ int glktsn::eachCacheTopologyParams(unsigned targ_subleaf, DWORD maxCPUID)
 // return 0 if successful, non-zero if error occurred
 int glktsn::cacheTopologyParams()
 {
-    DWORD maxCPUID;
     CPUIDinfo info;
     int targ_index;
     unsigned subleaf_max = 0;
 
-    __internal_daal_cpuid(&info, 0);
-    maxCPUID = info.EAX;
-
     // Let's also examine cache topology.
     // As an example choose the largest unified cache as target level
-    if (maxCPUID >= 4)
+    if (maxCPUIDLeaf >= 4)
     {
         initStructuredLeafBuffers();
         if (error) return -1;
@@ -1405,7 +1396,7 @@ int glktsn::cacheTopologyParams()
         maxCacheSubleaf = 0;
         subleaf_max     = cpuid_values[4].subleaf_max;
     }
-    else if (maxCPUID >= 2)
+    else if (maxCPUIDLeaf >= 2)
     {
         maxCacheSubleaf = 0;
         subleaf_max     = 4;
@@ -1413,11 +1404,11 @@ int glktsn::cacheTopologyParams()
 
     for (unsigned subleaf = 0; subleaf < subleaf_max; subleaf++)
     {
-        targ_index = findEachCacheIndex(maxCPUID, subleaf);
+        targ_index = findEachCacheIndex(subleaf);
         if (targ_index >= 0)
         {
             maxCacheSubleaf = targ_index;
-            eachCacheTopologyParams(targ_index, maxCPUID);
+            eachCacheTopologyParams(targ_index);
         }
         else
         {
@@ -1438,14 +1429,10 @@ int glktsn::cacheTopologyParams()
 // return 0 if successful, non-zero if error occurred
 int glktsn::cpuTopologyParams()
 {
-    DWORD maxCPUID; // highest __internal_daal_cpuid leaf index this processor supports
     CPUIDinfo info; // data structure to store register data reported by __internal_daal_cpuid
 
-    __internal_daal_cpuid_(&info, 0, 0);
-    maxCPUID = info.EAX;
-
     // cpuid leaf B detection
-    if (maxCPUID >= 0xB)
+    if (maxCPUIDLeaf >= 0xB)
     {
         CPUIDinfo CPUInfoB;
         __internal_daal_cpuid_(&CPUInfoB, 0xB, 0);
@@ -1469,7 +1456,7 @@ int glktsn::cpuTopologyParams()
         {
             //#2, Processors that support legacy parameters
             //  using __internal_daal_cpuid leaf 1 and leaf 4
-            cpuTopologyLegacyConstants(&info, maxCPUID);
+            cpuTopologyLegacyConstants(&info);
         }
     }
     else
@@ -1588,13 +1575,13 @@ int glktsn::allocArrays(const unsigned cpus)
         return -1;
     }
 
-    cpuid_values = (CPUIDinfox *)_INTERNAL_DAAL_MALLOC(MAX_LEAFS * cpus * sizeof(CPUIDinfox));
+    cpuid_values = (CPUIDinfox *)_INTERNAL_DAAL_MALLOC((maxCPUIDLeaf + 1) * sizeof(CPUIDinfox));
     if (!cpuid_values)
     {
         error = -1;
         return -1;
     }
-    _INTERNAL_DAAL_MEMSET(cpuid_values, 0, MAX_LEAFS * cpus * sizeof(CPUIDinfox));
+    _INTERNAL_DAAL_MEMSET(cpuid_values, 0, (maxCPUIDLeaf + 1) * sizeof(CPUIDinfox));
 
     return 0;
 }
@@ -2297,7 +2284,7 @@ void glktsn::freeArrays()
 
     if (cpuid_values)
     {
-        for (unsigned int i = 0; i <= OSProcessorCount; i++)
+        for (unsigned int i = 0; i <= maxCPUIDLeaf; i++)
         {
             _INTERNAL_DAAL_FREE(cpuid_values[i].subleaf[0]);
 
