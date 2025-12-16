@@ -30,6 +30,8 @@ public:
     binary_output_archive(const binary_output_archive&) = delete;
     binary_output_archive& operator=(const binary_output_archive&) = delete;
 
+    ~binary_output_archive() = default;
+
     void prologue() {
         is_valid_ = false;
         const std::uint32_t magic = binary_archive_magic;
