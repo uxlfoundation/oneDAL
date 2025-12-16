@@ -549,7 +549,7 @@ public:
             }
         }
 
-        ~BuffersStorage() { destoy(); }
+        ~BuffersStorage() { destroy(); }
 
         T * getBlockFromStorage()
         {
@@ -595,7 +595,7 @@ public:
             return alloc[alloc.size() - 1];
         }
 
-        void destoy()
+        void destroy()
         {
             for (size_t i = 0; i < alloc.size(); ++i)
             {
@@ -626,7 +626,7 @@ class GHSumsStorage
 public:
     GHSumsStorage(size_t nGH, size_t nInitElems) : _nGH(nGH), _capacity(nInitElems), _curIdx(0) { allocate(_capacity); }
 
-    ~GHSumsStorage() { destoy(); }
+    ~GHSumsStorage() { destroy(); }
 
     T * getBlockFromStorage()
     {
@@ -663,7 +663,7 @@ protected:
         }
     }
 
-    void destoy()
+    void destroy()
     {
         for (size_t i = 0; i < alloc.size(); ++i)
         {
