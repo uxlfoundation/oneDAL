@@ -58,4 +58,6 @@ jobs:
           rm -rf __work
           docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
       - name: Building oneDAL with bazel
-        run: docker run onedal-dev bazel build :release
+        run: |
+          bazel clean --expunge
+          docker run onedal-dev bazel build :release
