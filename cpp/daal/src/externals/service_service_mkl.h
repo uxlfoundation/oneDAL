@@ -93,7 +93,9 @@ struct MklService
         }
         const unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetSysLogicalProcessorCount();
         const unsigned int ncpus       = serv_get_ncpus();
-        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? nlogicalcpu / ncpus : 1);
+        // On hybrid systems, return 2 in case of hyper-threading enabled at least on some cores,
+        // 1 otherwise
+        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? (nlogicalcpu - ncpus + 1) / ncpus : 1);
     }
 
     // TODO: The real call should be delegated to a backend library if the option is supported

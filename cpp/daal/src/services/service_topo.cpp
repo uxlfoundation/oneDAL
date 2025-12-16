@@ -904,17 +904,12 @@ void glktsn::setChkProcessAffinityConsistency()
             error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
         }
         const unsigned short grpCnt = GetActiveProcessorGroupCount();
-        unsigned short * grpCntArg  = (unsigned short *)_INTERNAL_DAAL_MALLOC(grpCnt * sizeof(unsigned short));
-        if (!grpCntArg)
-        {
-            error = -1;
-            return;
-        }
-        unsigned int cpu_beg = 0;
+        unsigned int cpu_beg        = 0;
         for (unsigned int i = 0; i < grpCnt; i++)
         {
+            unsigned short grpCntArg = MAX_THREAD_GROUPS_WIN7;
             unsigned short grpAffinity[MAX_THREAD_GROUPS_WIN7];
-            if (!GetProcessGroupAffinity(GetCurrentProcess(), grpCntArg, grpAffinity))
+            if (!GetProcessGroupAffinity(GetCurrentProcess(), &grpCntArg, grpAffinity))
             {
                 //throw some exception here, no full affinity for the process
                 error |= _MSGTYP_UNKNOWNERR_OS;
@@ -932,7 +927,6 @@ void glktsn::setChkProcessAffinityConsistency()
                 if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prev_grp_affinity))
                 {
                     error |= _MSGTYP_UNKNOWNERR_OS;
-                    _INTERNAL_DAAL_FREE(grpCntArg);
                     return;
                 }
 
@@ -961,7 +955,6 @@ void glktsn::setChkProcessAffinityConsistency()
                 }
             }
         }
-        _INTERNAL_DAAL_FREE(grpCntArg);
     }
     #endif
 }
