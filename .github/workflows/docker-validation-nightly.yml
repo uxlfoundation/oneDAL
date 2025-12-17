@@ -48,17 +48,68 @@ jobs:
     name: Docker validation
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Disk & memory (before build)
+        run: |
+          echo "=== Disk usage ==="
+          df -h
+          df -i
+          echo "=== Memory ==="
+          free -h
+          echo "=== Top directories ==="
+          du -h -d 2 . | sort -h | tail -20
+
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
+
+      - name: Docker disk usage (after image build)
+        run: docker system df
+
       - name: Building oneDAL with bazel
         run: |
-          docker run onedal-dev bazel build :release
-      - name: Building oneDAL
+          docker run onedal-dev sh -c "
+            echo '=== Memory inside container ==='
+            free -h || true
+
+            echo '=== Disk before bazel ==='
+            df -h
+            du -h -d 2 / | sort -h | tail -20
+
+            bazel build :release
+
+            echo '=== Disk after bazel ==='
+            du -h -d 2 / | sort -h | tail -20
+          "
+
+      - name: Building oneDAL (make)
         run: |
           docker run --rm onedal-dev sh -c "
-            .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env &&
+            echo '=== Disk before make ==='
+            df -h
+            du -h -d 2 . | sort -h | tail -20
+
+            .ci/scripts/build.sh \
+              --compiler gnu \
+              --optimizations avx2 \
+              --target daal \
+              --conda-env ci-env
+
+            echo '=== Disk after make ==='
+            du -h -d 2 . | sort -h | tail -20
+
+            echo '=== __work size ==='
+            du -sh __work || true
+
             rm -rf __work
+
+            echo '=== Disk after cleanup ==='
+            du -h -d 2 . | sort -h | tail -20
           "
+
+      - name: Docker disk usage (final)
+        run: docker system df
+
