@@ -54,6 +54,7 @@ namespace interface2
  * \brief Naive Bayes algorithm parameters
  *
  * \snippet naive_bayes/multinomial_naive_bayes_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public classifier::Parameter
@@ -64,8 +65,8 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
      *  \param[in] priorClassEstimates_ Prior class estimates, numeric table of size [nClasses x 1]
      *  \param[in] alpha_               Imagined occurrences of the each feature, numeric table of size [1 x nFeatures]
      */
-    Parameter(size_t nClasses, const data_management::NumericTablePtr & priorClassEstimates_ = data_management::NumericTablePtr(),
-              const data_management::NumericTablePtr & alpha_ = data_management::NumericTablePtr())
+    DAAL_DEPRECATED Parameter(size_t nClasses, const data_management::NumericTablePtr & priorClassEstimates_ = data_management::NumericTablePtr(),
+                              const data_management::NumericTablePtr & alpha_ = data_management::NumericTablePtr())
         : classifier::Parameter(nClasses), priorClassEstimates(priorClassEstimates_), alpha(alpha_)
     {}
 
@@ -82,6 +83,7 @@ namespace interface1
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__MODEL"></a>
  * \brief Multinomial naive Bayes model
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public classifier::Model
 {
@@ -92,7 +94,7 @@ public:
      * Empty constructor for deserialization
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
-    Model() {}
+    DAAL_DEPRECATED Model() {}
 
     /**
      * Constructs multinomial naive Bayes model
@@ -102,7 +104,7 @@ public:
      * \DAAL_DEPRECATED_USE{ Model::create }
      */
     template <typename modelFPType>
-    DAAL_EXPORT Model(size_t nFeatures, const interface2::Parameter & parameter, modelFPType dummy);
+    DAAL_DEPRECATED DAAL_EXPORT Model(size_t nFeatures, const interface2::Parameter & parameter, modelFPType dummy);
 
     /**
      * Constructs multinomial naive Bayes model
@@ -111,7 +113,8 @@ public:
      * \param[out] stat      Status of the model construction
      */
     template <typename modelFPType>
-    DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, const interface2::Parameter & parameter, services::Status * stat = NULL);
+    DAAL_DEPRECATED DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, const interface2::Parameter & parameter,
+                                                                         services::Status * stat = NULL);
     /** \private */
     virtual ~Model() {}
 
@@ -165,6 +168,7 @@ typedef services::SharedPtr<Model> ModelPtr;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTINOMIAL_NAIVE_BAYES__PARTIALMODEL"></a>
  * \brief PartialModel represents partial multinomial naive Bayes model
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT PartialModel : public classifier::Model
 {
@@ -174,7 +178,7 @@ public:
      * Empty constructor for deserialization
      * \DAAL_DEPRECATED_USE{ PartialModel::create }
      */
-    PartialModel();
+    DAAL_DEPRECATED PartialModel();
 
     /**
      * Constructs multinomial naive Bayes partial model
@@ -184,7 +188,7 @@ public:
      * \DAAL_DEPRECATED_USE{ PartialModel::create }
      */
     template <typename modelFPType>
-    DAAL_EXPORT PartialModel(size_t nFeatures, const interface2::Parameter & parameter, modelFPType dummy);
+    DAAL_DEPRECATED DAAL_EXPORT PartialModel(size_t nFeatures, const interface2::Parameter & parameter, modelFPType dummy);
 
     /**
      * Constructs multinomial naive Bayes partial model
@@ -194,8 +198,8 @@ public:
      * \return Multinomial naive Bayes partial model
      */
     template <typename modelFPType>
-    DAAL_EXPORT static services::SharedPtr<PartialModel> create(size_t nFeatures, const interface2::Parameter & parameter,
-                                                                services::Status * stat = NULL);
+    DAAL_DEPRECATED DAAL_EXPORT static services::SharedPtr<PartialModel> create(size_t nFeatures, const interface2::Parameter & parameter,
+                                                                                services::Status * stat = NULL);
     /** \private */
     virtual ~PartialModel() {}
 

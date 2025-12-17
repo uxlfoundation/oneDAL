@@ -61,11 +61,12 @@ namespace interface1
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__QUALITY_METRIC_SET__RESULTCOLLECTION"></a>
  * \brief Class that implements functionality of the collection of result objects of the quality metrics algorithm
  *        specialized for using with the SVM training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT ResultCollection : public algorithms::quality_metric_set::ResultCollection
 {
 public:
-    ResultCollection() {}
+    DAAL_DEPRECATED ResultCollection() {}
     virtual ~ResultCollection() {}
 
     /**
@@ -81,11 +82,12 @@ typedef services::SharedPtr<ResultCollection> ResultCollectionPtr;
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__QUALITY_METRIC_SET__INPUTDATACOLLECTION"></a>
  * \brief Class that implements functionality of the collection of input objects of the quality metrics algorithm
  *        specialized for using with the SVM training algorithm
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT InputDataCollection : public algorithms::quality_metric_set::InputDataCollection
 {
 public:
-    InputDataCollection() {}
+    DAAL_DEPRECATED InputDataCollection() {}
     virtual ~InputDataCollection() {}
 
     /**

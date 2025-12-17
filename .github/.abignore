@@ -17,55 +17,58 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect daal::internal namespace
+; deselect daal::internal namespaces
+
 [suppress_type]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = daal::internal::.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = daal::internal::.*
-
-; deselect tbb::* namespaces
-[suppress_type]
-  name_regexp = tbb::.*
-
-[suppress_variable]
-  name_regexp = tbb::.*
-
-[suppress_function]
-  name_regexp = tbb::.*
+symbol_name_regexp = _ZN4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect oneapi::dal backend namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*backend::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7backend[[:digit:]].*
+drop = yes
 
 ; deselect oneapi::dal detail namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*detail::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*6detail[[:digit:]].*
+drop = yes
 
 ; deselect oneapi::dal preview namespaces
 [suppress_type]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
 
 [suppress_variable]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
 
 [suppress_function]
-  name_regexp = oneapi::dal::.*preview::.*
+symbol_name_regexp = _ZN6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes

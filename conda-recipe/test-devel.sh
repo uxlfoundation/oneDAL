@@ -62,3 +62,4 @@ run_examples oneapi dynamic
 run_examples oneapi static
 run_examples daal dynamic
 run_examples daal static
+# TODO: add testing for samples
