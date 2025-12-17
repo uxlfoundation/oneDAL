@@ -23,6 +23,8 @@
 */
 #include "services/daal_defines.h"
 
+#include <iostream>
+
 #define MAX_CACHE_LEVELS      4
 #define DEFAULT_L1_CACHE_SIZE 32 * 1024
 #define DEFAULT_L2_CACHE_SIZE 256 * 1024
@@ -764,6 +766,7 @@ private:
 
 glktsn::glktsn()
 {
+    std::cout << "Initializing global CPU topology object, start ..." << std::endl << std::flush;
     isInit                = false;
     error                 = 0;
     hasLeafB              = false;
@@ -779,12 +782,15 @@ glktsn::glktsn()
     info.get(0);
     maxCPUIDLeaf = info.EAX;
 
+    std::cout << "Initializing global CPU topology object, maxCPUIDLeaf: " << maxCPUIDLeaf << std::endl << std::flush;
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
     OSProcessorCount = getMaxCPUSupportedByOS();
+    std::cout << "Initializing global CPU topology object, OSProcessorCount: " << OSProcessorCount << std::endl << std::flush;
 
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
     allocArrays(OSProcessorCount);
+    std::cout << "Initializing global CPU topology object, Arrays allocated , error: " << error << std::endl << std::flush;
     if (error) return;
 
     for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++)
@@ -797,6 +803,7 @@ glktsn::glktsn()
 
     // Initialize the global CPU topology object
     buildSystemTopologyTables();
+    std::cout << "Initializing global CPU topology object, System topology built , error: " << error << std::endl << std::flush;
 }
 
 /*
@@ -823,6 +830,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // if Windows version support processor groups
     // tally actually populated logical processors in each group
     grpCnt = (WORD)GetActiveProcessorGroupCount();
+    std::cout << "Active processor group count: " << grpCnt << std::endl << std::flush;
     cnt    = BLOCKSIZE_4K;
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
@@ -841,6 +849,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     for (unsigned int i = 0; i < grpCnt; i++)
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
+        std::cout << "Active processors count in group " << i << ": " << activeProcCount << std::endl << std::flush;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
         if (error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
         OSProcessorCount += activeProcCount;
@@ -901,6 +910,7 @@ void glktsn::setChkProcessAffinityConsistency()
         }
         if (OSProcessorCount > MAX_WIN7_LOG_CPU)
         {
+            std::cout << "Error (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > " << MAX_WIN7_LOG_CPU << std::endl << std::flush;
             error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
         }
         const unsigned short grpCnt = GetActiveProcessorGroupCount();
@@ -911,6 +921,7 @@ void glktsn::setChkProcessAffinityConsistency()
             unsigned short grpAffinity[MAX_THREAD_GROUPS_WIN7];
             if (!GetProcessGroupAffinity(GetCurrentProcess(), &grpCntArg, grpAffinity))
             {
+                std::cout << "Error (setChkProcessAffinityConsistency): !GetProcessGroupAffinity, process group affinity is not full" << std::endl << std::flush;
                 //throw some exception here, no full affinity for the process
                 error |= _MSGTYP_UNKNOWNERR_OS;
                 break;
@@ -926,6 +937,7 @@ void glktsn::setChkProcessAffinityConsistency()
                     grp_affinity.Mask = (DWORD_PTR)(((DWORD_PTR)LNX_MY1CON << cpu_cnt) - 1);
                 if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prev_grp_affinity))
                 {
+                    std::cout << "Error (setChkProcessAffinityConsistency): !SetThreadGroupAffinity" << std::endl << std::flush;
                     error |= _MSGTYP_UNKNOWNERR_OS;
                     return;
                 }
@@ -940,6 +952,7 @@ void glktsn::setChkProcessAffinityConsistency()
                     {
                         if (cpu_generic_processAffinity.set(j))
                         {
+                            std::cout << "Error (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j) failed for j = " << j << std::endl << std::flush;
                             error |= _MSGTYP_USERAFFINITYERR;
                             break;
                         }
@@ -949,6 +962,7 @@ void glktsn::setChkProcessAffinityConsistency()
 
                 if (sum > OSProcessorCount)
                 {
+                    std::cout << "Error (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl << std::flush;
                     //throw some exception here, no full affinity for the process
                     error |= _MSGTYP_USERAFFINITYERR;
                     break;
