@@ -53,12 +53,12 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
+      - name: Building oneDAL with bazel
+        run: |
+          docker run onedal-dev bazel build :release
       - name: Building oneDAL
         run: |
           docker run --rm onedal-dev sh -c "
             .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env &&
             rm -rf __work
           "
-      - name: Building oneDAL with bazel
-        run: |
-          docker run onedal-dev bazel build :release

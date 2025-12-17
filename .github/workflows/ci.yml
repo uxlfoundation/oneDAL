@@ -45,7 +45,7 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     name: LinuxMakeDPCPP(${{ matrix.ISA }})
-    timeout-minutes: 360
+    timeout-minutes: 240
 
     steps:
       - name: Checkout oneDAL
@@ -69,10 +69,8 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target daal --debug symbols --jobs 20
           rm -rf __work
-      - name: Make onedal debug
-        id: onedal-dbg
-        run: |
       - name: Make oneapi_c (debug)
+        id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
@@ -96,7 +94,7 @@ jobs:
         with:
           name: __release_lnx
           path: ./__release_lnx
-      - name: Make onedal
+      - name: Make oneapi_dpc
         if: matrix.runner != 'ubuntu-24.04'
         run: |
           # generate new onedal portion for use in examples testing (due to issues with dpc debug build)
@@ -116,10 +114,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
-      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
+      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI samples
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
-      - name: daal/cpp/mpi examples
+      - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
