@@ -67,9 +67,6 @@ jobs:
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
 
-      - name: Docker disk usage
-        run: docker system df
-
       - name: Building oneDAL with bazel
         run: |
           mkdir -p ${{ github.workspace }}/bazel-cache
