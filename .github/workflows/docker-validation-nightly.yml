@@ -51,13 +51,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - name: Free disk space on runner
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache
-          df -h
+      # - name: Free disk space on runner
+      #   run: |
+      #     sudo rm -rf /usr/share/dotnet
+      #     sudo rm -rf /usr/local/lib/android
+      #     sudo rm -rf /opt/ghc
+      #     sudo rm -rf /opt/hostedtoolcache
+      #     df -h
 
       - name: Docker cleanup before build
         run: |
@@ -80,6 +80,5 @@ jobs:
             onedal-dev sh -c "
               # Use external disk cache
               echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
-
               bazel build :release
             "
