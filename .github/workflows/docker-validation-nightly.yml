@@ -51,18 +51,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      # - name: Free disk space on runner
-      #   run: |
-      #     sudo rm -rf /usr/share/dotnet
-      #     sudo rm -rf /usr/local/lib/android
-      #     sudo rm -rf /opt/ghc
-      #     sudo rm -rf /opt/hostedtoolcache
-      #     df -h
+      - name: Free disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          df -h
 
-      # - name: Docker cleanup before build
-      #   run: |
-      #     docker system prune -af
-      #     docker builder prune -af
+      - name: Docker cleanup before build
+        run: |
+          docker system prune -af
+          docker builder prune -af
 
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
@@ -88,7 +88,3 @@ jobs:
             .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
             rm -rf __work
           "
-
-      - name: Docker disk usage (final)
-        run: docker system df
-
