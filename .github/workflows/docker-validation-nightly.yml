@@ -52,6 +52,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - name: Free disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          df -h
 
       - name: Disk & memory (before build)
         run: |
@@ -63,6 +70,11 @@ jobs:
           echo "=== Top directories ==="
           du -h -d 2 . | sort -h | tail -20
 
+      # - name: Docker cleanup before build
+      #   run: |
+      #     docker system prune -af
+      #     docker builder prune -af
+
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
 
@@ -71,20 +83,23 @@ jobs:
 
       - name: Building oneDAL with bazel
         run: |
-          docker run onedal-dev sh -c "
-            echo '=== Memory inside container ==='
-            free -h || true
+          mkdir -p ${{ github.workspace }}/bazel-cache
 
-            echo '=== Disk before bazel ==='
-            df -h
-            du -h -d 2 / | sort -h | tail -20
+          docker run \
+            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
+            onedal-dev sh -c "
+              echo '=== Disk before bazel ==='
+              df -h
+              du -h -d 2 / | sort -h | tail -20
 
-            bazel build :release
+              # Use external disk cache (same idea as Azure pipeline)
+              echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
 
-            echo '=== Disk after bazel ==='
-            du -h -d 2 / | sort -h | tail -20
-          "
+              bazel build :release
 
+              echo '=== Disk after bazel ==='
+              du -h -d 2 / | sort -h | tail -20
+            "
       - name: Building oneDAL (make)
         run: |
           docker run --rm onedal-dev sh -c "
