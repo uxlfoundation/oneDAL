@@ -707,18 +707,11 @@ private:
         //we resolve API dynamically at runtime, data structures required by new API is determined at compile time
 
         unsigned int cpu_beg = 0, cpu_cnt, j;
-        DWORD cnt;
-        SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
+        // The system logical processor information was already retrieved by calling getMaxCPUSupportedByOS()
+        SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
         GROUP_AFFINITY grp_affinity;
         if (cpu >= MAX_WIN7_LOG_CPU) return ret;
 
-        cnt = BLOCKSIZE_4K;
-        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
-
-        if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt)) return ret;
-
-        if (pSystem_rel_info->Relationship != RelationGroup) return ret;
         // to determine the input ordinal 'cpu' number belong to which processor group,
         // we consider each processor group to have its logical processors assigned with
         // numerical index consecutively in increasing order
@@ -790,7 +783,7 @@ glktsn::glktsn()
 
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
     allocArrays(OSProcessorCount);
-    std::cout << "Initializing global CPU topology object, Arrays allocated , error: " << error << std::endl << std::flush;
+    std::cout << "Initializing global CPU topology object, Arrays allocated , e**or: " << error << std::endl << std::flush;
     if (error) return;
 
     for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++)
@@ -803,7 +796,7 @@ glktsn::glktsn()
 
     // Initialize the global CPU topology object
     buildSystemTopologyTables();
-    std::cout << "Initializing global CPU topology object, System topology built , error: " << error << std::endl << std::flush;
+    std::cout << "Initializing global CPU topology object, System topology built , e**or: " << error << std::endl << std::flush;
 }
 
 /*
@@ -890,27 +883,13 @@ void glktsn::setChkProcessAffinityConsistency()
 
     GROUP_AFFINITY grp_affinity, prev_grp_affinity;
 
-    DWORD cnt;
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
+    // The system logical processor information was already retrieved by calling getMaxCPUSupportedByOS()
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
     {
-        cnt = BLOCKSIZE_4K;
-        _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
-        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
-
-        if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
-        {
-            error |= _MSGTYP_UNKNOWNERR_OS;
-            return;
-        }
-        if (pSystem_rel_info->Relationship != RelationGroup)
-        {
-            error |= _MSGTYP_UNKNOWNERR_OS;
-            return;
-        }
         if (OSProcessorCount > MAX_WIN7_LOG_CPU)
         {
-            std::cout << "Error (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > " << MAX_WIN7_LOG_CPU << std::endl << std::flush;
+            std::cout << "E**or (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > " << MAX_WIN7_LOG_CPU << std::endl << std::flush;
             error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
         }
         const unsigned short grpCnt = GetActiveProcessorGroupCount();
@@ -921,7 +900,7 @@ void glktsn::setChkProcessAffinityConsistency()
             unsigned short grpAffinity[MAX_THREAD_GROUPS_WIN7];
             if (!GetProcessGroupAffinity(GetCurrentProcess(), &grpCntArg, grpAffinity))
             {
-                std::cout << "Error (setChkProcessAffinityConsistency): !GetProcessGroupAffinity, process group affinity is not full" << std::endl << std::flush;
+                std::cout << "E**or (setChkProcessAffinityConsistency): !GetProcessGroupAffinity, process group affinity is not full" << std::endl << std::flush;
                 //throw some exception here, no full affinity for the process
                 error |= _MSGTYP_UNKNOWNERR_OS;
                 break;
@@ -937,7 +916,7 @@ void glktsn::setChkProcessAffinityConsistency()
                     grp_affinity.Mask = (DWORD_PTR)(((DWORD_PTR)LNX_MY1CON << cpu_cnt) - 1);
                 if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prev_grp_affinity))
                 {
-                    std::cout << "Error (setChkProcessAffinityConsistency): !SetThreadGroupAffinity" << std::endl << std::flush;
+                    std::cout << "E**or (setChkProcessAffinityConsistency): !SetThreadGroupAffinity" << std::endl << std::flush;
                     error |= _MSGTYP_UNKNOWNERR_OS;
                     return;
                 }
@@ -952,7 +931,7 @@ void glktsn::setChkProcessAffinityConsistency()
                     {
                         if (cpu_generic_processAffinity.set(j))
                         {
-                            std::cout << "Error (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j) failed for j = " << j << std::endl << std::flush;
+                            std::cout << "E**or (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j) failed for j = " << j << std::endl << std::flush;
                             error |= _MSGTYP_USERAFFINITYERR;
                             break;
                         }
@@ -962,7 +941,7 @@ void glktsn::setChkProcessAffinityConsistency()
 
                 if (sum > OSProcessorCount)
                 {
-                    std::cout << "Error (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl << std::flush;
+                    std::cout << "E**or (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl << std::flush;
                     //throw some exception here, no full affinity for the process
                     error |= _MSGTYP_USERAFFINITYERR;
                     break;
