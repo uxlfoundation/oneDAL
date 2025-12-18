@@ -48,27 +48,16 @@ jobs:
     name: Docker validation
     if: github.repository == 'uxlfoundation/oneDAL'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      - name: Free disk space on runner
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache
-          df -h
-
-      - name: Disk & memory (before build)
-        run: |
-          echo "=== Disk usage ==="
-          df -h
-          df -i
-          echo "=== Memory ==="
-          free -h
-          echo "=== Top directories ==="
-          du -h -d 2 . | sort -h | tail -20
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      # - name: Free disk space on runner
+      #   run: |
+      #     sudo rm -rf /usr/share/dotnet
+      #     sudo rm -rf /usr/local/lib/android
+      #     sudo rm -rf /opt/ghc
+      #     sudo rm -rf /opt/hostedtoolcache
+      #     df -h
 
       # - name: Docker cleanup before build
       #   run: |
@@ -78,7 +67,7 @@ jobs:
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
 
-      - name: Docker disk usage (after image build)
+      - name: Docker disk usage
         run: docker system df
 
       - name: Building oneDAL with bazel
@@ -88,41 +77,16 @@ jobs:
           docker run \
             -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
             onedal-dev sh -c "
-              echo '=== Disk before bazel ==='
-              df -h
-              du -h -d 2 / | sort -h | tail -20
-
-              # Use external disk cache (same idea as Azure pipeline)
+              # Use external disk cache
               echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
 
               bazel build :release
-
-              echo '=== Disk after bazel ==='
-              du -h -d 2 / | sort -h | tail -20
             "
       - name: Building oneDAL (make)
         run: |
           docker run --rm onedal-dev sh -c "
-            echo '=== Disk before make ==='
-            df -h
-            du -h -d 2 . | sort -h | tail -20
-
-            .ci/scripts/build.sh \
-              --compiler gnu \
-              --optimizations avx2 \
-              --target daal \
-              --conda-env ci-env
-
-            echo '=== Disk after make ==='
-            du -h -d 2 . | sort -h | tail -20
-
-            echo '=== __work size ==='
-            du -sh __work || true
-
+            .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
             rm -rf __work
-
-            echo '=== Disk after cleanup ==='
-            du -h -d 2 . | sort -h | tail -20
           "
 
       - name: Docker disk usage (final)
