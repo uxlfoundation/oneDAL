@@ -110,6 +110,7 @@ typedef cpuset_t cpu_set_t;
     #else /* WINDOWS */
         #define NOMINMAX
         #include <windows.h>
+        #include <tlhelp32.h> // CreateToolhelp32Snapshot, THREADENTRY32, Thread32First, Thread32Next
 
         #ifdef _M_IA64
             #define LNX_PTR2INT unsigned long long
@@ -824,7 +825,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // tally actually populated logical processors in each group
     grpCnt = (WORD)GetActiveProcessorGroupCount();
     std::cout << "Active processor group count: " << grpCnt << std::endl << std::flush;
-    cnt    = BLOCKSIZE_4K;
+    cnt = BLOCKSIZE_4K;
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
@@ -879,72 +880,106 @@ void glktsn::setChkProcessAffinityConsistency()
     }
 
     #else
-    unsigned int sum = 0;
 
-    GROUP_AFFINITY grp_affinity, prev_grp_affinity;
-
-    // The system logical processor information was already retrieved by calling getMaxCPUSupportedByOS()
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
-
+    if (OSProcessorCount > MAX_WIN7_LOG_CPU)
     {
-        if (OSProcessorCount > MAX_WIN7_LOG_CPU)
+        std::cout << "E**or (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > "
+                  << MAX_WIN7_LOG_CPU << std::endl
+                  << std::flush;
+        error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
+    }
+
+    const unsigned short grpCnt = GetActiveProcessorGroupCount();
+    if (grpCnt > MAX_THREAD_GROUPS_WIN7)
+    {
+        std::cout << "E**or (setChkProcessAffinityConsistency): Group count exceeds MAX_THREAD_GROUPS_WIN7: " << grpCnt << " > "
+                  << MAX_THREAD_GROUPS_WIN7 << std::endl
+                  << std::flush;
+        error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processor groups than allowed, make change as required.
+        return;
+    }
+    // Take snapshot of all threads in the process
+
+    DWORD processId       = GetCurrentProcessId();
+    HANDLE snapshotHandle = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, processId);
+    if (snapshotHandle == INVALID_HANDLE_VALUE)
+    {
+        std::cout << "Failed to create thread snapshot: " << GetLastError() << std::endl;
+        error |= _MSGTYP_UNKNOWNERR_OS;
+        return;
+    }
+
+    // Index of the array is the group number, value is the affinity mask
+    KAFFINITY groupAffinityMap[MAX_THREAD_GROUPS_WIN7] = {};
+    bool groupAffinityInitialized                      = false;
+
+    // Iterate through all threads, get their group affinities and store them in the map
+    THREADENTRY32 threadEntry;
+    threadEntry.dwSize = sizeof(THREADENTRY32);
+
+    if (Thread32First(snapshotHandle, &threadEntry))
+    {
+        do
         {
-            std::cout << "E**or (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > " << MAX_WIN7_LOG_CPU << std::endl << std::flush;
-            error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
-        }
-        const unsigned short grpCnt = GetActiveProcessorGroupCount();
-        unsigned int cpu_beg        = 0;
-        for (unsigned int i = 0; i < grpCnt; i++)
-        {
-            unsigned short grpCntArg = MAX_THREAD_GROUPS_WIN7;
-            unsigned short grpAffinity[MAX_THREAD_GROUPS_WIN7];
-            if (!GetProcessGroupAffinity(GetCurrentProcess(), &grpCntArg, grpAffinity))
+            if (threadEntry.th32OwnerProcessID == processId)
             {
-                std::cout << "E**or (setChkProcessAffinityConsistency): !GetProcessGroupAffinity, process group affinity is not full" << std::endl << std::flush;
+                HANDLE threadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, threadEntry.th32ThreadID);
+                if (threadHandle)
+                {
+                    GROUP_AFFINITY threadAffinity;
+                    if (GetThreadGroupAffinity(threadHandle, &threadAffinity))
+                    {
+                        // Store the affinity mask for this group
+                        groupAffinityMap[threadAffinity.Group] = threadAffinity.Mask;
+                        groupAffinityInitialized               = true;
+                    }
+                    CloseHandle(threadHandle);
+                }
+            }
+        } while (Thread32Next(snapshotHandle, &threadEntry));
+    }
+
+    CloseHandle(snapshotHandle);
+
+    if (!groupAffinityInitialized)
+    {
+        std::cout << "No thread affinities were initialized." << std::endl;
+        error |= _MSGTYP_UNKNOWNERR_OS;
+        return;
+    }
+
+    unsigned int sum                                        = 0;
+    constexpr unsigned int MAX_LOGICAL_PROCESSORS_PER_GROUP = 64;
+    for (unsigned int group = 0; group < grpCnt; group++)
+    {
+        KAFFINITY groupAffinityMask = groupAffinityMap[group];
+        if (groupAffinityMask)
+        {
+            unsigned int cpu_cnt = __internal_daal_countBits(groupAffinityMask); // count bits on each target affinity group
+            sum += cpu_cnt;
+            if (sum > OSProcessorCount)
+            {
+                std::cout << "E**or (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl
+                          << std::flush;
                 //throw some exception here, no full affinity for the process
-                error |= _MSGTYP_UNKNOWNERR_OS;
+                error |= _MSGTYP_USERAFFINITYERR;
                 break;
             }
-            else
+
+            for (unsigned int j = 0; j < MAX_LOGICAL_PROCESSORS_PER_GROUP; j++)
             {
-                unsigned int cpu_cnt = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
-                _INTERNAL_DAAL_MEMSET(&grp_affinity, 0, sizeof(GROUP_AFFINITY));
-                grp_affinity.Group = (WORD)i;
-                if (cpu_cnt == (sizeof(DWORD_PTR) * 8))
-                    grp_affinity.Mask = (DWORD_PTR)(-LNX_MY1CON);
-                else
-                    grp_affinity.Mask = (DWORD_PTR)(((DWORD_PTR)LNX_MY1CON << cpu_cnt) - 1);
-                if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prev_grp_affinity))
+                // check that j-th core belongs to the process affinity mask
+                if (groupAffinityMask & (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << j)))
                 {
-                    std::cout << "E**or (setChkProcessAffinityConsistency): !SetThreadGroupAffinity" << std::endl << std::flush;
-                    error |= _MSGTYP_UNKNOWNERR_OS;
-                    return;
-                }
-
-                GetThreadGroupAffinity(GetCurrentProcess(), &grp_affinity);
-                sum += __internal_daal_countBits(grp_affinity.Mask); // count bits on each target affinity group
-
-                for (unsigned int j = cpu_beg; j < cpu_beg + cpu_cnt; j++)
-                {
-                    // check that j-th core belongs to the process affinity mask
-                    if (grp_affinity.Mask & (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << (j - cpu_beg))))
+                    if (cpu_generic_processAffinity.set(j + group * MAX_LOGICAL_PROCESSORS_PER_GROUP))
                     {
-                        if (cpu_generic_processAffinity.set(j))
-                        {
-                            std::cout << "E**or (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j) failed for j = " << j << std::endl << std::flush;
-                            error |= _MSGTYP_USERAFFINITYERR;
-                            break;
-                        }
+                        std::cout << "E**or (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j + group * "
+                                     "MAX_LOGICAL_PROCESSORS_PER_GROUP) failed for j = "
+                                  << j << ", group = " << group << std::endl
+                                  << std::flush;
+                        error |= _MSGTYP_USERAFFINITYERR;
+                        break;
                     }
-                }
-                cpu_beg += cpu_cnt;
-
-                if (sum > OSProcessorCount)
-                {
-                    std::cout << "E**or (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl << std::flush;
-                    //throw some exception here, no full affinity for the process
-                    error |= _MSGTYP_USERAFFINITYERR;
-                    break;
                 }
             }
         }
