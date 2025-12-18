@@ -67,6 +67,10 @@ jobs:
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
 
+      - name: Building oneDAL (make)
+        run: |
+          docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+
       - name: Building oneDAL with bazel
         run: |
           mkdir -p ${{ github.workspace }}/bazel-cache
@@ -79,6 +83,3 @@ jobs:
 
               bazel build :release
             "
-      - name: Building oneDAL (make)
-        run: |
-          docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
