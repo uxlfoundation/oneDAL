@@ -23,8 +23,6 @@
 */
 #include "services/daal_defines.h"
 
-#include <iostream>
-
 #define MAX_CACHE_LEVELS      4
 #define DEFAULT_L1_CACHE_SIZE 32 * 1024
 #define DEFAULT_L2_CACHE_SIZE 256 * 1024
@@ -147,12 +145,13 @@ typedef unsigned __int32 AFFINITY_MASK;
 
     #endif /* WINDOWS */
 
-    #define MAX_LOG_CPU            (8 * sizeof(DWORD_PTR) * 8)
-    #define MAX_WIN7_LOG_CPU       (4 * sizeof(DWORD_PTR) * 8)
-    #define MAX_PACKAGES           MAX_LOG_CPU
-    #define MAX_CORES              MAX_LOG_CPU
-    #define BLOCKSIZE_4K           4096
-    #define MAX_THREAD_GROUPS_WIN7 4
+    #define MAX_LOG_CPU                      (8 * sizeof(DWORD_PTR) * 8)
+    #define MAX_WIN7_LOG_CPU                 (4 * sizeof(DWORD_PTR) * 8)
+    #define MAX_PACKAGES                     MAX_LOG_CPU
+    #define MAX_CORES                        MAX_LOG_CPU
+    #define BLOCKSIZE_4K                     4096
+    #define MAX_THREAD_GROUPS_WIN7           4
+    #define MAX_LOGICAL_PROCESSORS_PER_GROUP 64
 
     #define MAX_CACHE_SUBLEAFS 16 // max allocation limit of data structure per sub leaf of cpuid leaf 4 enumerated results
 
@@ -705,38 +704,23 @@ private:
         sched_getaffinity(0, sizeof(prevAffinity), &prevAffinity);
         if (!sched_setaffinity(0, sizeof(currentCPU), &currentCPU)) ret = 0;
     #else // Windows
-        //we resolve API dynamically at runtime, data structures required by new API is determined at compile time
-
-        unsigned int cpu_beg = 0, cpu_cnt, j;
-        // The system logical processor information was already retrieved by calling getMaxCPUSupportedByOS()
-        SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
-        GROUP_AFFINITY grp_affinity;
         if (cpu >= MAX_WIN7_LOG_CPU) return ret;
 
-        // to determine the input ordinal 'cpu' number belong to which processor group,
-        // we consider each processor group to have its logical processors assigned with
-        // numerical index consecutively in increasing order
-        for (j = 0; j < pSystem_rel_info->Group.ActiveGroupCount; j++)
-        {
-            cpu_cnt = pSystem_rel_info->Group.GroupInfo[j].ActiveProcessorCount;
-            // if the 'cpu' value is within the lower and upper bounds of a
-            // processor group, we can use the new API to bind current thread to
-            // the target thread affinity bit in the target processor group
-            if (cpu >= cpu_beg && cpu < (cpu_beg + cpu_cnt))
-            {
-                _INTERNAL_DAAL_MEMSET(&grp_affinity, 0, sizeof(GROUP_AFFINITY));
-                grp_affinity.Group = j;
-                grp_affinity.Mask  = (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << (cpu - cpu_beg)));
-                if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prevAffinity))
-                {
-                    GetLastError();
-                    return ret;
-                }
+        // determine the group number and the cpu number within the group
+        unsigned int groupId      = cpu / MAX_LOGICAL_PROCESSORS_PER_GROUP;
+        unsigned int cpuIdInGroup = cpu - groupId * MAX_LOGICAL_PROCESSORS_PER_GROUP;
 
-                return 0;
-            }
-            // if the value of 'cpu' is not this processor group, we move to the next group
-            cpu_beg += cpu_cnt;
+        GROUP_AFFINITY grp_affinity;
+        _INTERNAL_DAAL_MEMSET(&grp_affinity, 0, sizeof(GROUP_AFFINITY));
+        grp_affinity.Group = groupId;
+        grp_affinity.Mask  = (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << cpuIdInGroup));
+        if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prevAffinity))
+        {
+            return ret;
+        }
+        else
+        {
+            ret = 0;
         }
     #endif
         return ret;
@@ -760,7 +744,6 @@ private:
 
 glktsn::glktsn()
 {
-    std::cout << "Initializing global CPU topology object, start ..." << std::endl << std::flush;
     isInit                = false;
     error                 = 0;
     hasLeafB              = false;
@@ -776,15 +759,12 @@ glktsn::glktsn()
     info.get(0);
     maxCPUIDLeaf = info.EAX;
 
-    std::cout << "Initializing global CPU topology object, maxCPUIDLeaf: " << maxCPUIDLeaf << std::endl << std::flush;
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
     OSProcessorCount = getMaxCPUSupportedByOS();
-    std::cout << "Initializing global CPU topology object, OSProcessorCount: " << OSProcessorCount << std::endl << std::flush;
 
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
     allocArrays(OSProcessorCount);
-    std::cout << "Initializing global CPU topology object, Arrays allocated , e**or: " << error << std::endl << std::flush;
     if (error) return;
 
     for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++)
@@ -797,7 +777,6 @@ glktsn::glktsn()
 
     // Initialize the global CPU topology object
     buildSystemTopologyTables();
-    std::cout << "Initializing global CPU topology object, System topology built , e**or: " << error << std::endl << std::flush;
 }
 
 /*
@@ -824,8 +803,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // if Windows version support processor groups
     // tally actually populated logical processors in each group
     grpCnt = (WORD)GetActiveProcessorGroupCount();
-    std::cout << "Active processor group count: " << grpCnt << std::endl << std::flush;
-    cnt = BLOCKSIZE_4K;
+    cnt    = BLOCKSIZE_4K;
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
@@ -843,7 +821,6 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     for (unsigned int i = 0; i < grpCnt; i++)
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
-        std::cout << "Active processors count in group " << i << ": " << activeProcCount << std::endl << std::flush;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
         if (error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
         OSProcessorCount += activeProcCount;
@@ -883,18 +860,12 @@ void glktsn::setChkProcessAffinityConsistency()
 
     if (OSProcessorCount > MAX_WIN7_LOG_CPU)
     {
-        std::cout << "E**or (setChkProcessAffinityConsistency): OSProcessorCount exceeds MAX_WIN7_LOG_CPU: " << OSProcessorCount << " > "
-                  << MAX_WIN7_LOG_CPU << std::endl
-                  << std::flush;
         error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
     }
 
     const unsigned short grpCnt = GetActiveProcessorGroupCount();
     if (grpCnt > MAX_THREAD_GROUPS_WIN7)
     {
-        std::cout << "E**or (setChkProcessAffinityConsistency): Group count exceeds MAX_THREAD_GROUPS_WIN7: " << grpCnt << " > "
-                  << MAX_THREAD_GROUPS_WIN7 << std::endl
-                  << std::flush;
         error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processor groups than allowed, make change as required.
         return;
     }
@@ -904,7 +875,6 @@ void glktsn::setChkProcessAffinityConsistency()
     HANDLE snapshotHandle = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, processId);
     if (snapshotHandle == INVALID_HANDLE_VALUE)
     {
-        std::cout << "Failed to create thread snapshot: " << GetLastError() << std::endl;
         error |= _MSGTYP_UNKNOWNERR_OS;
         return;
     }
@@ -943,13 +913,11 @@ void glktsn::setChkProcessAffinityConsistency()
 
     if (!groupAffinityInitialized)
     {
-        std::cout << "No thread affinities were initialized." << std::endl;
         error |= _MSGTYP_UNKNOWNERR_OS;
         return;
     }
 
-    unsigned int sum                                        = 0;
-    constexpr unsigned int MAX_LOGICAL_PROCESSORS_PER_GROUP = 64;
+    unsigned int sum = 0;
     for (unsigned int group = 0; group < grpCnt; group++)
     {
         KAFFINITY groupAffinityMask = groupAffinityMap[group];
@@ -959,8 +927,6 @@ void glktsn::setChkProcessAffinityConsistency()
             sum += cpu_cnt;
             if (sum > OSProcessorCount)
             {
-                std::cout << "E**or (setChkProcessAffinityConsistency): sum > OSProcessorCount, process group affinity is not full" << std::endl
-                          << std::flush;
                 //throw some exception here, no full affinity for the process
                 error |= _MSGTYP_USERAFFINITYERR;
                 break;
@@ -973,10 +939,6 @@ void glktsn::setChkProcessAffinityConsistency()
                 {
                     if (cpu_generic_processAffinity.set(j + group * MAX_LOGICAL_PROCESSORS_PER_GROUP))
                     {
-                        std::cout << "E**or (setChkProcessAffinityConsistency): cpu_generic_processAffinity.set(j + group * "
-                                     "MAX_LOGICAL_PROCESSORS_PER_GROUP) failed for j = "
-                                  << j << ", group = " << group << std::endl
-                                  << std::flush;
                         error |= _MSGTYP_USERAFFINITYERR;
                         break;
                     }
@@ -1658,10 +1620,11 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
         if (processAffinityBit == 1)
         {
             // bind the execution context to the i-th logical processor
-            // using OS-specifi API
+            // using OS-specific API
             volatile ScopedThreadContext ctx(i);
             if (ctx.error)
             {
+                // Failed to set thread affinity
                 error = -1;
                 break;
             }
