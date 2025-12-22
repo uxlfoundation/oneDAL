@@ -101,6 +101,8 @@ public:
                 for (size_t i = start; i < end; i++)
                 {
                     const algorithmFPType sigm = algorithmFPType(1.0) / (algorithmFPType(1.0) + exp[i]);
+                    // TODO: fix
+                    // UPD: probably these are just pairs (gradient/hessian) that are stored in one array
                     gh[2 * sampleInd[i]]       = sigm - y[sampleInd[i]];               //gradient
                     gh[2 * sampleInd[i] + 1]   = sigm * (algorithmFPType(1.0) - sigm); //hessian
                 }
@@ -111,6 +113,7 @@ public:
                 PRAGMA_VECTOR_ALWAYS
                 for (size_t i = start; i < end; i++)
                 {
+                    // TODO: fix
                     const auto sigm = algorithmFPType(1.0) / (algorithmFPType(1.0) + exp[i]);
                     gh[2 * i]       = sigm - y[i];                          //gradient
                     gh[2 * i + 1]   = sigm * (algorithmFPType(1.0) - sigm); //hessian
@@ -146,6 +149,9 @@ public:
             for (size_t k = 0; k < _nClasses; ++k)
             {
                 const algorithmFPType pk = p[k];
+                const algorithmFPType h  = algorithmFPType(2.) * pk * (algorithmFPType(1.) - pk);
+                // TODO: fix here
+                // UPD: probably these are just pairs (gradient/hessian) that are stored in one array
                 algorithmFPType * gh_ik  = gh + 2 * (k * nRows + iSample);
                 gh_ik[0]                 = (size_t(y[iSample]) == k) ? (pk - one) : pk; // gradient
                 gh_ik[1]                 = two * pk * (one - pk);                       // hessian
