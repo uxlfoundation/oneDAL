@@ -73,7 +73,9 @@ jobs:
         id: onedal-dbg
         run: |
           source /opt/intel/oneapi/setvars.sh
-          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --debug symbols --jobs 20
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_c --debug symbols --jobs 20
+          rm -rf __work
+          .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target oneapi_dpc --debug symbols --jobs 20
           # clean up build directory due to space limitations
           rm -rf __work
           echo "key=__release_lnx-$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -103,6 +105,7 @@ jobs:
           rm -rf __work
           mv __work_daal __work
           .ci/scripts/build.sh --compiler icx  --optimizations ${{ matrix.ISA }} --target onedal --jobs 20
+          rm -rf __work
       - name: daal/cpp examples
         run: |
             source /opt/intel/oneapi/setvars.sh
@@ -116,10 +119,10 @@ jobs:
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind examples --build-dir __release_lnx --compiler icx --interface oneapi/dpc --build-system cmake
-      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI examples
+      # Miniforge is necessary in order to get Intel MPI from conda-forge for MPI samples
       - name: Install Miniforge
         run: .ci/env/apt.sh miniforge
-      - name: daal/cpp/mpi examples
+      - name: daal/cpp/mpi samples
         run: |
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
