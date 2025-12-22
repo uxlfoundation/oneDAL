@@ -63,7 +63,7 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
     __cpuidex(reinterpret_cast<int *>(abcd), eax, ecx);
     #else
 
-    uint32_t ebx, edx;
+    uint32_t ebx = 0, edx = 0;
         #if defined(__i386__) && defined(__PIC__)
     /* in case of PIC under 32-bit EBX cannot be clobbered */
     __asm__("movl %%ebx, %%edi \n\t cpuid \n\t xchgl %%ebx, %%edi" : "=D"(ebx), "+a"(eax), "+c"(ecx), "=d"(edx));
