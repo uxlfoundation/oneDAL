@@ -478,7 +478,7 @@ $(info CORE.incdirs: $(CORE.incdirs))
 containing = $(foreach v,$2,$(if $(findstring $1,$v),$v))
 notcontaining = $(foreach v,$2,$(if $(findstring $1,$v),,$v))
 cpy = cp -fp "$<" "$@"
-
+mov = mv -f "$<" "$@"
 CORE.tmpdir_a := $(WORKDIR)/core_static
 CORE.tmpdir_y := $(WORKDIR)/core_dynamic
 CORE.srcs     := $(notdir $(wildcard $(CORE.srcdirs:%=%/*.cpp)))
@@ -606,10 +606,12 @@ ONEAPI.srcdirs.base := $(ONEAPI.srcdir) \
                        $(ONEAPI.srcdir)/io \
                        $(addprefix $(ONEAPI.srcdir)/algo/, $(ONEAPI.ALGOS)) \
                        $(addprefix $(ONEAPI.srcdir)/io/, $(ONEAPI.IO))
-ONEAPI.srcdirs.detail := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name detail))
-ONEAPI.srcdirs.backend := $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name backend))
-ONEAPI.srcdirs.parameters := $(ONEAPI.srcdir)/detail/parameters \
-                             $(foreach x,$(ONEAPI.srcdirs.base),$(shell find $x -maxdepth 1 -type d -name parameters))
+ONEAPI.srcdirs.detail := $(wildcard $(addsuffix /detail,$(ONEAPI.srcdirs.base)))
+ONEAPI.srcdirs.backend := $(wildcard $(addsuffix /backend,$(ONEAPI.srcdirs.base)))
+ONEAPI.srcdirs.parameters := $(wildcard \
+    $(ONEAPI.srcdir)/detail/parameters \
+    $(addsuffix /parameters,$(ONEAPI.srcdirs.base)) \
+)
 ONEAPI.srcdirs := $(ONEAPI.srcdirs.base) $(ONEAPI.srcdirs.detail) $(ONEAPI.srcdirs.backend) $(ONEAPI.srcdirs.parameters)
 
 ONEAPI.srcs.all.exclude := ! -path "*_test.*" ! -path "*/test/*" ! -path "*/detail/parameters/*"
@@ -968,7 +970,7 @@ _release_oneapi_dpc: _release_oneapi_c _release_oneapi_common
 # Populating RELEASEDIR
 #-------------------------------------------------------------------------------
 upd = $(cpy)
-
+mv = $(mov)
 _release: info.building.release
 
 #----- releasing static and dynamic libraries
@@ -996,7 +998,7 @@ endef
 define .release.a
 $3: $2/$1
 $(if $(phony-upd),$(eval .PHONY: $2/$1))
-$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value upd)
+$2/$1: $(WORKDIR.lib)/$1 | $2/. ; $(value mv)
 endef
 
 ifeq ($(if $(or $(OS_is_lnx),$(OS_is_mac)),yes,),yes)
