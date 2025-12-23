@@ -28,7 +28,7 @@
 namespace oneapi::dal::detail {
 namespace v1 {
 
-struct system_parameters_impl {
+class system_parameters_impl {
 public:
     explicit system_parameters_impl();
 
@@ -46,7 +46,7 @@ public:
 #endif
 
 private:
-    std::map<const char*, std::any> sys_info_;
+    std::map<std::string, std::any> sys_info_;
 
     void print_any(const std::any& value, std::ostringstream& ss) const;
 };

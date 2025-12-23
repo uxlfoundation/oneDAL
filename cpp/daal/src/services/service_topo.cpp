@@ -35,10 +35,6 @@
 
     #if defined(__linux__) || defined(__FreeBSD__)
 
-        #ifndef _GNU_SOURCE
-            #define _GNU_SOURCE
-        #endif
-
         #include <stdio.h>
         #include <stdlib.h>
         #include <unistd.h>
@@ -66,8 +62,6 @@ typedef cpuset_t cpu_set_t;
             #define MY_CPU_ZERO  CPU_ZERO
             #define MY_CPU_ISSET CPU_ISSET
         #endif
-
-        #define __cdecl
 
         #if defined(TARGET_X86_64)
             #define LNX_PTR2INT unsigned long long
@@ -147,7 +141,6 @@ typedef unsigned __int32 AFFINITY_MASK;
 
     #define MAX_LOG_CPU                      (8 * sizeof(DWORD_PTR) * 8)
     #define MAX_WIN7_LOG_CPU                 (4 * sizeof(DWORD_PTR) * 8)
-    #define MAX_PACKAGES                     MAX_LOG_CPU
     #define MAX_CORES                        MAX_LOG_CPU
     #define BLOCKSIZE_4K                     4096
     #define MAX_THREAD_GROUPS_WIN7           4
@@ -345,6 +338,15 @@ static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskW
     return (1 << i) - 1;
 }
 
+
+// The width of affinity mask in legacy Windows API is 32 or 64, depending on
+// 32-bit or 64-bit OS.
+// Linux abstract its equivalent bitmap cpumask_t from direct programmer access,
+// cpumask_t can support more than 64 cpu, but is configured at kernel
+// compile time by configuration parameter.
+// To abstract the size difference of the bitmap used by different OSes
+// for topology analysis, we use an unsigned char buffer that can
+// map to different OS implementation's affinity mask data structure
 struct GenericAffinityMask
 {
     GenericAffinityMask() = default;
@@ -403,25 +405,6 @@ struct GenericAffinityMask
 
     unsigned maxByteLength       = 0;
     unsigned char * AffinityMask = nullptr;
-};
-// The width of affinity mask in legacy Windows API is 32 or 64, depending on
-// 32-bit or 64-bit OS.
-// Linux abstract its equivalent bitmap cpumask_t from direct programmer access,
-// cpumask_t can support more than 64 cpu, but is configured at kernel
-// compile time by configuration parameter.
-// To abstract the size difference of the bitmap used by different OSes
-// for topology analysis, we use an unsigned char buffer that can
-// map to different OS implementation's affinity mask data structure
-
-struct cacheDetail_str
-{
-    std::array<char, 256> description;
-    std::array<char, 256> descShort;
-    unsigned level = 1; // start at 1
-    unsigned type;      // cache type (instruction, data, combined)
-    unsigned sizeKB;
-    unsigned how_many_threads_share_cache;
-    unsigned how_many_caches_share_level;
 };
 
 struct Dyn2Arr_str
@@ -523,8 +506,7 @@ struct idAffMskOrdMapping_t
 {
     idAffMskOrdMapping_t() = default;
     explicit idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsigned globalPkgSelectMask, unsigned globalPkgSelectMaskShift,
-                                  unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
-                                  std::array<unsigned, MAX_CACHE_SUBLEAFS> & globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf);
+                                  unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth);
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
     unsigned __int32 OrdIndexOAMsk; // An ordinal index (zero-based) for each logical
@@ -536,24 +518,6 @@ struct idAffMskOrdMapping_t
                                   //  distinguish different cores in a package
     unsigned __int32 SMT_IDAPIC;  // SMT_ID field, subset of APICID bits to
                                   //  distinguish different logical processors in a core
-    // the next three members stores a numbering scheme of ordinal index
-    // for each level of the processor topology.
-    unsigned __int32 packageORD; // a zero-based numbering scheme for each physical
-                                 //  package in the system
-    unsigned __int32 coreORD;    // a zero-based numbering scheme for each core in the same package
-    unsigned __int32 threadORD;  // a zero-based numbering scheme for each thread in the same core
-    // Next two members are the sub IDs for cache topology enumeration
-    std::array<unsigned __int32, MAX_CACHE_SUBLEAFS> EaCacheSMTIDAPIC; // SMT_ID field, subset of APICID bits
-                                                                       // to distinguish different logical processors sharing the same cache level
-    std::array<unsigned __int32, MAX_CACHE_SUBLEAFS> EaCacheIDAPIC;    // sub ID to enumerate different cache entities
-        // of the cache level corresponding to the array index/cpuid leaf 4 subleaf index
-    // the next three members stores a numbering scheme of ordinal index
-    // for enumerating different cache entities of a cache level, and enumerating
-    // logical processors sharing the same cache entity.
-    std::array<unsigned __int32, MAX_CACHE_SUBLEAFS> EachCacheORD;        // a zero-based numbering scheme
-                                                                          // for each cache entity of the specified cache level in the system
-    std::array<unsigned __int32, MAX_CACHE_SUBLEAFS> threadPerEaCacheORD; // a zero-based numbering scheme
-        // for each logical processor sharing the same cache of the specified cache level
 private:
     void initApicID(bool hasLeafB);
 };
@@ -568,24 +532,17 @@ struct glktsn
     // workspace for storing hierarchical counts of each level
     Dyn1Arr_str perPkg_detectedCoresCount;
     Dyn2Arr_str perCore_detectedThreadsCount;
-    // workspace for storing hierarchical counts relative to the cache topology
-    // of the largest unified cache (may be shared by several cores)
-    Dyn1Arr_str perCache_detectedCoreCount;
-    Dyn2Arr_str perEachCache_detectedThreadCount;
+
     // we use an error code to indicate any abnoral situation
     unsigned error;
 
     unsigned OSProcessorCount = 0; // how many logical processor the OS sees
     bool hasLeafB;                 // flag to keep track of whether CPUID leaf 0BH is supported
-    unsigned maxCacheSubleaf;      // highest CPUID leaf 4 subleaf index in a processor
 
     // the following global variables are the total counts in the system resulting from software enumeration
-    unsigned EnumeratedPkgCount;
     unsigned EnumeratedCoreCount;
     unsigned EnumeratedThreadCount;
 
-    // CPUID ID leaf 4 can report data for several cache levels, we'll keep track of each cache level
-    std::array<unsigned, MAX_CACHE_SUBLEAFS> EnumeratedEachCacheCount;
     // the following global variables are parameters related to
     //  extracting sub IDs from an APIC ID, common to all processors in the system
     unsigned SMTSelectMask;
@@ -593,21 +550,15 @@ struct glktsn
     unsigned CoreSelectMask;
     unsigned PkgSelectMaskShift;
     unsigned SMTMaskWidth;
-    // We'll do sub ID extractions using parameters from each cache level
-    std::array<unsigned, MAX_CACHE_SUBLEAFS> EachCacheSelectMask;
-    std::array<unsigned, MAX_CACHE_SUBLEAFS> EachCacheMaskWidth;
 
     // the following global variables are used for product capability identification
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
     unsigned maxCPUIDLeaf;               // highest CPUID leaf index in a processor
-    CPUIDinfox * cpuid_values = nullptr; // CPUID info storage of size [maxCPUIDLeaf + 1]
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
-    // workspeace to assist text display of cache topology information
-    std::array<cacheDetail_str, MAX_CACHE_SUBLEAFS> cacheDetail;
 
     bool isInit = false;
 
@@ -621,11 +572,7 @@ private:
     unsigned getMaxCPUSupportedByOS();
     int cpuTopologyParams();
     int cpuTopologyLeafBConstants();
-    int cpuTopologyLegacyConstants(CPUIDinfo * pinfo);
-    int cacheTopologyParams();
-    void initStructuredLeafBuffers();
-    int findEachCacheIndex(unsigned cache_subleaf);
-    int eachCacheTopologyParams(unsigned targ_subleaf);
+    int cpuTopologyLegacyConstants(const CPUIDinfo & info);
 
     void setChkProcessAffinityConsistency();
     int initEnumeratedThreadCountAndParseAPICIDs();
@@ -747,8 +694,6 @@ glktsn::glktsn()
     isInit                = false;
     error                 = 0;
     hasLeafB              = false;
-    maxCacheSubleaf       = -1;
-    EnumeratedPkgCount    = 0;
     EnumeratedCoreCount   = 0;
     EnumeratedThreadCount = 0;
     HWMT_SMTperCore       = 0;
@@ -766,14 +711,6 @@ glktsn::glktsn()
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
     allocArrays(OSProcessorCount);
     if (error) return;
-
-    for (unsigned i = 0; i < MAX_CACHE_SUBLEAFS; i++)
-    {
-        EnumeratedEachCacheCount[i] = 0;
-        EachCacheSelectMask[i]      = 0;
-        EachCacheMaskWidth[i]       = 0;
-        cacheDetail[i]              = cacheDetail_str {};
-    }
 
     // Initialize the global CPU topology object
     buildSystemTopologyTables();
@@ -807,14 +744,36 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
-    if (!GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt))
+    BOOL winError = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
+
+    if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+    {
+        const auto requiredSize = cnt;
+        pSystem_rel_info       = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)_INTERNAL_DAAL_MALLOC(requiredSize);
+        if (!pSystem_rel_info)
+        {
+            error |= _MSGTYP_GENERAL_ERROR;
+            return 0;
+        }
+        _INTERNAL_DAAL_MEMSET(pSystem_rel_info, 0, requiredSize);
+        winError = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
+    }
+    if (!winError)
     {
         error |= _MSGTYP_UNKNOWNERR_OS;
+        if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
+        {
+            _INTERNAL_DAAL_FREE(pSystem_rel_info);
+        }
         return 0;
     }
     if (pSystem_rel_info->Relationship != RelationGroup)
     {
         error |= _MSGTYP_UNKNOWNERR_OS;
+        if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
+        {
+            _INTERNAL_DAAL_FREE(pSystem_rel_info);
+        }
         return 0;
     }
 
@@ -822,8 +781,19 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
-        if (error & _MSGTYP_TOPOLOGY_NOTANALYZED) return 0;
+        if (error & _MSGTYP_TOPOLOGY_NOTANALYZED)
+        {
+            if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
+            {
+                _INTERNAL_DAAL_FREE(pSystem_rel_info);
+            }
+            return 0;
+        }
         OSProcessorCount += activeProcCount;
+    }
+    if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
+    {
+        _INTERNAL_DAAL_FREE(pSystem_rel_info);
     }
     #endif
     return OSProcessorCount;
@@ -1000,34 +970,6 @@ void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
     }
 }
 
-// select the system-wide ordinal number of the first logical processor the is located
-// within the entity specified from the hierarchical ordinal number scheme
-// package: ordinal number of a package; ENUM_ALL means any package
-// core   : ordinal number of a core in the specified package; ENUM_ALL means any core
-// logical: ordinal number of a logical processor within the specifed core; ; ENUM_ALL means any thread
-// returns: the system wide ordinal number of the first logical processor that matches the
-//    specified (package, core, logical) triplet specification.
-static unsigned __internal_daal_slectOrdfromPkg(unsigned package, unsigned core, unsigned logical)
-{
-    unsigned i;
-
-    if (package != ENUM_ALL && package >= _internal_daal_GetSysProcessorPackageCount()) return 0;
-
-    for (i = 0; i < _internal_daal_GetOSLogicalProcessorCount(); i++)
-    {
-        ////
-        if (!(package == ENUM_ALL || globalCPUTopology.pApicAffOrdMapping[i].packageORD == package)) continue;
-
-        if (!(core == ENUM_ALL || core == globalCPUTopology.pApicAffOrdMapping[i].coreORD)) continue;
-
-        if (!(logical == ENUM_ALL || logical == globalCPUTopology.pApicAffOrdMapping[i].threadORD)) continue;
-
-        return i;
-    }
-
-    return 0;
-}
-
 // Derive bitmask extraction parameters used to extract/decompose x2APIC ID.
 // The algorithm assumes CPUID feature symmetry across all physical packages.
 // Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
@@ -1105,16 +1047,16 @@ int glktsn::cpuTopologyLeafBConstants()
  * Derive bitmask extraction parameter using CPUID leaf 1 and leaf 4
  *
  * Arguments:
- *     info - Point to strucrture containing CPIUD instruction leaf 1 data
+ *     info - Structure that containing CPUID instruction leaf 1 data
  * Return: 0 is no error
  */
-int glktsn::cpuTopologyLegacyConstants(CPUIDinfo * pinfo)
+int glktsn::cpuTopologyLegacyConstants(const CPUIDinfo & info)
 {
     unsigned corePlusSMTIDMaxCnt;
     unsigned coreIDMaxCnt       = 1;
     unsigned SMTIDPerCoreMaxCnt = 1;
 
-    corePlusSMTIDMaxCnt = __internal_daal_getBitsFromDWORD(pinfo->EBX, 16, 23);
+    corePlusSMTIDMaxCnt = __internal_daal_getBitsFromDWORD(info.EBX, 16, 23);
     if (maxCPUIDLeaf >= 4)
     {
         CPUIDinfo info4;
@@ -1160,228 +1102,6 @@ static unsigned long __internal_daal_getCacheTotalLize(const CPUIDinfo & info)
     return (SetSz * WaySz * SectorSz * LnSz);
 }
 
-/*
- * Find the subleaf index of CPUID leaf 4 corresponding to the input subleaf
- *
- * Arguments:
- *     cache_subleaf - the cache subleaf encoding recognized by CPIUD instruction leaf 4 for the target cache level
- * Return: the sub-leaf index corresponding to the largest cache of specified cache type
- */
-int glktsn::findEachCacheIndex(unsigned cache_subleaf)
-{
-    unsigned i, type;
-    unsigned long cap;
-    CPUIDinfo info4;
-    int target_index = -1;
-
-    if (maxCPUIDLeaf < 4)
-    {
-        // if we can't get detailed parameters from cpuid leaf 4, this is stub pointers for older processors
-        if (maxCPUIDLeaf >= 2)
-        {
-            if (!cache_subleaf)
-            {
-                cacheDetail[cache_subleaf].sizeKB = 0;
-                return cache_subleaf;
-            }
-        }
-        return -1;
-    }
-
-    info4.get(4, cache_subleaf);
-    type = __internal_daal_getBitsFromDWORD(info4.EAX, 0, 4);
-    cap  = __internal_daal_getCacheTotalLize(info4);
-
-    if (type > 0)
-    {
-        cacheDetail[cache_subleaf].level = __internal_daal_getBitsFromDWORD(info4.EAX, 5, 7);
-        cacheDetail[cache_subleaf].type  = type;
-        for (i = 0; i <= cache_subleaf; i++)
-        {
-            if (cacheDetail[i].type == type) cacheDetail[i].how_many_caches_share_level++;
-        }
-        cacheDetail[cache_subleaf].sizeKB = cap / 1024;
-        target_index                      = cache_subleaf;
-    }
-
-    return target_index;
-}
-
-/*
- * __internal_daal_initStructuredLeafBuffers
- *
- * Allocate buffers to store cpuid leaf data including buffers for subleaves within leaf 4 and 11 (0x4 and 0xb)
- *
- * Arguments: none
- * Return: none
- *
- */
-void glktsn::initStructuredLeafBuffers()
-{
-    unsigned j, kk, qeidmsk;
-    CPUIDinfo info;
-    info.get(0);
-
-    cpuid_values[0].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-    if (!cpuid_values[0].subleaf[0])
-    {
-        error = -1;
-        return;
-    }
-
-    cpuid_values[0].subleaf[0][0] = info;
-
-    // Mark this combo of cpu, leaf, subleaf is valid
-    cpuid_values[0].subleaf_max = 1;
-
-    for (j = 1; j <= maxCPUIDLeaf; j++)
-    {
-        info.get(j);
-        cpuid_values[j].subleaf[0] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-        if (!cpuid_values[j].subleaf[0])
-        {
-            error = -1;
-            return;
-        }
-        cpuid_values[j].subleaf[0][0] = info;
-        cpuid_values[j].subleaf_max   = 1;
-
-        if (j == 0xd)
-        {
-            int subleaf                 = 2;
-            cpuid_values[j].subleaf_max = 1;
-            info.get(j, subleaf);
-            while (info.EAX && subleaf < MAX_CACHE_SUBLEAFS)
-            {
-                cpuid_values[j].subleaf_max = subleaf;
-                subleaf++;
-                info.get(j, subleaf);
-            }
-        }
-        else if (j == 0x10 || j == 0xf)
-        {
-            int subleaf = 1;
-            info.get(j, subleaf);
-            if (j == 0xf)
-                qeidmsk = info.EDX; // sub-leaf value are derived from valid resource id's
-            else
-                qeidmsk = info.EBX;
-            kk = 1;
-            while (kk < 32)
-            {
-                info.get(j, kk);
-                if ((qeidmsk & (1 << kk)) != 0) cpuid_values[j].subleaf_max = kk;
-                kk++;
-            }
-        }
-        else if ((j == 0x4 || j == 0xb))
-        {
-            int subleaf       = 1;
-            unsigned int type = 1;
-            while (type && (subleaf < MAX_CACHE_SUBLEAFS))
-            {
-                info.get(j, subleaf);
-                if (j == 0x4)
-                    type = __internal_daal_getBitsFromDWORD(info.EAX, 0, 4);
-                else
-                    type = 0xffff & info.EBX;
-                cpuid_values[j].subleaf[subleaf] = (CPUIDinfo *)_INTERNAL_DAAL_MALLOC(sizeof(CPUIDinfo));
-                if (!cpuid_values[j].subleaf[subleaf])
-                {
-                    error = -1;
-                    return;
-                }
-                cpuid_values[j].subleaf[subleaf][0] = info;
-                subleaf++;
-                cpuid_values[j].subleaf_max = subleaf;
-            }
-        }
-    }
-}
-
-/*
- * Calculates the select mask that can be used to extract Cache_ID from an APIC ID
- * The caller must specify which target cache level it wishes to extract Cache_IDs
- *
- * \param targ_subleaf  The subleaf index to execute CPIUD instruction leaf 4 for the target cache level, provided by parent
- *
- * \return 0 is no error
- */
-int glktsn::eachCacheTopologyParams(unsigned targ_subleaf)
-{
-    unsigned long SMTMaxCntPerEachCache;
-    CPUIDinfo info;
-
-    info.get(1);
-    if (maxCPUIDLeaf >= 4)
-    {
-        // CPUID leaf 4 and HT are supported
-        CPUIDinfo info4;
-        info4.get(4, targ_subleaf);
-
-        SMTMaxCntPerEachCache = __internal_daal_getBitsFromDWORD(info4.EAX, 14, 25) + 1;
-    }
-    else if (__internal_daal_getBitsFromDWORD(info.EDX, 28, 28))
-    {
-        // no support for CPUID leaf 4 but HT is supported
-        SMTMaxCntPerEachCache = __internal_daal_getBitsFromDWORD(info.EBX, 16, 23);
-    }
-    else
-    {
-        // no support for CPUID leaf 4 and no HT
-        SMTMaxCntPerEachCache = 1;
-    }
-
-    EachCacheSelectMask[targ_subleaf] = __internal_daal_createMask(SMTMaxCntPerEachCache, &EachCacheMaskWidth[targ_subleaf]);
-
-    return 0;
-}
-
-// Calculate parameters used to extract/decompose APIC ID for cache topology
-// The algorithm assumes CPUID feature symmetry across all physical packages.
-// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
-// on one logical processor to derive these system-wide parameters
-// return 0 if successful, non-zero if error occurred
-int glktsn::cacheTopologyParams()
-{
-    int targ_index;
-    unsigned subleaf_max = 0;
-
-    // Let's also examine cache topology.
-    // As an example choose the largest unified cache as target level
-    if (maxCPUIDLeaf >= 4)
-    {
-        initStructuredLeafBuffers();
-        if (error) return -1;
-
-        maxCacheSubleaf = 0;
-        subleaf_max     = cpuid_values[4].subleaf_max;
-    }
-    else if (maxCPUIDLeaf >= 2)
-    {
-        maxCacheSubleaf = 0;
-        subleaf_max     = 4;
-    }
-
-    for (unsigned subleaf = 0; subleaf < subleaf_max; subleaf++)
-    {
-        targ_index = findEachCacheIndex(subleaf);
-        if (targ_index >= 0)
-        {
-            maxCacheSubleaf = targ_index;
-            eachCacheTopologyParams(targ_index);
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    if (error) return -1;
-
-    return 0;
-}
-
 // Derive parameters used to extract/decompose APIC ID for CPU topology
 // The algorithm assumes CPUID feature symmetry across all physical packages.
 // Since CPUID reporting by each logical processor in a physical package are
@@ -1417,7 +1137,7 @@ int glktsn::cpuTopologyParams()
         {
             //#2, Processors that support legacy parameters
             //  using CPUID leaf 1 and leaf 4
-            cpuTopologyLegacyConstants(&info);
+            cpuTopologyLegacyConstants(info);
         }
     }
     else
@@ -1525,24 +1245,11 @@ int glktsn::allocArrays(const unsigned cpus)
 
     perPkg_detectedCoresCount    = Dyn1Arr_str(cpus);
     perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES);
-    // workspace for storing hierarchical counts relative to the cache topology
-    // of the largest unified cache (may be shared by several cores)
-    perCache_detectedCoreCount       = Dyn1Arr_str(cpus);
-    perEachCache_detectedThreadCount = Dyn2Arr_str(cpus, MAX_CACHE_SUBLEAFS);
-    if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty() || perEachCache_detectedThreadCount.isEmpty()
-        || perCache_detectedCoreCount.isEmpty())
+    if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty())
     {
         error = -1;
         return -1;
     }
-
-    cpuid_values = (CPUIDinfox *)_INTERNAL_DAAL_MALLOC((maxCPUIDLeaf + 1) * sizeof(CPUIDinfox));
-    if (!cpuid_values)
-    {
-        error = -1;
-        return -1;
-    }
-    _INTERNAL_DAAL_MEMSET(cpuid_values, 0, (maxCPUIDLeaf + 1) * sizeof(CPUIDinfox));
 
     return 0;
 }
@@ -1558,8 +1265,7 @@ int glktsn::allocArrays(const unsigned cpus)
  *      numMappings - running count ot how many processors we've parsed
  */
 idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsigned globalPkgSelectMask, unsigned globalPkgSelectMaskShift,
-                                           unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth,
-                                           std::array<unsigned, MAX_CACHE_SUBLEAFS> & globalEachCacheSelectMask, unsigned globalmaxCacheSubleaf)
+                                           unsigned globalCoreSelectMask, unsigned globalSMTSelectMask, unsigned globalSMTMaskWidth)
 {
     initApicID(hasLeafB);
 
@@ -1567,15 +1273,6 @@ idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsi
     pkg_IDAPIC    = ((APICID & globalPkgSelectMask) >> globalPkgSelectMaskShift);
     Core_IDAPIC   = ((APICID & globalCoreSelectMask) >> globalSMTMaskWidth);
     SMT_IDAPIC    = (APICID & globalSMTSelectMask);
-
-    if (globalmaxCacheSubleaf != -1)
-    {
-        for (unsigned subleaf = 0; subleaf <= globalmaxCacheSubleaf; subleaf++)
-        {
-            EaCacheSMTIDAPIC[subleaf] = (APICID & globalEachCacheSelectMask[subleaf]);
-            EaCacheIDAPIC[subleaf]    = (APICID & (-1 ^ globalEachCacheSelectMask[subleaf]));
-        }
-    }
 }
 
 /*
@@ -1632,7 +1329,7 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
             }
 
             pApicAffOrdMapping[EnumeratedThreadCount++] = idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask,
-                                                                               SMTSelectMask, SMTMaskWidth, EachCacheSelectMask, maxCacheSubleaf);
+                                                                               SMTSelectMask, SMTMaskWidth);
         }
         else if (processAffinityBit == 0xff)
         {
@@ -1687,19 +1384,15 @@ int glktsn::analyzeCPUHierarchy()
             if (pDetectedPkgIDs[h] == packageID)
             {
                 bool foundCore = false;
-                unsigned k;
-                PkgMarked                        = true;
-                pApicAffOrdMapping[i].packageORD = h;
+                PkgMarked      = true;
 
                 // look for core in marked packages
-                for (k = 0; k < perPkg_detectedCoresCount[h]; k++)
+                for (unsigned k = 0; k < perPkg_detectedCoresCount[h]; k++)
                 {
                     if (coreID == pDetectCoreIDsperPkg[h * EnumeratedThreadCount + k])
                     {
                         foundCore = true;
                         // add thread - can't be that the thread already exists, breaks uniqe APICID spec
-                        pApicAffOrdMapping[i].coreORD   = k;
-                        pApicAffOrdMapping[i].threadORD = perCore_detectedThreadsCount[h * MAX_CORES + k];
                         perCore_detectedThreadsCount[h * MAX_CORES + k]++;
                         break;
                     }
@@ -1715,12 +1408,8 @@ int glktsn::analyzeCPUHierarchy()
                     perCore_detectedThreadsCount[h * MAX_CORES + core] = 1;
                     perPkg_detectedCoresCount[h]++;
 
-                    // build a set of numbering system to iterate each topological hierarchy
-                    pApicAffOrdMapping[i].coreORD   = core;
-                    pApicAffOrdMapping[i].threadORD = 0;
                     EnumeratedCoreCount++; // this is an unmarked core, increment system core count by 1
                 }
-
                 break;
             }
         }
@@ -1735,166 +1424,8 @@ int glktsn::analyzeCPUHierarchy()
             perPkg_detectedCoresCount[maxPackageDetetcted]                    = 1;
             perCore_detectedThreadsCount[maxPackageDetetcted * MAX_CORES + 0] = 1;
 
-            // build a set of zero-based numbering acheme so that
-            // each logical processor in the same core can be referenced by a zero-based index
-            // each core in the same package can be referenced by another zero-based index
-            // each package in the system can be referenced by a third zero-based index scheme.
-            // each system wide index i can be mapped to a triplet of zero-based hierarchical indices
-            pApicAffOrdMapping[i].packageORD = maxPackageDetetcted;
-            pApicAffOrdMapping[i].coreORD    = 0;
-            pApicAffOrdMapping[i].threadORD  = 0;
-
             maxPackageDetetcted++; // this is an unmarked pkg, increment pkg count by 1
             EnumeratedCoreCount++; // there is at least one core in a package
-        }
-    }
-
-    EnumeratedPkgCount = maxPackageDetetcted;
-
-    return 0;
-}
-
-/*
- * This is an example illustrating cache topology analysis of the largest unified cache
- * The largest unified cache may be shared by multiple cores
- *          parse APIC ID into sub IDs for each topological levels
- * This example illustrates several mapping relationships:
- *      1. count distinct target level cache in the system;
- *      2. count distinct cores sharing the same cache;
- *      3. Establish a hierarchical numbering scheme (0-based, ordinal number) for each distinct entity within a hierarchical level
- *
- * \param subleaf    Cache subleaf
- *
- * \return 0 is no error
- */
-int glktsn::analyzeEachCHierarchy(unsigned subleaf)
-{
-    if (EachCacheMaskWidth[subleaf] == 0xffffffff) return -1;
-
-    unsigned maxCacheDetected = 0;
-    {
-        Dyn1Arr_str pEachCIDs(EnumeratedThreadCount, 0xff);
-        if (pEachCIDs.isEmpty()) return -1;
-
-        // enumerate distinct caches of the same subleaf index to get counts of how many caches only
-        // mark up each unique cache associated with subleaf index based on the cache_ID
-        for (unsigned i = 0; i < EnumeratedThreadCount; i++)
-        {
-            unsigned j;
-            for (j = 0; j < maxCacheDetected; j++)
-            {
-                if (pEachCIDs[j] == pApicAffOrdMapping[i].EaCacheIDAPIC[subleaf])
-                {
-                    break;
-                }
-            }
-            if (j >= maxCacheDetected)
-            {
-                pEachCIDs[maxCacheDetected++] = pApicAffOrdMapping[i].EaCacheIDAPIC[subleaf];
-            }
-        }
-        EnumeratedEachCacheCount[subleaf] = maxCacheDetected;
-    }
-
-    {
-        Dyn1Arr_str pThreadIDsperEachC(EnumeratedThreadCount, 0xff);
-        if (pThreadIDsperEachC.isEmpty()) return -1;
-
-        // enumerate distinct SMT threads within a caches of the subleaf index only without relation to core topology
-        // mark up the distinct logical processors sharing a distinct cache level associated subleaf index
-
-        unsigned maxThreadsDetected = 0;
-        for (unsigned i = 0; i < EnumeratedThreadCount; i++)
-        {
-            unsigned j;
-            for (j = 0; j < maxThreadsDetected; j++)
-            {
-                if (pThreadIDsperEachC[j] == pApicAffOrdMapping[i].EaCacheSMTIDAPIC[subleaf])
-                {
-                    break;
-                }
-            }
-
-            if (j >= maxThreadsDetected)
-            {
-                pThreadIDsperEachC[maxThreadsDetected++] = pApicAffOrdMapping[i].EaCacheSMTIDAPIC[subleaf];
-            }
-        }
-    }
-
-    Dyn1Arr_str pDetectedEachCIDs(EnumeratedThreadCount + 1, 0xff);
-    Dyn2Arr_str pDetectThreadIDsperEachC(EnumeratedThreadCount, maxCacheDetected + 1, 0xff);
-    if (pDetectedEachCIDs.isEmpty() || pDetectThreadIDsperEachC.isEmpty())
-    {
-        return -1;
-    }
-
-    // enumerate distinct SMT threads and cores relative to a cache level of the subleaf index
-    // the enumeration below gets the counts and establishes zero-based numbering scheme for cores and SMT threads under each cache
-    maxCacheDetected = 0;
-
-    for (unsigned i = 0; i < EnumeratedThreadCount; i++)
-    {
-        pApicAffOrdMapping[i].EachCacheORD[subleaf] = (unsigned)-1;
-    }
-
-    for (unsigned i = 0; i < EnumeratedThreadCount; i++)
-    {
-        unsigned CacheID  = pApicAffOrdMapping[i].EaCacheIDAPIC[subleaf]; // sub ID to enumerate different caches in the system
-        unsigned threadID = pApicAffOrdMapping[i].EaCacheSMTIDAPIC[subleaf];
-
-        bool CacheMarked = false;
-        for (unsigned h = 0; h < maxCacheDetected; h++)
-        {
-            if (pDetectedEachCIDs[h] == CacheID)
-            {
-                bool foundThread = false;
-
-                CacheMarked                                 = true;
-                pApicAffOrdMapping[i].EachCacheORD[subleaf] = h;
-
-                // look for cores sharing the same target cache level
-                for (unsigned k = 0; k < perEachCache_detectedThreadCount[h * MAX_CACHE_SUBLEAFS + subleaf]; k++)
-                {
-                    if (threadID == pDetectThreadIDsperEachC[h * EnumeratedThreadCount + k])
-                    {
-                        foundThread                                        = true;
-                        pApicAffOrdMapping[i].threadPerEaCacheORD[subleaf] = k;
-                        break;
-                    }
-                }
-
-                if (!foundThread)
-                {
-                    // mark up the thread_ID of an unmarked core in a marked package
-                    unsigned thread                                              = perEachCache_detectedThreadCount[h * MAX_CACHE_SUBLEAFS + subleaf];
-                    pDetectThreadIDsperEachC[h * EnumeratedThreadCount + thread] = threadID;
-
-                    // keep track of respective hierarchical counts
-                    perEachCache_detectedThreadCount[h * MAX_CACHE_SUBLEAFS + subleaf]++;
-
-                    // build a set of numbering system to iterate the child hierarchy below the target cache
-                    pApicAffOrdMapping[i].threadPerEaCacheORD[subleaf] = thread;
-                }
-
-                break;
-            }
-        }
-
-        if (!CacheMarked)
-        {
-            // mark up the pkg_ID and Core_ID of an unmarked package
-            pDetectedEachCIDs[maxCacheDetected]                                = CacheID;
-            pDetectThreadIDsperEachC[maxCacheDetected * EnumeratedThreadCount] = threadID;
-
-            // keep track of respective hierarchical counts
-            perEachCache_detectedThreadCount[maxCacheDetected * MAX_CACHE_SUBLEAFS + subleaf] = 1;
-
-            // build a set of numbering system to iterate each topological hierarchy
-            pApicAffOrdMapping[i].EachCacheORD[subleaf]        = maxCacheDetected;
-            pApicAffOrdMapping[i].threadPerEaCacheORD[subleaf] = 0;
-
-            maxCacheDetected++; // this is an unmarked cache, increment cache count by 1
         }
     }
 
@@ -1915,8 +1446,6 @@ void glktsn::buildSystemTopologyTables()
     // Gather all the system-wide constant parameters needed to derive topology information
     error = cpuTopologyParams();
     if (error) return;
-    error = cacheTopologyParams();
-    if (error) return;
 
     // For each logical processor, collect APIC ID and parse sub IDs for each APIC ID
     int numMappings = initEnumeratedThreadCountAndParseAPICIDs();
@@ -1929,115 +1458,10 @@ void glktsn::buildSystemTopologyTables()
     if (analyzeCPUHierarchy() < 0)
     {
         error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
+        return;
     }
 
-    // an example of building cache topology info for each cache level
-    if (maxCacheSubleaf != -1)
-    {
-        for (unsigned subleaf = 0; subleaf <= maxCacheSubleaf; subleaf++)
-        {
-            if (EachCacheMaskWidth[subleaf] != 0xffffffff)
-            {
-                // ensure there is at least one core in the target level cache
-                if (analyzeEachCHierarchy(subleaf) < 0) error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
-            }
-        }
-    }
     isInit = true;
-}
-
-/*
- * _internal_daal_GetEnumerateAPICID
- *
- * Returns APIC ID for the specified processor from enumerated table
- *
- * Arguments:
- *     processor - Os processor number of for which the the APIC ID is returned
- * Return: APIC ID for the specified processor
- */
-unsigned _internal_daal_GetEnumerateAPICID(unsigned processor)
-{
-    if (globalCPUTopology.error)
-    {
-        return 0xffffffff;
-    }
-
-    if (processor >= globalCPUTopology.OSProcessorCount) return 0xffffffff; // allow caller to intercept error
-
-    return globalCPUTopology.pApicAffOrdMapping[processor].APICID;
-}
-
-/*
- * _internal_daal_GetEnumeratedCoreCount
- *
- * Returns numbers of cores active on a given package, based on enumerated result
- *
- * Arguments:
- *     package - ordinal
- * Return: number of cores active on specified package, 0 if can not calulate
- */
-unsigned _internal_daal_GetEnumeratedCoreCount(unsigned package_ordinal)
-{
-    if (globalCPUTopology.error || package_ordinal >= globalCPUTopology.EnumeratedPkgCount)
-    {
-        return 0;
-    }
-
-    return globalCPUTopology.perPkg_detectedCoresCount[package_ordinal];
-}
-
-/*
- * _internal_daal_GetEnumeratedThreadCount
- *
- * Returns numbers of Threads active on a given package/core
- *
- * Arguments:
- *     package - ordinal and core ordinal
- * Return: number of threads active on specified package and core, 0 if can not calulate
- */
-unsigned _internal_daal_GetEnumeratedThreadCount(unsigned package_ordinal, unsigned core_ordinal)
-{
-    if (globalCPUTopology.error || package_ordinal >= globalCPUTopology.EnumeratedPkgCount)
-    {
-        return 0;
-    }
-
-    if (core_ordinal >= globalCPUTopology.perPkg_detectedCoresCount[package_ordinal]) return 0;
-
-    return globalCPUTopology.perCore_detectedThreadsCount[package_ordinal * MAX_CORES + core_ordinal];
-}
-
-/*
- * _internal_daal_GetSysEachCacheCount
- *
- * Returns count of distinct target level cache in the system
- *
- * Arguments: None
- * Return: Number of caches or 0 if number can not be calculated
- */
-unsigned _internal_daal_GetSysEachCacheCount(unsigned subleaf)
-{
-    if (globalCPUTopology.error)
-    {
-        return 0;
-    }
-
-    return globalCPUTopology.EnumeratedEachCacheCount[subleaf];
-}
-
-/*
- * _internal_daal_GetOSLogicalProcessorCount
- *
- * Returns count of logical processors in the system as seen by OS
- *
- * Arguments: None
- * Return: Number of logical processors or 0 if number can not be calculated
- */
-unsigned _internal_daal_GetOSLogicalProcessorCount()
-{
-    if (globalCPUTopology.error) return 0;
-
-    return globalCPUTopology.OSProcessorCount;
 }
 
 /*
@@ -2070,70 +1494,14 @@ unsigned _internal_daal_GetProcessorCoreCount()
     return globalCPUTopology.EnumeratedCoreCount;
 }
 
-/*
- * _internal_daal_GetSysProcessorPackageCount
- *
- * Returns count of processor packages in the system that were enumerated by this app
- *
- * Arguments: None
- * Return: Number of processor packages in the system or 0 if number can not be calculated
- */
-unsigned _internal_daal_GetSysProcessorPackageCount()
-{
-    if (globalCPUTopology.error) return 0;
-
-    return globalCPUTopology.EnumeratedPkgCount;
-}
-
-/*
- * _internal_daal_GetCoreCountPerEachCache
- *
- * Returns numbers of cores active sharing the target level cache
- *
- * Arguments: Cache ordinal
- * Return: number of cores active on specified target level cache, 0 if can not calulate
- */
-unsigned _internal_daal_GetCoreCountPerEachCache(unsigned subleaf, unsigned cache_ordinal)
-{
-    if (globalCPUTopology.error || cache_ordinal >= globalCPUTopology.EnumeratedEachCacheCount[subleaf]) return 0;
-
-    return globalCPUTopology.perEachCache_detectedThreadCount[cache_ordinal * MAX_CACHE_SUBLEAFS + subleaf];
-}
-
 unsigned _internal_daal_GetLogicalProcessorQueue(int * queue)
 {
     const int cpus = _internal_daal_GetSysLogicalProcessorCount();
-    int cores      = _internal_daal_GetProcessorCoreCount();
 
-    if (cores == 0) cores = 1;
-
-    int ht = cpus / cores;
-    if (ht < 1 || ht >= cpus)
+    for (unsigned j = 0; j < cpus; j++)
     {
-        globalCPUTopology.error |= _MSGTYP_GENERAL_ERROR;
-        return globalCPUTopology.error;
+        queue[j] = j;
     }
-
-    int q = 0;
-    for (unsigned pkg = 0; pkg < _internal_daal_GetSysProcessorPackageCount(); pkg++)
-    {
-        for (unsigned i = 0; i < _internal_daal_GetSysEachCacheCount(0); i++)
-        {
-            if (_internal_daal_GetCoreCountPerEachCache(0, i) > 0)
-            {
-                for (unsigned j = 0; j < _internal_daal_GetSysLogicalProcessorCount(); j++)
-                {
-                    if (globalCPUTopology.pApicAffOrdMapping[j].packageORD == pkg && globalCPUTopology.pApicAffOrdMapping[j].EachCacheORD[0] == i)
-                    {
-                        int jj = ((q / ht) + (cores * (q % ht))) % cpus;
-                        if (jj < cpus) queue[jj] = j;
-                        q++;
-                    }
-                }
-            }
-        }
-    }
-
     return globalCPUTopology.error;
 }
 
@@ -2239,23 +1607,6 @@ void glktsn::freeArrays()
 {
     isInit = false;
     _INTERNAL_DAAL_FREE(pApicAffOrdMapping);
-
-    if (cpuid_values)
-    {
-        for (unsigned int i = 0; i <= maxCPUIDLeaf; i++)
-        {
-            _INTERNAL_DAAL_FREE(cpuid_values[i].subleaf[0]);
-
-            if ((i == 0x4 || i == 0xb))
-            {
-                for (unsigned int j = 1; j < cpuid_values[i].subleaf_max; j++)
-                {
-                    _INTERNAL_DAAL_FREE(cpuid_values[i].subleaf[j]);
-                }
-            }
-        }
-        _INTERNAL_DAAL_FREE(cpuid_values);
-    }
 }
 
 } // namespace internal
