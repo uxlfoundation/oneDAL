@@ -142,7 +142,6 @@ typedef unsigned __int32 AFFINITY_MASK;
     #define MAX_LOG_CPU                      (8 * sizeof(DWORD_PTR) * 8)
     #define MAX_WIN7_LOG_CPU                 (4 * sizeof(DWORD_PTR) * 8)
     #define MAX_CORES                        MAX_LOG_CPU
-    #define BLOCKSIZE_4K                     4096
     #define MAX_THREAD_GROUPS_WIN7           4
     #define MAX_LOGICAL_PROCESSORS_PER_GROUP 64
 
@@ -338,7 +337,6 @@ static unsigned __internal_daal_createMask(unsigned numEntries, unsigned * maskW
     return (1 << i) - 1;
 }
 
-
 // The width of affinity mask in legacy Windows API is 32 or 64, depending on
 // 32-bit or 64-bit OS.
 // Linux abstract its equivalent bitmap cpumask_t from direct programmer access,
@@ -486,6 +484,16 @@ struct Dyn1Arr_str
 
     void fill(const unsigned value);
 
+    void reset(const unsigned xdim)
+    {
+        if (xdim > dim[0])
+        {
+            _INTERNAL_DAAL_FREE(data);
+            data = (unsigned *)_INTERNAL_DAAL_MALLOC(xdim * sizeof(unsigned));
+        }
+        dim[0] = xdim;
+    }
+
     friend void swap(Dyn1Arr_str & first, Dyn1Arr_str & second) // nothrow
     {
         unsigned tmp  = first.dim[0];
@@ -555,7 +563,7 @@ struct glktsn
     unsigned HWMT_SMTperCore;
     unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
-    unsigned maxCPUIDLeaf;               // highest CPUID leaf index in a processor
+    unsigned maxCPUIDLeaf; // highest CPUID leaf index in a processor
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
     GenericAffinityMask cpu_generic_systemAffinity;
@@ -583,8 +591,6 @@ private:
 
 // Global CPU topology object
 static glktsn globalCPUTopology;
-
-static char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
 
 static void * __internal_daal_memset(void * s, int c, size_t nbytes)
 {
@@ -730,17 +736,15 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
 
     #else
 
-    unsigned short grpCnt;
-    DWORD cnt;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
 
     // runtime check if os version is greater than 0601h
 
-    OSProcessorCount = 0;
-    // if Windows version support processor groups
-    // tally actually populated logical processors in each group
-    grpCnt = (WORD)GetActiveProcessorGroupCount();
-    cnt    = BLOCKSIZE_4K;
+    OSProcessorCount             = 0;
+    constexpr DWORD BLOCKSIZE_4K = 4096;
+    DWORD cnt                    = BLOCKSIZE_4K;
+    char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+    Dyn1Arr_str scratchArr;     // dynamic array to hold larger buffer if needed
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
@@ -748,52 +752,39 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
 
     if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
     {
-        const auto requiredSize = cnt;
-        pSystem_rel_info       = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)_INTERNAL_DAAL_MALLOC(requiredSize);
-        if (!pSystem_rel_info)
+        scratchArr.reset((cnt + sizeof(unsigned) - 1) / sizeof(unsigned));
+        if (scratchArr.isEmpty())
         {
             error |= _MSGTYP_GENERAL_ERROR;
             return 0;
         }
-        _INTERNAL_DAAL_MEMSET(pSystem_rel_info, 0, requiredSize);
-        winError = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
+        scratchArr.fill(0);
+        pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratchArr[0];
+        winError         = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
     }
     if (!winError)
     {
         error |= _MSGTYP_UNKNOWNERR_OS;
-        if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
-        {
-            _INTERNAL_DAAL_FREE(pSystem_rel_info);
-        }
         return 0;
     }
     if (pSystem_rel_info->Relationship != RelationGroup)
     {
         error |= _MSGTYP_UNKNOWNERR_OS;
-        if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
-        {
-            _INTERNAL_DAAL_FREE(pSystem_rel_info);
-        }
         return 0;
     }
 
+    // if Windows version support processor groups
+    // tally actually populated logical processors in each group
+    unsigned short grpCnt = (WORD)GetActiveProcessorGroupCount();
     for (unsigned int i = 0; i < grpCnt; i++)
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
         if (error & _MSGTYP_TOPOLOGY_NOTANALYZED)
         {
-            if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
-            {
-                _INTERNAL_DAAL_FREE(pSystem_rel_info);
-            }
             return 0;
         }
         OSProcessorCount += activeProcCount;
-    }
-    if (pSystem_rel_info && pSystem_rel_info != (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0])
-    {
-        _INTERNAL_DAAL_FREE(pSystem_rel_info);
     }
     #endif
     return OSProcessorCount;
@@ -1328,8 +1319,8 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
                 break;
             }
 
-            pApicAffOrdMapping[EnumeratedThreadCount++] = idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask,
-                                                                               SMTSelectMask, SMTMaskWidth);
+            pApicAffOrdMapping[EnumeratedThreadCount++] =
+                idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask, SMTSelectMask, SMTMaskWidth);
         }
         else if (processAffinityBit == 0xff)
         {
