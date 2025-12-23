@@ -993,9 +993,11 @@ void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
         info.get(0xB);     // query subleaf 0 of leaf B
         APICID = info.EDX; //  x2APIC ID
     }
-
-    info.get(1);
-    APICID = (BYTE)(__internal_daal_getBitsFromDWORD(info.EBX, 24, 31)); // zero extend 8-bit initial APIC ID
+    else
+    {
+        info.get(1);
+        APICID = (BYTE)(__internal_daal_getBitsFromDWORD(info.EBX, 24, 31)); // zero extend 8-bit initial APIC ID
+    }
 }
 
 // select the system-wide ordinal number of the first logical processor the is located
