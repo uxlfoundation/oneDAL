@@ -41,7 +41,7 @@ daaldep.lnx32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$(so)
 # List of oneMKL libraries to exclude from linking.
 # This list is used to generate the `--exclude-libs` linker options.
 # If you need to exclude additional libraries, extend this list by appending the library names.
-MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_intel_ilp64.$a $(plib)mkl_sycl.$a
+MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_intel_ilp64.$a
 
 daaldep.win32e.mkl.thr := $(MKLDIR.libia)/mkl_tbb_thread$d.$a
 daaldep.win32e.mkl.interfaces := $(MKLDIR.libia)/mkl_intel_ilp64.$a
@@ -51,17 +51,32 @@ daaldep.win32e.mkl.sycl := $(MKLGPUDIR.lib)/mkl_sycl$d_dll.$a
 daaldep.fbsd32e.mkl.thr := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$a
 daaldep.fbsd32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
 daaldep.fbsd32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a
-daaldep.fbsd32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$a
+daaldep.fbsd32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$(so)
 
 daaldep.math_backend.core     := $(daaldep.$(PLAT).mkl.core)
 daaldep.math_backend.interfaces     := $(daaldep.$(PLAT).mkl.interfaces)
 daaldep.math_backend.thr := $(daaldep.$(PLAT).mkl.thr)
 daaldep.math_backend.sycl := $(daaldep.$(PLAT).mkl.sycl)
 
+daaldep.lnx32e.vml :=
+daaldep.lnx32e.ipp := $(if $(COV.libia),$(COV.libia)/libcov.a)
+
+daaldep.win32e.vml :=
+daaldep.win32e.ipp :=
+
+daaldep.mac32e.vml :=
+daaldep.mac32e.ipp :=
+
+daaldep.fbsd32e.vml :=
+daaldep.fbsd32e.ipp := $(if $(COV.libia),$(COV.libia)/libcov.a)
+
+daaldep.vml     := $(daaldep.$(PLAT).vml)
+daaldep.ipp     := $(daaldep.$(PLAT).ipp)
+
 # For the MKL-based math backend, we don't link MKL statically into libonedal_core library
 # The user must provide MKL static libraries when building their application.
 daaldep.math_backend.static_link_deps := 
 # Static MKL libraries linked into the shared oneDAL library.
-daaldep.math_backend.shared_link_deps := $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
+daaldep.math_backend.shared_link_deps := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
 # Static MKL libraries(SYCL) linked into the shared oneDAL(SYCL) library.
 daaldep.math_backend.oneapi := $(daaldep.math_backend.sycl)
