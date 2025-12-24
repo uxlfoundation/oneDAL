@@ -23,6 +23,8 @@
 */
 #include "services/daal_defines.h"
 
+#include <iostream>
+
 #define MAX_CACHE_LEVELS      4
 #define DEFAULT_L1_CACHE_SIZE 32 * 1024
 #define DEFAULT_L2_CACHE_SIZE 256 * 1024
@@ -559,14 +561,10 @@ struct glktsn
     unsigned PkgSelectMaskShift;
     unsigned SMTMaskWidth;
 
-    // the following global variables are used for product capability identification
-    unsigned HWMT_SMTperCore;
-    unsigned HWMT_SMTperPkg;
     // a data structure that can store simple leaves and complex subleaves of all supported leaf indices of CPUID
     unsigned maxCPUIDLeaf; // highest CPUID leaf index in a processor
     // workspace of our generic affinitymask structure to allow iteration over each logical processors in the system
     GenericAffinityMask cpu_generic_processAffinity;
-    GenericAffinityMask cpu_generic_systemAffinity;
 
     bool isInit = false;
 
@@ -697,29 +695,32 @@ private:
 
 glktsn::glktsn()
 {
+    std::cout << "glktsn::glktsn" << std::endl;
     isInit                = false;
     error                 = 0;
     hasLeafB              = false;
     EnumeratedCoreCount   = 0;
     EnumeratedThreadCount = 0;
-    HWMT_SMTperCore       = 0;
-    HWMT_SMTperPkg        = 0;
 
     // call CPUID with leaf 0 to get the maximum supported CPUID leaf index
     CPUIDinfo info;
     info.get(0);
     maxCPUIDLeaf = info.EAX;
+    std::cout << "glktsn::glktsn, maxCPUIDLeaf = " << maxCPUIDLeaf << std::endl;
 
     // call OS-specific service to find out how many logical processors
     // are supported by the OS
     OSProcessorCount = getMaxCPUSupportedByOS();
+    std::cout << "glktsn::glktsn, OSProcessorCount = " << OSProcessorCount << std::endl;
 
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
     allocArrays(OSProcessorCount);
+    std::cout << "glktsn::glktsn, after allocArrays, status = " << error << std::endl;
     if (error) return;
 
     // Initialize the global CPU topology object
     buildSystemTopologyTables();
+    std::cout << "glktsn::glktsn, after buildSystemTopologyTables, status = " << error << std::endl;
 }
 
 /*
@@ -736,6 +737,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
 
     #else
 
+    std::cout << "glktsn::getMaxCPUSupportedByOS" << std::endl;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX * pSystem_rel_info = NULL;
 
     // runtime check if os version is greater than 0601h
@@ -746,12 +748,16 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     char scratch[BLOCKSIZE_4K]; // scratch space large enough for OS to write SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
     Dyn1Arr_str scratchArr;     // dynamic array to hold larger buffer if needed
     _INTERNAL_DAAL_MEMSET(&scratch[0], 0, cnt);
+
+    std::cout << "glktsn::getMaxCPUSupportedByOS, after memset, cnt = " << cnt << std::endl;
     pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratch[0];
 
     BOOL winError = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
+    std::cout << "glktsn::getMaxCPUSupportedByOS, after GetLogicalProcessorInformationEx, cnt = " << cnt << std::endl;
 
     if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
     {
+        std::cout << "glktsn::getMaxCPUSupportedByOS, ERROR_INSUFFICIENT_BUFFER branch "  << std::endl;
         scratchArr.reset((cnt + sizeof(unsigned) - 1) / sizeof(unsigned));
         if (scratchArr.isEmpty())
         {
@@ -761,6 +767,7 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
         scratchArr.fill(0);
         pSystem_rel_info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *)&scratchArr[0];
         winError         = GetLogicalProcessorInformationEx(RelationGroup, pSystem_rel_info, &cnt);
+        std::cout << "glktsn::getMaxCPUSupportedByOS, ERROR_INSUFFICIENT_BUFFER branch, after GetLogicalProcessorInformationEx, cnt = "  << cnt << std::endl;
     }
     if (!winError)
     {
@@ -776,9 +783,11 @@ unsigned int glktsn::getMaxCPUSupportedByOS()
     // if Windows version support processor groups
     // tally actually populated logical processors in each group
     unsigned short grpCnt = (WORD)GetActiveProcessorGroupCount();
+        std::cout << "glktsn::getMaxCPUSupportedByOS, grpCnt = " << grpCnt << std::endl;
     for (unsigned int i = 0; i < grpCnt; i++)
     {
         const auto activeProcCount = pSystem_rel_info->Group.GroupInfo[i].ActiveProcessorCount;
+        std::cout << "glktsn::getMaxCPUSupportedByOS, i = " << i << ", activeProcCount = " << activeProcCount << std::endl;
         _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(unsigned __int64, OSProcessorCount, activeProcCount);
         if (error & _MSGTYP_TOPOLOGY_NOTANALYZED)
         {
@@ -810,21 +819,20 @@ void glktsn::setChkProcessAffinityConsistency()
             {
                 error |= _MSGTYP_USERAFFINITYERR;
             }
-            if (cpu_generic_systemAffinity.set(i))
-            {
-                error |= _MSGTYP_USERAFFINITYERR;
-            }
         }
     }
 
     #else
 
+    std::cout << "glktsn::setChkProcessAffinityConsistency, MAX_WIN7_LOG_CPU = " << MAX_WIN7_LOG_CPU << std::endl;
     if (OSProcessorCount > MAX_WIN7_LOG_CPU)
     {
         error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
     }
 
     const unsigned short grpCnt = GetActiveProcessorGroupCount();
+
+    std::cout << "glktsn::setChkProcessAffinityConsistency, grpCnt = " << grpCnt << std::endl;
     if (grpCnt > MAX_THREAD_GROUPS_WIN7)
     {
         error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processor groups than allowed, make change as required.
@@ -861,8 +869,8 @@ void glktsn::setChkProcessAffinityConsistency()
                     if (GetThreadGroupAffinity(threadHandle, &threadAffinity))
                     {
                         // Store the affinity mask for this group
-                        groupAffinityMap[threadAffinity.Group] = threadAffinity.Mask;
-                        groupAffinityInitialized               = true;
+                        groupAffinityMap[threadAffinity.Group] |= threadAffinity.Mask;
+                        groupAffinityInitialized                = true;
                     }
                     CloseHandle(threadHandle);
                 }
@@ -882,6 +890,8 @@ void glktsn::setChkProcessAffinityConsistency()
     for (unsigned int group = 0; group < grpCnt; group++)
     {
         KAFFINITY groupAffinityMask = groupAffinityMap[group];
+
+        std::cout << "glktsn::setChkProcessAffinityConsistency, group = " << group << ", groupAffinityMask = " << std::hex << groupAffinityMask << std::dec << std::endl;
         if (groupAffinityMask)
         {
             unsigned int cpu_cnt = __internal_daal_countBits(groupAffinityMask); // count bits on each target affinity group
@@ -1288,8 +1298,7 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
     // we will use our generic affinity bitmap that can be generalized from
     // OS specific affinity mask constructs or the bitmap representation of an OS
     cpu_generic_processAffinity = GenericAffinityMask(OSProcessorCount);
-    cpu_generic_systemAffinity  = GenericAffinityMask(OSProcessorCount);
-    if (cpu_generic_processAffinity.AffinityMask == NULL || cpu_generic_systemAffinity.AffinityMask == NULL)
+    if (cpu_generic_processAffinity.AffinityMask == NULL)
     {
         return -1;
     }
@@ -1332,7 +1341,6 @@ int glktsn::initEnumeratedThreadCountAndParseAPICIDs()
     }
 
     cpu_generic_processAffinity = GenericAffinityMask();
-    cpu_generic_systemAffinity  = GenericAffinityMask();
 
     if (error) return -1;
 
@@ -1359,6 +1367,7 @@ int glktsn::analyzeCPUHierarchy()
     Dyn2Arr_str pDetectCoreIDsperPkg(EnumeratedThreadCount, (1 << PkgSelectMaskShift), 0xff);
     if (pDetectCoreIDsperPkg.isEmpty()) return -1;
 
+    std::cout << "glktsn::analyzeCPUHierarchy"  << std::endl;
     // iterate throught each logical processor in the system.
     // mark up each unique physical package with a zero-based numbering scheme
     // Within each distinct package, mark up distinct cores within that package
@@ -1370,6 +1379,7 @@ int glktsn::analyzeCPUHierarchy()
         unsigned packageID = pApicAffOrdMapping[i].pkg_IDAPIC;
         unsigned coreID    = pApicAffOrdMapping[i].Core_IDAPIC;
 
+        std::cout << "glktsn::analyzeCPUHierarchy, i "  << i << "packageID = " << packageID << "coreID = " << coreID << std::endl;
         for (unsigned h = 0; h < maxPackageDetetcted; h++)
         {
             if (pDetectedPkgIDs[h] == packageID)
@@ -1418,6 +1428,7 @@ int glktsn::analyzeCPUHierarchy()
             maxPackageDetetcted++; // this is an unmarked pkg, increment pkg count by 1
             EnumeratedCoreCount++; // there is at least one core in a package
         }
+        std::cout << "glktsn::analyzeCPUHierarchy, EnumeratedCoreCount = "  << EnumeratedCoreCount << std::endl;
     }
 
     return 0;
@@ -1434,12 +1445,15 @@ void glktsn::buildSystemTopologyTables()
 {
     // allocated the memory buffers within the global pointer
 
+    std::cout << "glktsn::buildSystemTopologyTables" << std::endl;
     // Gather all the system-wide constant parameters needed to derive topology information
     error = cpuTopologyParams();
+    std::cout << "glktsn::buildSystemTopologyTables, after cpuTopologyParams, status = " << error << std::endl;
     if (error) return;
 
     // For each logical processor, collect APIC ID and parse sub IDs for each APIC ID
     int numMappings = initEnumeratedThreadCountAndParseAPICIDs();
+    std::cout << "glktsn::buildSystemTopologyTables, after initEnumeratedThreadCountAndParseAPICIDs, numMappings = " << numMappings << std::endl;
     if (numMappings < 0)
     {
         error = numMappings;
