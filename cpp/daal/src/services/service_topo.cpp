@@ -693,12 +693,18 @@ private:
  * A wrapper function that calls OS specific system API to find out
  * which logical processors this process is allowed to run on.
  * And set the corresponding bits in our generic affinity mask construct.
+ *
+ * \param[in,out] processAffinity  Generic affinity mask to store the process affinity bits.
+ *                                 On input, cpuCount member must be set to the number
+ *                                 of logical processors available on the OS.
+ *
+ * \return 0 if no error, otherwise error code.
  */
 int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
 {
     int error = 0;
 
-    unsigned OSProcessorCount = processAffinity.cpuCount;
+    const unsigned OSProcessorCount = processAffinity.cpuCount;
 
     #if defined(__linux__) || defined(__FreeBSD__)
     cpu_set_t allowedCPUs;
@@ -720,6 +726,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
     #else
 
     std::cout << "setChkProcessAffinityConsistency, MAX_WIN7_LOG_CPU = " << MAX_WIN7_LOG_CPU << std::endl;
+    std::cout << "setChkProcessAffinityConsistency, OSProcessorCount = " << OSProcessorCount << std::endl;
     if (OSProcessorCount > MAX_WIN7_LOG_CPU)
     {
         error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
@@ -739,12 +746,13 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
     HANDLE snapshotHandle = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, processId);
     if (snapshotHandle == INVALID_HANDLE_VALUE)
     {
+        std::cout << "setChkProcessAffinityConsistency, CreateToolhelp32Snapshot failed" << std::endl;
         error |= _MSGTYP_UNKNOWNERR_OS;
         return error;
     }
 
     // Index of the array is the group number, value is the affinity mask
-    KAFFINITY groupAffinityMap[MAX_THREAD_GROUPS_WIN7] = {};
+    KAFFINITY groupAffinityMap[MAX_THREAD_GROUPS_WIN7] = {0, 0, 0, 0};
     bool groupAffinityInitialized                      = false;
 
     // Iterate through all threads, get their group affinities and store them in the map
@@ -777,6 +785,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
 
     if (!groupAffinityInitialized)
     {
+        std::cout << "setChkProcessAffinityConsistency, groupAffinityInitialized == false" << std::endl;
         error |= _MSGTYP_UNKNOWNERR_OS;
         return error;
     }
@@ -794,11 +803,12 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
             if (sum > OSProcessorCount)
             {
                 //throw some exception here, no full affinity for the process
+                std::cout << "setChkProcessAffinityConsistency, sum > OSProcessorCount, sum = " << sum << std::endl;
                 error |= _MSGTYP_USERAFFINITYERR;
                 break;
             }
 
-            for (unsigned int j = 0; j < MAX_LOGICAL_PROCESSORS_PER_GROUP; j++)
+            for (unsigned int j = 0; (j < MAX_LOGICAL_PROCESSORS_PER_GROUP) && (group * MAX_LOGICAL_PROCESSORS_PER_GROUP + j < OSProcessorCount); j++)
             {
                 // check that j-th core belongs to the process affinity mask
                 if (groupAffinityMask & (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << j)))
@@ -817,6 +827,19 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
     return error;
 }
 
+/*
+ * Use OS specific service to find out how many logical processors can be accessed
+ * by this application.
+ *
+ * \param[in,out] processAffinity  Generic affinity mask to store the process affinity bits.
+ *                                 On input, cpuCount member must be set to the number
+ *                                 of logical processors available on the OS.
+ *                                 On output, the affinity bits will be set according to
+ *                                 the process affinity mask retrieved from OS.
+ *
+ * \return Number of logical processors enabled by the OS for this process,
+ *         or -1 in case of error.
+ */
 int initEnumeratedThreadCount(GenericAffinityMask & processAffinity)
 {
     unsigned OSProcessorCount = processAffinity.cpuCount;
@@ -873,17 +896,30 @@ glktsn::glktsn()
     OSProcessorCount = getMaxCPUSupportedByOS();
     std::cout << "glktsn::glktsn, OSProcessorCount = " << OSProcessorCount << std::endl;
 
+#ifdef __linux__
     GenericAffinityMask processAffinity(OSProcessorCount);
+#else
+    // For Windows, we need to consider processor groups.
+    // Each group can contain up to 64 logical processors.
+    const unsigned short grpCnt = GetActiveProcessorGroupCount();
+    GenericAffinityMask processAffinity(grpCnt * MAX_LOGICAL_PROCESSORS_PER_GROUP);
+#endif
     if (processAffinity.AffinityMask == NULL)
     {
         error = -1;
         return;
     }
 
-    EnumeratedThreadCount = initEnumeratedThreadCount(processAffinity);
-    if (EnumeratedThreadCount <= 0)
+    int threadCount = initEnumeratedThreadCount(processAffinity);
+    if (threadCount < 0)
     {
-        error = EnumeratedThreadCount;
+        error = threadCount;
+        return;
+    }
+    EnumeratedThreadCount = (unsigned)threadCount;
+    if (EnumeratedThreadCount == 0 || EnumeratedThreadCount > OSProcessorCount)
+    {
+        error = _MSGTYP_USERAFFINITYERR;
         return;
     }
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
@@ -947,10 +983,9 @@ GenericAffinityMask::~GenericAffinityMask()
 }
 
 /*
- * Initialize APIC ID from leaf B if it else from leaf 1
+ * Initialize APIC ID from leaf B if it is available on the CPU, else from leaf 1
  *
- * Arguments: None
- * Return: APIC ID
+ * \param hasLeafB  Flag to indicate whether CPUID leaf 0BH is supported
  */
 void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
 {
@@ -969,9 +1004,19 @@ void idAffMskOrdMapping_t::initApicID(bool hasLeafB)
 }
 
 // Derive bitmask extraction parameters used to extract/decompose x2APIC ID.
-// The algorithm assumes CPUID feature symmetry across all physical packages.
-// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
-// on one logical processor to derive these system-wide parameters
+//
+// \param[out] PkgSelectMask        Mask to extract Pkg_ID field from APIC ID.
+//                                  Pkg_ID is an index of the physical package in the system,
+//                                  i.e. NUMA node index
+// \param[out] PkgSelectMaskShift   Shift count to right shift APIC ID before applying PkgSelectMask
+// \param[out] CoreSelectMask       Mask to extract Core_ID field from APIC ID.
+//                                  Core_ID is an index of the core in a physical package
+// \param[out] SMTSelectMask        Mask to extract SMT_ID (simultaneous multithreading)
+//                                  field from APIC ID.
+//                                  SMT_ID is an index of the logical processor in a core
+// \param[out] SMTMaskWidth         Width of the SMT_ID field in bits
+//
+// \return 0 if successful, non-zero if error occurred
 int cpuTopologyLeafBConstants(unsigned & PkgSelectMask, unsigned & PkgSelectMaskShift,
                               unsigned & CoreSelectMask, unsigned & SMTSelectMask,
                               unsigned & SMTMaskWidth)
@@ -1013,6 +1058,7 @@ int cpuTopologyLeafBConstants(unsigned & PkgSelectMask, unsigned & PkgSelectMask
             break;
         default:
             // handle in the future
+            std::cout << "cpuTopologyLeafBConstants: unrecognized levelType = " << levelType << std::endl;
             break;
         }
 
@@ -1040,17 +1086,22 @@ int cpuTopologyLeafBConstants(unsigned & PkgSelectMask, unsigned & PkgSelectMask
     return 0;
 }
 
-// Calculate parameters used to extract/decompose Initial APIC ID.
-// The algorithm assumes CPUID feature symmetry across all physical packages.
-// Since CPUID reporting by each logical processor in a physical package are identical, we only execute CPUID
-// on one logical processor to derive these system-wide parameters
-/*
- * Derive bitmask extraction parameter using CPUID leaf 1 and leaf 4
- *
- * Arguments:
- *     info - Structure that containing CPUID instruction leaf 1 data
- * Return: 0 is no error
- */
+// Derive bitmask extraction parameter using CPUID leaf 1 and leaf 4
+//
+// \param[in] maxCPUIDLeaf          Maximum supported CPUID leaf index
+// \param[in] info                  CPUID leaf 1 data structure
+// \param[out] PkgSelectMask        Mask to extract Pkg_ID field from APIC ID.
+//                                  Pkg_ID is an index of the physical package in the system,
+//                                  i.e. NUMA node index
+// \param[out] PkgSelectMaskShift   Shift count to right shift APIC ID before applying PkgSelectMask
+// \param[out] CoreSelectMask       Mask to extract Core_ID field from APIC ID.
+//                                  Core_ID is an index of the core in a physical package
+// \param[out] SMTSelectMask        Mask to extract SMT_ID (simultaneous multithreading)
+//                                  field from APIC ID.
+//                                  SMT_ID is an index of the logical processor in a core
+// \param[out] SMTMaskWidth         Width of the SMT_ID field in bits
+//
+// \return 0 if successful, non-zero if error occurred
 int cpuTopologyLegacyConstants(unsigned maxCPUIDLeaf, const CPUIDinfo & info,
                                unsigned & PkgSelectMask, unsigned & PkgSelectMaskShift,
                                unsigned & CoreSelectMask, unsigned & SMTSelectMask,
@@ -1107,10 +1158,7 @@ static unsigned long __internal_daal_getCacheTotalLize(const CPUIDinfo & info)
     return (SetSz * WaySz * SectorSz * LnSz);
 }
 
-// Derive parameters used to extract/decompose APIC ID for CPU topology
-// The algorithm assumes CPUID feature symmetry across all physical packages.
-// CPUID reporting by each logical processor can be different on hybrid systems,
-// so we need to execute CPUID on each logical processor to derive these parameters
+// Derive parameters used to extract/decompose APIC ID for CPU topology.
 //
 // \param[in] maxCPUIDLeaf          Maximum supported CPUID leaf index
 // \param[out] hasLeafB             Flag to indicate whether CPUID leaf 0BH is supported
@@ -1152,14 +1200,14 @@ int cpuTopologyParams(unsigned maxCPUIDLeaf, bool & hasLeafB,
         if (hasLeafB)
         {
             // #1, Processors that support CPUID leaf 0BH
-            // use CPUID leaf B to derive extraction parameters
+            //    use CPUID leaf B to derive extraction parameters
             error = cpuTopologyLeafBConstants(PkgSelectMask, PkgSelectMaskShift, CoreSelectMask,
                                               SMTSelectMask, SMTMaskWidth);
         }
         else
         {
             //#2, Processors that support legacy parameters
-            //  using CPUID leaf 1 and leaf 4
+            //    using CPUID leaf 1 and leaf 4
             error = cpuTopologyLegacyConstants(maxCPUIDLeaf, info, PkgSelectMask, PkgSelectMaskShift,
                                                CoreSelectMask, SMTSelectMask, SMTMaskWidth);
         }
@@ -1257,7 +1305,7 @@ void Dyn1Arr_str::fill(const unsigned value)
 
 /*
  * Allocate the dynamic arrays in the global object containing various buffers for analyzing
- * cpu topology of a system with N logical processors
+ * cpu topology of a system with N logical processors in the process affinity mask.
  *
  * \param cpus  Number of logical processors
  *
@@ -1312,8 +1360,6 @@ idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsi
 }
 
 /*
- * Use OS specific service to find out how many logical processors can be accessed
- * by this application.
  * Querying CPUID on each logical processor requires using OS-specific API to
  * bind current context to each logical processor first.
  * After gathering the APIC ID's for each logical processor,
