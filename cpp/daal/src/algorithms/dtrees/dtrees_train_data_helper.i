@@ -150,7 +150,7 @@ struct SResponse
 //////////////////////////////////////////////////////////////////////////////////////////
 // DataHelper. Base class for response-specific services classes.
 // Keeps indices of the bootstrap samples and provides optimal access to columns in case
-// of homogenious numeric table
+// of homogeneous numeric table
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, CpuType cpu>
 class DataHelperBase
@@ -194,7 +194,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////
 // DataHelper. Base class for response-specific services classes.
 // Keeps indices of the bootstrap samples and provides optimal access to columns in case
-// of homogenious numeric table
+// of homogeneous numeric table
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, typename TResponse, CpuType cpu>
 class DataHelper : public DataHelperBase<algorithmFPType, cpu>

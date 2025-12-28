@@ -120,7 +120,7 @@ You can contribute to this project and also contribute to the specification for 
 
 ## Support
 
-Ask questions and engage in discussions with oneDAL developers, contributers, and other users through the following channels:
+Ask questions and engage in discussions with oneDAL developers, contributors, and other users through the following channels:
 
 - [GitHub Discussions](https://github.com/uxlfoundation/oneDAL/discussions)
 - [Community Forum](https://community.intel.com/t5/Intel-oneAPI-Data-Analytics/bd-p/oneapi-data-analytics-library)
