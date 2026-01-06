@@ -44,10 +44,10 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 
 /* Input data set parameters */
-const std::string dataFileNames[4] = { "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv" };
+const std::string dataFileNames[4] = { "data/kmeans_csr.csv",
+                                       "data/kmeans_csr.csv",
+                                       "data/kmeans_csr.csv",
+                                       "data/kmeans_csr.csv" };
 
 #define mpi_root 0
 const int step3ResultSizeTag = 1;

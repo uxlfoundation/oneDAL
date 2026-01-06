@@ -36,10 +36,10 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "covcormoments_dense_1.csv",
-                                         "covcormoments_dense_2.csv",
-                                         "covcormoments_dense_3.csv",
-                                         "covcormoments_dense_4.csv" };
+const std::string datasetFileNames[] = { "data/covcormoments_dense_1.csv",
+                                         "data/covcormoments_dense_2.csv",
+                                         "data/covcormoments_dense_3.csv",
+                                         "data/covcormoments_dense_4.csv" };
 
 covariance::PartialResultPtr partialResult[nBlocks];
 covariance::ResultPtr result;

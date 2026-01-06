@@ -42,10 +42,10 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 
 /* Input data set parameters */
-const std::string dataFileNames[4] = { "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv" };
+const std::string dataFileNames[4] = { "data/kmeans_dense.csv",
+                                       "data/kmeans_dense.csv",
+                                       "data/kmeans_dense.csv",
+                                       "data/kmeans_dense.csv" };
 
 #define mpi_root 0
 

@@ -38,19 +38,19 @@ using namespace daal::algorithms;
 using namespace daal::algorithms::multinomial_naive_bayes;
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[4] = { "./data/distributed/naivebayes_train_dense.csv",
-                                               "./data/distributed/naivebayes_train_dense.csv",
-                                               "./data/distributed/naivebayes_train_dense.csv",
-                                               "./data/distributed/naivebayes_train_dense.csv" };
+const std::string trainDatasetFileNames[4] = { "data/naivebayes_train_dense.csv",
+                                               "data/naivebayes_train_dense.csv",
+                                               "data/naivebayes_train_dense.csv",
+                                               "data/naivebayes_train_dense.csv" };
 const std::string trainGroundTruthFileNames[4] = {
-    "./data/distributed/naivebayes_train_labels.csv",
-    "./data/distributed/naivebayes_train_labels.csv",
-    "./data/distributed/naivebayes_train_labels.csv",
-    "./data/distributed/naivebayes_train_labels.csv"
+    "data/naivebayes_train_labels.csv",
+    "data/naivebayes_train_labels.csv",
+    "data/naivebayes_train_labels.csv",
+    "data/naivebayes_train_labels.csv"
 };
 
-std::string testdatasetFileName = "data/./data/distributed/naivebayes_test_dense.csv";
-std::string testGroundTruthFileName = "./data/distributed/naivebayes_test_labels.csv";
+std::string testdatasetFileName = "data/naivebayes_test_dense.csv";
+std::string testGroundTruthFileName = "data/naivebayes_test_labels.csv";
 
 const size_t nClasses = 20;
 const size_t nBlocks = 4;
