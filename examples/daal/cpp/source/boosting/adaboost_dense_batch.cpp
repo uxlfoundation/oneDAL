@@ -33,9 +33,9 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "adaboost_train.csv";
+const std::string traindatasetFileName = "data/adaboost_train.csv";
 
-const std::string testDatasetFileName = "adaboost_test.csv";
+const std::string testdatasetFileName = "data/adaboost_test.csv";
 
 const size_t nFeatures = 20;
 

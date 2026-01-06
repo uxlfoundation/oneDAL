@@ -32,7 +32,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-const std::string datasetFileName = "lbfgs.csv";
+const std::string datasetFileName = "data/lbfgs.csv";
 const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 
 const float tol = 0.00000001f;

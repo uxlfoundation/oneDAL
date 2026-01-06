@@ -36,7 +36,7 @@ using namespace daal::data_management;
 using namespace daal::algorithms::implicit_als;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "implicit_als_dense.csv";
+const std::string traindatasetFileName = "data/implicit_als_dense.csv";
 
 /* Algorithm parameters */
 const size_t nFactors = 2;

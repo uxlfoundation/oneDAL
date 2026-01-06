@@ -29,16 +29,10 @@ inline bool check_file(const std::string& name) {
     return std::ifstream{ name }.good();
 }
 
-inline std::string get_data_path(const std::string& name) {
-    const std::vector<std::string> paths = { "./data", "samples/oneapi/dpc/mpi/data" };
-
-    for (const auto& path : paths) {
-        const std::string try_path = path + "/" + name;
-        if (check_file(try_path)) {
-            return try_path;
-        }
+inline const std::string get_data_path(const std::string& name) {
+    if (!std::ifstream{ name }.good()) {
+        throw std::runtime_error("File not found: " + name);
     }
-
     return name;
 }
 

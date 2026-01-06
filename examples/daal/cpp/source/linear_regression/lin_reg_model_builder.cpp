@@ -38,7 +38,7 @@ using namespace daal::algorithms::linear_regression;
 
 /* Input data set parameters */
 const std::string trainedModelFileName = "linear_regression_trained_model.csv";
-const std::string testDatasetFileName = "linear_regression_test.csv";
+const std::string testdatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 const size_t nDependentVariables =

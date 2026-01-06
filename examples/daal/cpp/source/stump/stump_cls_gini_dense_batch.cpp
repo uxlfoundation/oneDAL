@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::stump::classification;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "stump_train.csv";
-const std::string testDatasetFileName = "stump_test.csv";
+const std::string traindatasetFileName = "data/stump_train.csv";
+const std::string testdatasetFileName = "data/stump_test.csv";
 
 const size_t nFeatures = 20;
 

@@ -36,8 +36,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "df_regression_train.csv";
-const std::string testDatasetFileName = "df_regression_test.csv";
+const std::string traindatasetFileName = "data/df_regression_train.csv";
+const std::string testdatasetFileName = "data/df_regression_test.csv";
 const size_t categoricalFeaturesIndices[] = { 3 };
 const size_t nFeatures = 13; /* Number of features in training and testing data sets */
 

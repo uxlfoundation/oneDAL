@@ -44,7 +44,7 @@ const std::string trainDatasetFileNames[] = { "linear_regression_train_1.csv",
                                               "linear_regression_train_2.csv",
                                               "linear_regression_train_3.csv",
                                               "linear_regression_train_4.csv" };
-const std::string testDatasetFileName = "linear_regression_test.csv";
+const std::string testdatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nBlocks = 4;
 

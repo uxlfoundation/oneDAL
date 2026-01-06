@@ -45,14 +45,12 @@ const std::string trainDatasetFileNames[4] = { "naivebayes_train_csr_1.csv",
                                                "naivebayes_train_csr_2.csv",
                                                "naivebayes_train_csr_3.csv",
                                                "naivebayes_train_csr_4.csv" };
-const std::string trainGroundTruthFileNames[4] = {
-    "naivebayes_train_labels_1.csv",
-    "naivebayes_train_labels_2.csv",
-    "naivebayes_train_labels_3.csv",
-    "naivebayes_train_labels_4.csv"
-};
+const std::string trainGroundTruthFileNames[4] = { "naivebayes_train_labels_1.csv",
+                                                   "naivebayes_train_labels_2.csv",
+                                                   "naivebayes_train_labels_3.csv",
+                                                   "naivebayes_train_labels_4.csv" };
 
-const std::string testDatasetFileName = "naivebayes_test_csr.csv";
+const std::string testdatasetFileName = "data/naivebayes_test_csr.csv";
 const std::string testGroundTruthFileName = "naivebayes_test_labels.csv";
 
 const size_t nClasses = 20;

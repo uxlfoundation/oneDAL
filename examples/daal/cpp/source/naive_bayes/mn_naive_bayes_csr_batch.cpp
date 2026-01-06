@@ -40,10 +40,10 @@ using namespace daal::algorithms::multinomial_naive_bayes;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "naivebayes_train_csr.csv";
+const std::string traindatasetFileName = "data/naivebayes_train_csr.csv";
 const std::string trainGroundTruthFileName = "naivebayes_train_labels.csv";
 
-const std::string testDatasetFileName = "naivebayes_test_csr.csv";
+const std::string testdatasetFileName = "data/naivebayes_test_csr.csv";
 const std::string testGroundTruthFileName = "naivebayes_test_labels.csv";
 
 const size_t nTrainObservations = 8000;

@@ -36,7 +36,7 @@ using namespace daal::data_management;
 typedef float dataFPType; /* Data floating-point type */
 
 /* Input data set parameters */
-const std::string datasetFileName = "em_gmm.csv";
+const std::string datasetFileName = "data/em_gmm.csv";
 const size_t nComponents = 2;
 size_t nFeatures;
 
