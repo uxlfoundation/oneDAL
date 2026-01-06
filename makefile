@@ -205,6 +205,7 @@ CPPDIR.onedal:=$(CPPDIR)/oneapi/dal
 WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
 RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 RELEASEDIR.daal        := $(RELEASEDIR)/daal/latest
+RELEASEDIR.data        := $(RELEASEDIR.daal)/data
 RELEASEDIR.lib         := $(RELEASEDIR.daal)/lib
 RELEASEDIR.env         := $(RELEASEDIR.daal)/env
 RELEASEDIR.modulefiles := $(RELEASEDIR.daal)/modulefiles
@@ -406,6 +407,9 @@ release.EXAMPLES.DATA  := $(filter $(expat),$(shell find examples/daal/data -typ
 release.ONEAPI.EXAMPLES.CPP  := $(filter $(expat),$(shell find examples/oneapi/cpp -type f))
 release.ONEAPI.EXAMPLES.DPC  := $(filter $(expat),$(shell find examples/oneapi/dpc -type f))
 release.ONEAPI.EXAMPLES.DATA := $(filter $(expat),$(shell find examples/oneapi/data -type f))
+
+# List examples files to populate data.
+release.DATA  := $(filter $(expat),$(shell find data -type f -name "*.csv"))
 
 # List env files to populate release.
 release.ENV = deploy/local/vars_$(_OS).$(scr)
@@ -962,8 +966,8 @@ _oneapi_c: $(WORKDIR.lib)/$(oneapi_a) $(WORKDIR.lib)/$(oneapi_y)
 _oneapi_dpc: info.building.oneapi.DPC++.part
 _oneapi_dpc: $(WORKDIR.lib)/$(oneapi_a.dpc) $(WORKDIR.lib)/$(oneapi_y.dpc)
 
-_release_oneapi_c: _release_oneapi_c_h _release_oneapi_common
-_release_oneapi_dpc: _release_oneapi_c _release_oneapi_common
+_release_oneapi_c: _release_oneapi_c_h
+_release_oneapi_dpc: _release_oneapi_c
 
 #-------------------------------------------------------------------------------
 # Populating RELEASEDIR
@@ -1050,11 +1054,9 @@ $3: $2/$(subst _$(_OS),,$1)
 $2/$(subst _$(_OS),,$1): $(DIR)/$1 | $(dir $2/$1)/. ; $(value cpy)
 	$(if $(filter %.sh %.bat,$1),chmod +x $$@)
 endef
-$(foreach x,$(release.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))
 $(foreach x,$(release.EXAMPLES.CPP),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_c)))
 $(foreach x,$(release.ONEAPI.EXAMPLES.CPP),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_oneapi_c)))
 $(foreach x,$(release.ONEAPI.EXAMPLES.DPC),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_oneapi_dpc)))
-$(foreach x,$(release.ONEAPI.EXAMPLES.DATA),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_oneapi_common)))
 $(foreach x,$(release.EXAMPLES.CMAKE),$(eval $(call .release.x,$x,$(RELEASEDIR.daal),_release_common)))
 
 #----- releasing environment scripts
@@ -1067,6 +1069,7 @@ $3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
 	$(if $(OS_is_win),sed -i -n -z -e 's/\r*\n/\r\n/g;p' $3/$2)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
+$(foreach x,$(release.DATA),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
 $(foreach x,$(release.ENV),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
 $(if $(OS_is_lnx),$(foreach x,$(release.MODULEFILES),$(eval $(call .release.x,$x,$(notdir $x),$(RELEASEDIR.modulefiles),_release_common))))
 $(foreach x,$(release.CONF),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.conf),_release_common)))
