@@ -2,5 +2,5 @@ package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "data",
-    srcs = ["//data:csv_files"],
+    srcs = ["//data:datasets"],
 )
