@@ -82,7 +82,7 @@ public:
 
 int main(int argc, char* argv[]) {
     /* Path to the CSV to be read */
-    const std::string csvFileName = "../data/batch/mixed_text_and_numbers.csv";
+    const std::string csvFileName = "mixed_text_and_numbers.csv";
 
     checkArguments(argc, argv, 1, &csvFileName);
 

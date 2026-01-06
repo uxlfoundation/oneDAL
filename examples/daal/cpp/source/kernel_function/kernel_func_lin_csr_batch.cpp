@@ -34,8 +34,8 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string leftDatasetFileName = "../data/batch/kernel_function_csr.csv";
-const std::string rightDatasetFileName = "../data/batch/kernel_function_csr.csv";
+const std::string leftDatasetFileName = "kernel_function_csr.csv";
+const std::string rightDatasetFileName = "kernel_function_csr.csv";
 
 /* Kernel algorithm parameters */
 const double k = 1.0; /* Linear kernel coefficient in the k(X,Y) + b model */

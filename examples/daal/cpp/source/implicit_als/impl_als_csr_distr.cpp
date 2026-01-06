@@ -39,10 +39,10 @@ using namespace daal::algorithms::implicit_als;
 const size_t nBlocks = 4;
 
 const std::string trainDatasetFileNames[nBlocks] = {
-    "../data/distributed/implicit_als_trans_csr_1.csv",
-    "../data/distributed/implicit_als_trans_csr_2.csv",
-    "../data/distributed/implicit_als_trans_csr_3.csv",
-    "../data/distributed/implicit_als_trans_csr_4.csv"
+    "implicit_als_trans_csr_1.csv",
+    "implicit_als_trans_csr_2.csv",
+    "implicit_als_trans_csr_3.csv",
+    "implicit_als_trans_csr_4.csv"
 };
 
 static int usersPartition[] = { nBlocks };

@@ -29,7 +29,7 @@ inline bool check_file(const std::string& name) {
 }
 
 inline std::string get_data_path(const std::string& name) {
-    const std::vector<std::string> paths = { "./data", "samples/oneapi/dpc/mpi/data" };
+    const std::vector<std::string> paths = { "data" };
 
     for (const auto& path : paths) {
         const std::string try_path = path + "/" + name;

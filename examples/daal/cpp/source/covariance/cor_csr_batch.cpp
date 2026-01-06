@@ -37,7 +37,7 @@ using namespace daal::data_management;
 /* Input data set parameters
    Input matrix is stored in the compressed sparse row format with one-based indexing
  */
-const std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
+const std::string datasetFileName = "covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);

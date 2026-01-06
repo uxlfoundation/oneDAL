@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
-    name = "data",
-    srcs = ["//data:csv_files"],
+    name = "csv_files",
+    srcs = glob(["*.csv"]),
 )

@@ -35,9 +35,9 @@ using namespace daal::data_management;
 using namespace daal::algorithms::classifier::quality_metric;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/svm_multi_class_train_dense.csv";
+const std::string trainDatasetFileName = "svm_multi_class_train_dense.csv";
 
-const std::string testDatasetFileName = "../data/batch/svm_multi_class_test_dense.csv";
+const std::string testDatasetFileName = "svm_multi_class_test_dense.csv";
 
 const size_t nFeatures = 20;
 const size_t nClasses = 5;

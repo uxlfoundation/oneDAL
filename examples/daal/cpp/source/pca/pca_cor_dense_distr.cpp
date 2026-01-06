@@ -39,10 +39,10 @@ const size_t nBlocks = 4;
 const size_t nVectorsInBlock = 250;
 size_t nFeatures;
 
-const std::string dataFileNames[] = { "../data/distributed/pca_normalized_1.csv",
-                                      "../data/distributed/pca_normalized_2.csv",
-                                      "../data/distributed/pca_normalized_3.csv",
-                                      "../data/distributed/pca_normalized_4.csv" };
+const std::string dataFileNames[] = { "pca_normalized_1.csv",
+                                      "pca_normalized_2.csv",
+                                      "pca_normalized_3.csv",
+                                      "pca_normalized_4.csv" };
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,

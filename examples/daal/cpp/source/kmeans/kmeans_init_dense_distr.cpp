@@ -40,10 +40,10 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 const size_t nVectorsInBlock = 2500;
 
-const std::string dataFileNames[] = { "../data/distributed/kmeans_dense_1.csv",
-                                      "../data/distributed/kmeans_dense_2.csv",
-                                      "../data/distributed/kmeans_dense_3.csv",
-                                      "../data/distributed/kmeans_dense_4.csv" };
+const std::string dataFileNames[] = { "kmeans_dense_1.csv",
+                                      "kmeans_dense_2.csv",
+                                      "kmeans_dense_3.csv",
+                                      "kmeans_dense_4.csv" };
 
 void loadData(NumericTablePtr data[nBlocks]) {
     for (size_t i = 0; i < nBlocks; i++) {
