@@ -55,14 +55,10 @@ ONEDAL_EXPORT int _onedal_threader_get_max_threads();
 
 ONEDAL_EXPORT int _onedal_threader_get_current_thread_index();
 
-ONEDAL_EXPORT void _onedal_threader_for(std::int32_t n,
-                                        std::int32_t threads_request,
+ONEDAL_EXPORT void _onedal_threader_for(std::int64_t n,
+                                        std::int64_t threads_request,
                                         const void *a,
                                         oneapi::dal::preview::functype func);
-
-ONEDAL_EXPORT void _onedal_threader_for_int64(std::int64_t n,
-                                              const void *a,
-                                              oneapi::dal::preview::functype_int64 func);
 
 ONEDAL_EXPORT void _onedal_threader_for_simple(std::int32_t n,
                                                std::int32_t threads_request,
@@ -155,19 +151,12 @@ inline void threader_func_blocked_size(std::size_t f, std::size_t l, const void 
 }
 
 template <typename F>
-inline ONEDAL_EXPORT void threader_for(std::int32_t n,
-                                       std::int32_t threads_request,
+inline ONEDAL_EXPORT void threader_for(std::int64_t n,
+                                       std::int64_t threads_request,
                                        const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
     _onedal_threader_for(n, threads_request, a, threader_func<F>);
-}
-
-template <typename F>
-inline ONEDAL_EXPORT void threader_for_int64(std::int64_t n, const F &lambda) {
-    const void *a = static_cast<const void *>(&lambda);
-
-    _onedal_threader_for_int64(n, a, threader_func_int64<F>);
 }
 
 template <typename F>

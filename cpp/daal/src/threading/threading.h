@@ -87,10 +87,9 @@ extern "C"
 {
     DAAL_EXPORT int _daal_threader_get_max_threads();
     DAAL_EXPORT int _daal_threader_get_current_thread_index();
-    DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void * a, daal::functype func);
+    DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
-    DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::functype_int64 func);
     DAAL_EXPORT void _daal_threader_for_simple(int n, int threads_request, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
     DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func);
@@ -266,32 +265,11 @@ inline void threader_func_break(int i, bool & needBreak, const void * a)
 /// @param[in] reserved Parameter reserved for the future. Currently unused.
 /// @param[in] func     Callable object that defines the loop body.
 template <typename F>
-inline void threader_for(int n, int reserved, const F & func)
+inline void threader_for(int64_t n, int64_t reserved, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
     _daal_threader_for(n, reserved, a, threader_func<F>);
-}
-
-/// Pass a function to be executed in a for loop to the threading layer.
-/// The maximal number of iterations in the loop is `2^63 - 1 (INT64_MAX)`.
-/// The default scheduling of the threading layer is used to assign
-/// the iterations of the loop to threads.
-/// The iterations of the loop should be logically independent.
-/// Data dependencies between the iterations are allowed, but may requre the use
-/// of synchronization primitives.
-///
-/// @tparam F   Callable object of type `[/* captures */](int64_t i) -> void`,
-///             where `i` is the loop's iteration index, `0 <= i < n`.
-///
-/// @param[in] n        Number of iterations in the for loop.
-/// @param[in] func     Callable object that defines the loop body.
-template <typename F>
-inline void threader_for_int64(int64_t n, const F & func)
-{
-    const void * a = static_cast<const void *>(&func);
-
-    _daal_threader_for_int64(n, a, threader_func<F>);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer.

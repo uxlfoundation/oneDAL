@@ -74,7 +74,7 @@ void apply_weights(const pr::ndview<Float, 1>& weights, pr::ndview<Float, 2>& sa
     const bk::uniform_blocking blocking(r_count, threading_block);
     const auto block_count = blocking.get_block_count();
 
-    de::threader_for_int64(block_count, [&](std::int64_t b) -> void {
+    de::threader_for(block_count, block_count, [&](std::int64_t b) -> void {
         const auto f_row = blocking.get_block_start_index(b);
         const auto l_row = blocking.get_block_end_index(b);
 
