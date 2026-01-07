@@ -41,7 +41,7 @@ void vertex_similarity_block_processing(const Graph &g,
 
 int main(int argc, char **argv) {
     // load the graph
-    const auto filename = get_data_path("graph.csv");
+    const auto filename = get_data_path("dev/data/graph.csv");
 
     using graph_t = dal::preview::undirected_adjacency_vector_graph<>;
     const auto graph = dal::read<graph_t>(dal::csv::data_source{ filename });

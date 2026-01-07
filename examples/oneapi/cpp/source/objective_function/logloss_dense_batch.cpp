@@ -26,9 +26,9 @@ namespace logloss_objective = dal::logloss_objective;
 namespace result_options = objective_function::result_options;
 
 int main(int argc, char const *argv[]) {
-    const auto data_filename = get_data_path("df_binary_classification_train_data.csv");
-    const auto labels_filename = get_data_path("df_binary_classification_train_label.csv");
-    const auto params_filename = get_data_path("logreg_params.csv");
+    const auto data_filename = get_data_path("dev/data/df_binary_classification_train_data.csv");
+    const auto labels_filename = get_data_path("dev/data/df_binary_classification_train_label.csv");
+    const auto params_filename = get_data_path("dev/data/logreg_params.csv");
     const auto data = dal::read<dal::table>(dal::csv::data_source{ data_filename });
     const auto labels = dal::read<dal::table>(dal::csv::data_source{ labels_filename });
     const auto params = dal::read<dal::table>(dal::csv::data_source{ params_filename });

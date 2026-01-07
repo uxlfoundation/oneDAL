@@ -26,8 +26,8 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char **argv) {
-    auto target_filename = get_data_path("si_target_graph.csv");
-    auto pattern_filename = get_data_path("si_pattern_graph.csv");
+    auto target_filename = get_data_path("dev/data/si_target_graph.csv");
+    auto pattern_filename = get_data_path("dev/data/si_pattern_graph.csv");
 
     using graph_t = dal::preview::undirected_adjacency_vector_graph<>;
 

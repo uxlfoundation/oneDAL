@@ -37,9 +37,9 @@ using namespace daal::data_management;
 using namespace daal::algorithms::multinomial_naive_bayes;
 
 /* Input data set parameters */
-const std::string traindatasetFileName = "data/naivebayes_train_dense.csv";
+const std::string traindatasetFileName = "dev/data/naivebayes_train_dense.csv";
 
-const std::string testdatasetFileName = "data/naivebayes_test_dense.csv";
+const std::string testdatasetFileName = "dev/data/naivebayes_test_dense.csv";
 
 const size_t nFeatures = 20;
 const size_t nClasses = 20;

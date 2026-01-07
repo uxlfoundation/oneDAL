@@ -58,7 +58,7 @@ void run(sycl::queue& q, const dal::table& x_train, const std::string& method_na
 }
 
 int main(int argc, char const* argv[]) {
-    const auto train_data_file_name = get_data_path("pca_non_normalized.csv");
+    const auto train_data_file_name = get_data_path("dev/data/pca_non_normalized.csv");
 
     const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
 

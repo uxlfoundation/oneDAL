@@ -22,7 +22,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto data_file_name = get_data_path("dbscan_dense.csv");
+    const auto data_file_name = get_data_path("dev/data/dbscan_dense.csv");
 
     const auto x_data = dal::read<dal::table>(dal::csv::data_source{ data_file_name });
 

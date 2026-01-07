@@ -35,7 +35,7 @@ using namespace daal::data_management;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string datasetFileName = "data/kmeans_csr.csv";
+const std::string datasetFileName = "dev/data/kmeans_csr.csv";
 
 /* K-Means algorithm parameters */
 const size_t nClusters = 20;

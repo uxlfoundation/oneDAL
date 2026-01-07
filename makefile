@@ -205,7 +205,7 @@ CPPDIR.onedal:=$(CPPDIR)/oneapi/dal
 WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
 RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 RELEASEDIR.daal        := $(RELEASEDIR)/daal/latest
-RELEASEDIR.data        := $(RELEASEDIR.daal)/data
+RELEASEDIR.data        := $(RELEASEDIR.daal)/dev/data
 RELEASEDIR.lib         := $(RELEASEDIR.daal)/lib
 RELEASEDIR.env         := $(RELEASEDIR.daal)/env
 RELEASEDIR.modulefiles := $(RELEASEDIR.daal)/modulefiles
@@ -402,14 +402,11 @@ release.HEADERS.COMMON := $(filter-out $(subst _$(_OS),,$(release.HEADERS.OSSPEC
 expat = %.cpp %.h %.hpp %.txt %.csv %.cmake
 expat += $(if $(OS_is_win),%.bat,%_$(_OS).lst %_$(_OS).sh)
 release.EXAMPLES.CMAKE := $(filter $(expat),$(shell find examples/cmake -type f))
-release.EXAMPLES.CPP   := $(filter $(expat),$(shell find examples/daal/cpp  -type f))
-release.EXAMPLES.DATA  := $(filter $(expat),$(shell find examples/daal/data -type f))
 release.ONEAPI.EXAMPLES.CPP  := $(filter $(expat),$(shell find examples/oneapi/cpp -type f))
 release.ONEAPI.EXAMPLES.DPC  := $(filter $(expat),$(shell find examples/oneapi/dpc -type f))
-release.ONEAPI.EXAMPLES.DATA := $(filter $(expat),$(shell find examples/oneapi/data -type f))
 
 # List examples files to populate data.
-release.DATA  := $(filter $(expat),$(shell find data -type f -name "*.csv"))
+release.DATA  := $(filter $(expat),$(shell find dev/data -type f))
 
 # List env files to populate release.
 release.ENV = deploy/local/vars_$(_OS).$(scr)
@@ -1069,7 +1066,7 @@ $3/$2: $(DIR)/$1 | $3/. ; $(value cpy)
 	$(if $(OS_is_win),sed -i -n -z -e 's/\r*\n/\r\n/g;p' $3/$2)
 	$(if $(filter %.sh %.bat,$2),chmod +x $$@)
 endef
-$(foreach x,$(release.DATA),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
+$(foreach x,$(release.DATA),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.data),_release_common)))
 $(foreach x,$(release.ENV),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.env),_release_common)))
 $(if $(OS_is_lnx),$(foreach x,$(release.MODULEFILES),$(eval $(call .release.x,$x,$(notdir $x),$(RELEASEDIR.modulefiles),_release_common))))
 $(foreach x,$(release.CONF),$(eval $(call .release.x,$x,$(notdir $(subst _$(_OS),,$x)),$(RELEASEDIR.conf),_release_common)))

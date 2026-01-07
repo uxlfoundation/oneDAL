@@ -24,7 +24,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char** argv) {
-    const auto filename = get_data_path("weighted_edge_list.csv");
+    const auto filename = get_data_path("dev/data/weighted_edge_list.csv");
 
     using vertex_type = int32_t;
     using weight_type = double;

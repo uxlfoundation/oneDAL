@@ -26,7 +26,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char **argv) {
-    const auto filename = get_data_path("graph.csv");
+    const auto filename = get_data_path("dev/data/graph.csv");
 
     // read the graph
     using graph_t = dal::preview::undirected_adjacency_vector_graph<>;

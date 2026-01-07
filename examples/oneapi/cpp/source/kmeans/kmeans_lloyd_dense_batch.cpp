@@ -21,10 +21,11 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto train_data_file_name = get_data_path("kmeans_dense_train_data.csv");
-    const auto initial_centroids_file_name = get_data_path("kmeans_dense_train_centroids.csv");
-    const auto test_data_file_name = get_data_path("kmeans_dense_test_data.csv");
-    const auto test_response_file_name = get_data_path("kmeans_dense_test_label.csv");
+    const auto train_data_file_name = get_data_path("dev/data/kmeans_dense_train_data.csv");
+    const auto initial_centroids_file_name =
+        get_data_path("dev/data/kmeans_dense_train_centroids.csv");
+    const auto test_data_file_name = get_data_path("dev/data/kmeans_dense_test_data.csv");
+    const auto test_response_file_name = get_data_path("dev/data/kmeans_dense_test_label.csv");
 
     const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
     const auto initial_centroids =

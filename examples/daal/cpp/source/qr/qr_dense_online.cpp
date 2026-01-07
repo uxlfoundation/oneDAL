@@ -33,7 +33,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "data/qr.csv";
+const std::string datasetFileName = "dev/data/qr.csv";
 const size_t nRowsInBlock = 4000;
 
 int main(int argc, char* argv[]) {

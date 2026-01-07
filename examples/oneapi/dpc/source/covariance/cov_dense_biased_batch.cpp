@@ -28,7 +28,7 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue &q) {
-    const auto input_file_name = get_data_path("covcormoments_dense.csv");
+    const auto input_file_name = get_data_path("dev/data/covcormoments_dense.csv");
 
     const auto input = dal::read<dal::table>(q, dal::csv::data_source{ input_file_name });
     auto cov_desc = dal::covariance::descriptor{}

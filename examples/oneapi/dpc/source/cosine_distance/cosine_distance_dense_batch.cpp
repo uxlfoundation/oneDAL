@@ -28,8 +28,8 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue &q) {
-    const auto x_data_file_name = get_data_path("x_distance.csv");
-    const auto y_data_file_name = get_data_path("y_distance.csv");
+    const auto x_data_file_name = get_data_path("dev/data/x_distance.csv");
+    const auto y_data_file_name = get_data_path("dev/data/y_distance.csv");
 
     const auto x = dal::read<dal::table>(q, dal::csv::data_source{ x_data_file_name });
     const auto y = dal::read<dal::table>(q, dal::csv::data_source{ y_data_file_name });

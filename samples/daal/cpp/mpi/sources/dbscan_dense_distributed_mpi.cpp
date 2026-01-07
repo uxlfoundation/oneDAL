@@ -35,10 +35,10 @@ using namespace daal::algorithms;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[nBlocks] = { "data/dbscan_dense_1.csv",
-                                                "data/dbscan_dense_2.csv",
-                                                "data/dbscan_dense_3.csv",
-                                                "data/dbscan_dense_4.csv" };
+const std::string datasetFileNames[nBlocks] = { "dev/data/dbscan_dense_1.csv",
+                                                "dev/data/dbscan_dense_2.csv",
+                                                "dev/data/dbscan_dense_3.csv",
+                                                "dev/data/dbscan_dense_4.csv" };
 
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
