@@ -658,14 +658,23 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
                                      interval);
 }
 
-// The function tries to find the file `name` in several possible directories.
-// This is useful because CMake and Bazel may run the program from different working directories,
-// so relative paths to data files can differ.
 inline const std::string get_data_path(const std::string &name) {
     if (!std::ifstream{ name }.good()) {
         throw std::runtime_error("File not found: " + name);
     }
     return name;
+}
+
+size_t countRowsCSV(const std::string &file) {
+    std::ifstream f(file);
+    size_t rows = 0;
+    std::string line;
+
+    while (std::getline(f, line)) {
+        if (!line.empty())
+            rows++;
+    }
+    return rows;
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {
