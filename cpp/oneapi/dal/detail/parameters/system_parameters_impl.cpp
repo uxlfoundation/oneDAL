@@ -37,11 +37,8 @@ system_parameters_impl::system_parameters_impl() {
     // changes default number of threads in the threading layer
     const int cpuid = env->getCpuId();
 
-    sys_info_.insert(
-        { "top_enabled_cpu_extension", std::make_any<cpu_extension>(from_daal_cpu_type(cpuid)) });
-    sys_info_.insert(
-        { "max_number_of_threads",
-          std::make_any<std::uint32_t>(static_cast<std::uint32_t>(env->getNumberOfThreads())) });
+    sys_info_["top_enabled_cpu_extension"] = from_daal_cpu_type(cpuid);
+    sys_info_["max_number_of_threads"] = static_cast<std::uint32_t>(env->getNumberOfThreads());
 }
 
 cpu_extension system_parameters_impl::get_top_enabled_cpu_extension() const {
