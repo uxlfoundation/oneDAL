@@ -21,7 +21,6 @@
 #include <daal/src/services/service_defines.h>
 #include <daal/include/services/internal/daal_kernel_defines.h>
 
-#include <any>
 #include <sstream>
 
 namespace oneapi::dal::detail {
