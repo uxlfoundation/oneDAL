@@ -29,11 +29,9 @@ namespace dal = oneapi::dal;
 
 void run(sycl::queue &q) {
     const auto train_data_file_name = get_data_path("data/svm_two_class_train_dense_data.csv");
-    const auto train_response_file_name =
-        get_data_path("data/svm_two_class_train_dense_label.csv");
+    const auto train_response_file_name = get_data_path("data/svm_two_class_train_dense_label.csv");
     const auto test_data_file_name = get_data_path("data/svm_two_class_test_dense_data.csv");
-    const auto test_response_file_name =
-        get_data_path("data/svm_two_class_test_dense_label.csv");
+    const auto test_response_file_name = get_data_path("data/svm_two_class_test_dense_label.csv");
 
     const auto x_train = dal::read<dal::table>(q, dal::csv::data_source{ train_data_file_name });
     const auto y_train =

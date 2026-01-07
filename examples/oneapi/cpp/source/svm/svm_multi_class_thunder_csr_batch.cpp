@@ -22,8 +22,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto train_data_file_name =
-        get_data_path("data/svm_multi_class_train_sparse_data.csv");
+    const auto train_data_file_name = get_data_path("data/svm_multi_class_train_sparse_data.csv");
     const auto train_response_file_name =
         get_data_path("data/svm_multi_class_train_sparse_labels.csv");
     const auto test_data_file_name = get_data_path("data/svm_multi_class_test_sparse_data.csv");

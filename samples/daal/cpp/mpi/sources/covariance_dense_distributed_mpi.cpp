@@ -34,9 +34,9 @@
 using namespace daal;
 using namespace daal::algorithms;
 
-int main(int argc, char* argv[]) {
-    const std::string datasetFileName = "data/covcormoments_dense.csv";
+const std::string datasetFileName = "data/covcormoments_dense.csv";
 
+int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 
     int rankId, comm_size;

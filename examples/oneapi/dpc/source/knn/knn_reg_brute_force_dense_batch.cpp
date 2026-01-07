@@ -28,11 +28,9 @@ namespace dal = oneapi::dal;
 
 void run(sycl::queue& q) {
     const auto train_data_file_name = get_data_path("data/knn_regression_train_data.csv");
-    const auto train_response_file_name =
-        get_data_path("data/knn_regression_train_responses.csv");
+    const auto train_response_file_name = get_data_path("data/knn_regression_train_responses.csv");
     const auto test_data_file_name = get_data_path("data/knn_regression_test_data.csv");
-    const auto test_response_file_name =
-        get_data_path("data/knn_regression_test_responses.csv");
+    const auto test_response_file_name = get_data_path("data/knn_regression_test_responses.csv");
 
     const auto x_train = dal::read<dal::table>(q, dal::csv::data_source{ train_data_file_name });
     const auto y_train =

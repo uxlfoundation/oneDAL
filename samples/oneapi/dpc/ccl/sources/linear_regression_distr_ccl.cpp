@@ -36,8 +36,7 @@ void run(sycl::queue &queue) {
     const auto train_response_file_name =
         get_data_path("data/linear_regression_train_responses.csv");
     const auto test_data_file_name = get_data_path("data/linear_regression_test_data.csv");
-    const auto test_response_file_name =
-        get_data_path("data/linear_regression_test_responses.csv");
+    const auto test_response_file_name = get_data_path("data/linear_regression_test_responses.csv");
 
     const auto x_train =
         dal::read<dal::table>(queue, dal::csv::data_source{ train_data_file_name });

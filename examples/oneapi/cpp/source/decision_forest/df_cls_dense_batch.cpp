@@ -23,8 +23,7 @@ namespace df = dal::decision_forest;
 
 int main(int argc, char const *argv[]) {
     const auto train_data_file_name = get_data_path("data/df_classification_train_data.csv");
-    const auto train_response_file_name =
-        get_data_path("data/df_classification_train_label.csv");
+    const auto train_response_file_name = get_data_path("data/df_classification_train_label.csv");
     const auto test_data_file_name = get_data_path("data/df_classification_test_data.csv");
     const auto test_response_file_name = get_data_path("data/df_classification_test_label.csv");
 
