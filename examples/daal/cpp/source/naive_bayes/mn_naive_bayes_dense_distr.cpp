@@ -43,7 +43,7 @@ const std::string trainDatasetFileNames[4] = { "naivebayes_train_dense_1.csv",
                                                "naivebayes_train_dense_3.csv",
                                                "naivebayes_train_dense_4.csv" };
 
-const std::string testdatasetFileName = "dev/data/naivebayes_test_dense.csv";
+const std::string testdatasetFileName = "data/naivebayes_test_dense.csv";
 
 const size_t nFeatures = 20;
 const size_t nClasses = 20;

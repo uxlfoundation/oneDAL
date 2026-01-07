@@ -34,13 +34,13 @@ namespace result_options = dal::logistic_regression::result_options;
 
 void run(sycl::queue &queue) {
     const auto train_data_file_name =
-        get_data_path("dev/data/df_binary_classification_train_data.csv");
+        get_data_path("data/df_binary_classification_train_data.csv");
     const auto train_response_file_name =
-        get_data_path("dev/data/df_binary_classification_train_label.csv");
+        get_data_path("data/df_binary_classification_train_label.csv");
     const auto test_data_file_name =
-        get_data_path("dev/data/df_binary_classification_test_data.csv");
+        get_data_path("data/df_binary_classification_test_data.csv");
     const auto test_response_file_name =
-        get_data_path("dev/data/df_binary_classification_test_label.csv");
+        get_data_path("data/df_binary_classification_test_label.csv");
 
     const auto x_train =
         dal::read<dal::table>(queue, dal::csv::data_source{ train_data_file_name });

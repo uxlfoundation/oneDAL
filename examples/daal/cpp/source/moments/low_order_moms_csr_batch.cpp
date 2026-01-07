@@ -39,7 +39,7 @@ using namespace daal::data_management;
  * Input data set parameters
  * Input matrix is stored in the CSR format with one-based indexing
  */
-const std::string datasetFileName = "dev/data/covcormoments_csr.csv";
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 void printResults(const low_order_moments::ResultPtr& res);
 

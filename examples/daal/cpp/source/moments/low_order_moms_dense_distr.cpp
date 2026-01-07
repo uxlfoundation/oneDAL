@@ -36,7 +36,7 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileName = { "dev/data/covcormoments_dense.csv" };
+const std::string datasetFileName = { "data/covcormoments_dense.csv" };
 
 low_order_moments::PartialResultPtr partialResult[nBlocks];
 low_order_moments::ResultPtr result;

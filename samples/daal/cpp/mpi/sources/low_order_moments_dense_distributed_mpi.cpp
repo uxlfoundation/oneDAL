@@ -39,7 +39,7 @@ const size_t nBlocks = 4;
 
 int rankId, comm_size;
 #define mpi_root 0
-const std::string datasetFileName = "dev/data/covcormoments_dense.csv";
+const std::string datasetFileName = "data/covcormoments_dense.csv";
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

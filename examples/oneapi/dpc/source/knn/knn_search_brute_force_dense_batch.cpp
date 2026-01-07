@@ -27,8 +27,8 @@ namespace dal = oneapi::dal;
 namespace knn = dal::knn;
 
 void run(sycl::queue& q) {
-    const auto train_data_file_name = get_data_path("dev/data/k_nearest_neighbors_train_data.csv");
-    const auto query_data_file_name = get_data_path("dev/data/k_nearest_neighbors_test_data.csv");
+    const auto train_data_file_name = get_data_path("data/k_nearest_neighbors_train_data.csv");
+    const auto query_data_file_name = get_data_path("data/k_nearest_neighbors_test_data.csv");
 
     const auto x_train = dal::read<dal::table>(q, dal::csv::data_source{ train_data_file_name });
     const auto x_query = dal::read<dal::table>(q, dal::csv::data_source{ query_data_file_name });

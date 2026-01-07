@@ -57,7 +57,7 @@ void run(sycl::queue& q, const dal::table& x_train, const std::string& method_na
 }
 
 int main(int argc, char const* argv[]) {
-    const auto train_data_file_name = get_data_path("dev/data/kmeans_init_dense.csv");
+    const auto train_data_file_name = get_data_path("data/kmeans_init_dense.csv");
 
     for (auto d : list_devices()) {
         std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()

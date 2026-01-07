@@ -37,11 +37,11 @@
 using namespace daal;
 using namespace daal::algorithms::linear_regression;
 
-const std::string trainDatasetFileNames[] = { "dev/data/linear_regression_train_1.csv",
-                                              "dev/data/linear_regression_train_2.csv",
-                                              "dev/data/linear_regression_train_3.csv",
-                                              "dev/data/linear_regression_train_4.csv" };
-std::string testdatasetFileName = "dev/data/linear_regression_test.csv";
+const std::string trainDatasetFileNames[] = { "data/linear_regression_train_1.csv",
+                                              "data/linear_regression_train_2.csv",
+                                              "data/linear_regression_train_3.csv",
+                                              "data/linear_regression_train_4.csv" };
+std::string testdatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nBlocks = 4;
 

@@ -43,10 +43,10 @@ size_t nFeatures;
 int rankId, comm_size;
 #define mpi_root 0
 
-const std::string datasetFileNames[] = { "dev/data/pca_normalized_1.csv",
-                                         "dev/data/pca_normalized_2.csv",
-                                         "dev/data/pca_normalized_3.csv",
-                                         "dev/data/pca_normalized_4.csv" };
+const std::string datasetFileNames[] = { "data/pca_normalized_1.csv",
+                                         "data/pca_normalized_2.csv",
+                                         "data/pca_normalized_3.csv",
+                                         "data/pca_normalized_4.csv" };
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,

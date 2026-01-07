@@ -32,9 +32,9 @@ namespace dal = oneapi::dal;
 
 void run(sycl::queue& queue) {
     const auto train_data_file_name =
-        get_data_path("dev/data/dev/data/kmeans_dense_train_data.csv");
+        get_data_path("data/data/kmeans_dense_train_data.csv");
     const auto initial_centroids_file_name =
-        get_data_path("dev/data/dev/data/kmeans_dense_train_centroids.csv");
+        get_data_path("data/data/kmeans_dense_train_centroids.csv");
 
     const auto x_train =
         dal::read<dal::table>(queue, dal::csv::data_source{ train_data_file_name });

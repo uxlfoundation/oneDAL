@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::elastic_net;
 
 /* Input data set parameters */
-const std::string traindatasetFileName = "dev/data/linear_regression_train.csv";
-const std::string testdatasetFileName = "dev/data/linear_regression_test.csv";
+const std::string traindatasetFileName = "data/linear_regression_train.csv";
+const std::string testdatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 const size_t nDependentVariables =

@@ -205,7 +205,7 @@ CPPDIR.onedal:=$(CPPDIR)/oneapi/dal
 WORKDIR    ?= $(DIR)/__work$(CMPLRDIRSUFF.$(COMPILER))/$(if $(MSVC_RT_is_release),md,mdd)/$(PLAT)
 RELEASEDIR ?= $(DIR)/__release_$(_OS)$(CMPLRDIRSUFF.$(COMPILER))
 RELEASEDIR.daal        := $(RELEASEDIR)/daal/latest
-RELEASEDIR.data        := $(RELEASEDIR.daal)/dev/data
+RELEASEDIR.data        := $(RELEASEDIR.daal)/data
 RELEASEDIR.lib         := $(RELEASEDIR.daal)/lib
 RELEASEDIR.env         := $(RELEASEDIR.daal)/env
 RELEASEDIR.modulefiles := $(RELEASEDIR.daal)/modulefiles
@@ -406,7 +406,7 @@ release.ONEAPI.EXAMPLES.CPP  := $(filter $(expat),$(shell find examples/oneapi/c
 release.ONEAPI.EXAMPLES.DPC  := $(filter $(expat),$(shell find examples/oneapi/dpc -type f))
 
 # List examples files to populate data.
-release.DATA  := $(filter $(expat),$(shell find dev/data -type f))
+release.DATA  := $(filter $(expat),$(shell find data -type f))
 
 # List env files to populate release.
 release.ENV = deploy/local/vars_$(_OS).$(scr)

@@ -40,8 +40,8 @@ void run(const dal::table& x_train, const std::string& method_name) {
 }
 
 int main(int argc, char const* argv[]) {
-    const auto cov_data_file_name = get_data_path("dev/data/precomputed_covariance.csv");
-    const auto cor_data_file_name = get_data_path("dev/data/precomputed_correlation.csv");
+    const auto cov_data_file_name = get_data_path("data/precomputed_covariance.csv");
+    const auto cor_data_file_name = get_data_path("data/precomputed_correlation.csv");
 
     const auto cov_train = dal::read<dal::table>(dal::csv::data_source{ cov_data_file_name });
     const auto cor_train = dal::read<dal::table>(dal::csv::data_source{ cor_data_file_name });

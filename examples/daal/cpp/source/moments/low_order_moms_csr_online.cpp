@@ -38,10 +38,10 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "dev/data/covcormoments_csr_1.csv",
-                                         "dev/data/covcormoments_csr_2.csv",
-                                         "dev/data/covcormoments_csr_3.csv",
-                                         "dev/data/covcormoments_csr_4.csv" };
+const std::string datasetFileNames[] = { "data/covcormoments_csr_1.csv",
+                                         "data/covcormoments_csr_2.csv",
+                                         "data/covcormoments_csr_3.csv",
+                                         "data/covcormoments_csr_4.csv" };
 
 void printResults(const low_order_moments::ResultPtr& res);
 

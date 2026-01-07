@@ -39,7 +39,7 @@ const std::string trainedModelsFileNames[] = { "svm_multi_class_trained_model_01
                                                "svm_multi_class_trained_model_12.csv" };
 float biases[] = { -0.774F, -1.507F, -7.559F };
 
-const std::string testdatasetFileName = "dev/data/multiclass_iris_train.csv";
+const std::string testdatasetFileName = "data/multiclass_iris_train.csv";
 
 const size_t nFeatures = 4;
 const size_t nClasses = 3;

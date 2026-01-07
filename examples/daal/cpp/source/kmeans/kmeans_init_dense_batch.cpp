@@ -34,7 +34,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "dev/data/kmeans_init_dense.csv";
+const std::string datasetFileName = "data/kmeans_init_dense.csv";
 
 /* K-Means algorithm parameters */
 const size_t nMaxIterations = 1000;

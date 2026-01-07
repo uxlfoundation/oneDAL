@@ -28,7 +28,7 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue &q) {
-    const auto data_file_name = get_data_path("dev/data/kernel_function.csv");
+    const auto data_file_name = get_data_path("data/kernel_function.csv");
 
     const auto x = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
     const auto y = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });

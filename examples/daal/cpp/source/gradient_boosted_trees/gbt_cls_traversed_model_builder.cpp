@@ -39,8 +39,8 @@ using namespace daal;
 using namespace daal::data_management;
 using namespace daal::algorithms::gbt::classification;
 
-const std::string traindatasetFileName = "dev/data/df_classification_train.csv";
-const std::string testdatasetFileName = "dev/data/df_classification_test.csv";
+const std::string traindatasetFileName = "data/df_classification_train.csv";
+const std::string testdatasetFileName = "data/df_classification_test.csv";
 const size_t categoricalFeaturesIndices[] = { 2 };
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 

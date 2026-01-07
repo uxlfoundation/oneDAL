@@ -33,7 +33,7 @@
 using namespace daal;
 using namespace daal::data_management;
 
-const std::string wrongdatasetFileName = "dev/data/wrong.csv";
+const std::string wrongdatasetFileName = "data/wrong.csv";
 
 int main() {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */

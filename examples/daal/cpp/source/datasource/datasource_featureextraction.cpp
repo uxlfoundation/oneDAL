@@ -33,7 +33,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "dev/data/kmeans_dense.csv";
+const std::string datasetFileName = "data/kmeans_dense.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);

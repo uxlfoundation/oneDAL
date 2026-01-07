@@ -36,10 +36,10 @@ using namespace daal::algorithms;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "dev/data/svd_1.csv",
-                                         "dev/data/svd_2.csv",
-                                         "dev/data/svd_3.csv",
-                                         "dev/data/svd_4.csv" };
+const std::string datasetFileNames[] = { "data/svd_1.csv",
+                                         "data/svd_2.csv",
+                                         "data/svd_3.csv",
+                                         "data/svd_4.csv" };
 
 void computestep1Local();
 void computeOnMasterNode();

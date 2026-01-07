@@ -23,12 +23,12 @@ namespace dal = oneapi::dal;
 namespace result_options = dal::linear_regression::result_options;
 
 void run() {
-    const auto train_data_file_name = get_data_path("dev/data/linear_regression_train_data.csv");
+    const auto train_data_file_name = get_data_path("data/linear_regression_train_data.csv");
     const auto train_response_file_name =
-        get_data_path("dev/data/linear_regression_train_responses.csv");
-    const auto test_data_file_name = get_data_path("dev/data/linear_regression_test_data.csv");
+        get_data_path("data/linear_regression_train_responses.csv");
+    const auto test_data_file_name = get_data_path("data/linear_regression_test_data.csv");
     const auto test_response_file_name =
-        get_data_path("dev/data/linear_regression_test_responses.csv");
+        get_data_path("data/linear_regression_test_responses.csv");
 
     const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
     const auto y_train = dal::read<dal::table>(dal::csv::data_source{ train_response_file_name });

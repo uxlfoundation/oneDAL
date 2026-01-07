@@ -28,7 +28,7 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue &queue) {
-    const auto data_file_name = get_data_path("dev/data/dev/data/dbscan_dense.csv");
+    const auto data_file_name = get_data_path("data/data/dbscan_dense.csv");
 
     const auto x_data = dal::read<dal::table>(queue, dal::csv::data_source{ data_file_name });
 

@@ -21,7 +21,7 @@
 namespace dal = oneapi::dal;
 template <typename TableReadType>
 void run() {
-    const auto data_file_name = get_data_path("dev/data/covcormoments_dense.csv");
+    const auto data_file_name = get_data_path("data/covcormoments_dense.csv");
 
     const auto table =
         dal::read<dal::table>(dal::csv::data_source<TableReadType>{ data_file_name });
