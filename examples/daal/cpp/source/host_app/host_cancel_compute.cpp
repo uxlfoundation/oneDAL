@@ -40,7 +40,7 @@ using namespace daal::algorithms::decision_forest::classification;
 using namespace daal::services;
 
 /* Input data set parameters */
-const std::string traindatasetFileName = "data/df_classification_train.csv";
+const std::string trainDatasetFileName = "data/df_classification_train.csv";
 const size_t categoricalFeaturesIndices[] = { 2 };
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 

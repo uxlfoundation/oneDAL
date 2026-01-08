@@ -40,17 +40,17 @@ using namespace daal::algorithms::multinomial_naive_bayes;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[4] = { "naivebayes_train_csr_1.csv",
-                                               "naivebayes_train_csr_2.csv",
-                                               "naivebayes_train_csr_3.csv",
-                                               "naivebayes_train_csr_4.csv" };
-const std::string trainGroundTruthFileNames[4] = { "naivebayes_train_labels_1.csv",
-                                                   "naivebayes_train_labels_2.csv",
-                                                   "naivebayes_train_labels_3.csv",
-                                                   "naivebayes_train_labels_4.csv" };
+const std::string trainDatasetFileNames[4] = { "data/naivebayes_train_csr_1.csv",
+                                               "data/naivebayes_train_csr_2.csv",
+                                               "data/naivebayes_train_csr_3.csv",
+                                               "data/naivebayes_train_csr_4.csv" };
+const std::string trainGroundTruthFileNames[4] = { "data/naivebayes_train_labels_1.csv",
+                                                   "data/naivebayes_train_labels_2.csv",
+                                                   "data/naivebayes_train_labels_3.csv",
+                                                   "data/naivebayes_train_labels_4.csv" };
 
-const std::string testdatasetFileName = "data/naivebayes_test_csr.csv";
-const std::string testGroundTruthFileName = "naivebayes_test_labels.csv";
+const std::string testDatasetFileName = "data/naivebayes_test_csr.csv";
+const std::string testGroundTruthFileName = "data/naivebayes_test_labels.csv";
 
 const size_t nTrainVectorsInBlock = 8000;
 const size_t nTestObservations = 2000;

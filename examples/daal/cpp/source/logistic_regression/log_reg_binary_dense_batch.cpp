@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-const std::string traindatasetFileName = "data/binary_cls_train.csv";
-const std::string testdatasetFileName = "data/binary_cls_test.csv";
+const std::string trainDatasetFileName = "data/binary_cls_train.csv";
+const std::string testDatasetFileName = "data/binary_cls_test.csv";
 const size_t nFeatures = 20; /* Number of features in training and testing data sets */
 
 /* Logistic regression training parameters */

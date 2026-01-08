@@ -36,8 +36,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::ridge_regression;
 
 /* Input data set parameters */
-const std::string traindatasetFileName = "data/linear_regression_train.csv";
-const std::string testdatasetFileName = "data/linear_regression_test.csv";
+const std::string trainDatasetFileName = "data/linear_regression_train.csv";
+const std::string testDatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nTrainVectorsInBlock = 250;
 

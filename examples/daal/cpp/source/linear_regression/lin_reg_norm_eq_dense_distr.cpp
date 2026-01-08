@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     checkArguments(argc,
                    argv,
                    5,
-                   &testDatasetFileName,
+                   &testdatasetFileName,
                    &trainDatasetFileNames[0],
                    &trainDatasetFileNames[1],
                    &trainDatasetFileNames[2],

@@ -31,7 +31,7 @@
 using namespace daal::data_management;
 
 /* Path to the CSV to be read */
-const std::string csvFileName = "mixed_text_and_numbers.csv";
+const std::string csvFileName = "data/mixed_text_and_numbers.csv";
 
 /* Define options for CSV data source */
 const CsvDataSourceOptions csvOptions = CsvDataSourceOptions::allocateNumericTable |
