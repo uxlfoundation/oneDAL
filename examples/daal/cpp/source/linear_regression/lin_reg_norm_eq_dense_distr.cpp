@@ -42,7 +42,7 @@ const std::string trainDatasetFileNames[] = { "data/linear_regression_train_1.cs
                                               "data/linear_regression_train_3.csv",
                                               "data/linear_regression_train_4.csv" };
 
-const std::string testdatasetFileName = "data/linear_regression_test.csv";
+const std::string testDatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nBlocks = 4;
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     checkArguments(argc,
                    argv,
                    5,
-                   &testdatasetFileName,
+                   &testDatasetFileName,
                    &trainDatasetFileNames[0],
                    &trainDatasetFileNames[1],
                    &trainDatasetFileNames[2],

@@ -46,7 +46,7 @@ using namespace daal::algorithms::linear_regression::quality_metric;
 
 /* Input data set parameters */
 const std::string trainDatasetFileName = "data/linear_regression_train.csv";
-const std::string trainDatasetFileName = "data/linear_regression_test.csv";
+const std::string testDatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nFeatures = 10;
 const size_t nDependentVariables = 2;
