@@ -42,7 +42,6 @@ const std::string trainDatasetLabelFileName = "data/df_classification_train_labe
 const std::string testDatasetFileName = "data/df_classification_test_data.csv";
 const std::string testDatasetLabelFileName = "data/df_classification_test_label.csv";
 
-const size_t categoricalFeaturesIndices[] = { 2 };
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 
 /* Decision forest parameters */
@@ -56,7 +55,6 @@ const size_t nClasses = 5; /* Number of classes */
 
 training::ResultPtr trainModel();
 void testModel(const training::ResultPtr& res);
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
@@ -80,7 +78,6 @@ training::ResultPtr trainModel() {
     /* Retrieve the data from the input file */
     trainDataSource.loadDataBlock();
     trainLabelSource.loadDataBlock();
-
 
     /* Create an algorithm object to train the decision forest classification model */
     training::Batch<float, training::defaultDense> algorithm(nClasses);
@@ -144,27 +141,4 @@ void testModel(const training::ResultPtr& trainingResult) {
                       "Decision forest probabilities results (first 10 rows):",
                       10);
     printNumericTable(testLabelSource.getNumericTable(), "Ground truth (first 10 rows):", 10);
-}
-
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(fileName,
-                                                      DataSource::notAllocateNumericTable,
-                                                      DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and dependent variables */
-    pData.reset(new HomogenNumericTable<>(nFeatures, 0, NumericTable::notAllocate));
-    pDependentVar.reset(new HomogenNumericTable<>(1, 0, NumericTable::notAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(pData, pDependentVar));
-
-    /* Retrieve the data from input file */
-    trainDataSource.loadDataBlock(mergedData.get());
-
-    NumericTableDictionaryPtr pDictionary = pData->getDictionarySharedPtr();
-    for (size_t i = 0,
-                n = sizeof(categoricalFeaturesIndices) / sizeof(categoricalFeaturesIndices[0]);
-         i < n;
-         ++i)
-        (*pDictionary)[categoricalFeaturesIndices[i]].featureType =
-            data_feature_utils::DAAL_CATEGORICAL;
 }
