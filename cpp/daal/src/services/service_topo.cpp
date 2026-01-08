@@ -519,7 +519,7 @@ struct idAffMskOrdMapping_t
     unsigned __int32 APICID;        // the full x2APIC ID or initial APIC ID of a logical
                                     //  processor assigned by HW
     unsigned __int32 OrdIndexOAMsk; // An ordinal index (zero-based) for each logical
-                                    //  processor in the system, 1:1 with "APICID"
+                                    //  processor in the system
     // Next three members are the sub IDs for processor topology enumeration
     unsigned __int32 pkg_IDAPIC;  // Pkg_ID field, subset of APICID bits
                                   //  to distinguish different packages
@@ -1315,7 +1315,7 @@ idAffMskOrdMapping_t::idAffMskOrdMapping_t(unsigned int cpu, bool hasLeafB, unsi
 {
     initApicID(hasLeafB);
 
-    OrdIndexOAMsk = cpu; // this an ordinal number that can relate to generic affinitymask
+    OrdIndexOAMsk = cpu; // this an ordinal number that can relate to generic affinity mask
     pkg_IDAPIC    = ((APICID & PkgSelectMask) >> PkgSelectMaskShift);
     Core_IDAPIC   = ((APICID & CoreSelectMask) >> SMTMaskWidth);
     SMT_IDAPIC    = (APICID & SMTSelectMask);
@@ -1338,7 +1338,7 @@ int glktsn::parseAPICIDs(const GenericAffinityMask & processAffinity, unsigned &
 {
     unsigned threadIndex  = 0;
     maxPkgSelectMaskShift = 0;
-    for (unsigned i = 0; i < OSProcessorCount; i++)
+    for (unsigned i = 0; i < processAffinity.cpuCount; i++)
     {
         // can't asume OS affinity bit mask is contiguous,
         // but we are using our generic bitmap representation for affinity
