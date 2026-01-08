@@ -36,7 +36,7 @@ using namespace daal::data_management;
 
 /* Input data set parameters */
 const std::string trainDatasetFileName = "data/k_nearest_neighbors_train_data.csv";
-const std::string trainDatasetLabelsFileName = "data/k_nearest_neighbors_train_label.csv";
+const std::string trainDatasetLabelFileName = "data/k_nearest_neighbors_train_label.csv";
 const std::string testDatasetFileName = "data/k_nearest_neighbors_test_data.csv";
 const std::string testDatasetLabelFileName = "data/k_nearest_neighbors_test_label.csv";
 
@@ -68,7 +68,7 @@ void trainModel() {
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelsFileName,
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
                                                        DataSource::doAllocateNumericTable,
                                                        DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
