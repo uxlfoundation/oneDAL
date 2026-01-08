@@ -35,11 +35,11 @@ using namespace daal::data_management;
 using namespace daal::algorithms::classifier::quality_metric;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "data/svm_multi_class_train_dense.csv";
+const std::string trainDatasetFileName = "data/svm_multi_class_train_dense_data.csv";
+const std::string trainDatasetLabelFileName = "data/svm_multi_class_train_dense_label.csv";
+const std::string testDatasetFileName = "data/svm_multi_class_test_dense_data.csv";
+const std::string testDatasetLabelFileName = "data/svm_multi_class_test_dense_label.csv";
 
-const std::string testDatasetFileName = "data/svm_multi_class_test_dense.csv";
-
-const size_t nFeatures = 20;
 const size_t nClasses = 5;
 
 services::SharedPtr<svm::training::Batch<> > training(new svm::training::Batch<>());
@@ -81,18 +81,18 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
-
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the multi-class SVM model */
     multi_class_classifier::training::Batch<> algorithm(nClasses);
@@ -101,8 +101,8 @@ void trainModel() {
     algorithm.parameter.prediction = prediction;
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(classifier::training::data, trainData);
-    algorithm.input.set(classifier::training::labels, trainGroundTruth);
+    algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
     /* Build the multi-class SVM model */
     algorithm.compute();
@@ -112,19 +112,13 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    groundTruthLabels =
-        NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, groundTruthLabels));
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
+    testDataSource.loadDataBlock();
 
     /* Create an algorithm object to predict multi-class SVM values */
     multi_class_classifier::prediction::Batch<> algorithm(nClasses);
@@ -133,7 +127,7 @@ void testModel() {
     algorithm.parameter.prediction = prediction;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, testData);
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
 
@@ -145,8 +139,14 @@ void testModel() {
 }
 
 void testModelQuality() {
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
+
     /* Retrieve predicted labels */
     predictedLabels = predictionResult->get(classifier::prediction::prediction);
+    groundTruthLabels = testLabelSource.getNumericTable();
 
     /* Create a quality metric set object to compute quality metrics of the multi-class classifier algorithm */
     multi_class_classifier::quality_metric_set::Batch qualityMetricSet(nClasses);

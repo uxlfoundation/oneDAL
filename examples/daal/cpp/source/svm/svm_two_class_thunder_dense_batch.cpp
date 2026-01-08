@@ -35,10 +35,10 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "data/svm_two_class_train_dense.csv";
-const std::string testDatasetFileName = "data/svm_two_class_test_dense.csv";
-
-const size_t nFeatures = 20;
+const std::string trainDatasetFileName = "data/svm_two_class_train_dense_data.csv";
+const std::string trainDatasetLabelFileName = "data/svm_two_class_train_dense_label.csv";
+const std::string testDatasetFileName = "data/svm_two_class_test_dense_data.csv";
+const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_label.csv";
 
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
@@ -46,7 +46,6 @@ kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
-NumericTablePtr testGroundTruth;
 
 void trainModel();
 void testModel();
@@ -63,20 +62,18 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData =
-        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
-    NumericTablePtr trainGroundTruth =
-        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
-    NumericTablePtr mergedData = MergedNumericTable::create(trainData, trainGroundTruth);
-
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the SVM model using the Thunder method */
     svm::training::Batch<float, svm::training::thunder> algorithm;
@@ -84,8 +81,8 @@ void trainModel() {
     algorithm.parameter.kernel = kernel;
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(classifier::training::data, trainData);
-    algorithm.input.set(classifier::training::labels, trainGroundTruth);
+    algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
     /* Build the SVM model */
     algorithm.compute();
@@ -95,19 +92,13 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
-                                                     DataSource::notAllocateNumericTable,
+                                                     DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData =
-        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
-    testGroundTruth = HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
-    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
+    testDataSource.loadDataBlock();
 
     /* Create an algorithm object to predict SVM values */
     svm::prediction::Batch<> algorithm;
@@ -115,7 +106,7 @@ void testModel() {
     algorithm.parameter.kernel = kernel;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, testData);
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
 
@@ -127,7 +118,12 @@ void testModel() {
 }
 
 void printResults() {
-    printNumericTables<int, float>(testGroundTruth,
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
+
+    printNumericTables<int, float>(testLabelSource.getNumericTable(),
                                    predictionResult->get(classifier::prediction::prediction),
                                    "Ground truth\t",
                                    "Classification results",

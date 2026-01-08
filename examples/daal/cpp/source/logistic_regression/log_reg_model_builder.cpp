@@ -28,7 +28,7 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-const std::string trainedModelFileName = "logreg_trained_model.csv";
+const std::string trainedModelFileName = "data/logreg_trained_model.csv";
 const std::string testDatasetFileName = "data/logreg_test.csv";
 
 const size_t nFeatures = 6; /* Number of features in training and testing data sets */

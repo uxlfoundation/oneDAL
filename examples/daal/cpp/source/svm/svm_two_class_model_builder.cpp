@@ -34,17 +34,16 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainedModelsFileName = "svm_two_class_trained_model.csv";
+const std::string trainedModelsFileName = "data/svm_two_class_trained_model.csv";
 
-const std::string testDatasetFileName = "data/svm_two_class_test_dense.csv";
+const std::string testDatasetFileName = "data/svm_two_class_test_dense_data.csv";
+const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_label.csv";
 
 const size_t nFeatures = 20;
 const float bias = -0.562F;
 
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
-
-NumericTablePtr testGroundTruth;
 
 void testModel(svm::ModelPtr &);
 svm::ModelPtr buildModelFromTraining();
@@ -106,19 +105,17 @@ svm::ModelPtr buildModelFromTraining() {
 }
 
 void testModel(svm::ModelPtr &inputModel) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
-                                                     DataSource::notAllocateNumericTable,
+                                                     DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData =
-        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
-    testGroundTruth = HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
-    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
 
     /* Create an algorithm object to predict SVM values */
     svm::prediction::Batch<float> algorithm;
@@ -126,7 +123,7 @@ void testModel(svm::ModelPtr &inputModel) {
     algorithm.parameter.kernel = kernel;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, testData);
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
 
     /* Set model created externaly */
     algorithm.input.set(classifier::prediction::model, inputModel);
@@ -135,7 +132,7 @@ void testModel(svm::ModelPtr &inputModel) {
     algorithm.compute();
 
     printNumericTables<int, float>(
-        testGroundTruth,
+        testLabelSource.getNumericTable(),
         algorithm.getResult()->get(classifier::prediction::prediction),
         "Ground truth",
         "Classification results",
