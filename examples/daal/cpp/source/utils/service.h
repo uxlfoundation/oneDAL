@@ -59,6 +59,46 @@ size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
     return fileSize;
 }
 
+template <typename algorithmFPType>
+daal::data_management::CSRNumericTablePtr splitCSRBlock(
+    const daal::data_management::CSRNumericTablePtr &src,
+    size_t rowStart,
+    size_t rowEnd) {
+    using namespace daal::data_management;
+
+    const size_t nRows = rowEnd - rowStart;
+    const size_t nCols = src->getNumberOfColumns();
+
+    CSRBlockDescriptor<algorithmFPType> block;
+
+    src->getSparseBlock(rowStart, nRows, readOnly, block);
+
+    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr();
+    const size_t *srcColIndices = block.getBlockColumnIndicesPtr();
+    const algorithmFPType *srcValues = block.getBlockValuesPtr();
+
+    const size_t nnz = srcRowOffsets[nRows] - srcRowOffsets[0];
+
+    /* Allocate local CSR arrays */
+    size_t *localRowOffsets = new size_t[nRows + 1];
+    size_t *localColIndices = new size_t[nnz];
+    algorithmFPType *localValues = new algorithmFPType[nnz];
+
+    /* Renormalize row offsets */
+    const size_t base = srcRowOffsets[0];
+    for (size_t i = 0; i <= nRows; i++) {
+        localRowOffsets[i] = srcRowOffsets[i] - base;
+    }
+
+    /* Copy data */
+    std::copy(srcColIndices, srcColIndices + nnz, localColIndices);
+    std::copy(srcValues, srcValues + nnz, localValues);
+
+    src->releaseSparseBlock(block);
+
+    return CSRNumericTable::create(localValues, localColIndices, localRowOffsets, nCols, nRows);
+}
+
 template <typename item_type>
 void readRowUnknownLength(char *line, std::vector<item_type> &data) {
     size_t n = 0;

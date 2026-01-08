@@ -38,7 +38,7 @@ using namespace daal::algorithms::pca::quality_metric;
 using namespace daal::algorithms::pca::quality_metric_set;
 
 /* Input data set parameters */
-const std::string dataFileName = "pca_normalized.csv";
+const std::string dataFileName = "data/pca_normalized.csv";
 const size_t nVectors = 1000;
 const size_t nComponents = 5;
 

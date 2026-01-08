@@ -34,7 +34,7 @@ using namespace daal::data_management;
 using namespace daal::algorithms::normalization;
 
 /* Input data set parameters */
-const std::string datasetName = "normalization.csv";
+const std::string datasetName = "data/normalization.csv";
 
 int main() {
     /* Retrieve the input data */

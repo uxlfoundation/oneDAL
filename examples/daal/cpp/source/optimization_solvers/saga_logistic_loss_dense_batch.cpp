@@ -33,7 +33,7 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 const std::string datasetFileName = "data/XM_100.csv";
-const std::string groundTruthFileName = "saga_solution_100_features.csv";
+const std::string groundTruthFileName = "data/saga_solution_100_features.csv";
 const size_t nFeatures = 100; /* Number of features in training and testing data sets */
 const size_t nIterations = 100000;
 

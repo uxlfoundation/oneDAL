@@ -402,6 +402,7 @@ release.HEADERS.COMMON := $(filter-out $(subst _$(_OS),,$(release.HEADERS.OSSPEC
 expat = %.cpp %.h %.hpp %.txt %.csv %.cmake
 expat += $(if $(OS_is_win),%.bat,%_$(_OS).lst %_$(_OS).sh)
 release.EXAMPLES.CMAKE := $(filter $(expat),$(shell find examples/cmake -type f))
+release.EXAMPLES.CPP   := $(filter $(expat),$(shell find examples/daal/cpp  -type f))
 release.ONEAPI.EXAMPLES.CPP  := $(filter $(expat),$(shell find examples/oneapi/cpp -type f))
 release.ONEAPI.EXAMPLES.DPC  := $(filter $(expat),$(shell find examples/oneapi/dpc -type f))
 

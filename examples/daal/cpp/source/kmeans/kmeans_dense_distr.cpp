@@ -38,21 +38,12 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 2500;
+const size_t nVectorsInBlock = 625;
 
-const std::string dataFileNames[] = { "kmeans_dense_1.csv",
-                                      "kmeans_dense_2.csv",
-                                      "kmeans_dense_3.csv",
-                                      "kmeans_dense_4.csv" };
+const std::string datasetFileName = { "data/kmeans_dense_train_data.csv" };
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     kmeans::Distributed<step2Master> masterAlgorithm(nClusters);
 
@@ -64,23 +55,47 @@ int main(int argc, char* argv[]) {
 
     kmeans::init::Distributed<step2Master, algorithmFPType, kmeans::init::randomDense> masterInit(
         nClusters);
-    for (size_t i = 0; i < nBlocks; i++) {
-        /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> dataSource(dataFileNames[i],
-                                                     DataSource::doAllocateNumericTable,
-                                                     DataSource::doDictionaryFromContext);
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
 
-        /* Retrieve the data from the input file */
-        dataSource.loadDataBlock();
-        data[i] = dataSource.getNumericTable();
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
+
+    for (size_t block = 0; block < nBlocks && remainingRows > 0; block++) {
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
+        NumericTablePtr srcTable = dataSource.getNumericTable();
+        const size_t nRows = srcTable->getNumberOfRows();
+        const size_t nCols = srcTable->getNumberOfColumns();
+
+        auto blockTable =
+            HomogenNumericTable<algorithmFPType>::create(nCols,
+                                                         nRows,
+                                                         NumericTableIface::doAllocate);
+
+        BlockDescriptor<algorithmFPType> srcBlock, dstBlock;
+
+        srcTable->getBlockOfRows(0, nRows, readOnly, srcBlock);
+        blockTable->getBlockOfRows(0, nRows, writeOnly, dstBlock);
+
+        std::copy(srcBlock.getBlockPtr(),
+                  srcBlock.getBlockPtr() + nRows * nCols,
+                  dstBlock.getBlockPtr());
+        srcTable->releaseBlockOfRows(srcBlock);
+        blockTable->releaseBlockOfRows(dstBlock);
+
+        data[block] = blockTable;
 
         /* Create an algorithm object for the K-Means algorithm */
         kmeans::init::Distributed<step1Local, algorithmFPType, kmeans::init::randomDense> localInit(
             nClusters,
             nBlocks * nVectorsInBlock,
-            i * nVectorsInBlock);
+            block * nVectorsInBlock);
 
-        localInit.input.set(kmeans::init::data, data[i]);
+        localInit.input.set(kmeans::init::data, data[block]);
         localInit.compute();
 
         masterInit.input.add(kmeans::init::partialResults, localInit.getPartialResult());
