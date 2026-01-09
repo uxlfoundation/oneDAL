@@ -37,10 +37,10 @@ using namespace daal::data_management;
 using namespace daal::algorithms::stump::classification;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "data/stump_train.csv";
-const std::string testDatasetFileName = "data/stump_test.csv";
-
-const size_t nFeatures = 20;
+const std::string trainDatasetFileName = "data/stump_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/stump_train_labels.csv";
+const std::string testDatasetFileName = "data/stump_test_data.csv";
+const std::string testDatasetLabelFileName = "data/stump_test_labels.csv";
 
 training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
@@ -63,26 +63,26 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
-
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the stump model */
     training::Batch<> algorithm;
     algorithm.parameter().splitCriterion = decision_tree::classification::gini;
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(classifier::training::data, trainData);
-    algorithm.input.set(classifier::training::labels, trainGroundTruth);
+    algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
     algorithm.compute();
 
@@ -91,26 +91,20 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
+    testDataSource.loadDataBlock();
     /* Create an algorithm object to predict values */
     prediction::Batch<> algorithm;
     algorithm.parameter().resultsToEvaluate =
         classifier::computeClassLabels | classifier::computeClassProbabilities;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, testData);
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
 
@@ -122,14 +116,18 @@ void testModel() {
 }
 
 void printResults() {
-    printNumericTables<int, int>(testGroundTruth,
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
+    printNumericTables<int, int>(testLabelSource.getNumericTable(),
                                  predictionResult->get(classifier::prediction::prediction),
                                  "Ground truth",
                                  "Classification results",
                                  "Stump classification results (first 20 observations):",
                                  20);
 
-    printNumericTables<int, float>(testGroundTruth,
+    printNumericTables<int, float>(testLabelSource.getNumericTable(),
                                    predictionResult->get(classifier::prediction::probabilities),
                                    "Ground truth",
                                    "Classification results",
