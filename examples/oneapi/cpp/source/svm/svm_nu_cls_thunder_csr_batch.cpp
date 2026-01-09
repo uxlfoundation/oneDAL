@@ -23,11 +23,12 @@ namespace dal = oneapi::dal;
 namespace svm = dal::svm;
 
 int main(int argc, char const *argv[]) {
-    const auto train_data_file_name = get_data_path("data/svm_two_class_train_csr.csv");
+    const auto train_data_file_name = get_data_path("data/svm_two_class_train_sparse_data.csv");
     const auto train_response_file_name =
-        get_data_path("data/svm_two_class_train_sparse_labels.csv");
+        get_data_path("data/svm_two_class_train_sparse_labels_onedal.csv");
     const auto test_data_file_name = get_data_path("data/svm_two_class_test_sparse_data.csv");
-    const auto test_response_file_name = get_data_path("data/svm_two_class_test_sparse_labels.csv");
+    const auto test_response_file_name =
+        get_data_path("data/svm_two_class_test_sparse_labels_onedal.csv");
 
     const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
     const auto y_train = dal::read<dal::table>(dal::csv::data_source{ train_response_file_name });
