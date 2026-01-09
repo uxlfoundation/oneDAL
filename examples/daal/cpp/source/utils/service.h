@@ -58,6 +58,7 @@ size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
 
     return fileSize;
 }
+
 template <typename algorithmFPType>
 daal::data_management::CSRNumericTablePtr splitCSRBlock(
     const daal::data_management::CSRNumericTablePtr &src,
