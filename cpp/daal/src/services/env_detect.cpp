@@ -60,6 +60,11 @@ DAAL_EXPORT daal::services::Environment * daal::services::Environment::getInstan
         return nullptr;
 }
 
+DAAL_EXPORT int daal::services::Environment::getStatus()
+{
+    return daal::services::internal::_internal_daal_GetStatus();
+}
+
 DAAL_EXPORT int daal::services::Environment::freeInstance()
 {
     return 0;

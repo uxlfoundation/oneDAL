@@ -30,7 +30,10 @@ system_parameters_impl::system_parameters_impl() {
     using daal::services::Environment;
     Environment* env = Environment::getInstance();
     if (!env) {
-        throw std::runtime_error("Environment not initialized, cannot get processor info.");
+        int error = daal::services::Environment::getStatus();
+        throw std::runtime_error(
+            "Environment not initialized, cannot get processor info, error code: " +
+            std::to_string(error));
     }
     // Call to `getCpuId` changes global settings, in particular,
     // changes default number of threads in the threading layer

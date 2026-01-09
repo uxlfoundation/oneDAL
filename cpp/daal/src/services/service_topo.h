@@ -23,15 +23,24 @@
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
-    #define _MSGTYP_GENERAL_ERROR             0x80000000
-    #define _MSGTYP_ABORT                     0xc0000000
-    #define _MSGTYP_CHECKBIOS_CPUIDMAXSETTING 0x88000000
-    #define _MSGTYP_OSAFFCAP_ERROR            0xC4000000 // The # of processors supported by current OS exceed
-    //                      those of legacy win32 (32 processors) and win64 API (64)
-    #define _MSGTYP_UNKNOWNERR_OS         0xC2000000
-    #define _MSGTYP_USERAFFINITYERR       0xC1000000
-    #define _MSGTYP_TOPOLOGY_NOTANALYZED  0xC0800000
-    #define _MSGTYP_UNK_AFFINTY_OPERATION 0x84000000
+    #define _MSGTYP_GENERAL_ERROR                  0x80000000
+    #define _MSGTYP_INT_OVERFLOW                   0xA0000000
+    #define _MSGTYP_CANNOT_SET_AFFINITY_BIT        0x90000000
+    #define _MSGTYP_OS_PROC_COUNT_EXCEEDED         0x82000000 // The number of processors supported by current OS exceeded
+    #define _MSGTYP_OS_GROUP_COUNT_EXCEEDED        0x81000000 // The number of processor groups supported by current OS exceeded
+    #define _MSGTYP_INVALID_SNAPSHOT_HANDLE        0x80800000 // General unknown error. Do not confuse with
+    #define _MSGTYP_FAILED_TO_INIT_PROC_AFFINITY   0x80400000 // General unknown error. Do not confuse with
+    #define _MSGTYP_USER_AFFINITY_ERROR            0x80200000 // Error in user specified affinity mask
+    #define _MSGTYP_CANNOT_TEST_AFFINITY_BIT       0x80100000 // Cannot test bit in generalized affinity mask
+    #define _MSGTYP_MEMORY_ALLOCATION_FAILED       0x80080000
+    #define _MSGTYP_THREAD_REPORTING_FAILED        0x80040000
+    #define _MSGTYP_SET_THREAD_AFFINITY_FAILED     0x80020000 // Cannot set affinity for a thread
+    #define _MSGTYP_RESTORE_THREAD_AFFINITY_FAILED 0x80010000 // Cannot restore affinity for a thread
+    #define _MSGTYP_INVALID_THREAD_INDEX           0x80008000 // Thread index is greater than number of threads available in the affinity mask of the process
+    #define _MSGTYP_INVALID_PACKAGE_INDEX          0x80004000 // Package index is greater than number of threads available in the affinity mask of the process
+    #define _MSGTYP_INVALID_CORE_INDEX             0x80002000 // Core index is greater than the size of the allocated core ID array
+    #define _MSGTYP_INVALID_THREAD_COUNT_INDEX     0x80001000 // Thread count index is greater than the size of the allocated thread count array
+    #define _MSGTYP_TOPOLOGY_NOT_ANALYZED          0x80000800
 
 namespace daal
 {

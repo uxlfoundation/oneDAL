@@ -173,11 +173,11 @@ FILE * stderr = __stderrp;
     #define _INTERNAL_DAAL_MEMSET(a1, a2, a3)     __internal_daal_memset((a1), (a2), (a3))
     #define _INTERNAL_DAAL_MEMCPY(a1, a2, a3, a4) daal::services::internal::daal_memcpy_s((a1), (a2), (a3), (a4))
 
-    #define _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(type, op1, op2)   \
-        {                                                             \
-            volatile type r = (op1) + (op2);                          \
-            r -= (op1);                                               \
-            if (!(r == (op2))) error |= _MSGTYP_TOPOLOGY_NOTANALYZED; \
+    #define _INTERNAL_DAAL_OVERFLOW_CHECK_BY_ADDING(type, op1, op2) \
+        {                                                           \
+            volatile type r = (op1) + (op2);                        \
+            r -= (op1);                                             \
+            if (!(r == (op2))) error |= _MSGTYP_INT_OVERFLOW;       \
         }
 namespace daal
 {
@@ -595,13 +595,25 @@ struct ScopedThreadContext
     // Constructor that binds the execution context to the specified logical processor
     //
     // \param cpu The ordinal index to reference a logical processor in the system
-    explicit ScopedThreadContext(unsigned int cpu) { error = bindContext(cpu); }
+    explicit ScopedThreadContext(unsigned int cpu) { error |= bindContext(cpu); }
 
-    ~ScopedThreadContext()
+    ~ScopedThreadContext() {}
+
+    void restoreContext()
     {
-        // Restore the previous affinity mask
-        restoreContext();
+    #if defined(__linux__) || defined(__FreeBSD__)
+        if (sched_setaffinity(0, sizeof(prevAffinity), &prevAffinity))
+        {
+            error |= _MSGTYP_RESTORE_THREAD_AFFINITY_FAILED;
+        }
+    #else
+        if (!SetThreadGroupAffinity(GetCurrentThread(), &prevAffinity, NULL))
+        {
+            error |= _MSGTYP_RESTORE_THREAD_AFFINITY_FAILED;
+        }
+    #endif
     }
+
     int error;
 
 private:
@@ -630,7 +642,6 @@ private:
     */
     int bindContext(unsigned int cpu)
     {
-        int ret = -1;
     #if defined(__linux__) || defined(__FreeBSD__)
         cpu_set_t currentCPU;
         // add check for size of cpumask_t.
@@ -638,9 +649,12 @@ private:
         // turn on the equivalent bit inside the bitmap corresponding to affinitymask
         MY_CPU_SET(cpu, &currentCPU);
         sched_getaffinity(0, sizeof(prevAffinity), &prevAffinity);
-        if (!sched_setaffinity(0, sizeof(currentCPU), &currentCPU)) ret = 0;
+        if (sched_setaffinity(0, sizeof(currentCPU), &currentCPU))
+        {
+            return _MSGTYP_SET_THREAD_AFFINITY_FAILED;
+        }
     #else // Windows
-        if (cpu >= MAX_WIN7_LOG_CPU) return ret;
+        if (cpu >= MAX_WIN7_LOG_CPU) return _MSGTYP_OS_PROC_COUNT_EXCEEDED;
 
         // determine the group number and the cpu number within the group
         unsigned int groupId      = cpu / MAX_LOGICAL_PROCESSORS_PER_GROUP;
@@ -652,23 +666,10 @@ private:
         grp_affinity.Mask  = (KAFFINITY)((DWORD_PTR)(LNX_MY1CON << cpuIdInGroup));
         if (!SetThreadGroupAffinity(GetCurrentThread(), &grp_affinity, &prevAffinity))
         {
-            return ret;
-        }
-        else
-        {
-            ret = 0;
+            return _MSGTYP_SET_THREAD_AFFINITY_FAILED;
         }
     #endif
-        return ret;
-    }
-
-    void restoreContext()
-    {
-    #if defined(__linux__) || defined(__FreeBSD__)
-        sched_setaffinity(0, sizeof(prevAffinity), &prevAffinity);
-    #else
-        SetThreadGroupAffinity(GetCurrentThread(), &prevAffinity, NULL);
-    #endif
+        return 0;
     }
 
     #if defined(__linux__) || defined(__FreeBSD__)
@@ -706,7 +707,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
         {
             if (processAffinity.set(i))
             {
-                error |= _MSGTYP_USERAFFINITYERR;
+                error |= _MSGTYP_CANNOT_SET_AFFINITY_BIT;
                 break;
             }
         }
@@ -716,23 +717,24 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
 
     if (OSProcessorCount > MAX_WIN7_LOG_CPU)
     {
-        error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processors than allowed, make change as required.
+        error |= _MSGTYP_OS_PROC_COUNT_EXCEEDED; // If the os supports more processors than allowed, make change as required.
+        return error;
     }
 
     const unsigned short grpCnt = GetActiveProcessorGroupCount();
 
     if (grpCnt > MAX_THREAD_GROUPS_WIN7)
     {
-        error |= _MSGTYP_OSAFFCAP_ERROR; // If the os supports more processor groups than allowed, make change as required.
+        error |= _MSGTYP_OS_GROUP_COUNT_EXCEEDED; // If the os supports more processor groups than allowed, make change as required.
         return error;
     }
-    // Take snapshot of all threads in the process
 
+    // Take snapshot of all threads in the process
     DWORD processId       = GetCurrentProcessId();
     HANDLE snapshotHandle = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, processId);
     if (snapshotHandle == INVALID_HANDLE_VALUE)
     {
-        error |= _MSGTYP_UNKNOWNERR_OS;
+        error |= _MSGTYP_INVALID_SNAPSHOT_HANDLE;
         return error;
     }
 
@@ -770,7 +772,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
 
     if (!groupAffinityInitialized)
     {
-        error |= _MSGTYP_UNKNOWNERR_OS;
+        error |= _MSGTYP_FAILED_TO_INIT_PROC_AFFINITY;
         return error;
     }
 
@@ -784,8 +786,8 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
             sum += cpu_cnt;
             if (sum > OSProcessorCount)
             {
-                // throw some exception here, no full affinity for the process
-                error |= _MSGTYP_USERAFFINITYERR;
+                // should never happen, number of bits set in all groups exceeds number of processors available to the OS
+                error |= _MSGTYP_USER_AFFINITY_ERROR;
                 break;
             }
 
@@ -796,7 +798,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
                 {
                     if (processAffinity.set(j + group * MAX_LOGICAL_PROCESSORS_PER_GROUP))
                     {
-                        error |= _MSGTYP_USERAFFINITYERR;
+                        error |= _MSGTYP_CANNOT_SET_AFFINITY_BIT;
                         break;
                     }
                 }
@@ -813,8 +815,8 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
  * by this application.
  *
  * \param[in,out] processAffinity  Generic affinity mask to store the process affinity bits.
- *                                 On input, cpuCount member must be set to the number
- *                                 of logical processors available on the OS.
+ *                                 On input, cpuCount member must be set to the size
+ *                                 of the full affinity mask of the OS.
  *                                 On output, the affinity bits will be set according to
  *                                 the process affinity mask retrieved from OS.
  *
@@ -823,7 +825,7 @@ int setChkProcessAffinityConsistency(GenericAffinityMask & processAffinity)
  */
 int initEnumeratedThreadCount(GenericAffinityMask & processAffinity)
 {
-    unsigned OSProcessorCount      = processAffinity.cpuCount;
+    unsigned cpuCount              = processAffinity.cpuCount;
     unsigned enumeratedThreadCount = 0;
 
     // Set the affinity bits of our generic affinity bitmap according to
@@ -834,7 +836,7 @@ int initEnumeratedThreadCount(GenericAffinityMask & processAffinity)
         return -1;
     }
 
-    for (unsigned i = 0; i < OSProcessorCount; i++)
+    for (unsigned i = 0; i < cpuCount; i++)
     {
         // can't asume OS affinity bit mask is contiguous,
         // but we are using our generic bitmap representation for affinity
@@ -847,7 +849,7 @@ int initEnumeratedThreadCount(GenericAffinityMask & processAffinity)
         {
             // should never happen
             // i-th bit is out of bounds of the process affinity mask
-            error = -1;
+            error |= _MSGTYP_CANNOT_TEST_AFFINITY_BIT;
             break;
         }
     }
@@ -884,20 +886,19 @@ glktsn::glktsn()
     #endif
     if (processAffinity.AffinityMask == NULL)
     {
-        error = -1;
+        error |= _MSGTYP_MEMORY_ALLOCATION_FAILED;
         return;
     }
 
     int threadCount = initEnumeratedThreadCount(processAffinity);
     if (threadCount < 0)
     {
-        error = threadCount;
         return;
     }
     EnumeratedThreadCount = (unsigned)threadCount;
     if (EnumeratedThreadCount == 0 || EnumeratedThreadCount > OSProcessorCount)
     {
-        error = _MSGTYP_USERAFFINITYERR;
+        error |= _MSGTYP_USER_AFFINITY_ERROR;
         return;
     }
     // Allocate memory to store the APIC ID, sub IDs, affinity mappings, etc.
@@ -1051,7 +1052,7 @@ int cpuTopologyLeafBConstants(unsigned & PkgSelectMask, unsigned & PkgSelectMask
     else // (case where !wasThreadReported)
     {
         // throw an error, this should not happen if hardware function normally
-        error |= _MSGTYP_GENERAL_ERROR;
+        error |= _MSGTYP_THREAD_REPORTING_FAILED;
     }
 
     if (error) return error;
@@ -1078,7 +1079,6 @@ int cpuTopologyLeafBConstants(unsigned & PkgSelectMask, unsigned & PkgSelectMask
 int cpuTopologyLegacyConstants(unsigned maxCPUIDLeaf, const CPUIDinfo & info, unsigned & PkgSelectMask, unsigned & PkgSelectMaskShift,
                                unsigned & CoreSelectMask, unsigned & SMTSelectMask, unsigned & SMTMaskWidth)
 {
-    int error = 0;
     unsigned corePlusSMTIDMaxCnt;
     unsigned coreIDMaxCnt       = 1;
     unsigned SMTIDPerCoreMaxCnt = 1;
@@ -1103,7 +1103,6 @@ int cpuTopologyLegacyConstants(unsigned maxCPUIDLeaf, const CPUIDinfo & info, un
     CoreSelectMask <<= SMTMaskWidth;
     PkgSelectMask = (-1) ^ (CoreSelectMask | SMTSelectMask);
 
-    if (error) return error;
     return 0;
 }
 
@@ -1189,7 +1188,7 @@ int cpuTopologyParams(unsigned maxCPUIDLeaf, bool & hasLeafB, unsigned & PkgSele
         SMTSelectMask      = 0;
     }
 
-    if (error) return -1;
+    if (error) return error;
 
     return 0;
 }
@@ -1275,15 +1274,15 @@ void Dyn1Arr_str::fill(const unsigned value)
  *
  * \param cpus  Number of logical processors
  *
- * \return 0 is no error, -1 is error
+ * \return 0 is no error, error code otherwise
  */
 int glktsn::allocArrays(const unsigned cpus)
 {
     pApicAffOrdMapping = (idAffMskOrdMapping_t *)_INTERNAL_DAAL_MALLOC(cpus * sizeof(idAffMskOrdMapping_t));
     if (!pApicAffOrdMapping)
     {
-        error = -1;
-        return -1;
+        error = _MSGTYP_MEMORY_ALLOCATION_FAILED;
+        return error;
     }
     _INTERNAL_DAAL_MEMSET(pApicAffOrdMapping, 0, cpus * sizeof(idAffMskOrdMapping_t));
 
@@ -1291,8 +1290,8 @@ int glktsn::allocArrays(const unsigned cpus)
     perCore_detectedThreadsCount = Dyn2Arr_str(cpus, MAX_CORES);
     if (perPkg_detectedCoresCount.isEmpty() || perCore_detectedThreadsCount.isEmpty())
     {
-        error = -1;
-        return -1;
+        error = _MSGTYP_MEMORY_ALLOCATION_FAILED;
+        return error;
     }
     perPkg_detectedCoresCount.fill(0);
     perCore_detectedThreadsCount.fill(0);
@@ -1347,11 +1346,11 @@ int glktsn::parseAPICIDs(const GenericAffinityMask & processAffinity, unsigned &
         {
             // bind the execution context to the i-th logical processor
             // using OS-specific API
-            volatile ScopedThreadContext ctx(i);
+            ScopedThreadContext ctx(i);
             if (ctx.error)
             {
                 // Failed to set thread affinity
-                error = -1;
+                error |= ctx.error;
                 break;
             }
 
@@ -1378,22 +1377,27 @@ int glktsn::parseAPICIDs(const GenericAffinityMask & processAffinity, unsigned &
             if (threadIndex >= EnumeratedThreadCount)
             {
                 // should never happen
-                error = -1;
+                error |= _MSGTYP_INVALID_THREAD_INDEX;
                 break;
             }
             pApicAffOrdMapping[threadIndex++] =
                 idAffMskOrdMapping_t(i, hasLeafB, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask, SMTSelectMask, SMTMaskWidth);
+            ctx.restoreContext();
+            if (ctx.error)
+            {
+                // Failed to set thread affinity
+                error |= ctx.error;
+                break;
+            }
         }
         else if (processAffinityBit == 0xff)
         {
             // should never happen
             // i-th bit is out of bounds of the process affinity mask
-            error = -1;
+            error |= _MSGTYP_CANNOT_TEST_AFFINITY_BIT;
             break;
         }
     }
-
-    if (error) return -1;
 
     return error;
 }
@@ -1411,12 +1415,12 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
 
     // we got a 1-D array to store unique Pkg_ID as we sort thru
     // each logical processor
-    if (pDetectedPkgIDs.isEmpty()) return -1;
+    if (pDetectedPkgIDs.isEmpty()) return _MSGTYP_MEMORY_ALLOCATION_FAILED;
 
     // we got a 2-D array to store unique Core_ID within each Pkg_ID,
     // as we sort thru each logical processor
     Dyn2Arr_str pDetectCoreIDsperPkg(EnumeratedThreadCount, (1 << PkgSelectMaskShift), 0xff);
-    if (pDetectCoreIDsperPkg.isEmpty()) return -1;
+    if (pDetectCoreIDsperPkg.isEmpty()) return _MSGTYP_MEMORY_ALLOCATION_FAILED;
 
     // iterate throught each logical processor in the system.
     // mark up each unique physical package with a zero-based numbering scheme
@@ -1432,7 +1436,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
         if (maxPackageDetetcted > EnumeratedThreadCount)
         {
             // should never happen
-            return -1;
+            return _MSGTYP_INVALID_PACKAGE_INDEX;
         }
         for (unsigned h = 0; h < maxPackageDetetcted; h++)
         {
@@ -1447,7 +1451,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
                     if (h * EnumeratedThreadCount + k >= pDetectCoreIDsperPkg.size())
                     {
                         // should never happen
-                        return -1;
+                        return _MSGTYP_INVALID_CORE_INDEX;
                     }
                     if (coreID == pDetectCoreIDsperPkg[h * EnumeratedThreadCount + k])
                     {
@@ -1456,7 +1460,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
                         if (h * MAX_CORES + k >= perCore_detectedThreadsCount.size())
                         {
                             // should never happen
-                            return -1;
+                            return _MSGTYP_INVALID_THREAD_COUNT_INDEX;
                         }
                         perCore_detectedThreadsCount[h * MAX_CORES + k]++;
                         break;
@@ -1471,7 +1475,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
                     if (h * EnumeratedThreadCount + core >= pDetectCoreIDsperPkg.size())
                     {
                         // should never happen
-                        return -1;
+                        return _MSGTYP_INVALID_CORE_INDEX;
                     }
                     pDetectCoreIDsperPkg[h * EnumeratedThreadCount + core] = coreID;
 
@@ -1479,7 +1483,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
                     if (h * MAX_CORES + core >= perCore_detectedThreadsCount.size())
                     {
                         // should never happen
-                        return -1;
+                        return _MSGTYP_INVALID_THREAD_COUNT_INDEX;
                     }
                     perCore_detectedThreadsCount[h * MAX_CORES + core] = 1;
                     perPkg_detectedCoresCount[h]++;
@@ -1526,7 +1530,7 @@ void glktsn::buildSystemTopologyTables(const GenericAffinityMask & processAffini
     // Derived separate numbering schemes for each level of the cpu topology
     if (analyzeCPUHierarchy(maxPkgSelectMaskShift) < 0)
     {
-        error |= _MSGTYP_TOPOLOGY_NOTANALYZED;
+        error |= _MSGTYP_TOPOLOGY_NOT_ANALYZED;
         return;
     }
 
