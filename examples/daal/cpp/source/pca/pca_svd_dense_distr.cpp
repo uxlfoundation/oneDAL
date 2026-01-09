@@ -38,34 +38,26 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 250;
-size_t nFeatures;
 
-const std::string dataFileNames[] = { "data/pca_normalized_1.csv",
-                                      "data/pca_normalized_2.csv",
-                                      "data/pca_normalized_3.csv",
-                                      "data/pca_normalized_4.csv" };
+const std::string datasetFileName = { "data/pca_normalized.csv" };
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     /* Create an algorithm for principal component analysis using the SVD method on the master node */
     pca::Distributed<step2Master, algorithmFPType, pca::svdDense> masterAlgorithm;
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> dataSource(dataFileNames[i],
-                                                     DataSource::doAllocateNumericTable,
-                                                     DataSource::doDictionaryFromContext);
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
 
-        /* Retrieve the input data */
-        dataSource.loadDataBlock(nVectorsInBlock);
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
+    for (size_t i = 0; i < nBlocks; i++) {
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
 
         /* Create an algorithm for principal component analysis using the SVD method on the local node */
         pca::Distributed<step1Local, algorithmFPType, pca::svdDense> localAlgorithm;
