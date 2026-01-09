@@ -45,7 +45,6 @@ CSRNumericTablePtr dataTable[nBlocks];
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
 
-    // 1. Читаем весь датасет целиком один раз
     CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
     const size_t totalRows = fullData->getNumberOfRows();
 
