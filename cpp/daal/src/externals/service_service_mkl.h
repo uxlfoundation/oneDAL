@@ -62,19 +62,40 @@ struct MklService
         // return memmove_s(dest, destSize, src, smax);
     }
 
-    static int serv_get_ht() { return (serv_get_ncorespercpu() > 1 ? 1 : 0); }
+    static int serv_get_ht()
+    {
+        const int ncorespercpu = serv_get_ncorespercpu();
+        if (ncorespercpu < 0)
+        {
+            // Failed to get the number of cores per CPU.
+            return -1;
+        }
+        return (ncorespercpu > 1 ? 1 : 0);
+    }
 
     static int serv_get_ncpus()
     {
-        unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
+            // CPU topology initialization failed;
+            return -1;
+        }
+        const unsigned int ncores = daal::services::internal::_internal_daal_GetProcessorCoreCount();
         return (ncores ? ncores : 1);
     }
 
     static int serv_get_ncorespercpu()
     {
-        unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetProcessorCoreCount();
-        unsigned int ncpus       = serv_get_ncpus();
-        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? nlogicalcpu / ncpus : 1);
+        if (daal::services::internal::_internal_daal_GetStatus() != 0)
+        {
+            // CPU topology initialization failed;
+            return -1;
+        }
+        const unsigned int nlogicalcpu = daal::services::internal::_internal_daal_GetSysLogicalProcessorCount();
+        const unsigned int ncpus       = serv_get_ncpus();
+        // On hybrid systems, return 2 in case of hyper-threading enabled at least on some cores,
+        // 1 otherwise
+        return (ncpus > 0 && nlogicalcpu > 0 && nlogicalcpu > ncpus ? (nlogicalcpu - ncpus + 1) / ncpus : 1);
     }
 
     // TODO: The real call should be delegated to a backend library if the option is supported

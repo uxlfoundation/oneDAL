@@ -22,19 +22,6 @@
 #include <map>
 #include <string>
 
-// TODO: Clean up this redefinition and import the defines globally.
-#if defined(__x86_64__) || defined(__x86_64) || defined(__amd64) || defined(_M_AMD64)
-#define TARGET_X86_64
-#endif
-
-#if defined(__ARM_ARCH) || defined(__aarch64__)
-#define TARGET_ARM
-#endif
-
-#if defined(__riscv) && (__riscv_xlen == 64)
-#define TARGET_RISCV64
-#endif
-
 namespace oneapi::dal::detail {
 namespace v1 {
 
