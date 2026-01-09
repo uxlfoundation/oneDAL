@@ -97,8 +97,7 @@ FARPROC load_daal_thr_func(const char * ordinal)
 typedef void * (*_threaded_malloc_t)(const size_t, const size_t);
 typedef void (*_threaded_free_t)(void *);
 
-typedef void (*_daal_threader_for_t)(int, int, const void *, daal::functype);
-typedef void (*_daal_threader_for_int64_t)(int64_t, const void *, daal::functype_int64);
+typedef void (*_daal_threader_for_t)(int64_t, int64_t, const void *, daal::functype);
 typedef void (*_daal_threader_for_int32ptr_t)(const int *, const int *, const void *, daal::functype_int32ptr);
 typedef void (*_daal_threader_for_simple_t)(int, int, const void *, daal::functype);
 typedef void (*_daal_static_threader_for_t)(size_t, const void *, daal::functype_static);
@@ -179,7 +178,7 @@ DAAL_EXPORT void _threaded_scalable_free(void * ptr)
     _threaded_free_ptr(ptr);
 }
 
-DAAL_EXPORT void _daal_threader_for(int n, int threads_request, const void * a, daal::functype func)
+DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t threads_request, const void * a, daal::functype func)
 {
     load_daal_thr_dll();
     static _daal_threader_for_t _daal_threader_for_ptr = (_daal_threader_for_t)load_daal_thr_func("_daal_threader_for");
@@ -200,13 +199,6 @@ DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end,
     static _daal_threader_for_int32ptr_t _daal_threader_for_int32ptr_ptr =
         (_daal_threader_for_int32ptr_t)load_daal_thr_func("_daal_threader_for_int32ptr");
     _daal_threader_for_int32ptr_ptr(begin, end, a, func);
-}
-
-DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::functype_int64 func)
-{
-    load_daal_thr_dll();
-    static _daal_threader_for_int64_t _daal_threader_for_int64_ptr = (_daal_threader_for_int64_t)load_daal_thr_func("_daal_threader_for_int64");
-    _daal_threader_for_int64_ptr(n, a, func);
 }
 
 DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::functype_static func)

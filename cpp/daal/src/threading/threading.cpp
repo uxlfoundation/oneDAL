@@ -102,29 +102,7 @@ DAAL_EXPORT size_t _setNumberOfThreads(const size_t numThreads, void ** globalCo
     return 1;
 }
 
-DAAL_EXPORT void _daal_threader_for(int n, int reserved, const void * a, daal::functype func)
-{
-    if (daal::threader_env()->getNumberOfThreads() > 1)
-    {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) {
-            int i;
-            for (i = r.begin(); i < r.end(); i++)
-            {
-                func(i, a);
-            }
-        });
-    }
-    else
-    {
-        int i;
-        for (i = 0; i < n; i++)
-        {
-            func(i, a);
-        }
-    }
-}
-
-DAAL_EXPORT void _daal_threader_for_int64(int64_t n, const void * a, daal::functype_int64 func)
+DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t reserved, const void * a, daal::functype func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
