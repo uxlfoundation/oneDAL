@@ -38,30 +38,31 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "data/covcormoments_csr_1.csv",
-                                         "data/covcormoments_csr_2.csv",
-                                         "data/covcormoments_csr_3.csv",
-                                         "data/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    // Load full CSR (one-based)
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    const size_t totalRows = fullData->getNumberOfRows();
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     /* Create an algorithm to compute a variance-covariance matrix in the online processing mode using the default method */
     covariance::Online<algorithmFPType, covariance::fastCSR> algorithm;
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+    for (size_t block = 0; block < nBlocks; ++block) {
+        const size_t rowStart = block * rowsPerBlock;
+        if (rowStart >= totalRows)
+            break;
 
-        /* Set input objects for the algorithm */
-        algorithm.input.set(covariance::data, CSRNumericTablePtr(dataTable));
+        const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-        /* Compute partial estimates */
+        // split CSR exactly like in distributed
+        CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+
+        algorithm.input.set(covariance::data, localTable);
         algorithm.compute();
     }
 
