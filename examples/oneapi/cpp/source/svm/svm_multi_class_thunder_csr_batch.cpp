@@ -28,18 +28,19 @@ int main(int argc, char const *argv[]) {
     const auto test_data_file_name = get_data_path("data/svm_multi_class_test_sparse_data.csv");
     const auto test_response_file_name =
         get_data_path("data/svm_multi_class_test_sparse_labels.csv");
-
+    std::cout<<"here1"<<std::endl;
     const auto x_train = dal::read<dal::table>(dal::csv::data_source{ train_data_file_name });
+    std::cout<<"here21"<<std::endl;
     const auto y_train = dal::read<dal::table>(dal::csv::data_source{ train_response_file_name });
-
+    std::cout<<"here31"<<std::endl;
     // Convert data table to CSR table
     const auto x_train_csr = convert_to_csr<float>(x_train);
-
+    std::cout<<"here41"<<std::endl;
     const auto kernel_desc = dal::rbf_kernel::descriptor{}.set_sigma(2.5);
     const auto svm_desc = dal::svm::descriptor{ kernel_desc }.set_class_count(4).set_c(1.0);
-
+    std::cout<<"here51"<<std::endl;
     const auto result_train = dal::train(svm_desc, x_train_csr, y_train);
-
+    std::cout<<"here61"<<std::endl;
     std::cout << "Biases:\n" << result_train.get_biases() << std::endl;
     std::cout << "Coeffs indices:\n" << result_train.get_coeffs() << std::endl;
 

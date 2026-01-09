@@ -39,7 +39,7 @@ const std::string trainDatasetFileName = "data/svm_two_class_train_csr.csv";
 const std::string trainLabelsFileName = "data/svm_two_class_train_sparse_labels.csv";
 
 const std::string testDatasetFileName = "data/svm_two_class_test_csr.csv";
-const std::string testLabelsFileName = "data/svm_two_class_test_labels.csv";
+const std::string testLabelsFileName = "data/svm_two_class_test_sparse_labels.csv";
 
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(
