@@ -35,12 +35,16 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "data/svm_two_class_train_csr.csv";
-const std::string trainLabelsFileName = "svm_two_class_train_labels.csv";
+const std::string trainDatasetFileName = "data/svm_two_class_train_sparse_data.csv";
+const std::string trainLabelsFileName = "data/svm_two_class_train_sparse_labels.csv";
 
-const std::string testDatasetFileName = "data/svm_two_class_test_csr.csv";
-const std::string testLabelsFileName = "svm_two_class_test_labels.csv";
+const std::string testDatasetFileName = "data/svm_two_class_test_sparse_data.csv";
+const std::string testLabelsFileName = "data/svm_two_class_test_sparse_labels.csv";
 
+// const auto train_data_file_name = get_data_path("svm_two_class_train_sparse_data.csv");
+// const auto train_response_file_name = get_data_path("svm_two_class_train_sparse_labels.csv");
+// const auto test_data_file_name = get_data_path("svm_two_class_test_sparse_data.csv");
+// const auto test_response_file_name = get_data_path("svm_two_class_test_sparse_labels.csv");
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(
     new kernel_function::linear::Batch<float, kernel_function::linear::fastCSR>());
@@ -61,11 +65,13 @@ int main(int argc, char* argv[]) {
                    &trainLabelsFileName,
                    &testDatasetFileName,
                    &testLabelsFileName);
-
+    std::cout << "here1" << std::endl;
     trainModel();
+    std::cout << "here21" << std::endl;
     testModel();
+    std::cout << "here31" << std::endl;
     printResults();
-
+    std::cout << "here41" << std::endl;
     return 0;
 }
 

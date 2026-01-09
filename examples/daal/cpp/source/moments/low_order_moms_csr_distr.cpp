@@ -41,30 +41,42 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "data/covcormoments_csr_1.csv",
-                                         "data/covcormoments_csr_2.csv",
-                                         "data/covcormoments_csr_3.csv",
-                                         "data/covcormoments_csr_4.csv" };
+const std::string datasetFileName = { "data/covcormoments_csr.csv" };
 
 low_order_moments::PartialResultPtr partialResult[nBlocks];
 low_order_moments::ResultPtr result;
 
-void computestep1Local(size_t block);
 void computeOnMasterNode();
 
 void printResults(const low_order_moments::ResultPtr& res);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     for (size_t block = 0; block < nBlocks; block++) {
-        computestep1Local(block);
+        size_t rowStart = block * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        if (rowStart >= totalRows)
+            break;
+
+        CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+        /* Create an algorithm to compute low order moments in the distributed processing mode using the default method */
+        low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>
+            algorithm;
+
+        /* Set input objects for the algorithm */
+        algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
+
+        /* Compute partial low order moments estimates on nodes */
+        algorithm.compute();
+
+        /* Get the computed partial estimates */
+        partialResult[block] = algorithm.getPartialResult();
     }
 
     computeOnMasterNode();
@@ -72,23 +84,6 @@ int main(int argc, char* argv[]) {
     printResults(result);
 
     return 0;
-}
-
-void computestep1Local(size_t block) {
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[block]);
-
-    /* Create an algorithm to compute low order moments in the distributed processing mode using the default method */
-    low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>
-        algorithm;
-
-    /* Set input objects for the algorithm */
-    algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
-
-    /* Compute partial low order moments estimates on nodes */
-    algorithm.compute();
-
-    /* Get the computed partial estimates */
-    partialResult[block] = algorithm.getPartialResult();
 }
 
 void computeOnMasterNode() {

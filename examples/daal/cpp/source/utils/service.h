@@ -67,13 +67,14 @@ daal::data_management::CSRNumericTablePtr splitCSRBlock(
     using namespace daal::data_management;
 
     const size_t nRows = rowEnd - rowStart;
+
     const size_t nCols = src->getNumberOfColumns();
 
     CSRBlockDescriptor<algorithmFPType> block;
     src->getSparseBlock(rowStart, nRows, readOnly, block);
 
-    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr(); // already local
-    const size_t *srcColIndices = block.getBlockColumnIndicesPtr(); // already offset
+    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr();
+    const size_t *srcColIndices = block.getBlockColumnIndicesPtr();
     const algorithmFPType *srcValues = block.getBlockValuesPtr();
 
     const size_t nnz = srcRowOffsets[nRows] - srcRowOffsets[0];
@@ -82,14 +83,14 @@ daal::data_management::CSRNumericTablePtr splitCSRBlock(
     size_t *localColIndices = new size_t[nnz];
     algorithmFPType *localValues = new algorithmFPType[nnz];
 
-    /* Just copy rowOffsets verbatim */
-    for (size_t i = 0; i <= nRows; i++)
-        localRowOffsets[i] = srcRowOffsets[i];
+    // Делаем относительные смещения, но сохраняем one-based стиль
+    localRowOffsets[0] = 1; // ← начало с 1 !!!
+    for (size_t i = 1; i <= nRows; ++i) {
+        localRowOffsets[i] = srcRowOffsets[i] - srcRowOffsets[0] + 1;
+    }
 
-    /* Copy nnz values from already-correct pointer */
-    std::copy(srcColIndices, srcColIndices + nnz, localColIndices);
-
-    std::copy(srcValues, srcValues + nnz, localValues);
+    std::copy_n(srcColIndices, nnz, localColIndices);
+    std::copy_n(srcValues, nnz, localValues);
 
     src->releaseSparseBlock(block);
 

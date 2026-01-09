@@ -40,15 +40,7 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 const size_t nVectorsInBlock = 8000;
 
-const std::string dataFileNames[] = { "kmeans_csr_1.csv",
-                                      "kmeans_csr_2.csv",
-                                      "kmeans_csr_3.csv",
-                                      "kmeans_csr_4.csv" };
-
-void loadData(NumericTablePtr data[nBlocks]) {
-    for (size_t i = 0; i < nBlocks; i++)
-        data[i] = CSRNumericTablePtr(createSparseTable<float>(dataFileNames[i]));
-}
+const std::string datasetFileName = { "data/kmeans_csr.csv" };
 
 template <kmeans::init::Method method>
 NumericTablePtr initCentroids(const NumericTablePtr data[nBlocks]);
@@ -64,16 +56,23 @@ void runKMeans(const NumericTablePtr data[nBlocks], const char* methodName) {
 }
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     NumericTablePtr data[nBlocks];
-    loadData(data);
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
+
+    for (size_t i = 0; i < nBlocks; ++i) {
+        size_t rowStart = i * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        if (rowStart >= totalRows)
+            break;
+
+        data[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+    }
 
     runKMeans<kmeans::init::plusPlusCSR>(data, "plusPlusCSR");
     runKMeans<kmeans::init::parallelPlusCSR>(data, "parallelPlusCSR");
