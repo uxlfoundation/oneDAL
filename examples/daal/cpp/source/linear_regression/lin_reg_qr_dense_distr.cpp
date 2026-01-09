@@ -40,17 +40,12 @@ using namespace daal::algorithms::linear_regression;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[] = { "data/linear_regression_train_1.csv",
-                                              "data/linear_regression_train_2.csv",
-                                              "data/linear_regression_train_3.csv",
-                                              "data/linear_regression_train_4.csv" };
-const std::string testDatasetFileName = "data/linear_regression_test.csv";
+const std::string trainDatasetFileName = "data/linear_regression_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/linear_regression_train_responses.csv";
+const std::string testDatasetFileName = "data/linear_regression_test_data.csv";
+const std::string testDatasetLabelFileName = "data/linear_regression_test_responses.csv";
 
 const size_t nBlocks = 4;
-
-const size_t nFeatures = 10; /* Number of features in training and testing data sets */
-const size_t nDependentVariables =
-    2; /* Number of dependent variables that correspond to each observation */
 
 void trainModel();
 void testModel();
@@ -59,14 +54,7 @@ training::ResultPtr trainingResult;
 prediction::ResultPtr predictionResult;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   5,
-                   &testDatasetFileName,
-                   &trainDatasetFileNames[0],
-                   &trainDatasetFileNames[1],
-                   &trainDatasetFileNames[2],
-                   &trainDatasetFileNames[3]);
+    checkArguments(argc, argv, 1, &trainDatasetFileName);
 
     trainModel();
     testModel();
@@ -77,29 +65,33 @@ int main(int argc, char* argv[]) {
 void trainModel() {
     /* Create an algorithm object to build the final multiple linear regression model on the master node */
     training::Distributed<step2Master, algorithmFPType, training::qrDense> masterAlgorithm;
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
+    /* Create an algorithm object to build the final multiple linear regression model on the master node */
+    size_t totalRows = countRowsCSV(trainDatasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
 
+    size_t remainingRows = totalRows;
     for (size_t i = 0; i < nBlocks; i++) {
         /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileNames[i],
-                                                          DataSource::notAllocateNumericTable,
-                                                          DataSource::doDictionaryFromContext);
-
-        /* Create Numeric Tables for training data and dependent variables */
-        NumericTablePtr trainData(
-            new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-        NumericTablePtr trainDependentVariables(
-            new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-        NumericTablePtr mergedData(new MergedNumericTable(trainData, trainDependentVariables));
-
-        /* Retrieve the data from input file */
-        trainDataSource.loadDataBlock(mergedData.get());
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = trainDataSource.loadDataBlock(rowsToRead);
+        trainLabelSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
 
         /* Create an algorithm object to train the multiple linear regression model based on the local-node data */
         training::Distributed<step1Local, algorithmFPType, training::qrDense> localAlgorithm;
 
         /* Pass a training data set and dependent values to the algorithm */
-        localAlgorithm.input.set(training::data, trainData);
-        localAlgorithm.input.set(training::dependentVariables, trainDependentVariables);
+        localAlgorithm.input.set(training::data, trainDataSource.getNumericTable());
+        localAlgorithm.input.set(training::dependentVariables, trainLabelSource.getNumericTable());
 
         /* Train the multiple linear regression model on the local-node data */
         localAlgorithm.compute();
@@ -120,25 +112,24 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
 
-    /* Load the data from the data file */
-    testDataSource.loadDataBlock(mergedData.get());
+    testLabelSource.loadDataBlock();
 
     /* Create an algorithm object to predict values of multiple linear regression */
     prediction::Batch<> algorithm;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(prediction::data, testData);
+    algorithm.input.set(prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(prediction::model, trainingResult->get(training::model));
 
     /* Predict values of multiple linear regression */
@@ -149,5 +140,5 @@ void testModel() {
     printNumericTable(predictionResult->get(prediction::prediction),
                       "Linear Regression prediction results: (first 10 rows):",
                       10);
-    printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
+    printNumericTable(testLabelSource.getNumericTable(), "Ground truth (first 10 rows):", 10);
 }

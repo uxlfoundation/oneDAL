@@ -38,68 +38,60 @@ using namespace daal::data_management;
 using namespace daal::algorithms::multinomial_naive_bayes;
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[4] = { "data/naivebayes_train_dense_1.csv",
-                                               "data/naivebayes_train_dense_2.csv",
-                                               "data/naivebayes_train_dense_3.csv",
-                                               "data/naivebayes_train_dense_4.csv" };
-
+const std::string trainDatasetFileName = "data/naivebayes_train_dense.csv";
+const std::string trainDatasetLabelFileName = "data/naivebayes_train_labels.csv";
 const std::string testDatasetFileName = "data/naivebayes_test_dense.csv";
+const std::string testDatasetLabelFileName = "data/naivebayes_test_labels.csv";
 
-const size_t nFeatures = 20;
 const size_t nClasses = 20;
 const size_t nBlocks = 4;
 
 void trainModel();
 void testModel();
-void printResults();
 
 training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
 NumericTablePtr testGroundTruth;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   5,
-                   &trainDatasetFileNames[0],
-                   &trainDatasetFileNames[1],
-                   &trainDatasetFileNames[2],
-                   &trainDatasetFileNames[3],
-                   &testDatasetFileName);
+    checkArguments(argc, argv, 1, &trainDatasetFileName);
 
     trainModel();
     testModel();
-
-    printResults();
 
     return 0;
 }
 
 void trainModel() {
     training::Distributed<step2Master> masterAlgorithm(nClasses);
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
+    /* Create an algorithm object to build the final multiple linear regression model on the master node */
+    size_t totalRows = countRowsCSV(trainDatasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
+
+    size_t remainingRows = totalRows;
 
     for (size_t i = 0; i < nBlocks; i++) {
         /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileNames[i],
-                                                          DataSource::notAllocateNumericTable,
-                                                          DataSource::doDictionaryFromContext);
-
-        /* Create Numeric Tables for training data and labels */
-        NumericTablePtr trainData(
-            new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-        NumericTablePtr trainGroundTruth(
-            new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-        NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
-
-        /* Retrieve the data from the input file */
-        trainDataSource.loadDataBlock(mergedData.get());
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = trainDataSource.loadDataBlock(rowsToRead);
+        trainLabelSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
 
         /* Create an algorithm object to train the Naive Bayes model on the local-node data */
         training::Distributed<step1Local> localAlgorithm(nClasses);
 
         /* Pass a training data set and dependent values to the algorithm */
-        localAlgorithm.input.set(classifier::training::data, trainData);
-        localAlgorithm.input.set(classifier::training::labels, trainGroundTruth);
+        localAlgorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+        localAlgorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
         /* Build the Naive Bayes model on the local node */
         localAlgorithm.compute();
@@ -117,24 +109,23 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
-                                                     DataSource::notAllocateNumericTable,
+                                                     DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
 
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
+    testLabelSource.loadDataBlock();
     /* Create an algorithm object to predict Naive Bayes values */
     prediction::Batch<> algorithm(nClasses);
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, NumericTablePtr(testData));
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
 
@@ -143,10 +134,8 @@ void testModel() {
 
     /* Retrieve the algorithm results */
     predictionResult = algorithm.getResult();
-}
 
-void printResults() {
-    printNumericTables<int, int>(testGroundTruth,
+    printNumericTables<int, int>(testLabelSource.getNumericTable(),
                                  predictionResult->get(classifier::prediction::prediction),
                                  "Ground truth",
                                  "Classification results",
