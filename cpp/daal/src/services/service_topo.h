@@ -66,10 +66,7 @@ namespace services
 {
 namespace internal
 {
-unsigned _internal_daal_GetStatus()
-{
-    return 0;
-}
+unsigned _internal_daal_GetStatus();
 } // namespace internal
 } // namespace services
 } // namespace daal

@@ -1155,7 +1155,7 @@ int cpuTopologyParams(unsigned maxCPUIDLeaf, bool & hasLeafB, unsigned & PkgSele
     {
         CPUIDinfo CPUInfoB;
         CPUInfoB.get(0xB, 0);
-        //glbl_ptr points to assortment of global data, workspace, etc
+        // glbl_ptr points to assortment of global data, workspace, etc
         hasLeafB = (CPUInfoB.EBX != 0);
     }
 
@@ -1168,19 +1168,19 @@ int cpuTopologyParams(unsigned maxCPUIDLeaf, bool & hasLeafB, unsigned & PkgSele
         if (hasLeafB)
         {
             // #1, Processors that support CPUID leaf 0BH
-            //    use CPUID leaf B to derive extraction parameters
+            //     use CPUID leaf B to derive extraction parameters
             error = cpuTopologyLeafBConstants(PkgSelectMask, PkgSelectMaskShift, CoreSelectMask, SMTSelectMask, SMTMaskWidth);
         }
         else
         {
-            //#2, Processors that support legacy parameters
-            //    using CPUID leaf 1 and leaf 4
+            // #2, Processors that support legacy parameters
+            //     using CPUID leaf 1 and leaf 4
             error = cpuTopologyLegacyConstants(maxCPUIDLeaf, info, PkgSelectMask, PkgSelectMaskShift, CoreSelectMask, SMTSelectMask, SMTMaskWidth);
         }
     }
     else
     {
-        //#3, Prior to HT, there is only one logical processor in a physical package
+        // #3, Prior to HT, there is only one logical processor in a physical package
         CoreSelectMask     = 0;
         SMTMaskWidth       = 0;
         PkgSelectMask      = (unsigned)(-1);
@@ -1751,6 +1751,10 @@ size_t getLLCacheSize()
     return DEFAULT_LL_CACHE_SIZE; //estimate based on mac pro
 }
 
+unsigned _internal_daal_GetStatus()
+{
+    return 0;
+}
 } // namespace internal
 } // namespace services
 } // namespace daal
