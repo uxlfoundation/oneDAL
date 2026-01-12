@@ -595,7 +595,11 @@ struct ScopedThreadContext
     // Constructor that binds the execution context to the specified logical processor
     //
     // \param cpu The ordinal index to reference a logical processor in the system
-    explicit ScopedThreadContext(unsigned int cpu) { error |= bindContext(cpu); }
+    explicit ScopedThreadContext(unsigned int cpu)
+    {
+        error = 0;
+        error |= bindContext(cpu);
+    }
 
     ~ScopedThreadContext() {}
 
@@ -648,7 +652,10 @@ private:
         MY_CPU_ZERO(&currentCPU);
         // turn on the equivalent bit inside the bitmap corresponding to affinitymask
         MY_CPU_SET(cpu, &currentCPU);
-        sched_getaffinity(0, sizeof(prevAffinity), &prevAffinity);
+        if (sched_getaffinity(0, sizeof(prevAffinity), &prevAffinity))
+        {
+            return _MSGTYP_GET_THREAD_AFFINITY_FAILED;
+        }
         if (sched_setaffinity(0, sizeof(currentCPU), &currentCPU))
         {
             return _MSGTYP_SET_THREAD_AFFINITY_FAILED;
