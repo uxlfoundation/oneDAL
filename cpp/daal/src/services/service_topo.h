@@ -58,6 +58,22 @@ unsigned _internal_daal_GetSysLogicalProcessorCount();
 void read_topology(int & status, int & nthreads, int & max_threads, int ** cpu_queue);
 void delete_topology(void * ptr);
 
-#endif /* #if !defined (DAAL_CPU_TOPO_DISABLED) */
+#else /* #if !defined (DAAL_CPU_TOPO_DISABLED) */
+
+namespace daal
+{
+namespace services
+{
+namespace internal
+{
+unsigned _internal_daal_GetStatus()
+{
+    return 0;
+}
+} // namespace internal
+} // namespace services
+} // namespace daal
+
+#endif
 
 #endif /* __SERVICE_TOPO_H__ */
