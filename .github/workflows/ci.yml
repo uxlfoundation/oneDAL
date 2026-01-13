@@ -84,7 +84,7 @@ jobs:
         run: cp -r __release_lnx __release_lnx_main
       - name: Cache build
         if: github.event_name != 'pull_request'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           key: ${{ steps.onedal-dbg.outputs.key }}
           path: ./__release_lnx_main
@@ -153,7 +153,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download oneDAL main build
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ./__release_lnx_main
           key: ${{ steps.get-cache-key.outputs.key }}
