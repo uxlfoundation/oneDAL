@@ -28,9 +28,9 @@ inline bool check_file(const std::string& name) {
     return std::ifstream{ name }.good();
 }
 
-inline const std::string get_data_path(const std::string &name) {
+inline const std::string get_data_path(const std::string& name) {
     const std::vector<std::string> paths = { "../data", "../../data" };
-    for (const auto &path : paths) {
+    for (const auto& path : paths) {
         const std::string try_path = path + "/" + name;
         if (std::ifstream{ try_path }.good()) {
             return try_path;
@@ -39,7 +39,6 @@ inline const std::string get_data_path(const std::string &name) {
 
     return name;
 }
-
 
 template <typename Float>
 std::vector<dal::table> split_table_by_rows(const dal::table& t, std::int64_t split_count) {

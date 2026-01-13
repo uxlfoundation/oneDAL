@@ -647,7 +647,6 @@ inline const std::string get_data_path(const std::string &name) {
     return name;
 }
 
-
 void checkArguments(int argc, char *argv[], int count, ...) {
     std::string **const filelist = new std::string *[count];
 

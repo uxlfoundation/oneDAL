@@ -713,7 +713,6 @@ inline const std::string get_data_path(const std::string &name) {
     return name;
 }
 
-
 size_t countRowsCSV(const std::string &file) {
     std::ifstream f(file);
     size_t rows = 0;
