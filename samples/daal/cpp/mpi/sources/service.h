@@ -636,11 +636,17 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
 }
 
 inline const std::string get_data_path(const std::string &name) {
-    if (!std::ifstream{ name }.good()) {
-        throw std::runtime_error("File not found: " + name);
+    const std::vector<std::string> paths = { "../data", "../../data" };
+    for (const auto &path : paths) {
+        const std::string try_path = path + "/" + name;
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
+        }
     }
+
     return name;
 }
+
 
 void checkArguments(int argc, char *argv[], int count, ...) {
     std::string **const filelist = new std::string *[count];

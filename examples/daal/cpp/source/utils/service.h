@@ -702,11 +702,17 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
 }
 
 inline const std::string get_data_path(const std::string &name) {
-    if (!std::ifstream{ name }.good()) {
-        throw std::runtime_error("File not found: " + name);
+    const std::vector<std::string> paths = { "../data", "../../data" };
+    for (const auto &path : paths) {
+        const std::string try_path = path + "/" + name;
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
+        }
     }
+
     return name;
 }
+
 
 size_t countRowsCSV(const std::string &file) {
     std::ifstream f(file);
