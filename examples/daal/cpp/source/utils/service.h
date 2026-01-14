@@ -702,7 +702,7 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
 }
 
 inline const std::string get_data_path(const std::string &name) {
-    const std::vector<std::string> paths = { "../data", "../../data" };
+    const std::vector<std::string> paths = { "../data", "../../data", "../../../data" };
     for (const auto &path : paths) {
         const std::string try_path = path + "/" + name;
         if (std::ifstream{ try_path }.good()) {
