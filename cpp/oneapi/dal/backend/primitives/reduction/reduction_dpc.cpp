@@ -132,15 +132,14 @@ sycl::event reduce_by_rows_impl(sycl::queue& q,
             for (auto row_idx = row_shift; row_idx < row_count; row_idx += row_block_size) {
                 const auto start = row_ptr[row_idx] - shift;
                 const auto end = row_ptr[row_idx + 1] - shift;
-                Float local_accum = binary.init_value;
+                bool local_accum = binary.init_value;
                 for (auto idx = start + col_shift; idx < end; idx += column_block_size) {
-                    const auto val = val_ptr[idx];
-                    local_accum = binary.native(local_accum, unary(val));
+                    auto v = unary(val_ptr[idx]);
+                    local_accum = local_accum || (v != Float(0));
                 }
-                const auto result =
-                    sycl::reduce_over_group(it.get_group(), local_accum, binary.native);
+                bool any_nonzero = sycl::reduce_over_group(it.get_group(), local_accum, sycl::logical_or<bool>{});
                 if (col_shift == 0) {
-                    out_ptr[row_idx] = override_init ? result : out_ptr[row_idx] + result;
+                    out_ptr[row_idx] = override_init ? Float(any_nonzero) : out_ptr[row_idx] + Float(any_nonzero);
                 }
             }
         });
