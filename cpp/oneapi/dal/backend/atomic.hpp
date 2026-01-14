@@ -31,7 +31,7 @@ inline T atomic_global_add(T* ptr, T operand) {
     sycl::atomic_ref<T,
                      mem_order,
                      mem_scope,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_var(*ptr);
     return atomic_var.fetch_add(operand);
 }
@@ -43,7 +43,7 @@ inline T atomic_global_sum(T* ptr, T operand) {
     sycl::atomic_ref<T,
                      mem_order,
                      mem_scope,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_var(*ptr);
     auto old = atomic_var.fetch_add(operand);
     return old + operand;
@@ -56,7 +56,7 @@ inline T atomic_global_min(T* ptr, T operand) {
     sycl::atomic_ref<T,
                      mem_order,
                      mem_scope,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_var(*ptr);
     return atomic_var.fetch_min(operand);
 }
@@ -68,7 +68,7 @@ inline T atomic_global_max(T* ptr, T operand) {
     sycl::atomic_ref<T,
                      mem_order,
                      mem_scope,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_var(*ptr);
     return atomic_var.fetch_max(operand);
 }
@@ -81,7 +81,7 @@ inline T atomic_global_cmpxchg(T* ptr, T expected, T desired) {
     sycl::atomic_ref<T,
                      mem_order,
                      mem_scope,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_var(*ptr);
     atomic_var.compare_exchange_weak(expected_, desired, mem_order, mem_scope);
     return expected_;

@@ -166,7 +166,7 @@ inline T atomic_binary_op(T* ptr, T val) {
     sycl::atomic_ref<T,
                      sycl::memory_order::relaxed,
                      sycl::memory_scope::device,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_ref(*ptr);
     if constexpr (is_sum_op_v<BinaryOp>) {
         return atomic_ref.fetch_add(val);
