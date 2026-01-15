@@ -132,35 +132,15 @@ sycl::event reduce_by_rows_impl(sycl::queue& q,
             for (auto row_idx = row_shift; row_idx < row_count; row_idx += row_block_size) {
                 const auto start = row_ptr[row_idx] - shift;
                 const auto end = row_ptr[row_idx + 1] - shift;
-                if constexpr (BinaryOp::is_logical) {
-                    bool local_accum = false;
-
-                    for (auto idx = start + col_shift; idx < end; idx += column_block_size) {
-                        const auto val = val_ptr[idx];
-                        local_accum = local_accum || static_cast<bool>(unary(val));
-                    }
-
-                    const bool result =
-                        sycl::reduce_over_group(it.get_group(), local_accum, binary.native);
-
-                    if (col_shift == 0) {
-                        Float value = static_cast<Float>(result);
-                        out_ptr[row_idx] = override_init ? value : (out_ptr[row_idx] || value);
-                    }
+                Float local_accum = binary.init_value;
+                for (auto idx = start + col_shift; idx < end; idx += column_block_size) {
+                    const auto val = val_ptr[idx];
+                    local_accum = binary.native(local_accum, unary(val));
                 }
-                else {
-                    Float local_accum = binary.init_value;
-                    for (auto idx = start + col_shift; idx < end; idx += column_block_size) {
-                        const auto val = val_ptr[idx];
-                        local_accum = binary.native(local_accum, unary(val));
-                    }
-
-                    const Float result =
-                        sycl::reduce_over_group(it.get_group(), local_accum, binary.native);
-
-                    if (col_shift == 0) {
-                        out_ptr[row_idx] = override_init ? result : out_ptr[row_idx] + result;
-                    }
+                const auto result =
+                    sycl::reduce_over_group(it.get_group(), local_accum, binary.native);
+                if (col_shift == 0) {
+                    out_ptr[row_idx] = override_init ? result : out_ptr[row_idx] + result;
                 }
             }
         });

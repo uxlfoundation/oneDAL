@@ -42,40 +42,18 @@ public:
         const auto row_idx = it.get_global_id(0);
         const auto loc_idx = it.get_local_id(1);
         const auto range = it.get_global_range(1);
-
         // It should be converted to upper type by default
         const Float* const inp_row = input_ + lstride_ * row_idx;
-
-        if constexpr (BinaryOp::is_logical) {
-            bool acc = false;
-
-            for (std::int32_t i = loc_idx; i < width_; i += range) {
-                acc = acc || static_cast<bool>(unary_(inp_row[i]));
-            }
-
-            auto grp = it.get_group();
-            const bool result = sycl::reduce_over_group(grp, acc, binary_.native);
-
-            if (loc_idx == 0) {
-                Float value = static_cast<Float>(result);
-                output_[row_idx] = override_init_ ? value : (output_[row_idx] || value);
-            }
+        // Exclusive for EU
+        Float acc = (override_init_ || (loc_idx != 0)) //
+                        ? binary_.init_value
+                        : output_[row_idx];
+        for (std::int32_t i = loc_idx; i < width_; i += range) {
+            acc = binary_.native(acc, unary_(inp_row[i]));
         }
-        else {
-            Float acc = (override_init_ || (loc_idx != 0)) ? binary_.init_value : output_[row_idx];
-
-            for (std::int32_t i = loc_idx; i < width_; i += range) {
-                acc = binary_.native(acc, unary_(inp_row[i]));
-            }
-
-            // WG reduction
-            auto grp = it.get_group();
-            const Float result = sycl::reduce_over_group(grp, acc, binary_.native);
-
-            if (loc_idx == 0) {
-                output_[row_idx] = result;
-            }
-        }
+        // WG reduction
+        auto grp = it.get_group();
+        output_[row_idx] = sycl::reduce_over_group(grp, acc, binary_.native);
     }
 
 private:
