@@ -526,9 +526,9 @@ class DistributedParameter<step2Master, algorithmFPType, correlationDense> : pub
 {
 public:
     /** Constructs PCA parameters */
-    DistributedParameter(const services::SharedPtr<covariance::DistributedIface<step2Master> > & covarianceForDistributedParameter =
-                             services::SharedPtr<covariance::Distributed<step2Master, algorithmFPType, covariance::defaultDense> >(
-                                 new covariance::Distributed<step2Master, algorithmFPType, covariance::defaultDense>()));
+    DAAL_DEPRECATED DistributedParameter(const services::SharedPtr<covariance::DistributedIface<step2Master> > & covarianceForDistributedParameter =
+                                             services::SharedPtr<covariance::Distributed<step2Master, algorithmFPType, covariance::defaultDense> >(
+                                                 new covariance::Distributed<step2Master, algorithmFPType, covariance::defaultDense>()));
 
     services::SharedPtr<covariance::DistributedIface<step2Master> > covariance; /*!< Pointer to Distributed covariance */
 
@@ -548,14 +548,14 @@ class DistributedInput
 {};
 
 /**
-    * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTED_INPUT"></a>
-    * \brief Input objects for the PCA Correlation algorithm in the distributed processing mode
-    */
+* <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTED_INPUT"></a>
+* \brief Input objects for the PCA Correlation algorithm in the distributed processing mode
+*/
 template <>
 class DistributedInput<correlationDense> : public InputIface
 {
 public:
-    DAAL_EXPORT DistributedInput();
+    DAAL_EXPORT DAAL_DEPRECATED DistributedInput();
     DAAL_EXPORT DistributedInput(const DistributedInput & other);
     DAAL_EXPORT DistributedInput operator=(const DistributedInput & other);
 
@@ -609,7 +609,7 @@ template <>
 class DistributedInput<svdDense> : public InputIface
 {
 public:
-    DAAL_EXPORT DistributedInput();
+    DAAL_EXPORT DAAL_DEPRECATED DistributedInput();
     DAAL_EXPORT DistributedInput(const DistributedInput & other);
 
     /**

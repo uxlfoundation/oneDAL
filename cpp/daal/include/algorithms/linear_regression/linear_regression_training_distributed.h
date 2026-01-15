@@ -149,7 +149,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed() {}
+    DAAL_DEPRECATED Distributed() {}
 
     /**
      * Constructs a linear regression training algorithm in the first step of the distributed processing mode
@@ -207,7 +207,7 @@ public:
     typedef algorithms::linear_regression::training::PartialResult PartialResultType;
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a linear regression training algorithm in the second step of the distributed processing mode

@@ -68,7 +68,7 @@ template <>
 class DistributedContainerIface<step2Master> : public daal::algorithms::AnalysisContainerIface<distributed>
 {
 public:
-    DistributedContainerIface() {}
+    DAAL_DEPRECATED DistributedContainerIface() {}
     virtual ~DistributedContainerIface() {}
 
     /**
@@ -349,7 +349,7 @@ public:
     typedef super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    DistributedIface() : OnlineImpl() {}
+    DAAL_DEPRECATED DistributedIface() : OnlineImpl() {}
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -403,7 +403,7 @@ public:
     typedef algorithms::covariance::PartialResult PartialResultType;
 
     /** Default constructor */
-    DistributedIface() { initialize(); }
+    DAAL_DEPRECATED DistributedIface() { initialize(); }
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -575,7 +575,7 @@ public:
     typedef typename super::ResultType ResultType;
     typedef typename super::PartialResultType PartialResultType;
 
-    Distributed() : Online<algorithmFPType, method>() {}
+    DAAL_DEPRECATED Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation
@@ -637,7 +637,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an algorithm for correlation or variance-covariance matrix computation

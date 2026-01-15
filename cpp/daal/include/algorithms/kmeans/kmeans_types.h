@@ -186,7 +186,7 @@ class DAAL_EXPORT PartialResult : public daal::algorithms::PartialResult
 {
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
 
     virtual ~PartialResult() {};
 
@@ -323,7 +323,7 @@ typedef services::SharedPtr<Result> ResultPtr;
 class DAAL_EXPORT DistributedStep2MasterInput : public InputIface
 {
 public:
-    DistributedStep2MasterInput();
+    DAAL_DEPRECATED DistributedStep2MasterInput();
 
     virtual ~DistributedStep2MasterInput() {}
 
