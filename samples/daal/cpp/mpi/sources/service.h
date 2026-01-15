@@ -636,16 +636,14 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
 }
 
 inline const std::string get_data_path(const std::string &name) {
-    const std::vector<std::string> paths = {
-        []() {
-            if (const char* root = std::getenv("DALROOT")) {
-                return std::string(root);
-            }
-            return std::string{};
-        }(),
-        "../../data",
-        "../data"
-    };
+    const std::vector<std::string> paths = { []() {
+                                                if (const char *root = std::getenv("DALROOT")) {
+                                                    return std::string(root);
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             "../../data",
+                                             "../data" };
 
     for (const auto &path : paths) {
         if (path.empty())

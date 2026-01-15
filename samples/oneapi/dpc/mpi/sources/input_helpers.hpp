@@ -29,19 +29,17 @@ inline bool check_file(const std::string& name) {
     return std::ifstream{ name }.good();
 }
 
-inline const std::string get_data_path(const std::string &name) {
-    const std::vector<std::string> paths = {
-        []() {
-            if (const char* root = std::getenv("DALROOT")) {
-                return std::string(root);
-            }
-            return std::string{};
-        }(),
-        "../../data",
-        "../data"
-    };
+inline const std::string get_data_path(const std::string& name) {
+    const std::vector<std::string> paths = { []() {
+                                                if (const char* root = std::getenv("DALROOT")) {
+                                                    return std::string(root);
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             "../../data",
+                                             "../data" };
 
-    for (const auto &path : paths) {
+    for (const auto& path : paths) {
         if (path.empty())
             continue;
 

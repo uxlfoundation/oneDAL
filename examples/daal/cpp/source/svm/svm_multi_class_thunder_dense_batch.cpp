@@ -55,7 +55,13 @@ void testModel();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     training->parameter.kernel = kernel;
     prediction->parameter.kernel = kernel;

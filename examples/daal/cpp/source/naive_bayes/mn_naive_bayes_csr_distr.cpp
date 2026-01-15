@@ -62,7 +62,13 @@ CSRNumericTablePtr trainData[nBlocks];
 CSRNumericTablePtr testData;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainGroundTruthFileName, &testDatasetFileName, &testGroundTruthFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainGroundTruthFileName,
+                   &testDatasetFileName,
+                   &testGroundTruthFileName);
 
     trainModel();
     testModel();

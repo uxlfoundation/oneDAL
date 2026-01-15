@@ -49,7 +49,12 @@ void testModel(svm::ModelPtr &);
 svm::ModelPtr buildModelFromTraining();
 
 int main(int argc, char *argv[]) {
-    checkArguments(argc, argv, 3, &trainedModelsFileName, &testDatasetFileName, &testDatasetLabelFileName);
+    checkArguments(argc,
+                   argv,
+                   3,
+                   &trainedModelsFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     svm::ModelPtr builtModel = buildModelFromTraining();
     testModel(builtModel);

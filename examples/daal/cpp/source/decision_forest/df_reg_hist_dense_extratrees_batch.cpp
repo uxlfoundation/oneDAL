@@ -49,7 +49,13 @@ training::ResultPtr trainModel();
 void testModel(const training::ResultPtr& res);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     training::ResultPtr trainingResult = trainModel();
     testModel(trainingResult);

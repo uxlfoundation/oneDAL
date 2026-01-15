@@ -51,7 +51,13 @@ training::ResultPtr trainingResult;
 prediction::ResultPtr predictionResult;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     trainModel();
     testModel();

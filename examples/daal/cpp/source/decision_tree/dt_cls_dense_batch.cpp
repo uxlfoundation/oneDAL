@@ -50,7 +50,12 @@ void testModel();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 3, &trainDatasetFileName, &pruneDatasetFileName, &testDatasetFileName);
+    checkArguments(argc,
+                   argv,
+                   3,
+                   &trainDatasetFileName,
+                   &pruneDatasetFileName,
+                   &testDatasetFileName);
 
     trainModel();
     testModel();
