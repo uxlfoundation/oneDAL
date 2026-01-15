@@ -53,7 +53,7 @@ training::ResultPtr trainModel();
 void printModel(const daal::algorithms::decision_forest::classification::Model& m);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &trainDatasetFileName);
+    checkArguments(argc, argv, 2, &trainDatasetFileName, &trainDatasetLabelFileName);
     training::ResultPtr trainingResult = trainModel();
     printModel(*trainingResult->get(classifier::training::model));
     return 0;

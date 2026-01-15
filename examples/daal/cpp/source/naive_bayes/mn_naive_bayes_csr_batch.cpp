@@ -58,7 +58,7 @@ void testModel();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainGroundTruthFileName, &testDatasetFileName, &testGroundTruthFileName);
 
     trainModel();
 

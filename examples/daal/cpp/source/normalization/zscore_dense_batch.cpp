@@ -37,6 +37,8 @@ using namespace daal::algorithms::normalization;
 const std::string datasetName = "data/normalization.csv";
 
 int main() {
+    checkArguments(argc, argv, 1, &datasetName);
+
     /* Retrieve the input data */
     FileDataSource<CSVFeatureManager> dataSource(datasetName,
                                                  DataSource::doAllocateNumericTable,

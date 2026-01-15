@@ -46,7 +46,7 @@ training::ResultPtr trainModel();
 void printModel(const daal::algorithms::decision_forest::regression::Model& m);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &trainDatasetFileName);
+    checkArguments(argc, argv, 2, &trainDatasetFileName, &trainDatasetLabelFileName);
 
     training::ResultPtr trainingResult = trainModel();
     printModel(*trainingResult->get(training::model));

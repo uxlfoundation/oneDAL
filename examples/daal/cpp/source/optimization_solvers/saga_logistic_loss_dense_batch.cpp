@@ -46,7 +46,7 @@ const size_t nIterations = 100000;
 const float tol = 0.00000001f;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &datasetFileName);
+    checkArguments(argc, argv, 2, &datasetFileName, &groundTruthFileName);
 
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,

@@ -54,7 +54,7 @@ multi_class_classifier::ModelPtr buildModelFromTraining();
 void testModel(multi_class_classifier::ModelPtr& inputModel);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &testDatasetFileName);
+    checkArguments(argc, argv, 4, &testDatasetFileName, &trainedModelsFileNames[0], &trainedModelsFileNames[1], &trainedModelsFileNames[2]);
 
     multi_class_classifier::ModelPtr builtModel = buildModelFromTraining();
     prediction->parameter.kernel = kernel;

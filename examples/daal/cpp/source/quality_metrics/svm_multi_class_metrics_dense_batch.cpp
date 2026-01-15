@@ -63,7 +63,7 @@ void testModelQuality();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
 
     training->parameter.cacheSize = 100000000;
     training->parameter.kernel = kernel;

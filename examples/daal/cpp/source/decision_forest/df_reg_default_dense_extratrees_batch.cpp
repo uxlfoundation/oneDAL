@@ -50,7 +50,7 @@ void testModel(const training::ResultPtr& res);
 void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
 
     training::ResultPtr trainingResult = trainModel();
     testModel(trainingResult);

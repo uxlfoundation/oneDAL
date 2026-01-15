@@ -176,7 +176,7 @@ bool buildTree(size_t treeId,
                const ParentPlace &parentPlace);
 
 int main(int argc, char *argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc, argv, 4, &trainDatasetFileName, &trainDatasetLabelFileName, &testDatasetFileName, &testDatasetLabelFileName);
 
     /* train DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();
