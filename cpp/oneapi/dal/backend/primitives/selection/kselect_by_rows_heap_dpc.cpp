@@ -227,12 +227,8 @@ public:
         dst_t pbuff_dst[pbuff_size] = { dst_default };
         idx_t pbuff_ids[pbuff_size] = { idx_default };
         std::int32_t pbuff_count, prev_count;
-#if __SYCL_COMPILER_VERSION >= 20230828
         sel_t* const heaps =
             heaps_.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-#else
-        sel_t* const heaps = heaps_.get_pointer().get();
-#endif
         sel_t* const curr_heap = heaps + k_ * sid;
 
         // Heap initialization

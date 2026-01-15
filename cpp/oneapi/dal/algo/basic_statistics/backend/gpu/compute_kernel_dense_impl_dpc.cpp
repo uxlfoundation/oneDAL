@@ -696,11 +696,7 @@ inline void merge_blocks_kernel(sycl::nd_item<1> item,
 
         if constexpr (!DefferedFin) {
             Float mrgvariance = mrgsum2cent / (mrgvectors - Float(1));
-#if __SYCL_COMPILER_VERSION >= 20240715
             Float mrgstdev = (Float)sycl::sqrt(mrgvariance);
-#else
-            Float mrgstdev = (Float)sqrt(mrgvariance);
-#endif
 
             if constexpr (check_mask_flag(bs_list::sorm, List)) {
                 rsorm_ptr[group_id] = mrgsum2 / mrgvectors;
@@ -827,7 +823,6 @@ compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, Li
             const std::int64_t local_size = item.get_local_range()[0];
             const std::int64_t id = item.get_local_id()[0];
             const std::int64_t group_id = item.get_group().get_group_id(0);
-#if __SYCL_COMPILER_VERSION >= 20230828
             std::int64_t* lrc_ptr =
                 lrc_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
             Float* lmin_ptr =
@@ -842,15 +837,6 @@ compute_kernel_dense_impl<Float, List>::merge_blocks(local_buffer_list<Float, Li
                 lsum2cent_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
             Float* lmean_ptr =
                 lmean_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-#else
-            std::int64_t* lrc_ptr = lrc_buf.get_pointer().get();
-            Float* lmin_ptr = lmin_buf.get_pointer().get();
-            Float* lmax_ptr = lmax_buf.get_pointer().get();
-            Float* lsum_ptr = lsum_buf.get_pointer().get();
-            Float* lsum2_ptr = lsum2_buf.get_pointer().get();
-            Float* lsum2cent_ptr = lsum2cent_buf.get_pointer().get();
-            Float* lmean_ptr = lmean_buf.get_pointer().get();
-#endif
             if (distr_mode) {
                 merge_blocks_kernel<Float, List, deffered_fin_true>(item,
                                                                     brc_ptr,
