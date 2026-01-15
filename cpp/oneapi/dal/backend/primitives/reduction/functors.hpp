@@ -126,16 +126,20 @@ struct min {
 template <typename T>
 struct logical_or {
     using tag_t = reduce_binary_op_tag;
-    constexpr static inline T init_value = false;
+    using acc_t = T;
+
+    constexpr static inline T init_value = T(false);
+
 #ifdef ONEDAL_DATA_PARALLEL
-    constexpr static inline sycl::logical_or<T> native{};
+    constexpr static inline sycl::logical_or<bool> native{};
 #else
-    constexpr static inline std::logical_or<T> native{};
-};
+    constexpr static inline std::logical_or<bool> native{};
 #endif
     T operator()(const T& a, const T& b) const {
-        return native(a, b);
+        return static_cast<T>(native(static_cast<bool>(a), static_cast<bool>(b)));
     }
+};
+
 };
 
 template <typename Float, typename BinaryOp>
