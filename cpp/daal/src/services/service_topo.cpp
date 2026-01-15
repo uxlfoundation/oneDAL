@@ -30,15 +30,14 @@
 
 #if !defined(DAAL_CPU_TOPO_DISABLED)
 
-    #include <array>
     #include <limits>
 
     #if defined(__linux__) || defined(__FreeBSD__)
 
-        #include <stdio.h>
-        #include <stdlib.h>
+        #include <cstdio>
+        #include <cstdlib>
+        #include <cstring>
         #include <unistd.h>
-        #include <string.h>
         #include <sched.h>
 
         #ifdef __FreeBSD__
@@ -51,7 +50,7 @@ typedef cpuset_t cpu_set_t;
             #include <alloca.h>
         #endif
 
-        #include <stdarg.h>
+        #include <cstdarg>
 
         #ifdef __CPU_ISSET
             #define MY_CPU_SET   __CPU_SET
@@ -1440,7 +1439,7 @@ int glktsn::analyzeCPUHierarchy(unsigned PkgSelectMaskShift)
         unsigned packageID = pApicAffOrdMapping[i].pkg_IDAPIC;
         unsigned coreID    = pApicAffOrdMapping[i].Core_IDAPIC;
 
-        if (maxPackageDetetcted > EnumeratedThreadCount)
+        if (maxPackageDetetcted >= EnumeratedThreadCount)
         {
             // should never happen
             return _MSGTYP_INVALID_PACKAGE_INDEX;
