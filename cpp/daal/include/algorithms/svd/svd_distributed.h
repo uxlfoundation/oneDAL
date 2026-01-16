@@ -180,7 +180,7 @@ public:
     typedef typename super::ResultType ResultType;
     typedef typename super::PartialResultType PartialResultType;
 
-    Distributed() : Online<algorithmFPType, method>() {}
+    DAAL_DEPRECATED Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs an SVD algorithm by copying input objects and parameters
@@ -233,7 +233,7 @@ public:
     InputType input;         /*!< %DistributedStep2Input data structure */
     ParameterType parameter; /*!< SVD parameters structure */
 
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -349,7 +349,7 @@ public:
     InputType input;         /*!< %DistributedStep3Input data structure */
     ParameterType parameter; /*!< SVD parameters structure */
 
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an SVD algorithm by copying input objects and parameters
