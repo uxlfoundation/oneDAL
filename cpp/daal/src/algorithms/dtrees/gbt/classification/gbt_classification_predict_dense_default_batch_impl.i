@@ -468,7 +468,8 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             PRAGMA_VECTOR_ALWAYS
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
-                res[iRow]               = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
+                res[iRow] = label[services::internal::SignBit<algorithmFPType, cpu>::get(res[iRow])];
+                // Note: 0/1 probabilities are stored together
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }
@@ -496,6 +497,7 @@ services::Status PredictBinaryClassificationTask<algorithmFPType, cpu>::run(cons
             daal::internal::MathInst<algorithmFPType, cpu>::vExp(finishRow - startRow, expVal + startRow, expVal + startRow);
             for (size_t iRow = startRow; iRow < finishRow; ++iRow)
             {
+                // Note: 0/1 probabilities are stored together
                 prob_pred[2 * iRow + 1] = expVal[iRow] / (algorithmFPType(1.) + expVal[iRow]);
                 prob_pred[2 * iRow]     = algorithmFPType(1.) - prob_pred[2 * iRow + 1];
             }

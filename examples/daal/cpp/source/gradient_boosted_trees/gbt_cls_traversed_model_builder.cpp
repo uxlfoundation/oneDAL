@@ -135,7 +135,6 @@ public:
         else {
             roots[treeId - 1].nNodes++;
             Node *node = new Node(0, desc.featureIndex, desc.featureValue);
-
             Node *parent = parentNodes.front();
             if (parent->left == NULL) {
                 parent->left = node;
@@ -183,7 +182,6 @@ int main(int argc, char *argv[]) {
     if (trainedModel.get())
         nTrees = trainedModel->numberOfTrees();
     size_t trainedAccurcy = testModel(trainedModel);
-
     /* traverse the trained model to get Tree representation */
     BFSNodeVisitor visitor(nTrees);
     Tree *trees = traverseModel(trainedModel, visitor);

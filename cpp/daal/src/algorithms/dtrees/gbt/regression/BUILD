@@ -25,7 +25,6 @@ dal_test_suite(
         "test/*unit.cpp",
     ]),
     dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/regression:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/gbt:kernel",
+        "@onedal//cpp/daal/src/algorithms/dtrees/gbt/regression:kernel"
     ]
 )
