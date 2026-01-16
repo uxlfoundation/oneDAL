@@ -83,7 +83,7 @@ includedir=${prefix}/include
 
 Name: oneDAL
 Description: oneAPI Data Analytics Library
-Version: 2025.11
+Version: 2026.0
 URL: ONEDAL_URL
 Libs: ONEDAL_LIBS OTHER_LIBS
 Cflags: OPTS -I${includedir}
