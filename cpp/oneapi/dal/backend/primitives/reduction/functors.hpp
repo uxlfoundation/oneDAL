@@ -81,6 +81,7 @@ template <typename T>
 struct sum {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = 0;
+    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::plus<T> native{};
 #else
@@ -95,6 +96,7 @@ template <typename T>
 struct max {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = std::numeric_limits<T>::lowest();
+    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::maximum<T> native{};
 #else
@@ -111,6 +113,7 @@ template <typename T>
 struct min {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = std::numeric_limits<T>::max();
+    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::minimum<T> native{};
 #else
@@ -126,15 +129,19 @@ struct min {
 template <typename T>
 struct logical_or {
     using tag_t = reduce_binary_op_tag;
-    constexpr static inline T init_value = false;
+    using acc_t = T;
+
+    constexpr static inline T init_value = T(false);
+    static constexpr bool is_logical = true;
+
 #ifdef ONEDAL_DATA_PARALLEL
-    constexpr static inline sycl::logical_or<T> native{};
+    constexpr static inline sycl::logical_or<bool> native{};
 #else
-    constexpr static inline std::logical_or<T> native{};
-};
+    constexpr static inline std::logical_or<bool> native{};
 #endif
+
     T operator()(const T& a, const T& b) const {
-        return native(a, b);
+        return static_cast<T>(native(static_cast<bool>(a), static_cast<bool>(b)));
     }
 };
 
@@ -166,7 +173,7 @@ inline T atomic_binary_op(T* ptr, T val) {
     sycl::atomic_ref<T,
                      sycl::memory_order::relaxed,
                      sycl::memory_scope::device,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_ref(*ptr);
     if constexpr (is_sum_op_v<BinaryOp>) {
         return atomic_ref.fetch_add(val);

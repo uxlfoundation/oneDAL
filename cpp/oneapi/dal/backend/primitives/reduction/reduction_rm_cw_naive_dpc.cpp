@@ -42,19 +42,37 @@ public:
         const auto col_idx = it.get_global_id(0);
         const auto loc_idx = it.get_global_id(1);
         const auto range = it.get_global_range(1);
-        // Exclusive for EU
-        Float acc = (override_init_ || (loc_idx != 0)) ? //
-                        binary_.init_value
-                                                       : output_[col_idx];
-        for (std::int64_t i = loc_idx; i < height_; i += range) {
-            const Float* const inp_row = input_ + lstride_ * i;
-            acc = binary_.native(acc, unary_(inp_row[col_idx]));
+
+        if constexpr (BinaryOp::is_logical) {
+            bool acc = false;
+
+            for (std::int64_t i = loc_idx; i < height_; i += range) {
+                const Float* const inp_row = input_ + lstride_ * i;
+                acc = acc || static_cast<bool>(unary_(inp_row[col_idx]));
+            }
+
+            const bool result = sycl::reduce_over_group(it.get_group(), acc, binary_.native);
+
+            if (loc_idx == 0) {
+                Float value = static_cast<Float>(result);
+                output_[col_idx] = override_init_ ? value : (output_[col_idx] || value);
+            }
         }
-        // WG reduction
-        output_[col_idx] = sycl::reduce_over_group( //
-            it.get_group(),
-            acc,
-            binary_.native);
+        else {
+            Float acc = (override_init_ || (loc_idx != 0)) ? binary_.init_value : output_[col_idx];
+
+            for (std::int64_t i = loc_idx; i < height_; i += range) {
+                const Float* const inp_row = input_ + lstride_ * i;
+                acc = binary_.native(acc, unary_(inp_row[col_idx]));
+            }
+
+            // WG reduction
+            const Float result = sycl::reduce_over_group(it.get_group(), acc, binary_.native);
+
+            if (loc_idx == 0) {
+                output_[col_idx] = result;
+            }
+        }
     }
 
 private:

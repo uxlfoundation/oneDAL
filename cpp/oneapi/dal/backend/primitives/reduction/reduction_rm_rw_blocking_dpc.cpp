@@ -51,6 +51,7 @@ sycl::event reduction_rm_rw_blocking<Float, BinaryOp, UnaryOp>::operator()(
     const auto block_size = propose_block_size<Float>(q_, height);
     const bk::uniform_blocking blocking(height, block_size);
     std::vector<sycl::event> events(blocking.get_block_count());
+
     for (std::int64_t block_index = 0; block_index < blocking.get_block_count(); ++block_index) {
         const auto first_row = blocking.get_block_start_index(block_index);
         const auto last_row = blocking.get_block_end_index(block_index);
@@ -59,29 +60,53 @@ sycl::event reduction_rm_rw_blocking<Float, BinaryOp, UnaryOp>::operator()(
 
         auto event = q_.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
-            cgh.parallel_for(bk::make_multiple_nd_range_2d({ curr_block, wg_ }, { 1, wg_ }),
-                             [=](sycl::nd_item<2> it) {
-                                 // Common for whole WG
-                                 const auto row_idx = it.get_global_id(0) + first_row;
-                                 const auto loc_idx = it.get_local_id(1);
-                                 const auto range = it.get_global_range(1);
-                                 // It should be converted to upper type by default
-                                 const Float* const inp_row = input + stride * row_idx;
-                                 // Exclusive for EU
-                                 Float acc = (override_init || (loc_idx != 0)) //
-                                                 ? binary.init_value
-                                                 : output[row_idx];
-                                 for (std::int32_t i = loc_idx; i < width; i += range) {
-                                     acc = binary.native(acc, unary(inp_row[i]));
-                                 }
-                                 // WG reduction
-                                 output[row_idx] =
-                                     sycl::reduce_over_group(it.get_group(), acc, binary.native);
-                             });
+            cgh.parallel_for(
+                bk::make_multiple_nd_range_2d({ curr_block, wg_ }, { 1, wg_ }),
+                [=](sycl::nd_item<2> it) {
+                    // Common for whole WG
+                    const auto row_idx = it.get_global_id(0) + first_row;
+                    const auto loc_idx = it.get_local_id(1);
+                    const auto range = it.get_global_range(1);
+
+                    // It should be converted to upper type by default
+                    const Float* const inp_row = input + stride * row_idx;
+
+                    if constexpr (BinaryOp::is_logical) {
+                        bool acc = false;
+
+                        for (std::int32_t i = loc_idx; i < width; i += range) {
+                            acc = acc || static_cast<bool>(unary(inp_row[i]));
+                        }
+
+                        const bool result =
+                            sycl::reduce_over_group(it.get_group(), acc, binary.native);
+
+                        if (loc_idx == 0) {
+                            Float value = static_cast<Float>(result);
+                            output[row_idx] = override_init ? value : (output[row_idx] || value);
+                        }
+                    }
+                    else {
+                        Float acc =
+                            (override_init || (loc_idx != 0)) ? binary.init_value : output[row_idx];
+
+                        for (std::int32_t i = loc_idx; i < width; i += range) {
+                            acc = binary.native(acc, unary(inp_row[i]));
+                        }
+
+                        const Float result =
+                            sycl::reduce_over_group(it.get_group(), acc, binary.native);
+
+                        if (loc_idx == 0) {
+                            output[row_idx] = result;
+                        }
+                    }
+                });
         });
 
         events.push_back(event);
     }
+
     return bk::wait_or_pass(events);
 }
 
