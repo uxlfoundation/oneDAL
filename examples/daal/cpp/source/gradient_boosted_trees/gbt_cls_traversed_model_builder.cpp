@@ -176,8 +176,6 @@ bool buildTree(size_t treeId,
 int main(int argc, char *argv[]) {
     checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
 
-    // services::Environment::getInstance()->setNumberOfThreads(1);
-
     /* train DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();
     std::cout << "Predict on trained model" << std::endl;
@@ -185,12 +183,9 @@ int main(int argc, char *argv[]) {
     if (trainedModel.get())
         nTrees = trainedModel->numberOfTrees();
     size_t trainedAccurcy = testModel(trainedModel);
-    std::cerr << nTrees << std::endl;
-    if (trainedAccurcy){};
     /* traverse the trained model to get Tree representation */
     BFSNodeVisitor visitor(nTrees);
     Tree *trees = traverseModel(trainedModel, visitor);
-    if(trees) {};
     /* build the model by ModelBuilder from Tree */
     daal::algorithms::gbt::classification::ModelPtr builtModel = buildModel(trees);
     std::cout << "Predict on built model from input user Tree " << std::endl;

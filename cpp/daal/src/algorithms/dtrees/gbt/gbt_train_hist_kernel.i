@@ -179,7 +179,7 @@ public:
             const RowIndexType idx     = indexedFeature[iSample];
             auto & sum                 = aGHSum[idx];
             sum.n++;
-            // TODO: fix here
+            // Note: gradients and hessians are stored in the same array
             sum.g += pgh[2 * iSample];
             sum.h += pgh[2 * iSample + 1];
             gTotal += pgh[2 * iSample];
@@ -197,7 +197,7 @@ public:
             const RowIndexType idx = indexedFeature[i];
             auto & sum             = aGHSum[idx];
             sum.n++;
-            // TODO fix here
+            // Note: gradients and hessians are stored in the same array
             sum.g += pgh[2 * i];
             sum.h += pgh[2 * i + 1];
             gTotal += pgh[2 * i];
@@ -242,7 +242,6 @@ struct ComputeGHSumByRows
 
         for (; i < iEndWithPrefetch; ++i)
         {
-            // TODO: fix here
             DAAL_PREFETCH_READ_T0(pgh + 2 * aIdx[i + prefetchOffset]);
             const BinIndexType * ptr = indexedFeature + aIdx[i + prefetchOffset] * nFeatures;
             for (RowIndexType j = 0; j < nCacheLinesToPrefetchOneRow; j++) DAAL_PREFETCH_READ_T0(ptr + elementsInCacheLine * j);
@@ -252,7 +251,7 @@ struct ComputeGHSumByRows
             PRAGMA_OMP_SIMD
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
-                // TODO: fix here
+                // Note: gradients and hessians are stored in the same array
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
                 aGHSumFP[idx + 0] += pgh[2 * aIdx[i]];
                 aGHSumFP[idx + 1] += pgh[2 * aIdx[i] + 1];
@@ -267,7 +266,7 @@ struct ComputeGHSumByRows
             PRAGMA_OMP_SIMD
             for (RowIndexType j = 0; j < nFeatures; j++)
             {
-                // TODO: fix here
+                // Note: gradients and hessians are stored in the same array
                 const size_t idx = 4 * (UniquesArr[j] + (size_t)featIdx[j]);
                 aGHSumFP[idx + 0] += pgh[2 * aIdx[i]];
                 aGHSumFP[idx + 1] += pgh[2 * aIdx[i] + 1];

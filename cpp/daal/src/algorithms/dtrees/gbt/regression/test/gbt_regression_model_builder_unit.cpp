@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2025 Intel Corporation
+* Copyright 2023 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include <vector>
 #include <random>
 
-
 namespace daal::algorithms::gbt::internal
 {
 using namespace daal::algorithms::gbt::regression;
@@ -37,7 +36,7 @@ TEST("DecisionTreeToGbtModelConversion_SimpleTree", "[unit]")
      *          LEAF1    LEAF2        (level 1)
      */
     size_t nFeatures = 5;
-    size_t nTrees = 1;
+    size_t nTrees    = 1;
 
     // Create model builder
     ModelBuilder builder(nFeatures, nTrees);
@@ -46,32 +45,27 @@ TEST("DecisionTreeToGbtModelConversion_SimpleTree", "[unit]")
     auto treeId = builder.createTree(3);
 
     // Add root split node
-    auto rootNode = builder.addSplitNode(
-        treeId,
-        ModelBuilder::noParent,  // root node
-        0,                       // position (not used for root)
-        0,                       // feature index
-        5.0,                     // split value
-        1,                       // default left
-        10.0                     // cover
+    auto rootNode = builder.addSplitNode(treeId,
+                                         ModelBuilder::noParent, // root node
+                                         0,                      // position (not used for root)
+                                         0,                      // feature index
+                                         5.0,                    // split value
+                                         1,                      // default left
+                                         10.0                    // cover
     );
 
     // Add left child leaf
-    builder.addLeafNode(
-        treeId,
-        rootNode,
-        0,  // left child position
-        1.5,  // response value
-        6.0   // cover
+    builder.addLeafNode(treeId, rootNode,
+                        0,   // left child position
+                        1.5, // response value
+                        6.0  // cover
     );
 
     // Add right child leaf
-    builder.addLeafNode(
-        treeId,
-        rootNode,
-        1,    // right child position
-        2.5,  // response value
-        4.0   // cover
+    builder.addLeafNode(treeId, rootNode,
+                        1,   // right child position
+                        2.5, // response value
+                        4.0  // cover
     );
 
     // Convert to GBT model using getModel interface
@@ -79,9 +73,8 @@ TEST("DecisionTreeToGbtModelConversion_SimpleTree", "[unit]")
     REQUIRE(gbtModel.get() != nullptr);
 
     // Get model implementation to access internal GBT structure
-    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<
-        daal::algorithms::gbt::regression::internal::ModelImpl,
-        daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
+    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<daal::algorithms::gbt::regression::internal::ModelImpl,
+                                                                       daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
 
     // Verify tree count
     REQUIRE(modelImpl.numberOfTrees() == 1);
@@ -97,17 +90,17 @@ TEST("DecisionTreeToGbtModelConversion_SimpleTree", "[unit]")
     // Verify split points
     const auto * splitPoints = gbtTree->getSplitPoints();
     REQUIRE(splitPoints != nullptr);
-    REQUIRE(splitPoints[0] == 5.0);  // Root split value
+    REQUIRE(splitPoints[0] == 5.0); // Root split value
 
     // Verify feature indexes
     const auto * featureIndexes = gbtTree->getFeatureIndexesForSplit();
     REQUIRE(featureIndexes != nullptr);
-    REQUIRE(featureIndexes[0] == 0);  // Root feature index
+    REQUIRE(featureIndexes[0] == 0); // Root feature index
 
     // Verify node cover values
     const auto * coverValues = gbtTree->getNodeCoverValues();
     REQUIRE(coverValues != nullptr);
-    REQUIRE(coverValues[0] == 10.0);  // Root cover
+    REQUIRE(coverValues[0] == 10.0); // Root cover
 
     // Verify left child indexes
     const auto * leftChildIndexes = gbtTree->getLeftChildIndexes();
@@ -131,7 +124,7 @@ TEST("DecisionTreeToGbtModelConversion_MultiLevelTree", "[unit]")
      *    LEAF3   LEAF4                   (level 2)
      */
     size_t nFeatures = 3;
-    size_t nTrees = 1;
+    size_t nTrees    = 1;
 
     ModelBuilder builder(nFeatures, nTrees);
 
@@ -139,61 +132,49 @@ TEST("DecisionTreeToGbtModelConversion_MultiLevelTree", "[unit]")
     auto treeId = builder.createTree(5);
 
     // Add root split node
-    auto rootNode = builder.addSplitNode(
-        treeId,
-        ModelBuilder::noParent,
-        0,
-        0,     // feature index
-        10.0,  // split value
-        1,     // default left
-        20.0   // cover
+    auto rootNode = builder.addSplitNode(treeId, ModelBuilder::noParent, 0,
+                                         0,    // feature index
+                                         10.0, // split value
+                                         1,    // default left
+                                         20.0  // cover
     );
 
     // Add left child split node
-    auto leftSplit = builder.addSplitNode(
-        treeId,
-        rootNode,
-        0,  // left position
-        1,  // feature index
-        7.0,  // split value
-        0,     // default left
-        12.0   // cover
+    auto leftSplit = builder.addSplitNode(treeId, rootNode,
+                                          0,   // left position
+                                          1,   // feature index
+                                          7.0, // split value
+                                          0,   // default left
+                                          12.0 // cover
     );
 
     // Add right child leaf (of root)
-    builder.addLeafNode(
-        treeId,
-        rootNode,
-        1,   // right position
-        3.0, // response
-        8.0  // cover
+    builder.addLeafNode(treeId, rootNode,
+                        1,   // right position
+                        3.0, // response
+                        8.0  // cover
     );
 
     // Add left child leaf (of leftSplit)
-    builder.addLeafNode(
-        treeId,
-        leftSplit,
-        0,   // left position
-        1.0, // response
-        5.0  // cover
+    builder.addLeafNode(treeId, leftSplit,
+                        0,   // left position
+                        1.0, // response
+                        5.0  // cover
     );
 
     // Add right child leaf (of leftSplit)
-    builder.addLeafNode(
-        treeId,
-        leftSplit,
-        1,   // right position
-        2.0, // response
-        7.0  // cover
+    builder.addLeafNode(treeId, leftSplit,
+                        1,   // right position
+                        2.0, // response
+                        7.0  // cover
     );
 
     // Convert using getModel
     auto gbtModel = builder.getModel();
     REQUIRE(gbtModel.get() != nullptr);
 
-    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<
-        daal::algorithms::gbt::regression::internal::ModelImpl,
-        daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
+    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<daal::algorithms::gbt::regression::internal::ModelImpl,
+                                                                       daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
 
     // Verify tree count
     REQUIRE(modelImpl.numberOfTrees() == 1);
@@ -204,7 +185,7 @@ TEST("DecisionTreeToGbtModelConversion_MultiLevelTree", "[unit]")
 
     // Verify node count - should be 7 nodes, all layers are stored in dense format
     size_t nodeCount = gbtTree->getNumberOfNodes();
-    REQUIRE(nodeCount == 7);  // May have more nodes due to layout structure
+    REQUIRE(nodeCount == 7); // May have more nodes due to layout structure
 
     // Verify split points array
     const auto * splitPoints = gbtTree->getSplitPoints();
@@ -235,14 +216,13 @@ TEST("DecisionTreeToGbtModelConversion_MultiLevelTree", "[unit]")
     // Verify feature indexes
     const auto * featureIndexes = gbtTree->getFeatureIndexesForSplit();
     REQUIRE(featureIndexes != nullptr);
-    REQUIRE(featureIndexes[0] == 0);  // Root feature
+    REQUIRE(featureIndexes[0] == 0); // Root feature
 
     // Verify cover values are set correctly
     const auto * coverValues = gbtTree->getNodeCoverValues();
     REQUIRE(coverValues != nullptr);
-    REQUIRE(coverValues[0] == 20.0);  // Root cover
+    REQUIRE(coverValues[0] == 20.0); // Root cover
 }
-
 
 TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
 {
@@ -258,13 +238,13 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
      *    - Add two new leaf infos as children to current_leaves (don't create leaves yet)
      * 3. Create all remaining leaf nodes from current_leaves array
      */
-    const size_t nFeatures = 10;
-    const size_t nTrees = 1;
-    const size_t maxLevel = 13;
-    const size_t targetNodeCount = 256;
+    const size_t nFeatures        = 10;
+    const size_t nTrees           = 1;
+    const size_t maxLevel         = 13;
+    const size_t targetNodeCount  = 256;
     const unsigned int randomSeed = 42;
-    const int defaultLeft = 1;  // Same for all tree
-    const double coverValue = 1.0;  // Constant
+    const int defaultLeft         = 1;   // Same for all tree
+    const double coverValue       = 1.0; // Constant
 
     // Create model builder
     ModelBuilder builder(nFeatures, nTrees);
@@ -276,7 +256,8 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     std::uniform_real_distribution<double> splitValueDist(0.0, 100.0);
 
     // Store leaf node information (don't create leaves yet)
-    struct LeafInfo {
+    struct LeafInfo
+    {
         ModelBuilder::NodeId parentId;
         size_t position;
         size_t level;
@@ -284,52 +265,38 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
 
     // Initialize current_leaves list with info for two children of root
     std::vector<LeafInfo> currentLeaves;
-    auto rootNode = builder.addSplitNode(
-        treeId,
-        ModelBuilder::noParent,
-        0,
-        featureDist(rng),
-        splitValueDist(rng),
-        defaultLeft,
-        coverValue
-    );
-    
+    auto rootNode = builder.addSplitNode(treeId, ModelBuilder::noParent, 0, featureDist(rng), splitValueDist(rng), defaultLeft, coverValue);
+
     // Add two initial leaf infos (don't create leaves yet)
-    currentLeaves.push_back({rootNode, 0, 1});
-    currentLeaves.push_back({rootNode, 1, 1});
+    currentLeaves.push_back({ rootNode, 0, 1 });
+    currentLeaves.push_back({ rootNode, 1, 1 });
 
     size_t nodesCreated = 3;
 
     // Generate tree structure by converting random leaves to split nodes
-    while (!currentLeaves.empty() && nodesCreated + 2 <= targetNodeCount) {
+    while (!currentLeaves.empty() && nodesCreated + 2 <= targetNodeCount)
+    {
         // Update distribution range based on current leaves count
         std::uniform_int_distribution<size_t> leafIndexDist(0, currentLeaves.size() - 1);
-        
+
         // Randomly select a leaf info from current_leaves
-        size_t selectedIndex = leafIndexDist(rng);
+        size_t selectedIndex  = leafIndexDist(rng);
         LeafInfo selectedLeaf = currentLeaves[selectedIndex];
 
         // Check if this leaf can have children (max level constraint)
-        if (selectedLeaf.level >= maxLevel) {
-            // Remove this leaf from the list and move to next
-            // currentLeaves.erase(currentLeaves.begin() + selectedIndex);
+        if (selectedLeaf.level >= maxLevel)
+        {
+            // We cannot exceed maximum depth
             continue;
         }
 
         // Convert the selected leaf to a split node
-        auto splitNode = builder.addSplitNode(
-            treeId,
-            selectedLeaf.parentId,
-            selectedLeaf.position,
-            featureDist(rng),
-            splitValueDist(rng),
-            defaultLeft,
-            coverValue
-        );
+        auto splitNode = builder.addSplitNode(treeId, selectedLeaf.parentId, selectedLeaf.position, featureDist(rng), splitValueDist(rng),
+                                              defaultLeft, coverValue);
 
         // Add two new leaf infos as children (don't create leaves yet)
-        currentLeaves.push_back({splitNode, 0, selectedLeaf.level + 1});
-        currentLeaves.push_back({splitNode, 1, selectedLeaf.level + 1});
+        currentLeaves.push_back({ splitNode, 0, selectedLeaf.level + 1 });
+        currentLeaves.push_back({ splitNode, 1, selectedLeaf.level + 1 });
 
         nodesCreated += 2;
 
@@ -338,23 +305,19 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     }
 
     // Now create all remaining leaf nodes from current_leaves array
-    for (const auto & leafInfo : currentLeaves) {
-        builder.addLeafNode(
-            treeId,
-            leafInfo.parentId,
-            leafInfo.position,
-            1.0,  // response value
-            coverValue
-        );
+    for (const auto & leafInfo : currentLeaves)
+    {
+        builder.addLeafNode(treeId, leafInfo.parentId, leafInfo.position,
+                            1.0, // response value
+                            coverValue);
     }
 
     // Convert to GBT model
     auto gbtModel = builder.getModel();
     REQUIRE(gbtModel.get() != nullptr);
 
-    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<
-        daal::algorithms::gbt::regression::internal::ModelImpl,
-        daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
+    auto & modelImpl = daal::algorithms::dtrees::internal::getModelRef<daal::algorithms::gbt::regression::internal::ModelImpl,
+                                                                       daal::algorithms::gbt::regression::interface1::ModelPtr>(gbtModel);
 
     // Verify tree count
     REQUIRE(modelImpl.numberOfTrees() == 1);
@@ -364,8 +327,8 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     REQUIRE(gbtTree != nullptr);
 
     // Verify node count is reasonable
-    size_t nodeCount = gbtTree->getNumberOfNodes();
-    size_t nLevels = gbtTree->getMaxLvl();
+    size_t nodeCount         = gbtTree->getNumberOfNodes();
+    size_t nLevels           = gbtTree->getMaxLvl();
     size_t nActualDepthLevel = gbtTree->getNumDenseLayers();
 
     // Check that default number of dense layers is used
@@ -375,18 +338,17 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     REQUIRE(nLevels == maxLevel);
 
     // Verify raw data is accessible
-    const auto * splitPoints = gbtTree->getSplitPoints();
-    const auto * featureIndexes = gbtTree->getFeatureIndexesForSplit();
+    const auto * splitPoints      = gbtTree->getSplitPoints();
+    const auto * featureIndexes   = gbtTree->getFeatureIndexesForSplit();
     const auto * leftChildIndexes = gbtTree->getLeftChildIndexes();
-    const auto * coverValues = gbtTree->getNodeCoverValues();
-    const auto * splitAndLeftIds = gbtTree->getSplitsAndLeftIds();
+    const auto * coverValues      = gbtTree->getNodeCoverValues();
+    const auto * splitAndLeftIds  = gbtTree->getSplitsAndLeftIds();
 
     REQUIRE(splitPoints != nullptr);
     REQUIRE(featureIndexes != nullptr);
     REQUIRE(leftChildIndexes != nullptr);
     REQUIRE(coverValues != nullptr);
     REQUIRE(splitAndLeftIds != nullptr);
-
 
     // Analyze the tree structure
     // Calculate the number of leaves, dummy leaves and split nodes
@@ -395,51 +357,63 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     std::vector<size_t> nodeLevels(nodeCount, 0);
     std::vector<size_t> nodesPerLevel(maxLevel + 1, 0);
 
-    nodeLevels[0] = 0;
-    int nLeaves = 0;
+    nodeLevels[0]    = 0;
+    int nLeaves      = 0;
     int nDummyLeaves = 0;
 
-    for (size_t i = 0; i < nodeCount; ++i) {
-        
+    for (size_t i = 0; i < nodeCount; ++i)
+    {
         REQUIRE(featureIndexes[i] < nFeatures);
         REQUIRE(coverValues[i] == 1.0);
 
-        size_t leftId  = leftChildIndexes[i];
+        size_t leftId = leftChildIndexes[i];
 
         nodesPerLevel[nodeLevels[i]]++;
         int isLeaf = modelImpl.nodeIsLeaf(i + 1, *gbtTree, nodeLevels[i]);
         nLeaves += isLeaf;
-        
+
         // Either leftId points to current node or to some other node
         REQUIRE((leftId - 1 == i || leftId < nodeCount));
-        if (nodeLevels[i] < defaultNumDenseLayers) {
+        if (nodeLevels[i] < defaultNumDenseLayers)
+        {
             // If node is on dense level it should have both children (possibly dummy nodes) at specified index
             REQUIRE(leftId == (i + 1) * 2);
-        } else {
-            if (isLeaf) {
+        }
+        else
+        {
+            if (isLeaf)
+            {
                 // If node is on deep level and is a leaf it shouldn't have children
                 REQUIRE(leftId - 1 == i);
-            } else {
+            }
+            else
+            {
                 REQUIRE(leftId - 1 > i);
             }
-        } 
-        
-        if (isLeaf && leftId - 1 != i) {
-            // Current node is a lead and its children are dummy leaves
-            nDummyLeaves += 2;    
         }
-        
-        if (leftId - 1 != i && leftId < nodeCount) {
-            nodeLevels[leftId - 1] = nodeLevels[i] + 1;   
-            nodeLevels[leftId] = nodeLevels[i] + 1;
+
+        if (isLeaf && leftId - 1 != i)
+        {
+            // Current node is a lead and its children are dummy leaves
+            nDummyLeaves += 2;
+        }
+
+        if (leftId - 1 != i && leftId < nodeCount)
+        {
+            nodeLevels[leftId - 1] = nodeLevels[i] + 1;
+            nodeLevels[leftId]     = nodeLevels[i] + 1;
         }
     }
-    
+
     size_t deepNodes = 0;
-    for (size_t i = 0; i < maxLevel + 1; ++i) {
-        if (i <= defaultNumDenseLayers) {
+    for (size_t i = 0; i < maxLevel + 1; ++i)
+    {
+        if (i <= defaultNumDenseLayers)
+        {
             REQUIRE(nodesPerLevel[i] == (1u << i));
-        } else {
+        }
+        else
+        {
             // To ensure we have nodes on all levels and test is sufficient
             REQUIRE(nodesPerLevel[i] > 0);
             deepNodes += nodesPerLevel[i];
