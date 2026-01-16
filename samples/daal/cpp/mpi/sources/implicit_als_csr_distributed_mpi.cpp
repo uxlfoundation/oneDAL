@@ -42,12 +42,10 @@ int rankId, comm_size;
 #define mpi_root 0
 
 /* Number of observations in transposed training data set blocks */
-const std::string trainDatasetFileNames[nBlocks] = {
-    "./data/distributed/implicit_als_trans_csr_1.csv",
-    "./data/distributed/implicit_als_trans_csr_2.csv",
-    "./data/distributed/implicit_als_trans_csr_3.csv",
-    "./data/distributed/implicit_als_trans_csr_4.csv"
-};
+const std::string trainDatasetFileNames[nBlocks] = { "data/implicit_als_trans_csr_1.csv",
+                                                     "data/implicit_als_trans_csr_2.csv",
+                                                     "data/implicit_als_trans_csr_3.csv",
+                                                     "data/implicit_als_trans_csr_4.csv" };
 
 static int usersPartition[1] = { nBlocks };
 

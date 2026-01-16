@@ -635,36 +635,63 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
+inline const std::string get_data_path(const std::string &name) {
+    const std::vector<std::string> paths = { []() {
+                                                if (const char *root = std::getenv("DALROOT")) {
+                                                    return std::string(root);
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             "../../data",
+                                             "../data" };
+
+    for (const auto &path : paths) {
+        if (path.empty())
+            continue;
+
+        const std::string try_path = path + "/" + name;
+
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
+        }
+    }
+
+    return name;
+}
+
 void checkArguments(int argc, char *argv[], int count, ...) {
-    std::string **filelist = new std::string *[count];
+    std::string **const filelist = new std::string *[count];
+
     va_list ap;
     va_start(ap, count);
     for (int i = 0; i < count; i++) {
         filelist[i] = va_arg(ap, std::string *);
     }
     va_end(ap);
+
     if (argc == 1) {
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
-    else if (argc == (count + 1)) {
-        bool isAllCorrect = true;
+    else if (argc == count + 1) {
+        bool all_exist = true;
         for (int i = 0; i < count; i++) {
-            if (!checkFileIsAvailable(argv[i + 1])) {
-                isAllCorrect = false;
+            if (!std::ifstream{ argv[i + 1] }.good()) {
+                all_exist = false;
                 break;
             }
         }
-        if (isAllCorrect == true) {
+
+        if (all_exist) {
             for (int i = 0; i < count; i++) {
-                (*filelist[i]) = argv[i + 1];
+                *(filelist[i]) = argv[i + 1];
             }
         }
         else {
             std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
             for (int i = 0; i < count; i++) {
-                checkFileIsAvailable(*(filelist[i]), true);
+                *(filelist[i]) = get_data_path(*(filelist[i]));
             }
         }
     }
@@ -676,10 +703,23 @@ void checkArguments(int argc, char *argv[], int count, ...) {
         std::cout << "]" << std::endl;
         std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
+
     delete[] filelist;
+}
+
+/* Helper: count rows in CSV */
+size_t countRowsCSV(const std::string &file) {
+    std::ifstream f(file);
+    size_t rows = 0;
+    std::string line;
+    while (std::getline(f, line)) {
+        if (!line.empty())
+            rows++;
+    }
+    return rows;
 }
 
 void copyBytes(daal::byte *dst, daal::byte *src, size_t size) {

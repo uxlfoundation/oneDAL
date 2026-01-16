@@ -38,12 +38,7 @@ using namespace daal::algorithms::implicit_als;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string trainDatasetFileNames[nBlocks] = {
-    "../data/distributed/implicit_als_trans_csr_1.csv",
-    "../data/distributed/implicit_als_trans_csr_2.csv",
-    "../data/distributed/implicit_als_trans_csr_3.csv",
-    "../data/distributed/implicit_als_trans_csr_4.csv"
-};
+const std::string datasetFileName = { "data/implicit_als_csr.csv" };
 
 static int usersPartition[] = { nBlocks };
 
@@ -75,17 +70,23 @@ void testModel();
 void printResults();
 
 int main(int argc, char *argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &trainDatasetFileNames[0],
-                   &trainDatasetFileNames[1],
-                   &trainDatasetFileNames[2],
-                   &trainDatasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        readData(i);
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
+
+    for (size_t i = 0; i < nBlocks; ++i) {
+        size_t rowStart = i * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        if (rowStart >= totalRows)
+            break;
+
+        dataTable[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
     }
+
 
     initializeModel();
 
@@ -319,11 +320,6 @@ void testModel() {
             predictedRatings[i][j] = algorithm.getResult()->get(prediction::ratings::prediction);
         }
     }
-}
-
-void readData(size_t block) {
-    /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    dataTable[block] = CSRNumericTablePtr(createSparseTable<float>(trainDatasetFileNames[block]));
 }
 
 void printResults() {
