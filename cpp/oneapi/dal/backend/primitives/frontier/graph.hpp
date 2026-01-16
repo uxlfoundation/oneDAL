@@ -69,7 +69,10 @@ class csr_graph_view {
     };
 
 public:
-    csr_graph_view(std::uint64_t num_nodes, vertex_t* row_ptr, edge_t* col_indices, weight_t* weights)
+    csr_graph_view(std::uint64_t num_nodes,
+                   vertex_t* row_ptr,
+                   edge_t* col_indices,
+                   weight_t* weights)
             : _num_nodes(num_nodes),
               _row_ptr(row_ptr),
               _col_indices(col_indices),
