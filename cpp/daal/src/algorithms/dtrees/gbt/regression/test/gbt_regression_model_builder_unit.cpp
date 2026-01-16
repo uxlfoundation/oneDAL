@@ -229,7 +229,7 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     /**
      * Build a sparse random tree with max level 12-13 and approximately 100 nodes
      * using a fixed random seed for reproducibility.
-     * 
+     *
      * Algorithm:
      * 1. Create root as split node, add leaf info to current_leaves list (don't create leaf yet)
      * 2. While current_leaves has nodes and nodesCreated < targetNodeCount:
