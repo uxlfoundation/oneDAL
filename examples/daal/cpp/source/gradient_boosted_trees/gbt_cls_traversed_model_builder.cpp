@@ -122,7 +122,6 @@ public:
     virtual bool onSplitNode(
         const daal::algorithms::tree_utils::regression::SplitNodeDescriptor &desc) {
         if (desc.level == 0) {
-            // parent is dummy
             Node *root = roots[treeId].root;
             (*(roots + treeId)).nNodes = 1;
             root->left = NULL;

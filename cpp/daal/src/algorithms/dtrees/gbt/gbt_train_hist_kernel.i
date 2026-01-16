@@ -346,11 +346,9 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
 
         for (; i < iEndWithPrefetch; ++i)
         {
-            // TODO: fix here
             DAAL_PREFETCH_READ_T0(pgh + 2 * aIdx[i + prefetchOffset]);
             const BinIndexType * ptr = indexedFeature + aIdx[i + prefetchOffset] * nFeatures;
             for (IndexType j = 0; j < nCacheLinesToPrefetchOneRow; j++) DAAL_PREFETCH_READ_T0(ptr + elementsInCacheLine * j);
-            // TODO: fix here
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];
@@ -366,7 +364,6 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
 
         for (; i < iEnd; ++i)
         {
-            // TODO: fix here
             const BinIndexType * featIdx = indexedFeature + aIdx[i] * nFeatures;
             addsPtr[0]                   = pgh[2 * aIdx[i]];
             addsPtr[1]                   = pgh[2 * aIdx[i] + 1];

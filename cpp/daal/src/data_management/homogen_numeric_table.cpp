@@ -16,7 +16,6 @@
 *******************************************************************************/
 
 #include "data_management/data/homogen_numeric_table.h"
-#include <utility>
 
 using namespace daal;
 using namespace daal::data_management;

@@ -151,7 +151,6 @@ protected:
     {
         const size_t n           = _nodeInfo.n;
         const auto nMinSplitPart = _sharedData.ctx.par().minObservationsInLeafNode;
-        // TODO: check if 2 * iStart is related to indexes
         DAAL_ASSERT(n >= 2 * nMinSplitPart);
         algorithmFPType bestImpurityDecrease = split.impurityDecrease;
         ImpurityType left;
@@ -195,7 +194,6 @@ protected:
         PRAGMA_VECTOR_ALWAYS
         for (size_t i = 1; i < n; ++i)
         {
-            // TODO: fix
             imp.g += pgh[2 * aIdx[i]];
             imp.h += pgh[2 * aIdx[i] + 1];
         }

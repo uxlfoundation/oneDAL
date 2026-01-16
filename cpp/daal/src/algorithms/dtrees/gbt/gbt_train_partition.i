@@ -151,7 +151,6 @@ protected:
 
     DAAL_INT doPartition(size_t n, size_t iStart, SplitDataType & split, DAAL_INT iFeature, size_t idxFeatureValueBestSplit)
     {
-        // TODO: check if 2 * iStart is related to indexes
         return doPartitionIdx(n, _sharedData.aIdx + iStart, _sharedData.ctx.dataHelper().indexedFeatures().data(iFeature), split.featureUnordered,
                               idxFeatureValueBestSplit, _sharedData.bestSplitIdxBuf + (2 * iStart), split.nLeft);
     }

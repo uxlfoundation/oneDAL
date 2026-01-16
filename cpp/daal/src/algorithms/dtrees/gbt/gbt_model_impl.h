@@ -29,7 +29,6 @@
 #include "algorithms/tree_utils/tree_utils_regression.h"
 #include "src/algorithms/dtrees/dtrees_model_impl_common.h"
 #include "src/services/service_arrays.h"
-#include "data_management/features/compatibility.h"
 
 using namespace daal::data_management;
 
@@ -45,11 +44,10 @@ typedef uint32_t FeatureIndexType;
 typedef float ModelFPType;
 typedef services::Collection<size_t> NodeIdxArray;
 
-// struct SplitLeftIdPair
-// {
-//     size_t leftId;
-//     ModelFPType splitPoint;
-// };
+// The number of layers for which tree is stored in full binary format (by creating dummy nodes)
+// This is required to maintain condition that children of node idx are located at nodes 2 * idx and 2 * idx + 1
+// Nodes on deeper levels (if they exist) will be stored in sparse format
+// TODO: add an option to control this parameter
 const size_t defaultNumDenseLayers = 10;
 
 template <typename T>
@@ -390,7 +388,6 @@ public:
      *
      * \param idx     1-based index to the node array
      * \param gbtTree tree containing nodes
-     * \param lvl     current level in the tree
      * \return true   if the node is a leaf, false otherwise
      */
     static bool nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree);

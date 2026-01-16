@@ -54,6 +54,9 @@ struct PredictDispatcher
     typedef PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> type;
 };
 
+// In the implementations below leftChildIndexes array is not used as we suppose that left child index is idx * 2
+// They shouldn't be uses for cases where this condition is not satisfied, this will lead to incorrect results
+
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
@@ -95,6 +98,10 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
         return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
     }
 }
+
+// In the implementations below leftChildIndexes array is used to determine the position of node's children.
+// They should be used on deeper levels where nodes are stored in sparse format to achieve faster inference.
+// However, they can be used for all levels as leftChildIndexes is filled correctly for all nodes.
 
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
