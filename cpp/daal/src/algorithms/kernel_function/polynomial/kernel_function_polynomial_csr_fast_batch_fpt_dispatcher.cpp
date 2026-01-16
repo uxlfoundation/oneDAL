@@ -44,6 +44,13 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), para
 {
     initialize();
 }
+
+template <>
+DAAL_EXPORT BatchType::~Batch()
+{
+    delete Analysis<batch>::_ac;
+    Analysis<batch>::_ac = NULL;
+}
 } // namespace internal
 } // namespace polynomial
 } // namespace kernel_function
