@@ -108,8 +108,8 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
     const std::uint64_t local_range = 256; // propose_wg_size(this->_queue);
     const std::uint64_t mlb_count = _mlb_layer.get_count();
     const std::uint64_t global_range = (mlb_count % local_range == 0)
-                                    ? mlb_count
-                                    : (mlb_count + local_range - (mlb_count % local_range));
+                                           ? mlb_count
+                                           : (mlb_count + local_range - (mlb_count % local_range));
 
     // check if local memory is enough
     bool use_local_mem =

@@ -33,14 +33,19 @@ public:
     static constexpr std::uint64_t divide_factor = bitset<bitmap_t>::element_bitsize;
 
     frontier_view() = default;
-    frontier_view(bitmap_t* data_layer, // First layer (tracks vertices in the frontier)
-                  bitmap_t* mlb_layer, // Second layer (to track non-zero elements in the first layer)
-                  std::uint32_t* offsets, // Array to store the indices of the non-zero elements
-                  std::uint32_t* offsets_size, // Pointer to store the size of the offsets array
-                  std::uint64_t num_items) // Maximum number of items that can be stored in the frontier
+    frontier_view(
+        bitmap_t* data_layer, // First layer (tracks vertices in the frontier)
+        bitmap_t* mlb_layer, // Second layer (to track non-zero elements in the first layer)
+        std::uint32_t* offsets, // Array to store the indices of the non-zero elements
+        std::uint32_t* offsets_size, // Pointer to store the size of the offsets array
+        std::uint64_t num_items) // Maximum number of items that can be stored in the frontier
             : _num_items(num_items),
-              _data_layer(bitset<bitmap_t>{ data_layer, num_items }), // first layer size is num_items
-              _mlb_layer(bitset<bitmap_t>{ mlb_layer, (num_items + divide_factor - 1) / divide_factor }), // second layer size is ceil(num_items / divide_factor) because each bit in the second layer represents an element in the first layer
+              _data_layer(
+                  bitset<bitmap_t>{ data_layer, num_items }), // first layer size is num_items
+              _mlb_layer(bitset<bitmap_t>{
+                  mlb_layer,
+                  (num_items + divide_factor - 1) /
+                      divide_factor }), // second layer size is ceil(num_items / divide_factor) because each bit in the second layer represents an element in the first layer
               _offsets(offsets),
               _offsets_size(offsets_size) {}
 
@@ -153,7 +158,8 @@ private:
     ndarray<std::uint32_t, 1> _offsets;
     ndarray<buffer_t, 1> _buffer;
     const std::uint64_t _TMP_VAR = 0;
-    const std::uint64_t _CAF_FLAG = 1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
+    const std::uint64_t _CAF_FLAG =
+        1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
 };
 
 /// Swaps the contents of two frontiers.

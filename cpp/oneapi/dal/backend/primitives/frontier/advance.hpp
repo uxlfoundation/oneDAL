@@ -44,7 +44,9 @@ struct frontier_context_state {
 template <typename InFrontierDevT, typename OutFrontierDevT>
 class frontier_context {
 public:
-    frontier_context(std::uint64_t limit, InFrontierDevT in_dev_frontier, OutFrontierDevT out_dev_frontier)
+    frontier_context(std::uint64_t limit,
+                     InFrontierDevT in_dev_frontier,
+                     OutFrontierDevT out_dev_frontier)
             : limit(limit),
               in_dev_frontier(in_dev_frontier),
               out_dev_frontier(out_dev_frontier) {}
@@ -327,17 +329,50 @@ sycl::event advance(const GraphT& graph,
 
     auto e = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(to_wait);
-        sycl::local_accessor<uint32_t, 1> n_edges_wg{local_range, cgh}; // number of edges of vertices to process at work-group granularity
-        sycl::local_accessor<uint32_t, 1> n_edges_sg{local_range, cgh}; // number of edges of vertices to process at sub-group granularity
-        sycl::local_accessor<bool, 1> visited{local_range, cgh}; // tracks the vertices already visited at work-group and sub-group granularity
-        sycl::local_accessor<element_t, 1> subgroup_reduce{local_range, cgh}; // stores the vertices to process at sub-group granularity
-        sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{max_num_subgroups, cgh}; // stores the tail of the subgroup reduction
-        sycl::local_accessor<uint32_t, 1> subgroup_ids{local_range, cgh}; // stores the thread id that found the vertex to process at sub-group level
-        sycl::local_accessor<element_t, 1> workgroup_reduce{local_range, cgh}; // stores the vertices to process at work-group granularity
-        sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{1, cgh}; // stores the tail of the work-group reduction
-        sycl::local_accessor<uint32_t, 1> workgroup_ids{local_range, cgh}; // stores the thread id that found the vertex to process at work-group level
-        sycl::local_accessor<element_t, 1> individual_reduce{local_range, cgh}; // stores the vertices to process at individual thread granularity
-        sycl::local_accessor<uint32_t, 1> individual_reduce_tail{1, cgh}; // stores the tail of the individual thread reduction
+        sycl::local_accessor<uint32_t, 1> n_edges_wg{
+            local_range,
+            cgh
+        }; // number of edges of vertices to process at work-group granularity
+        sycl::local_accessor<uint32_t, 1> n_edges_sg{
+            local_range,
+            cgh
+        }; // number of edges of vertices to process at sub-group granularity
+        sycl::local_accessor<bool, 1> visited{
+            local_range,
+            cgh
+        }; // tracks the vertices already visited at work-group and sub-group granularity
+        sycl::local_accessor<element_t, 1> subgroup_reduce{
+            local_range,
+            cgh
+        }; // stores the vertices to process at sub-group granularity
+        sycl::local_accessor<uint32_t, 1> subgroup_reduce_tail{
+            max_num_subgroups,
+            cgh
+        }; // stores the tail of the subgroup reduction
+        sycl::local_accessor<uint32_t, 1> subgroup_ids{
+            local_range,
+            cgh
+        }; // stores the thread id that found the vertex to process at sub-group level
+        sycl::local_accessor<element_t, 1> workgroup_reduce{
+            local_range,
+            cgh
+        }; // stores the vertices to process at work-group granularity
+        sycl::local_accessor<uint32_t, 1> workgroup_reduce_tail{
+            1,
+            cgh
+        }; // stores the tail of the work-group reduction
+        sycl::local_accessor<uint32_t, 1> workgroup_ids{
+            local_range,
+            cgh
+        }; // stores the thread id that found the vertex to process at work-group level
+        sycl::local_accessor<element_t, 1> individual_reduce{
+            local_range,
+            cgh
+        }; // stores the vertices to process at individual thread granularity
+        sycl::local_accessor<uint32_t, 1> individual_reduce_tail{
+            1,
+            cgh
+        }; // stores the tail of the individual thread reduction
 
         cgh.parallel_for(sycl::nd_range<1>{ global_range, local_range },
                          bitmap_kernel_t{ context,
