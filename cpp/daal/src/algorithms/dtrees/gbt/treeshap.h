@@ -117,7 +117,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         extendPath(uniquePath, uniqueDepth, parentZeroFraction, parentOneFraction, parentFeatureIndex);
     }
 
-    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree, depth);
+    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree);
 
     // leaf node
     if (isLeaf)
@@ -274,7 +274,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         }
     }
 
-    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree, depth);
+    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree);
 
     if (isLeaf)
     {

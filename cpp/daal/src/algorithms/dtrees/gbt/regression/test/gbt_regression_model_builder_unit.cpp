@@ -342,13 +342,11 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
     const auto * featureIndexes   = gbtTree->getFeatureIndexesForSplit();
     const auto * leftChildIndexes = gbtTree->getLeftChildIndexes();
     const auto * coverValues      = gbtTree->getNodeCoverValues();
-    const auto * splitAndLeftIds  = gbtTree->getSplitsAndLeftIds();
 
     REQUIRE(splitPoints != nullptr);
     REQUIRE(featureIndexes != nullptr);
     REQUIRE(leftChildIndexes != nullptr);
     REQUIRE(coverValues != nullptr);
-    REQUIRE(splitAndLeftIds != nullptr);
 
     // Analyze the tree structure
     // Calculate the number of leaves, dummy leaves and split nodes
@@ -369,7 +367,7 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
         size_t leftId = leftChildIndexes[i];
 
         nodesPerLevel[nodeLevels[i]]++;
-        int isLeaf = modelImpl.nodeIsLeaf(i + 1, *gbtTree, nodeLevels[i]);
+        int isLeaf = modelImpl.nodeIsLeaf(i + 1, *gbtTree);
         nLeaves += isLeaf;
 
         // Either leftId points to current node or to some other node

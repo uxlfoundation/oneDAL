@@ -225,17 +225,17 @@ void ModelImpl::destroy()
     super::destroy();
 }
 
-bool ModelImpl::nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree, const size_t lvl)
+bool ModelImpl::nodeIsLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTree)
 {
-    const SplitLeftIdPair * splitAndLeftIds = gbtTree.getSplitsAndLeftIds();
-    size_t leftId                           = splitAndLeftIds[idx - 1].leftId;
-    if (leftId == idx)
+    const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+    const ModelFPType * splitPoints = gbtTree.getSplitPoints();
+    size_t leftId                   = leftChildIndexes[nodeIndex - 1];
+    if (leftId == nodeIndex)
     {
         return true;
     }
-
     const FeatureIndexType * splitFeatures = gbtTree.getFeatureIndexesForSplit();
-    return (splitAndLeftIds[leftId - 1].splitPoint == splitAndLeftIds[idx - 1].splitPoint && splitFeatures[leftId - 1] == splitFeatures[idx - 1]);
+    return (splitPoints[leftId - 1] == splitPoints[nodeIndex - 1] && splitFeatures[leftId - 1] == splitFeatures[nodeIndex - 1]);
 }
 
 void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisionTree & newTree)
@@ -254,7 +254,6 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 
     ModelFPType * const splitPoints         = newTree.getSplitPoints();
     size_t * const leftChildIndexes         = newTree.getLeftChildIndexes();
-    SplitLeftIdPair * const SplitAndLeftIds = newTree.getSplitsAndLeftIds();
     FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
     ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
     int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
@@ -287,40 +286,30 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
                 DAAL_ASSERT(featureIndexes[idxInTable] >= 0);
                 splitPoints[idxInTable] = p->featureValueOrResponse;
 
-                leftChildIndexes[idxInTable]           = idxChild;
-                SplitAndLeftIds[idxInTable].leftId     = idxChild;
-                SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
+                leftChildIndexes[idxInTable] = idxChild;
                 idxChild += 2;
             }
             else
             {
                 if (lvl < std::min(nDenseLayers, nLvls))
                 {
-                    sons[nSons++] = p;
-                    sons[nSons++] = p;
-
-                    featureIndexes[idxInTable]  = 0;
-                    nodeCoverValues[idxInTable] = p->cover;
-                    defaultLeft[idxInTable]     = 0;
-                    splitPoints[idxInTable]     = p->featureValueOrResponse;
-
-                    leftChildIndexes[idxInTable]           = idxChild;
-                    SplitAndLeftIds[idxInTable].leftId     = idxChild;
-                    SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
-                    featureIndexes[idxInTable]             = 0;
-
+                    sons[nSons++]                = p;
+                    sons[nSons++]                = p;
+                    featureIndexes[idxInTable]   = 0;
+                    nodeCoverValues[idxInTable]  = p->cover;
+                    defaultLeft[idxInTable]      = 0;
+                    splitPoints[idxInTable]      = p->featureValueOrResponse;
+                    leftChildIndexes[idxInTable] = idxChild;
+                    featureIndexes[idxInTable]   = 0;
                     idxChild += 2;
                 }
                 else
                 {
-                    featureIndexes[idxInTable]  = 0;
-                    nodeCoverValues[idxInTable] = p->cover;
-                    defaultLeft[idxInTable]     = 0;
-                    splitPoints[idxInTable]     = p->featureValueOrResponse;
-
-                    leftChildIndexes[idxInTable]           = idxInTable + 1;
-                    SplitAndLeftIds[idxInTable].leftId     = idxInTable + 1;
-                    SplitAndLeftIds[idxInTable].splitPoint = p->featureValueOrResponse;
+                    featureIndexes[idxInTable]   = 0;
+                    nodeCoverValues[idxInTable]  = p->cover;
+                    defaultLeft[idxInTable]      = 0;
+                    splitPoints[idxInTable]      = p->featureValueOrResponse;
+                    leftChildIndexes[idxInTable] = idxInTable + 1;
                 }
             }
             idxInTable++;

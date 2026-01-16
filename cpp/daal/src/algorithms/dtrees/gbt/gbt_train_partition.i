@@ -176,11 +176,10 @@ protected:
         RowIndexType part_high_right[maxNBlocks];
 
         LoopHelper<cpu>::run(true, nBlocks, [&](size_t iBlock) {
-            RowIndexType iLeft  = 0;
-            RowIndexType iRight = 0;
-            const size_t iStart = iBlock * sizeOfBlock;
-            const size_t iEnd   = (((iBlock + 1) * sizeOfBlock > n) ? n : iStart + sizeOfBlock);
-            // TODO: check if 2 * iStart is related to indexes
+            RowIndexType iLeft               = 0;
+            RowIndexType iRight              = 0;
+            const size_t iStart              = iBlock * sizeOfBlock;
+            const size_t iEnd                = (((iBlock + 1) * sizeOfBlock > n) ? n : iStart + sizeOfBlock);
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 
@@ -224,7 +223,6 @@ protected:
                 offsetLeft += part_high_left[i];
                 offsetRight += part_high_right[i];
             }
-            // TODO: check if 2 * iStart is related to indexes
             RowIndexType * bestSplitIdx      = buffer + 2 * iStart;
             RowIndexType * bestSplitIdxRight = bestSplitIdx + iEnd - iStart;
 

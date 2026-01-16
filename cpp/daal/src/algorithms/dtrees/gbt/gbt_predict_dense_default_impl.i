@@ -34,9 +34,6 @@
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
 #include "src/services/service_defines.h"
 #include "src/services/service_environment.h"
-#include <vector>
-
-using daal::algorithms::gbt::internal::SplitLeftIdPair;
 
 namespace daal
 {
