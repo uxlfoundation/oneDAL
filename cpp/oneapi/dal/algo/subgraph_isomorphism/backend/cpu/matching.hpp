@@ -526,6 +526,7 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
                                : (max_threads_count >= 8)  ? 4
                                : (max_threads_count >= 4)  ? 2
                                                            : 1;
+#if defined(TARGET_X86_64)
     const dal::detail::global_context_iface& gc = dal::detail::global_context::get_global_context();
     dal::detail::cpu_extension onedal_cpu_ext = gc.get_cpu_info().get_onedal_cpu_extension();
     if (onedal_cpu_ext == dal::detail::cpu_extension::avx2 ||
@@ -535,6 +536,7 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
         //       related to atomics usage in such configurations.
         array_size = 1;
     }
+#endif
     auto engine_array_ptr = allocator.make_shared_memory<matching_engine<Cpu>>(array_size);
     matching_engine<Cpu>* engine_array = engine_array_ptr.get();
 
