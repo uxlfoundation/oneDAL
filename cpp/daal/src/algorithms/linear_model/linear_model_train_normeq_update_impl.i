@@ -334,11 +334,14 @@ Status UpdateKernel<algorithmFPType, cpu>::compute(const NumericTable & xTable, 
     });
 
     Status st = safeStat.detach();
-    tls.reduce([=, &st](ThreadingTaskType * tlsLocal) -> void {
-        if (!tlsLocal) return;
-        if (st) tlsLocal->reduce(xtx, xty);
-        delete tlsLocal;
-    });
+    {
+        DAAL_PROFILER_TASK(reduction);
+        tls.reduce([=, &st](ThreadingTaskType * tlsLocal) -> void {
+            if (!tlsLocal) return;
+            if (st) tlsLocal->reduce(xtx, xty);
+            delete tlsLocal;
+        });
+    }
 
     return st;
 }
