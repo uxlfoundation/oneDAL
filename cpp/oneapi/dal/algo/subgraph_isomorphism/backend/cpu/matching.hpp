@@ -21,9 +21,10 @@
 #include "oneapi/dal/algo/subgraph_isomorphism/backend/cpu/stack.hpp"
 #include "oneapi/dal/algo/subgraph_isomorphism/backend/cpu/bit_vector.hpp"
 #include "oneapi/dal/algo/subgraph_isomorphism/backend/cpu/graph.hpp"
-#include "oneapi/dal/detail/global_context.hpp"
 #include "oneapi/dal/detail/threading.hpp"
 #include "oneapi/dal/algo/subgraph_isomorphism/common.hpp"
+
+#include <typeinfo> // for typeid
 
 namespace oneapi::dal::preview::subgraph_isomorphism::backend {
 
@@ -527,10 +528,8 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
                                : (max_threads_count >= 4)  ? 2
                                                            : 1;
 #if defined(TARGET_X86_64)
-    const dal::detail::global_context_iface& gc = dal::detail::global_context::get_global_context();
-    dal::detail::cpu_extension onedal_cpu_ext = gc.get_cpu_info().get_onedal_cpu_extension();
-    if (onedal_cpu_ext == dal::detail::cpu_extension::avx2 ||
-        onedal_cpu_ext == dal::detail::cpu_extension::sse42) {
+    if (typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_avx2) ||
+        typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_sse42)) {
         // TODO: Workaround that disabled parallelism for SSE4.2 and AVX2 code paths
         //       due to observed timeouts in case of execution under emulator
         //       related to atomics usage in such configurations.
