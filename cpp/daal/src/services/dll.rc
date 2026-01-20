@@ -24,7 +24,7 @@
   #define ORIG_FILE_NAME "onedal_thread.3.dll \0"
   #define INTERNAL_FILE_NAME "onedal_thread\0"
 #else
-  #define FILE_COMMENT "Analitics algorithms optimized for IA.\0"
+  #define FILE_COMMENT "Analytics algorithms optimized for IA.\0"
   #define ORIG_FILE_NAME "onedal_core.3.dll\0"
   #define INTERNAL_FILE_NAME "onedal_core\0"
 #endif

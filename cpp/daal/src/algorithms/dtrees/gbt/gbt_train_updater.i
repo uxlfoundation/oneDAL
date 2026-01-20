@@ -116,8 +116,8 @@ public:
 
         if (_iFeature >= 0) // best split has been found
         {
-            PartitionTaskType partion(_iFeature, idxFeatureValueBestSplit, _data, _node, _bestSplit);
-            partion.execute();
+            PartitionTaskType partition(_iFeature, idxFeatureValueBestSplit, _data, _node, _bestSplit);
+            partition.execute();
         }
 
         return nullptr;
@@ -276,13 +276,13 @@ public:
         LoopHelper<cpu>::run(true, 2, [&](size_t i) {
             if (_iFeature1 >= 0 && i == 0)
             {
-                PartitionTaskType partion(_iFeature1, idxFeatureValueBestSplit1, _data, _node1, _bestSplit1);
-                partion.execute();
+                PartitionTaskType partition(_iFeature1, idxFeatureValueBestSplit1, _data, _node1, _bestSplit1);
+                partition.execute();
             }
             if (_iFeature2 >= 0 && i == 1)
             {
-                PartitionTaskType partion(_iFeature2, idxFeatureValueBestSplit2, _data, _node2, _bestSplit2);
-                partion.execute();
+                PartitionTaskType partition(_iFeature2, idxFeatureValueBestSplit2, _data, _node2, _bestSplit2);
+                partition.execute();
             }
         });
 

@@ -182,7 +182,7 @@ void unwindPath(PathElement * uniquePath, float * partialWeights, uint32_t uniqu
     }
 }
 
-// determine what the total permuation weight would be if
+// determine what the total permutation weight would be if
 // we unwound a previous extension in the decision path (for feature satisfying the threshold)
 float unwoundPathSum(const PathElement * uniquePath, const float * partialWeights, uint32_t uniqueDepth, uint32_t uniqueDepthPartialWeights,
                      uint32_t pathIndex)

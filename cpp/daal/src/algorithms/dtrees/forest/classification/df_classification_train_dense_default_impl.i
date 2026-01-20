@@ -119,7 +119,7 @@ protected: //enables specific functions for UnorderedRespHelperBest
         imp.hist[iClass] -= moveWeights;
     }
 
-    // Calculate impurity for left and right childs
+    // Calculate impurity for left and right children
     static void updateImpurity(ImpurityData & left, ImpurityData & right, ClassIndexType iClass, intermSummFPType totalWeights,
                                intermSummFPType startWeights, intermSummFPType & moveWeights)
     {

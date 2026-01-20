@@ -98,14 +98,14 @@ Responsibilities:
   * Follow and enforce the project [contributing guidelines](CONTRIBUTING.md)
   * Co-own with other component Maintainers on the technical direction of a specific component.
   * Co-own with other Maintainers on the project as a whole, including determining strategy and policy for the project.
-  * Suppport and guide Contributors and Code Owners.
+  * Support and guide Contributors and Code Owners.
 
 Requirements:
   * Experience as a Code Owner for at least 12 months.
   * Track record of major project contributions to a specific project component.
   * Demonstrated deep knowledge of a specific project component.
   * Demonstrated broad knowledge of the project across multiple areas.
-  * Commits to using priviledges responsibly for the good of the project.
+  * Commits to using privileges responsibly for the good of the project.
   * Is able to exercise judgment for the good of the project, independent of
     their employer, friends, or team.
 

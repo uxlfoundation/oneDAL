@@ -58,7 +58,7 @@ public:
 
     /**
      * Creates thread local storage of the requested size
-     * \param[in] nBetasIntercept   Number of colums in the partial result
+     * \param[in] nBetasIntercept   Number of columms in the partial result
      * \param[in] nRows             Number of rows in the partial result
      * \param[in] nResponses        Number of responses
      * \return Pointer on the thread local storage object if the object was created successfully, NULL otherwise
@@ -119,7 +119,7 @@ protected:
 
     /**
      * Construct thread local storage of the requested size
-     * \param[in]  nBetasIntercept  Number of colums in the partial result
+     * \param[in]  nBetasIntercept  Number of columms in the partial result
      * \param[in]  nRows            Number of rows in the partial result
      * \param[in]  nResponses       Number of responses
      * \param[out] st               Status of the object construction
@@ -221,7 +221,7 @@ public:
      * \param[in]  initializeResult Flag. True if results initialization is required, false otherwise
      * \param[in]  interceptFlag    Flag.
      *                              - True if it is required to compute an intercept term and P' = P + 1
-     *                              - False otherwis, P' = P
+     *                              - False otherwise, P' = P
      * \return Status of the computations
      */
     static Status compute(const NumericTable & x, const NumericTable & y, NumericTable & r, NumericTable & qty, bool initializeResult,
@@ -240,7 +240,7 @@ class MergeKernel
 public:
     /**
      * Merges an array of partial results into one partial result
-     * \param[in] n          Number of partial resuts in the input array
+     * \param[in] n          Number of partial results in the input array
      * \param[in] partialr   Array of n numeric tables R of size P x P
      * \param[in] partialqty Array of n numeric tables \f$Q^T \times Y\f$ of size Ny x P
      * \param[out] r         Numeric table R of size P x P

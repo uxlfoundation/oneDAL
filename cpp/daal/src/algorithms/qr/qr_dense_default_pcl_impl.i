@@ -80,7 +80,7 @@ static inline unsigned int __lzcnt_u32__(unsigned int a)
 
 #define NTILES 10
 
-/* Table of optimal nummber of blocks depending on fptye, cpu and rows/cols ratio. ratio = 0 means system deafult number of threads */
+/* Table of optimal number of blocks depending on fptye, cpu and rows/cols ratio. ratio = 0 means system default number of threads */
 template <typename algorithmFPType, CpuType cpu>
 inline int * get_nblocks_array(int * size)
 {

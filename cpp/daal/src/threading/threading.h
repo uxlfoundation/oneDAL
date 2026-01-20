@@ -256,7 +256,7 @@ inline void threader_func_break(int i, bool & needBreak, const void * a)
 /// The maximal number of iterations in the loop is `2^31 - 1 (INT32_MAX)`.
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the loop to threads.
-/// Data dependencies between the iterations are allowed, but may requre the use
+/// Data dependencies between the iterations are allowed, but may require the use
 /// of synchronization primitives.
 ///
 /// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
@@ -278,7 +278,7 @@ inline void threader_for(int n, int reserved, const F & func)
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the loop to threads.
 /// The iterations of the loop should be logically independent.
-/// Data dependencies between the iterations are allowed, but may requre the use
+/// Data dependencies between the iterations are allowed, but may require the use
 /// of synchronization primitives.
 ///
 /// @tparam F   Callable object of type `[/* captures */](int64_t i) -> void`,
@@ -305,7 +305,7 @@ inline void threader_for_int64(int64_t n, const F & func)
 /// (https://uxlfoundation.github.io/oneTBB/main/tbb_userguide/Partitioner_Summary.html)
 /// with chunk size 1 is used to produce iteration to threads mappings.
 ///
-/// Data dependencies between the iterations are allowed, but may requre the use
+/// Data dependencies between the iterations are allowed, but may require the use
 /// of synchronization primitives.
 ///
 /// @tparam F   Callable object of type `[/* captures */](int i) -> void`,
@@ -803,11 +803,11 @@ void conditional_static_threader_for(const bool inParallel, const size_t n, Func
     }
 }
 
-/// Pass an object that implments `daal::Reducer` interface to be used in a reduction loop
+/// Pass an object that implements `daal::Reducer` interface to be used in a reduction loop
 /// in the threading layer.
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the reduction loop to threads.
-/// Data dependencies between the iterations are allowed, but may requre the use
+/// Data dependencies between the iterations are allowed, but may require the use
 /// of synchronization primitives.
 ///
 /// @tparam ReducerType     A subtype of `daal::Reducer`.
@@ -822,11 +822,11 @@ void threader_reduce(const size_t n, const size_t grainSize, ReducerType & reduc
     _daal_threader_reduce(n, grainSize, reducer);
 }
 
-/// Pass an object that implments `daal::Reducer` interface to be used in a reduction loop
+/// Pass an object that implements `daal::Reducer` interface to be used in a reduction loop
 /// in the threading layer.
 /// The default scheduling of the threading layer is used to assign
 /// the iterations of the reduction loop to threads.
-/// Data dependencies between the iterations are allowed, but may requre the use
+/// Data dependencies between the iterations are allowed, but may require the use
 /// of synchronization primitives.
 ///
 /// @tparam ReducerType     A subtype of `daal::Reducer`.

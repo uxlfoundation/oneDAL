@@ -76,7 +76,7 @@ protected:
                               hash_tree<cpu> * C_tree, services::Status & s);
 
     /** Test that all {n-1}-item subsets of {n}-item set are "large" item sets */
-    bool pruneCandidate(size_t iset_size, const size_t * cadidate, size_t * subset, hash_tree<cpu> & C_tree);
+    bool pruneCandidate(size_t iset_size, const size_t * candidate, size_t * subset, hash_tree<cpu> & C_tree);
 
     size_t binarySearch(size_t nUniqueItems, assocRulesUniqueItem<cpu> * uniqueItems, size_t itemID);
 

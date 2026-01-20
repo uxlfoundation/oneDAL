@@ -61,7 +61,7 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
  *  \brief Choose appropriate kernel to calculate gradient boosted trees model.
  *
  *  \param env[in]  Environment
- *  \param a[in]    Array of numeric tables contating input data
+ *  \param a[in]    Array of numeric tables containing input data
  *  \param r[out]   Resulting model
  *  \param par[in]  Decision forest algorithm parameters
  */
