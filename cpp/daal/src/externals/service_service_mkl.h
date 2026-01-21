@@ -46,10 +46,8 @@ struct MklService
 #ifndef USE_STD_ALLOC
         return MKL_malloc(size, alignment);
 #else
-        while ((size % alignment) != 0)
-        {
-            size++;
-        }
+        const size_t mod = size % alignment;
+        if (mod) size += alignment - mod;
         return std::aligned_alloc(alignment, size);
 #endif
     }
