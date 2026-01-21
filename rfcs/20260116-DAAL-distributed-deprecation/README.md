@@ -1,4 +1,4 @@
-# Deprecation of DAAL disyributed functionality in oneDAL 2025.11
+# Deprecation of DAAL distributed functionality in oneDAL 2025.11
 
 ## Introduction
 
