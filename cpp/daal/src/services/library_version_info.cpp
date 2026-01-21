@@ -53,12 +53,25 @@ DAAL_EXPORT daal::services::LibraryVersionInfo::LibraryVersionInfo()
       productStatus(PRODUCTSTATUS),
       build(BUILD),
       build_rev(BUILD_REV),
-      name(PRODUCT_NAME_STR),
+      name(PRODUCT_NAME_STR)
+{
 #ifndef DAAL_REF
-      processor(cpu_long_names[daal::services::Environment::getInstance()->getCpuId()])
+    daal::services::Environment * env = daal::services::Environment::getInstance();
+    if (env)
+    {
+        processor = cpu_long_names[env->getCpuId()];
+    }
+    else
+    {
+    #if (!defined(DAAL_NOTHROW_EXCEPTIONS))
+        int error = daal::services::Environment::getStatus();
+        throw std::runtime_error("Environment not initialized, cannot get processor info, error code: " + std::to_string(error));
+    #else
+        processor = cpu_long_names[0];
+    #endif
+    }
 #else
-      processor(cpu_long_names[0])
+    processor = cpu_long_names[0];
 #endif
-{}
-
+}
 DAAL_EXPORT daal::services::LibraryVersionInfo::~LibraryVersionInfo() {}
