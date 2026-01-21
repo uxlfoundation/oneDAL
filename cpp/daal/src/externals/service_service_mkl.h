@@ -29,6 +29,9 @@
 #include <mkl.h>
 #include <mkl_service.h>
 #include <string.h>
+#ifdef USE_STD_ALLOC
+    #include <cstdlib>
+#endif
 
 namespace daal
 {
@@ -38,9 +41,23 @@ namespace mkl
 {
 struct MklService
 {
-    static void * serv_malloc(size_t size, size_t alignment) { return MKL_malloc(size, alignment); }
+    static void * serv_malloc(size_t size, size_t alignment)
+    {
+#ifndef USE_STD_ALLOC
+        return MKL_malloc(size, alignment);
+#else
+        return std::aligned_alloc(alignment, size);
+#endif
+    }
 
-    static void serv_free(void * ptr) { MKL_free(ptr); }
+    static void serv_free(void * ptr)
+    {
+#ifndef USE_STD_ALLOC
+        MKL_free(ptr);
+#else
+        std::free(ptr);
+#endif
+    }
 
     static void serv_free_buffers() { MKL_Free_Buffers(); }
 
