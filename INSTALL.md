@@ -208,7 +208,7 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
 
-By default, on x86 platforms, oneDAL uses highly optimized aligned memory allocators from oneMLK, but for easier debugging, it's also possible to make it use only allocators from the standard library. For this, add option `STDALLOC=yes` to the `make` call:
+By default, on x86 platforms, oneDAL uses highly optimized aligned memory allocators from oneMLK, but for easier debugging, it's also possible to make it use only allocators from the standard library. For this, add option `STDALLOC=yes` to the `make` call - but note that, when using the ICX compiler (default), adding this flag makes it statically-link the GNU `stdlibc++` library.:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols STDALLOC=yes
 
