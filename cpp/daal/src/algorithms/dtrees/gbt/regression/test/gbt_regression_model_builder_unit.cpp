@@ -364,7 +364,7 @@ TEST("DecisionTreeToGbtModelConversion_SparseRandomTree", "[unit]")
         REQUIRE(featureIndexes[i] < nFeatures);
         REQUIRE(coverValues[i] == 1.0);
 
-        size_t leftId = leftChildIndexes[i];
+        uint32_t leftId = leftChildIndexes[i];
 
         nodesPerLevel[nodeLevels[i]]++;
         int isLeaf = modelImpl.nodeIsLeaf(i + 1, *gbtTree);

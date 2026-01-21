@@ -54,29 +54,37 @@ struct PredictDispatcher
     typedef PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> type;
 };
 
-// In the implementations below leftChildIndexes array is not used as we suppose that left child index is idx * 2
-// They shouldn't be uses for cases where this condition is not satisfied, this will lead to incorrect results
+// In updateIndexDense implementations leftChildIndexes array is not used as we suppose that left child index is idx * 2
+// updateIndex must be used instead for cases where this condition is not satisfied, otherwise results will be incorrect
+
+// These functions are implemented in a way to minimize branching and improve performance, the output is the index of the correct child
+// Here index of left child is idx * 2, index of right child is idx * 2 + 1, therefore we can calculate the index of child in the following way
+// idx * 2 + (condition when we go to right child is satisfied) 
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+inline FeatureIndexType updateIndexDense(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
 {
+    // Only continious features, no missing values
     return idx * 2 + (valueFromDataSet > splitPoints[idx]);
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+inline FeatureIndexType updateIndexDense(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
 {
+    // Continious and categorical features, no missing values
     return idx * 2 + (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]);
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+inline FeatureIndexType updateIndexDense(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
 {
+    // Only continious features, missing values might be present
     if (checkFinitenessByComparison(valueFromDataSet))
     {
+        // If defaultLeft == 1 and value is missing we go to left child, if it is 0 we go to right child
         return idx * 2 + (defaultLeft[idx] != 1);
     }
     else
@@ -86,11 +94,13 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
 }
 
 template <typename algorithmFPType>
-inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
+inline FeatureIndexType updateIndexDense(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints, const int * defaultLeft,
                                     const FeatureTypes & featTypes, FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
 {
+    // Continious and categorical features, missing values might be present
     if (checkFinitenessByComparison(valueFromDataSet))
     {
+        // If defaultLeft == 1 and value is missing we go to left child, if it is 0 we go to right child
         return idx * 2 + (defaultLeft[idx] != 1);
     }
     else
@@ -99,23 +109,31 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
     }
 }
 
-// In the implementations below leftChildIndexes array is used to determine the position of node's children.
-// They should be used on deeper levels where nodes are stored in sparse format to achieve faster inference.
-// However, they can be used for all levels as leftChildIndexes is filled correctly for all nodes.
+// In updateIndex implementations leftChildIndexes array is used to determine the position of node's children.
+// They can be used for all levels, however if tree is a full binary (on first numDenseLayers) 
+// it's recommended to use updateIndexDense function for faster inference
+
+// These functions are implemented in a way to minimize branching and improve performance, the output is the index of the correct child
+// Here index of left child is leftChildIndexes[idx], index of right child is leftChildIndexes[idx] + 1, therefore we can calculate the index of child in the following way
+// leftChildIndexes[idx] + ((leftChildIndexes[idx] != idx) && condition when we go to right child is satisfied) 
+// Note that if leftChildIndexes[idx] == idx it means that we are in leaf node and we should perform transition to the same node
+// In order to achieve that we need the condition to always be zero, therefore we add leftChildIndexes[idx] != idx to this condition:
 
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
-                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    const FeatureIndexType * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<false, false> & dispatcher)
 {
+    // Only continious features, no missing values
     return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (valueFromDataSet > splitPoints[idx]));
 }
 
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
-                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    const FeatureIndexType * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<true, false> & dispatcher)
 {
+    // Continious and categorical features, no missing values
     return leftChildIndexes[idx]
            + ((idx != leftChildIndexes[idx])
               && (featTypes.isUnordered(splitFeature) ? valueFromDataSet != splitPoints[idx] : valueFromDataSet > splitPoints[idx]));
@@ -123,11 +141,13 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
 
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
-                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    const FeatureIndexType * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<false, true> & dispatcher)
 {
+    // Only continious features, missing values might be present
     if (checkFinitenessByComparison(valueFromDataSet))
     {
+        // If defaultLeft == 1 and value is missing we go to left child, if it is 0 we go to right child
         return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (defaultLeft[idx] != 1));
     }
     else
@@ -138,11 +158,13 @@ inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueF
 
 template <typename algorithmFPType>
 inline FeatureIndexType updateIndex(FeatureIndexType idx, algorithmFPType valueFromDataSet, const ModelFPType * splitPoints,
-                                    const size_t * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
+                                    const FeatureIndexType * leftChildIndexes, const int * defaultLeft, const FeatureTypes & featTypes,
                                     FeatureIndexType splitFeature, const PredictDispatcher<true, true> & dispatcher)
 {
+    // Continious and categorical features, missing values might be present
     if (checkFinitenessByComparison(valueFromDataSet))
     {
+        // If defaultLeft == 1 and value is missing we go to left child, if it is 0 we go to right child
         return leftChildIndexes[idx] + ((idx != leftChildIndexes[idx]) && (defaultLeft[idx] != 1));
     }
     else
@@ -158,14 +180,13 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
                                  const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
     const ModelFPType * const values        = t.getSplitPoints() - 1;
-    const size_t * const leftIds            = t.getLeftChildIndexes() - 1;
+    const FeatureIndexType * const leftIds            = t.getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
     const FeatureIndexType nFeat            = featTypes.getNumberOfFeatures();
 
     FeatureIndexType i[vectorBlockSize];
     services::internal::service_memset_seq<FeatureIndexType, cpu>(i, FeatureIndexType(1), vectorBlockSize);
-    // prediction goes here
     const FeatureIndexType maxLvl         = t.getMaxLvl();
     const FeatureIndexType numDenseLayers = t.getNumDenseLayers();
     for (FeatureIndexType itr = 0; itr < std::min(maxLvl, numDenseLayers); itr++)
@@ -174,10 +195,10 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
         {
             const FeatureIndexType idx          = i[k];
             const FeatureIndexType splitFeature = fIndexes[idx];
-            i[k] = updateIndex<algorithmFPType>(idx, x[splitFeature + k * nFeat], values, defaultLeft, featTypes, splitFeature, dispatcher);
+            i[k] = updateIndexDense<algorithmFPType>(idx, x[splitFeature + k * nFeat], values, defaultLeft, featTypes, splitFeature, dispatcher);
         }
     }
-
+    // TODO: Implement performance optimization for deep but sparse trees
     for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
     {
         for (FeatureIndexType k = 0; k < vectorBlockSize; k++)
@@ -201,7 +222,7 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
                                       const PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> & dispatcher)
 {
     const ModelFPType * const values        = (const ModelFPType *)t.getSplitPoints() - 1;
-    const size_t * const leftIds            = t.getLeftChildIndexes() - 1;
+    const FeatureIndexType * const leftIds            = t.getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
 
@@ -213,9 +234,10 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
     for (FeatureIndexType itr = 0; itr < std::min(numDenseLayers, maxLvl); itr++)
     {
         const FeatureIndexType splitFeature = fIndexes[i];
-        i = updateIndex<algorithmFPType>(i, x[splitFeature], values, defaultLeft, featTypes, splitFeature, dispatcher);
+        i = updateIndexDense<algorithmFPType>(i, x[splitFeature], values, defaultLeft, featTypes, splitFeature, dispatcher);
     }
 
+    // TODO: Implement performance optimization for deep but sparse trees
     for (FeatureIndexType itr = numDenseLayers; itr < maxLvl; itr++)
     {
         const FeatureIndexType splitFeature = fIndexes[i];

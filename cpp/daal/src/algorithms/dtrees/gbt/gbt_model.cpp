@@ -225,11 +225,11 @@ void ModelImpl::destroy()
     super::destroy();
 }
 
-bool ModelImpl::nodeIsLeaf(size_t nodeIndex, const GbtDecisionTree & gbtTree)
+bool ModelImpl::nodeIsLeaf(FeatureIndexType nodeIndex, const GbtDecisionTree & gbtTree)
 {
-    const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+    const FeatureIndexType * leftChildIndexes = gbtTree.getLeftChildIndexes();
     const ModelFPType * splitPoints = gbtTree.getSplitPoints();
-    size_t leftId                   = leftChildIndexes[nodeIndex - 1];
+    FeatureIndexType leftId                   = leftChildIndexes[nodeIndex - 1];
     if (leftId == nodeIndex)
     {
         return true;
@@ -253,7 +253,7 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
     NodeType * parents = parentsArr.data();
 
     ModelFPType * const splitPoints         = newTree.getSplitPoints();
-    size_t * const leftChildIndexes         = newTree.getLeftChildIndexes();
+    FeatureIndexType * const leftChildIndexes         = newTree.getLeftChildIndexes();
     FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
     ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
     int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
@@ -266,8 +266,8 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
 
     size_t nParents   = 1;
     parents[0]        = arr;
-    size_t idxInTable = 0;
-    size_t idxChild   = 2;
+    FeatureIndexType idxInTable = 0;
+    FeatureIndexType idxChild   = 2;
 
     for (size_t lvl = 0; lvl < nLvls + 1; ++lvl)
     {
@@ -336,20 +336,6 @@ services::Status ModelImpl::convertDecisionTreesToGbtTrees(data_management::Data
     return s;
 }
 
-void ModelImpl::getMaxLvl(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t curLvl)
-{
-    curLvl++;
-
-    if (arr[idx].isSplit())
-    {
-        getMaxLvl(arr, arr[idx].leftIndexOrClass, maxLvl, curLvl);
-        getMaxLvl(arr, arr[idx].leftIndexOrClass + 1, maxLvl, curLvl);
-    }
-    else
-    {
-        if (maxLvl < curLvl) maxLvl = curLvl;
-    }
-}
 
 void ModelImpl::getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t & numNodes,
                                      const size_t numDenseLayers, size_t curLvl)

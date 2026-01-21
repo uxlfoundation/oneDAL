@@ -48,7 +48,7 @@ typedef services::Collection<size_t> NodeIdxArray;
 // This is required to maintain condition that children of node idx are located at nodes 2 * idx and 2 * idx + 1
 // Nodes on deeper levels (if they exist) will be stored in sparse format
 // TODO: add an option to control this parameter
-const size_t defaultNumDenseLayers = 10;
+constexpr size_t defaultNumDenseLayers = 10;
 
 template <typename T>
 void swap(T & t1, T & t2)
@@ -66,7 +66,7 @@ public:
     using NodeCoverType              = HomogenNumericTable<ModelFPType>;
     using FeatureIndexesForSplitType = HomogenNumericTable<FeatureIndexType>;
     using defaultLeftForSplitType    = HomogenNumericTable<int>;
-    using leftChildIndexType         = HomogenNumericTable<size_t>;
+    using leftChildIndexType         = HomogenNumericTable<FeatureIndexType>;
 
     GbtDecisionTree(const size_t nNodes, const size_t maxLvl, const size_t numDenseLayers)
         : _nNodes(nNodes),
@@ -89,7 +89,7 @@ public:
 
     FeatureIndexType * getFeatureIndexesForSplit() { return _featureIndexes->getArray(); }
 
-    size_t * getLeftChildIndexes() { return _leftChildIndexes->getArray(); }
+    FeatureIndexType * getLeftChildIndexes() { return _leftChildIndexes->getArray(); }
 
     int * getDefaultLeftForSplit() { return _defaultLeft->getArray(); }
 
@@ -97,7 +97,7 @@ public:
 
     const FeatureIndexType * getFeatureIndexesForSplit() const { return _featureIndexes->getArray(); }
 
-    const size_t * getLeftChildIndexes() const { return _leftChildIndexes->getArray(); }
+    const FeatureIndexType * getLeftChildIndexes() const { return _leftChildIndexes->getArray(); }
 
     ModelFPType * getNodeCoverValues() { return _nodeCoverValues->getArray(); }
 
@@ -143,7 +143,7 @@ public:
 
         ModelFPType * const splitPoints         = tree->getSplitPoints();
         FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
-        size_t * const leftChildIndexes         = tree->getLeftChildIndexes();
+        FeatureIndexType * const leftChildIndexes         = tree->getLeftChildIndexes();
 
         for (size_t i = 0; i < nNodes; ++i)
         {
@@ -165,7 +165,7 @@ public:
         size_t nParents   = 1;
         parents[0]        = NodeType::castSplit(&root);
         size_t idxInTable = 0;
-        size_t idxChild   = 2;
+        FeatureIndexType idxChild   = 2;
         for (size_t lvl = 0; lvl < nLvls + 1; ++lvl)
         {
             size_t nSons = 0;
@@ -235,13 +235,21 @@ protected:
     }
 
 protected:
+    // Total number of nodes in the tree
     size_t _nNodes;
-    size_t _numDenseLayers;
-    FeatureIndexType _maxLvl;
+    // The number of layers for which tree is stored in full binary format
+    size_t _numDenseLayers; 
+    // The maximum depth of the tree
+    FeatureIndexType _maxLvl; 
+    // Values of splits
     services::SharedPtr<SplitPointType> _splitPoints;
+    // Indexes of features used for split
     services::SharedPtr<FeatureIndexesForSplitType> _featureIndexes;
+    // Total number of samples (or sum of sample weights) that go through this node
     services::SharedPtr<NodeCoverType> _nodeCoverValues;
-    services::SharedPtr<defaultLeftForSplitType> _defaultLeft;
+    // Stores info about where should we go to left or right child in case value is missing
+    services::SharedPtr<defaultLeftForSplitType> _defaultLeft; 
+    // Idx of left child node, for leaves it's filled with idx of current node
     services::SharedPtr<leftChildIndexType> _leftChildIndexes;
     services::Collection<size_t> nNodeSplitFeature;
     services::Collection<size_t> CoverFeature;
@@ -286,21 +294,6 @@ public:
     }
 
 protected:
-    void getMaxLvl(const typename TNodeType::Base & node, size_t & maxLvl, size_t curLvl = 0) const
-    {
-        curLvl++;
-        const auto p = TNodeType::castSplit(&node);
-
-        if (p->isSplit())
-        {
-            getMaxLvl(*static_cast<const typename NodeType::Split *>(p->left()), maxLvl, curLvl);
-            getMaxLvl(*static_cast<const typename NodeType::Split *>(p->right()), maxLvl, curLvl);
-        }
-        else
-        {
-            if (maxLvl < curLvl) maxLvl = curLvl;
-        }
-    }
 
     void getMaxLvLAndNumNodes(const typename TNodeType::Base & node, size_t & maxLvl, size_t & numNodes, const size_t numDenseLayers,
                               size_t curLvl = 0) const
@@ -390,10 +383,9 @@ public:
      * \param gbtTree tree containing nodes
      * \return true   if the node is a leaf, false otherwise
      */
-    static bool nodeIsLeaf(size_t idx, const GbtDecisionTree & gbtTree);
+    static bool nodeIsLeaf(FeatureIndexType idx, const GbtDecisionTree & gbtTree);
 
 protected:
-    static void getMaxLvl(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t curLvl = 0);
 
     // This function returns the maximum depth and the number of nodes that will be stored in sparse format
     static void getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t & numNodes,
@@ -421,7 +413,7 @@ protected:
                               OnLeafFunctor & visitLeaf)
     {
         const size_t oneBasedNodeIndex  = iRowInTable + 1;
-        const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+        const FeatureIndexType * leftChildIndexes = gbtTree.getLeftChildIndexes();
         if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree))
         {
             if (!visitSplit(iRowInTable, level)) return; //do not continue traversing
@@ -437,7 +429,7 @@ protected:
     static void traverseGbtBF(size_t level, NodeIdxArray & aCur, NodeIdxArray & aNext, const GbtDecisionTree & gbtTree, OnSplitFunctor & visitSplit,
                               OnLeafFunctor & visitLeaf)
     {
-        const size_t * leftChildIndexes = gbtTree.getLeftChildIndexes();
+        const FeatureIndexType * leftChildIndexes = gbtTree.getLeftChildIndexes();
         for (size_t i = 0; i < aCur.size(); ++i)
         {
             for (size_t j = 0; j < (level ? 2 : 1); ++j)
