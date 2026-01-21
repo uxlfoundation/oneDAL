@@ -41,6 +41,12 @@
     #define TARGET_RISCV64
 #endif
 
+#if !defined(TARGET_X86_64)
+    #ifndef DAAL_CPU_TOPO_DISABLED
+        #define DAAL_CPU_TOPO_DISABLED
+    #endif
+#endif
+
 #if (defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && !defined(SYCL_LANGUAGE_VERSION)
     #define DAAL_INTEL_CPP_COMPILER
 #endif
