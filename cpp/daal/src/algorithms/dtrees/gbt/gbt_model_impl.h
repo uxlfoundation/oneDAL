@@ -141,9 +141,9 @@ public:
 
         int result = 0;
 
-        ModelFPType * const splitPoints         = tree->getSplitPoints();
-        FeatureIndexType * const featureIndexes = tree->getFeatureIndexesForSplit();
-        FeatureIndexType * const leftChildIndexes         = tree->getLeftChildIndexes();
+        ModelFPType * const splitPoints           = tree->getSplitPoints();
+        FeatureIndexType * const featureIndexes   = tree->getFeatureIndexesForSplit();
+        FeatureIndexType * const leftChildIndexes = tree->getLeftChildIndexes();
 
         for (size_t i = 0; i < nNodes; ++i)
         {
@@ -162,10 +162,10 @@ public:
             tree->GainFeature[i]       = 0;
         }
 
-        size_t nParents   = 1;
-        parents[0]        = NodeType::castSplit(&root);
-        size_t idxInTable = 0;
-        FeatureIndexType idxChild   = 2;
+        size_t nParents           = 1;
+        parents[0]                = NodeType::castSplit(&root);
+        size_t idxInTable         = 0;
+        FeatureIndexType idxChild = 2;
         for (size_t lvl = 0; lvl < nLvls + 1; ++lvl)
         {
             size_t nSons = 0;
@@ -238,9 +238,9 @@ protected:
     // Total number of nodes in the tree
     size_t _nNodes;
     // The number of layers for which tree is stored in full binary format
-    size_t _numDenseLayers; 
+    size_t _numDenseLayers;
     // The maximum depth of the tree
-    FeatureIndexType _maxLvl; 
+    FeatureIndexType _maxLvl;
     // Values of splits
     services::SharedPtr<SplitPointType> _splitPoints;
     // Indexes of features used for split
@@ -248,7 +248,7 @@ protected:
     // Total number of samples (or sum of sample weights) that go through this node
     services::SharedPtr<NodeCoverType> _nodeCoverValues;
     // Stores info about where should we go to left or right child in case value is missing
-    services::SharedPtr<defaultLeftForSplitType> _defaultLeft; 
+    services::SharedPtr<defaultLeftForSplitType> _defaultLeft;
     // Idx of left child node, for leaves it's filled with idx of current node
     services::SharedPtr<leftChildIndexType> _leftChildIndexes;
     services::Collection<size_t> nNodeSplitFeature;
@@ -294,7 +294,6 @@ public:
     }
 
 protected:
-
     void getMaxLvLAndNumNodes(const typename TNodeType::Base & node, size_t & maxLvl, size_t & numNodes, const size_t numDenseLayers,
                               size_t curLvl = 0) const
     {
@@ -386,7 +385,6 @@ public:
     static bool nodeIsLeaf(FeatureIndexType idx, const GbtDecisionTree & gbtTree);
 
 protected:
-
     // This function returns the maximum depth and the number of nodes that will be stored in sparse format
     static void getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t & numNodes,
                                      const size_t numDenseLayers, size_t curLvl = 0);
@@ -415,7 +413,7 @@ protected:
     static void traverseGbtDF(size_t level, size_t iRowInTable, const GbtDecisionTree & gbtTree, OnSplitFunctor & visitSplit,
                               OnLeafFunctor & visitLeaf)
     {
-        const size_t oneBasedNodeIndex  = iRowInTable + 1;
+        const size_t oneBasedNodeIndex            = iRowInTable + 1;
         const FeatureIndexType * leftChildIndexes = gbtTree.getLeftChildIndexes();
         if (!nodeIsLeaf(oneBasedNodeIndex, gbtTree))
         {

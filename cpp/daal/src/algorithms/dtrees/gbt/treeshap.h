@@ -102,7 +102,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     if (conditionFraction < FLT_EPSILON) return;
 
     const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
-    const FeatureIndexType * const leftIds              = tree->getLeftChildIndexes() - 1;
+    const FeatureIndexType * const leftIds    = tree->getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
@@ -247,7 +247,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     if (conditionFraction < FLT_EPSILON) return;
 
     const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
-    const FeatureIndexType * const leftIds              = tree->getLeftChildIndexes() - 1;
+    const FeatureIndexType * const leftIds    = tree->getLeftChildIndexes() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;

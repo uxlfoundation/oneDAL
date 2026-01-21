@@ -228,7 +228,7 @@ void ModelImpl::destroy()
 bool ModelImpl::nodeIsLeaf(FeatureIndexType nodeIndex, const GbtDecisionTree & gbtTree)
 {
     const FeatureIndexType * leftChildIndexes = gbtTree.getLeftChildIndexes();
-    const ModelFPType * splitPoints = gbtTree.getSplitPoints();
+    const ModelFPType * splitPoints           = gbtTree.getSplitPoints();
     FeatureIndexType leftId                   = leftChildIndexes[nodeIndex - 1];
     if (leftId == nodeIndex)
     {
@@ -252,11 +252,11 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
     NodeType * sons    = sonsArr.data();
     NodeType * parents = parentsArr.data();
 
-    ModelFPType * const splitPoints         = newTree.getSplitPoints();
-    FeatureIndexType * const leftChildIndexes         = newTree.getLeftChildIndexes();
-    FeatureIndexType * const featureIndexes = newTree.getFeatureIndexesForSplit();
-    ModelFPType * const nodeCoverValues     = newTree.getNodeCoverValues();
-    int * const defaultLeft                 = newTree.getDefaultLeftForSplit();
+    ModelFPType * const splitPoints           = newTree.getSplitPoints();
+    FeatureIndexType * const leftChildIndexes = newTree.getLeftChildIndexes();
+    FeatureIndexType * const featureIndexes   = newTree.getFeatureIndexesForSplit();
+    ModelFPType * const nodeCoverValues       = newTree.getNodeCoverValues();
+    int * const defaultLeft                   = newTree.getDefaultLeftForSplit();
 
     for (size_t i = 0; i < nSourceNodes; ++i)
     {
@@ -264,8 +264,8 @@ void ModelImpl::decisionTreeToGbtTree(const DecisionTreeTable & tree, GbtDecisio
         parents[i] = nullptr;
     }
 
-    size_t nParents   = 1;
-    parents[0]        = arr;
+    size_t nParents             = 1;
+    parents[0]                  = arr;
     FeatureIndexType idxInTable = 0;
     FeatureIndexType idxChild   = 2;
 
@@ -335,7 +335,6 @@ services::Status ModelImpl::convertDecisionTreesToGbtTrees(data_management::Data
     serializationData.reset(newTrees);
     return s;
 }
-
 
 void ModelImpl::getMaxLvLAndNumNodes(const dtrees::internal::DecisionTreeNode * const arr, const size_t idx, size_t & maxLvl, size_t & numNodes,
                                      const size_t numDenseLayers, size_t curLvl)
