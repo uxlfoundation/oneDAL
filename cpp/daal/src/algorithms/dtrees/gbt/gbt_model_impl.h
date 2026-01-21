@@ -405,6 +405,9 @@ protected:
         // nNodes correspond to the number of nodes stored in sparse format
         // To get the required number of nodes we need to add the number of nodes stored in dense format
         nNodes += (static_cast<size_t>(1) << (std::min(nLvls, nDenseLayers) + 1)) - 1;
+
+        // Check that number of nodes is not too big, so that we can store leftChildIdx in uint32_t format
+        DAAL_ASSERT(nNodes + 1 < UINT32_MAX);
         return new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
     }
 
