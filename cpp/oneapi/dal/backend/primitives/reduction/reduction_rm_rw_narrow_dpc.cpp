@@ -19,7 +19,7 @@
 
 namespace oneapi::dal::backend::primitives {
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_rw_narrow {
 public:
     kernel_reduction_rm_rw_narrow(const Float* input,
@@ -44,7 +44,7 @@ public:
             // It should be converted to upper type by default
             const Float* const inp_row = input_ + lstride_ * row_idx;
             // Exclusive for the EU
-            Float acc = override_init_ ? binary_.init_value : output_[row_idx];
+            AccT acc = override_init_ ? binary_.init_value : output_[row_idx];
             for (std::int32_t i = 0; i < width_; ++i) {
                 acc = binary_.native(acc, unary_(inp_row[i]));
             }
@@ -63,20 +63,20 @@ private:
     const bool override_init_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::reduction_rm_rw_narrow(sycl::queue& q,
-                                                                         std::int64_t wg)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_rw_narrow(sycl::queue& q,
+                                                                               std::int64_t wg)
         : q_(q),
           wg_(wg) {
     ONEDAL_ASSERT(0 < wg_ && wg_ <= device_max_wg_size(q_));
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::reduction_rm_rw_narrow(sycl::queue& q)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_rw_narrow(sycl::queue& q)
         : reduction_rm_rw_narrow(q, propose_wg_size(q)) {}
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -96,8 +96,8 @@ sycl::event reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::operator()(
     return event;
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -110,8 +110,8 @@ sycl::event reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::operator()(
     operator()(input, output, width, height, width, binary, unary, deps, override_init);
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::nd_range<1> reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::get_range(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::nd_range<1> reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::get_range(
     std::int64_t height) const {
     const auto nblocks = (height / wg_) + bool(height % wg_);
     const auto eheight = wg_ * nblocks;
@@ -120,16 +120,16 @@ sycl::nd_range<1> reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::get_range(
     return make_multiple_nd_range_1d(eheight, wg_);
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-typename reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::kernel_t
-reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::get_kernel(const Float* input,
-                                                             Float* output,
-                                                             std::int64_t width,
-                                                             std::int64_t height,
-                                                             std::int64_t stride,
-                                                             const BinaryOp& binary,
-                                                             const UnaryOp& unary,
-                                                             const bool override_init) {
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+typename reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::kernel_t
+reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>::get_kernel(const Float* input,
+                                                                   Float* output,
+                                                                   std::int64_t width,
+                                                                   std::int64_t height,
+                                                                   std::int64_t stride,
+                                                                   const BinaryOp& binary,
+                                                                   const UnaryOp& unary,
+                                                                   const bool override_init) {
     ONEDAL_ASSERT(0 <= width && width <= stride);
     return kernel_t{ input,
                      output,
@@ -141,11 +141,15 @@ reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>::get_kernel(const Float* input,
                      override_init };
 }
 
-#define INSTANTIATE(F, B, U) template class reduction_rm_rw_narrow<F, B, U>;
+#define INSTANTIATE(F, A, B, U) template class reduction_rm_rw_narrow<F, A, B, U>;
 
-#define INSTANTIATE_FLOAT(B, U)                \
-    INSTANTIATE(double, B<double>, U<double>); \
-    INSTANTIATE(float, B<float>, U<float>);
+#define INSTANTIATE_FLOAT(B, U)                        \
+    INSTANTIATE(double, double, B<double>, U<double>); \
+    INSTANTIATE(float, float, B<float>, U<float>);
+
+#define INSTANTIATE_BOOL(B, U)                     \
+    INSTANTIATE(double, bool, B<bool>, U<double>); \
+    INSTANTIATE(float, bool, B<bool>, U<float>);
 
 INSTANTIATE_FLOAT(min, identity)
 INSTANTIATE_FLOAT(min, abs)
@@ -159,8 +163,10 @@ INSTANTIATE_FLOAT(sum, identity)
 INSTANTIATE_FLOAT(sum, abs)
 INSTANTIATE_FLOAT(sum, square)
 
-INSTANTIATE_FLOAT(logical_or, isinfornan)
-INSTANTIATE_FLOAT(logical_or, isinf)
+INSTANTIATE_BOOL(logical_or, isinfornan)
+INSTANTIATE_BOOL(logical_or, isinf)
+
+#undef INSTANTIATE_BOOL
 
 #undef INSTANTIATE_FLOAT
 
