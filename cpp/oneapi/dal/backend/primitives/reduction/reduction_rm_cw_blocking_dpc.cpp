@@ -51,7 +51,6 @@ sycl::event reduction_rm_cw_blocking<Float, AccT, BinaryOp, UnaryOp>::operator()
     const auto block_size = propose_block_size<Float>(q_, width);
     const bk::uniform_blocking blocking(width, block_size);
     std::vector<sycl::event> events(blocking.get_block_count());
-
     for (std::int64_t block_index = 0; block_index < blocking.get_block_count(); ++block_index) {
         const auto first_column = blocking.get_block_start_index(block_index);
         const auto last_column = blocking.get_block_end_index(block_index);

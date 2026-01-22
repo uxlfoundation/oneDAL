@@ -877,10 +877,8 @@ sycl::event train_kernel_hist_impl<Float, Bin, Index, Task>::compute_initial_his
             const Index* node_tree_order_ptr = &tree_order_ptr[row_offset];
 
             hist_type_t* local_buf_ptr = nullptr;
-
             local_buf_ptr =
                 local_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-
             if (use_private_mem_buf) {
                 compute_hist_for_node<Float, Index, true>(item,
                                                           ind_start,

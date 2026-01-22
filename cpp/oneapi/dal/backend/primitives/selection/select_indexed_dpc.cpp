@@ -111,7 +111,6 @@ sycl::event select_indexed_local(sycl::queue& q,
                                            sycl::access::decorated::yes>(src_ptr + from),
                   to - from)
                 .wait();
-
             const auto cid = it.get_global_id(1);
             for (std::int32_t r = 0; r < row_count; ++r) {
                 const auto idx = *(ids_ptr + ids_str * r + cid);

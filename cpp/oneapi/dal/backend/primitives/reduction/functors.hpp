@@ -81,7 +81,6 @@ template <typename T>
 struct sum {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = 0;
-    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::plus<T> native{};
 #else
@@ -96,7 +95,6 @@ template <typename T>
 struct max {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = std::numeric_limits<T>::lowest();
-    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::maximum<T> native{};
 #else
@@ -113,7 +111,6 @@ template <typename T>
 struct min {
     using tag_t = reduce_binary_op_tag;
     constexpr static inline T init_value = std::numeric_limits<T>::max();
-    static constexpr bool is_logical = false;
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::ext::oneapi::minimum<T> native{};
 #else
@@ -132,8 +129,6 @@ struct logical_or {
     using acc_t = T;
 
     constexpr static inline T init_value = T(false);
-    static constexpr bool is_logical = true;
-
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::logical_or<T> native{};
 #else

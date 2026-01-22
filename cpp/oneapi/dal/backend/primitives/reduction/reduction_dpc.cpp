@@ -169,7 +169,7 @@ sycl::event reduce_by_columns_impl(sycl::queue& q,
                                    bool override_init) {
     ONEDAL_ASSERT(input.get_dimension(1) <= output.get_dimension(0));
     if constexpr (order == ndorder::c) {
-        return reduce_rm_rw<Float, AccT, BinaryOp, UnaryOp>(q,
+        return reduce_rm_cw<Float, AccT, BinaryOp, UnaryOp>(q,
                                                             input,
                                                             output,
                                                             binary,

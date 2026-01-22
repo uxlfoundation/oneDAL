@@ -177,7 +177,6 @@ sycl::event solve_smo(sycl::queue& q,
                 sg_cache_index.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
             Float* local_vars_ptr =
                 local_vars.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-
             local_kernel_values_ptr[i] = kernel_values_ptr[i * row_count + ws_index];
             item.barrier(sycl::access::fence_space::local_space);
 
