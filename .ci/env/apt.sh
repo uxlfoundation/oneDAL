@@ -46,7 +46,7 @@ function install_dpl {
 
 function install_mkl {
     # MKL version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-mkl-devel=2025.3.0-461
+    sudo apt-get install -y intel-oneapi-mkl-devel=2025.3.1-8
     install_tbb
     install_dpl
 }
