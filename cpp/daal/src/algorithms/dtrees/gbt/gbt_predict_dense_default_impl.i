@@ -187,8 +187,8 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
     const FeatureIndexType * const leftIds  = t.getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes = t.getFeatureIndexesForSplit() - 1;
     const int * const defaultLeft           = t.getDefaultLeftForSplit() - 1;
+    const size_t nNodes                     = t.getNumberOfNodes();
     const FeatureIndexType nFeat            = featTypes.getNumberOfFeatures();
-
     FeatureIndexType i[vectorBlockSize];
     services::internal::service_memset_seq<FeatureIndexType, cpu>(i, FeatureIndexType(1), vectorBlockSize);
     const FeatureIndexType maxLvl         = t.getMaxLvl();
@@ -200,6 +200,10 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
             const FeatureIndexType idx          = i[k];
             const FeatureIndexType splitFeature = fIndexes[idx];
             i[k] = updateIndexDense<algorithmFPType>(idx, x[splitFeature + k * nFeat], values, defaultLeft, featTypes, splitFeature, dispatcher);
+            // After itr, node depth is itr + 1
+            // Node indexes on level k are in range [2^k, 2^(k + 1) - 1]
+            DAAL_ASSERT(i[k] >= (static_cast<size_t>(1) << (itr + 1)))
+            DAAL_ASSERT(i[k] < (static_cast<size_t>(1) << (itr + 2)))
         }
     }
     // TODO: Implement performance optimization for deep but sparse trees
@@ -210,6 +214,7 @@ inline void predictForTreeVector(const DecisionTreeType & t, const FeatureTypes 
             const FeatureIndexType idx          = i[k];
             const FeatureIndexType splitFeature = fIndexes[idx];
             i[k] = updateIndex<algorithmFPType>(idx, x[splitFeature + k * nFeat], values, leftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+            DAAL_ASSERT(i[k] <= nNodes)
         }
     }
 
@@ -232,13 +237,17 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
 
     const FeatureIndexType maxLvl         = t.getMaxLvl();
     const FeatureIndexType numDenseLayers = t.getNumDenseLayers();
+    const size_t nNodes                   = t.getNumberOfNodes();
 
     FeatureIndexType i = 1;
-
     for (FeatureIndexType itr = 0; itr < std::min(numDenseLayers, maxLvl); itr++)
     {
         const FeatureIndexType splitFeature = fIndexes[i];
         i = updateIndexDense<algorithmFPType>(i, x[splitFeature], values, defaultLeft, featTypes, splitFeature, dispatcher);
+        // After itr, node depth is itr + 1
+        // Node indexes on level k are in range [2^k, 2^(k + 1) - 1]
+        DAAL_ASSERT(i >= (static_cast<size_t>(1) << (itr + 1)))
+        DAAL_ASSERT(i < (static_cast<size_t>(1) << (itr + 2)))
     }
 
     // TODO: Implement performance optimization for deep but sparse trees
@@ -246,6 +255,7 @@ inline algorithmFPType predictForTree(const DecisionTreeType & t, const FeatureT
     {
         const FeatureIndexType splitFeature = fIndexes[i];
         i = updateIndex<algorithmFPType>(i, x[splitFeature], values, leftIds, defaultLeft, featTypes, splitFeature, dispatcher);
+        DAAL_ASSERT(i <= nNodes)
     }
 
     return values[i];
