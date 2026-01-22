@@ -37,7 +37,7 @@ function install_dpcpp {
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
-    sudo apt-get install -y intel-oneapi-tbb-devel=2022.3.0-381
+    sudo apt-get install -y intel-oneapi-tbb-devel=2022.3.1-400
 }
 
 function install_dpl {
