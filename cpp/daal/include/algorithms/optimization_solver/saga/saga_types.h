@@ -79,6 +79,7 @@ namespace interface2
  * \brief %Parameter base class for the Stochastic average  gradient descent algorithm
  *
  * \snippet optimization_solver/saga/saga_types.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Parameter
@@ -96,9 +97,9 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
      * \param[in] learningRateSequence     Numeric table that contains value of the learning rate
      * \param[in] seed                     Seed for random generation of 32 bit integer indices of terms in the objective function. \DAAL_DEPRECATED_USE{ engine }
      */
-    Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
-              const data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), const size_t batchSize = 128,
-              const data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(), size_t seed = 777);
+    DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
+                              const data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), const size_t batchSize = 128,
+                              const data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(), size_t seed = 777);
 
     virtual ~Parameter() {}
 
@@ -125,6 +126,7 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
 * \brief %Input class for the Stochastic average  gradient descent algorithm
 *
 * \snippet optimization_solver/saga/saga_types.h Input source code
+* \DAAL_DEPRECATED
 */
 /* [Input source code] */
 class DAAL_EXPORT Input : public optimization_solver::iterative_solver::Input
@@ -133,7 +135,7 @@ private:
     typedef optimization_solver::iterative_solver::Input super;
 
 public:
-    Input();
+    DAAL_DEPRECATED Input();
     Input(const Input & other);
     Input & operator=(const Input & other);
 
@@ -168,6 +170,7 @@ public:
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__SAGA__RESULT"></a>
 * \brief Results obtained with the compute() method of the saga algorithm in the batch processing mode
+* \DAAL_DEPRECATED
 */
 class DAAL_EXPORT Result : public optimization_solver::iterative_solver::Result
 {
@@ -175,7 +178,7 @@ public:
     DECLARE_SERIALIZABLE_CAST(Result)
     typedef optimization_solver::iterative_solver::Result super;
 
-    Result() {}
+    DAAL_DEPRECATED Result() {}
     using super::set;
     using super::get;
 

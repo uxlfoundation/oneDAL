@@ -50,10 +50,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: Free disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+
+      - name: Docker cleanup before build
+        run: |
+          docker system prune -af
+          docker builder prune -af
+
       - name: Build docker image
         run: docker build . --file dev/docker/onedal-dev.Dockerfile --tag onedal-dev:latest
-      - name: Building oneDAL
-        run: docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+
+      - name: Building oneDAL (make)
+        run: |
+          docker run onedal-dev .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal --conda-env ci-env
+
       - name: Building oneDAL with bazel
-        run: docker run onedal-dev bazel build :release
+        run: |
+          mkdir -p ${{ github.workspace }}/bazel-cache
+
+          docker run \
+            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
+            onedal-dev sh -c "
+              # Use external disk cache
+              echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
+              bazel build :release
+            "

@@ -294,6 +294,14 @@ for link_mode in "${link_modes[@]}"; do
         done
         # Go back from "Build" directory in case of samples testing
         [ "$TEST_KIND" = "samples" ] && cd ..
+
+        # ==========================
+        # Clean cache after each run
+        # ==========================
+        echo "Cleaning test cache..."
+        rm -rf Build CMakeCache.txt CMakeFiles _cmake_results
+        echo "Cache cleaned."
+
     else
         build_command="make ${make_op} ${l}${full_arch} mode=build compiler=${compiler}"
         echo "Building ${TEST_KIND} ${build_command}"

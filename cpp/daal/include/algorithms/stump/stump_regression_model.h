@@ -75,6 +75,7 @@ namespace interface1
  * \brief Stump algorithm parameters
  *
  * \snippet stump/stump_regression_model.h Parameter source code
+ * \DAAL_DEPRECATED
  */
 /* [Parameter source code] */
 // CLARIFICATION:: Added parameter class to support different split criterions for stump.
@@ -83,7 +84,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     /**
      *  Main constructor
      */
-    Parameter() : daal::algorithms::Parameter(), varImportance(none) {}
+    DAAL_DEPRECATED Parameter() : daal::algorithms::Parameter(), varImportance(none) {}
 
     /**
      * Checks a parameter of the Decision tree algorithm
@@ -102,6 +103,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
  * \par References
  *      - \ref training::interface1::Batch "training::Batch" class
  *      - \ref prediction::interface1::Batch "prediction::Batch" class
+ * \DAAL_DEPRECATED
  */
 class DAAL_EXPORT Model : public daal::algorithms::decision_tree::regression::Model
 {
@@ -113,13 +115,15 @@ public:
      * \tparam modelFPType  Data type to store decision stump model data, double or float
      * \param[out] stat      Status of the model construction
      * \return Decision stump model
+     * \DAAL_DEPRECATED
      */
-    static services::SharedPtr<Model> create(services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(services::Status * stat = NULL);
 
     /**
      * Default constructor for Model to creator
+     * \DAAL_DEPRECATED
      */
-    Model() {}
+    DAAL_DEPRECATED Model() {}
 
     virtual ~Model();
 

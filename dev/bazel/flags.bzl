@@ -22,14 +22,18 @@ lnx_cc_common_flags = [
     "-Wformat",
     "-Wformat-security",
     "-Wreturn-type",
+    # TODO: This option was added to suppress deprecation warnings.
+    #       To be removed in oneDAL 2026.0.
+    "-Wno-deprecated-declarations",
 ]
 
 lnx_cc_pedantic_flags = [
-    "-pedantic",
     "-Wall",
     "-Wextra",
+    "-pedantic",
     "-Wno-unused-parameter",
     "-Wno-unused-but-set-parameter",
+    "-Wno-c2y-extensions",
 ]
 
 lnx_cc_flags = {

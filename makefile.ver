@@ -14,8 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-MAJOR   =       2025
-MINOR   =       10
+MAJOR   =       2026
+MINOR   =       0
 UPDATE  =       0
 BUILD   =       $(shell date +'%Y%m%d')
 STATUS  =       P
