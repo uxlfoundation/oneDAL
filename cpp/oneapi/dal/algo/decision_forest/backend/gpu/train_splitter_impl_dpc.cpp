@@ -550,7 +550,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                                            { node_count * ftr_count * hist_prop_count },
                                            alloc::device);
     const auto hists_ptr = best_ftr_hists.get_mutable_data();
-
+    [[maybe_unused]] constexpr std::size_t max_nodes_per_launch = 65535;
     // Main kernel:
     // calculates histograms and impurity decrease based on histograms
     // and selects best split for each feature.
