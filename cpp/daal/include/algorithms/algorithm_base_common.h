@@ -116,7 +116,9 @@ private:
 protected:
     services::Status getEnvironment()
     {
-        int cpuid = (int)daal::services::Environment::getInstance()->getCpuId();
+        daal::services::Environment * env = daal::services::Environment::getInstance();
+        if (!env) return services::Status(services::ErrorCpuNotSupported);
+        int cpuid = (int)env->getCpuId();
         if (cpuid < 0) return services::Status(services::ErrorCpuNotSupported);
         _env.cpuid           = cpuid;
         _env.cpuid_init_flag = true;

@@ -66,6 +66,12 @@ public:
     static Environment * getInstance();
 
     /**
+     *  Returns the status of the environment instance initialization
+     *  \return Status of the environment instance initialization
+     */
+    static int getStatus();
+
+    /**
      *  Decreases the instance counter
      *  \return The return code
      *  \DAAL_DEPRECATED
