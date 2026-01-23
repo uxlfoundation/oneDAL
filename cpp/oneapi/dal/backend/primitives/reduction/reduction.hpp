@@ -26,7 +26,7 @@ namespace oneapi::dal::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
-template <typename Float, ndorder order, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, ndorder order, typename BinaryOp, typename UnaryOp>
 sycl::event reduce_by_rows_impl(sycl::queue& q,
                                 const ndview<Float, 2, order>& input,
                                 ndview<Float, 1>& output,
@@ -64,10 +64,11 @@ inline sycl::event reduce_by_rows(sycl::queue& q,
     static_assert(dal::detail::is_tag_one_of_v<UnaryOp, reduce_unary_op_tag>,
                   "UnaryOp must be a special unary operation defined "
                   "at the primitives level");
-    return reduce_by_rows_impl(q, input, output, binary, unary, deps, override_init);
+    using AccT = bin_op_t<BinaryOp>;
+    return reduce_by_rows_impl<Float, AccT, order, BinaryOp, UnaryOp>(q, input, output, binary, unary, deps, override_init);
 }
 
-template <typename Float, ndorder order, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, ndorder order, typename BinaryOp, typename UnaryOp>
 sycl::event reduce_by_columns_impl(sycl::queue& q,
                                    const ndview<Float, 2, order>& input,
                                    ndview<Float, 1>& output,
@@ -105,10 +106,11 @@ inline sycl::event reduce_by_columns(sycl::queue& q,
     static_assert(dal::detail::is_tag_one_of_v<UnaryOp, reduce_unary_op_tag>,
                   "UnaryOp must be a special unary operation defined "
                   "at the primitives level");
-    return reduce_by_columns_impl(q, input, output, binary, unary, deps, override_init);
+    using AccT = bin_op_t<BinaryOp>;
+    return reduce_by_columns_impl<Float, AccT, order, BinaryOp, UnaryOp>(q, input, output, binary, unary, deps, override_init);
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 sycl::event reduce_by_rows_impl(sycl::queue& q,
                                 const ndview<Float, 1>& values,
                                 const ndview<std::int64_t, 1>& column_indices,
@@ -151,7 +153,8 @@ inline sycl::event reduce_by_rows(sycl::queue& q,
     static_assert(dal::detail::is_tag_one_of_v<UnaryOp, reduce_unary_op_tag>,
                   "UnaryOp must be a special unary operation defined "
                   "at the primitives level");
-    return reduce_by_rows_impl(q,
+    using AccT = bin_op_t<BinaryOp>;
+    return reduce_by_rows_impl<Float, AccT, BinaryOp, UnaryOp>(q,
                                values,
                                column_indices,
                                row_offsets,
