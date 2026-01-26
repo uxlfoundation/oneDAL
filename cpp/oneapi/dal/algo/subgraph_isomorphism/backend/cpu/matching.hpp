@@ -24,6 +24,8 @@
 #include "oneapi/dal/detail/threading.hpp"
 #include "oneapi/dal/algo/subgraph_isomorphism/common.hpp"
 
+#include <typeinfo> // for typeid
+
 namespace oneapi::dal::preview::subgraph_isomorphism::backend {
 
 template <typename Cpu>
@@ -520,11 +522,20 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
             static_cast<bool>(first_states_count % max_threads_count);
     }
 
-    const std::uint64_t array_size = (max_threads_count >= 64)   ? max_threads_count * 2 / 10
-                                     : (max_threads_count >= 24) ? max_threads_count * 4 / 10
-                                     : (max_threads_count >= 8)  ? 4
-                                     : (max_threads_count >= 4)  ? 2
-                                                                 : 1;
+    std::uint64_t array_size = (max_threads_count >= 64)   ? max_threads_count * 2 / 10
+                               : (max_threads_count >= 24) ? max_threads_count * 4 / 10
+                               : (max_threads_count >= 8)  ? 4
+                               : (max_threads_count >= 4)  ? 2
+                                                           : 1;
+#if defined(TARGET_X86_64)
+    if (typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_avx2) ||
+        typeid(Cpu) == typeid(oneapi::dal::backend::cpu_dispatch_sse42)) {
+        // TODO: Workaround that disabled parallelism for SSE4.2 and AVX2 code paths
+        //       due to observed timeouts in case of execution under emulator
+        //       related to atomics usage in such configurations.
+        array_size = 1;
+    }
+#endif
     auto engine_array_ptr = allocator.make_shared_memory<matching_engine<Cpu>>(array_size);
     matching_engine<Cpu>* engine_array = engine_array_ptr.get();
 
