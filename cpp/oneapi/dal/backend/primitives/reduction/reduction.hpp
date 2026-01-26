@@ -65,7 +65,13 @@ inline sycl::event reduce_by_rows(sycl::queue& q,
                   "UnaryOp must be a special unary operation defined "
                   "at the primitives level");
     using AccT = bin_op_t<BinaryOp>;
-    return reduce_by_rows_impl<Float, AccT, order, BinaryOp, UnaryOp>(q, input, output, binary, unary, deps, override_init);
+    return reduce_by_rows_impl<Float, AccT, order, BinaryOp, UnaryOp>(q,
+                                                                      input,
+                                                                      output,
+                                                                      binary,
+                                                                      unary,
+                                                                      deps,
+                                                                      override_init);
 }
 
 template <typename Float, typename AccT, ndorder order, typename BinaryOp, typename UnaryOp>
@@ -107,7 +113,13 @@ inline sycl::event reduce_by_columns(sycl::queue& q,
                   "UnaryOp must be a special unary operation defined "
                   "at the primitives level");
     using AccT = bin_op_t<BinaryOp>;
-    return reduce_by_columns_impl<Float, AccT, order, BinaryOp, UnaryOp>(q, input, output, binary, unary, deps, override_init);
+    return reduce_by_columns_impl<Float, AccT, order, BinaryOp, UnaryOp>(q,
+                                                                         input,
+                                                                         output,
+                                                                         binary,
+                                                                         unary,
+                                                                         deps,
+                                                                         override_init);
 }
 
 template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
@@ -155,15 +167,15 @@ inline sycl::event reduce_by_rows(sycl::queue& q,
                   "at the primitives level");
     using AccT = bin_op_t<BinaryOp>;
     return reduce_by_rows_impl<Float, AccT, BinaryOp, UnaryOp>(q,
-                               values,
-                               column_indices,
-                               row_offsets,
-                               indexing,
-                               output,
-                               binary,
-                               unary,
-                               deps,
-                               override_init);
+                                                               values,
+                                                               column_indices,
+                                                               row_offsets,
+                                                               indexing,
+                                                               output,
+                                                               binary,
+                                                               unary,
+                                                               deps,
+                                                               override_init);
 }
 
 #endif
