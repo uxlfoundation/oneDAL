@@ -43,10 +43,10 @@ size_t nFeatures;
 int rankId, comm_size;
 #define mpi_root 0
 
-const std::string datasetFileNames[] = { "./data/distributed/covcormoments_csr_1.csv",
-                                         "./data/distributed/covcormoments_csr_2.csv",
-                                         "./data/distributed/covcormoments_csr_3.csv",
-                                         "./data/distributed/covcormoments_csr_4.csv" };
+const std::string datasetFileNames[] = { "data/covcormoments_csr_1.csv",
+                                         "data/covcormoments_csr_2.csv",
+                                         "data/covcormoments_csr_3.csv",
+                                         "data/covcormoments_csr_4.csv" };
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,
