@@ -50,6 +50,7 @@ DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t ali
 #ifndef USE_STD_ALLOC
     return scalable_aligned_malloc(size, alignment);
 #else
+    if (size < alignment) size = alignment;
     const size_t mod = size % alignment;
     if (mod) size += alignment - mod;
     return std::aligned_alloc(alignment, size);
