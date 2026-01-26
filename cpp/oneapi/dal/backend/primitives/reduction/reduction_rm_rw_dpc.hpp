@@ -21,13 +21,13 @@
 
 namespace oneapi::dal::backend::primitives {
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_rw_wide;
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class reduction_rm_rw_wide {
 public:
-    using kernel_t = kernel_reduction_rm_rw_wide<Float, BinaryOp, UnaryOp>;
+    using kernel_t = kernel_reduction_rm_rw_wide<Float, AccT, BinaryOp, UnaryOp>;
     reduction_rm_rw_wide(sycl::queue& q, std::int64_t wg);
     reduction_rm_rw_wide(sycl::queue& q);
     sycl::event operator()(const Float* input,
@@ -61,13 +61,13 @@ private:
     const std::int64_t wg_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_rw_blocking;
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class reduction_rm_rw_blocking {
 public:
-    using kernel_t = kernel_reduction_rm_rw_blocking<Float, BinaryOp, UnaryOp>;
+    using kernel_t = kernel_reduction_rm_rw_blocking<Float, AccT, BinaryOp, UnaryOp>;
     reduction_rm_rw_blocking(sycl::queue& q, std::int64_t wg);
     reduction_rm_rw_blocking(sycl::queue& q);
     sycl::event operator()(const Float* input,
@@ -101,13 +101,13 @@ private:
     const std::int64_t wg_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_rw_narrow;
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class reduction_rm_rw_narrow {
 public:
-    using kernel_t = kernel_reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>;
+    using kernel_t = kernel_reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>;
     reduction_rm_rw_narrow(sycl::queue& q, std::int64_t wg);
     reduction_rm_rw_narrow(sycl::queue& q);
     sycl::event operator()(const Float* input,
@@ -142,12 +142,12 @@ private:
     const std::int64_t wg_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class reduction_rm_rw {
 public:
-    using narrow_t = reduction_rm_rw_narrow<Float, BinaryOp, UnaryOp>;
-    using wide_t = reduction_rm_rw_wide<Float, BinaryOp, UnaryOp>;
-    using blocking_t = reduction_rm_rw_blocking<Float, BinaryOp, UnaryOp>;
+    using narrow_t = reduction_rm_rw_narrow<Float, AccT, BinaryOp, UnaryOp>;
+    using wide_t = reduction_rm_rw_wide<Float, AccT, BinaryOp, UnaryOp>;
+    using blocking_t = reduction_rm_rw_blocking<Float, AccT, BinaryOp, UnaryOp>;
     reduction_rm_rw(sycl::queue& q);
     enum reduction_method { wide, narrow, blocking };
     reduction_method propose_method(std::int64_t width, std::int64_t height) const;

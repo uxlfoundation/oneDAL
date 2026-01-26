@@ -570,7 +570,7 @@ sycl::event compute_hessian(sycl::queue& q,
                 sycl::atomic_ref<Float,
                                  sycl::memory_order::relaxed,
                                  sycl::memory_scope::device,
-                                 sycl::access::address_space::ext_intel_global_device_space>(out)
+                                 sycl::access::address_space::global_space>(out)
                     .fetch_add(val);
             }
         });

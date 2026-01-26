@@ -96,7 +96,7 @@ sycl::event count_clusters(sycl::queue& queue,
                 sycl::atomic_ref<std::int32_t,
                                  sycl::memory_order::relaxed,
                                  sycl::memory_scope::device,
-                                 sycl::access::address_space::ext_intel_global_device_space>
+                                 sycl::access::address_space::global_space>
                     counter_atomic(counter_ptr[cl]);
                 counter_atomic.fetch_add(1);
             }
