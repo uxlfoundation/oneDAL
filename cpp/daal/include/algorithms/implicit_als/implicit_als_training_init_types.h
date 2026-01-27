@@ -184,7 +184,7 @@ struct DAAL_EXPORT DistributedParameter : public Parameter
      * \param[in] fullNUsers    Full number of users
      * \param[in] seed          Seed for random numbers generation \DAAL_DEPRECATED_USE{ engine }
      */
-    DistributedParameter(size_t nFactors = 10, size_t fullNUsers = 0, size_t seed = 777777);
+    DAAL_DEPRECATED DistributedParameter(size_t nFactors = 10, size_t fullNUsers = 0, size_t seed = 777777);
 
     data_management::NumericTablePtr partition; /*!< Numeric table od size 1x1 that provides
             the number of input data parts used in implicit ALS initialization algorithm in the distributed computing mode.
@@ -254,7 +254,7 @@ class DAAL_EXPORT DistributedInput<step1Local> : public Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : Input(other) {}
@@ -275,7 +275,7 @@ class DAAL_EXPORT DistributedInput<step2Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -377,7 +377,7 @@ class DAAL_EXPORT PartialResult : public PartialResultBase
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
     /** Default constructor */
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
 
     using PartialResultBase::get;
     using PartialResultBase::set;
@@ -456,7 +456,7 @@ class DAAL_EXPORT DistributedPartialResultStep2 : public PartialResultBase
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep2)
     /** Default constructor */
-    DistributedPartialResultStep2();
+    DAAL_DEPRECATED DistributedPartialResultStep2();
 
     using PartialResultBase::get;
     using PartialResultBase::set;

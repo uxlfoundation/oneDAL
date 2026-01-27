@@ -303,7 +303,7 @@ class DAAL_EXPORT PartialResult : public daal::algorithms::PartialResult
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
     /** Default constructor */
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
     /** Default destructor */
     virtual ~PartialResult() {}
 
