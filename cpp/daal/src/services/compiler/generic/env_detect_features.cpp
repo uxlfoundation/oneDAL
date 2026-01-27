@@ -27,6 +27,11 @@
 
 #if defined(TARGET_X86_64)
     #include <immintrin.h>
+
+    #if defined(__GNUC__) || defined(__clang__)
+        #include <cpuid.h> // __cpuidex
+    #endif
+
 #elif defined(TARGET_ARM)
     #include <sys/auxv.h>
     #include <asm/hwcap.h>
@@ -54,10 +59,11 @@ void __daal_serv_CPUHasAVX512f_enable_it_mac();
 #if defined(TARGET_X86_64)
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd)
 {
-    #if defined(_MSC_VER)
-    __cpuidex((int *)abcd, eax, ecx);
+    #if defined(_MSC_VER) || (defined(__clang__) && __clang_major__ > 18) || (defined(__GNUC__) && !defined(__clang__))
+    __cpuidex(reinterpret_cast<int *>(abcd), eax, ecx);
     #else
-    uint32_t ebx, edx;
+
+    uint32_t ebx = 0, edx = 0;
         #if defined(__i386__) && defined(__PIC__)
     /* in case of PIC under 32-bit EBX cannot be clobbered */
     __asm__("movl %%ebx, %%edi \n\t cpuid \n\t xchgl %%ebx, %%edi" : "=D"(ebx), "+a"(eax), "+c"(ecx), "=d"(edx));
