@@ -25,6 +25,8 @@ Distributed DAAL Functionality
 The 2026.x releases are the last to provide it. The list of the deprecated DAAL distributed algorithms includes:
 
 - :ref:`Correlation and Variance-Covariance Matrices <cor_cov>`
+- :ref:`Density-Based Spatial Clustering of Applications with Noise (DBSCAN) <dbscan>`
+- :ref:`Implicit Alternating Least Squares <implicit_als>`
 - :ref:`K-Means Clustering <kmeans>`
 - :ref:`Linear <linear_regression>` and :ref:`Ridge <ridge>` Regression
 - :ref:`Moments of Low Order <moments_low_order>`

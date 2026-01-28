@@ -200,7 +200,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step1Local> : public InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other) : InputIface(other) {}
 
     virtual ~DistributedInput() {}
