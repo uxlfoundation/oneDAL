@@ -14,6 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
@@ -27,7 +28,6 @@ load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "tool",
     "artifact_name_pattern",
 )
-load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
