@@ -25,6 +25,7 @@ load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
     "action_config",
     "tool",
     "artifact_name_pattern",
+    "CcToolchainConfigInfo",
 )
 load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
 load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
