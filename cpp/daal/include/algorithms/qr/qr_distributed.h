@@ -162,7 +162,7 @@ public:
     typedef typename super::ResultType ResultType;
     typedef typename super::PartialResultType PartialResultType;
 
-    Distributed() : Online<algorithmFPType, method>() {}
+    DAAL_DEPRECATED Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
@@ -217,7 +217,7 @@ public:
     InputType input;         /*!< Input data structure */
     ParameterType parameter; /*!< QR parameters structure */
 
-    Distributed();
+    DAAL_DEPRECATED Distributed();
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters
      * of another QR decomposition algorithm
@@ -343,7 +343,7 @@ public:
     ParameterType parameter; /*!< QR parameters */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a QR decomposition algorithm by copying input objects and parameters

@@ -253,7 +253,7 @@ public:
     DistributedInput<step2Local> input; /*!< %Input data structure */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an algorithm for initializing the implicit ALS model by copying input objects

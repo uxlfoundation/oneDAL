@@ -387,7 +387,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step1Local> : public Input
 {
 public:
-    DistributedInput() : Input() {}
+    DAAL_DEPRECATED DistributedInput() : Input() {}
     DistributedInput(const DistributedInput & other)             = default;
     DistributedInput & operator=(const DistributedInput & other) = default;
 
@@ -403,7 +403,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step2Master> : public InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other);
     DistributedInput & operator=(const DistributedInput & other);
 
