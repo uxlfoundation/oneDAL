@@ -14,7 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
+load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
+load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
     "feature_set",
     "flag_group",
@@ -26,8 +27,10 @@ load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
     "tool",
     "artifact_name_pattern",
 )
-load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/toolchains:cc_toolchain_config_info.bzl", "CcToolchainConfigInfo")
 
 all_compile_actions = [
     ACTION_NAMES.c_compile,
@@ -1168,6 +1171,8 @@ def _impl(ctx):
         compiler = ctx.attr.compiler,
         abi_version = ctx.attr.abi_version,
         abi_libc_version = ctx.attr.abi_libc_version,
+        tool_paths = [],
+        make_variables = [],
     )
 
 cc_toolchain_config = rule(
@@ -1208,5 +1213,5 @@ cc_toolchain_config = rule(
         "cpu_flags_cc": attr.string_list_dict(),
         "cpu_flags_dpcc": attr.string_list_dict(),
     },
-    provides = [CcToolchainConfigInfo] if hasattr(cc_common, 'CcToolchainConfigInfo') else []
+    provides = [CcToolchainConfigInfo],
 )
