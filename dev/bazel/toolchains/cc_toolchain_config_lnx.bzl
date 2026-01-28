@@ -25,7 +25,6 @@ load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl",
     "action_config",
     "tool",
     "artifact_name_pattern",
-    "CcToolchainConfigInfo",
 )
 load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
 load("@onedal//dev/bazel/toolchains:action_names.bzl", "CPP_MERGE_STATIC_LIBRARIES")
@@ -1209,5 +1208,5 @@ cc_toolchain_config = rule(
         "cpu_flags_cc": attr.string_list_dict(),
         "cpu_flags_dpcc": attr.string_list_dict(),
     },
-    provides = [CcToolchainConfigInfo],
+    provides = [CcToolchainConfigInfo] if hasattr(cc_common, 'CcToolchainConfigInfo') else []
 )
