@@ -41,14 +41,29 @@
     #include <tbb/task.h>
 #endif
 
+#ifdef USE_STD_ALLOC
+    #include <cstdlib>
+#endif
+
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
 {
+#ifndef USE_STD_ALLOC
     return scalable_aligned_malloc(size, alignment);
+#else
+    if (size < alignment) size = alignment;
+    const size_t mod = size % alignment;
+    if (mod) size += alignment - mod;
+    return std::aligned_alloc(alignment, size);
+#endif
 }
 
 DAAL_EXPORT void _threaded_scalable_free(void * ptr)
 {
+#ifndef USE_STD_ALLOC
     scalable_aligned_free(ptr);
+#else
+    std::free(ptr);
+#endif
 }
 
 DAAL_EXPORT void _daal_tbb_task_scheduler_free(void *& globalControl)
