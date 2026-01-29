@@ -66,7 +66,7 @@ Applications on Linux* OS
 
      .. code-block:: text
 
-        <install dir>/mkl/latest/lib/libmkl_sycl.a
+        <install dir>/mkl/latest/lib/libmkl_sycl.so
 
 .. _app_on_win:
 
