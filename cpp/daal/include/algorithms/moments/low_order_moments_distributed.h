@@ -142,7 +142,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed() {}
+    DAAL_DEPRECATED Distributed() {}
 
     /**
      * Constructs an algorithm that computes moments of low order by copying input objects
@@ -200,7 +200,7 @@ public:
     ParameterType parameter;             /*!< %Parameters structure */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an algorithm that computes moments of low order by copying input objects
