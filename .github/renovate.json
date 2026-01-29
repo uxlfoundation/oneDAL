@@ -1,12 +1,7 @@
 {
-  "extends": [
-    "config:recommended",
-    ":preserveSemverRanges"
-  ],
+  "extends": ["config:recommended", ":preserveSemverRanges"],
   "pip_requirements": {
-    "fileMatch": [
-      "(^|/)docs/requirements.txt$"
-    ]
+    "managerFilePatterns": ["/(^|/)docs/requirements.txt$/"]
   },
   "packageRules": [
     {
@@ -33,14 +28,18 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/editorconfig-checker\\.sh$"],
+      "managerFilePatterns": ["/^\\.ci\\/env\\/editorconfig-checker\\.sh$/"],
       "matchStrings": ["VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "editorconfig-checker/editorconfig-checker",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/tbb.+$", "^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$", "^dev\\/download_tbb.sh"],
+      "managerFilePatterns": [
+        "/^\\.ci\\/env\\/tbb.+$/",
+        "/^(\\.github\\/workflows|\\.ci\\/pipeline)\\/ci.+$/",
+        "/^dev\\/download_tbb.sh/"
+      ],
       "matchStrings": [
         "\\s*TBB_DEFAULT_VERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
         "\\s*set\\s+TBBVERSION\\s*=\\s*['\"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)['\"]?",
@@ -51,14 +50,20 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/openblas\\.sh$"],
-      "matchStrings": ["BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"],
+      "managerFilePatterns": ["/^\\.ci\\/env\\/openblas\\.sh$/"],
+      "matchStrings": [
+        "BLAS_DEFAULT_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
       "depNameTemplate": "OpenMathLib/OpenBLAS",
       "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/bazelisk\\.sh$", "^dev\\/docker\\/onedal\\-dev\\.Dockerfile", "^dev\\/bazel\\/README\\.md"],
+      "managerFilePatterns": [
+        "/^\\.ci\\/env\\/bazelisk\\.sh$/",
+        "/^dev\\/docker\\/onedal\\-dev\\.Dockerfile/",
+        "/^dev\\/bazel\\/README\\.md/"
+      ],
       "matchStrings": [
         "BAZELISK_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
         "github\\.com/bazelbuild/bazelisk/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/bazelisk-[^\"' ]+"
@@ -68,7 +73,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "managerFilePatterns": ["/^\\.ci\\/env\\/apt\\.sh$/"],
       "matchStrings": [
         ".*\\b(?<depName>intel-oneapi-compiler-dpcpp-cpp)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
       ],
@@ -77,7 +82,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "managerFilePatterns": ["/^\\.ci\\/env\\/apt\\.sh$/"],
       "matchStrings": [
         ".*\\b(?<depName>intel-oneapi-mkl-devel)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
       ],
@@ -86,7 +91,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^\\.ci\\/env\\/apt\\.sh$"],
+      "managerFilePatterns": ["/^\\.ci\\/env\\/apt\\.sh$/"],
       "matchStrings": [
         ".*\\b(?<depName>intel-oneapi-tbb-devel)=(?<currentValue>\\d{4}\\.\\d+\\.\\d+-\\d+).*"
       ],
