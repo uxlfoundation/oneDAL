@@ -191,24 +191,29 @@ auto prepare_eigenvectors_svd(sycl::queue& queue,
     return trimmed;
 }
 
-///  A wrapper that flips 2d array of eigenvectors from the syevd result in necessary order
+/// Reorders eigenvalues and eigenvectors produced by SYEVD from ascending
+/// to descending order and keeps only the first `component_count` components.
+///
+/// LAPACK SYEVD returns eigenvalues in ascending order. This helper
+/// rearranges eigenpairs into descending order expected by PCA and
+/// truncates the result to the requested number of components.
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
 /// @param[in] queue The SYCL queue
 /// @param[in] eigenvalues The input eigenvalues in ascending order (1D)
-/// @param[in] eigenvectors The input eigenvectors (2D)
-/// @param[in] component_count The number of components to process
+/// @param[in] eigenvectors The input eigenvectors (2D, row-major)
+/// @param[in] component_count The number of leading components to keep
 /// @param[in] deps Events indicating availability of the data for reading or writing
 ///
-/// @return Tuple containing flipped eigenvalues (1D) and eigenvectors (2D)
+/// @return Tuple containing reordered eigenvalues (1D) and eigenvectors (2D)
 template <typename Float>
-auto flip_eigen_data(sycl::queue& queue,
-                     pr::ndview<Float, 1>& eigenvalues,
-                     pr::ndview<Float, 2>& eigenvectors,
-                     std::int64_t component_count,
-                     const bk::event_vector& deps = {}) {
-    // Get dimensions
+auto reorder_eigenpairs_descending(sycl::queue& queue,
+                                   pr::ndview<Float, 1>& eigenvalues,
+                                   pr::ndview<Float, 2>& eigenvectors,
+                                   std::int64_t component_count,
+                                   const bk::event_vector& deps = {}) {
+    // Dimensions
     const std::int64_t eigval_count = eigenvalues.get_dimension(0);
     const std::int64_t row_count = eigenvectors.get_dimension(0);
     const std::int64_t column_count = eigenvectors.get_dimension(1);
@@ -217,17 +222,17 @@ auto flip_eigen_data(sycl::queue& queue,
     auto eigval_ptr = eigenvalues.get_data();
     auto eigvec_ptr = eigenvectors.get_data();
 
-    // Create output arrays
-    auto flipped_eigenvalues =
+    // Output arrays
+    auto reordered_eigenvalues =
         pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
-    auto flipped_eigenvectors =
+    auto reordered_eigenvectors =
         pr::ndarray<Float, 2>::empty(queue, { component_count, column_count }, alloc::device);
 
     // Output pointers
-    auto flipped_eigval_ptr = flipped_eigenvalues.get_mutable_data();
-    auto flipped_eigvec_ptr = flipped_eigenvectors.get_mutable_data();
+    auto reordered_eigval_ptr = reordered_eigenvalues.get_mutable_data();
+    auto reordered_eigvec_ptr = reordered_eigenvectors.get_mutable_data();
 
-    auto flip_event = queue.submit([&](sycl::handler& h) {
+    auto reorder_event = queue.submit([&](sycl::handler& h) {
         const auto range = bk::make_range_2d(component_count, column_count + 1);
         h.depends_on(deps);
 
@@ -235,24 +240,26 @@ auto flip_eigen_data(sycl::queue& queue,
             const std::int64_t row = id[0];
             const std::int64_t col = id[1];
 
-            if (col == 0 && row < component_count) {
+            // Reorder eigenvalues (reverse order) and clamp negatives to zero
+            if (col == 0) {
                 Float val = eigval_ptr[(eigval_count - 1) - row];
-                if (val < 0) {
+                if (val < Float(0)) {
                     val = Float(0);
                 }
-                flipped_eigval_ptr[row] = val;
+                reordered_eigval_ptr[row] = val;
             }
 
-            if (col > 0 && col <= column_count) {
-                flipped_eigvec_ptr[row * column_count + (col - 1)] =
+            // Reorder eigenvectors rows accordingly
+            if (col > 0) {
+                reordered_eigvec_ptr[row * column_count + (col - 1)] =
                     eigvec_ptr[(row_count - 1 - row) * column_count + (col - 1)];
             }
         });
     });
 
-    flip_event.wait_and_throw();
+    reorder_event.wait_and_throw();
 
-    return std::make_tuple(flipped_eigenvalues, flipped_eigenvectors);
+    return std::make_tuple(reordered_eigenvalues, reordered_eigenvectors);
 }
 
 template <typename Float>
@@ -350,24 +357,31 @@ auto compute_explained_variances(sycl::queue& queue,
 
     const std::int64_t component_count = eigenvalues.get_dimension(0);
     const std::int64_t column_count = vars.get_dimension(0);
+
     auto explained_variances_ratio =
         pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
 
     auto eigvals_ptr = eigenvalues.get_data();
-    auto vars_host = vars.to_host(queue);
-    auto vars_ptr = vars_host.get_data();
+    auto vars_ptr = vars.get_data();
     auto explained_variances_ratio_ptr = explained_variances_ratio.get_mutable_data();
 
-    Float sum = 0;
-    for (std::int64_t i = 0; i < column_count; ++i) {
-        sum += vars_ptr[i];
-    }
+    auto sum_buf = pr::ndarray<Float, 1>::empty(queue, { 1 });
+    auto sum_ptr = sum_buf.get_mutable_data();
 
-    ONEDAL_ASSERT(sum > 0);
-    const Float inverse_sum = 1.0 / sum;
-
-    auto compute_event = queue.submit([&](sycl::handler& h) {
+    auto reduce_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
+
+        auto red = sycl::reduction(sum_ptr, sycl::plus<Float>());
+
+        h.parallel_for(sycl::range<1>(column_count), red, [=](sycl::id<1> i, auto& acc) {
+            acc += vars_ptr[i];
+        });
+    });
+    ONEDAL_ASSERT(sum_ptr[0] > 0);
+    const Float inverse_sum = Float(1) / sum_ptr[0];
+    auto compute_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(reduce_event);
+
         h.parallel_for(sycl::range<1>(component_count), [=](sycl::id<1> i) {
             explained_variances_ratio_ptr[i] = eigvals_ptr[i] * inverse_sum;
         });

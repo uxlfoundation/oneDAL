@@ -67,22 +67,22 @@ result_t train_kernel_precomputed_impl<Float>::operator()(const descriptor_t& de
                                        result_options::eigenvalues)) {
         auto [eigvals, syevd_event] = syevd_computation(q_, data_nd, {});
 
-        auto [flipped_eigvals, flipped_eigenvectors] =
-            flip_eigen_data(q_, eigvals, data_nd, component_count, { syevd_event });
+        auto [reordered_eigvals, reordered_eigenvectors] =
+            reorder_eigenpairs_descending(q_, eigvals, data_nd, component_count, { syevd_event });
 
         if (desc.get_result_options().test(result_options::eigenvalues)) {
             result.set_eigenvalues(
-                homogen_table::wrap(flipped_eigvals.flatten(q_, {}), 1, component_count));
+                homogen_table::wrap(reordered_eigvals.flatten(q_, {}), 1, component_count));
         }
 
         if (desc.get_deterministic()) {
-            sign_flip(q_, flipped_eigenvectors, {}).wait_and_throw();
+            sign_flip(q_, reordered_eigenvectors, {}).wait_and_throw();
         }
 
         if (desc.get_result_options().test(result_options::eigenvectors)) {
-            result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors.flatten(q_),
-                                                        flipped_eigenvectors.get_dimension(0),
-                                                        flipped_eigenvectors.get_dimension(1)));
+            result.set_eigenvectors(homogen_table::wrap(reordered_eigenvectors.flatten(q_),
+                                                        reordered_eigenvectors.get_dimension(0),
+                                                        reordered_eigenvectors.get_dimension(1)));
         }
     }
 

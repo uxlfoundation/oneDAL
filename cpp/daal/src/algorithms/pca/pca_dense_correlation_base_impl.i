@@ -192,6 +192,9 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // SYEVR branch
     // In this case, we compute only nComponents eigenvectors and then sort them in descending order
     // inside the 'computeEigenvectorsInplaceSyevr' function
+    // TODO: The 0.25 threshold is a temporary heuristic.
+    // It should be replaced with a tunable parameter exposed through
+    // the parameters
     if (nComponents < 0.25 * nFeatures)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, fullEigenvaluesArray);
@@ -264,12 +267,11 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeEigenvectorsIn
     DAAL_INT lwork  = -1;
     DAAL_INT liwork = -1;
 
-    TArray<DAAL_INT, cpu> dummy_isuppz(2);
-    DAAL_CHECK_MALLOC(dummy_isuppz.get());
+    DAAL_INT dummy_isuppz[2];
 
     LapackInst<algorithmFPType, cpu>::xsyevr(&jobz, &range, &uplo, (DAAL_INT *)(&nFeatures), eigenvectors, (DAAL_INT *)(&nFeatures), nullptr, nullptr,
-                                             &il, &iu, &abstol, &m, nullptr, nullptr, (DAAL_INT *)(&nFeatures), dummy_isuppz.get(), &work_query,
-                                             &lwork, &iwork_query, &liwork, &info);
+                                             &il, &iu, &abstol, &m, nullptr, nullptr, (DAAL_INT *)(&nFeatures), dummy_isuppz, &work_query, &lwork,
+                                             &iwork_query, &liwork, &info);
 
     lwork  = static_cast<DAAL_INT>(work_query);
     liwork = iwork_query;
