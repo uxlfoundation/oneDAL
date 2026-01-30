@@ -22,7 +22,8 @@
 #include "oneapi/dal/backend/primitives/frontier/bitset.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
+namespace pr = dal::backend::primitives;
 
 /// @brief A view of a frontier that provides an interface for the kernel to interact with the frontier data structure.
 /// \tparam ElementType the type of the elements in the frontier (e.g., std::uint32_t).
@@ -110,19 +111,19 @@ public:
                  static_cast<std::uint64_t>(_data_layer.get_count()) };
     }
 
-    inline ndview<ElementType, 1> get_data() const {
+    inline pr::ndview<ElementType, 1> get_data() const {
         return _data_layer;
     }
 
-    inline ndview<ElementType, 1> get_mlb() const {
+    inline pr::ndview<ElementType, 1> get_mlb() const {
         return _mlb_layer;
     }
 
-    inline ndview<std::uint32_t, 1> get_offsets() const {
+    inline pr::ndview<std::uint32_t, 1> get_offsets() const {
         return _offsets.slice(1, _offsets.get_count());
     }
 
-    inline ndview<std::uint32_t, 1> get_offsets_size() const {
+    inline pr::ndview<std::uint32_t, 1> get_offsets_size() const {
         return _offsets.slice(0, 1);
     }
 
@@ -153,10 +154,10 @@ private:
     sycl::queue& _queue;
     std::uint64_t _num_items;
 
-    ndarray<ElementType, 1> _data_layer;
-    ndarray<ElementType, 1> _mlb_layer;
-    ndarray<std::uint32_t, 1> _offsets;
-    ndarray<buffer_t, 1> _buffer;
+    pr::ndarray<ElementType, 1> _data_layer;
+    pr::ndarray<ElementType, 1> _mlb_layer;
+    pr::ndarray<std::uint32_t, 1> _offsets;
+    pr::ndarray<buffer_t, 1> _buffer;
     const std::uint64_t _TMP_VAR = 0;
     const std::uint64_t _CAF_FLAG =
         1; // Compute Active Frontier Flag (1 if already computed, 0 otherwise)
@@ -169,4 +170,4 @@ void swap_frontiers(frontier<ElementType>& f1, frontier<ElementType>& f2) {
     frontier<ElementType>::swap(f1, f2);
 }
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives

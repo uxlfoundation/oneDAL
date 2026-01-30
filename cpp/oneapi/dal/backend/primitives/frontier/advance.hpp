@@ -21,7 +21,7 @@
 #include "oneapi/dal/backend/primitives/frontier/graph.hpp"
 #include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
 
 /// frontier_context_state holds the state of the current processing group in the kernel
 /// It includes the group offset, coarsening factor, offsets size, and the SYCL
@@ -325,7 +325,7 @@ sycl::event advance(const GraphT& graph,
     using bitmap_kernel_t =
         bitmap_kernel<element_t, decltype(context), decltype(graph_dev), LambdaT>;
 
-    const uint32_t max_num_subgroups = device_max_sg_count(q);
+    const uint32_t max_num_subgroups = oneapi::dal::backend::device_max_sg_count(q);
 
     auto e = q.submit([&](sycl::handler& cgh) {
         cgh.depends_on(to_wait);
@@ -391,4 +391,4 @@ sycl::event advance(const GraphT& graph,
     return { e };
 }
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives
