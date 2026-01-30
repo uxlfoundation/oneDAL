@@ -110,12 +110,8 @@ manager classes:
 
 -  Text file (FileDataSource class), to be used with the
    CSVFeatureManager class
--  ODBC (ODBCDataSource class), to be used with the
-   MySQLFeatureManager class
 -  In-memory text (StringDataSource class), to be used with the
    CSVFeatureManager class
--  `KDB <https://kx.com/>`_ relational database (KDBDataSource class),
-   to be used with the KDBFeatureManager class
 
 CSVFeatureManager provides additional capabilities for features
 modification. Use addModifier() to enable specific modification when
@@ -174,10 +170,10 @@ range(…), all(), or allReverse() located in the namespace
 data_management::features. For example, you can use numerical or
 string identifiers to refer to the particular feature in the data
 set. A string identifier may correspond to a feature name (for
-instance, name in CSV header or in SQL table column name) and
+instance, name in CSV header) and
 numerical one to the index of a feature. The following code block
 shows several ways to define a feature subset. f1 , f2, and f4 are
-the names of the respective columns in CSV file or SQL table, and the
+the names of the respective columns in CSV file, and the
 numbers 0, 2 - 4 are the indices of columns starting from the left
 one.
 
@@ -233,7 +229,7 @@ has 3 output features.
   Feature Modifiers
 
 The |short_name| has several predefined feature modifiers available
-for CSV and SQL feature managers.
+for CSV feature manager.
 
 -  continuous - parses input values as real numbers, the number of
    output features is equal to the number of input features.
@@ -298,11 +294,6 @@ Feature modifier's lifetime consists of three stages:
 Note that exact set of methods available for Config and Context
 depends on the data source type. Please refer to Developer Reference
 to get detailed information about supported methods.
-
-Samples
--------
-
-- :cpp_sample:`mysql/sources/datasource_mysql.cpp`
 
 Examples
 --------
