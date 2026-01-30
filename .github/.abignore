@@ -20,7 +20,7 @@
 ; deselect threading layer functions
 
 [suppress_function]
-symbol_name = _daal_threader_for
+symbol_name = _daal_threader_for_int64
 drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
