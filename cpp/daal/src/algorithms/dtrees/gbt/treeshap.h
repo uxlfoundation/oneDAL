@@ -40,7 +40,6 @@
 
 #include "services/daal_defines.h"
 #include "services/error_handling.h"
-#include "src/algorithms/dtrees/dtrees_feature_type_helper.h"
 #include "src/algorithms/dtrees/gbt/gbt_model_impl.h"
 #include "src/services/service_arrays.h"
 #include "src/algorithms/dtrees/gbt/gbt_predict_dense_default_impl.i"
@@ -103,6 +102,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     if (conditionFraction < FLT_EPSILON) return;
 
     const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
+    const FeatureIndexType * const leftIds    = tree->getLeftChildIndexes() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
@@ -117,7 +117,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         extendPath(uniquePath, uniqueDepth, parentZeroFraction, parentOneFraction, parentFeatureIndex);
     }
 
-    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree, depth);
+    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree);
 
     // leaf node
     if (isLeaf)
@@ -136,8 +136,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     const algorithmFPType dataValue   = x[splitIndex];
 
     gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> dispatcher;
-    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, defaultLeft, *featureHelper, splitIndex, dispatcher);
-    const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+
+    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, leftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
+    const size_t coldIndex = leftIds[nodeIndex] + (hotIndex == leftIds[nodeIndex]);
 
     const float w = nodeCoverValues[nodeIndex];
     DAAL_ASSERT(w > 0);
@@ -246,6 +247,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     if (conditionFraction < FLT_EPSILON) return;
 
     const ModelFPType * const splitValues     = tree->getSplitPoints() - 1;
+    const FeatureIndexType * const leftIds    = tree->getLeftChildIndexes() - 1;
     const int * const defaultLeft             = tree->getDefaultLeftForSplit() - 1;
     const FeatureIndexType * const fIndexes   = tree->getFeatureIndexesForSplit() - 1;
     const ModelFPType * const nodeCoverValues = tree->getNodeCoverValues() - 1;
@@ -272,7 +274,7 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
         }
     }
 
-    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree, depth);
+    const bool isLeaf = gbt::internal::ModelImpl::nodeIsLeaf(nodeIndex, *tree);
 
     if (isLeaf)
     {
@@ -325,8 +327,9 @@ inline void treeShap(const gbt::internal::GbtDecisionTree * tree, const algorith
     const algorithmFPType dataValue   = x[splitIndex];
 
     gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing> dispatcher;
-    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, defaultLeft, *featureHelper, splitIndex, dispatcher);
-    const size_t coldIndex = 2 * nodeIndex + (hotIndex == (2 * nodeIndex));
+
+    size_t hotIndex        = updateIndex(nodeIndex, dataValue, splitValues, leftIds, defaultLeft, *featureHelper, splitIndex, dispatcher);
+    const size_t coldIndex = leftIds[nodeIndex] + (hotIndex == leftIds[nodeIndex]);
 
     const algorithmFPType w                = nodeCoverValues[nodeIndex];
     const algorithmFPType hotZeroFraction  = nodeCoverValues[hotIndex] / w;

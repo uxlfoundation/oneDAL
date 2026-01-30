@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 
-BAZELISK_VERSION=v1.27.0
+BAZELISK_VERSION=v1.28.1
 # collect information about the bazelisk release
 BAZELISK_JSON=$(wget -qO- \
   --header="Accept: application/vnd.github+json" \
