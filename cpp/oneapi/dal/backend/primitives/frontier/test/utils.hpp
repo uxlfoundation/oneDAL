@@ -26,7 +26,7 @@ void print_device_name(sycl::queue& queue) {
     std::cout << "Running on device: " << device_name << std::endl;
 }
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
 struct csr_graph_data {
     std::vector<std::uint32_t> row_ptr;
     std::vector<std::uint32_t> col_indices;
@@ -76,4 +76,4 @@ csr_graph_data generate_random_graph(std::uint64_t vertex_count,
     return { std::move(row_ptr), std::move(col_indices), std::move(weights) };
 }
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives

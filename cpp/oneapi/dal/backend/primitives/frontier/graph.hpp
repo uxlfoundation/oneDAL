@@ -22,7 +22,7 @@
 #include "oneapi/dal/graph/detail/container.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
 
 template <typename VertexT = std::uint32_t,
           typename EdgeT = std::uint32_t,
@@ -129,9 +129,9 @@ public:
         std::int64_t col_indices_size = static_cast<std::int64_t>(col_indices.size());
         std::int64_t weights_size = static_cast<std::int64_t>(weights.size());
 
-        _row_ptr = ndarray<vertex_t, 1>::empty(_queue, { row_ptr_size }, alloc);
-        _col_indices = ndarray<edge_t, 1>::empty(_queue, { col_indices_size }, alloc);
-        _weights = ndarray<weight_t, 1>::empty(_queue, { weights_size }, alloc);
+        _row_ptr = pr::ndarray<vertex_t, 1>::empty(_queue, { row_ptr_size }, alloc);
+        _col_indices = pr::ndarray<edge_t, 1>::empty(_queue, { col_indices_size }, alloc);
+        _weights = pr::ndarray<weight_t, 1>::empty(_queue, { weights_size }, alloc);
 
         auto e1 = dal::backend::copy_host2usm(_queue,
                                               _row_ptr.get_mutable_data(),
@@ -171,9 +171,9 @@ public:
 private:
     sycl::queue& _queue;
     std::uint64_t _num_nodes;
-    ndarray<vertex_t, 1> _row_ptr;
-    ndarray<edge_t, 1> _col_indices;
-    ndarray<weight_t, 1> _weights;
+    pr::ndarray<vertex_t, 1> _row_ptr;
+    pr::ndarray<edge_t, 1> _col_indices;
+    pr::ndarray<weight_t, 1> _weights;
 };
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives

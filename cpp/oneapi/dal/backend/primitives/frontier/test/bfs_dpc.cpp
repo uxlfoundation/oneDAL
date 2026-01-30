@@ -23,7 +23,7 @@
 #include <vector>
 #include <map>
 
-namespace oneapi::dal::backend::primitives::test {
+namespace oneapi::dal::preview::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
 
@@ -62,10 +62,9 @@ TEST("test BFS", "[bfs]") {
     const std::uint64_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
-    auto graph =
-        pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
-    auto in_frontier = pr::frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
-    auto out_frontier = pr::frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
+    auto graph = csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
+    auto in_frontier = frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
+    auto out_frontier = frontier<std::uint32_t>(queue, num_nodes, sycl::usm::alloc::device);
     pr::ndarray<std::uint32_t, 1> distance =
         pr::ndarray<std::uint32_t, 1>::empty(queue,
                                              { static_cast<std::int64_t>(num_nodes) },
@@ -87,19 +86,19 @@ TEST("test BFS", "[bfs]") {
 
     /// Start BFS
     while (!in_frontier.empty()) {
-        auto e = pr::advance(graph,
-                             in_frontier,
-                             out_frontier,
-                             [=](auto vertex, auto neighbor, auto edge, auto weight) {
-                                 bool visited = distance_ptr[neighbor] < num_nodes + 1;
-                                 if (!visited) {
-                                     distance_ptr[neighbor] = iter + 1;
-                                 }
-                                 return !visited;
-                             });
+        auto e = advance(graph,
+                         in_frontier,
+                         out_frontier,
+                         [=](auto vertex, auto neighbor, auto edge, auto weight) {
+                             bool visited = distance_ptr[neighbor] < num_nodes + 1;
+                             if (!visited) {
+                                 distance_ptr[neighbor] = iter + 1;
+                             }
+                             return !visited;
+                         });
         e.wait_and_throw();
         iter++;
-        pr::swap_frontiers(in_frontier, out_frontier);
+        swap_frontiers(in_frontier, out_frontier);
         out_frontier.clear();
     }
     /// End BFS
@@ -112,4 +111,4 @@ TEST("test BFS", "[bfs]") {
     }
 } // TEST "test advance operation"
 
-} // namespace oneapi::dal::backend::primitives::test
+} // namespace oneapi::dal::preview::backend::primitives::test

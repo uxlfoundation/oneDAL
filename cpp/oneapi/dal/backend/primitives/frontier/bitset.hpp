@@ -19,7 +19,7 @@
 
 #include "oneapi/dal/backend/memory.hpp"
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
 
 /// A bitset class that provides a set of operations on a bitset implemented using an array of integers.
 /// \tparam ElementType the type of the elements in the bitset (e.g., std::uint32_t).
@@ -119,4 +119,4 @@ private:
     std::uint64_t _num_items;
 };
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives

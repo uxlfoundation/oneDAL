@@ -19,7 +19,7 @@
 #include "oneapi/dal/backend/primitives/frontier/test/utils.hpp"
 #include "oneapi/dal/test/engine/common.hpp"
 
-namespace oneapi::dal::backend::primitives::test {
+namespace oneapi::dal::preview::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
 
@@ -39,7 +39,7 @@ TEST("frontier queue basic operations", "[frontier]") {
     print_device_name(queue);
 
     const std::uint64_t num_items = 100;
-    auto f = pr::frontier<std::uint32_t>(queue, num_items, sycl::usm::alloc::shared);
+    auto f = frontier<std::uint32_t>(queue, num_items, sycl::usm::alloc::shared);
 
     REQUIRE(f.empty() == true);
     f.insert(0);
@@ -71,4 +71,4 @@ TEST("frontier queue basic operations", "[frontier]") {
     REQUIRE(f.empty() == true);
 } // TEST "frontier queue operations"
 
-} // namespace oneapi::dal::backend::primitives::test
+} // namespace oneapi::dal::preview::backend::primitives::test

@@ -22,7 +22,7 @@
 
 #include "oneapi/dal/test/engine/common.hpp"
 
-namespace oneapi::dal::backend::primitives::test {
+namespace oneapi::dal::preview::backend::primitives::test {
 
 namespace pr = dal::backend::primitives;
 
@@ -81,12 +81,11 @@ TEST("test advance operation", "[advance]") {
     const std::uint64_t num_nodes = GENERATE(128, 512, 1024);
 
     const auto graph_data = generate_random_graph(num_nodes, edge_probability, seed);
-    auto graph =
-        pr::csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
+    auto graph = csr_graph(queue, graph_data.row_ptr, graph_data.col_indices, graph_data.weights);
     auto in_frontier =
-        pr::frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
+        frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
     auto out_frontier =
-        pr::frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
+        frontier<std::uint32_t>(queue, graph.get_vertex_count(), sycl::usm::alloc::device);
 
     std::vector<bool> host_frontier(num_nodes, false);
     std::mt19937 frontier_rng(seed ^ 0x9e3779b9u);
@@ -108,12 +107,12 @@ TEST("test advance operation", "[advance]") {
         host_frontier[fallback_vertex] = true;
     }
 
-    pr::advance(graph,
-                in_frontier,
-                out_frontier,
-                [=](auto vertex, auto neighbor, auto edge, auto weight) {
-                    return true; // Always advance
-                })
+    advance(graph,
+            in_frontier,
+            out_frontier,
+            [=](auto vertex, auto neighbor, auto edge, auto weight) {
+                return true; // Always advance
+            })
         .wait_and_throw();
 
     auto tmp_frontier =
@@ -121,4 +120,4 @@ TEST("test advance operation", "[advance]") {
     compare_frontiers(out_frontier, tmp_frontier, num_nodes);
 } // TEST "test advance operation"
 
-} // namespace oneapi::dal::backend::primitives::test
+} // namespace oneapi::dal::preview::backend::primitives::test

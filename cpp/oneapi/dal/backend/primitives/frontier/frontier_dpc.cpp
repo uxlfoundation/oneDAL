@@ -17,7 +17,7 @@
 
 #include "oneapi/dal/backend/primitives/frontier/frontier.hpp"
 
-namespace oneapi::dal::backend::primitives {
+namespace oneapi::dal::preview::backend::primitives {
 
 #ifdef ONEDAL_DATA_PARALLEL
 
@@ -29,13 +29,13 @@ frontier<ElementType>::frontier(sycl::queue& queue, std::uint64_t num_items, syc
                               bitset<ElementType>::element_bitsize;
     std::int64_t mlb_size = (array_size + bitset<ElementType>::element_bitsize - 1) /
                             bitset<ElementType>::element_bitsize;
-    _data_layer = ndarray<ElementType, 1>::empty(_queue, { array_size }, alloc);
-    _mlb_layer = ndarray<ElementType, 1>::empty(_queue, { mlb_size }, alloc);
-    _offsets = ndarray<std::uint32_t, 1>::empty(
+    _data_layer = pr::ndarray<ElementType, 1>::empty(_queue, { array_size }, alloc);
+    _mlb_layer = pr::ndarray<ElementType, 1>::empty(_queue, { mlb_size }, alloc);
+    _offsets = pr::ndarray<std::uint32_t, 1>::empty(
         _queue,
         { array_size + 1 },
         alloc); /// First offset is to keep the size of the frontier
-    _buffer = ndarray<std::uint32_t, 1>::empty(_queue, { 10 }, alloc);
+    _buffer = pr::ndarray<std::uint32_t, 1>::empty(_queue, { 10 }, alloc);
 
     sycl::event e1, e2, e3;
     e1 = _data_layer.fill(_queue, ElementType(0));
@@ -49,13 +49,13 @@ frontier<ElementType>::frontier(sycl::queue& queue, std::uint64_t num_items, syc
 
 template <typename ElementType>
 bool frontier<ElementType>::empty() {
-    ndview<std::uint32_t, 1> empty_buff = _buffer.slice(0, 1);
+    pr::ndview<std::uint32_t, 1> empty_buff = _buffer.slice(0, 1);
     auto copy_e = fill(_queue, empty_buff, buffer_t(0));
     auto* const empty_buff_ptr = empty_buff.get_mutable_data();
 
     auto e = _queue.submit([&](sycl::handler& cgh) {
         cgh.depends_on(copy_e);
-        const auto range = make_range_1d(_mlb_layer.get_count());
+        const auto range = oneapi::dal::backend::make_range_1d(_mlb_layer.get_count());
         auto sum_reduction = sycl::reduction(empty_buff_ptr, sycl::plus<>());
         auto* const f_ptr = _mlb_layer.get_mutable_data();
 
@@ -113,7 +113,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
 
     // check if local memory is enough
     bool use_local_mem =
-        device_local_mem_size(this->_queue) >=
+        oneapi::dal::backend::device_local_mem_size(this->_queue) >=
         static_cast<std::int64_t>(local_range * element_bitsize * sizeof(uint32_t));
 
     auto e0 = _queue.submit([&](sycl::handler& cgh) {
@@ -129,7 +129,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
         cgh.depends_on(e0);
 
         if (!use_local_mem) {
-            cgh.parallel_for(make_range_1d(_mlb_layer.get_count()),
+            cgh.parallel_for(oneapi::dal::backend::make_range_1d(_mlb_layer.get_count()),
                              [=,
                               offsets = offsets_pointer,
                               offsets_size = offsets_size_pointer,
@@ -157,7 +157,7 @@ inline sycl::event frontier<ElementType>::compute_active_frontier() {
             sycl::local_accessor<uint32_t, 1> local_size(1, cgh);
 
             cgh.parallel_for(
-                make_multiple_nd_range_1d(global_range, local_range),
+                oneapi::dal::backend::make_multiple_nd_range_1d(global_range, local_range),
                 [=,
                  offsets = offsets_pointer,
                  offsets_size = offsets_size_pointer,
@@ -216,4 +216,4 @@ INSTANTIATE(std::uint32_t)
 
 #endif
 
-} // namespace oneapi::dal::backend::primitives
+} // namespace oneapi::dal::preview::backend::primitives
