@@ -127,8 +127,7 @@ Status CholeskyKernel<algorithmFPType, method, cpu>::performCholesky(NumericTabl
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout)
 {
-    int layoutInt = int(layout);
-    return !((packed_mask & layoutInt) && (NumericTableIface::csrArray != layoutInt));
+    return (NumericTableIface::csrArray != int(layout));
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
