@@ -272,34 +272,6 @@ void printAprioriRules(daal::data_management::NumericTablePtr leftItemsTable,
     confidenceTable->releaseBlockOfRows(block3);
 }
 
-bool isFull(daal::data_management::NumericTableIface::StorageLayout layout) {
-    int layoutInt = (int)layout;
-    if (daal::data_management::packed_mask & layoutInt) {
-        return false;
-    }
-    return true;
-}
-
-bool isUpper(daal::data_management::NumericTableIface::StorageLayout layout) {
-    using daal::data_management::NumericTableIface;
-
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix ||
-        layout == NumericTableIface::upperPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
-bool isLower(daal::data_management::NumericTableIface::StorageLayout layout) {
-    using daal::data_management::NumericTableIface;
-
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix ||
-        layout == NumericTableIface::lowerPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
 template <typename T>
 void printArray(T *array,
                 const size_t nPrintedCols,
@@ -401,33 +373,14 @@ void printNumericTable(daal::data_management::NumericTable *dataTable,
     }
 
     BlockDescriptor<DAAL_DATA_TYPE> block;
-    if (isFull(layout) || layout == NumericTableIface::csrArray) {
-        dataTable->getBlockOfRows(0, nRows, readOnly, block);
-        printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                   nPrintedCols,
-                                   nPrintedRows,
-                                   nCols,
-                                   message,
-                                   interval);
-        dataTable->releaseBlockOfRows(block);
-    }
-    else {
-        PackedArrayNumericTableIface *packedTable =
-            dynamic_cast<PackedArrayNumericTableIface *>(dataTable);
-        packedTable->getPackedArray(readOnly, block);
-        if (isLower(layout)) {
-            printLowerArray<DAAL_DATA_TYPE>(block.getBlockPtr(), nPrintedRows, message, interval);
-        }
-        else if (isUpper(layout)) {
-            printUpperArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                            nPrintedCols,
-                                            nPrintedRows,
-                                            nCols,
-                                            message,
-                                            interval);
-        }
-        packedTable->releasePackedArray(block);
-    }
+    dataTable->getBlockOfRows(0, nRows, readOnly, block);
+    printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
+                                nPrintedCols,
+                                nPrintedRows,
+                                nCols,
+                                message,
+                                interval);
+    dataTable->releaseBlockOfRows(block);
 }
 
 void printNumericTable(daal::data_management::NumericTable &dataTable,
@@ -444,41 +397,6 @@ void printNumericTable(const daal::data_management::NumericTablePtr &dataTable,
                        size_t nPrintedCols = 0,
                        size_t interval = 10) {
     printNumericTable(dataTable.get(), message, nPrintedRows, nPrintedCols, interval);
-}
-
-void printPackedNumericTable(daal::data_management::NumericTable *dataTable,
-                             size_t nFeatures,
-                             const char *message = "",
-                             size_t interval = 10) {
-    using namespace daal::data_management;
-
-    BlockDescriptor<DAAL_DATA_TYPE> block;
-
-    dataTable->getBlockOfRows(0, 1, readOnly, block);
-
-    DAAL_DATA_TYPE *data = block.getBlockPtr();
-
-    std::cout << std::setiosflags(std::ios::left);
-    std::cout << message << std::endl;
-    size_t index = 0;
-    for (size_t i = 0; i < nFeatures; i++) {
-        for (size_t j = 0; j <= i; j++, index++) {
-            std::cout << std::setw(interval) << std::setiosflags(std::ios::fixed)
-                      << std::setprecision(3);
-            std::cout << data[index];
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
-    dataTable->releaseBlockOfRows(block);
-}
-
-void printPackedNumericTable(daal::data_management::NumericTable &dataTable,
-                             size_t nFeatures,
-                             const char *message = "",
-                             size_t interval = 10) {
-    printPackedNumericTable(&dataTable, nFeatures, message, interval);
 }
 
 /**

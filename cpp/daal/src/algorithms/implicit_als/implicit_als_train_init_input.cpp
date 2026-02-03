@@ -79,9 +79,7 @@ services::Status Input::check(const daal::algorithms::Parameter * parameter, int
 {
     if (method == defaultDense)
     {
-        const int unexpectedLayouts = (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix
-                                      | (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
-        return checkNumericTable(get(data).get(), dataStr(), unexpectedLayouts);
+        return checkNumericTable(get(data).get(), dataStr());
     }
     const int expectedLayout = (int)NumericTableIface::csrArray;
     return checkNumericTable(get(data).get(), dataStr(), 0, expectedLayout);
