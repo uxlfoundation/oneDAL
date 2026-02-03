@@ -106,18 +106,14 @@ services::Status DistributedInput<step1Local>::check(const daal::algorithms::Par
     DAAL_CHECK(usersModel, ErrorNullPartialModel);
     DAAL_CHECK(itemsModel, ErrorNullPartialModel);
 
-    const int unexpectedLayouts = (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix
-                                  | (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
-
-    const int unexpectedLayoutsIndices = unexpectedLayouts | (int)NumericTableIface::csrArray;
     services::Status s;
-    DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getFactors().get(), usersFactorsStr(), unexpectedLayouts, 0, nFactors));
+    DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getFactors().get(), usersFactorsStr(), 0, 0, nFactors));
     const size_t nRowsUsersModel = usersModel->getFactors()->getNumberOfRows();
-    DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getIndices().get(), usersIndicesStr(), unexpectedLayoutsIndices, 0, 1, nRowsUsersModel));
+    DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getIndices().get(), usersIndicesStr(), (int)NumericTableIface::csrArray, 0, 1, nRowsUsersModel));
 
-    DAAL_CHECK_STATUS(s, checkNumericTable(itemsModel->getFactors().get(), itemsFactorsStr(), unexpectedLayouts, 0, nFactors));
+    DAAL_CHECK_STATUS(s, checkNumericTable(itemsModel->getFactors().get(), itemsFactorsStr(), 0, 0, nFactors));
     const size_t nRowsItemsModel = itemsModel->getFactors()->getNumberOfRows();
-    return checkNumericTable(itemsModel->getIndices().get(), itemsIndicesStr(), unexpectedLayoutsIndices, 0, 1, nRowsItemsModel);
+    return checkNumericTable(itemsModel->getIndices().get(), itemsIndicesStr(), (int)NumericTableIface::csrArray, 0, 1, nRowsItemsModel);
 }
 
 } // namespace interface1

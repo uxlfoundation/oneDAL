@@ -93,15 +93,11 @@ Status Input::check(const daal::algorithms::Parameter * par, int method) const
 {
     DAAL_CHECK(Argument::size() == (lastInputId + 1), ErrorIncorrectNumberOfInputNumericTables);
 
-    const int unexpectedLayouts = (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix
-                                  | (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix;
-    const size_t nColumns = 2;
-    Status s;
-    DAAL_CHECK_STATUS(s, checkNumericTable(get(data).get(), dataStr(), unexpectedLayouts, 0, nColumns));
-
+    const size_t nColumns          = 2;
     const size_t nRows             = get(data)->getNumberOfRows();
     const Parameter * algParameter = static_cast<Parameter *>(const_cast<daal::algorithms::Parameter *>(par));
-
+    Status s;
+    DAAL_CHECK_STATUS(s, checkNumericTable(get(data).get(), dataStr(), 0, 0, nColumns));
     DAAL_CHECK_EX(algParameter->nUniqueItems <= nRows, ErrorIncorrectParameter, ParameterName, nUniqueItemsStr());
     DAAL_CHECK_EX(algParameter->nTransactions <= nRows, ErrorIncorrectParameter, ParameterName, nTransactionsStr());
     DAAL_CHECK_EX(

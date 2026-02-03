@@ -74,10 +74,7 @@ services::Status Input::checkImpl(const daal::algorithms::Parameter * parameter)
     {
         const NumericTablePtr dataForPruningTable = get(dataForPruning);
         DAAL_CHECK_STATUS(s, checkNumericTable(dataForPruningTable.get(), dataForPruningStr(), 0, 0, this->getNumberOfFeatures()));
-        const int unexpectedLabelsLayouts = (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix
-                                            | (int)NumericTableIface::upperPackedTriangularMatrix
-                                            | (int)NumericTableIface::lowerPackedTriangularMatrix;
-        DAAL_CHECK_STATUS(s, checkNumericTable(get(labelsForPruning).get(), labelsForPruningStr(), unexpectedLabelsLayouts, 0, 1,
+        DAAL_CHECK_STATUS(s, checkNumericTable(get(labelsForPruning).get(), labelsForPruningStr(), 0, 0, 1,
                                                dataForPruningTable->getNumberOfRows()));
     }
     else
