@@ -162,7 +162,7 @@ struct ColIndexTaskBins : public ColIndexTask<IndexType, algorithmFPType, cpu>
     *     BinParams::Strategy is used
     */
     virtual services::Status makeIndex(NumericTable & nt, IndexedFeatures::FeatureEntry & entry, IndexType * aRes, size_t iCol, size_t nRows,
-                                       bool bUnorderedFeature) DAAL_C11_OVERRIDE;
+                                       bool bUnorderedFeature) override;
     /* Function to create feature indices for Strategy == quantiles */
     services::Status makeIndexQuantiles(NumericTable & nt, IndexedFeatures::FeatureEntry & entry, IndexType * aRes, size_t iCol, size_t nRows);
     /* Function to create feature indices for Strategy == averages */

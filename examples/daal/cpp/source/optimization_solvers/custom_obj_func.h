@@ -72,7 +72,7 @@ struct Parameter : public daal::algorithms::optimization_solver::sum_of_function
      * Checks the correctness of the parameter
      * \return Status of computations
      */
-    virtual daal::services::Status check() const DAAL_C11_OVERRIDE {
+    virtual daal::services::Status check() const override {
         return super::check();
     }
 };
@@ -116,7 +116,7 @@ public:
      * \return Status of computations
      */
     daal::services::Status check(const daal::algorithms::Parameter *par,
-                                 int method) const DAAL_C11_OVERRIDE {
+                                 int method) const override {
         using namespace daal::data_management;
 
         super::check(par, method);
@@ -159,7 +159,7 @@ public:
      * Computes the result of the logistic loss objective function in the batch processing mode
      * \return Status of computations
      */
-    virtual daal::services::Status compute() DAAL_C11_OVERRIDE;
+    virtual daal::services::Status compute() override;
 };
 
 /**
@@ -201,7 +201,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE {
+    virtual int getMethod() const override {
         return 0;
     }
 
@@ -223,11 +223,11 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType> *cloneImpl() const DAAL_C11_OVERRIDE {
+    virtual Batch<algorithmFPType> *cloneImpl() const override {
         return new Batch<algorithmFPType>(*this);
     }
 
-    virtual daal::services::Status allocateResult() DAAL_C11_OVERRIDE {
+    virtual daal::services::Status allocateResult() override {
         daal::services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, 0);
         _res = _result.get();
         return s;

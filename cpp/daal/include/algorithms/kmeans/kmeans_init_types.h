@@ -298,7 +298,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 
     engines::EnginePtr engine; /*!< Engine to be used for generating random numbers for the initialization */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -342,14 +342,14 @@ public:
     * Returns the number of features in the Input data table
     * \return Number of features in the Input data table
     */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
     * Checks an input object for computing initial centroids for K-Means algorithm
     * \param[in] par     %Input object
     * \param[in] method  Method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     Input(size_t nElements);
@@ -402,14 +402,14 @@ public:
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks a partial result of computing initial centroids for K-Means algorithm
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -473,7 +473,7 @@ public:
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks the result of computing initial centroids for K-Means algorithm
@@ -481,7 +481,7 @@ public:
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -533,7 +533,7 @@ public:
      * Returns the number of features in the Input data table in the second step of the distributed processing mode
      * \return Number of features in the Input data table
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
      * Checks an input object for computing initial centroids for K-Means algorithm
@@ -541,7 +541,7 @@ public:
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -564,7 +564,7 @@ struct DAAL_EXPORT DistributedStep2LocalPlusPlusParameter : public Parameter
 
     bool firstIteration;         /*!< True if step2 is called for the first time */
     bool outputForStep5Required; /*!< True if the last iteration of parallelPlus algorithm processing is performed */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 
 /**
@@ -627,7 +627,7 @@ public:
     * \param[in] par     %Input object
     * \param[in] method  Method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -668,7 +668,7 @@ public:
     * \param[in] par     %Input object
     * \param[in] method  Method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -729,7 +729,7 @@ public:
     * \param[in] par     %Input object
     * \param[in] method  Method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -790,7 +790,7 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -848,14 +848,14 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Checks a partial result of computing initial centroids for K-Means algorithm
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Initializes the partial result data
@@ -932,14 +932,14 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Checks a partial result of computing initial centroids for K-Means algorithm
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Initializes the partial result data
@@ -1000,14 +1000,14 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Checks a partial result of computing initial centroids for K-Means algorithm
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -1060,14 +1060,14 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Checks a partial result of computing initial centroids for K-Means algorithm
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method of the algorithm
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -1100,7 +1100,7 @@ struct DAAL_EXPORT Parameter : public interface1::Parameter
 
     size_t nTrials; /*!< Kmeans++ only. The number of trials to generate all clusters but the first initial cluster. */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 
 } // namespace interface2

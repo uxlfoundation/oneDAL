@@ -193,7 +193,7 @@ public:
      * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -248,7 +248,7 @@ public:
      * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -285,7 +285,7 @@ public:
      * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -350,15 +350,14 @@ public:
     * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
     * Checks parameters of the algorithm
     * \param[in] parameter Pointer to the parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
      * Returns the number of columns in the input data set
@@ -439,8 +438,7 @@ public:
       * \param[in] par    Pointer to parameters
       * \param[in] method Computation method
       */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
     * Checks the result parameter of the QR algorithm
@@ -448,8 +446,7 @@ public:
     * \param[in] par     %Parameter of the algorithm
     * \param[in] method  Computation method
     */
-    virtual services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Allocates memory for storing final results of the QR decomposition algorithm
@@ -541,7 +538,7 @@ public:
     * \param[in] parameter Pointer to parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
       * Checks final results of the algorithm
@@ -549,8 +546,7 @@ public:
       * \param[in] parameter  Pointer to parameters
       * \param[in] method     Computation method
       */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */
@@ -614,15 +610,14 @@ public:
     * \param[in] parameter Pointer to parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
      * Checks partial results of the algorithm
      * \param[in] parameter Pointer to parameters
      * \param[in] method Computation method
      */
-    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */

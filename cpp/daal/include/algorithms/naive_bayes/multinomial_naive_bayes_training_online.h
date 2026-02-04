@@ -72,14 +72,14 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of naive Bayes model-based training
      * in the online processing mode
      *
      * \return Status of computations
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -128,13 +128,13 @@ public:
      * Get input objects for the multinomial naive Bayes training algorithm
      * \return %Input objects for the multinomial naive Bayes training algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of Naive Bayes training
@@ -181,9 +181,9 @@ public:
     ParameterType parameter; /*!< \ref interface1::Parameter "Parameters" of the training */
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, method>(*this); }
+    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         PartialResultPtr pres = getPartialResult();
         ResultPtr res         = services::staticPointerCast<ResultType, classifier::training::Result>(_result);
@@ -192,7 +192,7 @@ protected:
         return s;
     }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         PartialResultPtr pres = getPartialResult();
         services::Status s    = pres->template allocate<algorithmFPType>((classifier::training::InputIface *)(&input), &parameter, (int)method);
@@ -200,7 +200,7 @@ protected:
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         PartialResultPtr pres = getPartialResult();
         services::Status s    = pres->template initialize<algorithmFPType>((classifier::training::InputIface *)(&input), &parameter, (int)method);

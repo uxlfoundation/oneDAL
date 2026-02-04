@@ -79,12 +79,12 @@ public:
      * Computes a partial result of K-Means initialization algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of K-Means initialization algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -109,12 +109,12 @@ public:
      * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
      * distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of K-Means initialization algorithm in the 2nd step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -139,12 +139,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
     * distributed processing mode
     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 2nd step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -169,12 +169,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 3rd step of the
     * distributed processing mode
     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 3rd step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -198,12 +198,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 4th step of the
     * distributed processing mode
     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 4th step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -228,12 +228,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 5th step of the
     * distributed processing mode
     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 5th step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -322,7 +322,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -363,7 +363,7 @@ public:
     /**
      * Validates the parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
      * Returns a pointer to the newly allocated algorithm that computes initial clusters for K-Means algorithm
@@ -376,12 +376,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -389,7 +389,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -397,7 +397,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -452,7 +452,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -492,7 +492,7 @@ public:
     /**
      * Validates the parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE
+    services::Status checkFinalizeComputeParams() override
     {
         services::Status s;
         if (_partialResult)
@@ -530,12 +530,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -543,7 +543,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -558,7 +558,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -638,7 +638,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -661,7 +661,7 @@ public:
     /**
     * Validates the parameters of the finalizeCompute() method
     */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
     * Returns a pointer to the newly allocated algorithm that computes initial clusters for K-Means algorithm
@@ -674,14 +674,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new DistributedStep2LocalPlusPlusPartialResult());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -689,7 +689,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status initializePartialResult() override
     {
         _partialResult->initialize(&input, _par, (int)method);
         return services::Status();
@@ -754,7 +754,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -777,7 +777,7 @@ public:
     /**
     * Validates the parameters of the finalizeCompute() method
     */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
     * Returns a pointer to the newly allocated algorithm that computes initial clusters for K-Means algorithm
@@ -790,14 +790,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step3Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step3Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step3Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -805,7 +805,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status initializePartialResult() override
     {
         _partialResult->initialize(&input, _par, (int)method);
         return services::Status();
@@ -870,7 +870,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -893,7 +893,7 @@ public:
     /**
     * Validates the parameters of the finalizeCompute() method
     */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
     * Returns a pointer to the newly allocated algorithm that computes initial clusters for K-Means algorithm
@@ -906,14 +906,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step4Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -921,7 +921,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -984,7 +984,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -1025,7 +1025,7 @@ public:
     /**
     * Validates the parameters of the finalizeCompute() method
     */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
     * Returns a pointer to the newly allocated algorithm that computes initial clusters for K-Means algorithm
@@ -1038,12 +1038,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step5Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step5Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step5Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -1051,7 +1051,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -1059,7 +1059,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {

@@ -80,7 +80,7 @@ public:
      *
      * \return Status of computation
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -144,13 +144,13 @@ public:
      * Get input objects for the multi-class classifier prediction algorithm
      * \return %Input objects for the multi-class classifier prediction algorithm
      */
-    virtual InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual InputType * getInput() override { return &input; }
 
     /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)pmethod; }
+    virtual int getMethod() const override { return (int)pmethod; }
 
     /**
      * Returns the structure that contains computed prediction results
@@ -185,12 +185,9 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const DAAL_C11_OVERRIDE
-    {
-        return new Batch<algorithmFPType, pmethod, tmethod>(*this);
-    }
+    virtual Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const override { return new Batch<algorithmFPType, pmethod, tmethod>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())
                                  ->allocate<algorithmFPType>(&input, &parameter, static_cast<int>(pmethod), static_cast<int>(tmethod));

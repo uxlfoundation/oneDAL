@@ -129,7 +129,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskCSR : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskCSR() DAAL_C11_OVERRIDE {}
+    virtual ~SubTaskCSR() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskCSR * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable, const algorithmFPType * weights,
@@ -161,7 +161,7 @@ private:
     }
 
     virtual services::Status copyDataIntoSubtable(size_t nFeatures, size_t nVectors, int classIdx, algorithmFPType label, const algorithmFPType * y,
-                                                  size_t * originalIndicesMap, size_t & nRows) DAAL_C11_OVERRIDE;
+                                                  size_t * originalIndicesMap, size_t & nRows) override;
 
 private:
     TArray<size_t, cpu> _colIndicesX;
@@ -173,7 +173,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskDense : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskDense() DAAL_C11_OVERRIDE {}
+    virtual ~SubTaskDense() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskDense * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable,
@@ -200,7 +200,7 @@ private:
     }
 
     virtual services::Status copyDataIntoSubtable(size_t nFeatures, size_t nVectors, int classIdx, algorithmFPType label, const algorithmFPType * y,
-                                                  size_t * originalIndicesMap, size_t & nRows) DAAL_C11_OVERRIDE;
+                                                  size_t * originalIndicesMap, size_t & nRows) override;
 
 private:
     ReadRows<algorithmFPType, cpu> _mtX;

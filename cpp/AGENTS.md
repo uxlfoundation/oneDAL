@@ -30,7 +30,7 @@ oneDAL provides **two distinct C++ interfaces**:
 // DAAL - Multi-dimensional specialization for CPU optimization
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 // oneAPI - Type-safe dispatching with perfect forwarding

@@ -89,7 +89,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     /**
      * Checks a parameter of the Decision tree algorithm
      */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 
     VariableImportanceMode varImportance; /*!< Variable importance mode.
                                                Variable importance computation is not supported for current version of the library */
@@ -157,9 +157,9 @@ public:
 protected:
     Model(services::Status & st);
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 };
 
 typedef services::SharedPtr<Model> ModelPtr;

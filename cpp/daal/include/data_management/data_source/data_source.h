@@ -204,21 +204,21 @@ public:
 
     virtual ~DataSource() {}
 
-    DAAL_DEPRECATED_VIRTUAL DataSourceDictionary * getDictionary() DAAL_C11_OVERRIDE
+    DAAL_DEPRECATED_VIRTUAL DataSourceDictionary * getDictionary() override
     {
         services::Status s = checkDictionary();
         if (!s) return NULL;
         return _dict.get();
     }
 
-    DataSourceDictionaryPtr getDictionarySharedPtr() DAAL_C11_OVERRIDE
+    DataSourceDictionaryPtr getDictionarySharedPtr() override
     {
         services::Status s = checkDictionary();
         if (!s) return DataSourceDictionaryPtr();
         return _dict;
     }
 
-    services::Status setDictionary(DataSourceDictionary * dict) DAAL_C11_OVERRIDE
+    services::Status setDictionary(DataSourceDictionary * dict) override
     {
         if (_dict) return services::throwIfPossible(services::Status(services::ErrorDictionaryAlreadyAvailable));
 
@@ -229,12 +229,9 @@ public:
         return services::Status();
     }
 
-    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
-    {
-        return services::throwIfPossible(services::Status(services::ErrorMethodNotSupported));
-    }
+    services::Status createDictionaryFromContext() override { return services::throwIfPossible(services::Status(services::ErrorMethodNotSupported)); }
 
-    size_t loadDataBlock(size_t maxRows) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t maxRows) override
     {
         services::Status s = checkDictionary();
         s.add(checkNumericTable());
@@ -246,13 +243,13 @@ public:
         return loadDataBlock(maxRows, this->DataSource::_spnt.get());
     }
 
-    size_t loadDataBlock(size_t /*maxRows*/, NumericTable * /*nt*/) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t /*maxRows*/, NumericTable * /*nt*/) override
     {
         this->_status.add(services::throwIfPossible(services::ErrorMethodNotSupported));
         return 0;
     }
 
-    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows) override
     {
         services::Status s = checkDictionary();
         if (s) s.add(checkNumericTable());
@@ -264,13 +261,13 @@ public:
         return loadDataBlock(maxRows, rowOffset, fullRows, this->DataSource::_spnt.get());
     }
 
-    size_t loadDataBlock(size_t /*maxRows*/, size_t /*rowOffset*/, size_t /*fullRows*/, NumericTable * /*nt*/) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t /*maxRows*/, size_t /*rowOffset*/, size_t /*fullRows*/, NumericTable * /*nt*/) override
     {
         this->_status.add(services::throwIfPossible(services::ErrorMethodNotSupported));
         return 0;
     }
 
-    size_t loadDataBlock() DAAL_C11_OVERRIDE
+    size_t loadDataBlock() override
     {
         services::Status s = checkDictionary();
         if (s)
@@ -285,19 +282,19 @@ public:
         return loadDataBlock(this->DataSource::_spnt.get());
     }
 
-    size_t loadDataBlock(NumericTable * /*nt*/) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(NumericTable * /*nt*/) override
     {
         this->_status.add(services::throwIfPossible(services::ErrorMethodNotSupported));
         return 0;
     }
 
-    NumericTablePtr getNumericTable() DAAL_C11_OVERRIDE
+    NumericTablePtr getNumericTable() override
     {
         checkNumericTable();
         return _spnt;
     }
 
-    size_t getNumberOfColumns() DAAL_C11_OVERRIDE
+    size_t getNumberOfColumns() override
     {
         checkDictionary();
         return _dict ? _dict->getNumberOfFeatures() : 0;
@@ -322,7 +319,7 @@ public:
     */
     DAAL_DEPRECATED services::SharedPtr<services::ErrorCollection> getErrors() { return status().getCollection(); }
 
-    virtual size_t getNumericTableNumberOfColumns() DAAL_C11_OVERRIDE { return getNumberOfColumns(); }
+    virtual size_t getNumericTableNumberOfColumns() override { return getNumberOfColumns(); }
 
 protected:
     DataSourceDictionaryPtr _dict;
@@ -469,9 +466,9 @@ public:
 
     virtual ~DataSourceTemplate() {}
 
-    virtual void freeNumericTable() DAAL_C11_OVERRIDE { _spnt = NumericTablePtr(); }
+    virtual void freeNumericTable() override { _spnt = NumericTablePtr(); }
 
-    virtual services::Status allocateNumericTable() DAAL_C11_OVERRIDE
+    virtual services::Status allocateNumericTable() override
     {
         if (_spnt.get() != NULL) return services::throwIfPossible(services::Status(services::ErrorNumericTableAlreadyAllocated));
 

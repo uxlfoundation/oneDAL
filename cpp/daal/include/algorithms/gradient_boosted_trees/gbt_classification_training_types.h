@@ -95,7 +95,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter, public daal::algori
 {
     /** Default constructor */
     Parameter(size_t nClasses) : classifier::Parameter(nClasses), loss(crossEntropy), varImportance(0) {}
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
     LossFunctionType loss;     /*!< Loss function type */
     DAAL_UINT64 varImportance; /*!< 64 bit integer flag VariableImportanceModes that indicates the variable importance computation modes */
 };
@@ -162,7 +162,7 @@ public:
     * \param[in] method  Computation method
     * \return Status of checking
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

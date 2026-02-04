@@ -72,7 +72,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -110,7 +110,7 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    ~Batch() DAAL_C11_OVERRIDE { delete _par; }
+    ~Batch() override { delete _par; }
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm
@@ -127,26 +127,26 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Get input objects for the iterative solver algorithm
      * \return %Input objects for the iterative solver algorithm
      */
-    virtual iterative_solver::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual iterative_solver::Input * getInput() override { return &input; }
 
     /**
      * Get parameters of the iterative solver algorithm
      * \return Parameters of the iterative solver algorithm
      */
-    virtual iterative_solver::Parameter * getParameter() DAAL_C11_OVERRIDE { return &parameter(); }
+    virtual iterative_solver::Parameter * getParameter() override { return &parameter(); }
 
     /**
      * Creates user-allocated memory to store results of the iterative solver algorithm
      *
      * \return Status of computations
      */
-    virtual services::Status createResult() DAAL_C11_OVERRIDE
+    virtual services::Status createResult() override
     {
         _result = iterative_solver::ResultPtr(new ResultType());
         _res    = NULL;
@@ -167,9 +167,9 @@ public:
     static services::SharedPtr<Batch<algorithmFPType, method> > create();
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();

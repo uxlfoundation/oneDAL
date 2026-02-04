@@ -70,7 +70,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -110,7 +110,7 @@ public:
      * Returns method of the engine
      * \return Method of the engine
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of mcg59 engine
@@ -144,7 +144,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), NULL, (int)method);
         this->_res         = this->_result.get();
@@ -156,7 +156,7 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize()
     {

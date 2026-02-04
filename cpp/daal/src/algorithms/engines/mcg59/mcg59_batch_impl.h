@@ -44,23 +44,23 @@ public:
     typedef algorithms::engines::internal::BatchBaseImpl super2;
     BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_MCG59), super2(seed) {}
 
-    void * getState() DAAL_C11_OVERRIDE { return baseRng.getState(); }
+    void * getState() override { return baseRng.getState(); }
 
-    int getStateSize() const DAAL_C11_OVERRIDE { return baseRng.getStateSize(); }
+    int getStateSize() const override { return baseRng.getStateSize(); }
 
-    services::Status saveStateImpl(byte * dest) const DAAL_C11_OVERRIDE
+    services::Status saveStateImpl(byte * dest) const override
     {
         DAAL_CHECK(!baseRng.saveState((void *)dest), ErrorIncorrectErrorcodeFromGenerator);
         return services::Status();
     }
 
-    services::Status loadStateImpl(const byte * src) DAAL_C11_OVERRIDE
+    services::Status loadStateImpl(const byte * src) override
     {
         DAAL_CHECK(!baseRng.loadState((const void *)src), ErrorIncorrectErrorcodeFromGenerator);
         return services::Status();
     }
 
-    services::Status leapfrogImpl(size_t threadNum, size_t nThreads) DAAL_C11_OVERRIDE
+    services::Status leapfrogImpl(size_t threadNum, size_t nThreads) override
     {
         int errcode = baseRng.leapfrog(threadNum, nThreads);
         services::Status s;
@@ -71,7 +71,7 @@ public:
         return s;
     }
 
-    services::Status skipAheadImpl(size_t nSkip) DAAL_C11_OVERRIDE
+    services::Status skipAheadImpl(size_t nSkip) override
     {
         int errcode = baseRng.skipAhead(nSkip);
         services::Status s;
@@ -82,12 +82,9 @@ public:
         return s;
     }
 
-    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
-    {
-        return new BatchImpl<cpu, algorithmFPType, method>(*this);
-    }
+    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
-    bool hasSupport(engines::internal::ParallelizationTechnique technique) const DAAL_C11_OVERRIDE
+    bool hasSupport(engines::internal::ParallelizationTechnique technique) const override
     {
         switch (technique)
         {

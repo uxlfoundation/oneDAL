@@ -98,7 +98,7 @@ public:
     services::SharedPtr<Batch> clone() const { return services::SharedPtr<Batch>(cloneImpl()); }
 
 protected:
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual Batch * cloneImpl() const override = 0;
 
 private:
     Batch & operator=(const Batch &);

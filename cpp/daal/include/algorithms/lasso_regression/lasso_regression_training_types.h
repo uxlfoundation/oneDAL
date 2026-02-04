@@ -153,7 +153,7 @@ struct DAAL_EXPORT Parameter : public linear_model::Parameter
           optResultToCompute(o.optResultToCompute)
     {}
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 
     data_management::NumericTablePtr lassoParameters; /*!< Numeric table that contains values of lasso parameters */
 
@@ -245,13 +245,13 @@ public:
      * Returns the number of columns in the input data set
      * \return Number of columns in the input data set
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
     * Returns the number of dependent variables
     * \return Number of dependent variables
     */
-    size_t getNumberOfDependentVariables() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfDependentVariables() const override;
 
     /**
     * Checks an input object for the lasso regression algorithm
@@ -260,7 +260,7 @@ public:
     *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -321,7 +321,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

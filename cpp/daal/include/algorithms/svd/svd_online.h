@@ -67,12 +67,12 @@ public:
      * Computes a partial result of the SVD algorithm in the online processing mode
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of the SVD algorithm in the online processing mode
      * \return Status of computations
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -115,7 +115,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results of the SVD algorithm
@@ -159,7 +159,7 @@ public:
      * Validates parameters of the finalizeCompute() method
      * \return Status of computations
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE
+    services::Status checkFinalizeComputeParams() override
     {
         if (_partialResult)
         {
@@ -183,9 +183,9 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, method>(*this); }
+    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, 0, 0);
@@ -193,7 +193,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(_in, 0, 0);
@@ -201,7 +201,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(_in, 0, 0);
         _pres              = _partialResult.get();

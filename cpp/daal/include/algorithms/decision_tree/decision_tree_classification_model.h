@@ -116,7 +116,7 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
     *  Perform Depth First Traversal of tree
@@ -147,9 +147,9 @@ public:
 protected:
     Model(size_t nFeatures, services::Status & st);
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
 private:
     ModelImplPtr _impl; /*!< Model implementation */
@@ -199,7 +199,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     /**
      * Checks a parameter of the Decision tree algorithm
      */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 
     Pruning pruning;                   /*!< Pruning method for Decision tree */
     size_t maxTreeDepth;               /*!< Maximum tree depth. 0 means unlimited depth. */

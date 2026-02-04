@@ -49,7 +49,7 @@ class ZScoreKernel<algorithmFPType, sumDense, cpu> : public ZScoreKernelBase<alg
 {
 public:
     Status computeMeanVariance_thr(NumericTable & inputTable, algorithmFPType * resultMean, algorithmFPType * resultVariance,
-                                   const daal::algorithms::Parameter & parameter) DAAL_C11_OVERRIDE;
+                                   const daal::algorithms::Parameter & parameter) override;
 };
 
 } // namespace internal

@@ -354,7 +354,7 @@ public:
     ModelImpl(const ModelImpl & other)             = default;
     ModelImpl & operator=(const ModelImpl & other) = default;
 
-    ~ModelImpl() DAAL_C11_OVERRIDE;
+    ~ModelImpl() override;
     size_t size() const;
     bool reserve(const size_t nTrees);
     bool resize(const size_t nTrees);

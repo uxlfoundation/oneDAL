@@ -82,7 +82,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
     size_t maxIterations;                                                     /*!< Maximal number of terms in additive regression */
     double weightsDegenerateCasesThreshold;                                   /*!< Threshold to avoid degenerate cases when  calculating weights W */
     double responsesDegenerateCasesThreshold; /*!< Threshold to avoid degenerate cases when  calculating responses Z */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -156,7 +156,7 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return _nFeatures; }
+    size_t getNumberOfFeatures() const override { return _nFeatures; }
 
     /**
      * Sets the number of iterations for the algorithm

@@ -116,11 +116,11 @@ struct MSETaskAll : public MSETask<algorithmFPType, cpu>
                NumericTable * gradient, Parameter * parameter, size_t blockSizeDefault);
     virtual ~MSETaskAll();
 
-    virtual Status init(algorithmFPType *& pArgumentArray) DAAL_C11_OVERRIDE;
+    virtual Status init(algorithmFPType *& pArgumentArray) override;
 
     virtual Status getCurrentBlock(size_t startIdx, size_t blockSize, algorithmFPType *& pBlockData,
-                                   algorithmFPType *& pBlockDependentVariables) DAAL_C11_OVERRIDE;
-    virtual void releaseCurrentBlock() DAAL_C11_OVERRIDE;
+                                   algorithmFPType *& pBlockDependentVariables) override;
+    virtual void releaseCurrentBlock() override;
 };
 
 template <typename algorithmFPType, CpuType cpu>
@@ -158,10 +158,10 @@ struct MSETaskSample : public MSETask<algorithmFPType, cpu>
                   NumericTable * gradient, Parameter * parameter, size_t blockSizeDefault);
     virtual ~MSETaskSample();
 
-    virtual Status init(algorithmFPType *& pArgumentArray) DAAL_C11_OVERRIDE;
+    virtual Status init(algorithmFPType *& pArgumentArray) override;
     virtual Status getCurrentBlock(size_t startIdx, size_t blockSize, algorithmFPType *& pBlockData,
-                                   algorithmFPType *& pBlockDependentVariables) DAAL_C11_OVERRIDE;
-    virtual void releaseCurrentBlock() DAAL_C11_OVERRIDE;
+                                   algorithmFPType *& pBlockDependentVariables) override;
+    virtual void releaseCurrentBlock() override;
 
     NumericTable * ntIndices;
     BlockDescriptor<int> indicesBlock;

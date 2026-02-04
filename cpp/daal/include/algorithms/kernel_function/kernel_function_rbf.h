@@ -70,7 +70,7 @@ public:
     /**
      * Computes the result of the RBF kernel algorithm in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -119,19 +119,19 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Get input objects for the kernel function algorithm
      * \return %Input objects for the kernel function algorithm
      */
-    virtual InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual InputType * getInput() override { return &input; }
 
     /**
      * Get parameters of the kernel function algorithm
      * \return Parameters of the kernel function algorithm
      */
-    virtual ParameterBase * getParameter() DAAL_C11_OVERRIDE { return &parameter; }
+    virtual ParameterBase * getParameter() override { return &parameter; }
 
     /**
      * Returns a pointer to the newly allocated RBF kernel function algorithm with a copy of input objects
@@ -147,9 +147,9 @@ protected:
         _in  = &input;
         _par = &parameter;
     }
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();

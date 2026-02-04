@@ -51,7 +51,7 @@ class OutputDataArchive;
 class DAAL_EXPORT SerializationIface : public Base
 {
 public:
-    virtual ~SerializationIface() DAAL_C11_OVERRIDE {}
+    virtual ~SerializationIface() override {}
 
     /**
      *  Performs serialization
@@ -110,14 +110,14 @@ using interface1::SerializationDesc;
 
 } // namespace data_management
 } // namespace daal
-#define DECLARE_SERIALIZABLE_IMPL()                                                                     \
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE          \
-    {                                                                                                   \
-        return serialImpl<data_management::InputDataArchive, false>(arch);                              \
-    }                                                                                                   \
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE \
-    {                                                                                                   \
-        return serialImpl<const data_management::OutputDataArchive, true>(arch);                        \
+#define DECLARE_SERIALIZABLE_IMPL()                                                            \
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override          \
+    {                                                                                          \
+        return serialImpl<data_management::InputDataArchive, false>(arch);                     \
+    }                                                                                          \
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override \
+    {                                                                                          \
+        return serialImpl<const data_management::OutputDataArchive, true>(arch);               \
     }
 
 #define DECLARE_SERIALIZABLE()                       \
@@ -127,7 +127,7 @@ private:                                             \
 public:                                              \
     DECLARE_SERIALIZABLE_IMPL()                      \
     static int serializationTag();                   \
-    virtual int getSerializationTag() const DAAL_C11_OVERRIDE;
+    virtual int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_IFACE()                 \
 private:                                             \
@@ -135,12 +135,12 @@ private:                                             \
                                                      \
 public:                                              \
     static int serializationTag();                   \
-    virtual int getSerializationTag() const DAAL_C11_OVERRIDE;
+    virtual int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_TAG() \
 public:                            \
     static int serializationTag(); \
-    virtual int getSerializationTag() const DAAL_C11_OVERRIDE;
+    virtual int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_CAST(ClassName) \
     DECLARE_SERIALIZABLE()                   \

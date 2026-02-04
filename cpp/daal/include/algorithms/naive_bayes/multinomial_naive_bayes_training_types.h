@@ -128,7 +128,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
     * Checks partial result of the naive Bayes training algorithm
@@ -137,7 +137,7 @@ public:
     *
      * \return Status of computations
     */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */
@@ -205,7 +205,7 @@ public:
      * \return Status of computations
     */
     services::Status check(const daal::algorithms::PartialResult * partialResult, const daal::algorithms::Parameter * parameter,
-                           int method) const DAAL_C11_OVERRIDE;
+                           int method) const override;
 
     /**
      * Checks the final result of the naive Bayes training algorithm
@@ -215,7 +215,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */
@@ -242,7 +242,7 @@ public:
 
     virtual ~DistributedInput() {}
 
-    virtual size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    virtual size_t getNumberOfFeatures() const override;
 
     /**
      * Returns input objects of the classification algorithm in the distributed processing mode
@@ -270,7 +270,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Algorithm method
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -291,7 +291,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Algorithm method
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 } // namespace interface1

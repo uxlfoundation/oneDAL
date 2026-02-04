@@ -129,12 +129,9 @@ public:
     */
     bool resize(size_t newCapacity);
 
-    services::Status serializeImpl(interface1::InputDataArchive * arch) DAAL_C11_OVERRIDE
-    {
-        return serialImpl<interface1::InputDataArchive, false>(arch);
-    }
+    services::Status serializeImpl(interface1::InputDataArchive * arch) override { return serialImpl<interface1::InputDataArchive, false>(arch); }
 
-    services::Status deserializeImpl(const interface1::OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const interface1::OutputDataArchive * arch) override
     {
         return serialImpl<const interface1::OutputDataArchive, true>(arch);
     }
@@ -282,13 +279,10 @@ public:
     virtual ~SerializableKeyValueCollection() {}
 
     /** \private */
-    services::Status serializeImpl(interface1::InputDataArchive * arch) DAAL_C11_OVERRIDE
-    {
-        return serialImpl<interface1::InputDataArchive, false>(arch);
-    }
+    services::Status serializeImpl(interface1::InputDataArchive * arch) override { return serialImpl<interface1::InputDataArchive, false>(arch); }
 
     /** \private */
-    services::Status deserializeImpl(const interface1::OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const interface1::OutputDataArchive * arch) override
     {
         return serialImpl<const interface1::OutputDataArchive, true>(arch);
     }

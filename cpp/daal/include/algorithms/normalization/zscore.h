@@ -72,7 +72,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -155,7 +155,7 @@ protected:
         _result = ResultPtr(new ResultType());
         _in     = &input;
     }
-    virtual BatchImpl * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual BatchImpl * cloneImpl() const override = 0;
 
 private:
     BatchImpl & operator=(const BatchImpl &);
@@ -196,32 +196,32 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /** Destructor */
-    virtual ~Batch() DAAL_C11_OVERRIDE { delete _par; }
+    virtual ~Batch() override { delete _par; }
 
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm
     */
-    virtual ParameterType & parameter() DAAL_C11_OVERRIDE { return *static_cast<ParameterType *>(_par); }
+    virtual ParameterType & parameter() override { return *static_cast<ParameterType *>(_par); }
 
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm
     */
-    virtual const ParameterType & parameter() const DAAL_C11_OVERRIDE { return *static_cast<const ParameterType *>(_par); }
+    virtual const ParameterType & parameter() const override { return *static_cast<const ParameterType *>(_par); }
 
     /**
     * Returns the pointer to parameter
     * \return Pointer to parameter
     * \DAAL_DEPRECATED_USE{ Batch::parameter }
     */
-    DAAL_DEPRECATED_VIRTUAL virtual BaseParameter * getParameter() DAAL_C11_OVERRIDE { return &(this->Batch::parameter()); }
+    DAAL_DEPRECATED_VIRTUAL virtual BaseParameter * getParameter() override { return &(this->Batch::parameter()); }
 
     /**
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated z-score normalization algorithm
@@ -231,9 +231,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &(this->Batch::parameter()), method);
         _res               = _result.get();

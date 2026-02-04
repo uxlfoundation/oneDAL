@@ -71,7 +71,7 @@ public:
         _bCancelled = false;
     }
 
-    virtual bool isCancelled() DAAL_C11_OVERRIDE {
+    virtual bool isCancelled() override {
         if (_bCancelled)
             return true;
         time_t now;

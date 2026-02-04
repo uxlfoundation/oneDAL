@@ -215,7 +215,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -265,7 +265,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /**
@@ -310,7 +310,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -377,9 +377,9 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
     size_t getNumberOfColumns() const;
 
@@ -452,7 +452,7 @@ public:
       * \param[in] method Computation method
       * \return Errors detected while checking
       */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks the result parameter of the SVD algorithm
@@ -460,7 +460,7 @@ public:
      * \param[in] par     %Parameter of the algorithm
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Allocates memory to store final results of the SVD algorithm
@@ -560,7 +560,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
      * Checks final results of the algorithm
@@ -569,7 +569,7 @@ public:
      * \param[in] method    Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */
@@ -634,7 +634,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
      * Checks partial results of the algorithm
@@ -642,7 +642,7 @@ public:
      * \param[in] method Computation method
      * \return Errors detected while checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */

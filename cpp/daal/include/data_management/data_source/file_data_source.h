@@ -98,7 +98,7 @@ public:
     }
 
 public:
-    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
+    services::Status createDictionaryFromContext() override
     {
         services::Status s = super::createDictionaryFromContext();
         fseek(_file, 0, SEEK_SET);
@@ -106,10 +106,10 @@ public:
         return s;
     }
 
-    DataSourceIface::DataSourceStatus getStatus() DAAL_C11_OVERRIDE { return (iseof() ? DataSourceIface::endOfData : DataSourceIface::readyForLoad); }
+    DataSourceIface::DataSourceStatus getStatus() override { return (iseof() ? DataSourceIface::endOfData : DataSourceIface::readyForLoad); }
 
 protected:
-    bool iseof() const DAAL_C11_OVERRIDE { return (_fileBufferPos == _readedFromFileLen && feof(_file)); }
+    bool iseof() const override { return (_fileBufferPos == _readedFromFileLen && feof(_file)); }
 
     bool readLine(char * buffer, int count, int & pos)
     {
@@ -144,7 +144,7 @@ protected:
         return bRes;
     }
 
-    services::Status readLine() DAAL_C11_OVERRIDE
+    services::Status readLine() override
     {
         _rawLineLength = 0;
         while (!iseof())

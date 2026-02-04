@@ -137,10 +137,10 @@ public:
     }
 
     /** \private */
-    services::Status serializeImpl(InputDataArchive * arch) DAAL_C11_OVERRIDE { return serialImpl<InputDataArchive, false>(arch); }
+    services::Status serializeImpl(InputDataArchive * arch) override { return serialImpl<InputDataArchive, false>(arch); }
 
     /** \private */
-    services::Status deserializeImpl(const OutputDataArchive * arch) DAAL_C11_OVERRIDE { return serialImpl<const OutputDataArchive, true>(arch); }
+    services::Status deserializeImpl(const OutputDataArchive * arch) override { return serialImpl<const OutputDataArchive, true>(arch); }
 
     /** \private */
     template <typename Archive, bool onDeserialize>
@@ -229,7 +229,7 @@ public:
         return status;
     }
 
-    DAAL_EXPORT virtual int getSerializationTag() const DAAL_C11_OVERRIDE { return SERIALIZATION_DATAFEATURE_NT_ID; }
+    DAAL_EXPORT virtual int getSerializationTag() const override { return SERIALIZATION_DATAFEATURE_NT_ID; }
 
     features::IndexNumType getIndexType() const { return ntFeature.indexType; }
 
