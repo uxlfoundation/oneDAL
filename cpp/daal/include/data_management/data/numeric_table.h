@@ -483,10 +483,10 @@ public:
      */
     enum StorageLayout
     {
-        soa                         = 1, // 1
-        aos                         = 2, // 2
-        csrArray                    = 1 << 4,
-        arrow                       = 8 << 8,
+        soa      = 1, // 1
+        aos      = 2, // 2
+        csrArray = 1 << 4,
+        arrow    = 8 << 8,
 
         layout_unknown = 0x80000000 // the last bit set
     };

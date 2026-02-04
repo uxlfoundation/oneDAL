@@ -109,7 +109,8 @@ services::Status DistributedInput<step1Local>::check(const daal::algorithms::Par
     services::Status s;
     DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getFactors().get(), usersFactorsStr(), 0, 0, nFactors));
     const size_t nRowsUsersModel = usersModel->getFactors()->getNumberOfRows();
-    DAAL_CHECK_STATUS(s, checkNumericTable(usersModel->getIndices().get(), usersIndicesStr(), (int)NumericTableIface::csrArray, 0, 1, nRowsUsersModel));
+    DAAL_CHECK_STATUS(s,
+                      checkNumericTable(usersModel->getIndices().get(), usersIndicesStr(), (int)NumericTableIface::csrArray, 0, 1, nRowsUsersModel));
 
     DAAL_CHECK_STATUS(s, checkNumericTable(itemsModel->getFactors().get(), itemsFactorsStr(), 0, 0, nFactors));
     const size_t nRowsItemsModel = itemsModel->getFactors()->getNumberOfRows();

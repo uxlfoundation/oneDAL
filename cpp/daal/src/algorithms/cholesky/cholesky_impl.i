@@ -75,8 +75,7 @@ Status CholeskyKernel<algorithmFPType, method, cpu>::copyMatrix(NumericTableIfac
 {
     if (isFull<algorithmFPType, cpu>(rLayout))
     {
-        if (copyToFullMatrix(iLayout, pA, pL, dim))
-            return Status();
+        if (copyToFullMatrix(iLayout, pA, pL, dim)) return Status();
     }
     return Status(ErrorIncorrectTypeOfInputNumericTable);
 }

@@ -356,7 +356,6 @@ void printNumericTable(daal::data_management::NumericTable *dataTable,
 
     size_t nRows = dataTable->getNumberOfRows();
     size_t nCols = dataTable->getNumberOfColumns();
-    NumericTableIface::StorageLayout layout = dataTable->getDataLayout();
 
     if (nPrintedRows != 0) {
         nPrintedRows = std::min(nRows, nPrintedRows);
@@ -375,11 +374,11 @@ void printNumericTable(daal::data_management::NumericTable *dataTable,
     BlockDescriptor<DAAL_DATA_TYPE> block;
     dataTable->getBlockOfRows(0, nRows, readOnly, block);
     printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                nPrintedCols,
-                                nPrintedRows,
-                                nCols,
-                                message,
-                                interval);
+                               nPrintedCols,
+                               nPrintedRows,
+                               nCols,
+                               message,
+                               interval);
     dataTable->releaseBlockOfRows(block);
 }
 

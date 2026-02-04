@@ -216,8 +216,7 @@ namespace interface1
 {
 IMPLEMENT_SERIALIZABLE_TAG1T_SPECIALIZATION(SerializableKeyValueCollection, SerializationIface, SERIALIZATION_KEYVALUEDATACOLLECTION_ID)
 
-#define DAAL_INSTANTIATE_SER_TAG(T)                                                                                                                 \
-    IMPLEMENT_SERIALIZABLE_TAG1T(HomogenNumericTable, T, SERIALIZATION_HOMOGEN_NT_ID)
+#define DAAL_INSTANTIATE_SER_TAG(T) IMPLEMENT_SERIALIZABLE_TAG1T(HomogenNumericTable, T, SERIALIZATION_HOMOGEN_NT_ID)
 
 DAAL_INSTANTIATE_SER_TAG(float)
 DAAL_INSTANTIATE_SER_TAG(double)
