@@ -58,6 +58,7 @@ class reduction_rm_test_random : public te::float_algo_fixture<std::tuple_elemen
 public:
     using float_t = std::tuple_element_t<0, Param>;
     using binary_t = std::tuple_element_t<1, Param>;
+    using acc_t = bin_op_t<binary_t>;
     using unary_t = std::tuple_element_t<2, Param>;
 
     void generate() {
@@ -156,7 +157,6 @@ public:
     }
 
     void test_raw_rw_reduce_narrow() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_rw_narrow<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
@@ -173,7 +173,6 @@ public:
     }
 
     void test_raw_rw_reduce_wide() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_rw_wide<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
@@ -190,7 +189,6 @@ public:
     }
 
     void test_raw_rw_reduce_wrapper() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_rw<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
@@ -207,7 +205,6 @@ public:
     }
 
     void test_raw_cw_reduce_naive() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_cw_naive<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
@@ -224,7 +221,6 @@ public:
     }
 
     void test_raw_cw_reduce_atomic() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_cw_atomic<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
@@ -241,7 +237,6 @@ public:
     }
 
     void test_raw_cw_reduce_wrapper() {
-        using acc_t = bin_op_t<binary_t>;
         using reduction_t = reduction_rm_cw<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
