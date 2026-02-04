@@ -15,5 +15,5 @@
 .. note::
 
     This parameter can be an object of any class derived from ``NumericTable``
-    except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and
+    except and
     ``CSRNumericTable``.

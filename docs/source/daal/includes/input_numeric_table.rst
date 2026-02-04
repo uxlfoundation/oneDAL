@@ -15,4 +15,4 @@
 .. note::
 
     The input can be an object of any class derived from ``NumericTable``
-    except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+    except for ``CSRNumericTable``.

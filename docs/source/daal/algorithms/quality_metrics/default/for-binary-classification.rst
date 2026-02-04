@@ -114,11 +114,11 @@ For more details, see :ref:`algorithms`.
    * - ``predictedLabels``
      - Pointer to the :math:`n \times 1` numeric table that contains labels computed at the prediction stage of the classification algorithm.
 
-       This input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       This input can be an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
    * - ``groundTruthLabels``
      - Pointer to the :math:`n \times 1` numeric table that contains expected labels.
 
-       This input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       This input can be an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -167,7 +167,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
          By default, this result is an object of the ``HomogenNumericTable`` class,
-         but you can define the result as an object of any class derived from NumericTable except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+         but you can define the result as an object of any class derived from NumericTable except and ``CSRNumericTable``.
    * - ``binaryMetrics``
      - Pointer to the :math:`1 \times 6` numeric table that contains quality metrics, which you can access by an appropriate Binary Metrics ID:
 
@@ -180,7 +180,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable`` except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable`` except and ``CSRNumericTable``.
 
 Examples
 ********

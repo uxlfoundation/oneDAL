@@ -93,7 +93,7 @@ algorithm.
           .. note::
 
             This parameter can be an object of any class derived from ``NumericTable``,
-            except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except for ``CSRNumericTable``.
 
       * - ``interceptFlag``
         - ``true``
@@ -220,8 +220,7 @@ The following table lists parameters of linear and ridge regressions at the trai
 
           .. note::
 
-            This parameter can be an object of any class derived from ``NumericTable``, except for ``PackedTriangularMatrix``,
-            ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            This parameter can be an object of any class derived from ``NumericTable``, except for ``CSRNumericTable``.
 
       * - ``interceptFlag``
         - ``true``
@@ -322,8 +321,7 @@ The following table lists parameters of linear and ridge regressions at the trai
 
           .. note::
 
-            This parameter can be an object of any class derived from ``NumericTable``, except for ``PackedTriangularMatrix``,
-            ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            This parameter can be an object of any class derived from ``NumericTable``, except for ``CSRNumericTable``.
 
       * - ``interceptFlag``
         - ``true``

@@ -88,8 +88,6 @@ for your algorithm.
        + Transaction ID, the number between 0 and :math:`nTransactions - 1`.
        + Item ID, the number between 0 and :math:`nUniqueItems - 1`.
 
-       The input can be an object of any class derived from NumericTable except PackedTriangularMatrix and PackedSymmetricMatrix.
-
 Algorithm Parameters
 --------------------
 
@@ -201,8 +199,7 @@ the results of your algorithm.
 
 By default, the result is an object of the HomogenNumericTable class,
 but you can define the result as an object of any class derived from
-NumericTable except PackedSymmetricMatrix, PackedTriangularMatrix, and
-СSRNumericTable.
+NumericTable except СSRNumericTable.
 
 .. note::
 

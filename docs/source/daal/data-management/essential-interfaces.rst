@@ -34,14 +34,6 @@ The getDataLayout method provides information about the data layout:
 +-----------------------------------+-----------------------------------+
 | csr_Array                         | Condensed-Sparse-Row (CSR).       |
 +-----------------------------------+-----------------------------------+
-| lowerPackedSymetricMatrix         | Lower packed symmetric matrix     |
-+-----------------------------------+-----------------------------------+
-| lowerPackedTriangularMatrix       | Lower packed triangular matrix    |
-+-----------------------------------+-----------------------------------+
-| upperPackedSymetricMatrix         | Upper packed symmetric matrix     |
-+-----------------------------------+-----------------------------------+
-| upperPackedTriangularMatrix       | Upper packed triangular matrix    |
-+-----------------------------------+-----------------------------------+
 | unknown                           | No information about data layout  |
 |                                   | or unsupported layout.            |
 +-----------------------------------+-----------------------------------+
@@ -102,13 +94,6 @@ statistics are computed for each numeric table:
 
 - Use the operator [] method to access rows of a homogeneous dense
   numeric table.
-
-**Special Interfaces for the PackedTriangularMatrix and PackedSymmetricMatrix Classes**
-
--   While you can use generic ``getArray()`` and ``setArray()`` methods to
-    access the data in a packed format, in algorithms that have
-    specific implementations for a packed data layout, you can use
-    more specific ``getPackedValues()`` and ``releasePackedValues()`` methods.
 
 **Special Interfaces for the CSRNumericTable Class**
 

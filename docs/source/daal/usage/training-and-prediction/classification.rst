@@ -57,7 +57,7 @@ For more details, see :ref:`algorithms`.
    * - ``labels``
      - Pointer to the :math:`n \times 1` numeric table with class labels.
 
-       This table can be an object of any class derived from NumericTable except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       This table can be an object of any class derived from ``NumericTable`` except.
 
 At the training stage, classification algorithms calculate the result described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -122,8 +122,7 @@ For more details, see :ref:`algorithms`.
        .. note::
 
           By default, this table is an object of the ``HomogenNumericTable`` class,
-          but you can define it as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+          but you can define it as an object of any class derived from ``NumericTable``.
 
    * - ``probabilities``
      - A numeric table of size :math:`n \times \text{nClasses}`, containing probabilities of classes computed when the
@@ -136,4 +135,4 @@ For more details, see :ref:`algorithms`.
 
           By default, this table is an object of the ``HomogenNumericTable`` class,
           but you can define it as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, ``CSRNumericTable``.
+          except ``CSRNumericTable``.

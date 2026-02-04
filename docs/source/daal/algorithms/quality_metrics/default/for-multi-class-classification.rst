@@ -158,11 +158,11 @@ For more details, see :ref:`algorithms`.
    * - ``predictedLabels``
      - Pointer to the :math:`n \times 1` numeric table that contains labels computed at the prediction stage of the classification algorithm.
 
-       This input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       This input can be an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
    * - ``groundTruthLabels``
      - Pointer to the :math:`n \times 1` numeric table that contains expected labels.
 
-       This input can be an object of any class derived from NumericTable except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       This input can be an object of any class derived from NumericTable except ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -215,7 +215,7 @@ The quality metric algorithm calculates the result described below. Pass the ``R
 
        .. note::
           By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object
-          of any class derived from NumericTable except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          of any class derived from NumericTable except and ``CSRNumericTable``.
    * - ``multiClassMetrics``
      - Pointer to the :math:`1 \times 8` numeric table that contains quality metrics, which you can access by an appropriate Multi-class Metrics ID:
 
@@ -230,7 +230,7 @@ The quality metric algorithm calculates the result described below. Pass the ``R
 
        .. note::
           By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object
-          of any class derived from NumericTable except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          of any class derived from NumericTable except and ``CSRNumericTable``.
 
 Examples
 ********

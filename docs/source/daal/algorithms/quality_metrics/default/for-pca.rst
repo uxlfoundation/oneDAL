@@ -85,7 +85,7 @@ For more details, see :ref:`algorithms`.
    * - ``eigenvalues``
      - :math:`p` eigenvalues (explained variances), numeric table of size :math:`1 \times p`.
 
-       You can define it as an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       You can define it as an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -141,7 +141,7 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
 
 .. note::
     By default, each numeric table specified by the collection elements is an object of the ``HomogenNumericTable`` class,
-    but you can define the result as an object of any class derived from ``NumericTable``, except for ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and CSRNumericTable.
+    but you can define the result as an object of any class derived from ``NumericTable``, except for CSRNumericTable.
 
 Examples
 ********

@@ -118,7 +118,7 @@ For more details, see :ref:`algorithms`.
 
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
 
             * - ``sumCorrelation``
               - Pointer to the :math:`1 \times p` numeric table with partial sums computed so far.
@@ -127,7 +127,7 @@ For more details, see :ref:`algorithms`.
 
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
 
 
     .. tab:: SVD method (``svdDense``)
@@ -154,7 +154,7 @@ For more details, see :ref:`algorithms`.
 
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
 
             * - ``sumSquaresSVD``
               - Pointer to the :math:`1 \times p` numeric table with partial sums of squares computed so far.
@@ -163,7 +163,7 @@ For more details, see :ref:`algorithms`.
 
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
 
 Algorithm Output
 ----------------
@@ -190,4 +190,4 @@ For more details, see :ref:`algorithms`.
 
     By default, these results are objects of the ``HomogenNumericTable`` class,
     but you can define the result as an object of any class derived from ``NumericTable``
-    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.

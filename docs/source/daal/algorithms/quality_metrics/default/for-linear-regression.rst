@@ -194,14 +194,14 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable``, except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable``, except for ``CSRNumericTable``.
 
    * - ``variance``
      - Pointer to the :math:`1 \times k` numeric table that contains variances :math:`\sigma^2_j`, :math:`j = 1, \ldots, k` computed for each response (dependent variable).
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable``, except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable``, except for ``CSRNumericTable``.
 
    * - ``betaCovariances``
      - Pointer to the DataCollection object that contains :math:`k` numeric tables, each with the :math:`m \times m` variance-covariance matrix for betas of the j-th response (dependent variable), where m is the number of betas in the model (m is equal to p when interceptFlag is set to false at the training stage of the linear regression algorithm; otherwise, m is equal to p + 1 ).
@@ -214,7 +214,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable``, except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable``, except for ``CSRNumericTable``.
 
    * - ``confidenceIntervals``
      - Pointer to the :math:`k \times 2 \times m` numeric table that contains limits of the confidence intervals for linear regression coefficients:
@@ -229,7 +229,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable``, except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable``, except for ``CSRNumericTable``.
 
    * - ``inverseOfXtX``
      - Pointer to the :math:`m \times m` numeric table that contains the :math:`{(X^TX)}^{-1}` matrix,
@@ -332,7 +332,7 @@ For more details, see :ref:`algorithms`.
 
 .. note::
     By default, these results are objects of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-    derived from ``NumericTable``, except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+    derived from ``NumericTable``, except for ``CSRNumericTable``.
 
 
 Examples

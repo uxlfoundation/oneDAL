@@ -94,13 +94,13 @@ For more details, see Algorithms.
      - Result
    * - ``minimum``
      - A numeric table of size :math:`p \times 1` with argument :math:`\theta_{*}`.
-       By default, the result is an object of the HomogenNumericTable class, but you can define the result as an object of any class
-       derived from NumericTable, except for PackedTriangularMatrix and PackedSymmetricMatrix.
+       By default, the result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
+       derived from ``NumericTable``.
 
    * - ``nIterations``
      - A numeric table of size :math:`1 \times 1` with a 32-bit integer number of iterations done by the algorithm.
-       By default, the result is an object of the HomogenNumericTable class, but you can define the result as an object of any class
-       derived from NumericTable, except for PackedTriangularMatrix, PackedSymmetricMatrix, and CSRNumericTable.
+       By default, the result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
+       derived from ``NumericTable``.
 
    * - ``optionalResult``
      - Object of the OptionalArgument class that contains a set of algorithm-specific intrinsic parameters.

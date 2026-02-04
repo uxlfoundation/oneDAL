@@ -52,7 +52,6 @@ For more details, see :ref:`algorithms`.
        the symmetric positive-definite matrix :math:`X` for which the Cholesky decomposition is computed.
 
        The input can be an object of any class derived from ``NumericTable`` that can represent symmetric matrices.
-       For example, the ``PackedTriangularMatrix`` class cannot represent a symmetric matrix.
 
 Algorithm Parameters
 --------------------
@@ -95,8 +94,7 @@ For more details, see :ref:`algorithms`.
      - Pointer to the :math:`p \times p` numeric table that represents the lower triangular matrix :math:`L` (Cholesky factor).
 
        By default, the result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-       derived from ``NumericTable`` except the ``PackedSymmetricMatrix`` class, ``СSRNumericTable`` class, and ``PackedTriangularMatrix`` class
-       with the ``upperPackedTriangularMatrix`` layout.
+       derived from ``NumericTable`` except the ``СSRNumericTable`` class.
 
 Examples
 ********
