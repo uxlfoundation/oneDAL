@@ -255,7 +255,7 @@ public:
         return services::Status();
     }
 
-    virtual size_t loadDataBlock(size_t maxRows) override
+    virtual size_t loadDataBlock(size_t maxRows) DAAL_C11_OVERRIDE
     {
         services::Status s = checkConnection();
         if (!s)
@@ -351,7 +351,7 @@ public:
         return nRead;
     }
 
-    size_t loadDataBlock() override
+    size_t loadDataBlock() DAAL_C11_OVERRIDE
     {
         services::Status s;
 
@@ -376,7 +376,7 @@ public:
         return loadDataBlock(_spnt.get());
     }
 
-    size_t loadDataBlock(NumericTable * nt) override
+    size_t loadDataBlock(NumericTable * nt) DAAL_C11_OVERRIDE
     {
         services::Status s;
 
@@ -468,7 +468,7 @@ public:
         return nrows;
     }
 
-    services::Status createDictionaryFromContext() override
+    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
     {
         services::Status status = checkConnection();
         DAAL_CHECK_STATUS_VAR(status);
@@ -490,9 +490,9 @@ public:
         return status;
     }
 
-    DataSourceIface::DataSourceStatus getStatus() override { return _connectionStatus; }
+    DataSourceIface::DataSourceStatus getStatus() DAAL_C11_OVERRIDE { return _connectionStatus; }
 
-    size_t getNumberOfAvailableRows() override { return 0; }
+    size_t getNumberOfAvailableRows() DAAL_C11_OVERRIDE { return 0; }
 
     FeatureManager & getFeatureManager() { return _featureManager; }
 

@@ -116,7 +116,7 @@ public:
     /*! \private */
     ~KDBDataSource() {}
 
-    size_t loadDataBlock() override
+    size_t loadDataBlock() DAAL_C11_OVERRIDE
     {
         checkDictionary();
         if (this->_errors->size() != 0)
@@ -133,7 +133,7 @@ public:
         return loadDataBlock(0, this->DataSource::_spnt.get());
     }
 
-    size_t loadDataBlock(NumericTable * nt) override
+    size_t loadDataBlock(NumericTable * nt) DAAL_C11_OVERRIDE
     {
         checkDictionary();
         if (this->_errors->size() != 0)
@@ -144,7 +144,7 @@ public:
         return loadDataBlock(0, nt);
     }
 
-    virtual size_t loadDataBlock(size_t maxRows) override
+    virtual size_t loadDataBlock(size_t maxRows) DAAL_C11_OVERRIDE
     {
         checkDictionary();
         if (!this->_errors->isEmpty())
@@ -273,7 +273,7 @@ public:
         return nRows;
     }
 
-    services::Status createDictionaryFromContext() override
+    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
     {
         if (_dict) return services::Status(services::ErrorDictionaryAlreadyAvailable);
 
@@ -318,9 +318,9 @@ public:
         return status;
     }
 
-    DataSourceIface::DataSourceStatus getStatus() override { return DataSourceIface::readyForLoad; }
+    DataSourceIface::DataSourceStatus getStatus() DAAL_C11_OVERRIDE { return DataSourceIface::readyForLoad; }
 
-    size_t getNumberOfAvailableRows() override
+    size_t getNumberOfAvailableRows() DAAL_C11_OVERRIDE
     {
         I handle = _kdbConnect();
 
