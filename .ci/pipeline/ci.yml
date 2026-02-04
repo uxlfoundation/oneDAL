@@ -43,8 +43,8 @@ variables:
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
-  PY_VERSION: '3.11'
-  SKL_VERSION: '1.5'
+  PY_VERSION: '3.13'
+  SKL_VERSION: '1.7'
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
