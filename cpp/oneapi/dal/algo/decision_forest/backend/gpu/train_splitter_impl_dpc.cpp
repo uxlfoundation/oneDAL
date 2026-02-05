@@ -538,22 +538,22 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
         compute_bin_block_size<hist_type_t, Index, Float, Task>(queue, hist_prop_count, bin_count);
 
     const Index local_size = bk::device_max_wg_size(queue);
-    
+
     constexpr std::int64_t INT32_MAX_VAL = 2147483647LL;
-    
+
     // Calculate maximum safe batch size considering all dimensions
-    const std::int64_t total_work_items = static_cast<std::int64_t>(node_count) * 
-                                         static_cast<std::int64_t>(ftr_count) * 
-                                         static_cast<std::int64_t>(local_size);
-    
+    const std::int64_t total_work_items = static_cast<std::int64_t>(node_count) *
+                                          static_cast<std::int64_t>(ftr_count) *
+                                          static_cast<std::int64_t>(local_size);
+
     Index node_batch_size = node_count;
-    
+
     // If total work items exceed INT32_MAX, use batching
     if (total_work_items > INT32_MAX_VAL) {
         // Calculate safe batch size
-        const std::int64_t max_items_per_batch = INT32_MAX_VAL / 
-                                                 (static_cast<std::int64_t>(ftr_count) * 
-                                                  static_cast<std::int64_t>(local_size));
+        const std::int64_t max_items_per_batch =
+            INT32_MAX_VAL /
+            (static_cast<std::int64_t>(ftr_count) * static_cast<std::int64_t>(local_size));
         node_batch_size = std::max<Index>(1, static_cast<Index>(max_items_per_batch));
     }
 
@@ -566,24 +566,24 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                                            { node_count * ftr_count * hist_prop_count },
                                            alloc::device);
     const auto hists_ptr = best_ftr_hists.get_mutable_data();
-    
+
     sycl::event last_event;
-    
-    for (Index node_batch_start = 0; node_batch_start < node_count; node_batch_start += node_batch_size) {
+
+    for (Index node_batch_start = 0; node_batch_start < node_count;
+         node_batch_start += node_batch_size) {
         const Index current_batch_size = std::min(node_batch_size, node_count - node_batch_start);
-        
+
         const Index combined_dim = current_batch_size * ftr_count;
-        const auto nd_range = bk::make_multiple_nd_range_2d(
-            { combined_dim, local_size }, 
-            { 1, local_size }
-        );
-        
+        const auto nd_range =
+            bk::make_multiple_nd_range_2d({ combined_dim, local_size }, { 1, local_size });
+
         // Main kernel: calculates histograms and impurity decrease based on histograms
         // and selects best split for each feature.
         last_event = queue.submit([&](sycl::handler& cgh) {
             if (node_batch_start == 0) {
                 cgh.depends_on(deps);
-            } else {
+            }
+            else {
                 cgh.depends_on(last_event);
             }
             local_accessor_rw_t<hist_type_t> hist(bin_block * hist_prop_count, cgh);
@@ -594,12 +594,12 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                 const Index batch_node_id = combined_id / ftr_count;
                 const Index ftr_id = combined_id % ftr_count;
                 const Index node_id = node_batch_start + batch_node_id;
-                
+
                 // Boundary check
                 if (node_id >= node_count) {
                     return;
                 }
-                
+
                 const Index local_id = item.get_local_id(1);
                 Index* node_ptr = node_list_ptr + node_id * impl_const_t::node_prop_count_;
                 const Index row_ofs = node_ptr[impl_const_t::ind_ofs];
@@ -622,7 +622,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
 
                 split_smp_t sp_hlp;
                 // Check node impurity
-                if (!sp_hlp.is_valid_impurity(node_imp_list_ptr, node_id, imp_threshold, row_count)) {
+                if (!sp_hlp.is_valid_impurity(node_imp_list_ptr,
+                                              node_id,
+                                              imp_threshold,
+                                              row_count)) {
                     return;
                 }
                 if (row_count < 2 * min_obs_leaf) {
@@ -687,7 +690,11 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                         else {
                             ts.scalars.left_count = Index(cur_hist[0]);
                             cur_hist[1] /= cur_hist[0];
-                            sp_hlp.calc_imp_dec(ts, node_ptr, node_imp_list_ptr, node_id, is_weighted);
+                            sp_hlp.calc_imp_dec(ts,
+                                                node_ptr,
+                                                node_imp_list_ptr,
+                                                node_id,
+                                                is_weighted);
                         }
                         split_scalar_t& scal = local_scalars[local_id];
                         scal.clear();
