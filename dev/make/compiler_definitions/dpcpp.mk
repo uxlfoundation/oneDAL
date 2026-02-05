@@ -80,18 +80,8 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
-link.dynamic.lnx.dpcpp += -L$(MKLROOT)/lib \
-    -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_dft -lmkl_sycl_sparse \
-    -lmkl_sycl_vm -lmkl_sycl_rng -lmkl_sycl_stats -lmkl_sycl_data_fitting \
-    -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core \
-    -lsycl -lpthread -lm -ldl
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
-link.dynamic.win.dpcpp += mkl_sycl_blas_dll.lib \
-    mkl_sycl_lapack_dll.lib mkl_sycl_dft_dll.lib mkl_sycl_sparse_dll.lib \
-    mkl_sycl_vm_dll.lib mkl_sycl_rng_dll.lib mkl_sycl_stats_dll.lib \
-    mkl_sycl_data_fitting_dll.lib mkl_intel_ilp64_dll.lib \
-    mkl_tbb_thread_dll.lib mkl_core_dll.lib OpenCL.lib
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \

@@ -80,3 +80,22 @@ daaldep.math_backend.static_link_deps :=
 daaldep.math_backend.shared_link_deps := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
 # Static MKL libraries(SYCL) linked into the shared oneDAL(SYCL) library.
 daaldep.math_backend.oneapi := $(daaldep.math_backend.sycl)
+
+mkl_flags.lnx32e := -L$(MKLROOT)/lib \
+    -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_dft -lmkl_sycl_sparse \
+    -lmkl_sycl_vm -lmkl_sycl_rng -lmkl_sycl_stats -lmkl_sycl_data_fitting \
+    -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core \
+    -lsycl -lpthread -lm -ldl
+
+
+mkl_flags.win32e := mkl_sycl_blas_dll.lib \
+    mkl_sycl_lapack_dll.lib mkl_sycl_dft_dll.lib mkl_sycl_sparse_dll.lib \
+    mkl_sycl_vm_dll.lib mkl_sycl_rng_dll.lib mkl_sycl_stats_dll.lib \
+    mkl_sycl_data_fitting_dll.lib mkl_intel_ilp64_dll.lib \
+    mkl_tbb_thread_dll.lib mkl_core_dll.lib OpenCL.lib
+
+mkl_flags.mac32e :=
+mkl_flags.lnxarm :=
+mkl_flags.lnxriscv64 :=
+
+mkl_flags := $(mkl_flags.$(PLAT))
