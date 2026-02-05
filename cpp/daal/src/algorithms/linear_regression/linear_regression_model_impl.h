@@ -82,49 +82,49 @@ public:
     /**
     * Initializes the linear regression model
     */
-    Status initialize() DAAL_C11_OVERRIDE { return ImplType::initialize(); }
+    Status initialize() override { return ImplType::initialize(); }
 
     /**
      * Returns the number of regression coefficients
      * \return Number of regression coefficients
      */
-    size_t getNumberOfBetas() const DAAL_C11_OVERRIDE { return ImplType::getNumberOfBetas(); }
+    size_t getNumberOfBetas() const override { return ImplType::getNumberOfBetas(); }
 
     /**
      * Returns the number of responses in the training data set
      * \return Number of responses in the training data set
      */
-    size_t getNumberOfResponses() const DAAL_C11_OVERRIDE { return ImplType::getNumberOfResponses(); }
+    size_t getNumberOfResponses() const override { return ImplType::getNumberOfResponses(); }
 
     /**
      * Returns true if the regression model contains the intercept term, and false otherwise
      * \return True if the regression model contains the intercept term, and false otherwise
      */
-    bool getInterceptFlag() const DAAL_C11_OVERRIDE { return ImplType::getInterceptFlag(); }
+    bool getInterceptFlag() const override { return ImplType::getInterceptFlag(); }
 
     /**
      * Returns the number of features in the training data set
      * \return Number of features in the training data set
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return ImplType::getNumberOfFeatures(); }
+    size_t getNumberOfFeatures() const override { return ImplType::getNumberOfFeatures(); }
 
     /**
      * Returns the numeric table that contains regression coefficients
      * \return Table that contains regression coefficients
      */
-    data_management::NumericTablePtr getBeta() DAAL_C11_OVERRIDE { return ImplType::getBeta(); }
+    data_management::NumericTablePtr getBeta() override { return ImplType::getBeta(); }
 
     void setInterceptFlag(bool interceptFlag) { ImplType::_interceptFlag = interceptFlag; }
 
 protected:
-    services::Status serializeImpl(InputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status serializeImpl(InputDataArchive * arch) override
     {
         ImplType::serialImpl<InputDataArchive, false>(arch);
 
         return services::Status();
     }
 
-    services::Status deserializeImpl(const OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const OutputDataArchive * arch) override
     {
         ImplType::serialImpl<const OutputDataArchive, true>(arch);
 

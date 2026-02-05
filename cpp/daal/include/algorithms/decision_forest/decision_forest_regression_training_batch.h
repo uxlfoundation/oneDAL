@@ -72,8 +72,8 @@ public:
      * Computes the result of decision forest model-based training in the batch processing mode
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
-    services::Status setupCompute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
+    services::Status setupCompute() override;
 };
 
 /**
@@ -120,13 +120,13 @@ public:
      */
     ~Batch() { delete _par; }
 
-    virtual algorithms::regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual algorithms::regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of decision forest model-based training
@@ -137,7 +137,7 @@ public:
     /**
      * Resets the results of Decision forest model training algorithm
      */
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -166,9 +166,9 @@ public:
     const ParameterType & parameter() const { return *static_cast<const ParameterType *>(_par); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, &parameter(), method);
         _res               = _result.get();

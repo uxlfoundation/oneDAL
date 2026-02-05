@@ -104,7 +104,7 @@ public:
     * \param[in] method  Computation method
     * \return Status of checking
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -144,7 +144,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
           penaltyL2(o.penaltyL2),
           optimizationSolver(o.optimizationSolver)
     {}
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 
     bool interceptFlag;           /*!< Whether the intercept needs to be computed */
     float penaltyL1;              /*!< L1 regularization coefficient. Default is 0 (not applied) */

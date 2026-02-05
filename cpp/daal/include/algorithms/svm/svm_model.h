@@ -88,7 +88,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
     size_t shrinkingStep;                               /*!< Number of iterations between the steps of shrinking optimization technique */
     algorithms::kernel_function::KernelIfacePtr kernel; /*!< Kernel function */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 } // namespace interface2
@@ -205,7 +205,7 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return (_SV ? _SV->getNumberOfColumns() : 0); }
+    size_t getNumberOfFeatures() const override { return (_SV ? _SV->getNumberOfColumns() : 0); }
 
 protected:
     data_management::NumericTablePtr _SV;        /*!< \private Support vectors */

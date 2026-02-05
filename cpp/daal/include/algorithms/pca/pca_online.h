@@ -75,11 +75,11 @@ public:
     /**
      * Computes a partial result of the PCA algorithm in the online processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of the PCA algorithm in the online processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -104,11 +104,11 @@ public:
     /**
      * Computes a partial result of the PCA algorithm in the online processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of the PCA algorithm in the online processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -154,7 +154,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    int getMethod() const DAAL_C11_OVERRIDE { return (int)correlationDense; }
+    int getMethod() const override { return (int)correlationDense; }
 
     /**
      * Registers user-allocated  memory to store the results of the PCA algorithm
@@ -209,26 +209,23 @@ protected:
     services::SharedPtr<PartialResult<correlationDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Online<algorithmFPType, correlationDense> * cloneImpl() const DAAL_C11_OVERRIDE
-    {
-        return new Online<algorithmFPType, correlationDense>(*this);
-    }
+    virtual Online<algorithmFPType, correlationDense> * cloneImpl() const override { return new Online<algorithmFPType, correlationDense>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, &parameter, correlationDense);
         _res               = _result.get();
         return s;
     }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, correlationDense);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(&input, &parameter, correlationDense);
         _pres              = _partialResult.get();
@@ -280,7 +277,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    int getMethod() const DAAL_C11_OVERRIDE { return (int)svdDense; }
+    int getMethod() const override { return (int)svdDense; }
 
     /**
      * Registers user-allocated  memory to store the results of the PCA algorithm
@@ -335,23 +332,23 @@ protected:
     services::SharedPtr<PartialResult<svdDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Online<algorithmFPType, svdDense> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, svdDense>(*this); }
+    virtual Online<algorithmFPType, svdDense> * cloneImpl() const override { return new Online<algorithmFPType, svdDense>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, &parameter, svdDense);
         _res               = _result.get();
         return s;
     }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, svdDense);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(&input, &parameter, svdDense);
         _pres              = _partialResult.get();

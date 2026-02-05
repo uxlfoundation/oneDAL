@@ -59,7 +59,7 @@ class REPPruningData : public PruningData<cpu, algorithmFPType>
 public:
     REPPruningData(size_t size) : BaseType(size), _data(daal_alloc<algorithmFPType>(size ? size * 3 : 1)) { resetData(); }
 
-    ~REPPruningData() DAAL_C11_OVERRIDE
+    ~REPPruningData() override
     {
         daal_free(_data);
         _data = nullptr;

@@ -41,7 +41,7 @@ namespace internal
 class ContinuousFeatureModifier : public FeatureModifier
 {
 public:
-    virtual void initialize(Config & config) DAAL_C11_OVERRIDE
+    virtual void initialize(Config & config) override
     {
         const size_t numberOfFeatures = config.getNumberOfInputFeatures();
         for (size_t i = 0; i < numberOfFeatures; i++)
@@ -50,7 +50,7 @@ public:
         }
     }
 
-    virtual void apply(Context & context) DAAL_C11_OVERRIDE
+    virtual void apply(Context & context) override
     {
         services::BufferView<DAAL_DATA_TYPE> outputBuffer = context.getOutputBuffer();
         for (size_t i = 0; i < outputBuffer.size(); i++)

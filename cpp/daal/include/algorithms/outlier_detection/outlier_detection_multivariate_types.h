@@ -125,7 +125,7 @@ struct DAAL_EXPORT DefaultInit : public InitIface
     * \param[in] threshold     Limit that defines the outlier region, the array of size 1 x 1 containing a non-negative number
     */
     virtual void operator()(data_management::NumericTable * /*data*/, data_management::NumericTable * /*location*/,
-                            data_management::NumericTable * /*scatter*/, data_management::NumericTable * /*threshold*/) DAAL_C11_OVERRIDE
+                            data_management::NumericTable * /*scatter*/, data_management::NumericTable * /*threshold*/) override
     {}
 };
 
@@ -149,7 +149,7 @@ struct DAAL_EXPORT Parameter<defaultDense> : public daal::algorithms::Parameter
     Parameter() {}
     services::SharedPtr<InitIface> initializationProcedure; /*!< Initialization procedure for setting initial parameters of the algorithm */
 
-    virtual services::Status check() const DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status check() const override { return services::Status(); }
 };
 /* [ParameterDefault source code] */
 
@@ -174,7 +174,7 @@ struct DAAL_EXPORT Parameter<baconDense> : public daal::algorithms::Parameter
                                                  Recommended value: \f$\alpha / n\f$, where n is the number of observations. */
     double toleranceToConverge;           /*!< Stopping criterion: the algorithm is terminated if the size of the basic subset
                                                  is changed by less than the threshold */
-    virtual services::Status check() const DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status check() const override { return services::Status(); }
 };
 /* [ParameterBacon source code] */
 
@@ -213,7 +213,7 @@ public:
      *
      * \return Status of computations
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -263,7 +263,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

@@ -138,9 +138,9 @@ public:
      */
     FeatureManager & getFeatureManager() { return _featureManager; }
 
-    size_t getNumericTableNumberOfColumns() DAAL_C11_OVERRIDE { return _featureManager.getNumericTableNumberOfColumns(); }
+    size_t getNumericTableNumberOfColumns() override { return _featureManager.getNumericTableNumberOfColumns(); }
 
-    services::Status setDictionary(DataSourceDictionary * dict) DAAL_C11_OVERRIDE
+    services::Status setDictionary(DataSourceDictionary * dict) override
     {
         services::Status s = DataSource::setDictionary(dict);
         _featureManager.setFeatureDetailsFromDictionary(dict);
@@ -148,7 +148,7 @@ public:
         return s;
     }
 
-    size_t loadDataBlock(NumericTable * nt) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(NumericTable * nt) override
     {
         services::Status s = super::checkDictionary();
         if (!s)
@@ -219,14 +219,14 @@ public:
         return nrows;
     }
 
-    size_t loadDataBlock(size_t maxRows, NumericTable * nt) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t maxRows, NumericTable * nt) override
     {
         size_t nLines = loadDataBlock(maxRows, 0, maxRows, nt);
         nt->resize(nLines);
         return nLines;
     }
 
-    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows, NumericTable * nt) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows, NumericTable * nt) override
     {
         services::Status s = super::checkDictionary();
         if (!s)
@@ -301,16 +301,16 @@ public:
         return rowOffset + j;
     }
 
-    size_t loadDataBlock() DAAL_C11_OVERRIDE { return DataSource::loadDataBlock(); }
+    size_t loadDataBlock() override { return DataSource::loadDataBlock(); }
 
-    size_t loadDataBlock(size_t maxRows) DAAL_C11_OVERRIDE { return DataSource::loadDataBlock(maxRows); }
+    size_t loadDataBlock(size_t maxRows) override { return DataSource::loadDataBlock(maxRows); }
 
-    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows) DAAL_C11_OVERRIDE
+    size_t loadDataBlock(size_t maxRows, size_t rowOffset, size_t fullRows) override
     {
         return DataSource::loadDataBlock(maxRows, rowOffset, fullRows);
     }
 
-    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
+    services::Status createDictionaryFromContext() override
     {
         services::Status s;
 
@@ -346,7 +346,7 @@ public:
         return services::Status();
     }
 
-    size_t getNumberOfAvailableRows() DAAL_C11_OVERRIDE { return 0; }
+    size_t getNumberOfAvailableRows() override { return 0; }
 
 protected:
     virtual bool iseof() const          = 0;

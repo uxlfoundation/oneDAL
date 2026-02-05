@@ -342,12 +342,12 @@ public:
 
     //loss function gradient and hessian values calculated in f() points
     ghType * grad(size_t iTree) { return _aGH.get() + iTree * this->_data->getNumberOfRows(); }
-    void step(const algorithmFPType * y) DAAL_C11_OVERRIDE
+    void step(const algorithmFPType * y) override
     {
         this->lossFunc()->getGradients(this->_nSamples, this->_data->getNumberOfRows(), y, this->f(), this->aSampleToF(),
                                        (algorithmFPType *)_aGH.get());
     }
-    virtual services::Status init() DAAL_C11_OVERRIDE
+    virtual services::Status init() override
     {
         auto s = super::init();
         if (s)

@@ -104,17 +104,17 @@ public:
     void resetData() { _stringBufferPos = 0; }
 
 public:
-    services::Status createDictionaryFromContext() DAAL_C11_OVERRIDE
+    services::Status createDictionaryFromContext() override
     {
         services::Status s = super::createDictionaryFromContext();
         _stringBufferPos   = 0;
         return s;
     }
 
-    DataSourceIface::DataSourceStatus getStatus() DAAL_C11_OVERRIDE { return (iseof() ? DataSourceIface::endOfData : DataSourceIface::readyForLoad); }
+    DataSourceIface::DataSourceStatus getStatus() override { return (iseof() ? DataSourceIface::endOfData : DataSourceIface::readyForLoad); }
 
 protected:
-    bool iseof() const DAAL_C11_OVERRIDE { return (_stringBuffer[_stringBufferPos] == '\0'); }
+    bool iseof() const override { return (_stringBuffer[_stringBufferPos] == '\0'); }
 
     int readLine(char * buffer, int count)
     {
@@ -137,7 +137,7 @@ protected:
         return pos;
     }
 
-    services::Status readLine() DAAL_C11_OVERRIDE
+    services::Status readLine() override
     {
         _rawLineLength = 0;
         while (!iseof())

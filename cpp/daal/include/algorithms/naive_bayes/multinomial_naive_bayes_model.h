@@ -73,7 +73,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
     data_management::NumericTablePtr priorClassEstimates; /*!< Prior class estimates */
     data_management::NumericTablePtr alpha;               /*!< Imagined occurrences of the each word */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 } // namespace interface2
@@ -140,7 +140,7 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return (_logTheta ? _logTheta->getNumberOfColumns() : 0); }
+    size_t getNumberOfFeatures() const override { return (_logTheta ? _logTheta->getNumberOfColumns() : 0); }
 
 protected:
     data_management::NumericTablePtr _logP;
@@ -211,19 +211,19 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return (_classGroupSum ? _classGroupSum->getNumberOfColumns() : 0); }
+    size_t getNumberOfFeatures() const override { return (_classGroupSum ? _classGroupSum->getNumberOfColumns() : 0); }
 
     /**
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNFeatures() const DAAL_C11_OVERRIDE { return getNumberOfFeatures(); }
+    size_t getNFeatures() const override { return getNumberOfFeatures(); }
 
     /**
      *  Sets the number of features in the dataset was used on the training stage
      *  \param[in]  nFeatures  Number of features in the dataset was used on the training stage
      */
-    void setNFeatures(size_t /*nFeatures*/) DAAL_C11_OVERRIDE {}
+    void setNFeatures(size_t /*nFeatures*/) override {}
 
     template <typename modelFPType>
     services::Status initialize()

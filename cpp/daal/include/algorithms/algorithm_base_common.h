@@ -108,7 +108,7 @@ public:
      * \return Error collection of the algorithm
      * \DAAL_DEPRECATED
      */
-    services::SharedPtr<services::ErrorCollection> getErrors() DAAL_C11_OVERRIDE { return _status.getCollection(); }
+    services::SharedPtr<services::ErrorCollection> getErrors() override { return _status.getCollection(); }
 
 private:
     bool _enableChecks;

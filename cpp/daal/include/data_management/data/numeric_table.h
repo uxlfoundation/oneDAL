@@ -776,19 +776,19 @@ public:
     /** \private */
     virtual ~NumericTable() {}
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status setDictionary(NumericTableDictionary * ddict) DAAL_C11_OVERRIDE
+    DAAL_DEPRECATED_VIRTUAL virtual services::Status setDictionary(NumericTableDictionary * ddict) override
     {
         _ddict = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
         return services::Status();
     }
 
-    DAAL_DEPRECATED_VIRTUAL virtual NumericTableDictionary * getDictionary() const DAAL_C11_OVERRIDE { return _ddict.get(); }
+    DAAL_DEPRECATED_VIRTUAL virtual NumericTableDictionary * getDictionary() const override { return _ddict.get(); }
 
-    virtual NumericTableDictionaryPtr getDictionarySharedPtr() const DAAL_C11_OVERRIDE { return _ddict; }
+    virtual NumericTableDictionaryPtr getDictionarySharedPtr() const override { return _ddict; }
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() DAAL_C11_OVERRIDE { return services::Status(); }
+    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() override { return services::Status(); }
 
-    virtual services::Status resize(size_t nrows) DAAL_C11_OVERRIDE
+    virtual services::Status resize(size_t nrows) override
     {
         size_t obsnum      = _obsnum;
         services::Status s = setNumberOfRowsImpl(nrows);
@@ -811,20 +811,17 @@ public:
      */
     size_t getNumberOfRows() const { return _obsnum; }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfColumns(size_t ncol) DAAL_C11_OVERRIDE { return setNumberOfColumnsImpl(ncol); }
+    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfColumns(size_t ncol) override { return setNumberOfColumnsImpl(ncol); }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfRows(size_t nrow) DAAL_C11_OVERRIDE { return setNumberOfRowsImpl(nrow); }
+    DAAL_DEPRECATED_VIRTUAL services::Status setNumberOfRows(size_t nrow) override { return setNumberOfRowsImpl(nrow); }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status allocateDataMemory(daal::MemType type = daal::dram) DAAL_C11_OVERRIDE
-    {
-        return allocateDataMemoryImpl(type);
-    }
+    DAAL_DEPRECATED_VIRTUAL services::Status allocateDataMemory(daal::MemType type = daal::dram) override { return allocateDataMemoryImpl(type); }
 
-    DAAL_DEPRECATED_VIRTUAL void freeDataMemory() DAAL_C11_OVERRIDE { freeDataMemoryImpl(); }
+    DAAL_DEPRECATED_VIRTUAL void freeDataMemory() override { freeDataMemoryImpl(); }
 
-    StorageLayout getDataLayout() const DAAL_C11_OVERRIDE { return _layout; }
+    StorageLayout getDataLayout() const override { return _layout; }
 
-    features::FeatureType getFeatureType(size_t feature_idx) const DAAL_C11_OVERRIDE
+    features::FeatureType getFeatureType(size_t feature_idx) const override
     {
         if (_ddict.get() != NULL && _ddict->getNumberOfFeatures() > feature_idx)
         {
@@ -838,7 +835,7 @@ public:
         }
     }
 
-    size_t getNumberOfCategories(size_t feature_idx) const DAAL_C11_OVERRIDE
+    size_t getNumberOfCategories(size_t feature_idx) const override
     {
         if (_ddict.get() != NULL && _ddict->getNumberOfFeatures() > feature_idx && getFeatureType(feature_idx) != features::DAAL_CONTINUOUS)
         {
@@ -886,12 +883,12 @@ public:
     /**
      *  Allocates Numeric Tables for basic statistics
      */
-    virtual services::Status allocateBasicStatistics() DAAL_C11_OVERRIDE;
+    virtual services::Status allocateBasicStatistics() override;
 
     /**
      * \copydoc NumericTableIface::check
      */
-    virtual services::Status check(const char * description, bool checkDataAllocation = true) const DAAL_C11_OVERRIDE
+    virtual services::Status check(const char * description, bool checkDataAllocation = true) const override
     {
         if (getDataMemoryStatus() == notAllocated && checkDataAllocation)
         {

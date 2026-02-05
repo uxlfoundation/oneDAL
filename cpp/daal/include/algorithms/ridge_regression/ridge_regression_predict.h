@@ -115,7 +115,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)defaultDense; }
+    virtual int getMethod() const override { return (int)defaultDense; }
 
     /**
      * Returns the structure that contains the result of ridge regression model-based prediction
@@ -133,12 +133,12 @@ public:
         return services::SharedPtr<Batch<algorithmFPType, defaultDense> >(cloneImpl());
     }
 
-    virtual regression::prediction::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual regression::prediction::Input * getInput() override { return &input; }
 
 protected:
-    virtual Batch<algorithmFPType, defaultDense> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, defaultDense>(*this); }
+    virtual Batch<algorithmFPType, defaultDense> * cloneImpl() const override { return new Batch<algorithmFPType, defaultDense>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(this->_in, 0, 0);
         this->_res         = this->_result.get();

@@ -111,7 +111,7 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
      *
      * \return Status of computations
      */
-    virtual services::Status check() const DAAL_C11_OVERRIDE;
+    virtual services::Status check() const override;
 
     data_management::NumericTablePtr batchIndices; /*!< Numeric table that represents 32 bit integer indices of terms
                                                                    in the objective function. If no indices are provided,
@@ -165,7 +165,7 @@ public:
     *
      * \return Status of computations
     */
-    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 /* [Input source code] */
 
@@ -217,8 +217,7 @@ public:
     *
      * \return Status of computations
     */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

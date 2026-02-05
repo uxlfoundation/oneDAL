@@ -91,7 +91,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     /**
      * Checks a parameter of the Decision tree algorithm
      */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -158,9 +158,9 @@ public:
 protected:
     Model(size_t nFeatures, size_t nClasses, services::Status & st);
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
 private:
     size_t _nClasses;

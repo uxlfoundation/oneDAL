@@ -81,7 +81,7 @@ public:
     void release();
 
 protected:
-    virtual services::Status serializeImpl(interface1::InputDataArchive * arch) DAAL_C11_OVERRIDE
+    virtual services::Status serializeImpl(interface1::InputDataArchive * arch) override
     {
         arch->set(_size);
         if (_size) arch->set(_value, _size);
@@ -89,7 +89,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status deserializeImpl(const interface1::OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    virtual services::Status deserializeImpl(const interface1::OutputDataArchive * arch) override
     {
         size_t sz = 0;
         arch->set(sz);

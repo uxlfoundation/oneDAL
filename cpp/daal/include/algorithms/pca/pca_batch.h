@@ -69,7 +69,7 @@ public:
     /**
      * Computes the result of the PCA algorithm in the batch processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 /**
  * @defgroup pca_batch Batch
@@ -97,7 +97,7 @@ public:
     /**
      * Computes the result of the PCA algorithm in the batch processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCH"></a>
@@ -136,7 +136,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return method; };
+    virtual int getMethod() const override { return method; };
 
     /**
      * Registers user-allocated memory to store the results of the PCA algorithm
@@ -169,9 +169,9 @@ public:
 protected:
     ResultPtr _result;
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, method);
         _res               = _result.get();

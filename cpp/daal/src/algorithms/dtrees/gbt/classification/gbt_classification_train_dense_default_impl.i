@@ -56,7 +56,7 @@ class LogisticLoss : public LossFunction<algorithmFPType, cpu>
 {
 public:
     virtual void getGradients(size_t n, size_t nRows, const algorithmFPType * y, const algorithmFPType * f, const IndexType * sampleInd,
-                              algorithmFPType * gh) DAAL_C11_OVERRIDE
+                              algorithmFPType * gh) override
     {
         TVector<algorithmFPType, cpu, ScalableAllocator<cpu> > aExp(n);
         auto exp                           = aExp.get();
@@ -131,7 +131,7 @@ class CrossEntropyLoss : public LossFunction<algorithmFPType, cpu>
 public:
     CrossEntropyLoss(size_t numClasses) : _nClasses(numClasses) {}
     virtual void getGradients(size_t n, size_t nRows, const algorithmFPType * y, const algorithmFPType * f, const IndexType * sampleInd,
-                              algorithmFPType * gh) DAAL_C11_OVERRIDE
+                              algorithmFPType * gh) override
     {
         static const size_t s_cMaxClassesBufSize = 12;
         const bool bUseTLS(_nClasses > s_cMaxClassesBufSize);
@@ -226,7 +226,7 @@ public:
     }
 
     bool done() { return false; }
-    virtual services::Status init() DAAL_C11_OVERRIDE
+    virtual services::Status init() override
     {
         auto s = super::init();
         if (!s) return s;
@@ -242,7 +242,7 @@ public:
     }
 
 protected:
-    virtual void initLossFunc() DAAL_C11_OVERRIDE
+    virtual void initLossFunc() override
     {
         switch (static_cast<const gbt::classification::training::Parameter &>(this->_par).loss)
         {
@@ -258,7 +258,7 @@ protected:
 
     virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
                                         HomogenNumericTable<int> ** aTblSmplCnt,
-                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) DAAL_C11_OVERRIDE
+                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) override
     {
         if (this->isParallelTrees())
         {

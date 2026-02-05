@@ -106,7 +106,7 @@ public:
     InputType * sumOfFunctionsInput;         /*!< Pointer to the input to use one object in inherited class */
 
 protected:
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual Batch * cloneImpl() const override = 0;
 
     void initialize() {}
 

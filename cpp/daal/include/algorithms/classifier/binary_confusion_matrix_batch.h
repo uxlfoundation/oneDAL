@@ -68,7 +68,7 @@ public:
     /**
      * Computes the result of the binary confusion matrix algorithm in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -112,7 +112,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of the binary confusion matrix algorithm
@@ -136,7 +136,7 @@ public:
      * Registers user-allocated memory to store the input object for the binary confusion matrix algorithm
      * \param[in] other  Structure to store the input object for the binary confusion matrix algorithm
      */
-    virtual void setInput(const algorithms::Input * other) DAAL_C11_OVERRIDE
+    virtual void setInput(const algorithms::Input * other) override
     {
         const InputType * inputPtr = static_cast<const InputType *>(other);
         input.set(predictedLabels, inputPtr->get(predictedLabels));
@@ -151,16 +151,16 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();
         return s;
     }
 
-    virtual algorithms::ResultPtr getResultImpl() const DAAL_C11_OVERRIDE { return _result; }
+    virtual algorithms::ResultPtr getResultImpl() const override { return _result; }
 
     void initialize()
     {

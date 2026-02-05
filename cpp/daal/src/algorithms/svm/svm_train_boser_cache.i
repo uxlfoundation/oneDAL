@@ -98,7 +98,7 @@ class SVMCacheImpl : public SVMCacheIface<boser, algorithmFPType, cpu>
 public:
     virtual ~SVMCacheImpl() {}
 
-    virtual size_t getDataRowIndex(size_t rowIndex) const DAAL_C11_OVERRIDE { return _doShrinking ? _shrinkingRowIndices[rowIndex] : rowIndex; }
+    virtual size_t getDataRowIndex(size_t rowIndex) const override { return _doShrinking ? _shrinkingRowIndices[rowIndex] : rowIndex; }
 
 protected:
     /**
@@ -175,21 +175,21 @@ public:
         return res;
     }
 
-    virtual Status getRowBlock(size_t rowIndex, size_t startColIndex, size_t blockSize, const algorithmFPType *& block) DAAL_C11_OVERRIDE
+    virtual Status getRowBlock(size_t rowIndex, size_t startColIndex, size_t blockSize, const algorithmFPType *& block) override
     {
         block = _cache.get() + rowIndex * _lineSize + startColIndex;
         return Status();
     }
 
     virtual Status getTwoRowsBlock(size_t rowIndex1, size_t rowIndex2, size_t startColIndex, size_t blockSize, const algorithmFPType *& block1,
-                                   const algorithmFPType *& block2) DAAL_C11_OVERRIDE
+                                   const algorithmFPType *& block2) override
     {
         block1 = _cache.get() + rowIndex1 * _lineSize + startColIndex;
         block2 = _cache.get() + rowIndex2 * _lineSize + startColIndex;
         return Status();
     }
 
-    virtual Status updateShrinkingRowIndices(size_t nActiveVectors, const char * I) DAAL_C11_OVERRIDE;
+    virtual Status updateShrinkingRowIndices(size_t nActiveVectors, const char * I) override;
 
     ~SVMCache() {}
 
@@ -282,20 +282,20 @@ public:
         return res;
     }
 
-    virtual Status getRowBlock(size_t rowIndex, size_t startColIndex, size_t blockSize, const algorithmFPType *& block) DAAL_C11_OVERRIDE
+    virtual Status getRowBlock(size_t rowIndex, size_t startColIndex, size_t blockSize, const algorithmFPType *& block) override
     {
         return getRowBlockImpl(rowIndex, startColIndex, blockSize, 0, block);
     }
 
     virtual Status getTwoRowsBlock(size_t rowIndex1, size_t rowIndex2, size_t startColIndex, size_t blockSize, const algorithmFPType *& block1,
-                                   const algorithmFPType *& block2) DAAL_C11_OVERRIDE
+                                   const algorithmFPType *& block2) override
     {
         Status s = getRowBlockImpl(rowIndex1, startColIndex, blockSize, 0, block1);
         s |= getRowBlockImpl(rowIndex2, startColIndex, blockSize, blockSize, block2);
         return s;
     }
 
-    virtual Status updateShrinkingRowIndices(size_t nActiveVectors, const char * I) DAAL_C11_OVERRIDE;
+    virtual Status updateShrinkingRowIndices(size_t nActiveVectors, const char * I) override;
 
     ~SVMCache() {}
 

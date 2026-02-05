@@ -102,7 +102,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
                                                  Recommended value: \f$\alpha / n\f$, where n is the number of observations. */
     double toleranceToConverge;      /*!< Stopping criterion: the algorithm is terminated if the size of the basic subset
                                                  is changed by less than the threshold */
-    virtual services::Status check() const DAAL_C11_OVERRIDE;
+    virtual services::Status check() const override;
 };
 /* [ParameterBacon source code] */
 
@@ -141,7 +141,7 @@ public:
      *
      * \return Status of computations
     */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -191,7 +191,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

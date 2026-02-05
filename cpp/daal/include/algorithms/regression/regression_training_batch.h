@@ -97,7 +97,7 @@ public:
     ResultPtr getResult() { return _result; }
 
 protected:
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual Batch * cloneImpl() const override = 0;
     ResultPtr _result;
 };
 /** @} */

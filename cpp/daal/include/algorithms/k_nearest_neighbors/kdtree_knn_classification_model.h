@@ -117,7 +117,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     /**
      * Checks a parameter of the KD-tree based kNN algorithm
      */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 
     size_t k;                      /*!< Number of neighbors */
     int seed;                      /*!< Seed for random choosing elements from training dataset \DAAL_DEPRECATED_USE{ engine } */
@@ -181,14 +181,14 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
 protected:
     Model(size_t nFeatures, services::Status & st);
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
 private:
     ModelImpl * _impl; /*!< Model implementation */

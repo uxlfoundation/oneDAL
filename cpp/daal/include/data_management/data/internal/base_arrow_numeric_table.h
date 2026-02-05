@@ -58,7 +58,7 @@ class DAAL_EXPORT BaseArrowImmutableNumericTable : public ArrowNumericTable
     DECLARE_SERIALIZABLE_TAG()
 
 public:
-    bool isMutable() const DAAL_C11_OVERRIDE { return false; }
+    bool isMutable() const override { return false; }
 
 protected:
     BaseArrowImmutableNumericTable(size_t featnum, size_t obsnum, services::Status & st) : ArrowNumericTable(featnum, obsnum, st) {}

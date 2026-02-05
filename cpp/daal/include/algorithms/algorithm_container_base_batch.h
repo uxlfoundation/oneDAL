@@ -63,7 +63,7 @@ public:
      */
     AlgorithmContainer(daal::services::Environment::env * daalEnv) : AlgorithmContainerIfaceImpl(daalEnv) {}
 
-    virtual ~AlgorithmContainer() DAAL_C11_OVERRIDE {}
+    virtual ~AlgorithmContainer() override {}
 
     /**
      * Computes final results of the algorithm.
@@ -127,9 +127,9 @@ public:
      */
     Result * getResult() { return _res; }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status setupCompute() override { return services::Status(); }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status resetCompute() override { return services::Status(); }
 
 protected:
     const Hyperparameter * _hpar;
@@ -177,19 +177,19 @@ public:
         _cntr = 0;
     }
 
-    virtual services::Status compute() DAAL_C11_OVERRIDE
+    virtual services::Status compute() override
     {
         _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
         return _cntr->compute();
     }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE
+    virtual services::Status setupCompute() override
     {
         _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
         return _cntr->setupCompute();
     }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return _cntr->resetCompute(); }
+    virtual services::Status resetCompute() override { return _cntr->resetCompute(); }
 
 protected:
     AlgorithmContainerImpl<batch> * _cntr;

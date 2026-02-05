@@ -552,8 +552,7 @@ public:
         : UnorderedRespHelperBest<algorithmFPType, cpu>(indexedFeatures, nClasses, hp)
     {}
 
-    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample,
-                      const NumericTable * weights) DAAL_C11_OVERRIDE;
+    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample, const NumericTable * weights) override;
     void convertLeftImpToRight(size_t n, const ImpurityData & total, TSplitData & split)
     {
         computeRightHistogramm(total.hist, split.left.hist, split.left.hist);

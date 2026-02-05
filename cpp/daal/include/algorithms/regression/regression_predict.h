@@ -89,7 +89,7 @@ public:
 
 protected:
     ResultPtr _result;
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual Batch * cloneImpl() const override = 0;
 };
 /** @} */
 } // namespace interface1

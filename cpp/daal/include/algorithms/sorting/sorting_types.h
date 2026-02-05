@@ -107,7 +107,7 @@ public:
      * \param[in] method    Algorithm computation method
      * \param[in] par       Pointer to the parameters of the algorithm
      */
-    virtual services::Status check(const Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const Parameter * par, int method) const override;
 };
 
 /**
@@ -152,7 +152,7 @@ public:
      * \param[in] par     %Parameter of algorithm
      * \param[in] method Algorithm computation method
      */
-    virtual services::Status check(const daal::algorithms::Input * in, const Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * in, const Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

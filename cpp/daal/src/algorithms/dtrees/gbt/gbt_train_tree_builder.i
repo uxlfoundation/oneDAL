@@ -156,11 +156,11 @@ public:
                                  GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF);
 
     virtual services::Status run(gbt::internal::GbtDecisionTree *& pRes, HomogenNumericTable<double> *& pTblImp,
-                                 HomogenNumericTable<int> *& pTblSmplCnt, size_t iTree) DAAL_C11_OVERRIDE
+                                 HomogenNumericTable<int> *& pTblSmplCnt, size_t iTree) override
     {
         return services::Status();
     }
-    virtual services::Status init() DAAL_C11_OVERRIDE
+    virtual services::Status init() override
     {
         _aBestSplitIdxBuf.reset(_ctx.nSamples() * 2);
         _aSample.reset(_ctx.nSamples());

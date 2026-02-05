@@ -125,13 +125,13 @@ public:
      * Default implementation of interface method
      * \param config  The configuration of the modifier
      */
-    virtual void initialize(Config & /*config*/) DAAL_C11_OVERRIDE {}
+    virtual void initialize(Config & /*config*/) override {}
 
     /**
      * Default implementation of interface method
      * \param config  The configuration of the modifier
      */
-    virtual void finalize(Config & /*config*/) DAAL_C11_OVERRIDE {}
+    virtual void finalize(Config & /*config*/) override {}
 };
 typedef services::SharedPtr<FeatureModifier> FeatureModifierPtr;
 

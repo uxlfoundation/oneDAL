@@ -41,7 +41,7 @@ public:
 
     ~BatchContainer();
 
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
@@ -63,11 +63,11 @@ public:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
-    virtual InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual InputType * getInput() override { return &input; }
 
-    virtual ParameterBase * getParameter() DAAL_C11_OVERRIDE { return &parameter; }
+    virtual ParameterBase * getParameter() override { return &parameter; }
 
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
@@ -79,9 +79,9 @@ protected:
         _par                 = &parameter;
     }
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();

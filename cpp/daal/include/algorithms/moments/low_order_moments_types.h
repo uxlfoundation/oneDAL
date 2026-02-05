@@ -165,7 +165,7 @@ public:
      * \param[out] nCols Number of columns in the input data set
      * \return Status of the call
      */
-    services::Status getNumberOfColumns(size_t & nCols) const DAAL_C11_OVERRIDE;
+    services::Status getNumberOfColumns(size_t & nCols) const override;
 
     /**
      * Returns the input object for the low order %moments algorithm
@@ -181,7 +181,7 @@ public:
      */
     void set(InputId id, const data_management::NumericTablePtr & ptr);
 
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -243,7 +243,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 
     /**
      * Checks  the correctness of partial result
@@ -251,7 +251,7 @@ public:
      * \param[in] parameter Pointer to the structure of algorithm parameters
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     /** \private */
@@ -277,7 +277,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
 
     EstimatesToCompute estimatesToCompute; /*!< Estimates to be computed by the algorithm  */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 
 /**
@@ -332,8 +332,7 @@ public:
      * \param[in] par           %Parameter of the algorithm
      * \param[in] method        Computation method
      */
-    services::Status check(const daal::algorithms::PartialResult * partialResult, const daal::algorithms::Parameter * par,
-                           int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * partialResult, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks the correctness of result
@@ -341,7 +340,7 @@ public:
      * \param[in] par       Pointer to the structure of algorithm parameters
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -376,7 +375,7 @@ public:
      * \param[out] nCols Number of columns in the input data set
      * \return Status of the call
      */
-    services::Status getNumberOfColumns(size_t & nCols) const DAAL_C11_OVERRIDE;
+    services::Status getNumberOfColumns(size_t & nCols) const override;
 
     /**
      * Adds partial result to the collection of input objects for the low order moments algorithm in the distributed processing mode.
@@ -404,7 +403,7 @@ public:
      * \param[in] parameter Pointer to the algorithm parameters
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 /** @} */
 } // namespace interface1

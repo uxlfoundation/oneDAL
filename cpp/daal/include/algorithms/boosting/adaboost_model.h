@@ -92,7 +92,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
     size_t maxIterations;                                                     /*!< Maximal number of iterations of the AdaBoost training algorithm */
     double learningRate;                                                      /*!< Multiplier for each classifier to shrink its contribution */
     DAAL_UINT64 resultsToCompute;                                             /*!< 64 bit integer flag that indicates the results to compute */
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -169,7 +169,7 @@ public:
      *  Retrieves the number of features in the dataset was used on the training stage
      *  \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return _nFeatures; }
+    size_t getNumberOfFeatures() const override { return _nFeatures; }
 
     /**
      *  Returns a pointer to the array of weights of weak learners constructed

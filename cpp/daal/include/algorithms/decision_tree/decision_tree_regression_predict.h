@@ -65,7 +65,7 @@ public:
     /**
      *  Computes the result of Decision tree model-based prediction
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -112,13 +112,13 @@ public:
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual algorithms::regression::prediction::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual algorithms::regression::prediction::Input * getInput() override { return &input; }
 
     /**
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of decision tree model-based prediction
@@ -134,9 +134,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(_in, &parameter, (int)method);
         _res               = _result.get();

@@ -107,7 +107,7 @@ private:
                const services::SharedPtr<classifier::prediction::Batch> & sp)
         : super(nClasses, nRowsInBlock, rTable, sp), _mtX(xTable)
     {}
-    virtual services::Status getInput(size_t nFeatures, size_t startRow, size_t nRows, NumericTablePtr & res) DAAL_C11_OVERRIDE;
+    virtual services::Status getInput(size_t nFeatures, size_t startRow, size_t nRows, NumericTablePtr & res) override;
 
 private:
     ReadRowsCSR<algorithmFPType, cpu> _mtX;
@@ -132,7 +132,7 @@ private:
                  const services::SharedPtr<classifier::prediction::Batch> & sp)
         : super(nClasses, nRowsInBlock, rTable, sp), _mtX(const_cast<NumericTable *>(xTable))
     {}
-    virtual services::Status getInput(size_t nFeatures, size_t startRow, size_t nRows, NumericTablePtr & res) DAAL_C11_OVERRIDE;
+    virtual services::Status getInput(size_t nFeatures, size_t startRow, size_t nRows, NumericTablePtr & res) override;
 
 private:
     ReadRows<algorithmFPType, cpu> _mtX;

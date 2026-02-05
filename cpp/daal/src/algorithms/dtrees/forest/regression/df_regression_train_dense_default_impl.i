@@ -669,8 +669,7 @@ public:
                    const regression::training::internal::Hyperparameter * hp = nullptr)
         : OrderedRespHelperBest<algorithmFPType, cpu>(indexedFeatures, dummy, hp)
     {}
-    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample,
-                      const NumericTable * weights) DAAL_C11_OVERRIDE;
+    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample, const NumericTable * weights) override;
     void convertLeftImpToRight(size_t n, const ImpurityData & total, TSplitData & split)
     {
         subtractImpurity<intermSummFPType, cpu>(total.var, total.mean, split.left.var, split.left.mean, split.leftWeights, split.left.var,

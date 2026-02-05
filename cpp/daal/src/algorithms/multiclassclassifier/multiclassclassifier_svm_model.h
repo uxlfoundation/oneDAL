@@ -61,7 +61,7 @@ public:
     void setCoefficients(data_management::NumericTablePtr coeffs) { _SVCoeff = coeffs; }
     void setBiases(data_management::NumericTablePtr biases) { _biases = biases; }
 
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return (_SV ? _SV->getNumberOfColumns() : 0); }
+    size_t getNumberOfFeatures() const override { return (_SV ? _SV->getNumberOfColumns() : 0); }
 
 protected:
     data_management::NumericTablePtr _SV;

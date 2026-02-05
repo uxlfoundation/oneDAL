@@ -47,13 +47,13 @@ public:
         return services::internal::wrapSharedAndTryThrow<FeatureIndicesList>(new FeatureIndicesList(), status);
     }
 
-    virtual size_t size() const DAAL_C11_OVERRIDE { return _indices.size(); }
+    virtual size_t size() const override { return _indices.size(); }
 
-    virtual bool isPlainRange() const DAAL_C11_OVERRIDE { return false; }
+    virtual bool isPlainRange() const override { return false; }
 
-    virtual bool areRawFeatureIndicesAvailable() const DAAL_C11_OVERRIDE { return true; }
+    virtual bool areRawFeatureIndicesAvailable() const override { return true; }
 
-    virtual FeatureIndex getFirst() const DAAL_C11_OVERRIDE
+    virtual FeatureIndex getFirst() const override
     {
         if (!size())
         {
@@ -62,7 +62,7 @@ public:
         return _indices[0];
     }
 
-    virtual FeatureIndex getLast() const DAAL_C11_OVERRIDE
+    virtual FeatureIndex getLast() const override
     {
         if (!size())
         {
@@ -71,7 +71,7 @@ public:
         return _indices[_indices.size() - 1];
     }
 
-    virtual services::BufferView<FeatureIndex> getRawFeatureIndices() DAAL_C11_OVERRIDE
+    virtual services::BufferView<FeatureIndex> getRawFeatureIndices() override
     {
         return services::BufferView<FeatureIndex>(_indices.data(), _indices.size());
     }
@@ -115,20 +115,17 @@ public:
         return services::internal::wrapSharedAndTryThrow<FeatureIndicesRange>(new FeatureIndicesRange(begin, end), status);
     }
 
-    virtual size_t size() const DAAL_C11_OVERRIDE
-    {
-        return services::internal::maxValue(_begin, _end) - services::internal::minValue(_begin, _end) + 1;
-    }
+    virtual size_t size() const override { return services::internal::maxValue(_begin, _end) - services::internal::minValue(_begin, _end) + 1; }
 
-    virtual bool isPlainRange() const DAAL_C11_OVERRIDE { return true; }
+    virtual bool isPlainRange() const override { return true; }
 
-    virtual bool areRawFeatureIndicesAvailable() const DAAL_C11_OVERRIDE { return false; }
+    virtual bool areRawFeatureIndicesAvailable() const override { return false; }
 
-    virtual FeatureIndex getFirst() const DAAL_C11_OVERRIDE { return _begin; }
+    virtual FeatureIndex getFirst() const override { return _begin; }
 
-    virtual FeatureIndex getLast() const DAAL_C11_OVERRIDE { return _end; }
+    virtual FeatureIndex getLast() const override { return _end; }
 
-    virtual services::BufferView<FeatureIndex> getRawFeatureIndices() DAAL_C11_OVERRIDE { return services::BufferView<FeatureIndex>(); }
+    virtual services::BufferView<FeatureIndex> getRawFeatureIndices() override { return services::BufferView<FeatureIndex>(); }
 
 private:
     explicit FeatureIndicesRange(FeatureIndex begin, FeatureIndex end) : _begin(begin), _end(end) {}

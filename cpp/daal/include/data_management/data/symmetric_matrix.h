@@ -387,71 +387,62 @@ public:
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(float value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(float value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(double value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(double value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(int value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(int value) override { return assign<DataType>((DataType)value); }
 
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
     {
         return getTBlock<double>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) override
     {
         return getTBlock<float>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) override
     {
         return getTBlock<int>(vector_idx, vector_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTBlock<double>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTBlock<float>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTBlock<int>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) override { return releaseTBlock<double>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) override { return releaseTBlock<float>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) override { return releaseTBlock<int>(block); }
 
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<double> & block) override
     {
         return getTFeature<double>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<float> & block) override
     {
         return getTFeature<float>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<int> & block) override
     {
         return getTFeature<int>(feature_idx, vector_idx, value_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTFeature<double>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTFeature<float>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTFeature<int>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) override { return releaseTFeature<double>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) override { return releaseTFeature<float>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) override { return releaseTFeature<int>(block); }
 
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<double>(rwflag, block);
-    }
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<float>(rwflag, block);
-    }
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<int>(rwflag, block);
-    }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<double> & block) override { return getTPackedArray<double>(rwflag, block); }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<float> & block) override { return getTPackedArray<float>(rwflag, block); }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<int> & block) override { return getTPackedArray<int>(rwflag, block); }
 
-    services::Status releasePackedArray(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<double>(block); }
-    services::Status releasePackedArray(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<float>(block); }
-    services::Status releasePackedArray(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<int>(block); }
+    services::Status releasePackedArray(BlockDescriptor<double> & block) override { return releaseTPackedArray<double>(block); }
+    services::Status releasePackedArray(BlockDescriptor<float> & block) override { return releaseTPackedArray<float>(block); }
+    services::Status releasePackedArray(BlockDescriptor<int> & block) override { return releaseTPackedArray<int>(block); }
 
 protected:
     services::SharedPtr<byte> _ptr;
@@ -505,7 +496,7 @@ protected:
         st |= assign(constValue);
     }
 
-    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE
+    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) override
     {
         freeDataMemoryImpl();
 
@@ -524,7 +515,7 @@ protected:
         return services::Status();
     }
 
-    void freeDataMemoryImpl() DAAL_C11_OVERRIDE
+    void freeDataMemoryImpl() override
     {
         _ptr.reset();
         _memStatus = notAllocated;
@@ -781,7 +772,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfColumnsImpl(size_t nDim) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfColumnsImpl(size_t nDim) override
     {
         if (_ddict->getNumberOfFeatures() != nDim)
         {
@@ -796,7 +787,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfRowsImpl(size_t nDim) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfRowsImpl(size_t nDim) override
     {
         setNumberOfColumnsImpl(nDim);
         _obsnum = nDim;
@@ -1046,7 +1037,7 @@ public:
     /** \private */
     virtual ~PackedTriangularMatrix() { freeDataMemoryImpl(); }
 
-    virtual services::Status setNumberOfColumns(size_t nDim) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfColumns(size_t nDim) override
     {
         if (_ddict->getNumberOfFeatures() != nDim)
         {
@@ -1061,7 +1052,7 @@ public:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfRows(size_t nDim) DAAL_C11_OVERRIDE { return setNumberOfColumns(nDim); }
+    virtual services::Status setNumberOfRows(size_t nDim) override { return setNumberOfColumns(nDim); }
 
     /**
      *  Returns a pointer to a data set registered in the packed symmetric matrix
@@ -1126,74 +1117,65 @@ public:
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(float value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(float value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(double value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(double value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(int value) DAAL_C11_OVERRIDE { return assign<DataType>((DataType)value); }
+    virtual services::Status assign(int value) override { return assign<DataType>((DataType)value); }
 
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
     {
         return getTBlock<double>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) override
     {
         return getTBlock<float>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) override
     {
         return getTBlock<int>(vector_idx, vector_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTBlock<double>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTBlock<float>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTBlock<int>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) override { return releaseTBlock<double>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) override { return releaseTBlock<float>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) override { return releaseTBlock<int>(block); }
 
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<double> & block) override
     {
         return getTFeature<double>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<float> & block) override
     {
         return getTFeature<float>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<int> & block) override
     {
         return getTFeature<int>(feature_idx, vector_idx, value_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTFeature<double>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTFeature<float>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTFeature<int>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) override { return releaseTFeature<double>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) override { return releaseTFeature<float>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) override { return releaseTFeature<int>(block); }
 
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<double>(rwflag, block);
-    }
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<float>(rwflag, block);
-    }
-    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
-    {
-        return getTPackedArray<int>(rwflag, block);
-    }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<double> & block) override { return getTPackedArray<double>(rwflag, block); }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<float> & block) override { return getTPackedArray<float>(rwflag, block); }
+    services::Status getPackedArray(ReadWriteMode rwflag, BlockDescriptor<int> & block) override { return getTPackedArray<int>(rwflag, block); }
 
-    services::Status releasePackedArray(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<double>(block); }
-    services::Status releasePackedArray(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<float>(block); }
-    services::Status releasePackedArray(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTPackedArray<int>(block); }
+    services::Status releasePackedArray(BlockDescriptor<double> & block) override { return releaseTPackedArray<double>(block); }
+    services::Status releasePackedArray(BlockDescriptor<float> & block) override { return releaseTPackedArray<float>(block); }
+    services::Status releasePackedArray(BlockDescriptor<int> & block) override { return releaseTPackedArray<int>(block); }
 
     /** \private */
-    services::Status serializeImpl(InputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status serializeImpl(InputDataArchive * arch) override
     {
         serialImpl<InputDataArchive, false>(arch);
 
@@ -1201,7 +1183,7 @@ public:
     }
 
     /** \private */
-    services::Status deserializeImpl(const OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const OutputDataArchive * arch) override
     {
         serialImpl<const OutputDataArchive, true>(arch);
 
@@ -1211,7 +1193,7 @@ public:
 protected:
     services::SharedPtr<byte> _ptr;
 
-    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE
+    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) override
     {
         freeDataMemoryImpl();
 
@@ -1230,7 +1212,7 @@ protected:
         return services::Status();
     }
 
-    void freeDataMemoryImpl() DAAL_C11_OVERRIDE
+    void freeDataMemoryImpl() override
     {
         _ptr.reset();
         _memStatus = notAllocated;
@@ -1482,7 +1464,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfColumnsImpl(size_t nDim) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfColumnsImpl(size_t nDim) override
     {
         if (_ddict->getNumberOfFeatures() != nDim)
         {
@@ -1497,7 +1479,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfRowsImpl(size_t nDim) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfRowsImpl(size_t nDim) override
     {
         setNumberOfColumnsImpl(nDim);
         _obsnum = nDim;

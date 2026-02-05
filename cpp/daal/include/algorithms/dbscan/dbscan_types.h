@@ -558,7 +558,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t rightBlocks; /*!< Number of blocks that will process observations with value of selected
                                        split feature greater than selected split value */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -593,7 +593,7 @@ public:
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -637,7 +637,7 @@ public:
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -696,7 +696,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -742,7 +742,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -800,7 +800,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -846,7 +846,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -925,7 +925,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -971,7 +971,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1050,7 +1050,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1096,7 +1096,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1175,7 +1175,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1221,7 +1221,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1300,7 +1300,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1360,7 +1360,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1418,7 +1418,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1464,7 +1464,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1536,7 +1536,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1596,7 +1596,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1654,7 +1654,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1701,8 +1701,7 @@ public:
      * \param[in] parameter Algorithm parameter
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * parameter,
-                           int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -1759,7 +1758,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1810,7 +1809,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -1870,7 +1869,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -1942,7 +1941,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -2002,7 +2001,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -2074,7 +2073,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -2120,7 +2119,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;
@@ -2178,7 +2177,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -2225,8 +2224,7 @@ public:
      * \param[in] parameter Algorithm parameter
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * parameter,
-                           int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -2283,7 +2281,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;

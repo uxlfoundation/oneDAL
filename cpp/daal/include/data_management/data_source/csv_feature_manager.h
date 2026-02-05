@@ -159,7 +159,7 @@ public:
 
     virtual ~MakeCategorical() {}
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const DAAL_C11_OVERRIDE
+    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -185,7 +185,7 @@ public:
 
     virtual ~OneHotEncoder() {}
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const DAAL_C11_OVERRIDE
+    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -245,7 +245,7 @@ public:
         return *this;
     }
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const DAAL_C11_OVERRIDE
+    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -429,7 +429,7 @@ public:
      * \param[in]  rawDataSize  Size of the rawRowData array
      * \param[in]  dictionary   Pointer to the dictionary
      */
-    virtual void parseRowAsDictionary(char * rawRowData, size_t rawDataSize, DataSourceDictionary * dictionary) DAAL_C11_OVERRIDE
+    virtual void parseRowAsDictionary(char * rawRowData, size_t rawDataSize, DataSourceDictionary * dictionary) override
     {
         DAAL_ASSERT(rawRowData);
         DAAL_ASSERT(dictionary);
@@ -463,7 +463,7 @@ public:
      *  \param[in]  ntRowIndex   Position in the Numeric Table at which to store the result of parsing
      */
     virtual void parseRowIn(char * rawRowData, size_t rawDataSize, DataSourceDictionary * DAAL_ASSERT_DECL(dictionary),
-                            services::BufferView<DAAL_DATA_TYPE> & rowBuffer, size_t /*ntRowIndex*/) DAAL_C11_OVERRIDE
+                            services::BufferView<DAAL_DATA_TYPE> & rowBuffer, size_t /*ntRowIndex*/) override
     {
         DAAL_ASSERT(dictionary);
         DAAL_ASSERT(rawRowData);

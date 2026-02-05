@@ -64,7 +64,7 @@ public:
         resetCounters();
     }
 
-    ~REPPruningData() DAAL_C11_OVERRIDE
+    ~REPPruningData() override
     {
         daal_free(_counters);
         _counters = nullptr;
@@ -117,7 +117,7 @@ public:
 
     void prune(size_t index) { BaseType::prune(index, majorityClass(index)); }
 
-    void putProbabilities(size_t index, double * probs, size_t numProbs) const DAAL_C11_OVERRIDE
+    void putProbabilities(size_t index, double * probs, size_t numProbs) const override
     {
         DAAL_ASSERT(index < size());
         DAAL_ASSERT(probs);
