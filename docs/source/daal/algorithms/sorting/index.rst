@@ -46,7 +46,7 @@ For more details, see :ref:`algorithms`.
      - Pointer to the :math:`n \times p` numeric table that contains the input data set.
 
        This table can be an object of any class derived from ``NumericTable`` except
-      ``CSRNumericTable``.
+       ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
