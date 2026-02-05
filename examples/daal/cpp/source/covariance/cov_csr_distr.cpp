@@ -54,6 +54,8 @@ void computeStep1Local(size_t block, const CSRNumericTablePtr& fullData) {
     const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
     CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+
+    /* Create an algorithm to compute a variance-covariance matrix in the distributed processing mode using the default method */
     covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR> algorithm;
 
     /* Set input objects for the algorithm */

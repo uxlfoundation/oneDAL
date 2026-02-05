@@ -43,26 +43,32 @@ size_t nFeatures;
 int rankId, comm_size;
 #define mpi_root 0
 
-const std::string datasetFileNames[] = { "data/covcormoments_csr_1.csv",
-                                         "data/covcormoments_csr_2.csv",
-                                         "data/covcormoments_csr_3.csv",
-                                         "data/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
-    /* Retrieve the input data from a .csv file */
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[rankId]);
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    /* Split data according to MPI ranks */
+    const size_t rowsPerRank = (totalRows + comm_size - 1) / comm_size;
+
+    const size_t rowStart = rankId * rowsPerRank;
+    const size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
+
+    /* Some ranks may have no data */
+    if (rowStart >= totalRows) {
+        MPI_Finalize();
+        return 0;
+    }
+
+    CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
     /* Create an algorithm for principal component analysis using the correlation method on local nodes */
     pca::Distributed<step1Local> localAlgorithm;
@@ -71,7 +77,7 @@ int main(int argc, char* argv[]) {
         new covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR>());
 
     /* Set the input data set to the algorithm */
-    localAlgorithm.input.set(pca::data, CSRNumericTablePtr(dataTable));
+    localAlgorithm.input.set(pca::data, localTable);
 
     /* Compute PCA decomposition */
     localAlgorithm.compute();

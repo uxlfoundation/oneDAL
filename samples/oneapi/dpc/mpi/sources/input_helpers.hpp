@@ -29,6 +29,9 @@ inline bool check_file(const std::string& name) {
     return std::ifstream{ name }.good();
 }
 
+// The function tries to find the file `name` in several possible directories.
+// This is useful because CMake and Bazel may run the program from different working directories,
+// so relative paths to data files can differ.
 inline const std::string get_data_path(const std::string& name) {
     const std::vector<std::string> paths = { []() {
                                                 if (const char* root = std::getenv("DALROOT")) {

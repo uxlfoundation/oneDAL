@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
     size_t totalRows = countRowsCSV(datasetFileName);
     size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
 
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
@@ -57,6 +58,7 @@ int main(int argc, char *argv[]) {
 
     for (size_t block = 0; block < nBlocks && remainingRows > 0; block++) {
         size_t rowsToRead = std::min(blockSize, remainingRows);
+        /* Retrieve the data from the input file */
         size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
         remainingRows -= nLoaded;
         NumericTablePtr blockTable = dataSource.getNumericTable();

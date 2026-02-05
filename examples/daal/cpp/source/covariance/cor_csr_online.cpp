@@ -49,7 +49,10 @@ int main(int argc, char* argv[]) {
     const size_t totalRows = fullData->getNumberOfRows();
     const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
+    /* Create an algorithm to compute a correlation matrix in the online processing mode using the default method */
     covariance::Online<algorithmFPType, covariance::fastCSR> algorithm;
+
+    /* Set the parameter to choose the type of the output matrix */
     algorithm.parameter.outputMatrixType = covariance::correlationMatrix;
 
     for (size_t block = 0; block < nBlocks; ++block) {
@@ -59,15 +62,19 @@ int main(int argc, char* argv[]) {
 
         const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-        // split CSR exactly like in distributed
         CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
+        /* Set input objects for the algorithm */
         algorithm.input.set(covariance::data, localTable);
+
+        /* Compute partial estimates */
         algorithm.compute();
     }
 
+    /* Finalize the result in the online processing mode */
     algorithm.finalizeCompute();
 
+    /* Get the computed correlation matrix */
     covariance::ResultPtr res = algorithm.getResult();
 
     printNumericTable(res->get(covariance::correlation),

@@ -70,30 +70,39 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileNames[rankId],
+    size_t totalRows = countRowsCSV(trainDatasetFileName);
+    size_t rowsPerRank = (totalRows + comm_size - 1) / comm_size;
+
+    size_t rowStart = rankId * rowsPerRank;
+    size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
+
+    if (rowStart >= totalRows)
+        return; // Some ranks may have no data
+
+    // Load only this rank's block
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::notAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::notAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainDependentVariables(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainDependentVariables));
+    // Skip rows before rowStart
+    trainDataSource.loadDataBlock(rowStart);
+    trainLabelSource.loadDataBlock(rowStart);
 
-    /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    // Load rows for this rank
+    trainDataSource.loadDataBlock(rowEnd - rowStart);
+    trainLabelSource.loadDataBlock(rowEnd - rowStart);
 
-    /* Create an algorithm object to train the multiple linear regression model based on the local-node data */
+    NumericTablePtr trainData = trainDataSource.getNumericTable();
+    NumericTablePtr trainLabels = trainLabelSource.getNumericTable();
+
     training::Distributed<step1Local> localAlgorithm;
-
-    /* Pass a training data set and dependent values to the algorithm */
     localAlgorithm.input.set(training::data, trainData);
-    localAlgorithm.input.set(training::dependentVariables, trainDependentVariables);
+    localAlgorithm.input.set(training::dependentVariables, trainLabels);
 
-    /* Train the multiple linear regression model on local nodes */
     localAlgorithm.compute();
-
     /* Serialize partial results required by step 2 */
     services::SharedPtr<byte> serializedData;
     InputDataArchive dataArch;

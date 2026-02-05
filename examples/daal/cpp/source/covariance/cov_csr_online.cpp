@@ -62,7 +62,10 @@ int main(int argc, char* argv[]) {
         // split CSR exactly like in distributed
         CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
+        /* Set input objects for the algorithm */
         algorithm.input.set(covariance::data, localTable);
+
+        /* Compute partial estimates */
         algorithm.compute();
     }
 

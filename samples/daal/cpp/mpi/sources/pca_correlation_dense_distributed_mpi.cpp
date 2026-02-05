@@ -41,37 +41,43 @@ size_t nFeatures;
 int rankId, comm_size;
 #define mpi_root 0
 
-const std::string datasetFileNames[] = { "data/pca_normalized_1.csv",
-                                         "data/pca_normalized_2.csv",
-                                         "data/pca_normalized_3.csv",
-                                         "data/pca_normalized_4.csv" };
+const std::string datasetFileName = "data/pca_normalized.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
-
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[rankId],
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    /* 1. Count total rows (only root needed, broadcast later) */
+    size_t totalRows = 0;
+    if (rankId == mpi_root) {
+        totalRows = countRowsCSV(datasetFileName);
+    }
+    MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
+
+    /* 2. Compute block size for each process */
+    size_t blockSize = (totalRows + comm_size - 1) / comm_size;
+    size_t rowOffset = rankId * blockSize;
+    size_t rowsToRead = std::min(blockSize, totalRows - rowOffset);
+
+    /* 3. Each process reads only its block */
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    /* Retrieve the input data */
-    dataSource.loadDataBlock();
+    if (rowsToRead > 0) {
+        dataSource.loadDataBlock(rowsToRead, rowOffset, rowsToRead);
+    }
+
+    NumericTablePtr localData = dataSource.getNumericTable();
 
     /* Create an algorithm for principal component analysis using the correlation method on local nodes */
     pca::Distributed<step1Local> localAlgorithm;
 
     /* Set the input data set to the algorithm */
-    localAlgorithm.input.set(pca::data, dataSource.getNumericTable());
+    localAlgorithm.input.set(pca::data, localData);
 
     /* Compute PCA decomposition */
     localAlgorithm.compute();

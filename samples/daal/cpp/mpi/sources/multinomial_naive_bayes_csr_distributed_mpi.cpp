@@ -40,14 +40,8 @@ using namespace daal::algorithms::multinomial_naive_bayes;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const std::string trainDatasetFileNames[4] = { "data/naivebayes_train_csr.csv",
-                                               "data/naivebayes_train_csr.csv",
-                                               "data/naivebayes_train_csr.csv",
-                                               "data/naivebayes_train_csr.csv" };
-const std::string trainGroundTruthFileNames[4] = { "data/naivebayes_train_labels.csv",
-                                                   "data/naivebayes_train_labels.csv",
-                                                   "data/naivebayes_train_labels.csv",
-                                                   "data/naivebayes_train_labels.csv" };
+const std::string trainDatasetFileName = "data/naivebayes_train_csr.csv";
+const std::string trainGroundTruthFileName = "data/naivebayes_train_labels.csv";
 
 std::string testdatasetFileName = "data/naivebayes_test_csr.csv";
 std::string testGroundTruthFileName = "data/naivebayes_test_labels.csv";
@@ -84,10 +78,10 @@ int main(int argc, char* argv[]) {
 
 void trainModel() {
     /* Retrieve the input data from a .csv file */
-    CSRNumericTable* trainDataTable = createSparseTable<float>(trainDatasetFileNames[rankId]);
+    CSRNumericTable* trainDataTable = createSparseTable<float>(trainDatasetFileName);
 
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainLabelsSource(trainGroundTruthFileNames[rankId],
+    FileDataSource<CSVFeatureManager> trainLabelsSource(trainGroundTruthFileName,
                                                         DataSource::doAllocateNumericTable,
                                                         DataSource::doDictionaryFromContext);
 

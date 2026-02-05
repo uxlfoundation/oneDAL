@@ -36,10 +36,7 @@ using namespace daal::algorithms;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "data/qr_1.csv",
-                                         "data/qr_2.csv",
-                                         "data/qr_3.csv",
-                                         "data/qr_4.csv" };
+const std::string datasetFileName = "data/qr.csv";
 
 void computestep1Local();
 void computeOnMasterNode();
@@ -57,13 +54,7 @@ services::SharedPtr<byte> serializedData;
 size_t perNodeArchLength;
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);
@@ -99,18 +90,33 @@ int main(int argc, char* argv[]) {
 }
 
 void computestep1Local() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[rankId],
+    /* 1. Count total rows (only root needed, broadcast later) */
+    size_t totalRows = 0;
+    if (rankId == mpi_root) {
+        totalRows = countRowsCSV(datasetFileName);
+    }
+    MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
+
+    /* 2. Compute block size for each process */
+    size_t blockSize = (totalRows + comm_size - 1) / comm_size;
+    size_t rowOffset = rankId * blockSize;
+    size_t rowsToRead = std::min(blockSize, totalRows - rowOffset);
+
+    /* 3. Each process reads only its block */
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    /* Retrieve the input data */
-    dataSource.loadDataBlock();
+    if (rowsToRead > 0) {
+        dataSource.loadDataBlock(rowsToRead, rowOffset, rowsToRead);
+    }
+
+    NumericTablePtr localData = dataSource.getNumericTable();
 
     /* Create an algorithm to compute QR decomposition on local nodes */
     qr::Distributed<step1Local> alg;
 
-    alg.input.set(qr::data, dataSource.getNumericTable());
+    alg.input.set(qr::data, localData);
 
     /* Compute QR decomposition */
     alg.compute();

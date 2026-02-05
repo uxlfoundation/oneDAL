@@ -44,17 +44,15 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 
 /* Input data set parameters */
-const std::string dataFileNames[4] = { "data/kmeans_csr.csv",
-                                       "data/kmeans_csr.csv",
-                                       "data/kmeans_csr.csv",
-                                       "data/kmeans_csr.csv" };
+
+const std::string datasetFileName = "data/kmeans_csr.csv";
 
 #define mpi_root 0
 const int step3ResultSizeTag = 1;
 const int step3ResultTag = 2;
 
 NumericTablePtr loadData(int rankId) {
-    return NumericTablePtr(createSparseTable<float>(dataFileNames[rankId]));
+    return NumericTablePtr(createSparseTable<float>(datasetFileName));
 }
 
 template <kmeans::init::Method method>
