@@ -83,8 +83,7 @@ daal::data_management::CSRNumericTablePtr splitCSRBlock(
     size_t *localColIndices = new size_t[nnz];
     algorithmFPType *localValues = new algorithmFPType[nnz];
 
-    // Делаем относительные смещения, но сохраняем one-based стиль
-    localRowOffsets[0] = 1; // ← начало с 1 !!!
+    localRowOffsets[0] = 1;
     for (size_t i = 1; i <= nRows; ++i) {
         localRowOffsets[i] = srcRowOffsets[i] - srcRowOffsets[0] + 1;
     }

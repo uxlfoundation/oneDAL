@@ -37,17 +37,12 @@
 using namespace daal;
 using namespace daal::algorithms::linear_regression;
 
-const std::string trainDatasetFileNames[] = { "data/linear_regression_train_1.csv",
-                                              "data/linear_regression_train_2.csv",
-                                              "data/linear_regression_train_3.csv",
-                                              "data/linear_regression_train_4.csv" };
-std::string testdatasetFileName = "data/linear_regression_test.csv";
+const std::string trainDatasetFileName = "data/linear_regression_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/linear_regression_train_responses.csv";
+const std::string testDatasetFileName = "data/linear_regression_test_data.csv";
+const std::string testDatasetLabelFileName = "data/linear_regression_test_responses.csv";
 
 const size_t nBlocks = 4;
-
-const size_t nFeatures = 10; /* Number of features in training and testing data sets */
-const size_t nDependentVariables =
-    2; /* Number of dependent variables that correspond to each observation */
 
 int rankId, comm_size;
 #define mpi_root 0

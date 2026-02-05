@@ -87,7 +87,6 @@ int main(int argc, char *argv[]) {
         dataTable[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
     }
 
-
     initializeModel();
 
     trainModel();

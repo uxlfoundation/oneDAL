@@ -42,11 +42,7 @@ int rankId, comm_size;
 #define mpi_root 0
 
 /* Number of observations in transposed training data set blocks */
-const std::string trainDatasetFileNames[nBlocks] = { "data/implicit_als_trans_csr_1.csv",
-                                                     "data/implicit_als_trans_csr_2.csv",
-                                                     "data/implicit_als_trans_csr_3.csv",
-                                                     "data/implicit_als_trans_csr_4.csv" };
-
+const std::string datasetFileName = "data/implicit_als_trans_csr.csv";
 static int usersPartition[1] = { nBlocks };
 
 NumericTablePtr userOffset;
@@ -99,11 +95,31 @@ template <typename T>
 void all2all(ByteBuffer *nodeResults, KeyValueDataCollectionPtr result);
 
 int main(int argc, char *argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
+
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
-    readData();
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    /* Split data according to MPI ranks */
+    const size_t rowsPerRank = (totalRows + comm_size - 1) / comm_size;
+
+    const size_t rowStart = rankId * rowsPerRank;
+    const size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
+
+    /* Some ranks may have no data */
+    if (rowStart >= totalRows) {
+        MPI_Finalize();
+        return 0;
+    }
+
+    CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+
+    dataTable = localTable;
 
     initializeModel();
 
