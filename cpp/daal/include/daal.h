@@ -149,6 +149,8 @@
 #include "algorithms/qr/qr_distributed.h"
 #include "algorithms/pivoted_qr/pivoted_qr_types.h"
 #include "algorithms/pivoted_qr/pivoted_qr_batch.h"
+#include "algorithms/quantiles/quantiles_types.h"
+#include "algorithms/quantiles/quantiles_batch.h"
 #include "algorithms/implicit_als/implicit_als_model.h"
 #include "algorithms/implicit_als/implicit_als_predict_ratings_batch.h"
 #include "algorithms/implicit_als/implicit_als_predict_ratings_distributed.h"
