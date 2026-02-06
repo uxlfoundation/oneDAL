@@ -35,7 +35,7 @@ The 2026.x releases are the last to provide it. The list of the deprecated DAAL 
 - :ref:`SVD Decomposition <svd>`
 
 **Reasons for deprecation:** The distributed functionality running on CPUs is being transitioned from DAAL to oneDAL.
-By 2027.0 release, all distributed algorithms will be available through oneDAL interfaces only.
+By the 2027.0 release, all distributed algorithms will be available through oneDAL interfaces only.
 
 **Alternatives:** Use the oneDAL interface equivalents of the deprecated DAAL classes.
 For example, use :ref:`oneapi::dal::linear_regression <api_linear-regression>` with :ref:`SPMD communicator <api_communicator>` instead of the deprecated DAAL
