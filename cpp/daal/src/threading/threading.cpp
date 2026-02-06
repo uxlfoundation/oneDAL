@@ -152,14 +152,14 @@ DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const v
     }
 }
 
-DAAL_EXPORT void _daal_threader_for_simple(int n, int reserved, const void * a, daal::functype func)
+DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t reserved, const void * a, daal::functype func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::parallel_for(
-            tbb::blocked_range<int>(0, n, 1),
-            [&](tbb::blocked_range<int> r) {
-                int i;
+            tbb::blocked_range<int64_t>(0, n, 1),
+            [&](tbb::blocked_range<int64_t> r) {
+                int64_t i;
                 for (i = r.begin(); i < r.end(); i++)
                 {
                     func(i, a);
@@ -169,7 +169,7 @@ DAAL_EXPORT void _daal_threader_for_simple(int n, int reserved, const void * a, 
     }
     else
     {
-        int i;
+        int64_t i;
         for (i = 0; i < n; i++)
         {
             func(i, a);
@@ -310,11 +310,11 @@ DAAL_PARALLEL_SORT_IMPL(daal::IdxValType<double>, pair_fp64_uint64)
 
 #undef DAAL_PARALLEL_SORT_IMPL
 
-DAAL_EXPORT void _daal_threader_for_blocked(int n, int reserved, const void * a, daal::functype2 func)
+DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t reserved, const void * a, daal::functype2 func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
-        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
+        tbb::parallel_for(tbb::blocked_range<int64_t>(0, n, 1), [&](tbb::blocked_range<int64_t> r) { func(r.begin(), r.end() - r.begin(), a); });
     }
     else
     {
@@ -322,13 +322,13 @@ DAAL_EXPORT void _daal_threader_for_blocked(int n, int reserved, const void * a,
     }
 }
 
-DAAL_EXPORT void _daal_threader_for_optional(int n, int threads_request, const void * a, daal::functype func)
+DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t reserved, const void * a, daal::functype func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         if (_daal_is_in_parallel())
         {
-            int i;
+            int64_t i;
             for (i = 0; i < n; i++)
             {
                 func(i, a);
@@ -336,24 +336,24 @@ DAAL_EXPORT void _daal_threader_for_optional(int n, int threads_request, const v
         }
         else
         {
-            _daal_threader_for(n, threads_request, a, func);
+            _daal_threader_for(n, reserved, a, func);
         }
     }
     else
     {
-        _daal_threader_for(n, threads_request, a, func);
+        _daal_threader_for(n, reserved, a, func);
     }
 }
 
-DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void * a, daal::functype_break func)
+DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t reserved, const void * a, daal::functype_break func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
     {
         tbb::task_group_context context;
         tbb::parallel_for(
-            tbb::blocked_range<int>(0, n, 1),
-            [&](tbb::blocked_range<int> r) {
-                int i;
+            tbb::blocked_range<int64_t>(0, n, 1),
+            [&](tbb::blocked_range<int64_t> r) {
+                int64_t i;
                 for (i = r.begin(); i < r.end(); ++i)
                 {
                     bool needBreak = false;
@@ -365,7 +365,7 @@ DAAL_EXPORT void _daal_threader_for_break(int n, int threads_request, const void
     }
     else
     {
-        int i;
+        int64_t i;
         for (i = 0; i < n; ++i)
         {
             bool needBreak = false;
