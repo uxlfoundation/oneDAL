@@ -44,7 +44,7 @@ void finalizeComputestep1Local();
 
 int rankId;
 int commSize;
-#define mpiRoot 0
+#define mpi_root 0
 
 data_management::DataCollectionPtr dataFromStep1ForStep3;
 NumericTablePtr R;

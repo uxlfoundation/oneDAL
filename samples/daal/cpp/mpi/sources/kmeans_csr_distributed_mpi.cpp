@@ -49,7 +49,7 @@ int rankId, comm_size;
 #define mpi_root 0
 
 NumericTablePtr loadData(int rankId) {
-    return NumericTablePtr(createSparseTable<float>(dataFileNames));
+    return NumericTablePtr(createSparseTable<float>(datasetFileName));
 }
 
 NumericTablePtr init(int rankId, const NumericTablePtr& pData);

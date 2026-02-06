@@ -35,6 +35,7 @@ using namespace daal;
 using namespace daal::algorithms;
 
 const std::string datasetFileName = "data/covcormoments_dense.csv";
+#define mpi_root 0
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
@@ -42,7 +43,6 @@ int main(int argc, char* argv[]) {
     int rankId, comm_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    const int mpi_root = 0;
 
     checkArguments(argc, argv, 1, &datasetFileName);
 
@@ -78,7 +78,10 @@ int main(int argc, char* argv[]) {
     InputDataArchive dataArch;
     localAlgorithm.getPartialResult()->serialize(dataArch);
     size_t perNodeArchLength = dataArch.getSizeOfArchive();
-
+    /* Serialized data is of equal size on each node if each node called compute() equal number of times */
+    if (rankId == mpi_root) {
+        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
+    }
     byte* nodeResults = new byte[perNodeArchLength];
     dataArch.copyArchiveToArray(nodeResults, perNodeArchLength);
 

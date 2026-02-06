@@ -45,7 +45,6 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-    const int mpi_root = 0;
 
     checkArguments(argc, argv, 1, &datasetFileName);
 
