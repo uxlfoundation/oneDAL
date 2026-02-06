@@ -59,6 +59,10 @@ else
     endif
 endif
 
+ifeq ($(STDALLOC), yes)
+  -stdalloc.icx := -static-libstdc++ -Wno-unused-command-line-argument
+endif
+
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
 -DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
 
@@ -68,9 +72,9 @@ endif
 -Qopt = $(if $(OS_is_win),-Qopt-,-qopt-)
 
 COMPILER.lnx.icx = icx -m64 \
-                     -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS}
+                     -Werror -Wreturn-type -qopenmp-simd ${CXXFLAGS} $(-stdalloc.icx)
 COMPILER.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS}
+COMPILER.win.icx = icx $(if $(MSVC_RT_is_release),-MD -Qopenmp-simd, -MDd) -nologo -WX -Wno-deprecated-declarations ${CXXFLAGS} $(-stdalloc.icx)
 
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 

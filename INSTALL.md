@@ -156,7 +156,7 @@ is available as an alternative to the manual setup.
             source /opt/intel/oneapi/dpl/latest/env/vars.sh intel64
 
 
-7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
+7. Build oneDAL via command-line interface. Choose the appropriate commands based on the interface, platform, compiler, linker, memory allocator, and the optimization level you use. Interface and platform are required arguments of makefile while others are optional. Below you can find the set of examples for building oneDAL. You may use a combination of them to get the desired build configuration:
 
     - DAAL interfaces on **Linux\*** using **Intel(R) C++ Compiler**:
 
@@ -207,6 +207,10 @@ On **Linux\*** it is possible to build debug version of oneDAL or the version th
 - To build oneDAL to include only debug symbols, run:
 
             make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols
+
+By default, on x86 platforms, oneDAL uses highly optimized aligned memory allocators from oneMLK, but for easier debugging, it's also possible to make it use only allocators from the standard library. For this, add option `STDALLOC=yes` to the `make` call - but note that, when using the ICX compiler (default), adding this flag makes it statically-link the GNU `stdlibc++` library.:
+
+            make -f makefile daal oneapi_c PLAT=lnx32e REQDBG=symbols STDALLOC=yes
 
 It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
 
