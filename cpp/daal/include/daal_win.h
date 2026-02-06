@@ -108,8 +108,6 @@
 #include "algorithms/pca/pca_batch.h"
 #include "algorithms/pca/pca_online.h"
 #include "algorithms/pca/pca_distributed.h"
-#include "algorithms/pca/pca_explained_variance_types.h"
-#include "algorithms/pca/pca_explained_variance_batch.h"
 #include "algorithms/pca/transform/pca_transform_types.h"
 #include "algorithms/pca/transform/pca_transform_batch.h"
 #include "algorithms/kernel_function/kernel_function_types.h"
