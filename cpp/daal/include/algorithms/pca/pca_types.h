@@ -609,7 +609,7 @@ template <>
 class DistributedInput<svdDense> : public InputIface
 {
 public:
-    DAAL_EXPORT DAAL_DEPRECATED DistributedInput();
+    DAAL_DEPRECATED DAAL_EXPORT DistributedInput();
     DAAL_EXPORT DistributedInput(const DistributedInput & other);
 
     /**
