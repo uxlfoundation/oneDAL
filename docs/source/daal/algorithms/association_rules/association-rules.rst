@@ -185,7 +185,7 @@ the results of your algorithm.
        + Rule ID, the number between 0 and :math:`nAntecedentItems-1`.
        + Item ID, the number between 0 and :math:`nUniqueItems-1`.
 
-   * - ``conseqentItemsets``
+   * - ``consequentItemsets``
      - Pointer to the :math:`nConsequentItems \times 2` numeric table that contains the
        right-hand-side (Y) part of the association rules. Each row contains two integers:
 
@@ -197,9 +197,9 @@ the results of your algorithm.
        of rules, floating-point numbers between 0 and 1. Confidence value in
        the i-th position corresponds to the rule with the index i.
 
-By default, the result is an object of the HomogenNumericTable class,
+By default, the result is an object of the ``HomogenNumericTable`` class,
 but you can define the result as an object of any class derived from
-NumericTable except СSRNumericTable.
+``NumericTable`` except ``CSRNumericTable``.
 
 .. note::
 
