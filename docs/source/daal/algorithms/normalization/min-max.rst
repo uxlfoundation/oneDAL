@@ -118,7 +118,7 @@ For more details, see ``Algorithms``.
 
           By default, the result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 Examples
 ********
