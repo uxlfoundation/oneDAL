@@ -15,5 +15,4 @@
 .. note::
 
     This parameter can be an object of any class derived from ``NumericTable``
-    except and
-    ``CSRNumericTable``.
+    except ``CSRNumericTable``.
