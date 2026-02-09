@@ -57,7 +57,7 @@ For more details, see :ref:`algorithms`.
    * - ``labels``
      - Pointer to the :math:`n \times 1` numeric table with class labels.
 
-       This table can be an object of any class derived from ``NumericTable`` except.
+       This table can be an object of any class derived from ``NumericTable``.
 
 At the training stage, classification algorithms calculate the result described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
