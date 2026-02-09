@@ -43,7 +43,7 @@ void computeOnMasterNode();
 void finalizeComputestep1Local();
 
 int rankId;
-int commSize;
+int comm_size;
 #define mpi_root 0
 
 data_management::DataCollectionPtr dataFromStep1ForStep3;
@@ -57,12 +57,12 @@ int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
-    if (nBlocks != commSize) {
+    if (nBlocks != comm_size) {
         if (rankId == mpi_root) {
-            std::cout << commSize << " MPI ranks != " << nBlocks
+            std::cout << comm_size << " MPI ranks != " << nBlocks
                       << " datasets available, so please start exactly " << nBlocks << " ranks."
                       << std::endl;
         }
