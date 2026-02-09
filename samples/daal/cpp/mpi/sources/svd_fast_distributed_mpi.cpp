@@ -44,7 +44,7 @@ void finalizeComputestep1Local();
 
 int rankId;
 int commSize;
-#define mpiRoot 0
+#define mpi_root 0
 
 data_management::DataCollectionPtr dataFromStep1ForStep3;
 NumericTablePtr Sigma;
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
     if (nBlocks != commSize) {
-        if (rankId == mpiRoot) {
+        if (rankId == mpi_root) {
             std::cout << commSize << " MPI ranks != " << nBlocks
                       << " datasets available, so please start exactly " << nBlocks << " ranks.\n"
                       << std::endl;
@@ -73,14 +73,14 @@ int main(int argc, char* argv[]) {
 
     computestep1Local();
 
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         computeOnMasterNode();
     }
 
     finalizeComputestep1Local();
 
     /* Print the results */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         printNumericTable(Sigma, "Singular values:");
         printNumericTable(V, "Right orthogonal matrix V:");
         printNumericTable(Ui, "Part of left orthogonal matrix U from root node:", 10);
@@ -133,7 +133,7 @@ void computestep1Local() {
     perNodeArchLength = dataArch.getSizeOfArchive();
 
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
     }
 
@@ -147,7 +147,7 @@ void computestep1Local() {
                serializedData.get(),
                perNodeArchLength,
                MPI_CHAR,
-               mpiRoot,
+               mpi_root,
                MPI_COMM_WORLD);
 
     delete[] nodeResults;
@@ -197,7 +197,7 @@ void computeOnMasterNode() {
 
 void finalizeComputestep1Local() {
     /* Get the size of the serialized input */
-    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpiRoot, MPI_COMM_WORLD);
+    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpi_root, MPI_COMM_WORLD);
 
     byte* nodeResults = new byte[perNodeArchLength];
 
@@ -209,7 +209,7 @@ void finalizeComputestep1Local() {
                 nodeResults,
                 perNodeArchLength,
                 MPI_CHAR,
-                mpiRoot,
+                mpi_root,
                 MPI_COMM_WORLD);
 
     /* Deserialize partial results from step 2 */

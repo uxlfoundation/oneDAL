@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
 
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
     if (rankId == mpi_root) {
-        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
+        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * comm_size]);
     }
 
     byte* nodeResults = new byte[perNodeArchLength];
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
         low_order_moments::Distributed<step2Master, algorithmFPType, low_order_moments::fastCSR>
             masterAlgorithm;
 
-        for (size_t i = 0; i < nBlocks; i++) {
+        for (size_t i = 0; i < comm_size; i++) {
             /* Deserialize partial results from step 1 */
             OutputDataArchive dataArch(serializedData.get() + perNodeArchLength * i,
                                        perNodeArchLength);

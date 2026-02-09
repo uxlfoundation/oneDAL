@@ -43,7 +43,8 @@ const std::string testDatasetFileName = "data/linear_regression_test_data.csv";
 const std::string testDatasetLabelFileName = "data/linear_regression_test_responses.csv";
 
 const size_t nBlocks = 4;
-
+const size_t nFeatures = 10;
+const size_t nDependentVariables = 2;
 int rankId, comm_size;
 #define mpi_root 0
 

@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
     if (nBlocks != commSize) {
-        if (rankId == mpiRoot) {
+        if (rankId == mpi_root) {
             std::cout << commSize << " MPI ranks != " << nBlocks
                       << " datasets available, so please start exactly " << nBlocks << " ranks."
                       << std::endl;
@@ -72,14 +72,14 @@ int main(int argc, char* argv[]) {
 
     computestep1Local();
 
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         computeOnMasterNode();
     }
 
     finalizeComputestep1Local();
 
     /* Print the results */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         printNumericTable(Qi, "Part of orthogonal matrix Q from 1st node:", 10);
         printNumericTable(R, "Triangular matrix R:");
     }
@@ -131,7 +131,7 @@ void computestep1Local() {
     perNodeArchLength = dataArch.getSizeOfArchive();
 
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
-    if (rankId == mpiRoot) {
+    if (rankId == mpi_root) {
         serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
     }
 
@@ -146,7 +146,7 @@ void computestep1Local() {
                serializedData.get(),
                perNodeArchLength,
                MPI_CHAR,
-               mpiRoot,
+               mpi_root,
                MPI_COMM_WORLD);
 
     delete[] nodeResults;
@@ -195,7 +195,7 @@ void computeOnMasterNode() {
 
 void finalizeComputestep1Local() {
     /* Get the size of the serialized input */
-    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpiRoot, MPI_COMM_WORLD);
+    MPI_Bcast(&perNodeArchLength, sizeof(size_t), MPI_CHAR, mpi_root, MPI_COMM_WORLD);
 
     byte* nodeResults = new byte[perNodeArchLength];
 
@@ -207,7 +207,7 @@ void finalizeComputestep1Local() {
                 nodeResults,
                 perNodeArchLength,
                 MPI_CHAR,
-                mpiRoot,
+                mpi_root,
                 MPI_COMM_WORLD);
 
     /* Deserialize partial results from step 2 */

@@ -75,12 +75,13 @@ int main(int argc, char* argv[]) {
     localAlgorithm.compute();
 
     /* 5. Serialize partial results */
+    services::SharedPtr<byte> serializedData;
     InputDataArchive dataArch;
     localAlgorithm.getPartialResult()->serialize(dataArch);
     size_t perNodeArchLength = dataArch.getSizeOfArchive();
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
     if (rankId == mpi_root) {
-        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
+        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * comm_size]);
     }
     byte* nodeResults = new byte[perNodeArchLength];
     dataArch.copyArchiveToArray(nodeResults, perNodeArchLength);
@@ -101,7 +102,7 @@ int main(int argc, char* argv[]) {
         /* Create an algorithm to compute a variance-covariance matrix on the master node */
         covariance::Distributed<step2Master> masterAlgorithm;
 
-        for (size_t i = 0; i < nBlocks; i++) {
+        for (size_t i = 0; i < comm_size; i++) {
             /* Deserialize partial results from step 1 */
             OutputDataArchive dataArch(serializedData.get() + perNodeArchLength * i,
                                        perNodeArchLength);
