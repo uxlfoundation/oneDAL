@@ -23,5 +23,5 @@ Homogeneous Numeric Tables
 
 Use homogeneous numeric tables, that is, objects of the
 ``HomogenNumericTable`` class when all the features are of the same basic data type.
-Values of the features are laid out in memory as one contiguous block in the
-row-major order, that is, *Observation 1*, *Observation 2*, and so on.
+Values of the features are laid out in memory as one contiguous block in
+row-major order, where rows correspond to *Observation 1*, *Observation 2*, and so on.
