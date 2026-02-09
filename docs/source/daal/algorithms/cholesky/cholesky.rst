@@ -94,7 +94,7 @@ For more details, see :ref:`algorithms`.
      - Pointer to the :math:`p \times p` numeric table that represents the lower triangular matrix :math:`L` (Cholesky factor).
 
        By default, the result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-       derived from ``NumericTable`` except the ``СSRNumericTable`` class.
+       derived from ``NumericTable`` except the ``CSRNumericTable`` class.
 
 Examples
 ********
