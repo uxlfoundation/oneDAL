@@ -39,22 +39,18 @@ ONEDAL_EXPORT void _onedal_threader_for_simple(std::int64_t n,
     _daal_threader_for_simple(n, reserved, a, static_cast<daal::functype>(func));
 }
 
-ONEDAL_EXPORT void _onedal_threader_for_int32ptr(const std::int32_t *begin,
-                                                 const std::int32_t *end,
+ONEDAL_EXPORT void _onedal_threader_for_int64ptr(const std::int64_t *begin,
+                                                 const std::int64_t *end,
                                                  const void *a,
-                                                 oneapi::dal::preview::functype_int32ptr func) {
-    _daal_threader_for_int32ptr(begin, end, a, static_cast<daal::functype_int32ptr>(func));
+                                                 oneapi::dal::preview::functype_int64ptr func) {
+    _daal_threader_for_int64ptr(begin, end, a, static_cast<daal::functype_int64ptr>(func));
 }
 
-ONEDAL_EXPORT void _onedal_threader_for_blocked_size(
-    std::size_t count,
-    std::size_t block,
-    const void *a,
-    oneapi::dal::preview::functype_blocked_size func) {
-    _daal_threader_for_blocked_size(count,
-                                    block,
-                                    a,
-                                    static_cast<daal::functype_blocked_size>(func));
+ONEDAL_EXPORT void _onedal_threader_for_blocked(std::int64_t count,
+                                                std::int64_t block,
+                                                const void *a,
+                                                oneapi::dal::preview::functype2 func) {
+    _daal_threader_for_blocked(count, block, a, static_cast<daal::functype2>(func));
 }
 
 ONEDAL_EXPORT std::int64_t _onedal_parallel_reduce_int32_int64(

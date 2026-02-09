@@ -40,15 +40,13 @@ struct IdxValType
     bool operator>(const IdxValType & o) const { return o.value == value ? index > o.index : value > o.value; }
     bool operator<=(const IdxValType & o) const { return value < o.value || (value == o.value && index == o.index); }
 };
-typedef void (*functype)(int i, const void * a);
-typedef void (*functype_int64)(int64_t i, const void * a);
-typedef void (*functype_int32ptr)(const int * i, const void * a);
-typedef void (*functype_static)(size_t i, size_t tid, const void * a);
-typedef void (*functype2)(int i, int n, const void * a);
-typedef void (*functype_blocked_size)(size_t first, size_t last, const void * a);
+typedef void (*functype)(int64_t i, const void * a);
+typedef void (*functype_int64ptr)(const int64_t * i, const void * a);
+typedef void (*functype_static)(int64_t i, size_t tid, const void * a);
+typedef void (*functype2)(int64_t i, int64_t n, const void * a);
 typedef void * (*tls_functype)(const void * a);
 typedef void (*tls_reduce_functype)(void * p, const void * a);
-typedef void (*functype_break)(int i, bool & needBreak, const void * a);
+typedef void (*functype_break)(int64_t i, bool & needBreak, const void * a);
 typedef int64_t (*loop_functype_int32_int64)(int32_t start_idx_reduce, int32_t end_idx_reduce, int64_t value_for_reduce, const void * a);
 typedef int64_t (*loop_functype_int32ptr_int64)(const int32_t * start_idx_reduce, const int32_t * end_idx_reduce, int64_t value_for_reduce,
                                                 const void * a);
@@ -87,14 +85,14 @@ extern "C"
 {
     DAAL_EXPORT int _daal_threader_get_max_threads();
     DAAL_EXPORT int _daal_threader_get_current_thread_index();
+
     DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t reserved, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_reduce(const int64_t n, const int64_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT void _daal_static_threader_reduce(const int64_t n, const int64_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t reserved, const void * a, daal::functype func);
-    DAAL_EXPORT void _daal_threader_for_int32ptr(const int * begin, const int * end, const void * a, daal::functype_int32ptr func);
+    DAAL_EXPORT void _daal_threader_for_int64ptr(const int64_t * begin, const int64_t * end, const void * a, daal::functype_int64ptr func);
     DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::functype_static func);
     DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t reserved, const void * a, daal::functype2 func);
-    DAAL_EXPORT void _daal_threader_for_blocked_size(size_t n, size_t block, const void * a, daal::functype_blocked_size func);
     DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t reserved, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t reserved, const void * a, daal::functype_break func);
 
@@ -224,28 +222,28 @@ inline size_t setNumberOfThreads(const size_t numThreads, void ** globalControl)
 }
 
 template <typename F>
-inline void threader_func(int i, const void * a)
+inline void threader_func(int64_t i, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i);
 }
 
 template <typename F>
-inline void static_threader_func(size_t i, size_t tid, const void * a)
+inline void static_threader_func(int64_t i, size_t tid, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i, tid);
 }
 
 template <typename F>
-inline void threader_func_b(int i0, int in, const void * a)
+inline void threader_func_b(int64_t i0, int64_t in, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i0, in);
 }
 
 template <typename F>
-inline void threader_func_break(int i, bool & needBreak, const void * a)
+inline void threader_func_break(int64_t i, bool & needBreak, const void * a)
 {
     const F & func = *static_cast<const F *>(a);
     func(i, needBreak);
