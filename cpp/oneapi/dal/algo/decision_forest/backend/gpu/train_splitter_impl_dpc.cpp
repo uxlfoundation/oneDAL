@@ -541,16 +541,13 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
 
     constexpr std::int64_t INT32_MAX_VAL = 2147483647LL;
 
-    // Calculate maximum safe batch size considering all dimensions
     const std::int64_t total_work_items = static_cast<std::int64_t>(node_count) *
                                           static_cast<std::int64_t>(ftr_count) *
                                           static_cast<std::int64_t>(local_size);
 
     Index node_batch_size = node_count;
 
-    // If total work items exceed INT32_MAX, use batching
     if (total_work_items > INT32_MAX_VAL) {
-        // Calculate safe batch size
         const std::int64_t max_items_per_batch =
             INT32_MAX_VAL /
             (static_cast<std::int64_t>(ftr_count) * static_cast<std::int64_t>(local_size));
@@ -609,9 +606,7 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::best_split(
                 hist_type_t* const ftr_hist = hists_ptr + ftr_position * hist_prop_count;
 
                 const Index ts_ftr_id = selected_ftr_list_ptr[ftr_position];
-                // Clean global data
-                // In case of early stop it will be clean and can be processed correctly
-                // in merging kernel.
+
                 if (local_id == 0) {
                     splits_ptr[ftr_position].clear();
                 }
