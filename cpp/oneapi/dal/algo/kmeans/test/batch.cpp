@@ -361,7 +361,7 @@ TEMPLATE_LIST_TEST_M(kmeans_batch_test,
     std::int64_t rows_count = 1000 * 1000;
     auto device = this->get_queue().get_device();
     std::string device_name = device.template get_info<sycl::info::device::name>();
-    if (device.is_gpu()) {
+    if (device_name.find("Data Center GPU Max") != std::string::npos) {
         rows_count = 100 * 1000 * 1000;
     }
     this->data_indexing_ = GENERATE(sparse_indexing::zero_based, sparse_indexing::one_based);

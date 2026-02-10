@@ -36,8 +36,9 @@ inline sycl::event sort_inplace(sycl::queue& queue_,
                                 const bk::event_vector& deps = {}) {
     ONEDAL_ASSERT(src.get_count() > 0);
     auto device = queue_.get_device();
+    std::string device_name = device.get_info<sycl::info::device::name>();
     auto src_ind = pr::ndarray<Index, 1>::empty(queue_, { src.get_count() });
-    if (device.is_gpu()) {
+    if (device_name.find("Data Center GPU Max") != std::string::npos) {
         return pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_, src, src_ind, deps);
     }
     else {
@@ -438,7 +439,8 @@ sycl::event indexed_features<Float, Bin, Index>::operator()(const table& tbl,
 
     sycl::event last_event;
     auto device = queue_.get_device();
-    if (device.is_gpu()) {
+    std::string device_name = device.get_info<sycl::info::device::name>();
+    if (device_name.find("Data Center GPU Max") != std::string::npos) {
         for (Index i = 0; i < column_count_; i++) {
             last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
             last_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_,
