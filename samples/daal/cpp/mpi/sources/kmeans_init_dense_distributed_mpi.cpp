@@ -80,6 +80,7 @@ void runKMeans(int rankId, const NumericTablePtr& pData, const char* methodName)
 }
 
 int main(int argc, char* argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
     int rankId, comm_size;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);

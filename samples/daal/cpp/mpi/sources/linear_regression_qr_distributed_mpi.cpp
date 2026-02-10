@@ -60,6 +60,13 @@ training::ResultPtr trainingResult;
 prediction::ResultPtr predictionResult;
 
 int main(int argc, char* argv[]) {
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);

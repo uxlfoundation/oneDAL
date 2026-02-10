@@ -42,6 +42,7 @@ int rankId, comm_size;
 const std::string datasetFileName = "data/covcormoments_dense.csv";
 
 int main(int argc, char* argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);

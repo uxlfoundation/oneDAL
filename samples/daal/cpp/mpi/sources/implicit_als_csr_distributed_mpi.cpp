@@ -99,6 +99,13 @@ template <typename T>
 void all2all(ByteBuffer *nodeResults, KeyValueDataCollectionPtr result);
 
 int main(int argc, char *argv[]) {
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileNames[0],
+                   &trainDatasetFileNames[1],
+                   &trainDatasetFileNames[2],
+                   &trainDatasetFileNames[3]);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
