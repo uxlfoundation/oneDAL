@@ -37,7 +37,7 @@ using namespace daal::algorithms;
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
-const size_t nBlocks = 4;
+size_t nBlocks;
 size_t nFeatures;
 
 int rankId, comm_size;
@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
     checkArguments(argc, argv, 1, &datasetFileName);
+    nBlocks = comm_size;
 
     /* 1. Count total rows (only root needed, broadcast later) */
     size_t totalRows = 0;
@@ -62,19 +63,29 @@ int main(int argc, char* argv[]) {
     /* 2. Compute block size for each process */
     size_t blockSize = (totalRows + comm_size - 1) / comm_size;
     size_t rowOffset = rankId * blockSize;
-    size_t rowsToRead = std::min(blockSize, totalRows - rowOffset);
+
+    size_t rowsToRead = 0;
+    if (rowOffset < totalRows) {
+        rowsToRead = std::min(blockSize, totalRows - rowOffset);
+    }
 
     /* 3. Each process reads only its block */
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    if (rowsToRead > 0) {
-        dataSource.loadDataBlock(rowsToRead, rowOffset, rowsToRead);
+    size_t skipRows = rowOffset;
+    while (skipRows > 0) {
+        size_t skipped = dataSource.loadDataBlock(skipRows);
+        if (skipped == 0)
+            break;
+        skipRows -= skipped;
     }
 
-    NumericTablePtr localData = dataSource.getNumericTable();
+    NumericTablePtr localData;
 
+    dataSource.loadDataBlock(rowsToRead);
+    localData = dataSource.getNumericTable();
     /* Create an algorithm for principal component analysis using the SVD method on local nodes */
     pca::Distributed<step1Local, algorithmFPType, pca::svdDense> localAlgorithm;
 

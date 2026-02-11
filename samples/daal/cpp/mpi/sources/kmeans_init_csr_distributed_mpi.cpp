@@ -41,7 +41,7 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* K-Means algorithm parameters */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
-const size_t nBlocks = 4;
+size_t nBlocks;
 
 /* Input data set parameters */
 
@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
     checkArguments(argc, argv, 1, &datasetFileName);
     NumericTablePtr pData = loadData(rankId);
-
+    nBlocks = comm_size;
     runKMeans<kmeans::init::plusPlusCSR>(rankId, pData, "plusPlusCSR");
     runKMeans<kmeans::init::parallelPlusCSR>(rankId, pData, "parallelPlusCSR");
 

@@ -85,23 +85,29 @@ void trainModel() {
     size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
 
     if (rowStart >= totalRows)
-        return; // Some ranks may have no data
+        return;
 
-    // Load only this rank's block
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
+
     FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
-                                                       DataSource::notAllocateNumericTable,
+                                                       DataSource::doAllocateNumericTable,
                                                        DataSource::doDictionaryFromContext);
 
-    // Skip rows before rowStart
-    trainDataSource.loadDataBlock(rowStart);
-    trainLabelSource.loadDataBlock(rowStart);
+    size_t skip = rowStart;
+    while (skip > 0) {
+        size_t s1 = trainDataSource.loadDataBlock(skip);
+        size_t s2 = trainLabelSource.loadDataBlock(skip);
+        if (s1 == 0 || s2 == 0)
+            break;
+        skip -= s1;
+    }
 
-    // Load rows for this rank
-    trainDataSource.loadDataBlock(rowEnd - rowStart);
-    trainLabelSource.loadDataBlock(rowEnd - rowStart);
+    size_t rowsToRead = rowEnd - rowStart;
+
+    trainDataSource.loadDataBlock(rowsToRead);
+    trainLabelSource.loadDataBlock(rowsToRead);
 
     NumericTablePtr trainData = trainDataSource.getNumericTable();
     NumericTablePtr trainLabels = trainLabelSource.getNumericTable();

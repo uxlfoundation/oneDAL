@@ -46,30 +46,37 @@ int main(int argc, char* argv[]) {
 
     checkArguments(argc, argv, 1, &datasetFileName);
 
-    /* 1. Count total rows (only root needed, broadcast later) */
     size_t totalRows = 0;
     if (rankId == mpi_root) {
         totalRows = countRowsCSV(datasetFileName);
     }
     MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
 
-    /* 2. Compute block size for each process */
     size_t blockSize = (totalRows + comm_size - 1) / comm_size;
     size_t rowOffset = rankId * blockSize;
-    size_t rowsToRead = std::min(blockSize, totalRows - rowOffset);
 
-    /* 3. Each process reads only its block */
+    size_t rowsToRead = 0;
+    if (rowOffset < totalRows) {
+        rowsToRead = std::min(blockSize, totalRows - rowOffset);
+    }
+
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    if (rowsToRead > 0) {
-        dataSource.loadDataBlock(rowsToRead, rowOffset, rowsToRead);
+    size_t skipRows = rowOffset;
+    while (skipRows > 0) {
+        size_t skipped = dataSource.loadDataBlock(skipRows);
+        if (skipped == 0)
+            break;
+        skipRows -= skipped;
     }
 
-    NumericTablePtr localData = dataSource.getNumericTable();
+    NumericTablePtr localData;
 
-    /* 4. Compute local step */
+    dataSource.loadDataBlock(rowsToRead);
+    localData = dataSource.getNumericTable();
+
     covariance::Distributed<step1Local> localAlgorithm;
     localAlgorithm.input.set(covariance::data, localData);
     localAlgorithm.compute();

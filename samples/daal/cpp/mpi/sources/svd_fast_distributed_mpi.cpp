@@ -34,7 +34,7 @@ using namespace daal;
 using namespace daal::algorithms;
 
 /* Input data set parameters */
-const size_t nBlocks = 4;
+size_t nBlocks;
 
 const std::string datasetFileName = "data/svd.csv";
 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
+    nBlocks = comm_size;
     if (nBlocks != comm_size) {
         if (rankId == mpi_root) {
             std::cout << comm_size << " MPI ranks != " << nBlocks
@@ -99,21 +99,30 @@ void computestep1Local() {
     }
     MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
 
-    /* 2. Compute block size for each process */
     size_t blockSize = (totalRows + comm_size - 1) / comm_size;
     size_t rowOffset = rankId * blockSize;
-    size_t rowsToRead = std::min(blockSize, totalRows - rowOffset);
 
-    /* 3. Each process reads only its block */
+    size_t rowsToRead = 0;
+    if (rowOffset < totalRows) {
+        rowsToRead = std::min(blockSize, totalRows - rowOffset);
+    }
+
     FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    if (rowsToRead > 0) {
-        dataSource.loadDataBlock(rowsToRead, rowOffset, rowsToRead);
+    size_t skipRows = rowOffset;
+    while (skipRows > 0) {
+        size_t skipped = dataSource.loadDataBlock(skipRows);
+        if (skipped == 0)
+            break;
+        skipRows -= skipped;
     }
 
-    NumericTablePtr localData = dataSource.getNumericTable();
+    NumericTablePtr localData;
+
+    dataSource.loadDataBlock(rowsToRead);
+    localData = dataSource.getNumericTable();
 
     /* Create an algorithm to compute SVD on local nodes */
     svd::Distributed<step1Local> alg;

@@ -41,10 +41,10 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* K-Means algorithm parameters */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
-const size_t nBlocks = 4;
+size_t nBlocks = 0;
 
 /* Input data set parameters */
-const std::string datasetFileName = "data/kmeans_dense.csv";
+const std::string datasetFileName = "data/kmeans_init_dense.csv";
 
 #define mpi_root 0
 const int step3ResultSizeTag = 1;
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
+    nBlocks = comm_size;
     NumericTablePtr pData = loadData(rankId);
 
     runKMeans<kmeans::init::plusPlusDense>(rankId, pData, "plusPlusDense");

@@ -39,7 +39,7 @@ const std::string trainDatasetLabelFileName = "data/linear_regression_train_resp
 const std::string testDatasetFileName = "data/linear_regression_test_data.csv";
 const std::string testDatasetLabelFileName = "data/linear_regression_test_responses.csv";
 
-const size_t nBlocks = 4;
+size_t nBlocks;
 
 const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 const size_t nDependentVariables =
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
+    nBlocks = comm_size;
     trainModel();
 
     if (rankId == mpi_root) {
@@ -85,23 +85,29 @@ void trainModel() {
     size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
 
     if (rowStart >= totalRows)
-        return; // Some ranks may have no data
-
+        return;
     // Load only this rank's block
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
+
     FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
-                                                       DataSource::notAllocateNumericTable,
+                                                       DataSource::doAllocateNumericTable,
                                                        DataSource::doDictionaryFromContext);
-
     // Skip rows before rowStart
-    trainDataSource.loadDataBlock(rowStart);
-    trainLabelSource.loadDataBlock(rowStart);
+    size_t skip = rowStart;
+    while (skip > 0) {
+        size_t s1 = trainDataSource.loadDataBlock(skip);
+        size_t s2 = trainLabelSource.loadDataBlock(skip);
+        if (s1 == 0 || s2 == 0)
+            break;
+        skip -= s1;
+    }
 
+    size_t rowsToRead = rowEnd - rowStart;
     // Load rows for this rank
-    trainDataSource.loadDataBlock(rowEnd - rowStart);
-    trainLabelSource.loadDataBlock(rowEnd - rowStart);
+    trainDataSource.loadDataBlock(rowsToRead);
+    trainLabelSource.loadDataBlock(rowsToRead);
 
     NumericTablePtr trainData = trainDataSource.getNumericTable();
     NumericTablePtr trainLabels = trainLabelSource.getNumericTable();
