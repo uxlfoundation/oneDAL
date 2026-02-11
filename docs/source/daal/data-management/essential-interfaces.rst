@@ -20,23 +20,22 @@ methods enable interfacing numeric tables with algorithms.
 
 The getDataLayout method provides information about the data layout:
 
-+-----------------------------------+-----------------------------------+
-| Data Layout                       | Description                       |
-+===================================+===================================+
-| soa                               | Structure-Of-Arrays (SOA). Values |
-|                                   | of individual data features are   |
-|                                   | stored in contiguous memory       |
-|                                   | blocks.                           |
-+-----------------------------------+-----------------------------------+
-| aos                               | Array-Of-Structures (AOS).        |
-|                                   | Feature vectors are stored in     |
-|                                   | contiguous memory block.          |
-+-----------------------------------+-----------------------------------+
-| csr_Array                         | Condensed-Sparse-Row (CSR).       |
-+-----------------------------------+-----------------------------------+
-| unknown                           | No information about data layout  |
-|                                   | or unsupported layout.            |
-+-----------------------------------+-----------------------------------+
++-----------------------------------+---------------------------------------------------------------------------+
+| Data Layout                       | Description                                                               |
++===================================+===========================================================================+
+| soa                               | Structure-Of-Arrays (SOA).                                                |
+|                                   | Values  of individual data features are stored in contiguous              |
+|                                   | memory blocks.                                                            |
++-----------------------------------+---------------------------------------------------------------------------+
+| aos                               | Array-Of-Structures (AOS).                                                |
+|                                   | Feature vectors are stored in contiguous memory block.                    |
++-----------------------------------+---------------------------------------------------------------------------+
+| csrArray                          | Condensed-Sparse-Row (CSR).                                               |
++-----------------------------------+---------------------------------------------------------------------------+
+| arrow                             | `Apache Arrow <https://arrow.apache.org/docs/cpp/api/table.html>` format. |
++-----------------------------------+---------------------------------------------------------------------------+
+| unknown                           | No information about data layout or unsupported layout.                   |
++-----------------------------------+---------------------------------------------------------------------------+
 
 Rather than access the entire in-memory data set, it is often more
 efficient to process it by blocks. The key methods that |product|
