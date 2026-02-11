@@ -45,9 +45,9 @@ using daal_covariance_kernel_t = daal_covariance::internal::
 
 template <typename Float, typename Task>
 static compute_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
-                                                   const detail::descriptor_base<Task>& desc,
-                                                   const detail::compute_parameters<Task>& params,
-                                                   const table& data) {
+                                                  const detail::descriptor_base<Task>& desc,
+                                                  const detail::compute_parameters<Task>& params,
+                                                  const table& data) {
     auto& comm = ctx.get_communicator();
     const std::int64_t component_count = data.get_column_count();
 

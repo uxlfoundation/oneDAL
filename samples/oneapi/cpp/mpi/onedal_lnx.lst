@@ -18,4 +18,5 @@
 ##     oneAPI Data Analytics Library samples list
 ##******************************************************************************
 
-MPI  =  linear_regression_distr_mpi
+MPI  =  linear_regression_distr_mpi \
+        covariance_distr_mpi
