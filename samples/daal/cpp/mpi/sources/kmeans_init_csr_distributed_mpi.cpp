@@ -24,12 +24,12 @@
 * <a name="DAAL-SAMPLE-CPP-KMEANS_INIT_CSR_DISTRIBUTED"></a>
 * \example kmeans_init_csr_distributed_mpi.cpp
 */
-
 #include <mpi.h>
 #include "daal.h"
 #include "service.h"
 #include "stdio.h"
 #include <iostream>
+#include <vector>
 
 using namespace daal;
 using namespace daal::algorithms;
@@ -44,7 +44,6 @@ const size_t nIterations = 5;
 size_t nBlocks;
 
 /* Input data set parameters */
-
 const std::string datasetFileName = "data/kmeans_csr.csv";
 
 #define mpi_root 0
@@ -88,44 +87,47 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-static int lengthsToShifts(const int lengths[nBlocks], int shifts[nBlocks]) {
+static int lengthsToShifts(const int* lengths, int* shifts, size_t nBlocks) {
     int shift = 0;
-    for (size_t i = 0; i < nBlocks; shift += lengths[i], ++i)
+    for (size_t i = 0; i < nBlocks; ++i) {
         shifts[i] = shift;
+        shift += lengths[i];
+    }
     return shift;
 }
 
-/* Send the value to all processes in the group and collect received values into one table */
+/* ---- Fixed allToAll ---- */
 static NumericTablePtr allToAll(const NumericTablePtr& value) {
     std::vector<NumericTablePtr> aRes;
     ByteBuffer dataToSend;
     if (value.get())
         serializeDAALObject(value.get(), dataToSend);
-    const int dataToSendLength = dataToSend.size();
-    int perNodeArchLength[nBlocks];
-    for (size_t i = 0; i < nBlocks; i++)
-        perNodeArchLength[i] = 0;
+
+    const int dataToSendLength = static_cast<int>(dataToSend.size());
+    std::vector<int> perNodeArchLength(nBlocks, 0);
 
     MPI_Allgather(&dataToSendLength,
                   sizeof(int),
                   MPI_CHAR,
-                  perNodeArchLength,
+                  perNodeArchLength.data(),
                   sizeof(int),
                   MPI_CHAR,
                   MPI_COMM_WORLD);
 
-    int perNodeArchShift[nBlocks];
-    const int totalToReceive = lengthsToShifts(perNodeArchLength, perNodeArchShift);
+    std::vector<int> perNodeArchShift(nBlocks, 0);
+    const int totalToReceive =
+        lengthsToShifts(perNodeArchLength.data(), perNodeArchShift.data(), nBlocks);
+
     if (!totalToReceive)
         return NumericTablePtr();
 
     ByteBuffer dataToReceive(totalToReceive);
-    MPI_Allgatherv(&dataToSend[0],
+    MPI_Allgatherv(dataToSend.data(),
                    dataToSendLength,
                    MPI_CHAR,
-                   &dataToReceive[0],
-                   perNodeArchLength,
-                   perNodeArchShift,
+                   dataToReceive.data(),
+                   perNodeArchLength.data(),
+                   perNodeArchShift.data(),
                    MPI_CHAR,
                    MPI_COMM_WORLD);
 
@@ -136,61 +138,62 @@ static NumericTablePtr allToAll(const NumericTablePtr& value) {
             NumericTable::cast(deserializeDAALObject(&dataToReceive[shift], perNodeArchLength[i]));
         aRes.push_back(pTbl);
     }
-    if (!aRes.size())
+    if (aRes.empty())
         return NumericTablePtr();
     if (aRes.size() == 1)
         return aRes[0];
 
-    /* For parallelPlus algorithm */
     RowMergedNumericTablePtr pMerged(new RowMergedNumericTable());
-    for (size_t i = 0; i < aRes.size(); ++i)
-        pMerged->addNumericTable(aRes[i]);
+    for (auto& tbl : aRes)
+        pMerged->addNumericTable(tbl);
     return NumericTable::cast(pMerged);
 }
 
-/* Send the value to all processes in the group and collect received values into one table */
+/* ---- Fixed allToMaster ---- */
 static void allToMaster(int rankId,
                         const NumericTablePtr& value,
                         std::vector<NumericTablePtr>& aRes) {
     const bool isRoot = (rankId == mpi_root);
     aRes.clear();
+
     ByteBuffer dataToSend;
     if (value.get())
         serializeDAALObject(value.get(), dataToSend);
-    const int dataToSendLength = dataToSend.size();
-    int perNodeArchLength[nBlocks];
-    for (size_t i = 0; i < nBlocks; i++)
-        perNodeArchLength[i] = 0;
+    const int dataToSendLength = static_cast<int>(dataToSend.size());
 
+    std::vector<int> perNodeArchLength(nBlocks, 0);
     MPI_Gather(&dataToSendLength,
                sizeof(int),
                MPI_CHAR,
-               isRoot ? perNodeArchLength : NULL,
+               isRoot ? perNodeArchLength.data() : nullptr,
                sizeof(int),
                MPI_CHAR,
                mpi_root,
                MPI_COMM_WORLD);
 
     ByteBuffer dataToReceive;
-    int perNodeArchShift[nBlocks];
+    std::vector<int> perNodeArchShift(nBlocks, 0);
     if (isRoot) {
-        const int totalToReceive = lengthsToShifts(perNodeArchLength, perNodeArchShift);
+        const int totalToReceive =
+            lengthsToShifts(perNodeArchLength.data(), perNodeArchShift.data(), nBlocks);
         if (!totalToReceive)
             return;
         dataToReceive.resize(totalToReceive);
     }
-    MPI_Gatherv(&dataToSend[0],
+
+    MPI_Gatherv(dataToSend.data(),
                 dataToSendLength,
                 MPI_CHAR,
-                isRoot ? &dataToReceive[0] : NULL,
-                perNodeArchLength,
-                perNodeArchShift,
+                isRoot ? dataToReceive.data() : nullptr,
+                perNodeArchLength.data(),
+                perNodeArchShift.data(),
                 MPI_CHAR,
                 mpi_root,
                 MPI_COMM_WORLD);
 
     if (!isRoot)
         return;
+
     aRes.resize(nBlocks);
     for (size_t i = 0, shift = 0; i < nBlocks; shift += perNodeArchLength[i], ++i) {
         if (perNodeArchLength[i])
