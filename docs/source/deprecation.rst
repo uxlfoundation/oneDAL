@@ -55,7 +55,7 @@ The list of the deprecated DAAL analysis algorithms includes:
 - :ref:`SGD Optimization Solver <sgd_solver>`
 - :ref:`Adaptive Subgradient Method (AdaGrad) <adagrad_solver>`
 - :ref:`Sorting <daal_alg_sorting>`
-- :ref:`Quality Metrics <daal_alg_quality_metrics>`
+- Quality Metrics
 - :ref:`Quantile <daal_alg_quantile>`
 
 The list of the deprecated DAAL training and prediction algorithms includes:
