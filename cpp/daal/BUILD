@@ -203,7 +203,6 @@ daal_algorithms(
         "ridge_regression",
         "svd",
         "svm",
-        "weak_learner/inner",
     ],
 )
 
