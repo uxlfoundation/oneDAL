@@ -38,7 +38,6 @@ dal_module(
         "@onedal//cpp/oneapi/dal/backend/primitives:rng",
     ],
     extra_deps = [
-        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/classification:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
     ],
