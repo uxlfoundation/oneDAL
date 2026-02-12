@@ -35,8 +35,6 @@ namespace cholesky
 {
 namespace internal
 {
-template <typename algorithmFPType, CpuType cpu>
-bool isFull(NumericTableIface::StorageLayout rLayout);
 
 /**
  *  \brief Kernel for Cholesky calculation
@@ -46,70 +44,25 @@ Status CholeskyKernel<algorithmFPType, method, cpu>::compute(NumericTable * aTab
 {
     const size_t dim = aTable->getNumberOfColumns(); /* Dimension of input feature vectors */
 
-    const NumericTableIface::StorageLayout iLayout = aTable->getDataLayout();
-    const NumericTableIface::StorageLayout rLayout = r->getDataLayout();
-
     WriteOnlyRows<algorithmFPType, cpu> rowsR;
 
     algorithmFPType * L = nullptr;
-    if (isFull<algorithmFPType, cpu>(rLayout))
-    {
-        rowsR.set(*r, 0, dim);
-        DAAL_CHECK_BLOCK_STATUS(rowsR);
-        L = rowsR.get();
-    }
+
+    rowsR.set(*r, 0, dim);
+    DAAL_CHECK_BLOCK_STATUS(rowsR);
+    L = rowsR.get();
 
     Status s;
-    if (isFull<algorithmFPType, cpu>(iLayout))
-    {
-        ReadRows<algorithmFPType, cpu> rowsA(*aTable, 0, dim);
-        DAAL_CHECK_BLOCK_STATUS(rowsA);
-        s = copyMatrix(iLayout, rowsA.get(), rLayout, L, dim);
-    }
-    return s.ok() ? performCholesky(rLayout, L, dim) : s;
+
+    ReadRows<algorithmFPType, cpu> rowsA(*aTable, 0, dim);
+    DAAL_CHECK_BLOCK_STATUS(rowsA);
+    s = copyMatrix(rowsA.get(), L, dim);
+
+    return s.ok() ? performCholesky(L, dim) : s;
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-Status CholeskyKernel<algorithmFPType, method, cpu>::copyMatrix(NumericTableIface::StorageLayout iLayout, const algorithmFPType * pA,
-                                                                NumericTableIface::StorageLayout rLayout, algorithmFPType * pL, size_t dim) const
-{
-    if (isFull<algorithmFPType, cpu>(rLayout))
-    {
-        if (copyToFullMatrix(iLayout, pA, pL, dim)) return Status();
-    }
-    return Status(ErrorIncorrectTypeOfInputNumericTable);
-}
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-Status CholeskyKernel<algorithmFPType, method, cpu>::performCholesky(NumericTableIface::StorageLayout rLayout, algorithmFPType * pL, size_t dim)
-{
-    DAAL_INT info;
-    DAAL_INT dims = static_cast<DAAL_INT>(dim);
-    char uplo     = 'U';
-
-    if (isFull<algorithmFPType, cpu>(rLayout))
-    {
-        LapackInst<algorithmFPType, cpu>::xpotrf(&uplo, &dims, pL, &dims, &info);
-    }
-    else
-    {
-        return Status(ErrorIncorrectTypeOfOutputNumericTable);
-    }
-
-    if (info > 0) return Status(Error::create(services::ErrorInputMatrixHasNonPositiveMinor, services::Minor, (int)info));
-
-    return info < 0 ? Status(services::ErrorCholeskyInternal) : Status();
-}
-
-template <typename algorithmFPType, CpuType cpu>
-bool isFull(NumericTableIface::StorageLayout layout)
-{
-    return (NumericTableIface::csrArray != int(layout));
-}
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTableIface::StorageLayout iLayout, const algorithmFPType * pA,
-                                                                    algorithmFPType * pL, size_t dim) const
+Status CholeskyKernel<algorithmFPType, method, cpu>::copyMatrix(const algorithmFPType * pA, algorithmFPType * pL, size_t dim) const
 {
     const size_t blockSize = 256;
     const size_t n         = dim;
@@ -119,74 +72,42 @@ bool CholeskyKernel<algorithmFPType, method, cpu>::copyToFullMatrix(NumericTable
         nBlocks++;
     }
 
-    if (isFull<algorithmFPType, cpu>(iLayout))
-    {
-        threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
-            size_t endBlock = (iBlock + 1) * blockSize;
-            endBlock        = endBlock > n ? n : endBlock;
+    threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
+        size_t endBlock = (iBlock + 1) * blockSize;
+        endBlock        = endBlock > n ? n : endBlock;
 
-            for (size_t i = iBlock * blockSize; i < endBlock; i++)
+        for (size_t i = iBlock * blockSize; i < endBlock; i++)
+        {
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = 0; j <= i; j++)
             {
-                PRAGMA_OMP_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j <= i; j++)
-                {
-                    pL[i * dim + j] = pA[i * dim + j];
-                }
-                PRAGMA_OMP_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = (i + 1); j < dim; j++)
-                {
-                    pL[i * dim + j] = algorithmFPType(0);
-                }
+                pL[i * dim + j] = pA[i * dim + j];
             }
-        });
-    }
-    else
-    {
-        return false;
-    }
-    return true;
+            PRAGMA_OMP_SIMD
+            PRAGMA_VECTOR_ALWAYS
+            for (size_t j = (i + 1); j < dim; j++)
+            {
+                pL[i * dim + j] = algorithmFPType(0);
+            }
+        }
+    });
+
+    return Status();
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status CholeskyKernel<algorithmFPType, method, cpu>::copyToLowerTrianglePacked(NumericTableIface::StorageLayout iLayout,
-                                                                                         const algorithmFPType * pA, algorithmFPType * pL,
-                                                                                         size_t dim) const
+Status CholeskyKernel<algorithmFPType, method, cpu>::performCholesky(algorithmFPType * pL, size_t dim)
 {
-    Status status;
-    const size_t blockSize = 512;
-    const size_t n         = dim;
-    size_t nBlocks         = n / blockSize;
-    if (nBlocks * blockSize < n)
-    {
-        nBlocks++;
-    }
+    DAAL_INT info;
+    DAAL_INT dims = static_cast<DAAL_INT>(dim);
+    char uplo     = 'U';
 
-    if (isFull<algorithmFPType, cpu>(iLayout))
-    {
-        threader_for(nBlocks, nBlocks, [&](const size_t iBlock) {
-            size_t endBlock = (iBlock + 1) * blockSize;
-            endBlock        = endBlock > n ? n : endBlock;
+    LapackInst<algorithmFPType, cpu>::xpotrf(&uplo, &dims, pL, &dims, &info);
 
-            for (size_t i = iBlock * blockSize; i < endBlock; i++)
-            {
-                const size_t ind = (i + 1) * i / 2;
+    if (info > 0) return Status(Error::create(services::ErrorInputMatrixHasNonPositiveMinor, services::Minor, (int)info));
 
-                PRAGMA_OMP_SIMD
-                PRAGMA_VECTOR_ALWAYS
-                for (size_t j = 0; j <= i; j++)
-                {
-                    pL[ind + j] = pA[i * dim + j];
-                }
-            }
-        });
-    }
-    else
-    {
-        status |= Status(ErrorIncorrectTypeOfInputNumericTable);
-    }
-    return status;
+    return info < 0 ? Status(services::ErrorCholeskyInternal) : Status();
 }
 
 } // namespace internal
