@@ -117,7 +117,7 @@ void trainModel() {
     NumericTablePtr trainData = trainDataSource.getNumericTable();
     NumericTablePtr trainLabels = trainLabelSource.getNumericTable();
 
-    training::Distributed<step1Local> localAlgorithm;
+    training::Distributed<step1Local, algorithmFPType, training::qrDense> localAlgorithm;
     localAlgorithm.input.set(training::data, trainData);
     localAlgorithm.input.set(training::dependentVariables, trainLabels);
 
