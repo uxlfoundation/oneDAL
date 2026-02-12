@@ -142,7 +142,7 @@ elseif (@VERSIONS_SET@ STREQUAL "FALSE")
 endif()
 
 
-if(MKL_DEPENDENCY STREQUAL "yes"  ONEDAL_LINK STREQUAL "dynamic")
+if(MKL_DEPENDENCY STREQUAL "yes" AND  ONEDAL_LINK STREQUAL "dynamic")
     set(MKL_THREADING tbb_thread)
     set(MKL_LINK dynamic)
     set(MKL_INTERFACE ilp64)
@@ -151,7 +151,7 @@ if(MKL_DEPENDENCY STREQUAL "yes"  ONEDAL_LINK STREQUAL "dynamic")
     find_package(MKL REQUIRED)
 endif()
 
-if(MKL_DEPENDENCY STREQUAL "yes"  ONEDAL_LINK STREQUAL "static")
+if(MKL_DEPENDENCY STREQUAL "yes" ANd  ONEDAL_LINK STREQUAL "static")
     set(MKL_THREADING tbb_thread)
     set(MKL_LINK static)
     set(MKL_INTERFACE ilp64)
