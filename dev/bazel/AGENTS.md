@@ -39,7 +39,7 @@ module(
     version = "1.0.0",
 )
 
-bazel_dep(name = "rules_cc", version = "0.0.9")
+bazel_dep(name = "rules_cc", version = "0.2.16")
 bazel_dep(name = "catch2", version = "3.4.0")
 ```
 

@@ -14,6 +14,7 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@onedal//dev/bazel:cc.bzl",
     "cc_module",
     "cc_static_lib",

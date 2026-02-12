@@ -22,7 +22,8 @@ load("@onedal//dev/bazel:utils.bzl",
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
-
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 # TODO: Replace file sufix to ISA
 _CPU_SUFFIX_TO_ISA_MAP = {
     "_nrh": "sse2",

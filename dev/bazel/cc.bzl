@@ -19,9 +19,12 @@ load("@onedal//dev/bazel:utils.bzl",
     "paths",
     "sets",
 )
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
 )
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@onedal//dev/bazel/cc:common.bzl",
     onedal_cc_common = "common",
 )
@@ -123,7 +126,7 @@ def cc_module(name, hdrs=[], deps=[], **kwargs):
     # > The list of possible extensions for 'public_hdrs' is:
     #   .h,.hh,.hpp,.ipp,.hxx,.h++,.inc,.inl,.tlh,.tli,.H,.tcc
     if hdrs:
-        native.cc_library(
+        cc_library(
             name = "__{}_headers__".format(name),
             hdrs = hdrs,
         )
