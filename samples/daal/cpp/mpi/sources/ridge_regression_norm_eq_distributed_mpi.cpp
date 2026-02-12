@@ -41,7 +41,6 @@ const std::string testDatasetLabelFileName = "data/linear_regression_test_respon
 
 size_t nBlocks;
 
-const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 const size_t nDependentVariables =
     2; /* Number of dependent variables that correspond to each observation */
 
@@ -173,25 +172,23 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
 
-    /* Retrieve the data from an input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
+    testLabelSource.loadDataBlock();
     /* Create an algorithm object to predict values of multiple linear regression */
     prediction::Batch<> algorithm;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(prediction::data, testData);
+    algorithm.input.set(prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(prediction::model, trainingResult->get(training::model));
 
     /* Predict values of multiple linear regression */

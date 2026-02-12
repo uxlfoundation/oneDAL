@@ -69,9 +69,10 @@ int main(int argc, char* argv[]) {
     CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
     /* Create an algorithm to compute a sparse variance-covariance matrix on local nodes */
-    covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR> localAlgorithm;
-
-    localAlgorithm.input.set(covariance::data, localTable);
+    low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>
+        localAlgorithm;
+    /* Set the input data set to the algorithm */
+    localAlgorithm.input.set(low_order_moments::data, localTable);
     localAlgorithm.compute();
 
     /* Serialize partial results required by step 2 */
