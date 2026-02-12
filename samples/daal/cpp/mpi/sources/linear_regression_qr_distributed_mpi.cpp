@@ -205,5 +205,5 @@ void testModel() {
     printNumericTable(predictionResult->get(prediction::prediction),
                       "Linear Regression prediction results: (first 10 rows):",
                       10);
-    printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
+    printNumericTable(testLabelSource.getNumericTable(), "Ground truth (first 10 rows):", 10);
 }
