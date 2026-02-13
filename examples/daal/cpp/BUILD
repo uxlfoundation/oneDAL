@@ -339,23 +339,6 @@ dal_example_suite(
 )
 
 dal_example_suite(
-    name = "quality_metrics",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/quality_metrics/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/svm:kernel",
-        "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
-        "@onedal//cpp/daal/src/algorithms/multiclassclassifier:kernel",
-        "@onedal//cpp/daal/src/algorithms/pca:kernel",
-        "@onedal//cpp/daal/src/algorithms/pca/transform:kernel",
-        "@onedal//cpp/daal/src/algorithms/pca/metrics:kernel",
-        "@onedal//cpp/daal/src/algorithms/linear_regression:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
     name = "quantiles",
     compile_as = [ "c++" ],
     srcs = glob(["source/quantiles/*.cpp"]),
