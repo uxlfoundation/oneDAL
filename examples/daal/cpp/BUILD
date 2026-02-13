@@ -64,12 +64,10 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "decision_forest",
     compile_as = [ "c++" ],
-    srcs = glob(["source/decision_forest/*.cpp"],
-    exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
+    srcs = glob(["source/decision_forest/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
