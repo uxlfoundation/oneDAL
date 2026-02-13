@@ -43,7 +43,6 @@ const std::string datasetFileName = "data/covcormoments_csr.csv";
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
 
-    // Load full CSR (one-based)
     CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
 
     const size_t totalRows = fullData->getNumberOfRows();

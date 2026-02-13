@@ -40,8 +40,6 @@ using namespace daal::algorithms::decision_forest::classification;
 const std::string trainDatasetFileName = "data/df_classification_train_data.csv";
 const std::string trainDatasetLabelFileName = "data/df_classification_train_label.csv";
 
-const size_t nFeatures = 3; /* Number of features in training and testing data sets */
-
 /* Decision forest parameters */
 const size_t nTrees = 2;
 const size_t minObservationsInLeafNode = 8;
@@ -80,8 +78,9 @@ training::ResultPtr trainModel() {
     algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
     algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
+    /* Pass parameters to the algorithm */
     algorithm.parameter().nTrees = nTrees;
-    algorithm.parameter().featuresPerNode = nFeatures;
+    algorithm.parameter().featuresPerNode = trainDataSource.getNumericTableNumberOfColumns();
     algorithm.parameter().minObservationsInLeafNode = minObservationsInLeafNode;
     algorithm.parameter().maxTreeDepth = maxTreeDepth;
 
