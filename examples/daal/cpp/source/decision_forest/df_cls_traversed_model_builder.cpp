@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
                    argv,
                    4,
                    &trainDatasetFileName,
-                   &testDatasetFileName,
+                   &trainDatasetLabelFileName,
                    &testDatasetFileName,
                    &testDatasetLabelFileName);
 
