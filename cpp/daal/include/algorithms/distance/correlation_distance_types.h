@@ -28,7 +28,6 @@
 #include "data_management/data/numeric_table.h"
 #include "services/daal_defines.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "data_management/data/symmetric_matrix.h"
 
 namespace daal
 {
