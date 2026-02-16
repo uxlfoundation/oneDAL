@@ -88,7 +88,6 @@ extern "C"
 
     DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t reserved, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_reduce(const int64_t n, const int64_t grainSize, daal::Reducer & reducer);
-    DAAL_EXPORT void _daal_static_threader_reduce(const int64_t n, const int64_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t reserved, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_int64ptr(const int64_t * begin, const int64_t * end, const void * a, daal::functype_int64ptr func);
     DAAL_EXPORT void _daal_static_threader_for(int64_t n, const void * a, daal::functype_static func);
@@ -96,6 +95,7 @@ extern "C"
     DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t reserved, const void * a, daal::functype func);
     DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t reserved, const void * a, daal::functype_break func);
 
+    DAAL_EXPORT void _daal_static_threader_reduce(const size_t n, const size_t grainSize, daal::Reducer & reducer);
     DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64(int32_t n, int64_t init, const void * a, daal::loop_functype_int32_int64 loop_func,
                                                           const void * b, daal::reduction_functype_int64 reduction_func);
     DAAL_EXPORT int64_t _daal_parallel_reduce_int32_int64_simple(int32_t n, int64_t init, const void * a, daal::loop_functype_int32_int64 loop_func,
@@ -357,7 +357,7 @@ inline void threader_for_int32ptr(const int * begin, const int * end, const F & 
 /// @param[in] n        Number of iterations in the for loop.
 /// @param[in] func     Callable object that defines iteration's body.
 template <typename F>
-inline void static_threader_for(size_t n, const F & func)
+inline void static_threader_for(int64_t n, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 

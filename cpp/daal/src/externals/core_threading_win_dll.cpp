@@ -100,8 +100,9 @@ typedef void (*_threaded_free_t)(void *);
 typedef int (*_daal_threader_get_max_threads_t)(void);
 typedef int (*_daal_threader_get_current_thread_index_t)(void);
 
+typedef void (*_daal_static_threader_for_t)(int64_t, const void *, daal::functype_static);
+
 typedef void (*_daal_threader_for_t)(int64_t, int64_t, const void *, daal::functype);
-typedef void (*_daal_static_threader_for_t)(size_t, const void *, daal::functype_static);
 typedef void (*_daal_threader_for_simple_t)(int64_t, int64_t, const void *, daal::functype);
 typedef void (*_daal_threader_for_int64ptr_t)(const int64_t *, const int64_t *, const void *, daal::functype_int64ptr);
 typedef void (*_daal_threader_for_blocked_t)(int64_t, int64_t, const void *, daal::functype2);
