@@ -17,7 +17,7 @@
 package(default_visibility = ["//visibility:public"])
 
 load("@onedal//dev/bazel/toolchains:cc_toolchain_config_lnx.bzl", "cc_toolchain_config")
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_toolchain")
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 
 filegroup(
     name = "empty",

@@ -14,10 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
-load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
+
 load("@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "feature",
     "feature_set",
@@ -1173,8 +1171,6 @@ def _impl(ctx):
         compiler = ctx.attr.compiler,
         abi_version = ctx.attr.abi_version,
         abi_libc_version = ctx.attr.abi_libc_version,
-        tool_paths = [],
-        make_variables = [],
     )
 
 cc_toolchain_config = rule(

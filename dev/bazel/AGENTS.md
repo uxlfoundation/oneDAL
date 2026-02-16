@@ -40,7 +40,7 @@ module(
 )
 
 bazel_dep(name = "rules_cc", version = "0.2.16")
-bazel_dep(name = "catch2", version = "3.4.0")
+bazel_dep(name = "catch2", version = "3.9.1")
 ```
 
 ## 🔧 Build Rules and Patterns
