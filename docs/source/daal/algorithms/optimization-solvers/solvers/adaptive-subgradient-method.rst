@@ -109,7 +109,7 @@ the AdaGrad method has the following parameters:
 
        .. note::
             This parameter can be an object of any class derived from ``NumericTable``,
-            except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except for ``CSRNumericTable``.
    * - ``degenerateCasesThreshold``
      - :math:`1\mathrm{e}{-08}`
      - Value :math:`\varepsilon` needed to avoid degenerate cases when computing square roots.

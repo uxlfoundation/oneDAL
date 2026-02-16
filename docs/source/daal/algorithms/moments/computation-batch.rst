@@ -101,7 +101,7 @@ For more details, see :ref:`algorithms`.
 
     Each result is a pointer to the :math:`1 \times p` numeric table that contains characteristics for each feature in the data set.
     By default, the tables are objects of the ``HomogenNumericTable`` class, but you can define each table as an object of any class
-    derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+    derived from ``NumericTable`` except ``CSRNumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
