@@ -113,7 +113,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            This parameter can be an object of any class derived from ``NumericTable``,
-           except for ``PackedTriangularMatrix`` , ``PackedSymmetricMatrix`` , and ``CSRNumericTable``.
+           except for ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -147,8 +147,7 @@ Some of them are required only for specific values of the computation method's p
        If no indices are provided, the implementation uses all the terms in the computation.
 
        .. note::
-            This parameter can be an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix`` .
+            This parameter can be an object of any class derived from ``NumericTable``.
    * - ``resultsToCompute``
      - ``gradient``
      - The 64-bit integer flag that specifies which characteristics of the objective function to compute.

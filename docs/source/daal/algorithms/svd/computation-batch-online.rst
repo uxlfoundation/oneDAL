@@ -106,4 +106,4 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
 .. note::
     By default, these results are objects of the ``HomogenNumericTable`` class,
     but you can define the result as an object of any class derived from ``NumericTable``
-    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.

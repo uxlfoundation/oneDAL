@@ -99,19 +99,16 @@ services::Status PartialResult::check(const daal::algorithms::Parameter * parame
 
 services::Status PartialResult::checkImpl(size_t nFeatures) const
 {
-    int unexpectedLayouts;
     services::Status s;
 
-    unexpectedLayouts = (int)NumericTableIface::csrArray;
-    s |= checkNumericTable(get(nObservations).get(), nObservationsStr(), unexpectedLayouts, 0, 1, 1);
+    constexpr int unexpectedLayout = (int)NumericTableIface::csrArray;
+    s |= checkNumericTable(get(nObservations).get(), nObservationsStr(), unexpectedLayout, 0, 1, 1);
     if (!s) return s;
 
-    unexpectedLayouts |= (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix;
-    s |= checkNumericTable(get(crossProduct).get(), crossProductCorrelationStr(), unexpectedLayouts, 0, nFeatures, nFeatures);
+    s |= checkNumericTable(get(crossProduct).get(), crossProductCorrelationStr(), unexpectedLayout, 0, nFeatures, nFeatures);
     if (!s) return s;
 
-    unexpectedLayouts |= (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
-    s |= checkNumericTable(get(sum).get(), sumStr(), unexpectedLayouts, 0, nFeatures, 1);
+    s |= checkNumericTable(get(sum).get(), sumStr(), unexpectedLayout, 0, nFeatures, 1);
     return s;
 }
 

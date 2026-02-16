@@ -26,7 +26,6 @@
 #include "data_management/data/soa_numeric_table.h"
 #include "data_management/data/data_collection.h"
 #include "data_management/data/memory_block.h"
-#include "data_management/data/matrix.h"
 #include "data_management/data/internal/base_arrow_numeric_table.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_defines.h"
@@ -217,13 +216,7 @@ namespace interface1
 {
 IMPLEMENT_SERIALIZABLE_TAG1T_SPECIALIZATION(SerializableKeyValueCollection, SerializationIface, SERIALIZATION_KEYVALUEDATACOLLECTION_ID)
 
-#define DAAL_INSTANTIATE_SER_TAG(T)                                                                                                                 \
-    IMPLEMENT_SERIALIZABLE_TAG1T(HomogenNumericTable, T, SERIALIZATION_HOMOGEN_NT_ID)                                                               \
-    IMPLEMENT_SERIALIZABLE_TAG1T(Matrix, T, SERIALIZATION_MATRIX_NT_ID)                                                                             \
-    IMPLEMENT_SERIALIZABLE_TAG2T(PackedSymmetricMatrix, NumericTableIface::upperPackedSymmetricMatrix, T, SERIALIZATION_PACKEDSYMMETRIC_NT_ID)      \
-    IMPLEMENT_SERIALIZABLE_TAG2T(PackedSymmetricMatrix, NumericTableIface::lowerPackedSymmetricMatrix, T, SERIALIZATION_PACKEDSYMMETRIC_NT_ID + 20) \
-    IMPLEMENT_SERIALIZABLE_TAG2T(PackedTriangularMatrix, NumericTableIface::upperPackedTriangularMatrix, T, SERIALIZATION_PACKEDTRIANGULAR_NT_ID)   \
-    IMPLEMENT_SERIALIZABLE_TAG2T(PackedTriangularMatrix, NumericTableIface::lowerPackedTriangularMatrix, T, SERIALIZATION_PACKEDTRIANGULAR_NT_ID + 20)
+#define DAAL_INSTANTIATE_SER_TAG(T) IMPLEMENT_SERIALIZABLE_TAG1T(HomogenNumericTable, T, SERIALIZATION_HOMOGEN_NT_ID)
 
 DAAL_INSTANTIATE_SER_TAG(float)
 DAAL_INSTANTIATE_SER_TAG(double)

@@ -113,7 +113,7 @@ For more details, see :ref:`algorithms`.
 
     By default, the tables in these collections are objects of the ``HomogenNumericTable`` class,
     but you can define them as objects of any class derived from ``NumericTable``
-    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.
 
 .. _svd_step_2:
 
@@ -143,8 +143,7 @@ For more details, see :ref:`algorithms`.
      - A collection that contains results computed in :ref:`Step 1 <svd_step_1>` on local nodes (``outputOfStep1ForStep2``).
 
        .. note::
-            The collection can contain objects of any class derived from ``NumericTable``
-            except the ``PackedSymmetricMatrix`` class and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+            The collection can contain objects of any class derived from ``NumericTable``.
    * - ``key``
      - A key, a number of type ``int``.
 
@@ -172,7 +171,7 @@ For more details, see :ref:`algorithms`.
 
             By default, these tables are objects of the ``HomogenNumericTable`` class,
             but you can define them as objects of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
@@ -189,7 +188,7 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
    * - ``rightSingularMatrix``
      - Pointer to the :math:`p \times p` numeric table with right singular vectors (matrix :math:`V`).
        Pass ``NULL`` if right singular vectors are not required.
@@ -197,7 +196,7 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
 
 .. _svd_step_3:
 
@@ -227,14 +226,12 @@ For more details, see :ref:`algorithms`.
      - A collection that contains results computed in :ref:`Step 1 <svd_step_1>` on local nodes (``outputOfStep1ForStep3``).
 
        .. note::
-            The collection can contain objects of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+            The collection can contain objects of any class derived from ``NumericTable``.
    * - ``inputOfStep3FromStep2``
      - A collection that contains results computed in :ref:`Step 2 <svd_step_2>` on local nodes (``outputOfStep2ForStep3``).
 
        .. note::
-            The collection can contain objects of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+            The collection can contain objects of any class derived from ``NumericTable``.
 
 In this step, SVD calculates the results described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -256,4 +253,4 @@ For more details, see :ref:`algorithms`.
 
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
