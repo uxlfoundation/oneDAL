@@ -19,7 +19,8 @@ load("@onedal//dev/bazel:utils.bzl",
     "paths",
     "sets",
 )
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
 )
