@@ -1,5 +1,3 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-
 load("@onedal//dev/bazel:release.bzl",
     "release",
     "release_include",
