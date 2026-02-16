@@ -405,11 +405,11 @@ inline void threader_for_blocked(int64_t n, int64_t reserved, const F & func)
 /// @param[in] func     Callable object that processes the block of loop's iterations
 ///                     `[beginRange, endRange)`.
 template <typename F>
-inline void threader_for_blocked_size(size_t n, size_t reserved, const F & func)
+inline void threader_for_blocked(size_t n, size_t reserved, const F & func)
 {
     const void * a = static_cast<const void *>(&func);
 
-    _daal_threader_for_blocked_size(n, reserved, a, threader_func_b<F>);
+    _daal_threader_for_blocked(n, reserved, a, threader_func_b<F>);
 }
 
 /// Pass a function to be executed in a for loop to the threading layer,

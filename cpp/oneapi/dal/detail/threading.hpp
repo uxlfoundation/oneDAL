@@ -124,26 +124,26 @@ inline int threader_get_current_thread_index() {
     return _onedal_threader_get_current_thread_index();
 }
 
+// template <typename F>
+// inline void threader_func(std::int32_t i, const void *a) {
+//     const F &lambda = *static_cast<const F *>(a);
+//     lambda(i);
+// }
+
 template <typename F>
-inline void threader_func(std::int32_t i, const void *a) {
+inline void threader_func(std::int64_t i, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(i);
 }
 
 template <typename F>
-inline void threader_func_int64(std::int64_t i, const void *a) {
+inline void threader_func_int64ptr(const std::int64_t *i, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(i);
 }
 
 template <typename F>
-inline void threader_func_int32ptr(const std::int32_t *i, const void *a) {
-    const F &lambda = *static_cast<const F *>(a);
-    lambda(i);
-}
-
-template <typename F>
-inline void threader_func_blocked_size(std::size_t f, std::size_t l, const void *a) {
+inline void threader_func_blocked(std::int64_t f, std::int64_t l, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
     lambda(f, l);
 }
@@ -165,21 +165,21 @@ inline ONEDAL_EXPORT void threader_for_simple(std::int64_t n,
 }
 
 template <typename F>
-inline ONEDAL_EXPORT void threader_for_int32ptr(const std::int32_t *begin,
-                                                const std::int32_t *end,
+inline ONEDAL_EXPORT void threader_for_int64ptr(const std::int64_t *begin,
+                                                const std::int64_t *end,
                                                 const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for_int32ptr(begin, end, a, threader_func_int32ptr<F>);
+    _onedal_threader_for_int64ptr(begin, end, a, threader_func_int64ptr<F>);
 }
 
 template <typename F>
-inline ONEDAL_EXPORT void threader_for_blocked_size(std::int64_t count,
-                                                    std::int64_t block,
-                                                    const F &lambda) {
+inline ONEDAL_EXPORT void threader_for_blocked(std::int64_t count,
+                                               std::int64_t block,
+                                               const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for_blocked_size(count, block, a, threader_func_blocked_size<F>);
+    _onedal_threader_for_blocked(count, block, a, threader_func_blocked<F>);
 }
 
 template <typename F>
