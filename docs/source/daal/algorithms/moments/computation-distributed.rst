@@ -121,7 +121,7 @@ For more details, see :ref:`algorithms`.
 
 Partial characteristics computed so far on the local node, each in a :math:`1 \times p` numeric table.
 By default, each table is an object of the ``HomogenNumericTable`` class, but you can define the tables as objects
-of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+of any class derived from ``NumericTable`` except ``CSRNumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
@@ -162,7 +162,7 @@ For more details, see :ref:`algorithms`.
      - Input
    * - ``partialResults``
      - A collection that contains numeric tables with partial results computed in :ref:`Step 1 <moments_step_1>` on local nodes (six numeric tables from each local node).
-       These numeric tables can be objects of any class derived from the ``NumericTable`` class except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       These numeric tables can be objects of any class derived from the ``NumericTable`` class except ``CSRNumericTable``.
 
 In this step, the low order moments algorithm calculates the results described in the following table.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -173,7 +173,7 @@ For more details, see :ref:`algorithms`.
     Each result is a pointer to the :math:`1 \times p` numeric table that contains characteristics for each feature in the data set.
     By default, the tables are objects of the ``HomogenNumericTable`` class,
     but you can define each table as an object of any class derived from ``NumericTable``
-    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 

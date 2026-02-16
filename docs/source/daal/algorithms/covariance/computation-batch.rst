@@ -112,7 +112,7 @@ methods that access the results of your algorithm.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``correlation``
      - Use when outputMatrixType=correlationMatrix. Pointer to the numeric
        table with the :math:`p \times p` correlation matrix.
@@ -121,7 +121,7 @@ methods that access the results of your algorithm.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``mean``
      - Pointer to the :math:`1 \times p` numeric table with means.
 
@@ -129,6 +129,6 @@ methods that access the results of your algorithm.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. include:: ../../../opt-notice.rst
