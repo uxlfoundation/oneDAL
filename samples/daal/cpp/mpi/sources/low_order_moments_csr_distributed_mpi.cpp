@@ -60,12 +60,6 @@ int main(int argc, char* argv[]) {
     const size_t rowStart = rankId * rowsPerRank;
     const size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
 
-    /* Some ranks may have no data */
-    if (rowStart >= totalRows) {
-        MPI_Finalize();
-        return 0;
-    }
-
     CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
     /* Create an algorithm to compute a sparse variance-covariance matrix on local nodes */

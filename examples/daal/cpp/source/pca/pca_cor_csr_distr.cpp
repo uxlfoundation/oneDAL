@@ -55,9 +55,6 @@ int main(int argc, char* argv[]) {
         size_t rowStart = i * rowsPerBlock;
         size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-        if (rowStart >= totalRows)
-            break;
-
         CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
         /* Create an algorithm to compute a variance-covariance matrix in the distributed processing mode using the default method */
         pca::Distributed<step1Local> localAlgorithm;

@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
     localAlgorithm.input.set(covariance::data, localData);
     localAlgorithm.compute();
 
-    /* 5. Serialize partial results */
+    /* Serialize partial results */
     services::SharedPtr<byte> serializedData;
     InputDataArchive dataArch;
     localAlgorithm.getPartialResult()->serialize(dataArch);
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
     byte* nodeResults = new byte[perNodeArchLength];
     dataArch.copyArchiveToArray(nodeResults, perNodeArchLength);
 
-    /* 6. Gather partial results on root */
+    /* Gather partial results on root */
     MPI_Gather(nodeResults,
                perNodeArchLength,
                MPI_CHAR,

@@ -47,8 +47,6 @@ void computeStep1Local(size_t block, const CSRNumericTablePtr& fullData) {
     const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     const size_t rowStart = block * rowsPerBlock;
-    if (rowStart >= totalRows)
-        return;
 
     const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 

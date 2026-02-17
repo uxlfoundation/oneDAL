@@ -60,10 +60,6 @@ int main(int argc, char* argv[]) {
     for (size_t block = 0; block < nBlocks; block++) {
         size_t rowStart = block * rowsPerBlock;
         size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
-
-        if (rowStart >= totalRows)
-            break;
-
         CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
         /* Create an algorithm to compute low order moments in the distributed processing mode using the default method */
         low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>

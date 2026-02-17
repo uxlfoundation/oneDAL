@@ -83,9 +83,7 @@ void trainModel() {
     size_t rowStart = rankId * rowsPerRank;
     size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
 
-    if (rowStart >= totalRows)
-        return;
-    // Load only this rank's block
+    /* Load only this rank's block */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
@@ -93,7 +91,7 @@ void trainModel() {
     FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
                                                        DataSource::doAllocateNumericTable,
                                                        DataSource::doDictionaryFromContext);
-    // Skip rows before rowStart
+    /* Skip rows before rowStart */
     size_t skip = rowStart;
     while (skip > 0) {
         size_t s1 = trainDataSource.loadDataBlock(skip);
@@ -104,7 +102,7 @@ void trainModel() {
     }
 
     size_t rowsToRead = rowEnd - rowStart;
-    // Load rows for this rank
+    /* Load rows for this rank */
     trainDataSource.loadDataBlock(rowsToRead);
     trainLabelSource.loadDataBlock(rowsToRead);
 

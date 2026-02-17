@@ -139,7 +139,6 @@ void testModel() {
 
     /* Retrieve the algorithm results */
     predictionResult = algorithm.getResult();
-
     printNumericTable(predictionResult->get(prediction::prediction),
                       "Linear Regression prediction results: (first 10 rows):",
                       10);

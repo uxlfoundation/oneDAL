@@ -53,12 +53,10 @@ int main(int argc, char* argv[]) {
 
     for (size_t block = 0; block < nBlocks; ++block) {
         const size_t rowStart = block * rowsPerBlock;
-        if (rowStart >= totalRows)
-            break;
 
         const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-        // split CSR exactly like in distributed
+        /* split CSR exactly like in distributed */
         CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
         /* Set input objects for the algorithm */

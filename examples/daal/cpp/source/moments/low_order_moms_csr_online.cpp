@@ -56,8 +56,6 @@ int main(int argc, char* argv[]) {
         size_t rowStart = block * rowsPerBlock;
         size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-        if (rowStart >= totalRows)
-            break;
         CSRNumericTablePtr dataTable = splitCSRBlock<float>(fullData, rowStart, rowEnd);
         /* Set input objects for the algorithm */
         algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));

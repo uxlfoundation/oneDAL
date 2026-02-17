@@ -83,9 +83,6 @@ void trainModel() {
     size_t rowStart = rankId * rowsPerRank;
     size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
 
-    if (rowStart >= totalRows)
-        return;
-
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);

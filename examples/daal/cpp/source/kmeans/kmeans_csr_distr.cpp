@@ -53,10 +53,6 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < nBlocks; ++i) {
         size_t rowStart = i * rowsPerBlock;
         size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
-
-        if (rowStart >= totalRows)
-            break;
-
         dataTable[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
     }
 
@@ -83,7 +79,6 @@ int main(int argc, char* argv[]) {
 
         masterInit.input.add(kmeans::init::partialResults, localInit.getPartialResult());
     }
-
     masterInit.compute();
     masterInit.finalizeCompute();
     centroids = masterInit.getResult()->get(kmeans::init::centroids);
@@ -113,11 +108,9 @@ int main(int argc, char* argv[]) {
     }
 
     for (size_t i = 0; i < nBlocks; ++i) {
-        if (!dataTable[i])
-            continue;
-
         kmeans::Batch<algorithmFPType, kmeans::lloydCSR> localAlgorithm(nClusters, 0);
 
+        /* Set the input data to the algorithm */
         localAlgorithm.input.set(kmeans::data, dataTable[i]);
         localAlgorithm.input.set(kmeans::inputCentroids, centroids);
 
@@ -126,6 +119,7 @@ int main(int argc, char* argv[]) {
         assignments[i] = localAlgorithm.getResult()->get(kmeans::assignments);
     }
 
+    /* Print the clusterization results */
     printNumericTable(assignments[0], "First 10 cluster assignments from 1st node:", 10);
     printNumericTable(centroids, "First 10 dimensions of centroids:", 20, 10);
     printNumericTable(objectiveFunction, "Objective function value:");

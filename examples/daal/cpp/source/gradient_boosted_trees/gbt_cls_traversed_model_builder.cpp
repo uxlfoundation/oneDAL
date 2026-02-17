@@ -185,7 +185,6 @@ int main(int argc, char *argv[]) {
 
     /* train DAAL DF Classification model */
     training::ResultPtr trainingResult = trainModel();
-
     std::cout << "Predict on trained model" << std::endl;
     ModelPtr trainedModel = trainingResult->get(daal::algorithms::classifier::training::model);
     if (trainedModel.get())

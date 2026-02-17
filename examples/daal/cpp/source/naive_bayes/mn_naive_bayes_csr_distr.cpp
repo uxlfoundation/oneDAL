@@ -95,8 +95,6 @@ void trainModel() {
         size_t rowsToRead = std::min(blockSize, remainingRows);
         size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
         remainingRows -= nLoaded;
-        if (rowStart >= totalRows)
-            break;
         CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
         NumericTablePtr blockTable = dataSource.getNumericTable();
         /* Create an algorithm object to train the Naive Bayes model on the local-node data */

@@ -96,7 +96,6 @@ static int lengthsToShifts(const int* lengths, int* shifts, size_t nBlocks) {
     return shift;
 }
 
-/* ---- Fixed allToAll ---- */
 static NumericTablePtr allToAll(const NumericTablePtr& value) {
     std::vector<NumericTablePtr> aRes;
     ByteBuffer dataToSend;
@@ -149,7 +148,6 @@ static NumericTablePtr allToAll(const NumericTablePtr& value) {
     return NumericTable::cast(pMerged);
 }
 
-/* ---- Fixed allToMaster ---- */
 static void allToMaster(int rankId,
                         const NumericTablePtr& value,
                         std::vector<NumericTablePtr>& aRes) {

@@ -94,8 +94,6 @@ void trainModel() {
         size_t rowsToRead = std::min(blockSize, remainingRows);
         size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
         remainingRows -= nLoaded;
-        if (rowStart >= totalRows)
-            break;
         CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
         NumericTablePtr blockTable = dataSource.getNumericTable();
         /* Pass a training data set and dependent values to the algorithm */
