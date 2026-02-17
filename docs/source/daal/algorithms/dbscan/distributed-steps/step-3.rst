@@ -41,7 +41,7 @@ For more details, :ref:`algorithms`.
        .. note::
 
          The numeric tables in collection can be an object of any class
-         derived from ``NumericTable`` except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+         derived from ``NumericTable`` except for ``CSRNumericTable``.
 
 Algorithm Output
 ++++++++++++++++

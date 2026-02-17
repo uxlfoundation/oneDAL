@@ -188,7 +188,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. _kmeans_init_step_2_master:
 
@@ -233,7 +233,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. _kmeans_init_step_2_local:
 
@@ -294,7 +294,7 @@ For more details, see :ref:`algorithms`.
          - :math:`m = L = \mathrm{nClusters} * \mathrm{oversamplingFactor}` for other iterations
 
        This input can be an object of any class derived from ``NumericTable``,
-       except ``CSRNumericTable``, ``PackedTriangularMatrix``, and ``PackedSymmetricMatrix``.
+       except ``CSRNumericTable``.
 
    * - ``internalInput``
      - Pointer to the ``DataCollection`` object with the internal data of the distributed algorithm
@@ -330,7 +330,7 @@ For more details, see :ref:`algorithms`.
 
     By default, these results are objects of the ``HomogenNumericTable`` class,
     but you can define the result as an object of any class derived from ``NumericTable``
-    except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.
 
 .. _kmeans_init_step_3:
 
@@ -454,7 +454,7 @@ For more details, see :ref:`algorithms`.
        - ``parallelPlus`` method: :math:`m \leq L`, :math:`L = \mathrm{nClusters} * \mathrm{oversamplingFactor}`
 
        This input can be an object of any class derived from ``NumericTable``,
-       except ``CSRNumericTable``, ``PackedTriangularMatrix``, and ``PackedSymmetricMatrix``.
+       except ``CSRNumericTable``.
 
    * - ``internalInput``
      - Pointer to the ``DataCollection`` object with the internal data of the distributed algorithm
@@ -484,7 +484,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``CSRNumericTable``, ``PackedTriangularMatrix``, and ``PackedSymmetricMatrix``.
+          except ``CSRNumericTable``.
 
 .. _kmeans_init_step_5:
 
@@ -524,7 +524,7 @@ For more details, see :ref:`algorithms`.
          for the data added as the output of :ref:`Step 4 <kmeans_init_step_4>`
 
        Each numeric table can be an object of any class derived from ``NumericTable``,
-       except ``CSRNumericTable``, ``PackedTriangularMatrix``, and ``PackedSymmetricMatrix``.
+       except ``CSRNumericTable``.
 
    * - ``inputOfStep5FromStep2``
      - A data collection with the items calculated in :ref:`Step 2 <kmeans_init_step_2_local>` on local nodes.
@@ -553,5 +553,5 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 

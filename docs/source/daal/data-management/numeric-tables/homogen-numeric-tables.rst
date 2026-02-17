@@ -22,24 +22,6 @@ Homogeneous Numeric Tables
    :hidden:
 
 Use homogeneous numeric tables, that is, objects of the
-``HomogenNumericTable`` class, and matrices, that is, objects of the
-``Matrix``, ``PackedTriangularMatrix``, and ``PackedSymmetricMatrix`` classes,
-when all the features are of the same basic data type. Values of the
-features are laid out in memory as one contiguous block in the
-row-major order, that is, *Observation 1*, *Observation 2*, and so on. In
-|product|, ``Matrix`` is a homogeneous numeric table most suitable for
-matrix algebra operations.
-
-For triangular and symmetric matrices with reduced memory footprint,
-special classes are available: ``PackedTriangularMatrix`` and
-``PackedSymmetricMatrix``. Use the DataLayout enumeration to choose
-between representations of triangular and symmetric matrices:
-
--  Lower packed: ``lowerPackedSymetricMatrix`` or ``lowerPackedTriangularMatrix``
--  Upper packed: ``upperPackedTriangularMatrix`` or ``upperPackedSymetricMatrix``
-
-.. figure:: ./images/packed-storage-format.png
-  :width: 600
-  :alt:
-
-  Packed Storage Format for Symmetric and Triangular Matrices
+``HomogenNumericTable`` class when all the features are of the same basic data type.
+Values of the features are laid out in memory as one contiguous block in
+row-major order, where rows correspond to *Observation 1*, *Observation 2*, and so on.

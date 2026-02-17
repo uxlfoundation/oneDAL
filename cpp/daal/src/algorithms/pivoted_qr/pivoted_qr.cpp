@@ -77,11 +77,9 @@ Status Input::check(const daal::algorithms::Parameter * par, int method) const
     Parameter * parameter = static_cast<Parameter *>(const_cast<daal::algorithms::Parameter *>(par));
     if (parameter->permutedColumns.get() != NULL)
     {
-        int unexpectedLayouts = (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedTriangularMatrix
-                                | (int)NumericTableIface::lowerPackedTriangularMatrix | (int)NumericTableIface::upperPackedSymmetricMatrix
-                                | (int)NumericTableIface::lowerPackedSymmetricMatrix;
+        int unexpectedLayout = (int)NumericTableIface::csrArray;
 
-        s |= checkNumericTable(parameter->permutedColumns.get(), permutedColumnsStr(), unexpectedLayouts, 0, nFeatures, 1);
+        s |= checkNumericTable(parameter->permutedColumns.get(), permutedColumnsStr(), unexpectedLayout, 0, nFeatures, 1);
     }
     return s;
 }
@@ -121,24 +119,20 @@ Status Result::check(const daal::algorithms::Input * in, const daal::algorithms:
     size_t nVectors  = input->get(data)->getNumberOfRows();
     size_t nFeatures = input->get(data)->getNumberOfColumns();
 
-    int unexpectedLayouts = (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedTriangularMatrix
-                            | (int)NumericTableIface::lowerPackedTriangularMatrix | (int)NumericTableIface::upperPackedSymmetricMatrix
-                            | (int)NumericTableIface::lowerPackedSymmetricMatrix;
+    int unexpectedLayout = (int)NumericTableIface::csrArray;
 
-    Status s = checkNumericTable(get(matrixQ).get(), matrixQStr(), unexpectedLayouts, 0, nFeatures, nVectors);
+    Status s = checkNumericTable(get(matrixQ).get(), matrixQStr(), unexpectedLayout, 0, nFeatures, nVectors);
     if (!s)
     {
         return s;
     }
-    s |= checkNumericTable(get(permutationMatrix).get(), permutationMatrixStr(), unexpectedLayouts, 0, nFeatures, 1);
+    s |= checkNumericTable(get(permutationMatrix).get(), permutationMatrixStr(), unexpectedLayout, 0, nFeatures, 1);
     if (!s)
     {
         return s;
     }
-    unexpectedLayouts = (int)NumericTableIface::csrArray | (int)NumericTableIface::lowerPackedTriangularMatrix
-                        | (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
 
-    s |= checkNumericTable(get(matrixR).get(), matrixRStr(), unexpectedLayouts, 0, nFeatures, nFeatures);
+    s |= checkNumericTable(get(matrixR).get(), matrixRStr(), unexpectedLayout, 0, nFeatures, nFeatures);
     return s;
 }
 

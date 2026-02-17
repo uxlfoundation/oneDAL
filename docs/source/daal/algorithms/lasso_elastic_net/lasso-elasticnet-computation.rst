@@ -42,8 +42,7 @@ Both LASSO and Elastic Net algorithms have the following input parameters in add
      - Optional input.
 
        Pointer to the :math:`1 \times n` numeric table with weights of samples.
-       The input can be an object of any class derived from NumericTable except for PackedTriangularMatrix,
-       PackedSymmetricMatrix, and CSRNumericTable.
+       The input can be an object of any class derived from ``NumericTable`` except for ``CSRNumericTable``.
 
        By default, all weights are equal to 1.
 
@@ -51,7 +50,7 @@ Both LASSO and Elastic Net algorithms have the following input parameters in add
      - Optional input.
 
        Pointer to the :math:`p \times p` numeric table with pre-computed Gram Matrix.
-       The input can be an object of any class derived from NumericTable except for CSRNumericTable.
+       The input can be an object of any class derived from ``NumericTable`` except for ``CSRNumericTable``.
 
        By default, the table is set to an empty numeric table.
        It is used only when the number of features is less than the number of observations.
@@ -92,8 +91,7 @@ Chosse the appropriate tab to see the parameters used in LASSO and Elastic Net b
           - For the table of size :math:`1 \times k`, use the values of LASSO parameters :math:`\lambda_j` for :math:`j = 1, \ldots, k`.
           - For the table of size :math:`1 \times 1`, use the value of LASSO parameter for each dependant variable :math:`\lambda_1 = \ldots = \lambda_k`.
 
-          This parameter can be an object of any class derived from NumericTable, except for PackedTriangularMatrix,
-          PackedSymmetricMatrix, and CSRNumericTable.
+          This parameter can be an object of any class derived from ``NumericTable``, except for ``CSRNumericTable``.
 
       * - ``optimizationSolver``
         - :ref:`Coordinate Descent solver <cda_solver>`
@@ -146,8 +144,8 @@ Chosse the appropriate tab to see the parameters used in LASSO and Elastic Net b
           - For the table of size :math:`1 \times k`, the values of the Elastic Net parameters :math:`\lambda_{1j}` for :math:`j = 1, \ldots, k`.
           - For the table of size :math:`1 \times 1`, the values of the Elastic Net parameter for each dependent veriable :math:`\lambda_{11} = \ldots = \lambda_{1k}`.
 
-          This parameter can be an object of any class derived from NumericTable,
-          except for PackedTriangularMatrix, PackedSymmetricMatrix, and CSRNumericTable.
+          This parameter can be an object of any class derived from ``NumericTable``,
+          except for ``CSRNumericTable``.
 
       * - ``penaltyL2``
         - A numeric table of size :math:`1 \times 1` that contains the default Elastic Net parameter equal to :math:`0.5`.
@@ -159,8 +157,8 @@ Chosse the appropriate tab to see the parameters used in LASSO and Elastic Net b
           - For the table of size :math:`1 \times k`, the values of the Elastic Net parameters :math:`\lambda_{2j}` for :math:`j = 1, \ldots, k`.
           - For the table of size :math:`1 \times 1`, the values of the Elastic Net parameter for each dependent veriable :math:`\lambda_{21} = \ldots = \lambda_{2k}`.
 
-          This parameter can be an object of any class derived from NumericTable,
-          except for PackedTriangularMatrix, PackedSymmetricMatrix, and CSRNumericTable.
+          This parameter can be an object of any class derived from ``NumericTable``,
+          except for ``CSRNumericTable``.
 
       * - ``optimizationSolver``
         - :ref:`Coordinate Descent solver <cda_solver>`
@@ -178,8 +176,8 @@ Chosse the appropriate tab to see the parameters used in LASSO and Elastic Net b
         - A flag that indicates a permission to overwrite input data.
           Provide the following value to restrict or allow modification of input data:
 
-          - ``doNotUse`` – restricts modification
-          - ``doUse`` – allows modification
+          - ``doNotUse`` - restricts modification
+          - ``doUse`` - allows modification
 
 
     .. note::
