@@ -41,8 +41,7 @@ For more details, see :ref:`algorithms`.
        numeric table that contains the correlation matrix.
 
        .. note::
-          This input can be an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``.
+          This input can be an object of any class derived from ``NumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -137,7 +136,7 @@ your algorithm.
        .. note::
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``eigenvectors``
      - Pointer to the :math:`p_r \times p` numeric table that contains eigenvectors
        in the row-major order.
@@ -145,7 +144,7 @@ your algorithm.
        .. note::
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
    * - ``means``
      - Pointer to the :math:`1 \times p_r` numeric table that contains mean values
@@ -180,7 +179,6 @@ Please note the following:
    -  By default, each numeric table specified by the collection
       elements is an object of the ``HomogenNumericTable`` class, but you
       can define the result as an object of any class derived from
-      ``NumericTable``, except for ``PackedSymmetricMatrix``,
-      ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+      ``NumericTable`` except ``CSRNumericTable``.
    -  For the ``svdDense`` method :math:`n` should not be less than :math:`p`. If :math:`n > p`,
       svdDense returns an error.

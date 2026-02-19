@@ -193,7 +193,7 @@ the limited-memory BFGS algorithm has the following parameters:
        .. note::
 
           This parameter can be an object of any class derived from ``NumericTable``,
-          except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except for ``CSRNumericTable``.
    * - ``batchSize``
      - :math:`10`
      - The number of observations to compute the stochastic gradient. The
@@ -222,7 +222,7 @@ the limited-memory BFGS algorithm has the following parameters:
        .. note::
 
           This parameter can be an object of any class derived from ``NumericTable``,
-          except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except for ``CSRNumericTable``.
 
        .. note::
 
@@ -246,7 +246,7 @@ the limited-memory BFGS algorithm has the following parameters:
        ..note::
 
           This parameter can be an object of any class derived from ``NumericTable``,
-          except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except for ``CSRNumericTable``.
 
        The recommended data type for storing the step-length sequence is the
        floating-point type, either float or double, that the algorithm uses in

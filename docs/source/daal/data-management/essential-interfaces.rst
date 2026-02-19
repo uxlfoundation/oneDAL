@@ -20,31 +20,22 @@ methods enable interfacing numeric tables with algorithms.
 
 The getDataLayout method provides information about the data layout:
 
-+-----------------------------------+-----------------------------------+
-| Data Layout                       | Description                       |
-+===================================+===================================+
-| soa                               | Structure-Of-Arrays (SOA). Values |
-|                                   | of individual data features are   |
-|                                   | stored in contiguous memory       |
-|                                   | blocks.                           |
-+-----------------------------------+-----------------------------------+
-| aos                               | Array-Of-Structures (AOS).        |
-|                                   | Feature vectors are stored in     |
-|                                   | contiguous memory block.          |
-+-----------------------------------+-----------------------------------+
-| csr_Array                         | Condensed-Sparse-Row (CSR).       |
-+-----------------------------------+-----------------------------------+
-| lowerPackedSymetricMatrix         | Lower packed symmetric matrix     |
-+-----------------------------------+-----------------------------------+
-| lowerPackedTriangularMatrix       | Lower packed triangular matrix    |
-+-----------------------------------+-----------------------------------+
-| upperPackedSymetricMatrix         | Upper packed symmetric matrix     |
-+-----------------------------------+-----------------------------------+
-| upperPackedTriangularMatrix       | Upper packed triangular matrix    |
-+-----------------------------------+-----------------------------------+
-| unknown                           | No information about data layout  |
-|                                   | or unsupported layout.            |
-+-----------------------------------+-----------------------------------+
++-----------------------------------+---------------------------------------------------------------------------+
+| Data Layout                       | Description                                                               |
++===================================+===========================================================================+
+| soa                               | Structure-Of-Arrays (SOA).                                                |
+|                                   | Values  of individual data features are stored in contiguous              |
+|                                   | memory blocks.                                                            |
++-----------------------------------+---------------------------------------------------------------------------+
+| aos                               | Array-Of-Structures (AOS).                                                |
+|                                   | Feature vectors are stored in contiguous memory block.                    |
++-----------------------------------+---------------------------------------------------------------------------+
+| csrArray                          | Condensed-Sparse-Row (CSR).                                               |
++-----------------------------------+---------------------------------------------------------------------------+
+| arrow                             | `Apache Arrow <https://arrow.apache.org/docs/cpp/api/table.html>` format. |
++-----------------------------------+---------------------------------------------------------------------------+
+| unknown                           | No information about data layout or unsupported layout.                   |
++-----------------------------------+---------------------------------------------------------------------------+
 
 Rather than access the entire in-memory data set, it is often more
 efficient to process it by blocks. The key methods that |product|
@@ -102,13 +93,6 @@ statistics are computed for each numeric table:
 
 - Use the operator [] method to access rows of a homogeneous dense
   numeric table.
-
-**Special Interfaces for the PackedTriangularMatrix and PackedSymmetricMatrix Classes**
-
--   While you can use generic ``getArray()`` and ``setArray()`` methods to
-    access the data in a packed format, in algorithms that have
-    specific implementations for a packed data layout, you can use
-    more specific ``getPackedValues()`` and ``releasePackedValues()`` methods.
 
 **Special Interfaces for the CSRNumericTable Class**
 
