@@ -136,97 +136,16 @@ complete the following steps:
   Each split node denotes a feature test that is a Boolean expression, for example,
   f < ``featureValue`` or f = ``featureValue``, where f is a feature and ``featureValue`` is a constant.
   The test type depends on the feature type: continuous, categorical, or ordinal.
+  For more information on the test types, see :ref:`decision_tree`.
 
   The inducted decision tree is a binary tree, meaning that each non-leaf node has exactly two branches: true and false.
   Each split node contains ``featureIndex``, the index of the feature used for the feature test in this node, and ``featureValue``,
   the constant for the Boolean expression in the test. Each leaf node contains a ``classLabel``, the predicted class for this leaf.
+  For more information on decision trees, see :ref:`decision_tree`.
 
   Add nodes to the created tree in accordance with the pre-calculated structure of the tree.
   Check that the leaf nodes do not have children nodes and that the splits have exactly two children.
 
-Split Criteria
---------------
-
-The library provides the decision tree classification algorithm
-based on split criteria Gini index [Breiman84]_ and Information gain
-[Quinlan86]_, [Mitchell97]_.
-
-#.
-
- Gini index
-
- .. math::
-	 {I}_{Gini}\left(D\right)=1-\sum _{i=0}^{C-1}{p}_{i}^{2}
-
-
- where
-
- - :math:`D` is a set of observations that reach the node
-
- - :math:`p_i` is the observed fraction of observations with class :math:`i` in :math:`D`
-
- To find the best test using Gini index, each possible test is examined using
-
- .. math::
-	 \text{Δ}{I}_{Gini}\left(D,\text{ τ}\right)={I}_{Gini}\left(D\right)-\sum _{v\in O\left(\text{τ}\right)}\frac{|{D}_{v}|}{|D|}{I}_{Gini}\left({D}_{v}\right)\phantom{\rule{0ex}{0ex}}\phantom{\rule{0ex}{0ex}}
-
-
- where
-
- - :math:`O(\tau)` is the set of all possible outcomes of test :math:`\tau`
-
- - :math:`D_v` is the subset of :math:`D`, for which outcome of :math:`\tau` is :math:`v`, for example :math:`{D}_{v}=\left\{d\in D\text{|τ}\left(d\right)=v\right\}`
-
- The test to be used in the node is selected as :math:`\underset{\tau }{\text{argmax}}\text{Δ}{I}_{Gini}\left(D,\tau \right)`.
- For binary decision tree with 'true' and 'false' branches, :math:`\text{Δ}{I}_{Gini}\left(D, \text{τ}\right)={I}_{Gini}\left(D\right)-\frac{|{D}_{true}|}{|D|}{I}_{Gini}\left({D}_{true}\right)-\frac{|{D}_{false}|}{|D|}{I}_{Gini}\left({D}_{false}\right)`
-
-#. Information gain
-
-
-   .. math::
-      \text{Δ}{I}_{Gini}\left(D, \text{τ}\right)={I}_{Gini}\left(D\right)-\frac{|{D}_{true}|}{|D|}{I}_{Gini}\left({D}_{true}\right)-\frac{|{D}_{false}|}{|D|}{I}_{Gini}\left({D}_{false}\right)
-
-
-   where
-
-   - :math:`O(\tau)`, :math:`D`, :math:`D_v` are defined above
-   - :math:`{I}_{Entropy}\left(D\right)=-\sum _{i=0}^{C-1}{p}_{i}\mathrm{log}{p}_{i}`, with :math:`p_i` defined above in Gini index.
-
-   Similarly to Gini index, the test to be used in the node is selected as :math:`\underset{\tau }{\text{argmax}}InfoGain\left(D,\tau \right)`. For binary decision tree with 'true' and 'false' branches, :math:`\text{Δ}{I}_{Gini}\left(D, \text{τ}\right)={I}_{Gini}\left(D\right)-\frac{|{D}_{true}|}{|D|}{I}_{Gini}\left({D}_{true}\right)-\frac{|{D}_{false}|}{|D|}{I}_{Gini}\left({D}_{false}\right)`
-
-
-Types of Tests
---------------
-
-The library inducts decision trees with the following types of
-tests:
-
-#.
-
-   For continuous features, the test has a form of :math:`f_j < constant`, where :math:`f_j` is a feature, :math:`j \in \{1, \ldots, p\}`.
-
-   While enumerating all possible tests for each continuous
-   feature, the *constant* can be any threshold as midway between
-   sequential values for sorted unique values of given feature :math:`f_j`
-   that reach the node.
-
-#.
-
-   For categorical features, the test has a form of :math:`f_j = constant`,
-   where :math:`f_j` is a feature, :math:`j \in \{1, \ldots, p\}`.
-
-   While enumerating all possible tests for each categorical
-   feature, the *constant* can be any value of given feature :math:`f_j` that reach the node.
-
-#.
-
-   For ordinal features, the test has a form of :math:`f_j <> constant`
-   where :math:`f_j` is a feature, :math:`j \in \{1, \ldots, p\}`.
-
-   While enumerating all possible tests for each ordinal feature,
-   the *constant* can be any unique value except for the first one
-   (in the ascending order) of given feature :math:`f_j` that reach
-   the node
 
 Examples
 ********

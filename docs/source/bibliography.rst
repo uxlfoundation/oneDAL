@@ -174,6 +174,9 @@ For more information about algorithms implemented in |short_name|, refer to the 
    1998, Ed. Niederreiter, H. and Spanier, J., Springer 2000, pp. 56-69,
    available from http://www.math.sci.hiroshima-u.ac.jp/%7Em-mat/MT/DC/dc.html.
 
+.. [Mitchell97]
+   Tom M. Mitchell. *Machine Learning*. McGraw-Hill Education, 1997.
+
 .. [OpenCLSpec]
    Khronos OpenCL Working Group, The OpenCL Specification
    Version:2.1 Document Revision:24

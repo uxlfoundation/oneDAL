@@ -21,6 +21,7 @@ Training and prediction algorithms in |full_name| (|short_name|) include a range
    :maxdepth: 1
 
    algorithms/decision_forest/index
+   algorithms/decision_tree/index
    algorithms/gradient_boosted_trees/index
    algorithms/linear_ridge_regression/index.rst
    algorithms/lasso_elastic_net/index.rst
