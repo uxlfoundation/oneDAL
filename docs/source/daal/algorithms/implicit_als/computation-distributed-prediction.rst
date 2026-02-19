@@ -108,4 +108,4 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default this table is an object of the ``HomogenNumericTable`` class,
             but you can define it as an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.

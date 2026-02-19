@@ -91,26 +91,23 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
 
 services::Status Result::checkImpl(size_t nFeatures, OutputMatrixType outputMatrixType) const
 {
-    int unexpectedLayouts =
-        (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix;
+    constexpr int unexpectedLayout = (int)NumericTableIface::csrArray;
     services::Status s;
     if (outputMatrixType == covarianceMatrix)
     {
         /* Check covariance matrix */
-        s |= checkNumericTable(get(covariance).get(), covarianceStr(), unexpectedLayouts, 0, nFeatures, nFeatures);
+        s |= checkNumericTable(get(covariance).get(), covarianceStr(), unexpectedLayout, 0, nFeatures, nFeatures);
         if (!s) return s;
     }
     else if (outputMatrixType == correlationMatrix)
     {
         /* Check correlation matrix */
-        s |= checkNumericTable(get(correlation).get(), correlationStr(), unexpectedLayouts, 0, nFeatures, nFeatures);
+        s |= checkNumericTable(get(correlation).get(), correlationStr(), unexpectedLayout, 0, nFeatures, nFeatures);
         if (!s) return s;
     }
 
-    unexpectedLayouts |= (int)NumericTableIface::upperPackedSymmetricMatrix | (int)NumericTableIface::lowerPackedSymmetricMatrix;
-
     /* Check mean vector */
-    s |= checkNumericTable(get(mean).get(), meanStr(), unexpectedLayouts, 0, nFeatures, 1);
+    s |= checkNumericTable(get(mean).get(), meanStr(), 0, 0, nFeatures, 1);
     return s;
 }
 

@@ -95,8 +95,7 @@ Status Input::check(const daal::algorithms::Parameter * par, int method) const
     Status s;
     if (_isCorrelation)
     {
-        int unexpectedLayouts = (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::lowerPackedTriangularMatrix;
-        DAAL_CHECK_STATUS(s, checkNumericTable(dataTable.get(), correlationStr(), unexpectedLayouts));
+        DAAL_CHECK_STATUS(s, checkNumericTable(dataTable.get(), correlationStr()));
         DAAL_CHECK_EX(dataTable->getNumberOfColumns() == dataTable->getNumberOfRows(), ErrorNumericTableIsNotSquare, ArgumentName, correlationStr());
     }
     else
