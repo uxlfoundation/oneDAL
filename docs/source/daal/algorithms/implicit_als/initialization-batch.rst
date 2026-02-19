@@ -34,8 +34,7 @@ For more details, see :ref:`algorithms`.
    * - ``data``
      - Pointer to the :math:`m \times n` numeric table with the mining data.
 
-       The input can be an object of any class derived from ``NumericTable`` except
-       ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
 
 Parameters
 **********

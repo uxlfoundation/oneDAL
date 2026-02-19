@@ -125,9 +125,7 @@ Status Result::check(const daal::algorithms::Input * in, const daal::algorithms:
     size_t nVectors  = input->get(data)->getNumberOfColumns();
     size_t nFeatures = parameter->quantileOrders->getNumberOfColumns();
 
-    int unexpectedLayouts = (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedTriangularMatrix
-                            | (int)NumericTableIface::lowerPackedTriangularMatrix | (int)NumericTableIface::upperPackedSymmetricMatrix
-                            | (int)NumericTableIface::lowerPackedSymmetricMatrix;
+    int unexpectedLayouts = (int)NumericTableIface::csrArray;
 
     s |= checkNumericTable(get(quantiles).get(), quantilesStr(), unexpectedLayouts, 0, nFeatures, nVectors);
     return s;

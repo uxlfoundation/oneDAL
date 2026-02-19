@@ -253,7 +253,7 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
    * - ``means``
      - Pointer to the :math:`k \times p` numeric table with each row containing the estimate
@@ -263,7 +263,7 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``covariances``
      - Pointer to the ``DataCollection`` object that contains :math:`k` numeric tables,
        each with the :math:`p \times p` variance-covariance matrix for the :math:`i`-th mixture
@@ -276,7 +276,7 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
 
           By default, the collection contains objects of the ``HomogenNumericTable`` class,
           but you can define them as objects of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 Computation
 ===========
@@ -403,7 +403,7 @@ of your algorithm.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``means``
      - Pointer to the :math:`k \times p` numeric table with each row containing the estimate
        of the means for the :math:`i`-th mixture component, where :math:`i=0, 1, \ldots, k-1`.
@@ -412,8 +412,7 @@ of your algorithm.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
-
+          except ``CSRNumericTable``.
    * - ``covariances``
      - Pointer to the DataCollection object that contains :math:`k` numeric tables,
        each with the :math:`p \times p` variance-covariance matrix for the :math:`i`-th mixture component of size:
@@ -426,7 +425,7 @@ of your algorithm.
 
           By default, the collection contains objects of the ``HomogenNumericTable`` class,
           but you can define them as objects of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
    * - ``goalFunction``
      - Pointer to the :math:`1 \times 1` numeric table with the value of the logarithm of
