@@ -104,8 +104,8 @@ For more details, see :ref:`algorithms`.
    * - ``correlationDistance``
      - Pointer to the numeric table that represents the :math:`n \times n` symmetric distance matrix :math:`D_\text{cor}`.
 
-       By default, the result is an object of the ``PackedSymmetricMatrix`` class with the ``lowerPackedSymmetricMatrix`` layout.
-       However, you can define the result as an object of any class derived from ``NumericTable`` except ``PackedTriangularMatrix`` and ``CSRNumericTable``.
+       By default, the result is an object of the ``HomogenNumericTable`` class.
+       However, you can define the result as an object of any class derived from ``NumericTable`` except ``CSRNumericTable``.
 
 Examples
 ********
