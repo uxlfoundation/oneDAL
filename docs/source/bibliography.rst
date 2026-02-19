@@ -35,11 +35,6 @@ For more information about algorithms implemented in |short_name|, refer to the 
    Available from
    http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf.
 
-.. [Ben2005]
-   Ben-Gal I. Outlier detection. In: Maimon O. and Rockach L. (Eds.)
-   Data Mining and Knowledge Discovery Handbook: A Complete Guide for Practitioners and Researchers",
-   Kluwer Academic Publishers, 2005, ISBN 0-387-24435-2.
-
 .. [Bentley80]
    J. L. Bentley. Multidimensional Divide and Conquer. Communications of the
    ACM, 23(4):214--229, 1980.
@@ -200,10 +195,14 @@ For more information about algorithms implemented in |short_name|, refer to the 
    A fast algorithm for training support vector machines." (1998).
    Available from https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-98-14.pdf.
 
+.. [Quinlan86]
+   J. R. Quinlan. *Induction of Decision Trees*. Machine Learning,
+   Volume 1 Issue 1, pp. 81-106, 1986.
+
 .. [SYCLSpec]
    Khronos®OpenCL™ Working Group --- SYCL™ subgroup, SYCL™ Specification SYCL™
    integrates OpenCL™ devices with modern C++, Version 1.2.1 Available from
-   `sycl-1.2.1.pdf <https://www.khronos.org/registry/SYCL/specs/sycl-1.2.1.pdf>`_
+   `sycl-2020.pdf <https://registry.khronos.org/SYCL/specs/sycl-2020/pdf/sycl-2020.pdf>`_
 
 .. [Sutton2018]
    Michael Sutton, Tal Ben-Nun, Amnon Barak. *Optimizing Parallel Graph Connectivity Computation via Subgraph Sampling*.
@@ -212,7 +211,7 @@ For more information about algorithms implemented in |short_name|, refer to the 
 .. [Tan2005]
    Pang-Ning Tan, Michael Steinbach, Vipin Kumar, Introduction to
    Data Mining, (First Edition) Addison-Wesley Longman Publishing
-   Co., Inc. Boston, MA, USA, 2005, ISBN: 032132136.
+   Co., Inc. Boston, MA, USA, 2005, ISBN: 032132136.
 
 .. [Verma2014]
    Verma, Deepika, Namita Kakkar, and Neha Mehan.

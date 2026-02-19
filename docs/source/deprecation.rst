@@ -24,28 +24,28 @@ Selected DAAL Algorithms
 **Deprecation:** Selected DAAL algorithms in the oneDAL library are marked as deprecated. The 2025.x releases are the last to provide it.
 The list of the deprecated DAAL analysis algorithms includes:
 
-- :ref:`Association Rules <daal_alg_association_rules>`
-- :ref:`Multivariate Outlier Detection <daal_alg_multivariate_outlier_detection>`
-- :ref:`Multivariate BACON Outlier Detection <daal_alg_multivariate_bacon_outlier_detection>`
-- :ref:`Univariate Outlier Detection <daal_alg_univariate_outlier_detection>`
-- :ref:`SAGA Optimization Solver <saga_solver>`
-- :ref:`SGD Optimization Solver <sgd_solver>`
-- :ref:`Adaptive Subgradient Method (AdaGrad) <adagrad_solver>`
-- :ref:`Sorting <daal_alg_sorting>`
+- Association Rules
+- Multivariate Outlier Detection
+- Multivariate BACON Outlier Detection
+- Univariate Outlier Detection
+- SAGA Optimization Solver
+- SGD Optimization Solver
+- Adaptive Subgradient Method (AdaGrad)
+- Sorting
 - Quality Metrics
-- :ref:`Quantile <daal_alg_quantile>`
+- Quantile
 
 The list of the deprecated DAAL training and prediction algorithms includes:
 
-- :ref:`AdaBoost Classifier <daal_alg_adaboost_classifier>`
-- :ref:`AdaBoost Multiclass Classifier <daal_alg_adaboost_multiclass_classifier>`
-- :ref:`BrownBoost Classifier <daal_alg_brownboost_classifier>`
-- :ref:`Decision Tree Classifier <dt_classification>`
-- :ref:`Decision Tree Regressor <dt_regression>`
-- :ref:`LogitBoost Classifier <daal_alg_logitboost_classifier>`
-- :ref:`Multinomial Naive Bayes Classifier <daal_alg_naive_bayes_classifier>`
-- :ref:`Stump Classifier <daal_alg_stump_classifier>`
-- :ref:`Stump Regressor <daal_alg_stump_regressor>`
+- AdaBoost Classifier
+- AdaBoost Multiclass Classifier
+- BrownBoost Classifier
+- Decision Tree Classifier
+- Decision Tree Regressor
+- LogitBoost Classifier
+- Multinomial Naive Bayes Classifier
+- Stump Classifier
+- Stump Regressor
 
 **Reasons for deprecation:** The ongoing efforts to optimize oneDAL resources and focus strongly on the most widely used features.
 
