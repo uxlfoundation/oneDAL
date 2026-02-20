@@ -669,7 +669,7 @@ class DAAL_EXPORT DistributedInput<step1Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -709,7 +709,7 @@ class DAAL_EXPORT DistributedPartialResultStep1 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep1)
     /** Default constructor */
-    DistributedPartialResultStep1();
+    DAAL_DEPRECATED DistributedPartialResultStep1();
 
     virtual ~DistributedPartialResultStep1() {}
 
@@ -766,7 +766,7 @@ class DAAL_EXPORT DistributedInput<step2Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -813,7 +813,7 @@ class DAAL_EXPORT DistributedPartialResultStep2 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep2)
     /** Default constructor */
-    DistributedPartialResultStep2();
+    DAAL_DEPRECATED DistributedPartialResultStep2();
 
     virtual ~DistributedPartialResultStep2() {}
 
@@ -870,7 +870,7 @@ class DAAL_EXPORT DistributedInput<step3Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -938,7 +938,7 @@ class DAAL_EXPORT DistributedPartialResultStep3 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep3)
     /** Default constructor */
-    DistributedPartialResultStep3();
+    DAAL_DEPRECATED DistributedPartialResultStep3();
 
     virtual ~DistributedPartialResultStep3() {}
 
@@ -995,7 +995,7 @@ class DAAL_EXPORT DistributedInput<step4Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1063,7 +1063,7 @@ class DAAL_EXPORT DistributedPartialResultStep4 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep4)
     /** Default constructor */
-    DistributedPartialResultStep4();
+    DAAL_DEPRECATED DistributedPartialResultStep4();
 
     virtual ~DistributedPartialResultStep4() {}
 
@@ -1120,7 +1120,7 @@ class DAAL_EXPORT DistributedInput<step5Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1188,7 +1188,7 @@ class DAAL_EXPORT DistributedPartialResultStep5 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep5)
     /** Default constructor */
-    DistributedPartialResultStep5();
+    DAAL_DEPRECATED DistributedPartialResultStep5();
 
     virtual ~DistributedPartialResultStep5() {}
 
@@ -1245,7 +1245,7 @@ class DAAL_EXPORT DistributedInput<step6Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1313,7 +1313,7 @@ class DAAL_EXPORT DistributedPartialResultStep6 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep6)
     /** Default constructor */
-    DistributedPartialResultStep6();
+    DAAL_DEPRECATED DistributedPartialResultStep6();
 
     virtual ~DistributedPartialResultStep6() {}
 
@@ -1384,7 +1384,7 @@ class DAAL_EXPORT DistributedInput<step7Master> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1431,7 +1431,7 @@ class DAAL_EXPORT DistributedPartialResultStep7 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep7)
     /** Default constructor */
-    DistributedPartialResultStep7();
+    DAAL_DEPRECATED DistributedPartialResultStep7();
 
     virtual ~DistributedPartialResultStep7() {}
 
@@ -1488,7 +1488,7 @@ class DAAL_EXPORT DistributedInput<step8Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1549,7 +1549,7 @@ class DAAL_EXPORT DistributedPartialResultStep8 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep8)
     /** Default constructor */
-    DistributedPartialResultStep8();
+    DAAL_DEPRECATED DistributedPartialResultStep8();
 
     virtual ~DistributedPartialResultStep8() {}
 
@@ -1620,7 +1620,7 @@ class DAAL_EXPORT DistributedInput<step9Master> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1667,7 +1667,7 @@ class DAAL_EXPORT DistributedResultStep9 : public daal::algorithms::Result
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedResultStep9)
     /** Default constructor */
-    DistributedResultStep9();
+    DAAL_DEPRECATED DistributedResultStep9();
 
     virtual ~DistributedResultStep9() {}
 
@@ -1726,7 +1726,7 @@ class DAAL_EXPORT DistributedPartialResultStep9 : public daal::algorithms::Parti
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep9)
     /** Default constructor */
-    DistributedPartialResultStep9();
+    DAAL_DEPRECATED DistributedPartialResultStep9();
 
     virtual ~DistributedPartialResultStep9() {}
 
@@ -1783,7 +1783,7 @@ class DAAL_EXPORT DistributedInput<step10Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1823,7 +1823,7 @@ class DAAL_EXPORT DistributedPartialResultStep10 : public daal::algorithms::Part
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep10)
     /** Default constructor */
-    DistributedPartialResultStep10();
+    DAAL_DEPRECATED DistributedPartialResultStep10();
 
     virtual ~DistributedPartialResultStep10() {}
 
@@ -1894,7 +1894,7 @@ class DAAL_EXPORT DistributedInput<step11Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -1955,7 +1955,7 @@ class DAAL_EXPORT DistributedPartialResultStep11 : public daal::algorithms::Part
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep11)
     /** Default constructor */
-    DistributedPartialResultStep11();
+    DAAL_DEPRECATED DistributedPartialResultStep11();
 
     virtual ~DistributedPartialResultStep11() {}
 
@@ -2026,7 +2026,7 @@ class DAAL_EXPORT DistributedInput<step12Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -2087,7 +2087,7 @@ class DAAL_EXPORT DistributedPartialResultStep12 : public daal::algorithms::Part
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep12)
     /** Default constructor */
-    DistributedPartialResultStep12();
+    DAAL_DEPRECATED DistributedPartialResultStep12();
 
     virtual ~DistributedPartialResultStep12() {}
 
@@ -2144,7 +2144,7 @@ class DAAL_EXPORT DistributedInput<step13Local> : public daal::algorithms::Input
 {
 public:
     /** Default constructor */
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
 
     /** Copy constructor */
     DistributedInput(const DistributedInput & other) : daal::algorithms::Input(other) {}
@@ -2191,7 +2191,7 @@ class DAAL_EXPORT DistributedResultStep13 : public daal::algorithms::Result
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedResultStep13)
     /** Default constructor */
-    DistributedResultStep13();
+    DAAL_DEPRECATED DistributedResultStep13();
 
     virtual ~DistributedResultStep13() {}
 
@@ -2250,7 +2250,7 @@ class DAAL_EXPORT DistributedPartialResultStep13 : public daal::algorithms::Part
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedPartialResultStep13)
     /** Default constructor */
-    DistributedPartialResultStep13();
+    DAAL_DEPRECATED DistributedPartialResultStep13();
 
     virtual ~DistributedPartialResultStep13() {}
 
