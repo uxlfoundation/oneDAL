@@ -86,7 +86,12 @@ def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
 # ---------------------------------------------------------------------------
 
 def _generate_pkgconfig_impl(ctx):
-    """Generate onedal.pc via the C preprocessor from pkg-config.cpp template."""
+    """Generate onedal.pc via the C preprocessor from pkg-config.cpp template.
+
+    Note: deploy/pkg-config/pkg-config.cpp currently hardcodes Version: 2026.0
+    and does not use DAL_MAJOR/MINOR defines. The -D flags below are passed for
+    future compatibility if the template is updated to use them.
+    """
     vi = ctx.attr._version_info[VersionInfo]
     out = ctx.actions.declare_file(ctx.attr.out)
 
