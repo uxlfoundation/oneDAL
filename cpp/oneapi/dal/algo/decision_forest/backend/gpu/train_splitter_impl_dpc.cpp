@@ -373,9 +373,9 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
     if constexpr (std::is_same_v<Task, task::classification>) {
         // Classification case
         for (Index row_idx = id; row_idx < row_count; row_idx += local_size) {
-            const Index id = data.order_[row_ofs + row_idx];
-            const Index bin = data.data_[id * column_count + ts_ftr_id];
-            const Index response_int = static_cast<Index>(data.response_[id]);
+            const Index row_id = data.order_[row_ofs + row_idx];
+            const Index bin = data.data_[row_id * column_count + ts_ftr_id];
+            const Index response_int = static_cast<Index>(data.response_[row_id]);
             const Index start = sycl::max(0, bin - bin_ofs);
             for (Index bin_id = start; bin_id < act_bin_block; ++bin_id) {
                 const Index loc_bin_pos = bin_id * hist_prop_count;
@@ -391,7 +391,7 @@ inline void compute_histogram(const local_accessor_rw_t<hist_type_t>& hist,
                                      sycl::memory_scope_work_group,
                                      sycl::access::address_space::local_space>
                         hist_weight(local_weight[bin_id]);
-                    hist_weight += data.weight_[id];
+                    hist_weight += data.weight_[row_id];
                 }
             }
         }
