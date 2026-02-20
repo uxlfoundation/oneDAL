@@ -95,16 +95,18 @@ def _generate_pkgconfig_impl(ctx):
     # expand_template is not used here because the template relies on
     # cpp's conditional compilation, which cannot be replicated with
     # simple string substitution.
+    # Use gcc -E -P (C preprocessor) instead of cpp directly.
+    # 'cpp' may not find cc1plus in some CI environments; 'gcc -E -P' is more portable.
     ctx.actions.run_shell(
         inputs = [ctx.file.template],
         outputs = [out],
         command = (
-            "cpp -P " +
+            "gcc -E -P -x c " +
             "-DDAL_MAJOR_BINARY={binary_major} " +
             "-DDAL_MINOR_BINARY={binary_minor} " +
             "-DDAL_MAJOR={major} " +
             "-DDAL_MINOR={minor} " +
-            "{template} > {out}"
+            "{template} -o {out}"
         ).format(
             binary_major = vi.binary_major,
             binary_minor = vi.binary_minor,
@@ -115,6 +117,7 @@ def _generate_pkgconfig_impl(ctx):
         ),
         mnemonic = "GenPkgConfig",
         progress_message = "Generating pkg-config file {}".format(out.short_path),
+        use_default_shell_env = True,
     )
     return [DefaultInfo(files = depset([out]))]
 
