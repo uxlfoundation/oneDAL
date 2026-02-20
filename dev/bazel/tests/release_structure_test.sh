@@ -41,13 +41,20 @@ echo "=== Library versioning & symlinks ==="
 
 for lib_base in libonedal_core libonedal libonedal_thread; do
     so="${LIB_DIR}/${lib_base}.so"
-    # Find actual versioned file
-    versioned=$(ls "${LIB_DIR}/${lib_base}.so."* 2>/dev/null | grep -v ".so.[0-9]*$" || true)
+    # Find versioned file using bash globbing (more robust than ls+grep)
+    shopt -s nullglob
+    versioned_candidates=( "${LIB_DIR}/${lib_base}.so."[0-9]*.[0-9]* )
+    shopt -u nullglob
 
-    if [ -z "$versioned" ]; then
+    if [ "${#versioned_candidates[@]}" -eq 0 ]; then
         _fail "${lib_base}.so.X.Y not found in ${LIB_DIR}"
         continue
+    elif [ "${#versioned_candidates[@]}" -gt 1 ]; then
+        _fail "${lib_base}: multiple versioned files found: ${versioned_candidates[*]}"
+        continue
     fi
+
+    versioned="${versioned_candidates[0]}"
 
     # Check versioned file is a real file
     if [ -f "$versioned" ] && [ ! -L "$versioned" ]; then
@@ -56,18 +63,33 @@ for lib_base in libonedal_core libonedal libonedal_thread; do
         _fail "${lib_base}.so.X.Y should be a regular file, not a symlink"
     fi
 
+    # Extract major.minor from filename
+    version_suffix="${versioned##*.so.}"  # e.g. "3.0"
+    major_ver="${version_suffix%%.*}"     # e.g. "3"
+
     # Check major symlink exists and points correctly
-    major_ver=$(echo "$versioned" | grep -oP '\.\d+\.\d+$' | cut -d. -f2)
     major_link="${LIB_DIR}/${lib_base}.so.${major_ver}"
     if [ -L "$major_link" ]; then
-        _pass "${lib_base}.so.${major_ver} symlink exists"
+        target=$(readlink "$major_link")
+        expected_target="$(basename "$versioned")"
+        if [ "$target" = "$expected_target" ]; then
+            _pass "${lib_base}.so.${major_ver} → ${expected_target}"
+        else
+            _fail "${lib_base}.so.${major_ver} points to $target, expected $expected_target"
+        fi
     else
         _fail "${lib_base}.so.${major_ver} symlink missing"
     fi
 
-    # Check unversioned symlink
+    # Check unversioned symlink points to major link
     if [ -L "$so" ]; then
-        _pass "${lib_base}.so unversioned symlink exists"
+        target=$(readlink "$so")
+        expected_target="${lib_base}.so.${major_ver}"
+        if [ "$target" = "$expected_target" ]; then
+            _pass "${lib_base}.so → ${expected_target}"
+        else
+            _fail "${lib_base}.so points to $target, expected $expected_target"
+        fi
     else
         _fail "${lib_base}.so unversioned symlink missing"
     fi
@@ -82,9 +104,18 @@ echo "=== SONAME check ==="
 for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* ; do
     [ -f "$lib" ] || continue
     lib_base=$(basename "$lib" | sed 's/\.so\..*//')
-    soname=$(readelf -d "$lib" 2>/dev/null | grep SONAME | grep -oP '\[\K[^\]]+' || true)
+    # Extract expected SONAME from filename: libonedal_core.so.3.0 → libonedal_core.so.3
+    version_suffix="${lib##*.so.}"
+    major_ver="${version_suffix%%.*}"
+    expected_soname="${lib_base}.so.${major_ver}"
+
+    soname=$(readelf -d "$lib" 2>/dev/null | grep SONAME | grep -oE '\[[^]]+\]' | tr -d '[]' || true)
     if [ -n "$soname" ]; then
-        _pass "${lib_base}: SONAME = ${soname}"
+        if [ "$soname" = "$expected_soname" ]; then
+            _pass "${lib_base}: SONAME = ${soname} (correct)"
+        else
+            _fail "${lib_base}: SONAME = ${soname}, expected ${expected_soname}"
+        fi
     else
         _fail "${lib_base}: SONAME not found in ${lib}"
     fi
