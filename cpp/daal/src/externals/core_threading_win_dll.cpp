@@ -101,13 +101,25 @@ typedef int (*_daal_threader_get_max_threads_t)(void);
 typedef int (*_daal_threader_get_current_thread_index_t)(void);
 
 typedef void (*_daal_static_threader_for_t)(int64_t, const void *, daal::functype_static);
+typedef void (*_daal_static_threader_for_size_t)(size_t, const void *, daal::functype_static_size_t);
 
 typedef void (*_daal_threader_for_t)(int64_t, int64_t, const void *, daal::functype);
+typedef void (*_daal_threader_for_int32_t)(int, int, const void *, daal::functype_int32);
+
 typedef void (*_daal_threader_for_simple_t)(int64_t, int64_t, const void *, daal::functype);
-typedef void (*_daal_threader_for_int64ptr_t)(const int64_t *, const int64_t *, const void *, daal::functype_int64ptr);
+typedef void (*_daal_threader_for_simple_int32_t)(int, int, const void *, daal::functype_int32);
+
+typedef void (*_daal_threader_for_ptr_t)(const int64_t *, const int64_t *, const void *, daal::functype_int64ptr);
+typedef void (*_daal_threader_for_int32ptr_t)(const int64_t *, const int64_t *, const void *, daal::functype_int32ptr);
+
 typedef void (*_daal_threader_for_blocked_t)(int64_t, int64_t, const void *, daal::functype2);
+typedef void (*_daal_threader_for_blocked_int32_t)(int, int, const void *, daal::functype2_int32);
+
 typedef void (*_daal_threader_for_optional_t)(int64_t, int64_t, const void *, daal::functype);
+typedef void (*_daal_threader_for_optional_int32_t)(int, int, const void *, daal::functype_int32);
+
 typedef void (*_daal_threader_for_break_t)(int64_t, int64_t, const void *, daal::functype_break);
+typedef void (*_daal_threader_for_break_int32_t)(int, int, const void *, daal::functype_break_int32);
 
 typedef int64_t (*_daal_parallel_reduce_int32_int64_t)(int32_t, int64_t, const void *, daal::loop_functype_int32_int64, const void *,
                                                        daal::reduction_functype_int64);
@@ -187,7 +199,21 @@ DAAL_EXPORT void _daal_threader_for(int64_t n, int64_t grain_size, const void * 
     _daal_threader_for_ptr(n, grain_size, a, func);
 }
 
+DAAL_EXPORT void _daal_threader_for_int32(int n, int grain_size, const void * a, daal::functype func)
+{
+    load_daal_thr_dll();
+    static _daal_threader_for_t _daal_threader_for_ptr = (_daal_threader_for_t)load_daal_thr_func("_daal_threader_for_int32");
+    _daal_threader_for_ptr(n, grain_size, a, func);
+}
+
 DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t grain_size, const void * a, daal::functype func)
+{
+    load_daal_thr_dll();
+    static _daal_threader_for_simple_t _daal_threader_for_simple_ptr = (_daal_threader_for_simple_t)load_daal_thr_func("_daal_threader_for_simple");
+    _daal_threader_for_simple_ptr(n, grain_size, a, func);
+}
+
+DAAL_EXPORT void _daal_threader_for_simple_int32(int n, int grain_size, const void * a, daal::functype func)
 {
     load_daal_thr_dll();
     static _daal_threader_for_simple_t _daal_threader_for_simple_ptr = (_daal_threader_for_simple_t)load_daal_thr_func("_daal_threader_for_simple");

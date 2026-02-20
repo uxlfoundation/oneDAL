@@ -14,15 +14,6 @@
 ; limitations under the License.
 ;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; DAAL THREADING LAYER DESELECTIONS ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; deselect threading layer functions
-
-[suppress_function]
-symbol_name = _daal_threader_for_int64
-drop = yes
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DAAL DESELECTIONS ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
