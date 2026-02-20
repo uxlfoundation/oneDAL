@@ -370,16 +370,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-
-        if (!block.resizeBuffer(ncols, nrows))
-        {
-            return services::Status(services::ErrorMemoryAllocationFailed);
-        }
 
         if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 
@@ -397,8 +391,9 @@ protected:
         }
         if (!computed)
         {
-            size_t di = 32;
-            T lbuf[32];
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature after up-casting
+            size_t di                     = unrollFactor;
+            T lbuf[unrollFactor];
 
             for (size_t i = 0; i < nrows; i += di)
             {
@@ -434,9 +429,10 @@ protected:
             size_t ncols = getNumberOfColumns();
             size_t nrows = block.getNumberOfRows();
             size_t idx   = block.getRowsOffset();
-            T lbuf[32];
 
-            size_t di = 32;
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature before down-casting
+            T lbuf[unrollFactor];
+            size_t di = unrollFactor;
 
             T * blockPtr = block.getBlockPtr();
 
@@ -474,7 +470,6 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
@@ -496,10 +491,6 @@ protected:
             }
 
             byte * location = _arrays[feat_idx].get() + idx * f.typeSize;
-            if (!block.resizeBuffer(1, nrows))
-            {
-                return services::Status(services::ErrorMemoryAllocationFailed);
-            }
 
             if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 

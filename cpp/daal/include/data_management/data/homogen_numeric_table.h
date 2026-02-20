@@ -845,7 +845,6 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
@@ -857,8 +856,6 @@ protected:
         }
         else
         {
-            if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
-
             if (rwFlag & (int)readOnly)
             {
                 byte * location = internal_getBlockOfRows(idx);
@@ -913,7 +910,6 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
@@ -925,8 +921,6 @@ protected:
         }
         else
         {
-            if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
-
             if (rwFlag & (int)readOnly)
             {
                 DataType * location = (DataType *)internal_getBlockOfRows(idx, feat_idx);

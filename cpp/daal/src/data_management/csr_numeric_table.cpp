@@ -25,8 +25,7 @@ namespace interface1
 {
 #define DAAL_IMPL_CSRBLOCKDESCRIPTORCONSTRUCTOR(T)                                                                                    \
     template <>                                                                                                                       \
-    CSRBlockDescriptor<T>::CSRBlockDescriptor()                                                                                       \
-        : _rows_capacity(0), _values_capacity(0), _ncols(0), _nrows(0), _rowsOffset(0), _rwFlag(0), _rawPtr(0), _pPtr(0), _nvalues(0) \
+    CSRBlockDescriptor<T>::CSRBlockDescriptor() : _ncols(0), _nrows(0), _rowsOffset(0), _rwFlag(0), _rawPtr(0), _pPtr(0), _nvalues(0) \
     {}
 
 DAAL_IMPL_CSRBLOCKDESCRIPTORCONSTRUCTOR(float)
