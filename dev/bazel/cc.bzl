@@ -237,8 +237,7 @@ _cc_dynamic_lib = rule(
         # Platform-resolved SONAME linker flags, set by the cc_dynamic_lib macro.
         "soname_linkopts": attr.string_list(
             default = [],
-            doc = "Linker flags for SONAME embedding (e.g. -Wl,-soname,libonedal_core.so.2). "
-                  "Use cc_dynamic_lib macro which sets this automatically.",
+            doc = "Linker flags for SONAME embedding. Use cc_dynamic_lib macro which sets this automatically.",
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],

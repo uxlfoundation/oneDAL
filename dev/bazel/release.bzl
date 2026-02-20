@@ -173,12 +173,10 @@ _release = rule(
         "lib": attr.label_list(allow_files=True),
         "extra_files": attr.label_list(
             allow_files = True,
-            doc = "Additional generated files to include in release. "
-                  "Must be paired 1:1 with extra_files_dst.",
+            doc = "Additional generated files to include in release. Must be paired 1:1 with extra_files_dst.",
         ),
         "extra_files_dst": attr.string_list(
-            doc = "Destination paths for extra_files, relative to the release root. "
-                  "E.g. ['env/vars.sh', 'lib/pkgconfig/onedal.pc'].",
+            doc = "Destination paths for extra_files, relative to the release root.",
         ),
         "_version_info": attr.label(
             default = "@config//:version",
