@@ -21,6 +21,10 @@ version_info(
     build = "%{version_build}",
     buildrev = "%{version_buildrev}",
     status = "%{version_status}",
+    # Binary ABI version for SONAME and shared library symlinks.
+    # Must match MAJORBINARY/MINORBINARY in makefile.
+    binary_major = "%{version_binary_major}",
+    binary_minor = "%{version_binary_minor}",
 )
 
 config_flag(
