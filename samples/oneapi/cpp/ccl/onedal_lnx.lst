@@ -18,5 +18,5 @@
 ##     oneAPI Data Analytics Library samples list
 ##******************************************************************************
 
-MPI  = linear_regression_distr_ccl
+MPI  = linear_regression_distr_ccl ridge_regression_distr_ccl
 
