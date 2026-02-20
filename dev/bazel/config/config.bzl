@@ -226,9 +226,9 @@ def _declare_onedal_config_impl(repo_ctx):
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
             "%{version_status}":        "P",
-            # Binary ABI version — must match MAJORBINARY/MINORBINARY in makefile
-            "%{version_binary_major}":  "2",
-            "%{version_binary_minor}":  "9",
+            # Binary ABI version — must match MAJORBINARY/MINORBINARY in makefile.ver
+            "%{version_binary_major}":  "3",
+            "%{version_binary_minor}":  "0",
         },
     )
 
