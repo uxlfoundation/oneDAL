@@ -18,17 +18,15 @@
 ##     oneAPI Data Analytics Library algorithms list
 ##******************************************************************************
 
-CORE.ALGORITHMS.CUSTOM.AVAILABLE := low_order_moments quantiles covariance cosdistance cordistance kmeans pca cholesky \
-                svd assocrules qr em outlierdetection_bacon outlierdetection_multivariate outlierdetection_univariate  \
-                kernel_function sorting normalization optimization_solver objective_function decision_tree             \
-                dtrees/gbt dtrees/forest linear_regression ridge_regression naivebayes stump adaboost brownboost       \
-                logitboost svm multiclassclassifier k_nearest_neighbors logistic_regression implicit_als               \
-                coordinate_descent jaccard triangle_counting shortest_paths subgraph_isomorphism connected_components  \
+CORE.ALGORITHMS.CUSTOM.AVAILABLE := low_order_moments covariance cosdistance cordistance kmeans pca cholesky            \
+                svd qr em kernel_function normalization optimization_solver objective_function                          \
+                dtrees/gbt dtrees/forest linear_regression ridge_regression                                             \
+                svm multiclassclassifier k_nearest_neighbors logistic_regression implicit_als                           \
+                coordinate_descent jaccard triangle_counting shortest_paths subgraph_isomorphism connected_components   \
                 louvain tsne
 
 classifier += classifier/inner
 low_order_moments +=
-quantiles +=
 covariance +=
 cosdistance +=
 cordistance += covariance
@@ -37,29 +35,18 @@ kmeans += engines distributions
 pca += pca/metrics pca/transform svd covariance low_order_moments normalization
 cholesky +=
 svd +=
-assocrules +=
 qr +=
 em += covariance engines distributions
-outlierdetection_bacon +=
-outlierdetection_multivariate +=
-outlierdetection_univariate +=
 kernel_function += kernel_function/polynomial
-sorting +=
 normalization += normalization/minmax normalization/zscore low_order_moments
-optimization_solver += optimization_solver/adagrad optimization_solver/lbfgs optimization_solver/sgd optimization_solver/saga optimization_solver/coordinate_descent objective_function engines distributions
+optimization_solver += optimization_solver/lbfgs optimization_solver/coordinate_descent objective_function engines distributions
 coordinate_descent += optimization_solver/coordinate_descent objective_function engines distributions
 objective_function += objective_function/cross_entropy_loss objective_function/logistic_loss objective_function/mse
-decision_tree += regression classifier
 dtrees/gbt += dtrees dtrees/gbt/classification dtrees/gbt/regression engines classifier regression objective_function
 dtrees/forest += dtrees dtrees/regression dtrees/forest/classification dtrees/forest/regression engines classifier regression distributions
 linear_regression += linear_model regression
 lasso_regression += linear_model regression optimization_solver objective_function engines
 ridge_regression += linear_model regression
-naivebayes += classifier
-stump += classifier
-adaboost += classifier decision_tree stump
-brownboost += classifier decision_tree stump
-logitboost += classifier regression decision_tree stump
 svm += classifier kernel_function multiclassclassifier
 multiclassclassifier += classifier
 k_nearest_neighbors += engines classifier
@@ -70,15 +57,11 @@ distributions += distributions/bernoulli distributions/normal distributions/unif
 tsne +=
 
 CORE.ALGORITHMS.FULL :=                                                       \
-    adaboost                                                                  \
-    assocrules                                                                \
-    brownboost                                                                \
     cholesky                                                                  \
     classifier                                                                \
     cordistance                                                               \
     cosdistance                                                               \
     covariance                                                                \
-    decision_tree                                                             \
     distributions                                                             \
     distributions/bernoulli                                                   \
     distributions/normal                                                      \
@@ -110,10 +93,8 @@ CORE.ALGORITHMS.FULL :=                                                       \
     lasso_regression                                                          \
     linear_regression                                                         \
     logistic_regression                                                       \
-    logitboost                                                                \
     low_order_moments                                                         \
     multiclassclassifier                                                      \
-    naivebayes                                                                \
     normalization/minmax                                                      \
     normalization/zscore                                                      \
     objective_function                                                        \
@@ -121,41 +102,26 @@ CORE.ALGORITHMS.FULL :=                                                       \
     objective_function/logistic_loss                                          \
     objective_function/mse                                                    \
     optimization_solver                                                       \
-    optimization_solver/sgd                                                   \
     optimization_solver/lbfgs                                                 \
-    optimization_solver/adagrad                                               \
-    optimization_solver/saga                                                  \
     optimization_solver/coordinate_descent                                    \
-    outlierdetection_multivariate                                             \
-    outlierdetection_bacon                                                    \
-    outlierdetection_univariate                                               \
     pca                                                                       \
-    pca/metrics                                                               \
     pca/transform                                                             \
     pivoted_qr                                                                \
     qr                                                                        \
-    quantiles                                                                 \
     regression                                                                \
     ridge_regression                                                          \
-    sgd                                                                       \
-    sorting                                                                   \
-    stump                                                                     \
     svd                                                                       \
     svm                                                                       \
-    weak_learner/inner                                                        \
     tsne
 
 CORE.ALGORITHMS := $(if $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.CUSTOM), $(CORE.ALGORITHMS.FULL))
 CORE.ALGORITHMS := $(sort $(foreach alg,$(CORE.ALGORITHMS),$(foreach alg1,$($(alg)),$(foreach alg2,$($(alg1)),$($(alg2)) $(alg2)) $(alg1)) $(alg)))
 
 CORE.ALGORITHMS.INC :=                                                        \
-    association_rules                                                         \
-    boosting                                                                  \
     cholesky                                                                  \
     classifier                                                                \
     covariance                                                                \
     decision_forest                                                           \
-    decision_tree                                                             \
     distance                                                                  \
     distributions                                                             \
     dbscan                                                                    \
@@ -173,32 +139,22 @@ CORE.ALGORITHMS.INC :=                                                        \
     logistic_regression                                                       \
     moments                                                                   \
     multi_class_classifier                                                    \
-    naive_bayes                                                               \
     normalization                                                             \
     optimization_solver                                                       \
-    optimization_solver/adagrad                                               \
     optimization_solver/iterative_solver                                      \
     optimization_solver/lbfgs                                                 \
     optimization_solver/objective_function                                    \
     optimization_solver/precomputed                                           \
-    optimization_solver/sgd                                                   \
-    optimization_solver/saga                                                  \
     optimization_solver/coordinate_descent                                    \
-    outlier_detection                                                         \
     pca                                                                       \
-    pca/metrics                                                               \
     pca/transform                                                             \
     pivoted_qr                                                                \
     qr                                                                        \
-    quantiles                                                                 \
     regression                                                                \
     ridge_regression                                                          \
-    sorting                                                                   \
-    stump                                                                     \
     svd                                                                       \
     svm                                                                       \
     tree_utils                                                                \
-    weak_learner                                                              \
     tsne
 
 
@@ -208,7 +164,7 @@ CORE.SERVICES       := data_management
 ONEAPI.ALGOS.basic_statistics := CORE.moments
 ONEAPI.ALGOS.covariance    := CORE.covariance
 ONEAPI.ALGOS.dbscan := CORE.dbscan
-ONEAPI.ALGOS.decision_forest := CORE.decision_forest decision_tree
+ONEAPI.ALGOS.decision_forest := CORE.decision_forest
 ONEAPI.ALGOS.kmeans := CORE.kmeans
 ONEAPI.ALGOS.kmeans_init := CORE.kmeans
 ONEAPI.ALGOS.knn := CORE.k_nearest_neighbors
