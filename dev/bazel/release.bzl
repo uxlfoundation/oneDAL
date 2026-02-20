@@ -96,12 +96,14 @@ def _symlink(ctx, link_name, target_name, prefix):
 def _copy_lib(ctx, prefix, version_info):
     """Copy libraries to release directory with versioning and symlinks for .so files.
 
-    For each shared library (.so / .dylib) on Linux/macOS, this creates:
+    For each shared library (.so) on Linux, this creates:
       libonedal_core.so.{binary_major}.{binary_minor}   (real file)
       libonedal_core.so.{binary_major}  -> .so.{major}.{minor}  (symlink)
       libonedal_core.so                 -> .so.{major}           (symlink)
 
-    Static libraries and Windows DLLs are copied as-is without versioning.
+    Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
+
+    macOS .dylib versioning is not yet implemented (tracked separately).
     """
     lib_prefix = paths.join(prefix, "lib", "intel64")
     libs = _collect_default_files(ctx.attr.lib)
@@ -143,6 +145,10 @@ def _copy_extra_files(ctx, prefix):
     dst_subpath is the desired path *relative to the release root*
     (e.g. "env/vars.sh", "lib/pkgconfig/onedal.pc").
     """
+    if len(ctx.attr.extra_files) != len(ctx.attr.extra_files_dst):
+        fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
+            len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
+
     dst_files = []
     for dep, dst_subpath in zip(ctx.attr.extra_files, ctx.attr.extra_files_dst):
         srcs = dep[DefaultInfo].files.to_list()
