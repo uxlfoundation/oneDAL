@@ -1,6 +1,21 @@
 load("@onedal//dev/bazel:release.bzl",
     "release",
     "release_include",
+    "release_extra_file",
+)
+load("@onedal//dev/bazel:scripts.bzl",
+    "generate_vars_sh",
+    "generate_pkgconfig",
+)
+
+generate_vars_sh(
+    name = "release_vars_sh",
+    out = "env/vars.sh",
+)
+
+generate_pkgconfig(
+    name = "release_pkgconfig",
+    out = "lib/pkgconfig/onedal.pc",
 )
 
 release(
@@ -37,4 +52,8 @@ release(
         ],
         "//conditions:default": [],
     }),
+    extra_files = [
+        release_extra_file(":release_vars_sh",   "env/vars.sh"),
+        release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
+    ],
 )

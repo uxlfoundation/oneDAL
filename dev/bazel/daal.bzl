@@ -74,10 +74,16 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
         **kwargs,
     )
 
-def daal_dynamic_lib(name, lib_tags=["daal"], **kwargs):
+def daal_dynamic_lib(name, lib_tags=["daal"], binary_major = None, **kwargs):
+    """Build a oneDAL shared library.
+
+    Automatically sets SONAME to lib<lib_name>.so.<binary_major> on Linux
+    when binary_major is provided.
+    """
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
+        binary_major = binary_major,
         **kwargs,
     )
 
