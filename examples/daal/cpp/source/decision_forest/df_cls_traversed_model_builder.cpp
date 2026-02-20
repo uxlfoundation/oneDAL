@@ -48,7 +48,7 @@ const std::string testDatasetLabelFileName = "data/df_classification_test_label.
 const size_t nFeatures = 3; /* Number of features in training and testing data sets */
 
 /* Decision forest parameters */
-const size_t nTrees = 10;
+size_t nTrees = 10;
 const size_t minObservationsInLeafNode = 8;
 
 const size_t nClasses = 5; /* Number of classes */
