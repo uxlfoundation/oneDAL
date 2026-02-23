@@ -205,18 +205,18 @@ mkl_repo(
         "ebf80b94fad4483124c62686b00552b4024e4ec987c83483b4533902a7b854a4",
     ],
     strip_prefixes = [
-        "mkl_static-2025.2.0.data/data",
+        "",  # mkl-static .conda extracts directly to lib/, no .data/data wrapper
         "mkl_include-2025.2.0.data/data",
         "onemkl_sycl_include-2025.2.0.data/data",
         "mkl_devel_dpcpp-2025.2.0.data/data",
-        "onemkl_sycl_datafitting-2025.2.0.data/data",
-        "onemkl_sycl_blas-2025.2.0.data/data",
-        "onemkl_sycl_dft-2025.2.0.data/data",
-        "onemkl_sycl_lapack-2025.2.0.data/data",
-        "onemkl_sycl_sparse-2025.2.0.data/data",
-        "onemkl_sycl_rng-2025.2.0.data/data",
-        "onemkl_sycl_vm-2025.2.0.data/data",
-        "onemkl_sycl_stats-2025.2.0.data/data",
+        "",  # onemkl-sycl-datafitting .conda extracts directly
+        "",  # onemkl-sycl-blas .conda extracts directly
+        "",  # onemkl-sycl-dft .conda extracts directly
+        "",  # onemkl-sycl-lapack .conda extracts directly
+        "",  # onemkl-sycl-sparse .conda extracts directly
+        "",  # onemkl-sycl-rng .conda extracts directly
+        "",  # onemkl-sycl-vm .conda extracts directly
+        "",  # onemkl-sycl-stats .conda extracts directly
     ],
 )
 
