@@ -7,6 +7,7 @@ cc_library(
             "*.so",
             "*.so.*",
         ],
+        allow_empty = True,
         exclude = ["*.py", "*.cmake", "*.a"],
     ),
     linkopts = ["-lOpenCL"],
