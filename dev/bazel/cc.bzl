@@ -141,16 +141,6 @@ def _cc_static_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
-    
-    # Hide symbols from static dependencies (e.g., MKL, TBB) to prevent symbol leakage
-    # This is critical for ABI stability and avoiding conflicts with user's own MKL/TBB
-    # --exclude-libs works on GNU ld/ld.lld to hide symbols from static archives
-    hide_static_symbols_flags = [
-        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
-        "-Wl,--exclude-libs=libmkl_core.a",
-        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
-        "-Wl,--exclude-libs=ALL",
-    ]
     linking_context, static_lib = onedal_cc_link.static(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -192,6 +182,19 @@ def _cc_dynamic_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
+
+    # Hide symbols from static dependencies (e.g., MKL, TBB) to prevent symbol leakage.
+    # This is critical for ABI stability and avoiding conflicts with user's own MKL/TBB.
+    # --exclude-libs works on GNU ld and compatible linkers (not supported on Windows/MSVC).
+    # On Windows, Bazel toolchain should filter these flags automatically.
+    hide_static_symbols_flags = [
+        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
+        "-Wl,--exclude-libs=libmkl_core.a",
+        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
+        "-Wl,--exclude-libs=libmkl_sycl.a",
+        "-Wl,--exclude-libs=ALL",
+    ]
+
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = ctx.attr.lib_name,
