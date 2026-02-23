@@ -8,7 +8,6 @@ cc_library(
             "*.so.*",
         ],
         exclude = ["*.py", "*.cmake", "*.a"],
-        allow_empty = True,
     ),
     linkopts = ["-lOpenCL"],
     visibility = ["//visibility:public"],
