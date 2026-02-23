@@ -127,6 +127,41 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
             .ci/scripts/test.sh --test-kind samples --build-dir __release_lnx --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
 
+  LinuxBazel:
+    if: github.repository == 'uxlfoundation/oneDAL'
+    runs-on: ubuntu-24.04
+    name: LinuxBazel
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout oneDAL
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install DPC++
+        run: .ci/env/apt.sh dpcpp
+      - name: Install MKL
+        run: .ci/env/apt.sh mkl
+      - name: Install Bazelisk
+        run: .ci/env/bazelisk.sh
+      - name: System Info
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          .ci/scripts/describe_system.sh
+      - name: Bazel build release
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          export PATH=$PATH:$(pwd)/bazel/bin
+          bazel build :release
+      - name: Bazel build oneapi/cpp examples
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          export PATH=$PATH:$(pwd)/bazel/bin
+          bazel build //examples/oneapi/cpp/...
+      - name: Bazel run oneapi/cpp example smoke
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          export PATH=$PATH:$(pwd)/bazel/bin
+          bazel run //examples/oneapi/cpp:_homogen_table
+
   LinuxABICheck:
     name: ABI Conformance(avx2)
     needs: LinuxMakeDPCPP
