@@ -35,7 +35,6 @@ daaldep.math_backend_oneapi.incdir := $(MKLDIR.include) $(MKLGPUDIR.include)
 daaldep.lnx32e.mkl.thr := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$a
 daaldep.lnx32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a 
 daaldep.lnx32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
-daaldep.lnx32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$(so)
 
 
 # List of oneMKL libraries to exclude from linking.
@@ -46,17 +45,14 @@ MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_i
 daaldep.win32e.mkl.thr := $(MKLDIR.libia)/mkl_tbb_thread$d.$a
 daaldep.win32e.mkl.interfaces := $(MKLDIR.libia)/mkl_intel_ilp64.$a
 daaldep.win32e.mkl.core := $(MKLDIR.libia)/mkl_core.$a
-daaldep.win32e.mkl.sycl := $(MKLGPUDIR.lib)/mkl_sycl$d_dll.$a
 
 daaldep.fbsd32e.mkl.thr := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$a
 daaldep.fbsd32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
 daaldep.fbsd32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a
-daaldep.fbsd32e.mkl.sycl := $(MKLGPUDIR.lib)/$(plib)mkl_sycl.$(so)
 
 daaldep.math_backend.core     := $(daaldep.$(PLAT).mkl.core)
 daaldep.math_backend.interfaces     := $(daaldep.$(PLAT).mkl.interfaces)
 daaldep.math_backend.thr := $(daaldep.$(PLAT).mkl.thr)
-daaldep.math_backend.sycl := $(daaldep.$(PLAT).mkl.sycl)
 
 daaldep.lnx32e.vml :=
 daaldep.lnx32e.ipp := $(if $(COV.libia),$(COV.libia)/libcov.a)
@@ -78,21 +74,19 @@ daaldep.ipp     := $(daaldep.$(PLAT).ipp)
 daaldep.math_backend.static_link_deps := 
 # Static MKL libraries linked into the shared oneDAL library.
 daaldep.math_backend.shared_link_deps := $(daaldep.ipp) $(daaldep.vml) $(daaldep.math_backend.interfaces) $(daaldep.math_backend.thr) $(daaldep.math_backend.core)
-# Static MKL libraries(SYCL) linked into the shared oneDAL(SYCL) library.
-daaldep.math_backend.oneapi := $(daaldep.math_backend.sycl)
-
+# Dynamic MKL libraries(SYCL) linked into the shared oneDAL(SYCL) library.
 mkl_flags.lnx32e := -L$(MKLROOT)/lib \
-    -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_dft -lmkl_sycl_sparse \
-    -lmkl_sycl_vm -lmkl_sycl_rng -lmkl_sycl_stats -lmkl_sycl_data_fitting \
+    -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse \
+    -lmkl_sycl_rng \
     -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core \
     -lsycl -lpthread -lm -ldl
 
 
 mkl_flags.win32e := mkl_sycl_blas_dll.lib \
-    mkl_sycl_lapack_dll.lib mkl_sycl_dft_dll.lib mkl_sycl_sparse_dll.lib \
-    mkl_sycl_vm_dll.lib mkl_sycl_rng_dll.lib mkl_sycl_stats_dll.lib \
-    mkl_sycl_data_fitting_dll.lib mkl_intel_ilp64_dll.lib \
-    mkl_tbb_thread_dll.lib mkl_core_dll.lib OpenCL.lib
+    mkl_sycl_lapack_dll.lib mkl_sycl_sparse_dll.lib \
+    mkl_sycl_rng_dll.lib \
+    mkl_intel_ilp64_dll.lib \
+    mkl_tbb_thread_dll.lib mkl_core_dll.lib
 
 mkl_flags.mac32e :=
 mkl_flags.lnxarm :=

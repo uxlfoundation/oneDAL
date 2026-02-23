@@ -85,6 +85,12 @@ if ("${ONEDAL_LINK}" STREQUAL "" OR "${ONEDAL_LINK}" STREQUAL "dynamic")
     endif()
 elseif ("${ONEDAL_LINK}" STREQUAL "static")
     set(ONEDAL_LINK "static")
+    if ("${ONEDAL_USE_DPCPP}" STREQUAL "yes")
+        message(FATAL_ERROR
+            "oneDAL supports SYCL only with dynamic linking.\n"
+            "Please configure with: -DONEDAL_LINK=dynamic"
+        )
+    endif()
     if("${MATH_BACKEND}" STREQUAL "mkl")
         set(MKL_DEPENDENCY "yes")
     elseif("${MATH_BACKEND}" STREQUAL "ref")
