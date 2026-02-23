@@ -66,31 +66,6 @@ cc_library(
 )
 
 cc_library(
-    name = "onedal_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.a",
-    ],
-    deps = [
-        ":headers",
-        "@mkl//:mkl_dpc",
-        ":parameters_static_dpc",
-    ],
-)
-
-cc_library(
-    name = "core_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_core.so",
-    ],
-    deps = [
-        ":headers",
-        # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
-        #       Remove TBB from deps once problem with vml_ipp is resolved
-        "@tbb//:tbb_binary",
-    ],
-)
-
-cc_library(
     name = "thread_dynamic",
     srcs = [
         "lib/intel64/libonedal_thread.so",
