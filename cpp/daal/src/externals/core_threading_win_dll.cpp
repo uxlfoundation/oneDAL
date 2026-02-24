@@ -34,9 +34,9 @@ daal::services::Environment::LibraryThreadingType __daal_serv_get_thr_set();
 DAAL_EXPORT HMODULE load_onedal_thread_dll()
 {
 #ifdef _DEBUG
-    return DAAL_LOAD_DLL("onedal_threadd.4.dll");
+    return DAAL_LOAD_DLL("onedal_threadd.3.dll");
 #else
-    return DAAL_LOAD_DLL("onedal_thread.4.dll");
+    return DAAL_LOAD_DLL("onedal_thread.3.dll");
 #endif
 }
 
@@ -54,7 +54,7 @@ static void load_daal_thr_dll(void)
         daal_thr_dll_handle = load_onedal_thread_dll();
         if (daal_thr_dll_handle == NULL)
         {
-            printf("Intel oneDAL FATAL ERROR: Cannot load onedal_thread.4.dll.\n");
+            printf("Intel oneDAL FATAL ERROR: Cannot load onedal_thread.3.dll.\n");
             exit(1);
         }
         break;
@@ -67,7 +67,7 @@ static void load_daal_thr_dll(void)
             return;
         }
 
-        printf("Intel oneDAL FATAL ERROR: Cannot load onedal_thread.4.dll.\n");
+        printf("Intel oneDAL FATAL ERROR: Cannot load onedal_thread.3.dll.\n");
         exit(1);
     }
     }
