@@ -114,16 +114,23 @@ test:dpc-private \
 
 # Configuration: 'release'
 # Build release artifacts with full ISA coverage (matches Make default).
-# Use for release builds and CI packaging:
-#   bazel build //:release --config=release
-#   bazel build //:release --config=release-dpc  (with DPC++ libs)
-#
-# Note: --cpu=auto (default) only compiles for the host machine's highest
-# ISA (e.g. sse2+avx2 on an avx2 host). --cpu=all matches Make behavior:
-# sse2, sse42, avx2, avx512.
+# This is now the default behavior (--cpu=all is the default).
+# Kept for explicit intent and DPC++ variant:
+#   bazel build //:release                    # CPU only, all ISAs (default)
+#   bazel build //:release --config=release   # same, explicit
+#   bazel build //:release --config=release-dpc  # with DPC++ libs
 build:release \
     --cpu=all
 
 build:release-dpc \
     --cpu=all \
     --release_dpc=true
+
+
+# Configuration: 'dev'
+# Fast local development build — compiles only for the host machine's
+# highest ISA (auto-detected). Use this to speed up iterative builds.
+# NOT suitable for release/packaging.
+#   bazel build //cpp/oneapi/dal:tests --config=dev
+build:dev \
+    --cpu=auto

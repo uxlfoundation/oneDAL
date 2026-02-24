@@ -10,7 +10,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 cpu_info(
     name = "cpu",
     auto_cpu = "%{auto_cpu}",
-    build_setting_default = "auto",
+    build_setting_default = "all",
 )
 
 version_info(
