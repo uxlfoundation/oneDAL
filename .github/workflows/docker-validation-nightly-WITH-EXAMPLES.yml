@@ -81,3 +81,21 @@ jobs:
               echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
               bazel build :release --config=release
             "
+
+      - name: Building and running oneDAL examples with bazel
+        run: |
+          docker run \
+            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
+            onedal-dev sh -c "
+              # Use external disk cache
+              echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
+              
+              # Build examples (smoke test: table, pca, kmeans, linear_regression)
+              bazel build //examples/oneapi/cpp:table
+              bazel build //examples/oneapi/cpp:pca
+              bazel build //examples/oneapi/cpp:kmeans
+              bazel build //examples/oneapi/cpp:linear_regression
+              
+              # Run one simple example to verify runtime
+              bazel run //examples/oneapi/cpp:homogen_table
+            "
