@@ -27,6 +27,13 @@ test --test_env=OCL_ICD_FILENAMES \
 # This variable is needed for MPI
 test --test_env=FI_PROVIDER_PATH
 
+# This flag is added for migration to Bazel 9.0.0:
+# In Bazel 9.0.0, the strict action environment for tests is enabled by default
+# (see https://github.com/bazelbuild/bazel/releases/tag/9.0.0)
+# Instead of using --incompatible_strict_action_env, we explicitly pass
+# the required environment variable to tests for compatibility:
+test --test_env=LD_LIBRARY_PATH
+
 # This variable is used to determine location of datasets for testing
 test --test_env=DAAL_DATASETS
 

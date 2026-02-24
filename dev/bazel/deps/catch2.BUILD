@@ -28,8 +28,9 @@
 # SPDX-License-Identifier: BSL-1.0
 
 load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
-# oneDAL verison of catch2 bazel build file
+# oneDAL version of catch2 bazel build file
 expand_template(
     name = "catch_user_config",
     out = "catch2/catch_user_config.hpp",
