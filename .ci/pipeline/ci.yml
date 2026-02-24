@@ -311,67 +311,100 @@ jobs:
     displayName: 'Upload build artifacts'
 
   - script: |
-      echo "Clean before running example tests"
+      echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
-    displayName: 'bazel-clean'
+    displayName: 'Clean Bazel cache (expunge)'
+
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
-      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-dev'
 
   - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
-      bazel clean --expunge
     displayName: 'cpp-examples-thread-dev'
 
   - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par \
                  --test_env DALROOT
-      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-static'
 
   - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
                  --test_thread_mode=par \
                  --test_env DALROOT
-      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-static'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
                  --test_env DALROOT
-      bazel clean --expunge
     displayName: 'daal-cpp-examples-thread-release-dynamic'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_dynamic \
                  --test_thread_mode=par \
                  --test_env DALROOT
-      bazel clean --expunge
     displayName: 'cpp-examples-thread-release-dynamic'
 
   - script: |
-      bazel test //cpp/daal:tests
+      echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
+      bazel test //cpp/daal:tests
     displayName: 'daal-tests-algorithms'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       bazel test //cpp/oneapi/dal:tests \
                  --config=host \
                  --test_link_mode=dev \
                  --test_thread_mode=par
-      bazel clean --expunge
     displayName: 'cpp-tests-thread-dev'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
       # Clear cache if its size exceeds some predefined value
