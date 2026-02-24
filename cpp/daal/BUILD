@@ -325,10 +325,11 @@ sh_test(
         ":core_static",
         ":core_dynamic",
     ],
-    # Only meaningful with MKL backend; skip for OpenBLAS/reference backend
+    # Only meaningful with MKL backend; skip for OpenBLAS/reference backend.
+    # Also Linux-only: uses GNU nm -D and .so outputs.
     target_compatible_with = select({
         "@config//:backend_ref": ["@platforms//:incompatible"],
         "//conditions:default": [],
-    }),
+    }) + ["@platforms//os:linux"],
 )
 

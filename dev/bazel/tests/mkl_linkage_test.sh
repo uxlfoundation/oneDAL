@@ -25,8 +25,8 @@
 
 set -euo pipefail
 
-STATIC_LIB="${TEST_SRCDIR}/onedal/cpp/daal/libonedal_core.a"
-DYNAMIC_LIB="${TEST_SRCDIR}/onedal/cpp/daal/libonedal_core.so"
+STATIC_LIB="${TEST_SRCDIR}/${TEST_WORKSPACE}/cpp/daal/libonedal_core.a"
+DYNAMIC_LIB="${TEST_SRCDIR}/${TEST_WORKSPACE}/cpp/daal/libonedal_core.so"
 
 PASS=0
 FAIL=0
@@ -55,7 +55,7 @@ fi
 
 # Static lib must NOT contain MKL archive object files
 # (libmkl_core.a, libmkl_intel_ilp64.a, libmkl_tbb_thread.a objects)
-MKL_ARCHIVE_OBJS=$(ar t "$STATIC_LIB" 2>/dev/null | grep -c '^_mkl_\|^mkl_blas\|^mkl_vml\|libmkl' || true)
+MKL_ARCHIVE_OBJS=$(ar t "$STATIC_LIB" 2>/dev/null | grep -c '^_mkl_\|^mkl_blas\|^mkl_vml\|^libmkl' || true)
 check "Static lib: no MKL archive objects merged in" "$MKL_ARCHIVE_OBJS"
 
 # Static lib must NOT have defined MKL symbols (only undefined refs are ok)
