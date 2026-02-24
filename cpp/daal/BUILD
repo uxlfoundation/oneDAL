@@ -14,6 +14,7 @@ load("@onedal//dev/bazel:daal.bzl",
 
 daal_module(
     name = "microvmlipp",
+    lib_tag = "mkl_embed",
     override_deps_lib_tag = True,
     deps = select({
         "@config//:backend_ref": [ ],
@@ -25,6 +26,7 @@ daal_module(
 
 daal_module(
     name = "mathbackend_thread",
+    lib_tag = "mkl_embed",
     override_deps_lib_tag = True,
     deps = select({
         "@config//:backend_ref": [ "@openblas//:openblas",
