@@ -11,6 +11,7 @@ load("@onedal//dev/bazel:daal.bzl",
     "daal_generate_version",
     "daal_patch_kernel_defines",
 )
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 daal_module(
     name = "microvmlipp",
@@ -310,3 +311,18 @@ dal_collect_test_suites(
         "dtrees/gbt/regression"
     ],
 )
+
+sh_test(
+    name = "mkl_linkage_test",
+    srcs = ["//dev/bazel/tests:mkl_linkage_test.sh"],
+    data = [
+        ":core_static",
+        ":core_dynamic",
+    ],
+    # Only meaningful with MKL backend; skip for OpenBLAS/reference backend
+    target_compatible_with = select({
+        "@config//:backend_ref": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)
+
