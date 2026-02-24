@@ -345,12 +345,10 @@ def _test_deps_on_daal():
         ],
         "@config//:test_link_mode_release_static": [
             "@onedal_release//:core_static",
-            "@onedal_release//:parameters_static",
             "@onedal//cpp/daal:threading_release_static",
         ],
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic",
-            "@onedal_release//:parameters_dynamic",
             "@onedal//cpp/daal:threading_release_dynamic",
         ],
     })
