@@ -30,7 +30,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], **kwargs):
+                local_defines=[], copts=[], **kwargs):
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
@@ -53,7 +53,15 @@ def daal_module(name, features=[], lib_tag="daal",
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
-        local_defines = local_defines + select({
+        copts = copts + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["-fvisibility=hidden"],
+        }),
+        local_defines = local_defines + [
+            # Enable DAAL_EXPORT visibility annotations (via __DAAL_IMPLEMENTATION),
+            # matching Make's -D__DAAL_IMPLEMENTATION flag for cpp/daal .so objects.
+            "__DAAL_IMPLEMENTATION",
+        ] + select({
             "@config//:assert_enabled": [
                 "DEBUG_ASSERT=1",
             ],
