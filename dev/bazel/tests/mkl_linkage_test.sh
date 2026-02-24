@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #===============================================================================
-# Copyright Contributors to the oneDAL Project
+# Copyright UXL Contribution to oneDAL project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
