@@ -308,3 +308,11 @@ dal_collect_test_suites(
         "dtrees/gbt/regression"
     ],
 )
+
+sh_test(
+    name = "isa_coverage_test",
+    srcs = ["@onedal//dev/bazel/tests:isa_coverage_test.sh"],
+    args = ["$(location :core_dynamic)"],
+    data = [":core_dynamic"],
+    tags = ["manual"],
+)
