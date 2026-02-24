@@ -110,3 +110,20 @@ build:dpc-private \
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
+
+
+# Configuration: 'release'
+# Build release artifacts with full ISA coverage (matches Make default).
+# Use for release builds and CI packaging:
+#   bazel build //:release --config=release
+#   bazel build //:release --config=release-dpc  (with DPC++ libs)
+#
+# Note: --cpu=auto (default) only compiles for the host machine's highest
+# ISA (e.g. sse2+avx2 on an avx2 host). --cpu=all matches Make behavior:
+# sse2, sse42, avx2, avx512.
+build:release \
+    --cpu=all
+
+build:release-dpc \
+    --cpu=all \
+    --release_dpc=true
