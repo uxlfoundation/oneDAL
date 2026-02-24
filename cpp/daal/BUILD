@@ -27,8 +27,14 @@ daal_module(
 
 daal_module(
     name = "mathbackend_thread",
-    lib_tag = "mkl_embed",
-    override_deps_lib_tag = True,
+    lib_tag = select({
+        "@config//:backend_ref": "daal",
+        "//conditions:default": "mkl_embed",
+    }),
+    override_deps_lib_tag = select({
+        "@config//:backend_ref": False,
+        "//conditions:default": True,
+    }),
     deps = select({
         "@config//:backend_ref": [ "@openblas//:openblas",
                                  ],
