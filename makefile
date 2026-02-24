@@ -585,7 +585,6 @@ ONEAPI.tmpdir_y := $(WORKDIR)/oneapi_dynamic
 PARAMETERS.tmpdir_a := $(WORKDIR)/parameters_static
 PARAMETERS.tmpdir_y := $(WORKDIR)/parameters_dynamic
 ONEAPI.tmpdir_y.dpc := $(WORKDIR)/oneapi_dpc_dynamic
-PARAMETERS.tmpdir_a.dpc := $(WORKDIR)/parameters_dpc_static
 PARAMETERS.tmpdir_y.dpc := $(WORKDIR)/parameters_dpc_dynamic
 
 ONEAPI.incdirs.common := $(CPPDIR)
