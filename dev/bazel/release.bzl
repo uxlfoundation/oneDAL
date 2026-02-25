@@ -18,6 +18,23 @@ load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
+# Transition: force --cpu=all when building release libs,
+# unless --cpu is explicitly overridden (e.g. --cpu=avx2 in CI).
+# This ensures bazel build //:release compiles all ISA variants
+# (sse2, sse42, avx2, avx512) by default without any extra flags.
+def _release_cpu_all_impl(settings, attr):
+    current = settings["@config//:cpu"]
+    # Respect explicit --cpu flag; only force "all" for the default "auto".
+    if current == "auto":
+        return {"@config//:cpu": "all"}
+    return {"@config//:cpu": current}
+
+_release_cpu_all_transition = transition(
+    implementation = _release_cpu_all_impl,
+    inputs = ["@config//:cpu"],
+    outputs = ["@config//:cpu"],
+)
+
 def _match_file_name(file, entries):
     for entry in entries:
         if entry in file.path:
@@ -94,10 +111,10 @@ def _copy_to_release_impl(ctx):
 _release = rule(
     implementation = _copy_to_release_impl,
     attrs = {
-        "include": attr.label_list(allow_files=True),
+        "include": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
-        "lib": attr.label_list(allow_files=True),
+        "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
     },
     toolchains = [
         "@onedal//dev/bazel/toolchains:extra"
