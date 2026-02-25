@@ -143,17 +143,18 @@ build:dev \
 # Adds: -g debug symbols, -DDEBUG_ASSERT, -DONEDAL_ENABLE_ASSERT
 #   bazel build //:release --config=dbg
 #   bazel test //cpp/oneapi/dal:tests --config=dbg
-build:dbg \
+common:dbg \
     --compilation_mode=dbg \
     --enable_assert=True
 
 # Configuration: 'dbg-symbols'
-# Debug symbols only — no assertion checking.
+# Debug symbols only — no assertion checking, no -O0.
 # Equivalent to Make: REQDBG=symbols
-# Adds: -g debug symbols only
+# Adds -g to the default opt build; preserves -O2/-O3 optimization.
 #   bazel build //:release --config=dbg-symbols
-build:dbg-symbols \
-    --compilation_mode=dbg
+common:dbg-symbols \
+    --copt=-g \
+    --cxxopt=-g
 
 
 # Configuration: 'asan'
@@ -161,16 +162,15 @@ build:dbg-symbols \
 # Equivalent to Make: REQSAN=address
 # Note: combine with --config=dbg for best results (Make recommendation).
 #   bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
-build:asan \
+common:asan \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=address \
-    --linkopt=-shared-libasan
+    --linkopt=-fsanitize=address
 
 # Configuration: 'asan-static'
 # AddressSanitizer with static libasan linkage.
 # Equivalent to Make: REQSAN=static
-build:asan-static \
+common:asan-static \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=address \
@@ -181,7 +181,7 @@ build:asan-static \
 # ThreadSanitizer build.
 # Equivalent to Make: REQSAN=thread
 #   bazel test //cpp/oneapi/dal:tests --config=tsan
-build:tsan \
+common:tsan \
     --copt=-fsanitize=thread \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=thread
@@ -191,7 +191,7 @@ build:tsan \
 # UndefinedBehaviorSanitizer build.
 # Equivalent to Make: REQSAN=undefined
 #   bazel test //cpp/oneapi/dal:tests --config=ubsan
-build:ubsan \
+common:ubsan \
     --copt=-fsanitize=undefined \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=undefined

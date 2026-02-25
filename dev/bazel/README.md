@@ -428,8 +428,13 @@ Equivalent to Make `REQSAN=undefined`:
 bazel test //cpp/oneapi/dal:tests --config=ubsan
 ```
 
-> Note: Not all compilers support all sanitizers. GCC will fail with
-> `REQSAN=memory` by design. Use icpx or clang for memory sanitizer.
+> Note: Not all compilers support all sanitizers. There is currently no
+> `--config=msan` preset. To use MemorySanitizer, use a compiler that supports
+> it (icpx or clang) and pass flags manually:
+> ```sh
+> bazel test //cpp/oneapi/dal:tests --copt=-fsanitize=memory --linkopt=-fsanitize=memory
+> ```
+> GCC does not support MemorySanitizer and will fail by design.
 
 ---
 
@@ -441,8 +446,10 @@ Build the full release artifact (all ISA variants: sse2, sse42, avx2, avx512):
 bazel build //:release
 ```
 
-The `//:release` target automatically compiles all ISA variants regardless of
-the `--cpu` flag default. To restrict ISA coverage (e.g., for faster CI):
+The `//:release` target automatically compiles all ISA variants when `--cpu`
+is left at its default value (`auto`). If `--cpu` is set explicitly — e.g. in
+a personal `~/.bazelrc` or passed in CI — the transition respects that value.
+To restrict ISA coverage (e.g., for faster CI):
 
 ```sh
 bazel build //:release --cpu=avx2
