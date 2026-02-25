@@ -18,8 +18,9 @@
 # Verifies that libonedal_core.so contains CPU dispatch symbols for all
 # required ISA variants: sse2, sse42, avx2, avx512 (CpuType E0/E2/E4/E6).
 #
-# Make builds all 4 ISA variants by default. Bazel requires --cpu=all
-# (or --config=release) to match. This test enforces that contract.
+# Make builds all 4 ISA variants by default. Building via //:release
+# automatically compiles all ISA variants (cfg transition on release rule).
+# This test enforces that contract.
 
 set -euo pipefail
 
@@ -47,7 +48,7 @@ check_isa() {
         PASS=$((PASS + 1))
     else
         echo "  FAIL ${isa_name} (${cpu_type}): 0 dispatch symbols found"
-        echo "       Build with --cpu=all or --config=release to include all ISAs"
+        echo "       Build via //:release (uses all ISAs via cfg transition) or pass --cpu=all"
         FAIL=$((FAIL + 1))
     fi
 }
