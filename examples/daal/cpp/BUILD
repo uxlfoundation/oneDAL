@@ -1,7 +1,7 @@
 load("@onedal//dev/bazel:dal.bzl",
     "dal_module",
-    "dal_example_suite",
-    "dal_algo_example_suite",
+    "daal_example_suite",
+    "daal_algo_example_suite",
 )
 
 dal_module(
@@ -18,7 +18,7 @@ _DATA_DEPS = [
     "@onedal//examples/daal:data",
 ]
 
-dal_example_suite(
+daal_example_suite(
     name = "association_rules",
     compile_as = [ "c++" ],
     srcs = glob(["source/association_rules/*.cpp"]),
@@ -29,7 +29,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "boosting",
     compile_as = [ "c++" ],
     srcs = glob(["source/boosting/*.cpp"]),
@@ -42,7 +42,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "cholesky",
     compile_as = [ "c++" ],
     srcs = glob(["source/cholesky/*.cpp"]),
@@ -53,7 +53,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "datasource",
     compile_as = [ "c++" ],
     srcs = glob(["source/datasource/*.cpp"]),
@@ -65,7 +65,7 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "decision_forest",
     compile_as = [ "c++" ],
     srcs = glob(["source/decision_forest/*.cpp"],
@@ -82,7 +82,7 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "decision_tree",
     compile_as = [ "c++" ],
     srcs = glob(["source/decision_tree/*.cpp"],
@@ -99,7 +99,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "distance",
     compile_as = [ "c++" ],
     srcs = glob(["source/distance/*.cpp"]),
@@ -111,7 +111,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "distributions",
     compile_as = [ "c++" ],
     srcs = glob(["source/distributions/*.cpp"]),
@@ -122,7 +122,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "elastic_net",
     compile_as = [ "c++" ],
     srcs = glob(["source/elastic_net/*.cpp"]),
@@ -135,7 +135,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "em",
     compile_as = [ "c++" ],
     srcs = glob(["source/em/*.cpp"]),
@@ -147,7 +147,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "enable_thread_pinning_example",
     compile_as = [ "c++" ],
     srcs = glob(["source/enable_thread_pinning/*.cpp"]),
@@ -158,7 +158,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "gradient_boosted_trees",
     compile_as = [ "c++" ],
     srcs = glob(["source/gradient_boosted_trees/*.cpp"]),
@@ -171,7 +171,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "implicit_als",
     compile_as = [ "c++" ],
     srcs = glob(["source/implicit_als/*.cpp"]),
@@ -182,7 +182,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "k_nearest_neighbors",
     compile_as = [ "c++" ],
     srcs = glob(["source/k_nearest_neighbors/*.cpp"]),
@@ -193,7 +193,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "kernel_function",
     compile_as = [ "c++" ],
     srcs = glob(["source/kernel_function/*.cpp"]),
@@ -204,7 +204,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "lasso_regression",
     compile_as = [ "c++" ],
     srcs = glob(["source/lasso_regression/*.cpp"]),
@@ -217,7 +217,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "logistic_regression",
     compile_as = [ "c++" ],
     srcs = glob(["source/logistic_regression/*.cpp"]),
@@ -229,7 +229,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "moments",
     compile_as = [ "c++" ],
     srcs = glob(["source/moments/*.cpp"]),
@@ -241,7 +241,7 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "naive_bayes",
     compile_as = [ "c++" ],
     srcs = glob(["source/naive_bayes/*.cpp"],
@@ -255,7 +255,7 @@ dal_example_suite(
 
 # TODO: investigate the issue with excluded example
 # Both examples are failing, its the reason of disabling this test
-# dal_example_suite(
+# daal_example_suite(
 #     name = "normalization",
 #     compile_as = [ "c++" ],
 #     srcs = glob(["source/normalization/*.cpp"],
@@ -271,7 +271,7 @@ dal_example_suite(
 # )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "optimization_solvers",
     compile_as = [ "c++" ],
     hdrs = glob(["source/optimization_solvers/*.h"]),
@@ -293,7 +293,7 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "outlier_detection",
     compile_as = [ "c++" ],
     srcs = glob(["source/outlier_detection/*.cpp"]),
@@ -306,7 +306,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "pca_transform",
     compile_as = [ "c++" ],
     srcs = glob(["source/pca_transform/*.cpp"]),
@@ -318,7 +318,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "pivoted_qr",
     compile_as = [ "c++" ],
     srcs = glob(["source/pivoted_qr/*.cpp"]),
@@ -329,7 +329,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "qr",
     compile_as = [ "c++" ],
     srcs = glob(["source/qr/*.cpp"]),
@@ -340,7 +340,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "quantiles",
     compile_as = [ "c++" ],
     srcs = glob(["source/quantiles/*.cpp"]),
@@ -351,7 +351,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "ridge_regression",
     compile_as = [ "c++" ],
     srcs = glob(["source/ridge_regression/*.cpp"]),
@@ -362,7 +362,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "serialization_example",
     compile_as = [ "c++" ],
     srcs = glob(["source/serialization/*.cpp"]),
@@ -370,7 +370,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "services_examples",
     compile_as = [ "c++" ],
     srcs = glob(["source/services/*.cpp"]),
@@ -378,7 +378,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "set_number_of_threads_example",
     compile_as = [ "c++" ],
     srcs = glob(["source/set_number_of_threads/*.cpp"]),
@@ -389,7 +389,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "sorting",
     compile_as = [ "c++" ],
     srcs = glob(["source/sorting/*.cpp"]),
@@ -400,7 +400,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "stump",
     compile_as = [ "c++" ],
     srcs = glob(["source/stump/*.cpp"]),
@@ -411,7 +411,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_example_suite(
+daal_example_suite(
     name = "svd",
     compile_as = [ "c++" ],
     srcs = glob(["source/svd/*.cpp"]),
@@ -423,7 +423,7 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
+daal_example_suite(
     name = "svm",
     compile_as = [ "c++" ],
     srcs = glob(["source/svm/*.cpp"],
@@ -437,7 +437,7 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-dal_algo_example_suite(
+daal_algo_example_suite(
     algos = [
         "covariance",
         "dbscan",
