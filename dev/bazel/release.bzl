@@ -16,6 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 def _match_file_name(file, entries):
     for entry in entries:
