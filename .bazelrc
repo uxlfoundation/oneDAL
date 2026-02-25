@@ -112,15 +112,14 @@ test:dpc-private \
     --test_tag_filters="dpc,-public"
 
 
-# Configuration: 'release-dpc'
-# Build release artifacts including DPC++ libs.
+# Configuration: 'release'
 # The //:release target automatically builds all ISA variants when
-# --cpu is unset (auto). Use --cpu=<isa> to restrict for CI speed.
-#   bazel build //:release                       # CPU only, all ISAs
-#   bazel build //:release --config=release-dpc  # with DPC++ libs
+# --cpu is unset (auto), and includes DPC++ libs by default.
+# Use --cpu=<isa> to restrict ISAs for CI speed, or --release_dpc=false
+# to disable DPC++ libs.
+#   bazel build //:release                       # CPU + DPC++, all ISAs
+#   bazel build //:release --release_dpc=false   # CPU only, all ISAs
 #   bazel build //:release --cpu=avx2            # CI: avx2 only
-build:release-dpc \
-    --release_dpc=true
 
 
 # Configuration: 'dev'
