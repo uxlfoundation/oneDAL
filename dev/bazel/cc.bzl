@@ -195,7 +195,6 @@ def _cc_dynamic_lib_impl(ctx):
         "-Wl,--exclude-libs=libmkl_tbb_thread.a",
         "-Wl,--exclude-libs=libmkl_core.a",
         "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
-        "-Wl,--exclude-libs=libmkl_sycl.a",
         "-Wl,--exclude-libs=ALL",
     ]
 
