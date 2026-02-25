@@ -111,7 +111,7 @@ def _copy_to_release_impl(ctx):
 _release = rule(
     implementation = _copy_to_release_impl,
     attrs = {
-        "include": attr.label_list(allow_files=True),
+        "include": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
         "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
