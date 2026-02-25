@@ -1,4 +1,5 @@
 package(default_visibility = ["//visibility:public"])
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@onedal//dev/bazel:dal.bzl",
     "dal_test_suite",
     "dal_collect_test_suites",
@@ -315,4 +316,5 @@ sh_test(
     args = ["$(location :core_dynamic)"],
     data = [":core_dynamic"],
     tags = ["manual"],
+    target_compatible_with = ["@platforms//os:linux"],
 )
