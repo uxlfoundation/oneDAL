@@ -110,3 +110,99 @@ build:dpc-private \
 
 test:dpc-private \
     --test_tag_filters="dpc,-public"
+
+
+# Configuration: 'release-dpc'
+# Build release artifacts including DPC++ libs.
+# The //:release target automatically builds all ISA variants when
+# --cpu is unset (auto). Use --cpu=<isa> to restrict for CI speed.
+#   bazel build //:release                       # CPU only, all ISAs
+#   bazel build //:release --config=release-dpc  # with DPC++ libs
+#   bazel build //:release --cpu=avx2            # CI: avx2 only
+build:release-dpc \
+    --release_dpc=true
+
+
+# Configuration: 'dev'
+# Fast local development build — compiles only for the host machine's
+# highest ISA (auto-detected). Use this to speed up iterative builds.
+# NOT suitable for release/packaging.
+#   bazel build //cpp/oneapi/dal:tests --config=dev
+build:dev \
+    --cpu=auto
+
+
+# =============================================================================
+# Debug and Sanitizer Configurations
+# Equivalent to Make REQDBG / REQSAN options
+# =============================================================================
+
+# Configuration: 'dbg'
+# Debug build with assertions enabled.
+# Equivalent to Make: REQDBG=1
+# Adds: -g debug symbols, -DDEBUG_ASSERT, -DONEDAL_ENABLE_ASSERT
+#   bazel build //:release --config=dbg
+#   bazel test //cpp/oneapi/dal:tests --config=dbg
+build:dbg \
+    --compilation_mode=dbg \
+    --enable_assert=True
+
+# Configuration: 'dbg-symbols'
+# Debug symbols only — no assertion checking.
+# Equivalent to Make: REQDBG=symbols
+# Adds: -g debug symbols only
+#   bazel build //:release --config=dbg-symbols
+build:dbg-symbols \
+    --compilation_mode=dbg
+
+
+# Configuration: 'asan'
+# AddressSanitizer build.
+# Equivalent to Make: REQSAN=address
+# Note: combine with --config=dbg for best results (Make recommendation).
+#   bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+build:asan \
+    --copt=-fsanitize=address \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=address \
+    --linkopt=-shared-libasan
+
+# Configuration: 'asan-static'
+# AddressSanitizer with static libasan linkage.
+# Equivalent to Make: REQSAN=static
+build:asan-static \
+    --copt=-fsanitize=address \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=address \
+    --linkopt=-static-libasan
+
+
+# Configuration: 'tsan'
+# ThreadSanitizer build.
+# Equivalent to Make: REQSAN=thread
+#   bazel test //cpp/oneapi/dal:tests --config=tsan
+build:tsan \
+    --copt=-fsanitize=thread \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=thread
+
+
+# Configuration: 'ubsan'
+# UndefinedBehaviorSanitizer build.
+# Equivalent to Make: REQSAN=undefined
+#   bazel test //cpp/oneapi/dal:tests --config=ubsan
+build:ubsan \
+    --copt=-fsanitize=undefined \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=undefined
+
+
+# =============================================================================
+# Custom flags
+# For injecting arbitrary compiler/linker flags (equivalent to Make COPT/CXXFLAGS):
+#   bazel build //:release --copt=-march=native
+#   bazel build //:release --copt=-O2
+#   bazel build //:release --linkopt=-Wl,--as-needed
+# Or persist in user-local ~/.bazelrc:
+#   build --copt=-your-flag
+# =============================================================================
