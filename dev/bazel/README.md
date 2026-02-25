@@ -264,11 +264,21 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```
 
 ## Build recipes for oneDAL
-### Build release package
-- On Linux:
+### Build release artifacts
+- To build the library release artifacts (similar to Make build), run:
   ```sh
-  bazel build //:release --verbose_failures
+  bazel build //:release
   ```
+  This automatically builds all required ISA variants (SSE2, SSE4.2, AVX2, AVX-512) and includes DPC++ libraries by default.
+
+  - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
+    ```sh
+    bazel build //:release --cpu=avx2
+    ```
+  - To disable building DPC++ libraries, use `--release_dpc=false`:
+    ```sh
+    bazel build //:release --release_dpc=false
+    ```
 
 - On Windows, run from the Visual Studio Developer Command Prompt described
   above:
