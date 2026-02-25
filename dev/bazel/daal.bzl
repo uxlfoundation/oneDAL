@@ -53,19 +53,13 @@ def daal_module(name, features=[], lib_tag="daal",
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
-        copts = copts + select({
-            "@platforms//os:windows": [],
-            "//conditions:default": ["-fvisibility=hidden"],
+        copts = select({
+            "@platforms//os:windows": copts,
+            "//conditions:default": copts + ["-fvisibility=hidden"],
         }),
-        local_defines = local_defines + [
-            # Enable DAAL_EXPORT visibility annotations (via __DAAL_IMPLEMENTATION),
-            # matching Make's -D__DAAL_IMPLEMENTATION flag for cpp/daal .so objects.
-            "__DAAL_IMPLEMENTATION",
-        ] + select({
-            "@config//:assert_enabled": [
-                "DEBUG_ASSERT=1",
-            ],
-            "//conditions:default": [],
+        local_defines = select({
+            "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
+            "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
         }) + select({
             "@config//:backend_ref": [
                 "DAAL_REF",
