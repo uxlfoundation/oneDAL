@@ -81,5 +81,5 @@ jobs:
               echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
               # In CI we build for avx2 only (override default "all" ISA release build).
               # For a full release with all ISA variants, omit --cpu or use --cpu=all.
-              bazel build :release --cpu=avx2
+              bazel build :release --cpu=avx2 --release_dpc=false
             "
