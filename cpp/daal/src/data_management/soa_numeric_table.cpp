@@ -54,8 +54,7 @@ SOANumericTable::SOANumericTable(size_t nColumns, size_t nRows, DictionaryIface:
     }
 }
 
-services::SharedPtr<SOANumericTable> SOANumericTable::create(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual,
-                                                             services::Status * stat)
+SOANumericTable * SOANumericTable::create(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(SOANumericTable, nColumns, nRows, featuresEqual);
 }
@@ -79,8 +78,7 @@ SOANumericTable::SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, 
     }
 }
 
-services::SharedPtr<SOANumericTable> SOANumericTable::create(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag,
-                                                             services::Status * stat)
+SOANumericTable * SOANumericTable::create(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(SOANumericTable, ddict, nRows, memoryAllocationFlag);
 }

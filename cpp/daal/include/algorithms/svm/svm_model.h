@@ -110,30 +110,9 @@ public:
     DECLARE_MODEL(Model, classifier::Model);
 
     /**
-     * Constructs the SVM model
-     * \tparam modelFPType  Data type to store SVM model data, double or float
-     * \param[in] dummy     Dummy variable for the templated constructor
-     * \param[in] nColumns  Number of features in input data
-     * \param[in] layout    Data layout of the numeric table of support vectors
-     * \DAAL_DEPRECATED_USE{ Model::create }
+     * Empty constructor for deserialization
      */
-    template <typename modelFPType>
-    Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos)
-        : _bias(0.0)
-    {
-        using namespace data_management;
-        if (layout == NumericTableIface::csrArray)
-        {
-            modelFPType * dummyPtr = NULL;
-            _SV.reset(new CSRNumericTable(dummyPtr, NULL, NULL, nColumns));
-        }
-        else
-        {
-            _SV.reset(new HomogenNumericTable<modelFPType>(NULL, nColumns, 0));
-        }
-        _SVCoeff.reset(new HomogenNumericTable<modelFPType>(NULL, 1, 0));
-        _SVIndices.reset(new HomogenNumericTable<int>(NULL, 1, 0));
-    }
+    Model() : _SV(), _SVCoeff(), _bias(0.0), _SVIndices() {}
 
     /**
      * Constructs the SVM model
@@ -147,12 +126,6 @@ public:
     DAAL_EXPORT static services::SharedPtr<Model> create(
         size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos,
         services::Status * stat = NULL);
-
-    /**
-     * Empty constructor for deserialization
-     * \DAAL_DEPRECATED_USE{ Model::create }
-     */
-    Model() : _SV(), _SVCoeff(), _bias(0.0), _SVIndices() {}
 
     /**
      * Constructs empty SVM model for deserialization

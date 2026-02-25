@@ -143,8 +143,8 @@ public:
         }
         else
         {
-            data_management::SOANumericTablePtr tbl(
-                new data_management::SOANumericTable(value->getNumberOfColumns(), value->getNumberOfRows(), data_management::DictionaryIface::equal));
+            data_management::SOANumericTablePtr tbl(data_management::SOANumericTable::create(value->getNumberOfColumns(), value->getNumberOfRows(),
+                                                                                             data_management::DictionaryIface::equal));
             DAAL_CHECK_MALLOC(tbl.get())
             tbl->getDictionary()->setAllFeatures<algorithmFPType>(); // Just to set type of all features. Also, no way to use featuresEqual flag.
             tbl->resize(value->getNumberOfRows());
@@ -190,7 +190,7 @@ public:
         }
         else
         {
-            data_management::SOANumericTablePtr tbl(new data_management::SOANumericTable(value->getNumberOfColumns(), value->getNumberOfRows()));
+            data_management::SOANumericTablePtr tbl(data_management::SOANumericTable::create(value->getNumberOfColumns(), value->getNumberOfRows()));
             DAAL_CHECK_MALLOC(tbl.get())
             tbl->setArray(static_cast<algorithmFPType *>(0), 0);                    // Just to create the dictionary.
             tbl->getDictionary()->setNumberOfFeatures(value->getNumberOfColumns()); // Sadly, setArray() hides number of features from the dictionary.
@@ -239,7 +239,7 @@ public:
 
         services::Status status;
 
-        _indices = IndicesNT::create(1, nIndices, data_management::NumericTableIface::doAllocate, &status);
+        _indices.reset(IndicesNT::create(1, nIndices, data_management::NumericTableIface::doAllocate, &status));
 
         if (status.ok())
         {

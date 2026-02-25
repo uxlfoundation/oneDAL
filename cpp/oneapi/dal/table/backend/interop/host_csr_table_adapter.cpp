@@ -41,9 +41,13 @@ static void convert_feature_information_to_daal(
 }
 
 template <typename Data>
-auto host_csr_table_adapter<Data>::create(const csr_table& table) -> ptr_t {
+auto host_csr_table_adapter<Data>::create(const csr_table& table) -> host_csr_table_adapter<Data>* {
     status_t internal_stat;
-    auto result = ptr_t{ new host_csr_table_adapter(table, internal_stat) };
+    auto result = new host_csr_table_adapter(table, internal_stat);
+    if (!internal_stat.ok()) {
+        delete result;
+        result = nullptr;
+    }
     status_to_exception(internal_stat);
     return result;
 }

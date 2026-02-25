@@ -67,8 +67,8 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_input.set(daal_df_reg_pred::data, daal_data);
     daal_input.set(daal_df_reg_pred::model, daal_model);
 
-    daal::data_management::NumericTablePtr daal_responses_res =
-        interop::allocate_daal_homogen_table<Float>(row_count, 1);
+    daal::data_management::NumericTablePtr daal_responses_res(
+        interop::allocate_daal_homogen_table<Float>(row_count, 1));
 
     const daal_df::regression::Model* const daal_model_ptr =
         static_cast<daal_df::regression::Model*>(daal_model.get());

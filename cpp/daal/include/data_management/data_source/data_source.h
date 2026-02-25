@@ -426,7 +426,7 @@ inline services::Status DataSource::allocateNumericTableImpl(AOSNumericTablePtr 
     size_t nFeatures     = _dict->getNumberOfFeatures();
     size_t structureSize = getStructureSize();
     services::Status s;
-    nt = AOSNumericTable::create(structureSize, nFeatures, 0, &s);
+    nt.reset(AOSNumericTable::create(structureSize, nFeatures, 0, &s));
     if (!s) return s;
     s |= setNumericTableDictionary(nt);
     return s;
@@ -435,7 +435,7 @@ inline services::Status DataSource::allocateNumericTableImpl(AOSNumericTablePtr 
 template <>
 inline services::Status DataSource::allocateNumericTableImpl(SOANumericTablePtr & nt)
 {
-    nt = SOANumericTablePtr();
+    nt.reset();
     return services::Status();
 }
 
@@ -444,7 +444,7 @@ inline services::Status DataSource::allocateNumericTableImpl(services::SharedPtr
 {
     size_t nFeatures = getNumericTableNumberOfColumns();
     services::Status s;
-    nt = HomogenNumericTable<FPType>::create(nFeatures, 0, NumericTableIface::doNotAllocate, &s);
+    nt.reset(HomogenNumericTable<FPType>::create(nFeatures, 0, NumericTableIface::doNotAllocate, &s));
     if (!s) return s;
     s |= setNumericTableDictionary(nt);
     return s;
@@ -469,7 +469,7 @@ public:
 
     virtual ~DataSourceTemplate() {}
 
-    virtual void freeNumericTable() DAAL_C11_OVERRIDE { _spnt = NumericTablePtr(); }
+    virtual void freeNumericTable() DAAL_C11_OVERRIDE { _spnt.reset(); }
 
     virtual services::Status allocateNumericTable() DAAL_C11_OVERRIDE
     {

@@ -55,22 +55,19 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
 
     if (par->resultsToEvaluate & computeClassLabels)
     {
-        dm::NumericTablePtr nt;
-        nt = dm::HomogenNumericTable<algorithmFPType>::create(1, nRows, dm::NumericTableIface::doAllocate, &st);
+        dm::NumericTablePtr nt(dm::HomogenNumericTable<algorithmFPType>::create(1, nRows, dm::NumericTableIface::doAllocate, &st));
 
         set(prediction, nt);
     }
     if (par->resultsToEvaluate & computeClassProbabilities)
     {
-        dm::NumericTablePtr nt;
-        nt = dm::HomogenNumericTable<algorithmFPType>::create(nClasses, nRows, dm::NumericTableIface::doAllocate, &st);
+        dm::NumericTablePtr nt(dm::HomogenNumericTable<algorithmFPType>::create(nClasses, nRows, dm::NumericTableIface::doAllocate, &st));
 
         set(probabilities, nt);
     }
     if (par->resultsToEvaluate & computeClassLogProbabilities)
     {
-        dm::NumericTablePtr nt;
-        nt = dm::HomogenNumericTable<algorithmFPType>::create(nClasses, nRows, dm::NumericTableIface::doAllocate, &st);
+        dm::NumericTablePtr nt(dm::HomogenNumericTable<algorithmFPType>::create(nClasses, nRows, dm::NumericTableIface::doAllocate, &st));
 
         set(logProbabilities, nt);
     }

@@ -609,66 +609,70 @@ const int SERIALIZATION_DBSCAN_DISTRIBUTED_PARTIAL_RESULT_STEP13_ID = 121310;
     {                                                       \
         services::Status defaultSt;                         \
         services::Status & st = (stat ? *stat : defaultSt); \
-        services::SharedPtr<Type> result(new Type(st));     \
+        Type * result         = new Type(st);               \
         if (!result)                                        \
         {                                                   \
             st.add(services::ErrorMemoryAllocationFailed);  \
         }                                                   \
         if (!st)                                            \
         {                                                   \
-            result.reset();                                 \
+            delete result;                                  \
+            result = nullptr;                               \
         }                                                   \
         return result;                                      \
     }
 
-#define DAAL_DEFAULT_CREATE_IMPL_EX(Type, ...)                       \
-    {                                                                \
-        services::Status defaultSt;                                  \
-        services::Status & st = (stat ? *stat : defaultSt);          \
-        services::SharedPtr<Type> result(new Type(__VA_ARGS__, st)); \
-        if (!result)                                                 \
-        {                                                            \
-            st.add(services::ErrorMemoryAllocationFailed);           \
-        }                                                            \
-        if (!st)                                                     \
-        {                                                            \
-            result.reset();                                          \
-        }                                                            \
-        return result;                                               \
+#define DAAL_DEFAULT_CREATE_IMPL_EX(Type, ...)              \
+    {                                                       \
+        services::Status defaultSt;                         \
+        services::Status & st = (stat ? *stat : defaultSt); \
+        Type * result         = new Type(__VA_ARGS__, st);  \
+        if (!result)                                        \
+        {                                                   \
+            st.add(services::ErrorMemoryAllocationFailed);  \
+        }                                                   \
+        if (!st)                                            \
+        {                                                   \
+            delete result;                                  \
+            result = nullptr;                               \
+        }                                                   \
+        return result;                                      \
     }
 
 #define DAAL_TEMPLATE_ARGUMENTS(...) __VA_ARGS__
 
-#define DAAL_DEFAULT_CREATE_TEMPLATE_IMPL(Type, TemplateArgs)                        \
-    {                                                                                \
-        services::Status defaultSt;                                                  \
-        services::Status & st = (stat ? *stat : defaultSt);                          \
-        services::SharedPtr<Type<TemplateArgs> > result(new Type<TemplateArgs>(st)); \
-        if (!result)                                                                 \
-        {                                                                            \
-            st.add(services::ErrorMemoryAllocationFailed);                           \
-        }                                                                            \
-        if (!st)                                                                     \
-        {                                                                            \
-            result.reset();                                                          \
-        }                                                                            \
-        return result;                                                               \
+#define DAAL_DEFAULT_CREATE_TEMPLATE_IMPL(Type, TemplateArgs)     \
+    {                                                             \
+        services::Status defaultSt;                               \
+        services::Status & st       = (stat ? *stat : defaultSt); \
+        Type<TemplateArgs> * result = new Type<TemplateArgs>(st); \
+        if (!result)                                              \
+        {                                                         \
+            st.add(services::ErrorMemoryAllocationFailed);        \
+        }                                                         \
+        if (!st)                                                  \
+        {                                                         \
+            delete result;                                        \
+            result = nullptr;                                     \
+        }                                                         \
+        return result;                                            \
     }
 
-#define DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Type, TemplateArgs, ...)                             \
-    {                                                                                             \
-        services::Status defaultSt;                                                               \
-        services::Status & st = (stat ? *stat : defaultSt);                                       \
-        services::SharedPtr<Type<TemplateArgs> > result(new Type<TemplateArgs>(__VA_ARGS__, st)); \
-        if (!result)                                                                              \
-        {                                                                                         \
-            st.add(services::ErrorMemoryAllocationFailed);                                        \
-        }                                                                                         \
-        if (!st)                                                                                  \
-        {                                                                                         \
-            result.reset();                                                                       \
-        }                                                                                         \
-        return result;                                                                            \
+#define DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(Type, TemplateArgs, ...)          \
+    {                                                                          \
+        services::Status defaultSt;                                            \
+        services::Status & st       = (stat ? *stat : defaultSt);              \
+        Type<TemplateArgs> * result = new Type<TemplateArgs>(__VA_ARGS__, st); \
+        if (!result)                                                           \
+        {                                                                      \
+            st.add(services::ErrorMemoryAllocationFailed);                     \
+        }                                                                      \
+        if (!st)                                                               \
+        {                                                                      \
+            delete result;                                                     \
+            result = nullptr;                                                  \
+        }                                                                      \
+        return result;                                                         \
     }
 
 #define DAAL_CHECK_NUMERIC_TABLE(destVar, ...) DAAL_CHECK_STATUS(destVar, data_management::checkNumericTable(__VA_ARGS__))

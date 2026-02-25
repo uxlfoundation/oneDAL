@@ -67,18 +67,17 @@ MergedNumericTable::MergedNumericTable(const NumericTablePtr & first, const Nume
     this->_status |= st;
 }
 
-services::SharedPtr<MergedNumericTable> MergedNumericTable::create(services::Status * stat)
+MergedNumericTable * MergedNumericTable::create(services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL(MergedNumericTable);
 }
 
-services::SharedPtr<MergedNumericTable> MergedNumericTable::create(const NumericTablePtr & nestedTable, services::Status * stat)
+MergedNumericTable * MergedNumericTable::create(const NumericTablePtr & nestedTable, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(MergedNumericTable, nestedTable);
 }
 
-services::SharedPtr<MergedNumericTable> MergedNumericTable::create(const NumericTablePtr & first, const NumericTablePtr & second,
-                                                                   services::Status * stat)
+MergedNumericTable * MergedNumericTable::create(const NumericTablePtr & first, const NumericTablePtr & second, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(MergedNumericTable, first, second);
 }

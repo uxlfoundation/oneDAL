@@ -25,6 +25,7 @@
 #define __ROW_MERGED_NUMERIC_TABLE_H__
 
 #include "data_management/data/numeric_table.h"
+#include "data_management/data/factory.h" // goes after the numeric_table.h to avoid circular dependency
 #include "services/daal_memory.h"
 #include "services/daal_defines.h"
 #include "data_management/data/data_serialize.h"
@@ -49,31 +50,20 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty merge Numeric Table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable();
-
-    /**
-     *  Constructor for a Row Merged Numeric Table consisting of one table
-     *  \param[in]  table  Pointer to the table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable(NumericTablePtr table);
+    friend Creator<RowMergedNumericTable>;
 
     /**
      * Constructor for an empty merge Numeric Table
      * \param[out] stat  Status of the RowMergedNumericTable construction
      */
-    static services::SharedPtr<RowMergedNumericTable> create(services::Status * stat = NULL);
+    static RowMergedNumericTable * create(services::Status * stat = NULL);
 
     /**
      * Constructor for an empty merge Numeric Table
      * \param[in]  nestedTable  Pointer to the table
      * \param[out] stat         Status of the RowMergedNumericTable construction
      */
-    static services::SharedPtr<RowMergedNumericTable> create(const NumericTablePtr & nestedTable, services::Status * stat = NULL);
+    static RowMergedNumericTable * create(const NumericTablePtr & nestedTable, services::Status * stat = NULL);
 
     /**
      *  Adds the table to the bottom of the Row Merged Numeric Table
@@ -94,7 +84,7 @@ public:
         {
             DictionaryIface::FeaturesEqual featuresEqual = table->getDictionarySharedPtr()->getFeaturesEqual();
             services::Status s;
-            _ddict = NumericTableDictionary::create(ncols, featuresEqual, &s);
+            _ddict.reset(NumericTableDictionary::create(ncols, featuresEqual, &s));
             if (!s) return s;
             s = setNumberOfColumnsImpl(cols);
             if (!s) return s;
@@ -179,6 +169,17 @@ public:
     services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTFeature<int>(block); }
 
 protected:
+    /**
+     *  Constructor for an empty merge Numeric Table
+     */
+    RowMergedNumericTable();
+
+    /**
+     *  Constructor for a Row Merged Numeric Table consisting of one table
+     *  \param[in]  table  Pointer to the table
+     */
+    RowMergedNumericTable(NumericTablePtr table);
+
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {

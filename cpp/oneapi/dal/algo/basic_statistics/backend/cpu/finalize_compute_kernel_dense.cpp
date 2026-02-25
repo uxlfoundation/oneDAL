@@ -74,11 +74,16 @@ static compute_result<Task> call_daal_kernel_finalize_compute(
     auto daal_partial_sum_squares_centered =
         interop::copy_to_daal_homogen_table<Float>(input.get_partial_sum_squares_centered());
 
-    auto daal_means = interop::allocate_daal_homogen_table<Float>(1, column_count);
-    auto daal_rawt = interop::allocate_daal_homogen_table<Float>(1, column_count);
-    auto daal_variance = interop::allocate_daal_homogen_table<Float>(1, column_count);
-    auto daal_stdev = interop::allocate_daal_homogen_table<Float>(1, column_count);
-    auto daal_variation = interop::allocate_daal_homogen_table<Float>(1, column_count);
+    daal::data_management::NumericTablePtr daal_means(
+        interop::allocate_daal_homogen_table<Float>(1, column_count));
+    daal::data_management::NumericTablePtr daal_rawt(
+        interop::allocate_daal_homogen_table<Float>(1, column_count));
+    daal::data_management::NumericTablePtr daal_variance(
+        interop::allocate_daal_homogen_table<Float>(1, column_count));
+    daal::data_management::NumericTablePtr daal_stdev(
+        interop::allocate_daal_homogen_table<Float>(1, column_count));
+    daal::data_management::NumericTablePtr daal_variation(
+        interop::allocate_daal_homogen_table<Float>(1, column_count));
     if (result_ids == daal_lom::estimatesMeanVariance || result_ids == daal_lom::estimatesAll) {
         interop::status_to_exception(
             interop::call_daal_kernel_finalize_compute<Float, daal_lom_online_kernel_t>(

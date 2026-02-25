@@ -27,7 +27,7 @@
 #include "services/base.h"
 
 #include "data_management/data/numeric_table.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after the numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -318,41 +318,9 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
+    friend Creator<CSRNumericTable>;
+
     DAAL_CAST_OPERATOR(CSRNumericTable)
-    /**
-     *  Constructor for an empty CSR Numeric Table
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<double>(0, 0, 0); //data type doesn't matter
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \tparam   DataType        Type of values in the Numeric Table
-     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
-     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
-     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
-     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
-     *  \param[in]    nColumns    Number of columns in the corresponding dense table
-     *  \param[in]    nRows       Number of rows in the corresponding dense table
-     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
-     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    template <typename DataType>
-    CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
-                    CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
-
-        _defaultFeature.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(_defaultFeature);
-    }
 
     /**
      *  Constructs CSR numeric table with user-allocated memory
@@ -369,37 +337,12 @@ public:
      *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
      */
     template <typename DataType>
-    static services::SharedPtr<CSRNumericTable> create(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0,
-                                                       size_t nRows = 0, CSRIndexing indexing = oneBased, services::Status * stat = NULL)
+    static CSRNumericTable * create(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
+                                    CSRIndexing indexing = oneBased, services::Status * stat = NULL)
     {
         return create<DataType>(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()),
                                 services::SharedPtr<size_t>(colIndices, services::EmptyDeleter()),
                                 services::SharedPtr<size_t>(rowOffsets, services::EmptyDeleter()), nColumns, nRows, indexing, stat);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \tparam   DataType        Type of values in the Numeric Table
-     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
-     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
-     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
-     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
-     *  \param[in]    nColumns    Number of columns in the corresponding dense table
-     *  \param[in]    nRows       Number of rows in the corresponding dense table
-     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
-     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    template <typename DataType>
-    CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
-                    const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
-
-        _defaultFeature.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(_defaultFeature);
     }
 
     /**
@@ -417,9 +360,9 @@ public:
      *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
      */
     template <typename DataType>
-    static services::SharedPtr<CSRNumericTable> create(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
-                                                       const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows,
-                                                       CSRIndexing indexing = oneBased, services::Status * stat = NULL)
+    static CSRNumericTable * create(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
+                                    const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased,
+                                    services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_IMPL_EX(CSRNumericTable, ptr, colIndices, rowOffsets, nColumns, nRows, indexing);
     }
@@ -646,6 +589,63 @@ protected:
     services::SharedPtr<byte> _ptr;
     services::SharedPtr<size_t> _colIndices;
     services::SharedPtr<size_t> _rowOffsets;
+
+    /**
+     *  Constructor for an empty CSR Numeric Table
+     */
+    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<double>(0, 0, 0); //data type doesn't matter
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \tparam   DataType        Type of values in the Numeric Table
+     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
+     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
+     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
+     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
+     *  \param[in]    nColumns    Number of columns in the corresponding dense table
+     *  \param[in]    nRows       Number of rows in the corresponding dense table
+     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
+     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
+     */
+    template <typename DataType>
+    CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
+                    CSRIndexing indexing = oneBased)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+
+        _defaultFeature.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(_defaultFeature);
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \tparam   DataType        Type of values in the Numeric Table
+     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
+     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
+     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
+     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
+     *  \param[in]    nColumns    Number of columns in the corresponding dense table
+     *  \param[in]    nRows       Number of rows in the corresponding dense table
+     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
+     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
+     */
+    template <typename DataType>
+    CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
+                    const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+
+        _defaultFeature.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(_defaultFeature);
+    }
 
     template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,

@@ -124,7 +124,7 @@ public:
      * \param[in]  par       Pointer to the parameter structure of the LogitBoost algorithm
      * \param[out] stat      Status of the model construction
      */
-    DAAL_DEPRECATED static services::SharedPtr<Model> create(size_t nFeatures, const Parameter * par, services::Status * stat = NULL);
+    DAAL_DEPRECATED static Model * create(size_t nFeatures, const Parameter * par, services::Status * stat = NULL);
 
     virtual ~Model() {}
 

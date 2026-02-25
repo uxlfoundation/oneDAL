@@ -131,7 +131,7 @@ public:
      * \param[out] stat      Status of the model construction
      * \DAAL_DEPRECATED
      */
-    DAAL_DEPRECATED static services::SharedPtr<Model> create(services::Status * stat = NULL);
+    DAAL_DEPRECATED static Model * create(services::Status * stat = NULL);
 
     /**
      * \copydoc regression::Model::getNumberOfFeatures

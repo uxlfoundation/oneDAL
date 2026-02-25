@@ -33,7 +33,7 @@ class host_homogen_table_adapter : public daal::data_management::HomogenNumericT
     using base = daal::data_management::HomogenNumericTable<Data>;
     using status_t = daal::services::Status;
     using rw_mode_t = daal::data_management::ReadWriteMode;
-    using ptr_t = daal::services::SharedPtr<host_homogen_table_adapter>;
+    using ptr_t = host_homogen_table_adapter*;
     using ptr_data_t = daal::services::SharedPtr<Data>;
 
     template <typename T>

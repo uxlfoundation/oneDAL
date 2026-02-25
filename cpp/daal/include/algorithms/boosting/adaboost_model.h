@@ -137,7 +137,7 @@ public:
      * \DAAL_DEPRECATED
      */
     template <typename modelFPType>
-    DAAL_DEPRECATED DAAL_EXPORT static services::SharedPtr<Model> create(size_t nFeatures, services::Status * stat = NULL);
+    DAAL_DEPRECATED DAAL_EXPORT static Model * create(size_t nFeatures, services::Status * stat = NULL);
 
     virtual ~Model() {}
 

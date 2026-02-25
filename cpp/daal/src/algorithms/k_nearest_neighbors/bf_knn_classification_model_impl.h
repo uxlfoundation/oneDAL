@@ -78,8 +78,8 @@ protected:
         else
         {
             services::Status status;
-            dest = data_management::HomogenNumericTable<algorithmFPType>::create(value->getNumberOfColumns(), value->getNumberOfRows(),
-                                                                                 data_management::NumericTable::doAllocate, &status);
+            dest.reset(data_management::HomogenNumericTable<algorithmFPType>::create(value->getNumberOfColumns(), value->getNumberOfRows(),
+                                                                                     data_management::NumericTable::doAllocate, &status));
             DAAL_CHECK_STATUS_VAR(status);
             data_management::BlockDescriptor<algorithmFPType> destBD, srcBD;
             DAAL_CHECK_STATUS_VAR(dest->getBlockOfRows(0, dest->getNumberOfRows(), data_management::writeOnly, destBD));

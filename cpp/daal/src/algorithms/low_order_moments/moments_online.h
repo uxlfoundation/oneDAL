@@ -50,10 +50,10 @@ DAAL_EXPORT services::Status PartialResult::allocate(const daal::algorithms::Inp
     size_t nFeatures = 0;
     DAAL_CHECK_STATUS(s, static_cast<const InputIface *>(input)->getNumberOfColumns(nFeatures));
 
-    set(nObservations, HomogenNumericTable<size_t>::create(1, 1, NumericTable::doAllocate, &s));
+    set(nObservations, NumericTablePtr(HomogenNumericTable<size_t>::create(1, 1, NumericTable::doAllocate, &s)));
     for (size_t i = 1; i < lastPartialResultId + 1; i++)
     {
-        Argument::set(i, HomogenNumericTable<algorithmFPType>::create(nFeatures, 1, NumericTable::doAllocate, &s));
+        Argument::set(i, NumericTablePtr(HomogenNumericTable<algorithmFPType>::create(nFeatures, 1, NumericTable::doAllocate, &s)));
     }
     return s;
 }

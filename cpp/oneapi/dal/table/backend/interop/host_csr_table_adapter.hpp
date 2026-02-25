@@ -32,7 +32,7 @@ namespace oneapi::dal::backend::interop {
 template <typename Data>
 class host_csr_table_adapter : public daal::data_management::CSRNumericTable {
     using base = daal::data_management::CSRNumericTable;
-    using ptr_t = daal::services::SharedPtr<host_csr_table_adapter>;
+    using ptr_t = host_csr_table_adapter*;
     using ptr_data_t = daal::services::SharedPtr<Data>;
     using ptr_index_t = daal::services::SharedPtr<std::size_t>;
     using status_t = daal::services::Status;

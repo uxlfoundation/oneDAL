@@ -40,7 +40,7 @@ namespace interface2
 template <typename modelFPType>
 DAAL_EXPORT Model::Model(size_t nFeatures, modelFPType dummy) : _nFeatures(nFeatures), _models(new data_management::DataCollection())
 {
-    _alpha = data_management::NumericTablePtr(new data_management::HomogenNumericTable<modelFPType>(NULL, 1, 0));
+    _alpha = data_management::HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
 }
 
 template <typename modelFPType>
@@ -61,14 +61,14 @@ DAAL_EXPORT Model::Model(size_t nFeatures, modelFPType dummy, services::Status &
  * \param[out] stat      Status of the model construction
  */
 template <typename modelFPType>
-DAAL_EXPORT ModelPtr Model::create(size_t nFeatures, services::Status * stat)
+DAAL_EXPORT Model * Model::create(size_t nFeatures, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(Model, nFeatures, (modelFPType)0 /* dummy */);
 }
 
 template DAAL_EXPORT Model::Model(size_t, DAAL_FPTYPE);
 template DAAL_EXPORT Model::Model(size_t, DAAL_FPTYPE, services::Status &);
-template DAAL_EXPORT ModelPtr Model::create<DAAL_FPTYPE>(size_t, services::Status *);
+template DAAL_EXPORT Model * Model::create<DAAL_FPTYPE>(size_t, services::Status *);
 
 } // namespace interface2
 } // namespace adaboost

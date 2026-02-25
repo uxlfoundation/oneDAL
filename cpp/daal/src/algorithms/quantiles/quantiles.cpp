@@ -42,7 +42,7 @@ Parameter::Parameter(const NumericTablePtr quantileOrders) : daal::algorithms::P
     Status s;
     if (quantileOrders.get() == NULL)
     {
-        this->quantileOrders = HomogenNumericTable<double>::create(1, 1, NumericTableIface::doAllocate, 0.5, &s);
+        this->quantileOrders.reset(HomogenNumericTable<double>::create(1, 1, NumericTableIface::doAllocate, 0.5, &s));
         if (!s) return;
     }
 }

@@ -156,7 +156,7 @@ services::Status Input::check(const daal::algorithms::Parameter * par, int metho
 
 Parameter::Parameter(const SolverPtr & solver)
     : linear_model::Parameter(),
-      lassoParameters(new HomogenNumericTable<double>(1, 1, NumericTableIface::doAllocate, 0.1)),
+      lassoParameters(HomogenNumericTable<double>::create(1, 1, NumericTableIface::doAllocate, 0.1)),
       optimizationSolver(solver),
       dataUseInComputation(doUse),
       optResultToCompute(0)

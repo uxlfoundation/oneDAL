@@ -38,7 +38,7 @@ namespace brownboost
 template <typename modelFPType>
 DAAL_EXPORT Model::Model(size_t nFeatures, modelFPType dummy) : _nFeatures(nFeatures), _models(new data_management::DataCollection())
 {
-    _alpha = data_management::NumericTablePtr(new data_management::HomogenNumericTable<modelFPType>(NULL, 1, 0));
+    _alpha = data_management::HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
 }
 
 template <typename modelFPType>

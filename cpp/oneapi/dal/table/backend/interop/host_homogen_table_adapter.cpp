@@ -24,7 +24,11 @@ namespace daal_dm = daal::data_management;
 template <typename Data>
 auto host_homogen_table_adapter<Data>::create(const homogen_table& table) -> ptr_t {
     status_t internal_stat;
-    auto result = ptr_t{ new host_homogen_table_adapter(table, internal_stat) };
+    auto result = new host_homogen_table_adapter(table, internal_stat);
+    if (!internal_stat.ok()) {
+        delete result;
+        result = nullptr;
+    }
     status_to_exception(internal_stat);
     return result;
 }

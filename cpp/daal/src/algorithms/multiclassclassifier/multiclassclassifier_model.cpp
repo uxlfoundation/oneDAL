@@ -33,7 +33,7 @@ namespace multi_class_classifier
 {
 namespace interface1
 {
-__DAAL_REGISTER_SERIALIZATION_CLASS(Model, SERIALIZATION_MULTI_CLASS_CLASSIFIER_MODEL_ID);
+__DAAL_REGISTER_SERIALIZATION_CREATE_CLASS(Model, SERIALIZATION_MULTI_CLASS_CLASSIFIER_MODEL_ID);
 
 Model::Model(size_t nFeatures, const ParameterBase * par)
     : _modelsArray(nullptr), _models(new data_management::DataCollection(par->nClasses * (par->nClasses - 1) / 2)), _nFeatures(nFeatures)
@@ -73,7 +73,7 @@ Model & Model::operator=(const Model & other)
 
 Model::Model() : _nFeatures(0), _models(new data_management::DataCollection()), _modelsArray(nullptr) {}
 
-ModelPtr Model::create(size_t nFeatures, const multi_class_classifier::interface2::ParameterBase * par, services::Status * stat)
+Model * Model::create(size_t nFeatures, const multi_class_classifier::interface2::ParameterBase * par, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(Model, nFeatures, par);
 }

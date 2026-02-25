@@ -100,8 +100,8 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
      */
     DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function_, size_t nIterations_ = 100, double accuracyThreshold_ = 1.0e-05,
                               data_management::NumericTablePtr batchIndices_ = data_management::NumericTablePtr(), const size_t batchSize_ = 128,
-                              data_management::NumericTablePtr learningRate_ =
-                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 0.01),
+                              data_management::NumericTablePtr learningRate_ = data_management::NumericTablePtr(
+                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 0.01)),
                               double degenerateCasesThreshold_ = 1.0e-08, size_t seed_ = 777);
 
     virtual ~Parameter() {}
