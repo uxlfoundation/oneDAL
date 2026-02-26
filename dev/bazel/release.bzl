@@ -171,13 +171,30 @@ def _copy_to_release_impl(ctx):
     files += _copy_extra_files(ctx, prefix)
     return [DefaultInfo(files=depset(files))]
 
+def _release_cpu_all_transition_impl(settings, attr):
+    """Transition to --cpu=all if the current CPU is the default ('auto').
+    This ensures that when a user runs `bazel build //:release` without
+    specifying a target CPU, all required ISA variants are built and
+    bundled. If the user specifies `--cpu=avx2`, we respect that and
+    do not transition.
+    """
+    if settings["//command_line_option:cpu"] == "auto":
+        return {"//command_line_option:cpu": "all"}
+    return {"//command_line_option:cpu": settings["//command_line_option:cpu"]}
+
+_release_cpu_all_transition = transition(
+    implementation = _release_cpu_all_transition_impl,
+    inputs = ["//command_line_option:cpu"],
+    outputs = ["//command_line_option:cpu"],
+)
+
 _release = rule(
     implementation = _copy_to_release_impl,
     attrs = {
-        "include": attr.label_list(allow_files=True),
+        "include": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
-        "lib": attr.label_list(allow_files=True),
+        "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "extra_files": attr.label_list(
             allow_files = True,
             doc = "Additional generated files to include in release. Must be paired 1:1 with extra_files_dst.",
@@ -188,6 +205,9 @@ _release = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
         ),
     },
     toolchains = [
