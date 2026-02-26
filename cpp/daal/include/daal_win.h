@@ -20,7 +20,7 @@
 #pragma warning(disable : 809)
 
 #if defined(_DAAL_PAR_DYNAMIC)
-    #pragma comment(lib, "onedal_core_dll.3.lib")
+    #pragma comment(lib, "onedal_core_dll.4.lib")
     #pragma comment(lib, "tbb12.lib")
     #pragma comment(lib, "tbbmalloc.lib")
 #elif defined(_DAAL_PAR_STATIC)
