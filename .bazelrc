@@ -165,7 +165,8 @@ common:dbg-symbols \
 common:asan \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=address
+    --linkopt=-fsanitize=address \
+    --config=dbg-symbols
 
 # Configuration: 'asan-static'
 # AddressSanitizer with static libasan linkage.
@@ -174,7 +175,8 @@ common:asan-static \
     --copt=-fsanitize=address \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=address \
-    --linkopt=-static-libasan
+    --linkopt=-static-libasan \
+    --config=dbg-symbols
 
 
 # Configuration: 'tsan'
@@ -184,7 +186,8 @@ common:asan-static \
 common:tsan \
     --copt=-fsanitize=thread \
     --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=thread
+    --linkopt=-fsanitize=thread \
+    --config=dbg-symbols
 
 
 # Configuration: 'ubsan'
@@ -194,7 +197,8 @@ common:tsan \
 common:ubsan \
     --copt=-fsanitize=undefined \
     --copt=-fno-omit-frame-pointer \
-    --linkopt=-fsanitize=undefined
+    --linkopt=-fsanitize=undefined \
+    --config=dbg-symbols
 
 
 # =============================================================================
@@ -206,3 +210,21 @@ common:ubsan \
 # Or persist in user-local ~/.bazelrc:
 #   build --copt=-your-flag
 # =============================================================================
+
+# Configuration: 'msan'
+# MemorySanitizer build.
+# Note: Requires Clang or ICPX. GCC does not support MSan.
+#   bazel test //cpp/oneapi/dal:tests --config=msan
+common:msan \
+    --copt=-fsanitize=memory \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=memory \
+    --config=dbg-symbols
+
+# Configuration: 'type'
+# Type sanitizer build.
+common:type \
+    --copt=-fsanitize=type \
+    --copt=-fno-omit-frame-pointer \
+    --linkopt=-fsanitize=type \
+    --config=dbg-symbols
