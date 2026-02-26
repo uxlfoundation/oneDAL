@@ -41,10 +41,10 @@ using reduction_types = std::tuple<std::tuple<float, sum<float>, identity<float>
                                    std::tuple<double, sum<double>, identity<double>>,
                                    std::tuple<double, sum<double>, square<double>>,
                                    std::tuple<double, sum<double>, abs<double>>,
-                                   std::tuple<float, logical_or<float>, isinfornan<float>>,
-                                   std::tuple<float, logical_or<float>, isinf<float>>,
-                                   std::tuple<double, logical_or<double>, isinfornan<double>>,
-                                   std::tuple<double, logical_or<double>, isinf<double>>>;
+                                   std::tuple<float, logical_or<bool>, isinfornan<float>>,
+                                   std::tuple<float, logical_or<bool>, isinf<float>>,
+                                   std::tuple<double, logical_or<bool>, isinfornan<double>>,
+                                   std::tuple<double, logical_or<bool>, isinf<double>>>;
 
 template <typename Param>
 class reduction_rm_test_uniform : public te::float_algo_fixture<std::tuple_element_t<0, Param>> {
@@ -52,6 +52,7 @@ public:
     using float_t = std::tuple_element_t<0, Param>;
     using binary_t = std::tuple_element_t<1, Param>;
     using unary_t = std::tuple_element_t<2, Param>;
+    using acc_t = bin_op_t<binary_t>;
 
     void generate() {
         arg_ = GENERATE(-7., 0, 3.);
@@ -209,7 +210,7 @@ public:
     }
 
     void test_raw_rw_reduce_narrow() {
-        using reduction_t = reduction_rm_rw_narrow<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw_narrow<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(height_);
 
@@ -231,7 +232,7 @@ public:
     }
 
     void test_raw_rw_reduce_wide() {
-        using reduction_t = reduction_rm_rw_wide<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw_wide<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(height_);
 
@@ -253,7 +254,7 @@ public:
     }
 
     void test_raw_rw_reduce_wrapper() {
-        using reduction_t = reduction_rm_rw<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(height_);
 
@@ -275,7 +276,7 @@ public:
     }
 
     void test_raw_cw_reduce_naive() {
-        using reduction_t = reduction_rm_cw_naive<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw_naive<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(width_);
 
@@ -297,7 +298,7 @@ public:
     }
 
     void test_raw_cw_reduce_atomic() {
-        using reduction_t = reduction_rm_cw_atomic<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw_atomic<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(width_);
 
@@ -319,7 +320,7 @@ public:
     }
 
     void test_raw_cw_reduce_wrapper() {
-        using reduction_t = reduction_rm_cw<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw<float_t, acc_t, binary_t, unary_t>;
         auto [inp_array, inp_event] = input();
         auto [out_array, out_event] = output(width_);
 

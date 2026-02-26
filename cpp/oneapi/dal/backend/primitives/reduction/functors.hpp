@@ -126,12 +126,11 @@ struct min {
 template <typename T>
 struct logical_or {
     using tag_t = reduce_binary_op_tag;
-    constexpr static inline T init_value = false;
+    constexpr static inline T init_value = T(false);
 #ifdef ONEDAL_DATA_PARALLEL
     constexpr static inline sycl::logical_or<T> native{};
 #else
     constexpr static inline std::logical_or<T> native{};
-};
 #endif
     T operator()(const T& a, const T& b) const {
         return native(a, b);
@@ -166,7 +165,7 @@ inline T atomic_binary_op(T* ptr, T val) {
     sycl::atomic_ref<T,
                      sycl::memory_order::relaxed,
                      sycl::memory_scope::device,
-                     sycl::access::address_space::ext_intel_global_device_space>
+                     sycl::access::address_space::global_space>
         atomic_ref(*ptr);
     if constexpr (is_sum_op_v<BinaryOp>) {
         return atomic_ref.fetch_add(val);

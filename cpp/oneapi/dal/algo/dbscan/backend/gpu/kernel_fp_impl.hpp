@@ -783,7 +783,7 @@ sycl::event kernels_fp<Float>::fill_current_points_queue(
                 sycl::atomic_ref<int,
                                  sycl::memory_order::relaxed,
                                  sycl::memory_scope::device,
-                                 sycl::access::address_space::ext_intel_global_device_space>
+                                 sycl::access::address_space::global_space>
                     counter_atomic(queue_size_arr_ptr[0]);
                 auto cur_idx = counter_atomic.fetch_add(1);
                 for (std::int32_t col_idx = 0; col_idx < column_count; col_idx += 1) {
@@ -889,7 +889,7 @@ sycl::event kernels_fp<Float>::update_points_queue(sycl::queue& queue,
                         sycl::atomic_ref<std::int32_t,
                                          sycl::memory_order::relaxed,
                                          sycl::memory_scope::device,
-                                         sycl::access::address_space::ext_intel_global_device_space>
+                                         sycl::access::address_space::global_space>
                             counter_atomic(queue_size_arr_ptr[0]);
                         counter_atomic.fetch_add(1);
                         indices_cores_ptr[wg_id] = true;
