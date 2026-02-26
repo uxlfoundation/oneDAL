@@ -400,7 +400,7 @@ bazel build //:release --config=dbg-symbols
 
 ### AddressSanitizer (ASan)
 
-Equivalent to Make `REQSAN=address`. Recommended to combine with `--config=dbg`:
+Equivalent to Make `REQSAN=address`. Sanitizers do not automatically enable assertions or unoptimized debug builds. It is highly recommended to combine them with `--config=dbg` (for full debug + assertions) or `--enable_assert=True`:
 
 ```sh
 bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
@@ -428,13 +428,20 @@ Equivalent to Make `REQSAN=undefined`:
 bazel test //cpp/oneapi/dal:tests --config=ubsan
 ```
 
-> Note: Not all compilers support all sanitizers. There is currently no
-> `--config=msan` preset. To use MemorySanitizer, use a compiler that supports
-> it (icpx or clang) and pass flags manually:
-> ```sh
-> bazel test //cpp/oneapi/dal:tests --copt=-fsanitize=memory --linkopt=-fsanitize=memory
-> ```
-> GCC does not support MemorySanitizer and will fail by design.
+### MemorySanitizer (MSan)
+
+Requires Clang or ICPX. GCC does not support MSan.
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=msan
+```
+
+### Type Sanitizer
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=type
+```
+
 
 ---
 
@@ -459,6 +466,16 @@ To include DPC++ libraries:
 
 ```sh
 bazel build //:release --config=release-dpc
+```
+
+---
+
+### Standard Library Assertions
+
+To enable C++ standard library assertions (e.g., `std::vector` bounds checking), inject the preprocessor macro via `--copt`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=dbg --copt=-D_GLIBCXX_DEBUG
 ```
 
 ---
@@ -498,6 +515,8 @@ build --linkopt=-your-link-flag
 | `REQSAN=static` | `--config=asan-static` | ASan with static libasan |
 | `REQSAN=thread` | `--config=tsan` | ThreadSanitizer |
 | `REQSAN=undefined` | `--config=ubsan` | UBSan |
+| | `--config=msan` | MemorySanitizer (Clang/ICPX only) |
+| | `--config=type` | Type Sanitizer |
 | `COMPILER=gnu` | `CC=gcc bazel build ...` | Override compiler via `CC` env |
 | `OPTFLAG=O2` | `--copt=-O2` | Override optimization level |
 | `COPT=-flag` | `--copt=-flag` | Arbitrary compiler flag |
