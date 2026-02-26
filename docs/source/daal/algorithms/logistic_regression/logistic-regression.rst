@@ -168,13 +168,8 @@ the logistic regression batch training algorithm has the following parameters:
      - :math:`0`
      - L2 regularization coefficient
    * - ``optimizationSolver``
-     - :ref:`SGD solver <sgd_solver>`
-     - All iterative solvers are available as optimization procedures to use at the training stage:
-
-       -  :ref:`SGD (Stochastic Gradient Descent Algorithm) <sgd_solver>`
-       -  :ref:`ADAGRAD (Adaptive Subgradient Method) <adagrad_solver>`
-       -  :ref:`LBFGS (Limited-Memory Broyden-Fletcher-Goldfarb-Shanno Algorithm) <lbfgs_solver>`
-       -  :ref:`SAGA (Stochastic Average Gradient Accelerated Method) <saga_solver>`
+     - :ref:`LBFGS (Limited-Memory Broyden-Fletcher-Goldfarb-Shanno Algorithm) <lbfgs_solver>`
+     - Optimization solver for the objective function minimization.
 
 Prediction
 ----------

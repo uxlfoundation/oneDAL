@@ -22,11 +22,6 @@ For more information about algorithms implemented in |short_name|, refer to the 
 .. [Adams2003]
    Adams, Robert A., and John JF Fournier. Sobolev spaces. Vol. 140. Elsevier, 2003
 
-.. [Agrawal94]
-   Rakesh Agrawal, Ramakrishnan Srikant. *Fast Algorithms for Mining
-   Association Rules*. Proceedings of the 20th VLDB Conference
-   Santiago, Chile, 1994.
-
 .. [Arthur2007]
    Arthur, D., Vassilvitskii, S. *k-means++: The Advantages of
    Careful Seeding*. Proceedings of the eighteenth annual ACM-SIAM
@@ -40,19 +35,9 @@ For more information about algorithms implemented in |short_name|, refer to the 
    Available from
    http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf.
 
-.. [Ben2005]
-   Ben-Gal I. Outlier detection. In: Maimon O. and Rockach L. (Eds.)
-   Data Mining and Knowledge Discovery Handbook: A Complete Guide for Practitioners and Researchers",
-   Kluwer Academic Publishers, 2005, ISBN 0-387-24435-2.
-
 .. [Bentley80]
    J. L. Bentley. Multidimensional Divide and Conquer. Communications of the
    ACM, 23(4):214--229, 1980.
-
-.. [Billor2000]
-   Nedret Billor, Ali S. Hadib, and Paul F. Velleman.
-   BACON: blocked adaptive computationally efficient outlier nominators.
-   Computational Statistics & Data Analysis, 34, 279-298, 2000.
 
 .. [Bishop2006]
    Christopher M. Bishop. *Pattern Recognition and Machine Learning*,
@@ -97,11 +82,6 @@ For more information about algorithms implemented in |short_name|, refer to the 
    on Statistical Techniques in Pattern Recognition (SPR) and Structural and
    Syntactic Pattern Recognition (SSPR). Springer, Cham, 2021.
 
-.. [Defazio2014]
-   Defazio, Aaron, Francis Bach, and Simon Lacoste-Julien.
-   SAGA: A fast incremental gradient method with support for non-strongly convex composite objectives.
-   Advances in neural information processing systems. 2014.
-
 .. [Demmel90]
    J. W. Demmel and W. Kahan. *Accurate singular values of
    bidiagonal matrices*. SIAM J. Sci. Stat. Comput., 11 (1990), pp. 873-912.
@@ -110,11 +90,6 @@ For more information about algorithms implemented in |short_name|, refer to the 
    A.P.Dempster, N.M. Laird, and D.B. Rubin. *Maximum-likelihood from
    incomplete data via the em algorithm*. J. Royal Statist. Soc. Ser.
    B., 39, 1977.
-
-.. [Duchi2011]
-   Elad Hazan, John Duchi, and Yoram Singer.
-   Adaptive subgradient methods for online learning and stochastic optimization.
-   The Journal of Machine Learning Research, 12:21212159, 2011.
 
 .. [Ester96]
    Martin Ester, Hans-Peter Kriegel, Jörg Sander, and Xiaowei Xu.
@@ -133,34 +108,10 @@ For more information about algorithms implemented in |short_name|, refer to the 
    Algorithmic Aspects in Information and Management.
    4th International conference, AAIM 2008, Shanghai, China, June 23-25, 2008. Proceedings, Springer.
 
-.. [Freund99]
-   Yoav Freund, Robert E. Schapire. *Additive Logistic regression: a
-   statistical view of boosting*. Journal of Japanese Society for
-   Artificial Intelligence (14(5)), 771-780, 1999.
-
-.. [Friedman98]
-   Friedman, Jerome H., Trevor J. Hastie and Robert Tibshirani.
-   *Additive Logistic Regression: a Statistical View of Boosting.*.
-   1998.
-
-.. [Friedman00]
-   Jerome Friedman, Trevor Hastie, and Robert Tibshirani.
-   Additive Logistic regression: a statistical view of boosting.
-   The Annals of Statistics, 28(2), pp: 337-407, 2000.
-
 .. [Friedman2010]
    Friedman, Jerome, Trevor Hastie, and Rob Tibshirani.
    *Regularization paths for generalized linear models via coordinate
    descent.*. Journal of statistical software 33.1 (2010): 1.
-
-.. [Friedman2017]
-   Jerome Friedman, Trevor Hastie, Robert Tibshirani. 2017. *The
-   Elements of Statistical Learning Data Mining, Inference, and
-   Prediction.* Springer.
-
-.. [Freund01]
-   Yoav Freund. An adaptive version of the boost by majority algorithm.
-   Machine Learning (43), pp. 293-318, 2001.
 
 .. [Gross2014]
    J. Gross, J. Yellen, P. Zhang, Handbook of Graph Theory, Second Edition, 2014.
@@ -226,11 +177,6 @@ For more information about algorithms implemented in |short_name|, refer to the 
 .. [Mitchell97]
    Tom M. Mitchell. *Machine Learning*. McGraw-Hill Education, 1997.
 
-.. [Mu2014]
-   Mu Li, Tong Zhang, Yuqiang Chen, Alexander J. Smola. *Efficient
-   Mini-batch Training for Stochastic Optimization*, 2014. Available
-   from https://www.cs.cmu.edu/~muli/file/minibatch_sgd.pdf.
-
 .. [OpenCLSpec]
    Khronos OpenCL Working Group, The OpenCL Specification
    Version:2.1 Document Revision:24
@@ -256,25 +202,10 @@ For more information about algorithms implemented in |short_name|, refer to the 
    J. R. Quinlan. *Induction of Decision Trees*. Machine Learning,
    Volume 1 Issue 1, pp. 81-106, 1986.
 
-.. [Quinlan87]
-   J. R. Quinlan. *Simplifying decision trees*. International journal
-   of Man-Machine Studies, Volume 27 Issue 3, pp. 221-234, 1987.
-
-.. [Renie03]
-   Jason D.M. Rennie, Lawrence, Shih, Jaime Teevan, David R. Karget.
-   *Tackling the Poor Assumptions of Naïve Bayes Text classifiers*.
-   Proceedings of the Twentieth International Conference on Machine
-   Learning (ICML-2003), Washington DC, 2003.
-
-.. [Rumelhart86]
-   David E. Rumelhart, Geoffrey E. Hinton, Ronald J. Williams.
-   *Learning representations by back-propagating errors*. Nature
-   (323), pp. 533-536, 1986.
-
 .. [SYCLSpec]
    Khronos®OpenCL™ Working Group --- SYCL™ subgroup, SYCL™ Specification SYCL™
    integrates OpenCL™ devices with modern C++, Version 1.2.1 Available from
-   `sycl-1.2.1.pdf <https://www.khronos.org/registry/SYCL/specs/sycl-1.2.1.pdf>`_
+   `sycl-2020.pdf <https://registry.khronos.org/SYCL/specs/sycl-2020/pdf/sycl-2020.pdf>`_
 
 .. [Sutton2018]
    Michael Sutton, Tal Ben-Nun, Amnon Barak. *Optimizing Parallel Graph Connectivity Computation via Subgraph Sampling*.
@@ -283,7 +214,7 @@ For more information about algorithms implemented in |short_name|, refer to the 
 .. [Tan2005]
    Pang-Ning Tan, Michael Steinbach, Vipin Kumar, Introduction to
    Data Mining, (First Edition) Addison-Wesley Longman Publishing
-   Co., Inc. Boston, MA, USA, 2005, ISBN: 032132136.
+   Co., Inc. Boston, MA, USA, 2005, ISBN: 032132136.
 
 .. [Verma2014]
    Verma, Deepika, Namita Kakkar, and Neha Mehan.
@@ -300,7 +231,3 @@ For more information about algorithms implemented in |short_name|, refer to the 
    Ting-Fan Wu, Chih-Jen Lin, Ruby C. Weng. *Probability Estimates
    for Multi-class Classification by Pairwise Coupling*. Journal of
    Machine Learning Research 5, pp: 975-1005, 2004.
-
-.. [Zhu2005]
-   Zhu, Ji, Hui Zou, Saharon Rosset and Trevor J. Hastie.
-   *Multi-class AdaBoost*. 2005

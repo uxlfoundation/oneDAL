@@ -29,7 +29,7 @@
 #include "algorithms/logistic_regression/logistic_regression_training_batch.h"
 #include "src/algorithms/logistic_regression/logistic_regression_train_kernel.h"
 #include "src/algorithms/logistic_regression/logistic_regression_model_impl.h"
-#include "algorithms/optimization_solver/sgd/sgd_batch.h"
+#include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"
 #include "src/services/service_algo_utils.h"
 
 namespace daal
@@ -79,12 +79,12 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     logistic_regression::training::Parameter * par = static_cast<logistic_regression::training::Parameter *>(_par);
     if (!par->optimizationSolver.get())
     {
-        auto solver                             = optimization_solver::sgd::Batch<algorithmFPType, optimization_solver::sgd::momentum>::create();
+        auto solver                             = optimization_solver::lbfgs::Batch<algorithmFPType>::create();
         par->optimizationSolver                 = solver;
         const size_t nIterations                = 1000;
-        const algorithmFPType learningRate      = 1e-3;
+        const algorithmFPType stepLength        = 1.0;
         const algorithmFPType accuracyThreshold = 1e-4;
-        solver->parameter.learningRateSequence  = HomogenNumericTable<algorithmFPType>::create(1, 1, NumericTable::doAllocate, learningRate);
+        solver->parameter.stepLengthSequence    = HomogenNumericTable<algorithmFPType>::create(1, 1, NumericTable::doAllocate, stepLength);
         solver->parameter.accuracyThreshold     = accuracyThreshold;
         solver->parameter.nIterations           = nIterations;
         classifier::training::Input * input     = static_cast<classifier::training::Input *>(_in);

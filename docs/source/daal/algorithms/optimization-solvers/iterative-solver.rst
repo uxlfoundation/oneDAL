@@ -72,7 +72,4 @@ The result of the solver is the argument :math:`\theta_{.}` and a set of paramet
 
    solvers/computation.rst
    solvers/lbfgs.rst
-   solvers/stochastic-gradient-descent-algorithm.rst
-   solvers/adaptive-subgradient-method.rst
    solvers/coordinate-descent.rst
-   solvers/stochastic-average-gradient-accelerated-method.rst

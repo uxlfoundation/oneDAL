@@ -149,7 +149,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter
     bool interceptFlag;           /*!< Whether the intercept needs to be computed */
     float penaltyL1;              /*!< L1 regularization coefficient. Default is 0 (not applied) */
     float penaltyL2;              /*!< L2 regularization coefficient. Default is 0 (not applied) */
-    SolverPtr optimizationSolver; /*!< Default is sgd momentum solver */
+    SolverPtr optimizationSolver; /*!< Default is LBFGS solver */
 };
 /* [Parameter source code] */
 } // namespace interface3
