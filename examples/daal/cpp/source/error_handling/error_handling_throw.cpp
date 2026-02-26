@@ -31,7 +31,7 @@
 using namespace daal;
 using namespace daal::data_management;
 
-const std::string wrongDatasetFileName = "../data/batch/wrong.csv";
+const std::string wrongDatasetFileName = "data/wrong.csv";
 
 int main() {
     try {

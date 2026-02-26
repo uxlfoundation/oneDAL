@@ -34,9 +34,11 @@ using namespace daal::data_management;
 using namespace daal::algorithms::normalization;
 
 /* Input data set parameters */
-const std::string datasetName = "../data/batch/normalization.csv";
+const std::string datasetName = "data/normalization.csv";
 
-int main() {
+int main(int argc, char *argv[]) {
+    checkArguments(argc, argv, 1, &datasetName);
+
     /* Retrieve the input data */
     FileDataSource<CSVFeatureManager> dataSource(datasetName,
                                                  DataSource::doAllocateNumericTable,

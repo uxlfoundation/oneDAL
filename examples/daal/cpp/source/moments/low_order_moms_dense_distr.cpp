@@ -36,30 +36,33 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/distributed/covcormoments_dense_1.csv",
-                                         "../data/distributed/covcormoments_dense_2.csv",
-                                         "../data/distributed/covcormoments_dense_3.csv",
-                                         "../data/distributed/covcormoments_dense_4.csv" };
+const std::string datasetFileName = { "data/covcormoments_dense.csv" };
 
 low_order_moments::PartialResultPtr partialResult[nBlocks];
 low_order_moments::ResultPtr result;
 
-void computestep1Local(size_t i);
+void computestep1Local(size_t block, const NumericTablePtr& data);
 void computeOnMasterNode();
 
 void printResults(const low_order_moments::ResultPtr& res);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        computestep1Local(i);
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
+
+    for (size_t block = 0; block < nBlocks && remainingRows > 0; block++) {
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
+        NumericTablePtr blockTable = dataSource.getNumericTable();
+        computestep1Local(block, blockTable);
     }
 
     computeOnMasterNode();
@@ -69,20 +72,12 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void computestep1Local(size_t block) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[block],
-                                                 DataSource::doAllocateNumericTable,
-                                                 DataSource::doDictionaryFromContext);
-
-    /* Retrieve the data from the input file */
-    dataSource.loadDataBlock();
-
+void computestep1Local(size_t block, const NumericTablePtr& data) {
     /* Create an algorithm to compute low order moments in the distributed processing mode using the default method */
     low_order_moments::Distributed<step1Local> algorithm;
 
     /* Set input objects for the algorithm */
-    algorithm.input.set(low_order_moments::data, dataSource.getNumericTable());
+    algorithm.input.set(low_order_moments::data, data);
 
     /* Compute partial low order moments estimates on nodes */
     algorithm.compute();

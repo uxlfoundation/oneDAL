@@ -22,7 +22,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto data_file_name = get_data_path("kernel_function.csv");
+    const auto data_file_name = get_data_path("data/kernel_function.csv");
 
     const auto x = dal::read<dal::table>(dal::csv::data_source{ data_file_name });
     const auto y = dal::read<dal::table>(dal::csv::data_source{ data_file_name });

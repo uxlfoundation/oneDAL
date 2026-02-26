@@ -35,44 +35,54 @@ using namespace daal;
 using namespace daal::algorithms;
 
 /* Input data set parameters */
-const size_t nBlocks = 4;
+size_t nBlocks;
 
 int rankId, comm_size;
 #define mpi_root 0
-
-const std::string datasetFileNames[] = { "./data/distributed/covcormoments_dense_1.csv",
-                                         "./data/distributed/covcormoments_dense_2.csv",
-                                         "./data/distributed/covcormoments_dense_3.csv",
-                                         "./data/distributed/covcormoments_dense_4.csv" };
+const std::string datasetFileName = "data/covcormoments_dense.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
-
+    checkArguments(argc, argv, 1, &datasetFileName);
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    nBlocks = comm_size;
+    checkArguments(argc, argv, 1, &datasetFileName);
 
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[rankId],
+    /* 1. Count total rows (only root), broadcast to all */
+    size_t totalRows = 0;
+    if (rankId == mpi_root) {
+        totalRows = countRowsCSV(datasetFileName);
+    }
+    MPI_Bcast(&totalRows, 1, MPI_UNSIGNED_LONG, mpi_root, MPI_COMM_WORLD);
+
+    size_t blockSize = (totalRows + comm_size - 1) / comm_size;
+    size_t rowOffset = rankId * blockSize;
+
+    size_t rowsToRead = 0;
+    if (rowOffset < totalRows) {
+        rowsToRead = std::min(blockSize, totalRows - rowOffset);
+    }
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
-    /* Retrieve the input data */
-    dataSource.loadDataBlock();
+    size_t skipRows = rowOffset;
+    while (skipRows > 0) {
+        size_t skipped = dataSource.loadDataBlock(skipRows);
+        if (skipped == 0)
+            break;
+        skipRows -= skipped;
+    }
 
-    /* Create an algorithm to compute low order moments on local nodes */
+    NumericTablePtr localData;
+
+    dataSource.loadDataBlock(rowsToRead);
+    localData = dataSource.getNumericTable();
+    /* 4. Compute local step */
     low_order_moments::Distributed<step1Local> localAlgorithm;
-
-    /* Set the input data set to the algorithm */
-    localAlgorithm.input.set(low_order_moments::data, dataSource.getNumericTable());
-
-    /* Compute low order moments */
+    localAlgorithm.input.set(low_order_moments::data, localData);
     localAlgorithm.compute();
 
     /* Serialize partial results required by step 2 */

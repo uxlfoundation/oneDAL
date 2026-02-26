@@ -39,26 +39,23 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/distributed/covcormoments_csr_1.csv",
-                                         "../data/distributed/covcormoments_csr_2.csv",
-                                         "../data/distributed/covcormoments_csr_3.csv",
-                                         "../data/distributed/covcormoments_csr_4.csv" };
+const std::string datasetFileName = { "data/covcormoments_csr.csv" };
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     /* Create an algorithm for principal component analysis using the correlation method on the master node */
     pca::Distributed<step2Master> masterAlgorithm;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+        size_t rowStart = i * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
+        CSRNumericTablePtr dataTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
         /* Create an algorithm to compute a variance-covariance matrix in the distributed processing mode using the default method */
         pca::Distributed<step1Local> localAlgorithm;
 

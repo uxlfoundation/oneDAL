@@ -36,7 +36,7 @@ using namespace daal::data_management;
 
 /* Input data set parameters */
 const size_t nVectorsInBlock = 250;
-const std::string dataFileName = "../data/online/pca_normalized.csv";
+const std::string dataFileName = "data/pca_normalized.csv";
 
 int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &dataFileName);

@@ -37,9 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::decision_forest::classification;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/df_classification_train.csv";
-const size_t categoricalFeaturesIndices[] = { 2 };
-const size_t nFeatures = 3; /* Number of features in training and testing data sets */
+const std::string trainDatasetFileName = "data/df_classification_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/df_classification_train_label.csv";
 
 /* Decision forest parameters */
 const size_t nTrees = 2;
@@ -49,11 +48,10 @@ const size_t maxTreeDepth = 15;
 const size_t nClasses = 5; /* Number of classes */
 
 training::ResultPtr trainModel();
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar);
 void printModel(const daal::algorithms::decision_forest::classification::Model& m);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &trainDatasetFileName);
+    checkArguments(argc, argv, 2, &trainDatasetFileName, &trainDatasetLabelFileName);
     training::ResultPtr trainingResult = trainModel();
     printModel(*trainingResult->get(classifier::training::model));
     return 0;
@@ -61,20 +59,28 @@ int main(int argc, char* argv[]) {
 
 training::ResultPtr trainModel() {
     /* Create Numeric Tables for training data and dependent variables */
-    NumericTablePtr trainData;
-    NumericTablePtr trainDependentVariable;
-
-    loadData(trainDatasetFileName, trainData, trainDependentVariable);
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
+    /* Retrieve the data from the input file */
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the decision forest classification model */
     training::Batch<> algorithm(nClasses);
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(classifier::training::data, trainData);
-    algorithm.input.set(classifier::training::labels, trainDependentVariable);
+    algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
 
+    /* Pass parameters to the algorithm */
     algorithm.parameter().nTrees = nTrees;
-    algorithm.parameter().featuresPerNode = nFeatures;
+    algorithm.parameter().featuresPerNode = trainDataSource.getNumericTableNumberOfColumns();
     algorithm.parameter().minObservationsInLeafNode = minObservationsInLeafNode;
     algorithm.parameter().maxTreeDepth = maxTreeDepth;
 
@@ -83,29 +89,6 @@ training::ResultPtr trainModel() {
 
     /* Retrieve the algorithm results */
     return algorithm.getResult();
-}
-
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(fileName,
-                                                      DataSource::notAllocateNumericTable,
-                                                      DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and dependent variables */
-    pData.reset(new HomogenNumericTable<double>(nFeatures, 0, NumericTable::notAllocate));
-    pDependentVar.reset(new HomogenNumericTable<double>(1, 0, NumericTable::notAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(pData, pDependentVar));
-
-    /* Retrieve the data from input file */
-    trainDataSource.loadDataBlock(mergedData.get());
-
-    NumericTableDictionaryPtr pDictionary = pData->getDictionarySharedPtr();
-    for (size_t i = 0,
-                n = sizeof(categoricalFeaturesIndices) / sizeof(categoricalFeaturesIndices[0]);
-         i < n;
-         ++i)
-        (*pDictionary)[categoricalFeaturesIndices[i]].featureType =
-            data_feature_utils::DAAL_CATEGORICAL;
 }
 
 /** Visitor class implementing TreeNodeVisitor interface, prints out tree nodes of the model when it is called back by model traversal method */

@@ -28,10 +28,10 @@ namespace dal = oneapi::dal;
 namespace df = dal::decision_forest;
 
 void run(sycl::queue& q) {
-    const auto train_data_file_name = get_data_path("df_regression_train_data.csv");
-    const auto train_response_file_name = get_data_path("df_regression_train_label.csv");
-    const auto test_data_file_name = get_data_path("df_regression_test_data.csv");
-    const auto test_response_file_name = get_data_path("df_regression_test_label.csv");
+    const auto train_data_file_name = get_data_path("data/df_regression_train_data.csv");
+    const auto train_response_file_name = get_data_path("data/df_regression_train_label.csv");
+    const auto test_data_file_name = get_data_path("data/df_regression_test_data.csv");
+    const auto test_response_file_name = get_data_path("data/df_regression_test_label.csv");
 
     const auto x_train = dal::read<dal::table>(q, dal::csv::data_source{ train_data_file_name });
     const auto y_train =

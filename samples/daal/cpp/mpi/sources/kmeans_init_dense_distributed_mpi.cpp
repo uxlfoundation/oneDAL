@@ -30,6 +30,7 @@
 #include "service.h"
 #include "stdio.h"
 #include <iostream>
+#include <vector>
 
 using namespace daal;
 using namespace daal::algorithms;
@@ -41,13 +42,10 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* K-Means algorithm parameters */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
-const size_t nBlocks = 4;
+size_t nBlocks = 0;
 
 /* Input data set parameters */
-const std::string dataFileNames[4] = { "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv",
-                                       "./data/distributed/kmeans_dense.csv" };
+const std::string datasetFileName = "data/kmeans_init_dense.csv";
 
 #define mpi_root 0
 const int step3ResultSizeTag = 1;
@@ -55,7 +53,7 @@ const int step3ResultTag = 2;
 
 NumericTablePtr loadData(int rankId) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(dataFileNames[rankId],
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
                                                  DataSource::doAllocateNumericTable,
                                                  DataSource::doDictionaryFromContext);
 
@@ -83,11 +81,12 @@ void runKMeans(int rankId, const NumericTablePtr& pData, const char* methodName)
 }
 
 int main(int argc, char* argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
     int rankId, comm_size;
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
+    nBlocks = comm_size;
     NumericTablePtr pData = loadData(rankId);
 
     runKMeans<kmeans::init::plusPlusDense>(rankId, pData, "plusPlusDense");
@@ -97,10 +96,12 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-static int lengthsToShifts(const int lengths[nBlocks], int shifts[nBlocks]) {
+static int lengthsToShifts(const int* lengths, int* shifts, size_t nBlocks) {
     int shift = 0;
-    for (size_t i = 0; i < nBlocks; shift += lengths[i], ++i)
+    for (size_t i = 0; i < nBlocks; ++i) {
         shifts[i] = shift;
+        shift += lengths[i];
+    }
     return shift;
 }
 
@@ -110,31 +111,30 @@ static NumericTablePtr allToAll(const NumericTablePtr& value) {
     ByteBuffer dataToSend;
     if (value.get())
         serializeDAALObject(value.get(), dataToSend);
-    const int dataToSendLength = dataToSend.size();
-    int perNodeArchLength[nBlocks];
-    for (size_t i = 0; i < nBlocks; i++)
-        perNodeArchLength[i] = 0;
+    const int dataToSendLength = static_cast<int>(dataToSend.size());
+    std::vector<int> perNodeArchLength(nBlocks, 0);
 
     MPI_Allgather(&dataToSendLength,
                   sizeof(int),
                   MPI_CHAR,
-                  perNodeArchLength,
+                  perNodeArchLength.data(),
                   sizeof(int),
                   MPI_CHAR,
                   MPI_COMM_WORLD);
 
-    int perNodeArchShift[nBlocks];
-    const int totalToReceive = lengthsToShifts(perNodeArchLength, perNodeArchShift);
+    std::vector<int> perNodeArchShift(nBlocks, 0);
+    const int totalToReceive =
+        lengthsToShifts(perNodeArchLength.data(), perNodeArchShift.data(), nBlocks);
     if (!totalToReceive)
         return NumericTablePtr();
 
     ByteBuffer dataToReceive(totalToReceive);
-    MPI_Allgatherv(&dataToSend[0],
+    MPI_Allgatherv(dataToSend.data(),
                    dataToSendLength,
                    MPI_CHAR,
-                   &dataToReceive[0],
-                   perNodeArchLength,
-                   perNodeArchShift,
+                   dataToReceive.data(),
+                   perNodeArchLength.data(),
+                   perNodeArchShift.data(),
                    MPI_CHAR,
                    MPI_COMM_WORLD);
 
@@ -145,15 +145,15 @@ static NumericTablePtr allToAll(const NumericTablePtr& value) {
             NumericTable::cast(deserializeDAALObject(&dataToReceive[shift], perNodeArchLength[i]));
         aRes.push_back(pTbl);
     }
-    if (!aRes.size())
+    if (aRes.empty())
         return NumericTablePtr();
     if (aRes.size() == 1)
         return aRes[0];
 
     /* For parallelPlus algorithm */
     RowMergedNumericTablePtr pMerged(new RowMergedNumericTable());
-    for (size_t i = 0; i < aRes.size(); ++i)
-        pMerged->addNumericTable(aRes[i]);
+    for (auto& tbl : aRes)
+        pMerged->addNumericTable(tbl);
     return NumericTable::cast(pMerged);
 }
 
@@ -166,34 +166,34 @@ static void allToMaster(int rankId,
     ByteBuffer dataToSend;
     if (value.get())
         serializeDAALObject(value.get(), dataToSend);
-    const int dataToSendLength = dataToSend.size();
-    int perNodeArchLength[nBlocks];
-    for (size_t i = 0; i < nBlocks; i++)
-        perNodeArchLength[i] = 0;
+    const int dataToSendLength = static_cast<int>(dataToSend.size());
+
+    std::vector<int> perNodeArchLength(nBlocks, 0);
 
     MPI_Gather(&dataToSendLength,
                sizeof(int),
                MPI_CHAR,
-               isRoot ? perNodeArchLength : NULL,
+               isRoot ? perNodeArchLength.data() : nullptr,
                sizeof(int),
                MPI_CHAR,
                mpi_root,
                MPI_COMM_WORLD);
 
     ByteBuffer dataToReceive;
-    int perNodeArchShift[nBlocks];
+    std::vector<int> perNodeArchShift(nBlocks, 0);
     if (isRoot) {
-        const int totalToReceive = lengthsToShifts(perNodeArchLength, perNodeArchShift);
+        const int totalToReceive =
+            lengthsToShifts(perNodeArchLength.data(), perNodeArchShift.data(), nBlocks);
         if (!totalToReceive)
             return;
         dataToReceive.resize(totalToReceive);
     }
-    MPI_Gatherv(&dataToSend[0],
+    MPI_Gatherv(dataToSend.data(),
                 dataToSendLength,
                 MPI_CHAR,
-                isRoot ? &dataToReceive[0] : NULL,
-                perNodeArchLength,
-                perNodeArchShift,
+                isRoot ? dataToReceive.data() : nullptr,
+                perNodeArchLength.data(),
+                perNodeArchShift.data(),
                 MPI_CHAR,
                 mpi_root,
                 MPI_COMM_WORLD);

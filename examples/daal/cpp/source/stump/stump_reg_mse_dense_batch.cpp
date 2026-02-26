@@ -37,10 +37,10 @@ using namespace daal::data_management;
 using namespace daal::algorithms::stump::regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/stump_train.csv";
-const std::string testDatasetFileName = "../data/batch/stump_test.csv";
-
-const size_t nFeatures = 20;
+const std::string trainDatasetFileName = "data/stump_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/stump_train_labels.csv";
+const std::string testDatasetFileName = "data/stump_test_data.csv";
+const std::string testDatasetLabelFileName = "data/stump_test_labels.csv";
 
 training::ResultPtr trainingResult;
 regression::prediction::ResultPtr predictionResult;
@@ -51,7 +51,13 @@ void testModel();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     trainModel();
 
@@ -63,25 +69,26 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
-
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the stump model */
     training::Batch<> algorithm;
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(regression::training::data, trainData);
-    algorithm.input.set(regression::training::dependentVariables, trainGroundTruth);
+    algorithm.input.set(regression::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(regression::training::dependentVariables,
+                        trainLabelSource.getNumericTable());
 
     algorithm.compute();
 
@@ -90,24 +97,18 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
+    testDataSource.loadDataBlock();
     /* Create an algorithm object to predict values */
     prediction::Batch<> algorithm;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(regression::prediction::data, testData);
+    algorithm.input.set(regression::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(regression::prediction::model,
                         trainingResult->get(regression::training::model));
 
@@ -119,7 +120,11 @@ void testModel() {
 }
 
 void printResults() {
-    printNumericTables<float, float>(testGroundTruth,
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
+    printNumericTables<float, float>(testLabelSource.getNumericTable(),
                                      predictionResult->get(regression::prediction::prediction),
                                      "Ground truth",
                                      "Regression results",

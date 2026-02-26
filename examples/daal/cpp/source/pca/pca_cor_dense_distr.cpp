@@ -36,34 +36,26 @@ using namespace daal::data_management;
 
 /* Input data set parameters */
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 250;
-size_t nFeatures;
 
-const std::string dataFileNames[] = { "../data/distributed/pca_normalized_1.csv",
-                                      "../data/distributed/pca_normalized_2.csv",
-                                      "../data/distributed/pca_normalized_3.csv",
-                                      "../data/distributed/pca_normalized_4.csv" };
+const std::string datasetFileName = { "data/pca_normalized.csv" };
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     /* Create an algorithm for principal component analysis using the correlation method on the master node */
     pca::Distributed<step2Master> masterAlgorithm;
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> dataSource(dataFileNames[i],
-                                                     DataSource::doAllocateNumericTable,
-                                                     DataSource::doDictionaryFromContext);
-
-        /* Retrieve the input data */
-        dataSource.loadDataBlock(nVectorsInBlock);
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
 
         /* Create an algorithm for principal component analysis using the correlation method on the local node */
         pca::Distributed<step1Local> localAlgorithm;

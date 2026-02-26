@@ -240,7 +240,7 @@ protected:
     }
 };
 
-// implementation of the algorithm for computation of the logistic loss objective function
+/* implementation of the algorithm for computation of the logistic loss objective function */
 template <typename algorithmFPType>
 daal::services::Status BatchContainer<algorithmFPType>::compute() {
     using namespace daal::data_management;
@@ -250,13 +250,14 @@ daal::services::Status BatchContainer<algorithmFPType>::compute() {
         static_cast<daal::algorithms::optimization_solver::objective_function::Result *>(_res);
     Parameter *parameter = static_cast<Parameter *>(_par);
 
-    NumericTable *xTable = input->get(data).get(); // input data set
-    NumericTable *yTable = input->get(dependentVariables).get(); // array of dependent variables
-    NumericTable *argumentTable = input->get(argument).get(); // argument of the objective function
-    NumericTable *indicesTable = parameter->batchIndices.get(); // stochastic indices
+    NumericTable *xTable = input->get(data).get(); /* input data set */
+    NumericTable *yTable = input->get(dependentVariables).get(); /* array of dependent variables */
+    NumericTable *argumentTable =
+        input->get(argument).get(); /* argument of the objective function */
+    NumericTable *indicesTable = parameter->batchIndices.get(); /* stochastic indices */
 
-    const size_t p = argumentTable->getNumberOfRows(); // size of the argument
-    const size_t dim = p - 1; // number of features in the input data set
+    const size_t p = argumentTable->getNumberOfRows(); /* size of the argument */
+    const size_t dim = p - 1; /* number of features in the input data set */
     const algorithmFPType one(1.0);
 
     BlockDescriptor<int> indicesBlock;
@@ -376,4 +377,4 @@ daal::services::Status BatchContainer<algorithmFPType>::compute() {
 
     return daal::services::Status();
 }
-} // namespace new_objective_function
+} /* namespace new_objective_function */

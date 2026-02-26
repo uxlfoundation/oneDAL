@@ -59,6 +59,48 @@ size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
     return fileSize;
 }
 
+template <typename algorithmFPType>
+daal::data_management::CSRNumericTablePtr splitCSRBlock(
+    const daal::data_management::CSRNumericTablePtr &src,
+    size_t rowStart,
+    size_t rowEnd) {
+    using namespace daal::data_management;
+
+    const size_t nRows = rowEnd - rowStart;
+
+    const size_t nCols = src->getNumberOfColumns();
+
+    CSRBlockDescriptor<algorithmFPType> block;
+    src->getSparseBlock(rowStart, nRows, readOnly, block);
+
+    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr();
+    const size_t *srcColIndices = block.getBlockColumnIndicesPtr();
+    const algorithmFPType *srcValues = block.getBlockValuesPtr();
+
+    const size_t nnz = srcRowOffsets[nRows] - srcRowOffsets[0];
+
+    size_t *localRowOffsets = new size_t[nRows + 1];
+    size_t *localColIndices = new size_t[nnz];
+    algorithmFPType *localValues = new algorithmFPType[nnz];
+
+    localRowOffsets[0] = 1;
+    for (size_t i = 1; i <= nRows; ++i) {
+        localRowOffsets[i] = srcRowOffsets[i] - srcRowOffsets[0] + 1;
+    }
+
+    std::copy_n(srcColIndices, nnz, localColIndices);
+    std::copy_n(srcValues, nnz, localValues);
+
+    src->releaseSparseBlock(block);
+
+    return CSRNumericTable::create(localValues,
+                                   localColIndices,
+                                   localRowOffsets,
+                                   nCols,
+                                   nRows,
+                                   CSRNumericTableIface::CSRIndexing::oneBased);
+}
+
 template <typename item_type>
 void readRowUnknownLength(char *line, std::vector<item_type> &data) {
     size_t n = 0;
@@ -575,19 +617,43 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
                                      interval);
 }
 
-// The function tries to find the file `name` in several possible directories.
-// This is useful because CMake and Bazel may run the program from different working directories,
-// so relative paths to data files can differ.
+/* The function tries to find the file `name` in several possible directories.
+This is useful because CMake and Bazel may run the program from different working directories,
+so relative paths to data files can differ. */
 inline const std::string get_data_path(const std::string &name) {
-    const std::vector<std::string> paths = { "../data", "examples/daal/data" };
+    const std::vector<std::string> paths = { []() {
+                                                if (const char *root = std::getenv("DALROOT")) {
+                                                    return std::string(root);
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             "../../data",
+                                             "../data" };
+
     for (const auto &path : paths) {
+        if (path.empty())
+            continue;
+
         const std::string try_path = path + "/" + name;
+
         if (std::ifstream{ try_path }.good()) {
             return try_path;
         }
     }
 
     return name;
+}
+
+size_t countRowsCSV(const std::string &file) {
+    std::ifstream f(file);
+    size_t rows = 0;
+    std::string line;
+
+    while (std::getline(f, line)) {
+        if (!line.empty())
+            rows++;
+    }
+    return rows;
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {

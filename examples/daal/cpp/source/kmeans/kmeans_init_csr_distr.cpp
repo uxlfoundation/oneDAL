@@ -38,57 +38,58 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 8000;
 
-const std::string dataFileNames[] = { "../data/distributed/kmeans_csr_1.csv",
-                                      "../data/distributed/kmeans_csr_2.csv",
-                                      "../data/distributed/kmeans_csr_3.csv",
-                                      "../data/distributed/kmeans_csr_4.csv" };
-
-void loadData(NumericTablePtr data[nBlocks]) {
-    for (size_t i = 0; i < nBlocks; i++)
-        data[i] = CSRNumericTablePtr(createSparseTable<float>(dataFileNames[i]));
-}
+const std::string datasetFileName = "data/kmeans_csr.csv";
 
 template <kmeans::init::Method method>
-NumericTablePtr initCentroids(const NumericTablePtr data[nBlocks]);
+NumericTablePtr initCentroids(const NumericTablePtr data[nBlocks],
+                              size_t totalRows,
+                              size_t rowsPerBlock);
 
 void calculateCentroids(const NumericTablePtr& initialCentroids,
                         const NumericTablePtr data[nBlocks]);
 
 template <kmeans::init::Method method>
-void runKMeans(const NumericTablePtr data[nBlocks], const char* methodName) {
+void runKMeans(const NumericTablePtr data[nBlocks],
+               size_t totalRows,
+               size_t rowsPerBlock,
+               const char* methodName) {
     std::cout << "K-means init parameters: method = " << methodName << std::endl;
-    NumericTablePtr centroids = initCentroids<method>(data);
+    NumericTablePtr centroids = initCentroids<method>(data, totalRows, rowsPerBlock);
     calculateCentroids(centroids, data);
 }
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     NumericTablePtr data[nBlocks];
-    loadData(data);
+    for (size_t i = 0; i < nBlocks; ++i) {
+        size_t rowStart = i * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-    runKMeans<kmeans::init::plusPlusCSR>(data, "plusPlusCSR");
-    runKMeans<kmeans::init::parallelPlusCSR>(data, "parallelPlusCSR");
+        data[i] = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+    }
+
+    runKMeans<kmeans::init::plusPlusCSR>(data, totalRows, rowsPerBlock, "plusPlusCSR");
+    runKMeans<kmeans::init::parallelPlusCSR>(data, totalRows, rowsPerBlock, "parallelPlusCSR");
 
     return 0;
 }
 
 template <kmeans::init::Method method>
-NumericTablePtr initStep1(const NumericTablePtr data[nBlocks]) {
+NumericTablePtr initStep1(const NumericTablePtr data[nBlocks],
+                          size_t totalRows,
+                          size_t rowsPerBlock) {
     for (size_t i = 0; i < nBlocks; i++) {
         /* Create an algorithm object for the K-Means algorithm */
-        kmeans::init::Distributed<step1Local, algorithmFPType, method> local(
-            nClusters,
-            nBlocks * nVectorsInBlock,
-            i * nVectorsInBlock);
+        size_t rowStart = i * rowsPerBlock;
+        kmeans::init::Distributed<step1Local, algorithmFPType, method> local(nClusters,
+                                                                             totalRows,
+                                                                             rowStart);
         local.input.set(kmeans::init::data, data[i]);
         local.compute();
         NumericTablePtr pNewCenters = local.getPartialResult()->get(kmeans::init::partialCentroids);
@@ -154,26 +155,27 @@ NumericTablePtr initStep4(const NumericTablePtr data[nBlocks],
 }
 
 template <>
-NumericTablePtr initCentroids<kmeans::init::plusPlusCSR>(const NumericTablePtr data[nBlocks]) {
+NumericTablePtr initCentroids<kmeans::init::plusPlusCSR>(const NumericTablePtr data[nBlocks],
+                                                         size_t totalRows,
+                                                         size_t rowsPerBlock) {
     /* Internal data to be stored on the local nodes */
     DataCollectionPtr localNodeData[nBlocks];
     /* Numeric table to collect the results */
     RowMergedNumericTablePtr pCentroids(new RowMergedNumericTable());
     /* First step on the local nodes */
-    NumericTablePtr pNewCentroids = initStep1<kmeans::init::plusPlusCSR>(data);
+    NumericTablePtr pNewCentroids =
+        initStep1<kmeans::init::plusPlusCSR>(data, totalRows, rowsPerBlock);
     pCentroids->addNumericTable(pNewCentroids);
 
     /* Create an algorithm object for the step 3 */
     kmeans::init::Distributed<step3Master, algorithmFPType, kmeans::init::plusPlusCSR> step3(
         nClusters);
     for (size_t iCenter = 1; iCenter < nClusters; ++iCenter) {
-        /* Perform steps 2 and 3 */
         initStep23<kmeans::init::plusPlusCSR>(data,
                                               localNodeData,
                                               pNewCentroids,
                                               step3,
                                               iCenter == 1);
-        /* Perform steps 4 */
         pNewCentroids = initStep4<kmeans::init::plusPlusCSR>(data, localNodeData, step3);
         pCentroids->addNumericTable(pNewCentroids);
     }
@@ -181,12 +183,15 @@ NumericTablePtr initCentroids<kmeans::init::plusPlusCSR>(const NumericTablePtr d
 }
 
 template <>
-NumericTablePtr initCentroids<kmeans::init::parallelPlusCSR>(const NumericTablePtr data[nBlocks]) {
+NumericTablePtr initCentroids<kmeans::init::parallelPlusCSR>(const NumericTablePtr data[nBlocks],
+                                                             size_t totalRows,
+                                                             size_t rowsPerBlock) {
     /* Internal data to be stored on the local nodes */
     DataCollectionPtr localNodeData[nBlocks];
     /* First step on the local nodes */
-    NumericTablePtr pNewCentroids = initStep1<kmeans::init::parallelPlusCSR>(data);
 
+    NumericTablePtr pNewCentroids =
+        initStep1<kmeans::init::parallelPlusCSR>(data, totalRows, rowsPerBlock);
     /* Create an algorithm object for the step 5 */
     kmeans::init::Distributed<step5Master, algorithmFPType, kmeans::init::parallelPlusCSR> step5(
         nClusters);
@@ -194,6 +199,7 @@ NumericTablePtr initCentroids<kmeans::init::parallelPlusCSR>(const NumericTableP
     /* Create an algorithm object for the step 3 */
     kmeans::init::Distributed<step3Master, algorithmFPType, kmeans::init::parallelPlusCSR> step3(
         nClusters);
+
     for (size_t iRound = 0; iRound < step5.parameter.nRounds; ++iRound) {
         /* Perform steps 2 and 3 */
         initStep23<kmeans::init::parallelPlusCSR>(data,
@@ -208,6 +214,7 @@ NumericTablePtr initCentroids<kmeans::init::parallelPlusCSR>(const NumericTableP
     /* One more step 2 */
     for (size_t i = 0; i < nBlocks; i++) {
         /* Create an algorithm object for the step 2 */
+
         kmeans::init::Distributed<step2Local, algorithmFPType, kmeans::init::parallelPlusCSR> local(
             nClusters,
             false);
