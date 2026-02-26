@@ -373,3 +373,135 @@ dal_test_suite(
 
 ## What is missing in this guide
 - How to get make-like release structure
+
+## Debug and Sanitizer Builds
+
+### Debug build with assertions
+
+Equivalent to Make `REQDBG=1` — adds debug symbols, enables `DEBUG_ASSERT`
+and `ONEDAL_ENABLE_ASSERT`:
+
+```sh
+bazel build //:release --config=dbg
+bazel test //cpp/oneapi/dal:tests --config=dbg
+```
+
+### Debug symbols only (no assertion checks)
+
+Equivalent to Make `REQDBG=symbols`:
+
+```sh
+bazel build //:release --config=dbg-symbols
+```
+
+> Note: The `libonedal_dpc.so` library does not support debug mode due to
+> excessive debug information causing long link times. Use the static library
+> variant for DPC++ debugging.
+
+### AddressSanitizer (ASan)
+
+Equivalent to Make `REQSAN=address`. Recommended to combine with `--config=dbg`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan --config=dbg
+```
+
+For static libasan linkage (equivalent to Make `REQSAN=static`):
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=asan-static --config=dbg
+```
+
+### ThreadSanitizer (TSan)
+
+Equivalent to Make `REQSAN=thread`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=tsan
+```
+
+### UndefinedBehaviorSanitizer (UBSan)
+
+Equivalent to Make `REQSAN=undefined`:
+
+```sh
+bazel test //cpp/oneapi/dal:tests --config=ubsan
+```
+
+> Note: Not all compilers support all sanitizers. There is currently no
+> `--config=msan` preset. To use MemorySanitizer, use a compiler that supports
+> it (icpx or clang) and pass flags manually:
+> ```sh
+> bazel test //cpp/oneapi/dal:tests --copt=-fsanitize=memory --linkopt=-fsanitize=memory
+> ```
+> GCC does not support MemorySanitizer and will fail by design.
+
+---
+
+## Release Build
+
+Build the full release artifact (all ISA variants: sse2, sse42, avx2, avx512):
+
+```sh
+bazel build //:release
+```
+
+The `//:release` target automatically compiles all ISA variants when `--cpu`
+is left at its default value (`auto`). If `--cpu` is set explicitly — e.g. in
+a personal `~/.bazelrc` or passed in CI — the transition respects that value.
+To restrict ISA coverage (e.g., for faster CI):
+
+```sh
+bazel build //:release --cpu=avx2
+```
+
+To include DPC++ libraries:
+
+```sh
+bazel build //:release --config=release-dpc
+```
+
+---
+
+## Custom Compiler and Linker Flags
+
+Equivalent to Make `COPT` / `CXXFLAGS`. Pass via `--copt` and `--linkopt`:
+
+```sh
+# Add a custom compiler flag
+bazel build //:release --copt=-march=native
+
+# Override optimization level
+bazel build //:release --copt=-O2
+
+# Add a linker flag
+bazel build //:release --linkopt=-Wl,--as-needed
+```
+
+To make flags permanent for your local environment, add them to `~/.bazelrc`:
+
+```
+# ~/.bazelrc (user-local, not committed)
+build --copt=-your-flag
+build --linkopt=-your-link-flag
+```
+
+---
+
+## Make → Bazel Flag Reference
+
+| Make option | Bazel equivalent | Notes |
+|---|---|---|
+| `REQDBG=1` | `--config=dbg` | Debug symbols + assertions |
+| `REQDBG=symbols` | `--config=dbg-symbols` | Debug symbols only |
+| `REQSAN=address` | `--config=asan` | AddressSanitizer |
+| `REQSAN=static` | `--config=asan-static` | ASan with static libasan |
+| `REQSAN=thread` | `--config=tsan` | ThreadSanitizer |
+| `REQSAN=undefined` | `--config=ubsan` | UBSan |
+| `COMPILER=gnu` | `CC=gcc bazel build ...` | Override compiler via `CC` env |
+| `OPTFLAG=O2` | `--copt=-O2` | Override optimization level |
+| `COPT=-flag` | `--copt=-flag` | Arbitrary compiler flag |
+| `--cpu=<isa>` (Make `PLAT`) | `--cpu=<isa>` | ISA selection |
+| (Make default all ISAs) | `bazel build //:release` | Transition forces all ISAs |
+| (CI: single ISA) | `--cpu=avx2` | Override for CI speed |
+
