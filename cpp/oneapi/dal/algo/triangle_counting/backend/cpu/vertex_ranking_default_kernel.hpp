@@ -32,7 +32,7 @@ template <typename Cpu>
 array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology<std::int32_t>& t,
                                             std::int64_t* triangles_local) {
     const auto vertex_count = t.get_vertex_count();
-    std::int32_t average_degree = t.get_edge_count() / vertex_count;
+    //std::int32_t average_degree = t.get_edge_count() / vertex_count;
     int thread_cnt = dal::detail::threader_get_max_threads();
 
     dal::detail::threader_for(thread_cnt * vertex_count,
@@ -41,8 +41,8 @@ array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology
                                   triangles_local[u] = 0;
                               });
 
-    const std::int32_t average_degree_sparsity_boundary = 4;
-    if (average_degree < average_degree_sparsity_boundary) {
+    //const std::int32_t average_degree_sparsity_boundary = 4;
+    if (true) {
         dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t u) {
             for (auto v_ = t.get_vertex_neighbors_begin(u); v_ != t.get_vertex_neighbors_end(u);
                  ++v_) {
@@ -72,40 +72,40 @@ array<std::int64_t> triangle_counting_local(const dal::preview::detail::topology
         });
     }
     else { //average_degree >= average_degree_sparsity_boundary
-        dal::detail::threader_for_simple(vertex_count, vertex_count, [&](std::int32_t u) {
-            if (t.get_vertex_degree(u) >= 2)
-                dal::detail::threader_for_int32ptr(
-                    t.get_vertex_neighbors_begin(u),
-                    t.get_vertex_neighbors_end(u),
-                    [&](const std::int32_t* v_) {
-                        std::int32_t v = *v_;
-                        if (v <= u) {
-                            const std::int32_t u_degree = t.get_vertex_degree(u);
-                            const std::int32_t* v_neighbors_begin = t.get_vertex_neighbors_begin(v);
-                            const std::int32_t v_degree = t.get_vertex_degree(v);
-                            std::int32_t new_v_degree;
+        // dal::detail::threader_for_simple(vertex_count, vertex_count, [&](std::int32_t u) {
+        //     if (t.get_vertex_degree(u) >= 2)
+        //         dal::detail::threader_for_int64ptr(
+        //             static_cast<const std::int64_t*>(static_cast<const void*>(t.get_vertex_neighbors_begin(u))),
+        //             static_cast<const std::int64_t*>(static_cast<const void*>(t.get_vertex_neighbors_end(u))),
+        //             [&](const std::int32_t* v_) {
+        //                 std::int32_t v = *v_;
+        //                 if (v <= u) {
+        //                     const std::int32_t u_degree = t.get_vertex_degree(u);
+        //                     const std::int32_t* v_neighbors_begin = t.get_vertex_neighbors_begin(v);
+        //                     const std::int32_t v_degree = t.get_vertex_degree(v);
+        //                     std::int32_t new_v_degree;
 
-                            for (new_v_degree = 0; (new_v_degree < v_degree) &&
-                                                   (v_neighbors_begin[new_v_degree] <= v);
-                                 new_v_degree++)
-                                ;
+        //                     for (new_v_degree = 0; (new_v_degree < v_degree) &&
+        //                                            (v_neighbors_begin[new_v_degree] <= v);
+        //                          new_v_degree++)
+        //                         ;
 
-                            int thread_id = dal::detail::threader_get_current_thread_index();
-                            std::int64_t indx =
-                                (std::int64_t)thread_id * (std::int64_t)vertex_count;
+        //                     int thread_id = dal::detail::threader_get_current_thread_index();
+        //                     std::int64_t indx =
+        //                         (std::int64_t)thread_id * (std::int64_t)vertex_count;
 
-                            auto tc = intersection_local_tc<Cpu>{}(t.get_vertex_neighbors_begin(u),
-                                                                   t.get_vertex_neighbors_begin(v),
-                                                                   u_degree,
-                                                                   new_v_degree,
-                                                                   triangles_local + indx,
-                                                                   vertex_count);
+        //                     auto tc = intersection_local_tc<Cpu>{}(t.get_vertex_neighbors_begin(u),
+        //                                                            t.get_vertex_neighbors_begin(v),
+        //                                                            u_degree,
+        //                                                            new_v_degree,
+        //                                                            triangles_local + indx,
+        //                                                            vertex_count);
 
-                            triangles_local[indx + u] += tc;
-                            triangles_local[indx + v] += tc;
-                        }
-                    });
-        });
+        //                     triangles_local[indx + u] += tc;
+        //                     triangles_local[indx + v] += tc;
+        //                 }
+        //             });
+        // });
     }
 
     auto arr_triangles = array<std::int64_t>::empty(vertex_count);

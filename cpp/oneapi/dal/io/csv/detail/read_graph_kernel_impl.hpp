@@ -157,7 +157,7 @@ template <typename Graph>
 struct collect_degrees_from_edge_list<Graph, /* IsDirected = */ false> {
     template <typename EdgeList, typename AtomicType>
     auto operator()(const EdgeList &edges, AtomicType *degrees_cv) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             ++degrees_cv[std::get<0>(edges[u])];
             ++degrees_cv[std::get<1>(edges[u])];
         });
@@ -168,7 +168,7 @@ template <typename Graph>
 struct collect_degrees_from_edge_list<Graph, /* IsDirected = */ true> {
     template <typename EdgeList, typename AtomicType>
     auto operator()(const EdgeList &edges, AtomicType *degrees_cv) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             ++degrees_cv[std::get<0>(edges[u])];
         });
     }
@@ -227,7 +227,7 @@ ONEDAL_EXPORT std::int64_t compute_prefix_sum<std::int64_t, std::int32_t>(
 
 template <typename Index, typename AtomicIndex>
 void fill_from_atomics(Index *arr, AtomicIndex *atomic_arr, std::int64_t elements_count) {
-    dal::detail::threader_for_int64(elements_count, [&](std::int64_t n) {
+    dal::detail::threader_for(elements_count, elements_count, [&](std::int64_t n) {
         arr[n] = atomic_arr[n].load();
     });
 }
@@ -241,7 +241,7 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ false> {
     auto operator()(const edge_list<Vertex> &edges,
                     AtomicEdge *rows_vec_atomic,
                     Vertex *unfiltered_neighs) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             unfiltered_neighs[++rows_vec_atomic[edges[u].first] - 1] = edges[u].second;
             unfiltered_neighs[++rows_vec_atomic[edges[u].second] - 1] = edges[u].first;
         });
@@ -251,7 +251,7 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ false> {
     auto operator()(const weighted_edge_list<Vertex, Weight> &edges,
                     AtomicEdge *rows_vec_atomic,
                     std::pair<Vertex, Weight> *unfiltered_neighs_vals) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             unfiltered_neighs_vals[++rows_vec_atomic[std::get<0>(edges[u])] - 1] =
                 std::make_pair(std::get<1>(edges[u]), std::get<2>(edges[u]));
             unfiltered_neighs_vals[++rows_vec_atomic[std::get<1>(edges[u])] - 1] =
@@ -266,7 +266,7 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ true> {
     auto operator()(const edge_list<Vertex> &edges,
                     AtomicEdge *rows_vec_atomic,
                     Vertex *unfiltered_neighs) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             unfiltered_neighs[++rows_vec_atomic[edges[u].first] - 1] = edges[u].second;
         });
     }
@@ -275,7 +275,7 @@ struct fill_unfiltered_neighs<Graph, /* IsDirected = */ true> {
     auto operator()(const weighted_edge_list<Vertex, Weight> &edges,
                     AtomicEdge *rows_vec_atomic,
                     std::pair<Vertex, Weight> *unfiltered_neighs_vals) {
-        dal::detail::threader_for_int64(edges.size(), [&](std::int64_t u) {
+        dal::detail::threader_for(edges.size(), edges.size(), [&](std::int64_t u) {
             unfiltered_neighs_vals[++rows_vec_atomic[std::get<0>(edges[u])] - 1] =
                 std::make_pair(std::get<1>(edges[u]), std::get<2>(edges[u]));
         });
@@ -289,7 +289,7 @@ void fill_filtered_neighs(const EdgeIndex *unfiltered_offsets,
                           const EdgeIndex *filtered_offsets,
                           VertexIndex *filtered_neighs,
                           std::int64_t vertex_count) {
-    dal::detail::threader_for_int64(vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
         auto u_neighs = filtered_neighs + filtered_offsets[u];
         auto u_neighs_unf = unfiltered_neighs + unfiltered_offsets[u];
         for (VertexIndex i = 0; i < filtered_degrees[u]; i++) {
@@ -306,7 +306,7 @@ void fill_filtered_neighs(const Edge *unfiltered_offsets,
                           Vertex *filtered_neighs,
                           Weight *filtered_vals,
                           std::int64_t vertex_count) {
-    dal::detail::threader_for_int64(vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
         auto u_neighs = filtered_neighs + filtered_offsets[u];
         auto u_neighs_vals = filtered_vals + filtered_offsets[u];
         auto u_neighs_unf = unfiltered_neighs_vals + unfiltered_offsets[u];
@@ -332,7 +332,7 @@ void filter_neighbors_and_fill_new_degrees(VertexIndex *unfiltered_neighs,
                                            VertexIndex *new_degrees,
                                            std::int64_t vertex_count) {
     //removing self-loops,  multiple edges from graph, and make neighbors in CSR sorted
-    dal::detail::threader_for_int64(vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
         auto start_p = unfiltered_neighs + unfiltered_offsets[u];
         auto end_p = unfiltered_neighs + unfiltered_offsets[u + 1];
 
@@ -350,7 +350,7 @@ void filter_neighbors_and_fill_new_degrees(std::pair<Vertex, Weight> *unfiltered
                                            Vertex *new_degrees,
                                            std::int64_t vertex_count) {
     //removing self-loops,  multiple edges from graph, and make neighbors in CSR sorted
-    dal::detail::threader_for_int64(vertex_count, [&](std::int64_t u) {
+    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
         auto start_p = unfiltered_neighs_vals + unfiltered_offsets[u];
         auto end_p = unfiltered_neighs_vals + unfiltered_offsets[u + 1];
 
@@ -478,7 +478,7 @@ void convert_to_csr_impl(const edge_list<typename graph_traits<Graph>::vertex_ty
         auto edge_offsets_tup =
             ra_vertex_edge.template allocate_array<vertex_edge_set_t>(vertex_count + 1);
         auto rows_vertex = std::get<1>(edge_offsets_tup);
-        dal::detail::threader_for_int64(vertex_count + 1, [&](std::int64_t u) {
+        dal::detail::threader_for(vertex_count + 1, vertex_count + 1, [&](std::int64_t u) {
             rows_vertex[u] = static_cast<vertex_edge_t>(edge_offsets_data[u]);
         });
 
@@ -601,7 +601,7 @@ void convert_to_csr_impl(
         auto edge_offsets_tup =
             ra_vertex_edge.template allocate_array<vertex_edge_set_t>(vertex_count + 1);
         auto rows_vertex = std::get<1>(edge_offsets_tup);
-        dal::detail::threader_for_int64(vertex_count + 1, [&](std::int64_t u) {
+        dal::detail::threader_for(vertex_count + 1, vertex_count + 1, [&](std::int64_t u) {
             rows_vertex[u] = static_cast<vertex_edge_t>(edge_offsets_data[u]);
         });
 

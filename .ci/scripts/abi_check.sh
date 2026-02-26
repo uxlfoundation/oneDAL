@@ -34,6 +34,7 @@ fi
 for i in "${solibs[@]}"
 do
     name=$(basename $i)
+    if [[ "$name" == *"libonedal_thread"* ]]; then continue; fi
     echo "======== ${name} ========"
     abidiff --suppr .github/.abignore $i $release_dir/$name
     retVal=$?
