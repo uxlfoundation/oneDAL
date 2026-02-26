@@ -53,9 +53,9 @@ def daal_module(name, features=[], lib_tag="daal",
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
-        copts = select({
-            "@platforms//os:windows": copts,
-            "//conditions:default": copts + ["-fvisibility=hidden"],
+        copts = copts + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["-fvisibility=hidden"],
         }),
         local_defines = select({
             "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
