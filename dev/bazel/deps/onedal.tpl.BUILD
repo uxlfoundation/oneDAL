@@ -15,6 +15,7 @@ cc_library(
         "lib/intel64/libonedal_core.a",
     ],
     deps = [
+        "@mkl//:mkl_static",
         ":headers",
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
         #       Remove TBB from deps once problem with vml_ipp is resolved
@@ -28,6 +29,7 @@ cc_library(
         "lib/intel64/libonedal_thread.a",
     ],
     deps = [
+        "@mkl//:mkl_static",
         ":headers",
         "@tbb//:tbb_binary",
         "@tbb//:tbbmalloc_binary",
@@ -41,6 +43,7 @@ cc_library(
         "lib/intel64/libonedal_parameters.a",
     ],
     deps = [
+        "@mkl//:mkl_static",
         ":headers",
     ],
 )
@@ -52,6 +55,7 @@ cc_library(
         "lib/intel64/libonedal_parameters_dpc.a",
     ],
     deps = [
+        "@mkl//:mkl_static",
         ":headers",
         "@mkl//:mkl_dpc",
     ],
