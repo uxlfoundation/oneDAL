@@ -15,7 +15,7 @@
 # limitations under the License.
 #===============================================================================
 # Tests for Bazel release structure: versioning, symlinks, vars.sh, pkg-config.
-# Run after: bazel build //:release :release_vars_sh :release_pkgconfig
+# Run after: bazel build //:release (which also builds env/vars.sh and pkg-config files)
 #
 # Usage:
 #   ./dev/bazel/tests/release_structure_test.sh <release_dir>
@@ -101,7 +101,7 @@ done
 echo ""
 echo "=== SONAME check ==="
 
-for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* ; do
+for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* ; do
     [ -f "$lib" ] || continue
     lib_base=$(basename "$lib" | sed 's/\.so\..*//')
     # Extract expected SONAME from filename: libonedal_core.so.3.0 → libonedal_core.so.3
