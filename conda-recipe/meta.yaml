@@ -90,7 +90,6 @@ outputs:
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_core.a  # [linux]
-        - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
     about:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)

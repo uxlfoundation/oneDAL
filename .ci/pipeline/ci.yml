@@ -352,6 +352,7 @@ jobs:
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
+                 --config=host \
                  --test_thread_mode=par \
                  --test_env DALROOT
     displayName: 'cpp-examples-thread-release-static'

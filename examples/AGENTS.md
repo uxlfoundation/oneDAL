@@ -98,7 +98,7 @@ dal_example_suite(
     srcs = glob(["source/kmeans/*.cpp"]),
     dal_deps = ["@onedal//cpp/oneapi/dal/algo:kmeans"],
     data = ["@onedal//examples/oneapi:data"],
-    extra_deps = [":example_util", "@opencl//:opencl_binary"],
+    extra_deps = [":example_util"],
 )
 ```
 

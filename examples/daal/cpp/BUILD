@@ -11,7 +11,7 @@ dal_module(
 )
 
 _TEST_DEPS = [
-    ":example_util", "@opencl//:opencl_binary", "@tbb//:tbb",
+    ":example_util", "@tbb//:tbb",
 ]
 
 _DATA_DEPS = [
