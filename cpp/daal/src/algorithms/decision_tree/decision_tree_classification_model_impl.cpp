@@ -49,7 +49,7 @@ Model::Model(size_t nFeatures, services::Status & st) : _impl(new ModelImpl(nFea
     DAAL_CHECK_COND_ERROR(_impl, st, services::ErrorMemoryAllocationFailed);
 }
 
-Model * Model::create(size_t nFeatures, services::Status * stat)
+services::SharedPtr<Model> Model::create(size_t nFeatures, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(Model, nFeatures);
 }

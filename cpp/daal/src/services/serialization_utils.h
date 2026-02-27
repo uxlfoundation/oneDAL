@@ -44,14 +44,6 @@
     data_management::SerializationDesc ClassName::_desc(creator##ClassName, Tag); \
     __DAAL_SERIALIZATION_TAG(ClassName, Tag)
 
-#define __DAAL_REGISTER_SERIALIZATION_CREATE_CLASS(ClassName, Tag)                \
-    static data_management::SerializationIface * creator##ClassName()             \
-    {                                                                             \
-        return ClassName::create();                                               \
-    }                                                                             \
-    data_management::SerializationDesc ClassName::_desc(creator##ClassName, Tag); \
-    __DAAL_SERIALIZATION_TAG(ClassName, Tag)
-
 #define __DAAL_REGISTER_SERIALIZATION_CLASS2(ClassName, ImplClassName, Tag)       \
     static data_management::SerializationIface * creator##ClassName()             \
     {                                                                             \

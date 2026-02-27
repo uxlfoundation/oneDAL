@@ -82,10 +82,8 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     array<int> arr_cluster_count = array<int>::empty(1);
 
     const auto daal_responses = interop::convert_to_daal_homogen_table(arr_responses, row_count, 1);
-    const daal::services::SharedPtr<daal::data_management::NumericTablePtr>
-        daal_core_observation_indices(interop::empty_daal_homogen_table<int>(1));
-    const daal::services::SharedPtr<daal::data_management::NumericTablePtr> daal_core_observations(
-        interop::empty_daal_homogen_table<Float>(column_count));
+    const auto daal_core_observation_indices = interop::empty_daal_homogen_table<int>(1);
+    const auto daal_core_observations = interop::empty_daal_homogen_table<Float>(column_count);
     const auto daal_cluster_count = interop::convert_to_daal_homogen_table(arr_cluster_count, 1, 1);
 
     interop::status_to_exception(interop::call_daal_kernel<Float, dbscan_compute_wrapper>(

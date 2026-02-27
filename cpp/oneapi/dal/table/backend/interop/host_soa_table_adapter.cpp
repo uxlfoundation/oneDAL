@@ -24,11 +24,7 @@ namespace daal_dm = daal::data_management;
 template <typename Data>
 auto host_soa_table_adapter::create(const homogen_table& table) -> ptr_t {
     status_t internal_stat;
-    auto result = new host_soa_table_adapter(table, internal_stat, Data{});
-    if (!internal_stat.ok()) {
-        delete result;
-        result = nullptr;
-    }
+    auto result = ptr_t{ new host_soa_table_adapter(table, internal_stat, Data{}) };
     status_to_exception(internal_stat);
     return result;
 }

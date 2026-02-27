@@ -109,7 +109,7 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
 
     daal_multiclass::Parameter daal_multiclass_parameter_public(class_count);
 
-    daal_multiclass::Model* daal_model =
+    auto daal_model =
         daal_multiclass::Model::create(column_count, &daal_multiclass_parameter_public);
 
     const auto daal_layout = daal_data->getDataLayout();
@@ -127,7 +127,7 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
                                                                    daal_data.get(),
                                                                    daal_responses.get(),
                                                                    daal_weights.get(),
-                                                                   daal_model,
+                                                                   daal_model.get(),
                                                                    daal_svm_model.get(),
                                                                    daal_multiclass_parameter));
     const std::int64_t n_sv = daal_svm_model->getSupportIndices()->getNumberOfRows();

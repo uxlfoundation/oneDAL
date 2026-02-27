@@ -43,8 +43,8 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     Input * algInput = static_cast<Input *>(const_cast<daal::algorithms::Input *>(input));
     size_t dim       = algInput->get(data)->getNumberOfRows();
     services::Status status;
-    Argument::set(cosineDistance, data_management::NumericTablePtr(data_management::HomogenNumericTable<algorithmFPType>::create(
-                                      dim, dim, data_management::NumericTable::doAllocate, &status)));
+    Argument::set(cosineDistance,
+                  data_management::HomogenNumericTable<algorithmFPType>::create(dim, dim, data_management::NumericTable::doAllocate, &status));
     return status;
 }
 

@@ -50,7 +50,7 @@ SharedPtr<HomogenNumericTable<int> > getPartition(const init::DistributedParamet
         nParts = *(block.getBlockPtr());
         partitionTable->releaseBlockOfRows(block);
     }
-    SharedPtr<HomogenNumericTable<int> > nt(HomogenNumericTable<int>::create(1, nParts + 1, NumericTable::doAllocate, st));
+    SharedPtr<HomogenNumericTable<int> > nt = HomogenNumericTable<int>::create(1, nParts + 1, NumericTable::doAllocate, st);
     if (!st) return nt;
 
     int * partition = nt->getArray();

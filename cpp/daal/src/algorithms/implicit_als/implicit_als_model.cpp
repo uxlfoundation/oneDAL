@@ -68,8 +68,8 @@ PartialModel::PartialModel(const data_management::NumericTablePtr & factors, con
  * \param[out] stat     Status of the model construction
  * \return Partial implicit ALS model with the specified indices and factors
  */
-PartialModel * PartialModel::create(const data_management::NumericTablePtr & factors, const data_management::NumericTablePtr & indices,
-                                    services::Status * stat)
+PartialModelPtr PartialModel::create(const data_management::NumericTablePtr & factors, const data_management::NumericTablePtr & indices,
+                                     services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(PartialModel, factors, indices);
 }

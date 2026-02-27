@@ -47,14 +47,14 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     Parameter * algParameter = static_cast<Parameter *>(const_cast<daal::algorithms::Parameter *>(parameter));
 
     services::Status status;
-    set(largeItemsets, NumericTablePtr(HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status)));
-    set(largeItemsetsSupport, NumericTablePtr(HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status)));
+    set(largeItemsets, HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status));
+    set(largeItemsetsSupport, HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status));
 
     if (algParameter->discoverRules)
     {
-        set(antecedentItemsets, NumericTablePtr(HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status)));
-        set(consequentItemsets, NumericTablePtr(HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status)));
-        set(confidence, NumericTablePtr(HomogenNumericTable<algorithmFPType>::create(1, 0, NumericTableIface::notAllocate, &status)));
+        set(antecedentItemsets, HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status));
+        set(consequentItemsets, HomogenNumericTable<size_t>::create(2, 0, NumericTableIface::notAllocate, &status));
+        set(confidence, HomogenNumericTable<algorithmFPType>::create(1, 0, NumericTableIface::notAllocate, &status));
     }
     return status;
 }

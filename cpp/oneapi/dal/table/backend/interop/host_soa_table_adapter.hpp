@@ -32,7 +32,7 @@ class host_soa_table_adapter : public daal::data_management::SOANumericTable {
     using base = daal::data_management::SOANumericTable;
     using status_t = daal::services::Status;
     using rw_mode_t = daal::data_management::ReadWriteMode;
-    using ptr_t = host_soa_table_adapter*;
+    using ptr_t = daal::services::SharedPtr<host_soa_table_adapter>;
 
     template <typename T>
     using block_desc_t = daal::data_management::BlockDescriptor<T>;

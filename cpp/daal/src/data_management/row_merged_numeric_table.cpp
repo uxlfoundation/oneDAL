@@ -30,12 +30,12 @@ RowMergedNumericTable::RowMergedNumericTable(NumericTablePtr table) : NumericTab
     this->_status |= addNumericTable(table);
 }
 
-RowMergedNumericTable * RowMergedNumericTable::create(services::Status * stat)
+services::SharedPtr<RowMergedNumericTable> RowMergedNumericTable::create(services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL(RowMergedNumericTable);
 }
 
-RowMergedNumericTable * RowMergedNumericTable::create(const NumericTablePtr & nestedTable, services::Status * stat)
+services::SharedPtr<RowMergedNumericTable> RowMergedNumericTable::create(const NumericTablePtr & nestedTable, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(RowMergedNumericTable, nestedTable);
 }

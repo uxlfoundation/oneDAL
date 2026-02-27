@@ -93,7 +93,7 @@ public:
      * \param[in]  nFeatures Number of features in the dataset
      * \param[out] stat      Status of the model construction
      */
-    DAAL_DEPRECATED static Model * create(size_t nFeatures = 0, services::Status * stat = NULL);
+    DAAL_DEPRECATED static services::SharedPtr<Model> create(size_t nFeatures = 0, services::Status * stat = NULL);
 
     virtual ~Model();
 

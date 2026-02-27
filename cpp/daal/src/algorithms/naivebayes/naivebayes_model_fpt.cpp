@@ -47,9 +47,9 @@ DAAL_EXPORT Model::Model(size_t nFeatures, const interface2::Parameter & paramet
         return;
     }
 
-    _logP     = HomogenNumericTable<modelFPType>::create(1, par->nClasses, NumericTable::doAllocate);
-    _logTheta = HomogenNumericTable<modelFPType>::create(nFeatures, par->nClasses, NumericTable::doAllocate);
-    _auxTable = HomogenNumericTable<modelFPType>::create(nFeatures, par->nClasses, NumericTable::doAllocate);
+    _logP     = NumericTablePtr(new HomogenNumericTable<modelFPType>(1, par->nClasses, NumericTable::doAllocate));
+    _logTheta = NumericTablePtr(new HomogenNumericTable<modelFPType>(nFeatures, par->nClasses, NumericTable::doAllocate));
+    _auxTable = NumericTablePtr(new HomogenNumericTable<modelFPType>(nFeatures, par->nClasses, NumericTable::doAllocate));
 }
 
 template <typename modelFPType>
@@ -105,8 +105,8 @@ DAAL_EXPORT PartialModel::PartialModel(size_t nFeatures, const interface2::Param
         return;
     }
 
-    _classSize     = HomogenNumericTable<int>::create(1, par->nClasses, NumericTable::doAllocate);
-    _classGroupSum = HomogenNumericTable<int>::create(nFeatures, par->nClasses, NumericTable::doAllocate);
+    _classSize     = NumericTablePtr(new HomogenNumericTable<int>(1, par->nClasses, NumericTable::doAllocate));
+    _classGroupSum = NumericTablePtr(new HomogenNumericTable<int>(nFeatures, par->nClasses, NumericTable::doAllocate));
 }
 
 template <typename modelFPType>

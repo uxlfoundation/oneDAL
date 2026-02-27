@@ -183,7 +183,7 @@ void ModelImpl::copyModelReg(const ModelImpl & other, size_t idx, size_t global_
             (*_serializationData)[idx + i] = (*other._serializationData)[i];
             (*_impurityTables)[idx + i]    = (*other._impurityTables)[i];
             (*_nNodeSampleTables)[idx + i] = (*other._nNodeSampleTables)[i];
-            (*_probTbl)[idx + i].reset(probtbl);
+            (*_probTbl)[idx + i]           = probtbl;
         }
     }
 }
@@ -194,28 +194,26 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
     _nTree.inc();
     const size_t nNode = tree.getNumberOfNodes();
 
-    auto pTbl = new DecisionTreeTable(nNode);
+    auto pTbl           = new DecisionTreeTable(nNode);
+    auto impTbl         = new HomogenNumericTable<double>(1, nNode, NumericTable::doAllocate);
+    auto nodeSamplesTbl = new HomogenNumericTable<int>(1, nNode, NumericTable::doAllocate);
+    auto probTbl        = new HomogenNumericTable<double>(0, 0, NumericTable::doAllocate);
 
-    if (!pTbl)
+    if (!pTbl || !impTbl || !nodeSamplesTbl || !probTbl)
     {
         delete pTbl;
+        delete impTbl;
+        delete nodeSamplesTbl;
+        delete probTbl;
         return false;
     }
 
-    services::Status s;
-    NumericTablePtr impTbl(HomogenNumericTable<double>::create(1, nNode, NumericTable::doAllocate, &s));
-    DAAL_CHECK_STATUS_VAR(s);
-    NumericTablePtr nodeSamplesTbl(HomogenNumericTable<int>::create(1, nNode, NumericTable::doAllocate, &s));
-    DAAL_CHECK_STATUS_VAR(s);
-    NumericTablePtr probTbl(HomogenNumericTable<double>::create(0, 0, NumericTable::doAllocate, &s));
-    DAAL_CHECK_STATUS_VAR(s);
-
-    tree.convertToTable(pTbl, impTbl.get(), nodeSamplesTbl.get(), probTbl.get(), 0);
+    tree.convertToTable(pTbl, impTbl, nodeSamplesTbl, probTbl, 0);
 
     (*_serializationData)[iTree].reset(pTbl);
-    (*_impurityTables)[iTree]    = impTbl;
-    (*_nNodeSampleTables)[iTree] = nodeSamplesTbl;
-    (*_probTbl)[iTree]           = probTbl;
+    (*_impurityTables)[iTree].reset(impTbl);
+    (*_nNodeSampleTables)[iTree].reset(nodeSamplesTbl);
+    (*_probTbl)[iTree].reset(probTbl);
 
     return true;
 }

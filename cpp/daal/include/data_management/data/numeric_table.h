@@ -302,6 +302,12 @@ public:
     virtual NumericTableDictionaryPtr getDictionarySharedPtr() const = 0;
 
     /**
+     *  Resets a data dictionary for the Numeric Table
+     *  \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() { return services::Status(); }
+
+    /**
      *  Returns the type of a given feature
      *  \param[in] feature_idx Feature index
      *  \return Feature type
@@ -512,6 +518,20 @@ public:
     /**
      *  Constructor for a Numeric Table with predefined dictionary
      *  \param[in]  ddict          Pointer to the data dictionary
+     *  \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED NumericTable(NumericTableDictionary * ddict)
+    {
+        _obsnum            = 0;
+        _ddict             = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
+        _layout            = layout_unknown;
+        _memStatus         = notAllocated;
+        _normalizationFlag = NumericTable::nonNormalized;
+    }
+
+    /**
+     *  Constructor for a Numeric Table with predefined dictionary
+     *  \param[in]  ddict          Pointer to the data dictionary
      */
     NumericTable(NumericTableDictionaryPtr ddict)
     {
@@ -531,7 +551,7 @@ public:
     NumericTable(size_t featnum, size_t obsnum, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual)
     {
         _obsnum            = obsnum;
-        _ddict             = NumericTableDictionaryPtr(NumericTableDictionary::create(featnum, featuresEqual));
+        _ddict             = NumericTableDictionaryPtr(new NumericTableDictionary(featnum, featuresEqual));
         _layout            = layout_unknown;
         _memStatus         = notAllocated;
         _normalizationFlag = NumericTable::nonNormalized;
@@ -549,6 +569,8 @@ public:
     DAAL_DEPRECATED_VIRTUAL virtual NumericTableDictionary * getDictionary() const DAAL_C11_OVERRIDE { return _ddict.get(); }
 
     virtual NumericTableDictionaryPtr getDictionarySharedPtr() const DAAL_C11_OVERRIDE { return _ddict; }
+
+    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() DAAL_C11_OVERRIDE { return services::Status(); }
 
     virtual services::Status resize(size_t nrows) DAAL_C11_OVERRIDE
     {
@@ -755,12 +777,11 @@ protected:
     {}
 
     NumericTable(size_t featnum, size_t obsnum, DictionaryIface::FeaturesEqual featuresEqual, services::Status & st)
-        : _obsnum(obsnum),
-          _memStatus(notAllocated),
-          _layout(layout_unknown),
-          _normalizationFlag(NumericTable::nonNormalized),
-          _ddict(NumericTableDictionary::create(featnum, featuresEqual, &st))
-    {}
+        : _obsnum(obsnum), _memStatus(notAllocated), _layout(layout_unknown), _normalizationFlag(NumericTable::nonNormalized)
+    {
+        _ddict = NumericTableDictionary::create(featnum, featuresEqual, &st);
+        if (!st) return;
+    }
 
     virtual services::Status setNumberOfColumnsImpl(size_t ncol) { return _ddict->setNumberOfFeatures(ncol); }
 

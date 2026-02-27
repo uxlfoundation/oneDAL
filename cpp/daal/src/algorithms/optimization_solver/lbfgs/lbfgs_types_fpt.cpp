@@ -61,23 +61,21 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     data_management::NumericTablePtr pTbl = data_management::NumericTable::cast(pOpt->get(correctionPairs));
     if (!pTbl.get())
     {
-        pTbl = data_management::HomogenNumericTable<algorithmFPType>::create(argumentSize, 2 * algParam->m, data_management::NumericTable::doAllocate,
-                                                                             0.0, &s);
-        DAAL_CHECK_STATUS_VAR(s);
+        pTbl = data_management::NumericTablePtr(
+            new data_management::HomogenNumericTable<algorithmFPType>(argumentSize, 2 * algParam->m, data_management::NumericTable::doAllocate, 0.0));
         pOpt->set(correctionPairs, pTbl);
     }
     pTbl = data_management::NumericTable::cast(pOpt->get(correctionIndices));
     if (!pTbl.get())
     {
-        pTbl = data_management::HomogenNumericTable<int>::create(2, 1, data_management::NumericTable::doAllocate, 0, &s);
-        DAAL_CHECK_STATUS_VAR(s);
+        pTbl = data_management::NumericTablePtr(new data_management::HomogenNumericTable<int>(2, 1, data_management::NumericTable::doAllocate, 0));
         pOpt->set(correctionIndices, pTbl);
     }
     pTbl = data_management::NumericTable::cast(pOpt->get(averageArgumentLIterations));
     if (!pTbl.get())
     {
-        pTbl = data_management::HomogenNumericTable<algorithmFPType>::create(argumentSize, 2, data_management::NumericTable::doAllocate, 0.0, &s);
-        DAAL_CHECK_STATUS_VAR(s);
+        pTbl = data_management::NumericTablePtr(
+            new data_management::HomogenNumericTable<algorithmFPType>(argumentSize, 2, data_management::NumericTable::doAllocate, 0.0));
         pOpt->set(averageArgumentLIterations, pTbl);
     }
 

@@ -113,13 +113,22 @@ class DAAL_EXPORT Model : public daal::algorithms::classifier::Model
 public:
     DECLARE_MODEL(Model, classifier::Model);
 
-    Model(const Model & other);
-    Model & operator=(const Model & other);
+    /**
+     * Constructs multi-class classifier model
+     * \param[in] nFeatures Number of features in the dataset
+     * \param[in] par       Parameters of the multi-class classifier algorithm
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    Model(size_t nFeatures, const interface2::ParameterBase * par);
 
     /**
      * Empty constructor for deserialization
+     * \DAAL_DEPRECATED_USE{ Model::create }
      */
-    static Model * create() { return new Model(); }
+    Model();
+
+    Model(const Model & other);
+    Model & operator=(const Model & other);
 
     /**
      * Constructs multi-class classifier model
@@ -128,7 +137,7 @@ public:
      * \param[out] stat     Status of the model construction
      * \return Multi-class classifier model
      */
-    static Model * create(size_t nFeatures, const interface2::ParameterBase * par, services::Status * stat = NULL);
+    static services::SharedPtr<Model> create(size_t nFeatures, const interface2::ParameterBase * par, services::Status * stat = NULL);
 
     virtual ~Model();
 
@@ -175,18 +184,6 @@ protected:
     size_t _nFeatures;
     data_management::DataCollectionPtr _models; /* Collection of two-class classifiers associated with the model */
     classifier::ModelPtr * _modelsArray;
-
-    /**
-     * Constructs multi-class classifier model
-     * \param[in] nFeatures Number of features in the dataset
-     * \param[in] par       Parameters of the multi-class classifier algorithm
-     */
-    Model(size_t nFeatures, const interface2::ParameterBase * par);
-
-    /**
-     * Empty constructor for deserialization
-     */
-    Model();
 
     Model(size_t nFeatures, const interface2::ParameterBase * par, services::Status & st);
 

@@ -104,11 +104,11 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal::data_management::NumericTablePtr daal_responses_res;
     daal::data_management::NumericTablePtr daal_responses_prob_res;
     if (check_mask_flag(desc.get_infer_mode(), infer_mode::class_responses)) {
-        daal_responses_res.reset(interop::allocate_daal_homogen_table<Float>(row_count, 1));
+        daal_responses_res = interop::allocate_daal_homogen_table<Float>(row_count, 1);
     }
     if (check_mask_flag(desc.get_infer_mode(), infer_mode::class_probabilities)) {
-        daal_responses_prob_res.reset(
-            interop::allocate_daal_homogen_table<Float>(row_count, desc.get_class_count()));
+        daal_responses_prob_res =
+            interop::allocate_daal_homogen_table<Float>(row_count, desc.get_class_count());
     }
 
     const daal_df::classification::Model* const daal_model_ptr = daal_model.get();

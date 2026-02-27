@@ -62,11 +62,10 @@ inline auto convert_to_daal_homogen_table(array<Data>& data,
     const auto daal_data =
         daal::services::SharedPtr<Data>(data.get_mutable_data(), daal_object_owner{ data });
 
-    return daal::services::SharedPtr<daal::data_management::HomogenNumericTable<Data>>(
-        daal::data_management::HomogenNumericTable<Data>::create(
-            daal_data,
-            dal::detail::integral_cast<std::size_t>(column_count),
-            dal::detail::integral_cast<std::size_t>(row_count)));
+    return daal::data_management::HomogenNumericTable<Data>::create(
+        daal_data,
+        dal::detail::integral_cast<std::size_t>(column_count),
+        dal::detail::integral_cast<std::size_t>(row_count));
 }
 
 template <typename Data>
@@ -103,15 +102,9 @@ inline daal::data_management::NumericTablePtr wrap_by_host_homogen_adapter(
     const auto& dtype = table.get_metadata().get_data_type(0);
 
     switch (dtype) {
-        case data_type::float32:
-            return daal::data_management::NumericTablePtr(
-                host_homogen_table_adapter<float>::create(table));
-        case data_type::float64:
-            return daal::data_management::NumericTablePtr(
-                host_homogen_table_adapter<double>::create(table));
-        case data_type::int32:
-            return daal::data_management::NumericTablePtr(
-                host_homogen_table_adapter<std::int32_t>::create(table));
+        case data_type::float32: return host_homogen_table_adapter<float>::create(table);
+        case data_type::float64: return host_homogen_table_adapter<double>::create(table);
+        case data_type::int32: return host_homogen_table_adapter<std::int32_t>::create(table);
         default: return daal::data_management::NumericTablePtr();
     }
 }
@@ -120,15 +113,9 @@ inline daal::data_management::NumericTablePtr wrap_by_host_soa_adapter(const hom
     const auto& dtype = table.get_metadata().get_data_type(0);
 
     switch (dtype) {
-        case data_type::float32:
-            return daal::data_management::NumericTablePtr(
-                host_soa_table_adapter::create<float>(table));
-        case data_type::float64:
-            return daal::data_management::NumericTablePtr(
-                host_soa_table_adapter::create<double>(table));
-        case data_type::int32:
-            return daal::data_management::NumericTablePtr(
-                host_soa_table_adapter::create<std::int32_t>(table));
+        case data_type::float32: return host_soa_table_adapter::create<float>(table);
+        case data_type::float64: return host_soa_table_adapter::create<double>(table);
+        case data_type::int32: return host_soa_table_adapter::create<std::int32_t>(table);
         default: return daal::data_management::NumericTablePtr();
     }
 }
@@ -188,15 +175,14 @@ inline auto convert_to_daal_csr_table(array<T>& data,
         daal_object_owner{ row_indices });
 
     Status status;
-    const daal::services::SharedPtr<daal::data_management::CSRNumericTable> table(
-        daal::data_management::CSRNumericTable::create(
-            daal_data,
-            daal_column_indices,
-            daal_row_indices,
-            dal::detail::integral_cast<std::size_t>(column_count),
-            dal::detail::integral_cast<std::size_t>(row_count),
-            daal::data_management::CSRNumericTable::CSRIndexing::oneBased,
-            &status));
+    const auto table = daal::data_management::CSRNumericTable::create(
+        daal_data,
+        daal_column_indices,
+        daal_row_indices,
+        dal::detail::integral_cast<std::size_t>(column_count),
+        dal::detail::integral_cast<std::size_t>(row_count),
+        daal::data_management::CSRNumericTable::CSRIndexing::oneBased,
+        &status);
     status_to_exception(status);
     return table;
 }
@@ -237,15 +223,9 @@ inline daal::data_management::CSRNumericTablePtr wrap_by_host_csr_adapter(const 
     const auto& dtype = table.get_metadata().get_data_type(0);
 
     switch (dtype) {
-        case data_type::float32:
-            return daal::data_management::CSRNumericTablePtr(
-                host_csr_table_adapter<float>::create(table));
-        case data_type::float64:
-            return daal::data_management::CSRNumericTablePtr(
-                host_csr_table_adapter<double>::create(table));
-        case data_type::int32:
-            return daal::data_management::CSRNumericTablePtr(
-                host_csr_table_adapter<std::int32_t>::create(table));
+        case data_type::float32: return host_csr_table_adapter<float>::create(table);
+        case data_type::float64: return host_csr_table_adapter<double>::create(table);
+        case data_type::int32: return host_csr_table_adapter<std::int32_t>::create(table);
         default: return daal::data_management::CSRNumericTablePtr();
     }
 }

@@ -276,8 +276,8 @@ public:
         getMaxLvLAndNumNodes(*super::top(), nLvls, nNodes, nDenseLayers, 0);
         nNodes += (static_cast<size_t>(1) << (std::min(nLvls, nDenseLayers) + 1)) - 1;
         *pTbl        = new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
-        *pTblImp     = HomogenNumericTable<double>::create(1, nNodes, NumericTable::doAllocate);
-        *pTblSmplCnt = HomogenNumericTable<int>::create(1, nNodes, NumericTable::doAllocate);
+        *pTblImp     = new HomogenNumericTable<double>(1, nNodes, NumericTable::doAllocate);
+        *pTblSmplCnt = new HomogenNumericTable<int>(1, nNodes, NumericTable::doAllocate);
 
         if (!(*pTbl) || !(*pTblImp) || !(*pTblSmplCnt))
         {

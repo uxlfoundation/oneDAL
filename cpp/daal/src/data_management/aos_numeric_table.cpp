@@ -40,7 +40,7 @@ AOSNumericTable::AOSNumericTable(size_t structSize, size_t ncol, size_t nrow, se
     st |= initOffsets();
 }
 
-AOSNumericTable * AOSNumericTable::create(size_t structSize, size_t ncol, size_t nrow, services::Status * stat)
+services::SharedPtr<AOSNumericTable> AOSNumericTable::create(size_t structSize, size_t ncol, size_t nrow, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(AOSNumericTable, structSize, ncol, nrow);
 }

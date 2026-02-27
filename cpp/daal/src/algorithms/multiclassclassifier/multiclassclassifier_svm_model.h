@@ -38,9 +38,9 @@ class DAAL_EXPORT SvmModel : public classifier::Model
 {
 public:
     template <typename modelFPType>
-    DAAL_EXPORT static SvmModel * create(const size_t nClasses, const size_t nColumns,
-                                         const data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos,
-                                         services::Status * stat                                        = NULL)
+    DAAL_EXPORT static services::SharedPtr<SvmModel> create(
+        const size_t nClasses, const size_t nColumns,
+        const data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos, services::Status * stat = NULL)
 
     {
         DAAL_DEFAULT_CREATE_IMPL_EX(SvmModel, (modelFPType)0.0, nClasses, nColumns, layout);
@@ -89,18 +89,18 @@ protected:
         const size_t nModels = (nClasses * (nClasses - 1)) >> 1;
         if (layout == NumericTableIface::csrArray)
         {
-            _SV.reset(CSRNumericTable::create<modelFPType>(nullptr, nullptr, nullptr, nColumns, size_t(0), CSRNumericTable::oneBased, &st));
+            _SV = CSRNumericTable::create<modelFPType>(nullptr, nullptr, nullptr, nColumns, size_t(0), CSRNumericTable::oneBased, &st);
         }
         else
         {
-            _SV.reset(HomogenNumericTable<modelFPType>::create(nColumns, 0, NumericTable::doNotAllocate, &st));
+            _SV = HomogenNumericTable<modelFPType>::create(nColumns, 0, NumericTable::doNotAllocate, &st);
         }
         if (!st) return;
-        _SVCoeff.reset(HomogenNumericTable<modelFPType>::create(nClasses - 1, 0, NumericTable::doNotAllocate, &st));
+        _SVCoeff = HomogenNumericTable<modelFPType>::create(nClasses - 1, 0, NumericTable::doNotAllocate, &st);
         if (!st) return;
-        _SVIndices.reset(HomogenNumericTable<int>::create(1, 0, NumericTable::doNotAllocate, &st));
+        _SVIndices = HomogenNumericTable<int>::create(1, 0, NumericTable::doNotAllocate, &st);
         if (!st) return;
-        _biases.reset(HomogenNumericTable<modelFPType>::create(1, nModels, NumericTable::doAllocate, &st));
+        _biases = HomogenNumericTable<modelFPType>::create(1, nModels, NumericTable::doAllocate, &st);
     }
 };
 

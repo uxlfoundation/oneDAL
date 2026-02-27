@@ -25,7 +25,6 @@
 #define __MERGED_NUMERIC_TABLE_H__
 
 #include "data_management/data/numeric_table.h"
-#include "data_management/data/factory.h" // goes after the numeric_table.h to avoid circular dependency
 #include "services/daal_memory.h"
 #include "services/daal_defines.h"
 #include "data_management/data/data_serialize.h"
@@ -50,13 +49,32 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    friend Creator<MergedNumericTable>;
+    /**
+     *  Constructor for an empty merge Numeric Table
+     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
+     */
+    MergedNumericTable();
+
+    /**
+     *  Constructor for a merge Numeric Table consisting of one table
+     *  \param[in]  table       Pointer to the table
+     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
+     */
+    MergedNumericTable(NumericTablePtr table);
+
+    /**
+     *  Constructor for a merge Numeric Table consisting of two tables
+     *  \param[in]  first      Pointer to the first table
+     *  \param[in]  second     Pointer to the second table
+     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
+     */
+    MergedNumericTable(NumericTablePtr first, NumericTablePtr second);
 
     /**
      * Constructor for an empty merge Numeric Table
      * \param[out] stat  Status of the MergedNumericTable construction
      */
-    static MergedNumericTable * create(services::Status * stat = NULL);
+    static services::SharedPtr<MergedNumericTable> create(services::Status * stat = NULL);
 
     /**
      * Constructs a merge Numeric Table consisting of one table
@@ -64,7 +82,7 @@ public:
      * \param[out] stat         Status of the MergedNumericTable construction
      * \return     Merge Numeric Table of one table
      */
-    static MergedNumericTable * create(const NumericTablePtr & nestedTable, services::Status * stat = NULL);
+    static services::SharedPtr<MergedNumericTable> create(const NumericTablePtr & nestedTable, services::Status * stat = NULL);
 
     /**
      * Constructs a merge Numeric Table consisting of two tables
@@ -73,7 +91,8 @@ public:
      * \param[out] stat    Status of the MergedNumericTable construction
      * \return     Merge Numeric Table of two tables
      */
-    static MergedNumericTable * create(const NumericTablePtr & first, const NumericTablePtr & second, services::Status * stat = NULL);
+    static services::SharedPtr<MergedNumericTable> create(const NumericTablePtr & first, const NumericTablePtr & second,
+                                                          services::Status * stat = NULL);
 
     /**
      *  Adds the table to the right of the merge Numeric Table
@@ -216,24 +235,6 @@ public:
     }
 
 protected:
-    /**
-     *  Constructor for an empty merge Numeric Table
-     */
-    MergedNumericTable();
-
-    /**
-     *  Constructor for a merge Numeric Table consisting of one table
-     *  \param[in]  table       Pointer to the table
-     */
-    MergedNumericTable(NumericTablePtr table);
-
-    /**
-     *  Constructor for a merge Numeric Table consisting of two tables
-     *  \param[in]  first      Pointer to the first table
-     *  \param[in]  second     Pointer to the second table
-     */
-    MergedNumericTable(NumericTablePtr first, NumericTablePtr second);
-
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {

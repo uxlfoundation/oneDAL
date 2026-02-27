@@ -41,8 +41,6 @@ public:
 
     model_interop_impl(const model_ptr_t& model) : daal_model_(model) {}
 
-    model_interop_impl(const DaalModel* model) : daal_model_(model) {}
-
     const model_ptr_t get_model() const {
         return daal_model_;
     }

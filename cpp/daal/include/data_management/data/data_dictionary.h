@@ -174,7 +174,20 @@ public:
     static int serializationTag() { return SerializationTag; }
     virtual int getSerializationTag() const DAAL_C11_OVERRIDE { return serializationTag(); }
 
-    friend Creator<Dictionary>;
+    /**
+     *  Constructor of a data dictionary
+     *  \param[in]  nfeat  Number of features in the table
+     *  \param[in]  featuresEqual Flag specifying that all features have equal types and properties
+     *  \DAAL_DEPRECATED_USE{ Dictionary::create }
+     */
+    Dictionary(size_t nfeat, FeaturesEqual featuresEqual = notEqual)
+        : _nfeat(0), _featuresEqual(featuresEqual), _dict(0), _errors(new services::KernelErrorCollection())
+    {
+        if (nfeat)
+        {
+            setNumberOfFeatures(nfeat);
+        }
+    }
 
     /**
      *  Constructs a data dictionary
@@ -183,17 +196,23 @@ public:
      *  \param[in]  stat Status of the dictionary construction
      *  \return data dictionary
      */
-    static Dictionary * create(size_t nfeat, FeaturesEqual featuresEqual = notEqual, services::Status * stat = NULL)
+    static services::SharedPtr<Dictionary> create(size_t nfeat, FeaturesEqual featuresEqual = notEqual, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_IMPL_EX(Dictionary, nfeat, featuresEqual);
     }
+
+    /**
+     *  Default constructor of a data dictionary
+     *  \DAAL_DEPRECATED_USE{ Dictionary::create }
+     */
+    Dictionary() : _nfeat(0), _dict(0), _featuresEqual(DictionaryIface::notEqual), _errors(new services::KernelErrorCollection()) {}
 
     /**
      *  Constructs a default data dictionary
      *  \param[in]  stat Status of the dictionary construction
      *  \return data dictionary
      */
-    static Dictionary * create(services::Status * stat = NULL) { DAAL_DEFAULT_CREATE_IMPL(Dictionary); }
+    static services::SharedPtr<Dictionary> create(services::Status * stat = NULL) { DAAL_DEFAULT_CREATE_IMPL(Dictionary); }
 
     /** \private */
     virtual ~Dictionary() { resetDictionary(); }
@@ -411,25 +430,6 @@ protected:
     FeaturesEqual _featuresEqual;
     Feature * _dict;
     services::SharedPtr<services::KernelErrorCollection> _errors;
-
-    /**
-     *  Default constructor of a data dictionary
-     */
-    Dictionary() : _nfeat(0), _dict(0), _featuresEqual(DictionaryIface::notEqual), _errors(new services::KernelErrorCollection()) {}
-
-    /**
-     *  Constructor of a data dictionary
-     *  \param[in]  nfeat  Number of features in the table
-     *  \param[in]  featuresEqual Flag specifying that all features have equal types and properties
-     */
-    Dictionary(size_t nfeat, FeaturesEqual featuresEqual = notEqual)
-        : _nfeat(0), _featuresEqual(featuresEqual), _dict(0), _errors(new services::KernelErrorCollection())
-    {
-        if (nfeat)
-        {
-            setNumberOfFeatures(nfeat);
-        }
-    }
 
     Dictionary(size_t nfeat, FeaturesEqual featuresEqual, services::Status & st)
         : _nfeat(0), _featuresEqual(featuresEqual), _dict(0), _errors(new services::KernelErrorCollection())

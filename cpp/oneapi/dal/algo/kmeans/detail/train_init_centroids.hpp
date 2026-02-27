@@ -57,8 +57,8 @@ inline daal::data_management::NumericTablePtr daal_generate_centroids(const desc
     const std::size_t init_len_input = 1;
     const daal::data_management::NumericTable* init_input[init_len_input] = { daal_data.get() };
 
-    daal_initial_centroids.reset(
-        interop::allocate_daal_homogen_table<Float>(cluster_count, column_count));
+    daal_initial_centroids =
+        interop::allocate_daal_homogen_table<Float>(cluster_count, column_count);
     const std::size_t init_len_output = 1;
     daal::data_management::NumericTable* init_output[init_len_output] = {
         daal_initial_centroids.get()

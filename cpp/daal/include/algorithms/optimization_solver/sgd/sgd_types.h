@@ -100,7 +100,7 @@ struct DAAL_EXPORT BaseParameter : public optimization_solver::iterative_solver:
     BaseParameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
                   data_management::NumericTablePtr batchIndices         = data_management::NumericTablePtr(),
                   data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                      data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                      new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
                   size_t batchSize = 1, size_t seed = 777);
 
     virtual ~BaseParameter() {}
@@ -150,7 +150,7 @@ struct DAAL_EXPORT Parameter<defaultDense> : public BaseParameter
     DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
                               data_management::NumericTablePtr batchIndices         = data_management::NumericTablePtr(),
                               data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
                               size_t seed = 777);
 
     /**
@@ -193,10 +193,10 @@ struct DAAL_EXPORT Parameter<miniBatch> : public BaseParameter
     DAAL_DEPRECATED Parameter(const sum_of_functions::BatchPtr & function, size_t nIterations = 100, double accuracyThreshold = 1.0e-05,
                               data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(), size_t batchSize = 128,
                               data_management::NumericTablePtr conservativeSequence = data_management::NumericTablePtr(
-                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
                               size_t innerNIterations                               = 5,
                               data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
                               size_t seed = 777);
 
     /**
@@ -243,7 +243,7 @@ struct DAAL_EXPORT Parameter<momentum> : public BaseParameter
                               double accuracyThreshold = 1.0e-05, data_management::NumericTablePtr batchIndices = data_management::NumericTablePtr(),
                               size_t batchSize                                      = 128,
                               data_management::NumericTablePtr learningRateSequence = data_management::NumericTablePtr(
-                                  data_management::HomogenNumericTable<double>::create(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
+                                  new data_management::HomogenNumericTable<double>(1, 1, data_management::NumericTableIface::doAllocate, 1.0)),
                               size_t seed = 777);
 
     /**

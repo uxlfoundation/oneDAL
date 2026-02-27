@@ -26,7 +26,6 @@
 
 #include "algorithms/model.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "data_management/data/factory.h" // goes after the homogen_numeric_table.h to avoid circular dependency
 
 namespace daal
 {
@@ -93,9 +92,21 @@ public:
     DECLARE_MODEL(Model, daal::algorithms::Model);
 
     /**
-     * Empty constructor for deserialization
+     * Constructs the implicit ALS model
+     * \param[in]  nUsers    Number of users in the input data set
+     * \param[in]  nItems    Number of items in the input data set
+     * \param[in]  parameter Implicit ALS parameters
+     * \param[in]  dummy     Dummy variable for the templated constructor
+     * \DAAL_DEPRECATED_USE{ Model::create }
      */
-    DAAL_EXPORT static Model * create() { return new Model(); }
+    template <typename modelFPType>
+    DAAL_EXPORT Model(size_t nUsers, size_t nItems, const Parameter & parameter, modelFPType dummy);
+
+    /**
+     * Empty constructor for deserialization
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    Model();
 
     /**
      * Constructs the implicit ALS model
@@ -105,7 +116,7 @@ public:
      * \param[out] stat      Status of the model construction
      */
     template <typename modelFPType>
-    DAAL_EXPORT static Model * create(size_t nUsers, size_t nItems, const Parameter & parameter, services::Status * stat = NULL);
+    DAAL_EXPORT static services::SharedPtr<Model> create(size_t nUsers, size_t nItems, const Parameter & parameter, services::Status * stat = NULL);
 
     virtual ~Model() {}
 
@@ -128,21 +139,6 @@ private:
     data_management::NumericTablePtr _itemsFactors; /* Table of resulting items factors */
 
 protected:
-    /**
-     * Constructs the implicit ALS model
-     * \param[in]  nUsers    Number of users in the input data set
-     * \param[in]  nItems    Number of items in the input data set
-     * \param[in]  parameter Implicit ALS parameters
-     * \param[in]  dummy     Dummy variable for the templated constructor
-     */
-    template <typename modelFPType>
-    DAAL_EXPORT Model(size_t nUsers, size_t nItems, const Parameter & parameter, modelFPType dummy);
-
-    /**
-     * Empty constructor for deserialization
-     */
-    Model();
-
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {
@@ -176,11 +172,46 @@ public:
      * Constructs a partial implicit ALS model of a specified size
      * \param[in] parameter Implicit ALS parameters
      * \param[in] size      Model size
+     * \param[in] dummy     Dummy variable for the templated constructor
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    template <typename modelFPType>
+    DAAL_EXPORT PartialModel(const Parameter & parameter, size_t size, modelFPType dummy);
+
+    /**
+     * Constructs a partial implicit ALS model from the indices of factors
+     * \param[in] parameter Implicit ALS parameters
+     * \param[in] offset    Index of the first factor in the partial model
+     * \param[in] indices   Pointer to the numeric table with the indices of factors
+     * \param[in] dummy     Dummy variable for the templated constructor
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    template <typename modelFPType>
+    DAAL_EXPORT PartialModel(const Parameter & parameter, size_t offset, data_management::NumericTablePtr indices, modelFPType dummy);
+
+    /**
+     * Constructs a partial implicit ALS model from the indices and factors stored in the numeric tables
+     * \param[in] factors   Pointer to the numeric table with factors stored in row-major order
+     * \param[in] indices   Pointer to the numeric table with the indices of factors
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    PartialModel(data_management::NumericTablePtr factors, data_management::NumericTablePtr indices);
+
+    /**
+     * Empty constructor for deserialization
+     * \DAAL_DEPRECATED_USE{ Model::create }
+     */
+    PartialModel();
+
+    /**
+     * Constructs a partial implicit ALS model of a specified size
+     * \param[in] parameter Implicit ALS parameters
+     * \param[in] size      Model size
      * \param[out] stat     Status of the model construction
      * \return Partial implicit ALS model of a specified size
      */
     template <typename modelFPType>
-    DAAL_EXPORT PartialModel * create(const Parameter & parameter, size_t size, services::Status * stat = NULL);
+    DAAL_EXPORT static services::SharedPtr<PartialModel> create(const Parameter & parameter, size_t size, services::Status * stat = NULL);
     /**
      * Constructs a partial implicit ALS model from the indices of factors
      * \param[in] parameter Implicit ALS parameters
@@ -190,8 +221,8 @@ public:
      * \return Partial implicit ALS model with the specified indices and factors
      */
     template <typename modelFPType>
-    DAAL_EXPORT static PartialModel * create(const Parameter & parameter, size_t offset, const data_management::NumericTablePtr & indices,
-                                             services::Status * stat = NULL);
+    DAAL_EXPORT static services::SharedPtr<PartialModel> create(const Parameter & parameter, size_t offset,
+                                                                const data_management::NumericTablePtr & indices, services::Status * stat = NULL);
     /**
      * Constructs a partial implicit ALS model from the indices and factors stored in the numeric tables
      * \param[in] factors   Pointer to the numeric table with factors stored in row-major order
@@ -199,8 +230,8 @@ public:
      * \param[out] stat     Status of the model construction
      * \return Partial implicit ALS model with the specified indices and factors
      */
-    static PartialModel * create(const data_management::NumericTablePtr & factors, const data_management::NumericTablePtr & indices,
-                                 services::Status * stat = NULL);
+    static services::SharedPtr<PartialModel> create(const data_management::NumericTablePtr & factors,
+                                                    const data_management::NumericTablePtr & indices, services::Status * stat = NULL);
 
     virtual ~PartialModel() {}
 
@@ -219,37 +250,6 @@ public:
 protected:
     data_management::NumericTablePtr _factors; /* Factors in row-major format */
     data_management::NumericTablePtr _indices; /* Indices of the factors */
-
-    /**
-     * Constructs a partial implicit ALS model of a specified size
-     * \param[in] parameter Implicit ALS parameters
-     * \param[in] size      Model size
-     * \param[in] dummy     Dummy variable for the templated constructor
-     */
-    template <typename modelFPType>
-    DAAL_EXPORT PartialModel(const Parameter & parameter, size_t size, modelFPType dummy);
-
-    /**
-     * Constructs a partial implicit ALS model from the indices of factors
-     * \param[in] parameter Implicit ALS parameters
-     * \param[in] offset    Index of the first factor in the partial model
-     * \param[in] indices   Pointer to the numeric table with the indices of factors
-     * \param[in] dummy     Dummy variable for the templated constructor
-     */
-    template <typename modelFPType>
-    DAAL_EXPORT PartialModel(const Parameter & parameter, size_t offset, data_management::NumericTablePtr indices, modelFPType dummy);
-
-    /**
-     * Constructs a partial implicit ALS model from the indices and factors stored in the numeric tables
-     * \param[in] factors   Pointer to the numeric table with factors stored in row-major order
-     * \param[in] indices   Pointer to the numeric table with the indices of factors
-     */
-    PartialModel(data_management::NumericTablePtr factors, data_management::NumericTablePtr indices);
-
-    /**
-     * Empty constructor for deserialization
-     */
-    PartialModel();
 
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)

@@ -169,7 +169,7 @@ public:
         DataCollection tables;
         for (;; maxRows *= 2)
         {
-            NumericTablePtr ntCurrent(HomogenNumericTable<DAAL_DATA_TYPE>::create(ncols, maxRows, NumericTableIface::doAllocate, &s));
+            NumericTablePtr ntCurrent = HomogenNumericTable<DAAL_DATA_TYPE>::create(ncols, maxRows, NumericTableIface::doAllocate, &s);
             if (!s)
             {
                 this->_status.add(services::throwIfPossible(services::Status(services::ErrorNumericTableNotAllocated)));
@@ -319,7 +319,7 @@ public:
             return services::throwIfPossible(services::Status(services::ErrorDictionaryAlreadyAvailable));
         }
 
-        _dict.reset(DataSourceDictionary::create(&s));
+        _dict = DataSourceDictionary::create(&s);
         if (!s)
         {
             return s;

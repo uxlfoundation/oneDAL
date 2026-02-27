@@ -28,7 +28,7 @@
 #include "services/daal_defines.h"
 
 #include "data_management/data/numeric_table.h"
-#include "data_management/data/factory.h" // goes after the numeric_table.h to avoid circular dependency
+#include "data_management/data/data_serialize.h"
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -55,8 +55,6 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    friend Creator<HomogenNumericTable<DataType> >;
-
     DAAL_CAST_OPERATOR(HomogenNumericTable)
     /**
      *  Typedef that stores a datatype used for template instantiation
@@ -65,27 +63,65 @@ public:
 
 public:
     /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddict   Pointer to the predefined NumericTableDictionary
+     *  \DAAL_DEPRECATED
+     */
+    DAAL_DEPRECATED HomogenNumericTable(NumericTableDictionary * ddict) : NumericTable(ddict) { _layout = aos; }
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddictForHomogenNumericTable   Pointer to the predefined NumericTableDictionary
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(NumericTableDictionaryPtr ddictForHomogenNumericTable) : NumericTable(ddictForHomogenNumericTable) { _layout = aos; }
+
+    /**
      *  Constructs an empty Numeric Table with a predefined NumericTableDictionary
      *  \param[in]  ddictForHomogenNumericTable   Pointer to the predefined NumericTableDictionary
      *  \param[out] stat                          Status of the numeric table construction
      *  \return     Empty numeric table with a predefined NumericTableDictionary
      */
-    static HomogenNumericTable<DataType> * create(NumericTableDictionaryPtr ddictForHomogenNumericTable, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(NumericTableDictionaryPtr ddictForHomogenNumericTable,
+                                                                      services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(HomogenNumericTable, DataType, ddictForHomogenNumericTable);
     }
+
+    /**
+     *  Constructor for an empty Numeric Table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable() : NumericTable(0, 0) {}
 
     /**
      *  Constructs an empty Numeric Table
      *  \param[out] stat    Status of the numeric table construction
      *  \return     Empty numeric table
      */
-    static HomogenNumericTable<DataType> * create(services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL(HomogenNumericTable, DataType);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DataType * const ptr, size_t nColumns = 0, size_t nRows = 0) : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
@@ -93,12 +129,30 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory
      */
-    static HomogenNumericTable<DataType> * create(DataType * const ptr, size_t nColumns = 0, size_t nRows = 0, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DataType * const ptr, size_t nColumns = 0, size_t nRows = 0,
+                                                                      services::Status * stat = NULL)
     {
         return create(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, stat);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows) : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
@@ -106,13 +160,32 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory
      */
-    static HomogenNumericTable<DataType> * create(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
-                                                  services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
+                                                                      services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, ptr, nColumns, nRows, stat);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr = 0, size_t nColumns = 0, size_t nRows = 0)
+        : NumericTable(nColumns, nRows, featuresEqual)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory
      *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
@@ -121,13 +194,32 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr = 0, size_t nColumns = 0,
-                                                  size_t nRows = 0, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr = 0,
+                                                                      size_t nColumns = 0, size_t nRows = 0, services::Status * stat = NULL)
     {
         return create(featuresEqual, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, stat);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
+        : NumericTable(nColumns, nRows, featuresEqual)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory
      *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
@@ -136,13 +228,33 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr,
-                                                  size_t nColumns, size_t nRows, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual,
+                                                                      const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
+                                                                      services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(HomogenNumericTable, DataType, featuresEqual, ptr, nColumns, nRows);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DataType * const ptr, size_t nColumns, size_t nRows, const DataType & constValue) : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+        this->_status |= assign<DataType>(constValue);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory and filling the table with a constant
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
@@ -151,13 +263,33 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory and initialized with a constant
      */
-    static HomogenNumericTable<DataType> * create(DataType * const ptr, size_t nColumns, size_t nRows, const DataType & constValue,
-                                                  services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DataType * const ptr, size_t nColumns, size_t nRows,
+                                                                      const DataType & constValue, services::Status * stat = NULL)
     {
         return create(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, constValue, stat);
     }
 
     /**
+     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows, const DataType & constValue)
+        : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+        this->_status |= assign<DataType>(constValue);
+    }
+
+    /**
      *  Constructs a Numeric Table with user-allocated memory and filling the table with a constant
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
@@ -166,26 +298,32 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory and initialized with a constant
      */
-    static HomogenNumericTable<DataType> * create(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
-                                                  const DataType & constValue, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
+                                                                      const DataType & constValue, services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, ptr, nColumns, nRows, constValue, stat);
     }
 
     /**
-     *  Constructs a Numeric Table with user-allocated memory and filling the table with a constant
+     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
      *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     *  \param[out] stat           Status of the numeric table construction
-     *  \return     Numeric table with user-allocated memory and initialized with a constant
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr, size_t nColumns, size_t nRows,
-                                                  const DataType & constValue, services::Status * stat = NULL)
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr, size_t nColumns, size_t nRows,
+                        const DataType & constValue)
+        : NumericTable(nColumns, nRows, featuresEqual)
     {
-        return create(featuresEqual, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, constValue, stat);
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+        this->_status |= assign<DataType>(constValue);
     }
 
     /**
@@ -198,10 +336,68 @@ public:
      *  \param[out] stat           Status of the numeric table construction
      *  \return     Numeric table with user-allocated memory and initialized with a constant
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr,
-                                                  size_t nColumns, size_t nRows, const DataType & constValue, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr,
+                                                                      size_t nColumns, size_t nRows, const DataType & constValue,
+                                                                      services::Status * stat = NULL)
+    {
+        return create(featuresEqual, services::SharedPtr<DataType>(ptr, services::EmptyDeleter()), nColumns, nRows, constValue, stat);
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
+     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
+                        const DataType & constValue)
+        : NumericTable(nColumns, nRows, featuresEqual)
+    {
+        _layout = aos;
+        this->_status |= setArray(ptr, nRows);
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+        this->_status |= assign<DataType>(constValue);
+    }
+
+    /**
+     *  Constructs a Numeric Table with user-allocated memory and filling the table with a constant
+     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
+     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
+     *  \param[in]  nColumns       Number of columns in the table
+     *  \param[in]  nRows          Number of rows in the table
+     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
+     *  \param[out] stat           Status of the numeric table construction
+     *  \return     Numeric table with user-allocated memory and initialized with a constant
+     */
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual,
+                                                                      const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
+                                                                      const DataType & constValue, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(HomogenNumericTable, DataType, featuresEqual, ptr, nColumns, nRows, constValue);
+    }
+
+    /**
+     *  Constructor for a Numeric Table with memory allocation controlled via a flag
+     *  \param[in]  nColumns                Number of columns in the table
+     *  \param[in]  nRows                   Number of rows in the table
+     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag) : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+
+        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
     }
 
     /**
@@ -212,9 +408,30 @@ public:
      *  \param[out] stat                    Status of the numeric table construction
      *  \return     Numeric table
      */
-    static HomogenNumericTable<DataType> * create(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag,
+                                                                      services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, memoryAllocationFlag, stat);
+    }
+
+    /**
+     *  Constructor for a Numeric Table with memory allocation controlled via a flag
+     *  \param[in]  featuresEqual           Flag that makes all features in the Numeric Table Data Dictionary equal
+     *  \param[in]  nColumns                Number of columns in the table
+     *  \param[in]  nRows                   Number of rows in the table
+     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag)
+        : NumericTable(nColumns, nRows, featuresEqual)
+    {
+        _layout = aos;
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(df);
+
+        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
     }
 
     /**
@@ -226,10 +443,33 @@ public:
      *  \param[out] stat                    Status of the numeric table construction
      *  \return     Numeric table
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                  AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                      AllocationFlag memoryAllocationFlag, services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(HomogenNumericTable, DataType, featuresEqual, nColumns, nRows, memoryAllocationFlag);
+    }
+
+    /**
+     *  Constructor for a Numeric Table with memory allocation controlled via a flag and filling the table with a constant
+     *  \param[in]  nColumns                Number of columns in the table
+     *  \param[in]  nRows                   Number of rows in the table
+     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
+        : NumericTable(nColumns, nRows)
+    {
+        _layout = aos;
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+
+        this->_status |= _ddict->setAllFeatures(df);
+
+        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
+
+        this->_status |= assign<DataType>(constValue);
     }
 
     /**
@@ -241,10 +481,38 @@ public:
      *  \param[out] stat                    Status of the numeric table construction
      *  \return     Numeric table initialized with a constant
      */
-    static HomogenNumericTable<DataType> * create(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag, const DataType & constValue,
-                                                  services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag,
+                                                                      const DataType & constValue, services::Status * stat = NULL)
     {
         return create(DictionaryIface::notEqual, nColumns, nRows, memoryAllocationFlag, constValue, stat);
+    }
+
+    /**
+     *  Constructor for a numeric table with memory allocation controlled via a flag and filling the table with a constant
+     *  \param[in]  featuresEqual           Flag that makes all features in the numeric table data dictionary equal
+     *  \param[in]  nColumns                Number of columns in the table
+     *  \param[in]  nRows                   Number of rows in the table
+     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
+     *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
+     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
+     */
+    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                        NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
+        : NumericTable(nColumns, nRows, featuresEqual)
+    {
+        _layout = aos;
+
+        NumericTableFeature df;
+        df.setType<DataType>();
+
+        this->_status |= _ddict->setAllFeatures(df);
+
+        if (memoryAllocationFlag == doAllocate)
+        {
+            this->_status |= allocateDataMemoryImpl();
+        }
+
+        this->_status |= assign<DataType>(constValue);
     }
 
     /**
@@ -257,8 +525,9 @@ public:
      *  \param[out] stat                    Status of the numeric table construction
      *  \return     Numeric table initialized with a constant
      */
-    static HomogenNumericTable<DataType> * create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                                                  AllocationFlag memoryAllocationFlag, const DataType & constValue, services::Status * stat = NULL)
+    static services::SharedPtr<HomogenNumericTable<DataType> > create(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
+                                                                      AllocationFlag memoryAllocationFlag, const DataType & constValue,
+                                                                      services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_TEMPLATE_IMPL_EX(HomogenNumericTable, DataType, featuresEqual, nColumns, nRows, memoryAllocationFlag, constValue);
     }
@@ -452,249 +721,6 @@ public:
 
 protected:
     services::SharedPtr<byte> _ptr;
-
-    /**
-     *  Constructor for an empty Numeric Table
-     */
-    HomogenNumericTable() : NumericTable(0, 0) {}
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddictForHomogenNumericTable   Pointer to the predefined NumericTableDictionary
-     */
-    HomogenNumericTable(NumericTableDictionaryPtr ddictForHomogenNumericTable) : NumericTable(ddictForHomogenNumericTable) { _layout = aos; }
-
-    /**
-     *  Constructor for a numeric table with memory allocation controlled via a flag and filling the table with a constant
-     *  \param[in]  featuresEqual           Flag that makes all features in the numeric table data dictionary equal
-     *  \param[in]  nColumns                Number of columns in the table
-     *  \param[in]  nRows                   Number of rows in the table
-     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
-                        NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-
-        this->_status |= _ddict->setAllFeatures(df);
-
-        if (memoryAllocationFlag == doAllocate)
-        {
-            this->_status |= allocateDataMemoryImpl();
-        }
-
-        this->_status |= assign<DataType>(constValue);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     */
-    HomogenNumericTable(DataType * const ptr, size_t nColumns = 0, size_t nRows = 0) : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     */
-    HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows) : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr = 0, size_t nColumns = 0, size_t nRows = 0)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(DataType * const ptr, size_t nColumns, size_t nRows, const DataType & constValue) : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-        this->_status |= assign<DataType>(constValue);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows, const DataType & constValue)
-        : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-        this->_status |= assign<DataType>(constValue);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
-     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr, size_t nColumns, size_t nRows,
-                        const DataType & constValue)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-        this->_status |= assign<DataType>(constValue);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory and filling the table with a constant
-     *  \param[in]  featuresEqual  Flag that makes all features in the Numeric Table Data Dictionary equal
-     *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
-     *  \param[in]  nColumns       Number of columns in the table
-     *  \param[in]  nRows          Number of rows in the table
-     *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
-                        const DataType & constValue)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-        this->_status |= setArray(ptr, nRows);
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-        this->_status |= assign<DataType>(constValue);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with memory allocation controlled via a flag
-     *  \param[in]  nColumns                Number of columns in the table
-     *  \param[in]  nRows                   Number of rows in the table
-     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     */
-    HomogenNumericTable(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag) : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-
-        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
-    }
-
-    /**
-     *  Constructor for a Numeric Table with memory allocation controlled via a flag
-     *  \param[in]  featuresEqual           Flag that makes all features in the Numeric Table Data Dictionary equal
-     *  \param[in]  nColumns                Number of columns in the table
-     *  \param[in]  nRows                   Number of rows in the table
-     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     */
-    HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag)
-        : NumericTable(nColumns, nRows, featuresEqual)
-    {
-        _layout = aos;
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(df);
-
-        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
-    }
-
-    /**
-     *  Constructor for a Numeric Table with memory allocation controlled via a flag and filling the table with a constant
-     *  \param[in]  nColumns                Number of columns in the table
-     *  \param[in]  nRows                   Number of rows in the table
-     *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
-     */
-    HomogenNumericTable(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
-        : NumericTable(nColumns, nRows)
-    {
-        _layout = aos;
-
-        NumericTableFeature df;
-        df.setType<DataType>();
-
-        this->_status |= _ddict->setAllFeatures(df);
-
-        if (memoryAllocationFlag == doAllocate) this->_status |= allocateDataMemoryImpl();
-
-        this->_status |= assign<DataType>(constValue);
-    }
 
     HomogenNumericTable(services::Status & st) : NumericTable(0, 0, DictionaryIface::notEqual, st) {}
 

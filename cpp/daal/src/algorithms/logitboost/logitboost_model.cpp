@@ -97,7 +97,7 @@ Model::Model(size_t nFeatures, const Parameter * par, services::Status & st)
  * \param[in]  par       Pointer to the parameter structure of the LogitBoost algorithm
  * \param[out] stat      Status of the model construction
  */
-Model * Model::create(size_t nFeatures, const Parameter * par, services::Status * stat)
+ModelPtr Model::create(size_t nFeatures, const Parameter * par, services::Status * stat)
 {
     DAAL_DEFAULT_CREATE_IMPL_EX(Model, nFeatures, par);
 }
