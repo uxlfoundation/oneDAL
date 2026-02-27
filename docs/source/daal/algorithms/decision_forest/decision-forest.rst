@@ -69,7 +69,7 @@ of a specific algorithm.
 Let the *impurity decrease* in the node :math:`t` be
 
 .. math::
-	\Delta i\left(t\right)=i\left(t\right)–\frac{|{D}_{t}{}_{{}_{L}}|}{|{D}_{t}|}i\left({t}_{L}\right)–\frac{|{D}_{t}{}_{{}_{R}}|}{|{D}_{t}|}i\left({t}_{R}\right).\text{ }
+	\Delta i\left(t\right)=i\left(t\right)-\frac{|{D}_{t}{}_{{}_{L}}|}{|{D}_{t}|}i\left({t}_{L}\right)-\frac{|{D}_{t}{}_{{}_{R}}|}{|{D}_{t}|}i\left({t}_{R}\right).\text{ }
 
 Termination Criteria
 ++++++++++++++++++++
@@ -139,7 +139,7 @@ In each terminal node :math:`t`, the following steps are applied:
   partitions subset :math:`D_t` and maximizes impurity decrease
   :math:`\Delta i(t)`.
 - A node is a split if this split induces a decrease of the impurity greater than or equal to the predefined value
-  and the number of split nodes is less or equal to :math:`\mathrm{maxLeafNodes} – 1`.
+  and the number of split nodes is less or equal to :math:`\mathrm{maxLeafNodes} - 1`.
   Get the best split :math:`s_t` that maximizes impurity decrease
   :math:`\Delta i` in all :math:`s_{j,t}` splits.
 - Put a node into a sorted array, where sort criterion is the improvement in impurity :math:`\Delta i(t)|D_t|`.
@@ -171,13 +171,13 @@ as defined earlier:
 
 - Leapfrog: the updated state is the state of the sequence with
   the rightmost position on the sequence. The example below
-  demonstrates the idea for case of 2 subsequences (‘x’ and ‘o’)
+  demonstrates the idea for case of 2 subsequences ('x' and 'o')
   of the random number sequence:
 
 -  SkipAhead: the updated state is the state of the independent
    sequence with the rightmost position on the sequence. The
    example below demonstrates the idea for case of 2 subsequences
-   (‘x’ and ‘o’) of the random number sequence:
+   ('x' and 'o') of the random number sequence:
 
 Prediction Stage
 -----------------

@@ -65,7 +65,7 @@ where :math:`\lambda_{1j} \geq 0`, :math:`\lambda_{2j} \geq 0`, |j_1_k|.
 For more details, see [Hastie2009]_ and [Friedman2010]_.
 
 By default, :ref:`Coordinate Descent <cda_solver>` iterative solver is used to minimize the objective
-function. :ref:`SAGA <saga_solver>` solver is also applicable for minimization.
+function.
 
 Prediction Stage
 ----------------

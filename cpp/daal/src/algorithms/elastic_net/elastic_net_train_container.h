@@ -29,7 +29,6 @@
 #include "algorithms/elastic_net/elastic_net_training_batch.h"
 #include "src/algorithms/elastic_net/elastic_net_train_kernel.h"
 #include "src/algorithms/elastic_net/elastic_net_model_impl.h"
-#include "algorithms/optimization_solver/sgd/sgd_batch.h"
 #include "src/services/service_algo_utils.h"
 
 namespace daal

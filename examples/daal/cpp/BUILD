@@ -19,30 +19,6 @@ _DATA_DEPS = [
 ]
 
 dal_example_suite(
-    name = "association_rules",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/association_rules/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/assocrules:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
-    name = "boosting",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/boosting/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/adaboost:kernel",
-        "@onedal//cpp/daal/src/algorithms/brownboost:kernel",
-        "@onedal//cpp/daal/src/algorithms/logitboost:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
     name = "cholesky",
     compile_as = [ "c++" ],
     srcs = glob(["source/cholesky/*.cpp"]),
@@ -70,24 +46,6 @@ dal_example_suite(
     compile_as = [ "c++" ],
     srcs = glob(["source/decision_forest/*.cpp"],
     exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest/classification:kernel",
-        "@onedal//cpp/daal/src/algorithms/dtrees/forest/regression:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-# TODO: investigate the issue with excluded example
-dal_example_suite(
-    name = "decision_tree",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/decision_tree/*.cpp"],
-    exclude = ["source/decision_tree/dt_cls_dense_batch.cpp",
-    "source/decision_tree/dt_reg_dense_batch.cpp"],),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
@@ -241,19 +199,6 @@ dal_example_suite(
 )
 
 # TODO: investigate the issue with excluded example
-dal_example_suite(
-    name = "naive_bayes",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/naive_bayes/*.cpp"],
-    exclude = ["source/naive_bayes/mn_naive_bayes_csr_batch.cpp"],),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/naivebayes:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-# TODO: investigate the issue with excluded example
 # Both examples are failing, its the reason of disabling this test
 # dal_example_suite(
 #     name = "normalization",
@@ -279,28 +224,11 @@ dal_example_suite(
     exclude = ["source/optimization_solvers/saga_logistic_loss_dense_batch.cpp"],),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/adagrad:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/saga:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/sgd:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
         "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-# TODO: investigate the issue with excluded example
-dal_example_suite(
-    name = "outlier_detection",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/outlier_detection/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/outlierdetection_bacon:kernel",
-        "@onedal//cpp/daal/src/algorithms/outlierdetection_multivariate:kernel",
-        "@onedal//cpp/daal/src/algorithms/outlierdetection_univariate:kernel",
     ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS
@@ -341,17 +269,6 @@ dal_example_suite(
 )
 
 dal_example_suite(
-    name = "quantiles",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/quantiles/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/quantiles:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
     name = "ridge_regression",
     compile_as = [ "c++" ],
     srcs = glob(["source/ridge_regression/*.cpp"]),
@@ -384,28 +301,6 @@ dal_example_suite(
     srcs = glob(["source/set_number_of_threads/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/kmeans:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
-    name = "sorting",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/sorting/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/sorting:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
-    name = "stump",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/stump/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/stump:kernel",
     ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS
