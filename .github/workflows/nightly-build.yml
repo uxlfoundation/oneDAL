@@ -124,7 +124,7 @@ jobs:
         run: |
           call .\oneapi\setvars.bat
           call .\oneapi\compiler\latest\bin\sycl-ls.exe
-          call .\.ci\scripts\build.bat onedal_dpc icx avx2
+          call .\.ci\scripts\build.bat onedal_dpc vc avx2
       - name: Compress Intel BaseKit
         shell: cmd
         run: |
