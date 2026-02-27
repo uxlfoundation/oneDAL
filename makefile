@@ -342,7 +342,7 @@ endif
 include makefile.ver
 
 dep_thr := $(if $(MSVC_RT_is_release),tbb12.lib tbbmalloc.lib msvcrt.lib msvcprt.lib /nodefaultlib:libucrt.lib ucrt.lib, tbb12_debug.lib tbbmalloc_debug.lib msvcrtd.lib msvcprtd.lib /nodefaultlib:libucrtd.lib ucrtd.lib)
-dep_seq := $(if $(MSVC_RT_is_release),msvcrt.lib msvcprt.lib, msvcrtd.lib msvcprtd.lib vcruntime.lib ucrt.lib)
+dep_seq := $(if $(MSVC_RT_is_release),msvcrt.lib msvcprt.lib vcruntime.lib ucrt.lib, msvcrtd.lib msvcprtd.lib vcruntime.lib ucrtd.lib)
 
 y_full_name_postfix := $(if $(OS_is_win),,$(if $(OS_is_mac),.$(MAJORBINARY).$(MINORBINARY).$(y),.$(y).$(MAJORBINARY).$(MINORBINARY)))
 y_major_name_postfix := $(if $(OS_is_win),,$(if $(OS_is_mac),.$(MAJORBINARY).$(y),.$(y).$(MAJORBINARY)))
