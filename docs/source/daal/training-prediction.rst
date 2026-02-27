@@ -23,16 +23,13 @@ Training and prediction algorithms in |full_name| (|short_name|) include a range
    algorithms/decision_forest/index
    algorithms/decision_tree/index
    algorithms/gradient_boosted_trees/index
-   algorithms/stump/index.rst
    algorithms/linear_ridge_regression/index.rst
    algorithms/lasso_elastic_net/index.rst
    algorithms/k_nearest_neighbors/k-nearest-neighbors-knn-classifier.rst
    algorithms/implicit_als/implicit-alternating-least-squares.rst
    algorithms/logistic_regression/logistic-regression.rst
-   algorithms/naive_bayes/naive-bayes-classifier.rst
    algorithms/svm/support-vector-machine-classifier.rst
    algorithms/svm_multi_class/multi-class-classifier.rst
-   algorithms/boosting/index.rst
 
 Unlike :ref:`analysis` algorithms, which are intended to characterize the structure of data sets, machine learning algorithms model the data.
 Modeling operates in two major stages:

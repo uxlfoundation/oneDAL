@@ -25,6 +25,7 @@
 #define __SOA_NUMERIC_TABLE_H__
 
 #include "data_management/data/numeric_table.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -48,14 +49,7 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty Numeric Table
-     *  \param[in]  nColumns      Number of columns in the table
-     *  \param[in]  nRows         Number of rows in the table
-     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
+    friend Creator<SOANumericTable>;
 
     /**
      *  Constructs an empty Numeric Table
@@ -68,24 +62,6 @@ public:
     static services::SharedPtr<SOANumericTable> create(size_t nColumns = 0, size_t nRows = 0,
                                                        DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual,
                                                        services::Status * stat                      = NULL);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
 
     /**
      *  Constructs an empty Numeric Table with a predefined NumericTableDictionary
@@ -304,6 +280,22 @@ protected:
         size_t _count;
     };
 
+    /**
+     *  Constructor for an empty Numeric Table
+     *  \param[in]  nColumns      Number of columns in the table
+     *  \param[in]  nRows         Number of rows in the table
+     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
+     */
+    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
+     *  \param[in]  nRows                 Number of rows in the table
+     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
+     */
+    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
+
     SOANumericTable(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual, services::Status & st);
 
     SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag, services::Status & st);
@@ -370,16 +362,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-
-        if (!block.resizeBuffer(ncols, nrows))
-        {
-            return services::Status(services::ErrorMemoryAllocationFailed);
-        }
 
         if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 
@@ -397,8 +383,9 @@ protected:
         }
         if (!computed)
         {
-            size_t di = 32;
-            T lbuf[32];
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature after up-casting
+            size_t di                     = unrollFactor;
+            T lbuf[unrollFactor];
 
             for (size_t i = 0; i < nrows; i += di)
             {
@@ -434,9 +421,10 @@ protected:
             size_t ncols = getNumberOfColumns();
             size_t nrows = block.getNumberOfRows();
             size_t idx   = block.getRowsOffset();
-            T lbuf[32];
 
-            size_t di = 32;
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature before down-casting
+            T lbuf[unrollFactor];
+            size_t di = unrollFactor;
 
             T * blockPtr = block.getBlockPtr();
 
@@ -474,7 +462,6 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
@@ -496,10 +483,6 @@ protected:
             }
 
             byte * location = _arrays[feat_idx].get() + idx * f.typeSize;
-            if (!block.resizeBuffer(1, nrows))
-            {
-                return services::Status(services::ErrorMemoryAllocationFailed);
-            }
 
             if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 

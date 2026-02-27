@@ -27,7 +27,7 @@
 #include "data_management/data/numeric_table.h"
 #include "services/daal_memory.h"
 #include "services/daal_defines.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 
 namespace daal
 {
@@ -49,18 +49,7 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty merge Numeric Table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable();
-
-    /**
-     *  Constructor for a Row Merged Numeric Table consisting of one table
-     *  \param[in]  table  Pointer to the table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable(NumericTablePtr table);
+    friend Creator<RowMergedNumericTable>;
 
     /**
      * Constructor for an empty merge Numeric Table
@@ -229,13 +218,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-
-        if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         if (rwFlag & (int)readOnly)
         {
@@ -306,12 +292,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-        if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         if (rwFlag & (int)readOnly)
         {
@@ -387,6 +371,17 @@ protected:
 
 protected:
     DataCollectionPtr _tables;
+
+    /**
+     *  Constructor for an empty merge Numeric Table
+     */
+    RowMergedNumericTable();
+
+    /**
+     *  Constructor for a Row Merged Numeric Table consisting of one table
+     *  \param[in]  table  Pointer to the table
+     */
+    RowMergedNumericTable(NumericTablePtr table);
 
     RowMergedNumericTable(services::Status & st);
 

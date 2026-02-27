@@ -253,24 +253,21 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
     const size_t nNode = tree.getNumberOfNodes();
 
     auto pTbl           = new DecisionTreeTable(nNode);
-    auto impTbl         = new HomogenNumericTable<double>(1, nNode, NumericTable::doAllocate);
-    auto nodeSamplesTbl = new HomogenNumericTable<int>(1, nNode, NumericTable::doAllocate);
-    auto probTbl        = new HomogenNumericTable<double>(DictionaryIface::equal, nNode, nClasses, NumericTable::doAllocate);
+    auto impTbl         = HomogenNumericTable<double>::create(1, nNode, NumericTable::doAllocate);
+    auto nodeSamplesTbl = HomogenNumericTable<int>::create(1, nNode, NumericTable::doAllocate);
+    auto probTbl        = HomogenNumericTable<double>::create(DictionaryIface::equal, nNode, nClasses, NumericTable::doAllocate);
 
     if (!pTbl || !impTbl || !nodeSamplesTbl || !probTbl)
     {
         delete pTbl;
-        delete impTbl;
-        delete nodeSamplesTbl;
-        delete probTbl;
         return false;
     }
 
-    tree.convertToTable(pTbl, impTbl, nodeSamplesTbl, probTbl, nClasses);
+    tree.convertToTable(pTbl, impTbl.get(), nodeSamplesTbl.get(), probTbl.get(), nClasses);
     (*_serializationData)[iTree].reset(pTbl);
-    (*_impurityTables)[iTree].reset(impTbl);
-    (*_nNodeSampleTables)[iTree].reset(nodeSamplesTbl);
-    (*_probTbl)[iTree].reset(probTbl);
+    (*_impurityTables)[iTree]    = impTbl;
+    (*_nNodeSampleTables)[iTree] = nodeSamplesTbl;
+    (*_probTbl)[iTree]           = probTbl;
     return true;
 }
 

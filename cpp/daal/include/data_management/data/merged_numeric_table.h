@@ -27,7 +27,7 @@
 #include "data_management/data/numeric_table.h"
 #include "services/daal_memory.h"
 #include "services/daal_defines.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 
 namespace daal
 {
@@ -49,26 +49,7 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty merge Numeric Table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    MergedNumericTable();
-
-    /**
-     *  Constructor for a merge Numeric Table consisting of one table
-     *  \param[in]  table       Pointer to the table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    MergedNumericTable(NumericTablePtr table);
-
-    /**
-     *  Constructor for a merge Numeric Table consisting of two tables
-     *  \param[in]  first      Pointer to the first table
-     *  \param[in]  second     Pointer to the second table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    MergedNumericTable(NumericTablePtr first, NumericTablePtr second);
+    friend Creator<MergedNumericTable>;
 
     /**
      * Constructor for an empty merge Numeric Table
@@ -285,13 +266,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-
-        if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         if (rwFlag & (int)readOnly)
         {
@@ -352,12 +330,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-        if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         if (rwFlag & (int)readOnly)
         {
@@ -429,6 +405,24 @@ protected:
 
 protected:
     DataCollectionPtr _tables;
+
+    /**
+     *  Constructor for an empty merge Numeric Table
+     */
+    MergedNumericTable();
+
+    /**
+     *  Constructor for a merge Numeric Table consisting of one table
+     *  \param[in]  table       Pointer to the table
+     */
+    MergedNumericTable(NumericTablePtr table);
+
+    /**
+     *  Constructor for a merge Numeric Table consisting of two tables
+     *  \param[in]  first      Pointer to the first table
+     *  \param[in]  second     Pointer to the second table
+     */
+    MergedNumericTable(NumericTablePtr first, NumericTablePtr second);
 
     MergedNumericTable(services::Status & st);
 

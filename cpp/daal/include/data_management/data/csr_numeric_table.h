@@ -25,10 +25,9 @@
 #define __CSR_NUMERIC_TABLE_H__
 
 #include "services/base.h"
-#include "services/internal/buffer.h"
 
 #include "data_management/data/numeric_table.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -52,13 +51,6 @@ public:
     /** \private */
     CSRBlockDescriptor();
 
-    /** \private */
-    ~CSRBlockDescriptor()
-    {
-        freeValuesBuffer();
-        freeRowsBuffer();
-    }
-
     /**
      *  Gets a pointer to the buffer
      *  \return Pointer to the block
@@ -69,101 +61,12 @@ public:
         {
             return (DataType *)_rawPtr;
         }
-        else if (_valuesBuffer)
-        {
-            return getValuesCachedHostSharedPtr().get();
-        }
         return _values_ptr.get();
     }
 
-    inline size_t * getBlockColumnIndicesPtr() const
-    {
-        if (_colsBuffer)
-        {
-            return getColsCachedHostSharedPtr().get();
-        }
-        return _cols_ptr.get();
-    }
+    inline size_t * getBlockColumnIndicesPtr() const { return _cols_ptr.get(); }
 
-    inline size_t * getBlockRowIndicesPtr() const
-    {
-        if (_rowsBuffer)
-        {
-            return getRowsCachedHostSharedPtr().get();
-        }
-        return _rows_ptr.get();
-    }
-
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     * \DAAL_DEPRECATED
-     */
-    inline daal::services::internal::Buffer<DataType> getBlockValuesBuffer() const
-    {
-        if (_valuesBuffer)
-        {
-            return _valuesBuffer;
-        }
-        else if (_rawPtr)
-        {
-            services::Status status;
-            daal::services::internal::Buffer<DataType> buffer((DataType *)_rawPtr, _nvalues, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-        else
-        {
-            services::Status status;
-            services::internal::Buffer<DataType> buffer(_values_ptr, _nvalues, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-    }
-
-    /**
-     * \DAAL_DEPRECATED
-     */
-    inline daal::services::internal::Buffer<size_t> getBlockColumnIndicesBuffer() const
-    {
-        if (_colsBuffer)
-        {
-            return _colsBuffer;
-        }
-        else
-        {
-            services::Status status;
-            daal::services::internal::Buffer<size_t> buffer(_cols_ptr.get(), _nvalues, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-    }
-
-    /**
-     * \DAAL_DEPRECATED
-     */
-    inline daal::services::internal::Buffer<size_t> getBlockRowIndicesBuffer() const
-    {
-        if (_rowsBuffer)
-        {
-            return _rowsBuffer;
-        }
-
-        else if (_rowsInternal)
-        {
-            services::Status status;
-            daal::services::internal::Buffer<size_t> buffer(_rowsInternal.get(), _nrows + 1, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-        else
-        {
-            services::Status status;
-            daal::services::internal::Buffer<size_t> buffer(_rows_ptr.get(), _nrows + 1, status);
-            services::throwIfPossible(status);
-            return buffer;
-        }
-    }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+    inline size_t * getBlockRowIndicesPtr() const { return _rows_ptr.get(); }
 
     /**
      *  Gets a pointer to the buffer
@@ -175,66 +78,27 @@ public:
         {
             return services::SharedPtr<DataType>(services::reinterpretPointerCast<DataType, byte>(*_pPtr), (DataType *)_rawPtr);
         }
-        else if (_valuesBuffer)
-        {
-            services::Status status;
-            services::SharedPtr<DataType> hostSharedPtr = _valuesBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-            return hostSharedPtr;
-        }
         else
         {
             return _values_ptr;
         }
     }
 
-    inline services::SharedPtr<size_t> getBlockColumnIndicesSharedPtr() const
-    {
-        if (_colsBuffer)
-        {
-            services::Status status;
-            services::SharedPtr<size_t> hostSharedPtr = _colsBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-            return hostSharedPtr;
-        }
-        else
-        {
-            return _cols_ptr;
-        }
-    }
+    inline services::SharedPtr<size_t> getBlockColumnIndicesSharedPtr() const { return _cols_ptr; }
 
-    inline services::SharedPtr<size_t> getBlockRowIndicesSharedPtr() const
-    {
-        if (_rowsBuffer)
-        {
-            services::Status status;
-            services::SharedPtr<size_t> hostSharedPtr = _rowsBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-            return hostSharedPtr;
-        }
-        else
-        {
-            return _rows_ptr;
-        }
-    }
+    inline services::SharedPtr<size_t> getBlockRowIndicesSharedPtr() const { return _rows_ptr; }
 
     /**
      *  Returns the number of columns in the block
      *  \return Number of columns
      */
-    inline size_t getNumberOfColumns() const
-    {
-        return _ncols;
-    }
+    inline size_t getNumberOfColumns() const { return _ncols; }
 
     /**
      *  Returns the number of rows in the block
      *  \return Number of rows
      */
-    inline size_t getNumberOfRows() const
-    {
-        return _nrows;
-    }
+    inline size_t getNumberOfRows() const { return _nrows; }
 
     /**
      *  Returns number of elements in values array.
@@ -248,10 +112,6 @@ public:
             {
                 return _rows_ptr.get()[_nrows] - _rows_ptr.get()[0];
             }
-            else if (_valuesBuffer)
-            {
-                return _valuesBuffer.size();
-            }
         }
         return 0;
     }
@@ -263,7 +123,6 @@ public:
      */
     inline void setValuesPtr(DataType * ptr, size_t nValues)
     {
-        _hostValuesSharedPtr.reset();
         _values_ptr = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
         _nvalues    = nValues;
     }
@@ -274,7 +133,6 @@ public:
      */
     inline void setColumnIndicesPtr(size_t * ptr, size_t nValues)
     {
-        _hostColsSharedPtr.reset();
         _cols_ptr = services::SharedPtr<size_t>(ptr, services::EmptyDeleter());
         _nvalues  = nValues;
     }
@@ -285,7 +143,6 @@ public:
      */
     inline void setRowIndicesPtr(size_t * ptr, size_t nRows)
     {
-        _hostRowsSharedPtr.reset();
         _rows_ptr = services::SharedPtr<size_t>(ptr, services::EmptyDeleter());
         _nrows    = nRows;
     }
@@ -296,12 +153,10 @@ public:
      */
     inline void setValuesPtr(services::SharedPtr<DataType> ptr, size_t nValues)
     {
-        _hostValuesSharedPtr.reset();
         _values_ptr = ptr;
         _nvalues    = nValues;
     }
 
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
     /**
      *  \param[in] pPtr     Pointer to the buffer
      *  \param[in] rawPtr   Pointer to the buffer
@@ -310,13 +165,10 @@ public:
      */
     inline void setValuesPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nValues)
     {
-        _hostValuesSharedPtr.reset();
-        _valuesBuffer.reset();
         _pPtr    = pPtr;
         _rawPtr  = rawPtr;
         _nvalues = nValues;
     }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      *  \param[in] ptr      Pointer to the buffer
@@ -324,8 +176,6 @@ public:
      */
     inline void setColumnIndicesPtr(services::SharedPtr<size_t> ptr, size_t nValues)
     {
-        _hostColsSharedPtr.reset();
-        _colsBuffer.reset();
         _cols_ptr = ptr;
         _nvalues  = nValues;
     }
@@ -336,53 +186,9 @@ public:
      */
     inline void setRowIndicesPtr(services::SharedPtr<size_t> ptr, size_t nRows)
     {
-        _hostRowsSharedPtr.reset();
-        _rowsBuffer.reset();
         _rows_ptr = ptr;
         _nrows    = nRows;
     }
-
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     *  Sets values buffer to the table
-     *  \param[in] buffer Buffer object that contains the memory
-     *  \DAAL_DEPRECATED
-     */
-    inline void setValuesBuffer(const daal::services::internal::Buffer<DataType> & buffer)
-    {
-        _hostValuesSharedPtr.reset();
-        _valuesBuffer = buffer;
-        _pPtr         = NULL;
-        _rawPtr       = NULL;
-        _nvalues      = buffer.size();
-    }
-
-    /**
-     *  Sets cols indices buffer to the table
-     *  \param[in] buffer Buffer object that contains the memory
-     *  \DAAL_DEPRECATED
-     */
-    inline void setColumnIndicesBuffer(const daal::services::internal::Buffer<size_t> & buffer)
-    {
-        _hostColsSharedPtr.reset();
-        _cols_ptr.reset();
-        _colsBuffer = buffer;
-        _nvalues    = buffer.size();
-    }
-
-    /**
-     *  Sets row indices buffer to the table
-     *  \param[in] buffer Buffer object that contains the memory
-     *  \DAAL_DEPRECATED
-     */
-    inline void setRowIndicesBuffer(const daal::services::internal::Buffer<size_t> & buffer)
-    {
-        _hostRowsSharedPtr.reset();
-        _rowsInternal.reset();
-        _rowsBuffer = buffer;
-        _nrows      = buffer.size();
-    }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     /**
      * Reset internal values and pointers to zero values
@@ -394,171 +200,17 @@ public:
         _rwFlag     = 0;
         _pPtr       = NULL;
         _rawPtr     = NULL;
-        _hostValuesSharedPtr.reset();
-        _hostRowsSharedPtr.reset();
-        _hostColsSharedPtr.reset();
-
-        _valuesBuffer.reset();
-        _rowsBuffer.reset();
-        _colsBuffer.reset();
     }
-
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     *  \param[in] nValues  Number of values
-     *  \DAAL_DEPRECATED
-     */
-    inline bool resizeValuesBuffer(size_t nValues)
-    {
-        size_t newSize = nValues * sizeof(DataType);
-        if (newSize > _values_capacity)
-        {
-            freeValuesBuffer();
-            if (_valuesBuffer)
-            {
-                services::throwIfPossible(services::ErrorMethodNotImplemented);
-            }
-
-            _valuesInternal = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
-            if (_valuesInternal)
-            {
-                _values_capacity = newSize;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        _values_ptr = _valuesInternal;
-
-        return true;
-    }
-
-    /**
-     *  \param[in] nRows    Number of rows
-     *  \DAAL_DEPRECATED
-     */
-    inline bool resizeRowsBuffer(size_t nRows)
-    {
-        _nrows         = nRows;
-        size_t newSize = (nRows + 1) * sizeof(size_t);
-        if (newSize > _rows_capacity)
-        {
-            freeRowsBuffer();
-            if (_rowsBuffer)
-            {
-                services::throwIfPossible(services::ErrorMethodNotImplemented);
-            }
-
-            _rowsInternal = services::SharedPtr<size_t>((size_t *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
-            if (_rowsInternal)
-            {
-                _rows_capacity = newSize;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        _rows_ptr = _rowsInternal;
-
-        return true;
-    }
-#endif // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
 
     inline void setDetails(size_t nColumns, size_t rowIdx, int rwFlag)
     {
         _ncols      = nColumns;
         _rowsOffset = rowIdx;
         _rwFlag     = rwFlag;
-        _hostValuesSharedPtr.reset();
-        _hostRowsSharedPtr.reset();
-        _hostColsSharedPtr.reset();
     }
 
-    inline size_t getRowsOffset() const
-    {
-        return _rowsOffset;
-    }
-    inline size_t getRWFlag() const
-    {
-        return _rwFlag;
-    }
-
-protected:
-#if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
-    /**
-     *  Frees the values buffer
-     *  \DAAL_DEPRECATED
-     */
-    void freeValuesBuffer()
-    {
-        if (_valuesInternal)
-        {
-            _valuesInternal = services::SharedPtr<DataType>();
-        }
-        else if (_valuesBuffer)
-        {
-            _valuesBuffer.reset();
-        }
-        _values_capacity = 0;
-    }
-
-    /**
-     *  Frees the rows buffer
-     *  \DAAL_DEPRECATED
-     */
-    void freeRowsBuffer()
-    {
-        _rowsInternal  = services::SharedPtr<size_t>();
-        _rows_capacity = 0;
-        _rowsBuffer.reset();
-    }
-
-    /**
-     *  \DAAL_DEPRECATED
-     */
-    inline services::SharedPtr<DataType> getValuesCachedHostSharedPtr() const
-    {
-        if (!_hostValuesSharedPtr)
-        {
-            services::Status status;
-            _hostValuesSharedPtr = _valuesBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-        }
-        return _hostValuesSharedPtr;
-    }
-
-    /**
-     *  \DAAL_DEPRECATED
-     */
-    inline services::SharedPtr<size_t> getColsCachedHostSharedPtr() const
-    {
-        if (!_hostColsSharedPtr)
-        {
-            services::Status status;
-            _hostColsSharedPtr = _colsBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-        }
-        return _hostColsSharedPtr;
-    }
-
-    /**
-     *  \DAAL_DEPRECATED
-     */
-    inline services::SharedPtr<size_t> getRowsCachedHostSharedPtr() const
-    {
-        if (!_hostRowsSharedPtr)
-        {
-            services::Status status;
-            _hostRowsSharedPtr = _rowsBuffer.toHost((data_management::ReadWriteMode)_rwFlag, status);
-            services::throwIfPossible(status);
-        }
-        return _hostRowsSharedPtr;
-    }
-#endif // if (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+    inline size_t getRowsOffset() const { return _rowsOffset; }
+    inline size_t getRWFlag() const { return _rwFlag; }
 
 private:
     services::SharedPtr<DataType> _values_ptr;
@@ -571,24 +223,8 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
-#if (INTEL_DAAL_VERSION < 202600000)               /// 2026.0.0
-    services::SharedPtr<DataType> _valuesInternal; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
-    size_t _values_capacity;                       /*<! Buffer size in bytes. \DAAL_DEPRECATED */
-
-    services::SharedPtr<size_t> _rowsInternal; /*<! Pointer to the buffer. \DAAL_DEPRECATED */
-    size_t _rows_capacity;                     /*<! Buffer size in bytes. \DAAL_DEPRECATED */
-
-    services::SharedPtr<byte> * _pPtr; /*<! \DAAL_DEPRECATED */
-    byte * _rawPtr;                    /*<! \DAAL_DEPRECATED */
-
-    daal::services::internal::Buffer<DataType> _valuesBuffer; /*<! \DAAL_DEPRECATED */
-    daal::services::internal::Buffer<size_t> _rowsBuffer;     /*<! \DAAL_DEPRECATED */
-    daal::services::internal::Buffer<size_t> _colsBuffer;     /*<! \DAAL_DEPRECATED */
-
-    mutable services::SharedPtr<DataType> _hostValuesSharedPtr; /*<! \DAAL_DEPRECATED */
-    mutable services::SharedPtr<size_t> _hostRowsSharedPtr;     /*<! \DAAL_DEPRECATED */
-    mutable services::SharedPtr<size_t> _hostColsSharedPtr;     /*<! \DAAL_DEPRECATED */
-#endif                                                          // (INTEL_DAAL_VERSION < 202600000) /// 2026.0.0
+    services::SharedPtr<byte> * _pPtr;
+    byte * _rawPtr;
 };
 
 /**
@@ -683,40 +319,8 @@ public:
     DECLARE_SERIALIZABLE_IMPL()
 
     DAAL_CAST_OPERATOR(CSRNumericTable)
-    /**
-     *  Constructor for an empty CSR Numeric Table
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<double>(0, 0, 0); //data type doesn't matter
-    }
 
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \tparam   DataType        Type of values in the Numeric Table
-     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
-     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
-     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
-     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
-     *  \param[in]    nColumns    Number of columns in the corresponding dense table
-     *  \param[in]    nRows       Number of rows in the corresponding dense table
-     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
-     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    template <typename DataType>
-    CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
-                    CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
-
-        _defaultFeature.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(_defaultFeature);
-    }
+    friend Creator<CSRNumericTable>;
 
     /**
      *  Constructs CSR numeric table with user-allocated memory
@@ -739,31 +343,6 @@ public:
         return create<DataType>(services::SharedPtr<DataType>(ptr, services::EmptyDeleter()),
                                 services::SharedPtr<size_t>(colIndices, services::EmptyDeleter()),
                                 services::SharedPtr<size_t>(rowOffsets, services::EmptyDeleter()), nColumns, nRows, indexing, stat);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \tparam   DataType        Type of values in the Numeric Table
-     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
-     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
-     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
-     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
-     *  \param[in]    nColumns    Number of columns in the corresponding dense table
-     *  \param[in]    nRows       Number of rows in the corresponding dense table
-     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
-     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
-     */
-    template <typename DataType>
-    CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
-                    const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
-        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
-    {
-        _layout = csrArray;
-        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
-
-        _defaultFeature.setType<DataType>();
-        this->_status |= _ddict->setAllFeatures(_defaultFeature);
     }
 
     /**
@@ -1023,6 +602,63 @@ protected:
         st |= _ddict->setAllFeatures(_defaultFeature);
     }
 
+    template <typename DataType>
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \tparam   DataType        Type of values in the Numeric Table
+     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
+     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
+     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
+     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
+     *  \param[in]    nColumns    Number of columns in the corresponding dense table
+     *  \param[in]    nRows       Number of rows in the corresponding dense table
+     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
+     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
+     */
+    CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
+                    const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+
+        _defaultFeature.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(_defaultFeature);
+    }
+
+    /**
+     *  Constructor for an empty CSR Numeric Table
+     */
+    CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<double>(0, 0, 0); //data type doesn't matter
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \tparam   DataType        Type of values in the Numeric Table
+     *  \param[in]    ptr         Array of values in the CSR layout. Let ptr_size denote the size of an array ptr
+     *  \param[in]    colIndices  Array of column indices in the CSR layout. Values of indices are determined by the index base
+     *  \param[in]    rowOffsets  Array of row indices in the CSR layout. Size of the array is nrow+1. The first element is 0/1
+     *                            in zero-/one-based indexing. The last element is ptr_size+0/1 in zero-/one-based indexing
+     *  \param[in]    nColumns    Number of columns in the corresponding dense table
+     *  \param[in]    nRows       Number of rows in the corresponding dense table
+     *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
+     *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
+     */
+    template <typename DataType>
+    CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,
+                    CSRIndexing indexing = oneBased)
+        : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
+    {
+        _layout = csrArray;
+        this->_status |= setArrays<DataType>(ptr, colIndices, rowOffsets);
+
+        _defaultFeature.setType<DataType>();
+        this->_status |= _ddict->setAllFeatures(_defaultFeature);
+    }
+
     services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE
     {
         return services::Status(services::ErrorMethodNotSupported);
@@ -1088,6 +724,11 @@ protected:
     template <typename T>
     services::Status getTBlock(size_t idx, size_t nrows, int rwFlag, BlockDescriptor<T> & block)
     {
+        const NumericTableFeature & f = (*_ddict)[0];
+        const int indexType           = f.indexType;
+
+        if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
+
         size_t ncols = getNumberOfColumns();
         size_t nobs  = getNumberOfRows();
         block.setDetails(0, idx, rwFlag);
@@ -1095,57 +736,54 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
-        const NumericTableFeature & f = (*_ddict)[0];
-        const int indexType           = f.indexType;
+        constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values in CSR format after up-casting
+        size_t di                     = unrollFactor;
 
-        T * buffer;
-        T * castingBuffer;
-        T * location = (T *)(_ptr.get() + (rowOffsets[idx] - 1) * f.typeSize);
-
-        if (features::internal::getIndexNumType<T>() == indexType)
-        {
-            castingBuffer = location;
-
-            if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
-            buffer = block.getBlockPtr();
-        }
-        else
-        {
-            size_t sparseBlockSize = rowOffsets[idx + nrows] - rowOffsets[idx];
-
-            if (!block.resizeBuffer(ncols, nrows, sparseBlockSize * sizeof(T))) return services::Status(services::ErrorMemoryAllocationFailed);
-            buffer = block.getBlockPtr();
-
-            castingBuffer = (T *)block.getAdditionalBufferPtr();
-
-            if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
-
-            internal::getVectorUpCast(indexType, internal::getConversionDataType<T>())(sparseBlockSize, location, castingBuffer);
-        }
-
-        T * bufRowCursor       = castingBuffer;
-        size_t * indicesCursor = _colIndices.get() + rowOffsets[idx] - 1;
+        T lbuf[unrollFactor];
+        T * buffer        = block.getBlockPtr();
+        T * castingBuffer = lbuf;
 
         for (size_t i = 0; i < ncols * nrows; i++)
         {
             buffer[i] = (T)0;
         }
 
-        for (size_t i = 0; i < nrows; i++)
+        for (size_t ui = 0; ui < nrows; ui += di)
         {
-            size_t sparseRowSize = rowOffsets[idx + i + 1] - rowOffsets[idx + i];
+            T * location = (T *)(_ptr.get() + (rowOffsets[idx + ui] - 1) * f.typeSize);
 
-            for (size_t k = 0; k < sparseRowSize; k++)
+            if (ui + di > nrows)
             {
-                buffer[i * ncols + indicesCursor[k] - 1] = bufRowCursor[k];
+                di = nrows - ui;
             }
 
-            bufRowCursor += sparseRowSize;
-            indicesCursor += sparseRowSize;
+            if (features::internal::getIndexNumType<T>() == indexType)
+            {
+                castingBuffer = location;
+            }
+            else
+            {
+                internal::getVectorUpCast(indexType, internal::getConversionDataType<T>())(di, location, castingBuffer);
+            }
+
+            T * bufRowCursor       = castingBuffer;
+            size_t * indicesCursor = _colIndices.get() + rowOffsets[idx] - 1;
+
+            for (size_t i = ui; i < ui + di; i++)
+            {
+                size_t sparseRowSize = rowOffsets[idx + i + 1] - rowOffsets[idx + i];
+
+                for (size_t k = 0; k < sparseRowSize; k++)
+                {
+                    buffer[i * ncols + indicesCursor[k] - 1] = bufRowCursor[k];
+                }
+
+                bufRowCursor += sparseRowSize;
+                indicesCursor += sparseRowSize;
+            }
         }
         return services::Status();
     }
@@ -1166,13 +804,10 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
-
-        if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         const NumericTableFeature & f = (*_ddict)[0];
         const int indexType           = f.indexType;
@@ -1221,7 +856,6 @@ protected:
 
         if (idx >= nobs)
         {
-            block.resizeValuesBuffer(0);
             return services::Status();
         }
 
@@ -1238,11 +872,6 @@ protected:
         }
         else
         {
-            if (!block.resizeValuesBuffer(nValues))
-            {
-                return services::Status();
-            }
-
             if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
 
             services::SharedPtr<byte> location(_ptr, _ptr.get() + (rowOffsets[idx] - 1) * f.typeSize);
@@ -1258,11 +887,6 @@ protected:
         }
         else
         {
-            if (!block.resizeRowsBuffer(nrows))
-            {
-                return services::Status();
-            }
-
             size_t * row_offsets = block.getBlockRowIndicesSharedPtr().get();
             if (row_offsets == NULL)
             {

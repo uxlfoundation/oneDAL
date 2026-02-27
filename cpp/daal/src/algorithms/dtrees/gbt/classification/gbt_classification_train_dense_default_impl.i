@@ -256,8 +256,8 @@ protected:
         }
     }
 
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
                                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) DAAL_C11_OVERRIDE
     {
         if (this->isParallelTrees())
@@ -287,8 +287,8 @@ protected:
         return s;
     }
 
-    services::Status buildTreeThreadLocal(gbt::internal::GbtDecisionTree *& tbl, HomogenNumericTable<double> *& pTblImp,
-                                          HomogenNumericTable<int> *& pTblSmplCnt, size_t iTree,
+    services::Status buildTreeThreadLocal(gbt::internal::GbtDecisionTree *& tbl, services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                          services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t iTree,
                                           GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF)
     {
         auto pBuilder = _ls->local();

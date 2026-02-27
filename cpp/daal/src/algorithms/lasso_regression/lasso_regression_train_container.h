@@ -29,7 +29,6 @@
 #include "algorithms/lasso_regression/lasso_regression_training_batch.h"
 #include "src/algorithms/lasso_regression/lasso_regression_train_kernel.h"
 #include "src/algorithms/lasso_regression/lasso_regression_model_impl.h"
-#include "algorithms/optimization_solver/sgd/sgd_batch.h"
 #include "src/services/service_algo_utils.h"
 
 namespace daal

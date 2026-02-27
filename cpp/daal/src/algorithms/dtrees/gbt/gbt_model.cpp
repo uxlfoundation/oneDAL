@@ -176,13 +176,15 @@ void ModelImpl::traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisito
     traverseGbtDF(0, 0, gbtTree, onSplitNodeFunc, onLeafNodeFunc);
 }
 
-services::Status ModelImpl::treeToTable(TreeType & t, gbt::internal::GbtDecisionTree ** pTbl, HomogenNumericTable<double> ** pTblImp,
-                                        HomogenNumericTable<int> ** pTblSmplCnt, size_t nFeat)
+services::Status ModelImpl::treeToTable(TreeType & t, gbt::internal::GbtDecisionTree ** pTbl,
+                                        services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t nFeat)
 {
     return t.convertGbtTreeToTable(pTbl, pTblImp, pTblSmplCnt, nFeat);
 }
 
-void ModelImpl::add(gbt::internal::GbtDecisionTree * pTbl, HomogenNumericTable<double> * pTblImp, HomogenNumericTable<int> * pTblSmplCnt)
+void ModelImpl::add(gbt::internal::GbtDecisionTree * pTbl, services::SharedPtr<HomogenNumericTable<double> > pTblImp,
+                    services::SharedPtr<HomogenNumericTable<int> > pTblSmplCnt)
 {
     DAAL_ASSERT(pTbl);
     DAAL_ASSERT(pTblImp);
@@ -191,8 +193,8 @@ void ModelImpl::add(gbt::internal::GbtDecisionTree * pTbl, HomogenNumericTable<d
     _nTree.inc();
 
     _serializationData->push_back(SerializationIfacePtr(pTbl));
-    _impurityTables->push_back(SerializationIfacePtr(pTblImp));
-    _nNodeSampleTables->push_back(SerializationIfacePtr(pTblSmplCnt));
+    _impurityTables->push_back(pTblImp);
+    _nNodeSampleTables->push_back(pTblSmplCnt);
 }
 
 ModelImpl::~ModelImpl()
