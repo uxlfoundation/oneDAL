@@ -99,8 +99,8 @@ def _copy_lib(ctx, prefix, version_info):
 
     For each shared library (.so) on Linux, this creates:
       libonedal_core.so.{binary_major}.{binary_minor}   (real file)
-      libonedal_core.so.{binary_major}  -> .so.{major}.{minor}  (symlink)
-      libonedal_core.so                 -> .so.{major}           (symlink)
+      libonedal_core.so.{binary_major}  -> .so.{binary_major}.{binary_minor}  (symlink)
+      libonedal_core.so                 -> .so.{binary_major}           (symlink)
 
     Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
 
@@ -114,6 +114,10 @@ def _copy_lib(ctx, prefix, version_info):
         # Determine if this is a shared library that needs versioning.
         # On Linux: .so extension; on macOS: .dylib (handled separately).
         is_shared_lib = lib.extension == "so"
+
+        if is_shared_lib and not version_info:
+            fail("Shared library '{}' requires VersionInfo for SONAME versioning, " +
+                 "but no version_info was provided to _copy_lib.".format(lib.basename))
 
         if is_shared_lib and version_info:
             binary_major = version_info.binary_major

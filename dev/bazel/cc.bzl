@@ -192,13 +192,16 @@ def _cc_dynamic_lib_impl(ctx):
     # stored as a string list in soname_linkopts attr, and passed to the linker here.
     # If not set by macro, falls back to empty list (no SONAME).
     soname_linkopts = ctx.attr.soname_linkopts
-    # If lib_name is set and version info available, build SONAME from config version.
-    # This ensures SONAME is always in sync with @config//:version.binary_major.
+    # Fallback: if macro didn't set soname_linkopts (binary_major=None), auto-derive
+    # from @config//:version — but only on Linux (SONAME is Linux-specific).
     if ctx.attr.lib_name and not soname_linkopts and ctx.attr._version_info:
-        vi = ctx.attr._version_info[VersionInfo]
-        if vi.binary_major:
-            soname = "lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major)
-            soname_linkopts = ["-Wl,-soname,{}".format(soname)]
+        is_linux = ctx.target_platform_has_constraint(
+            ctx.attr._linux_constraint[platform_common.ConstraintValueInfo])
+        if is_linux:
+            vi = ctx.attr._version_info[VersionInfo]
+            if vi.binary_major:
+                soname = "lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major)
+                soname_linkopts = ["-Wl,-soname,{}".format(soname)]
 
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
@@ -253,6 +256,10 @@ _cc_dynamic_lib = rule(
         "_version_info": attr.label(
             default = "@config//:version",
             providers = [VersionInfo],
+        ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+            providers = [platform_common.ConstraintValueInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
