@@ -253,16 +253,13 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
     const size_t nNode = tree.getNumberOfNodes();
 
     auto pTbl           = new DecisionTreeTable(nNode);
-    auto impTbl         = new HomogenNumericTable<double>(1, nNode, NumericTable::doAllocate);
-    auto nodeSamplesTbl = new HomogenNumericTable<int>(1, nNode, NumericTable::doAllocate);
-    auto probTbl        = new HomogenNumericTable<double>(DictionaryIface::equal, nNode, nClasses, NumericTable::doAllocate);
+    auto impTbl         = HomogenNumericTable<double>::create(1, nNode, NumericTable::doAllocate);
+    auto nodeSamplesTbl = HomogenNumericTable<int>::create(1, nNode, NumericTable::doAllocate);
+    auto probTbl        = HomogenNumericTable<double>::create(DictionaryIface::equal, nNode, nClasses, NumericTable::doAllocate);
 
     if (!pTbl || !impTbl || !nodeSamplesTbl || !probTbl)
     {
         delete pTbl;
-        delete impTbl;
-        delete nodeSamplesTbl;
-        delete probTbl;
         return false;
     }
 

@@ -65,8 +65,8 @@ services::Status ModelBuilder::createTreeInternal(const size_t nNodes, TreeId & 
     services::Status status = daal::algorithms::dtrees::internal::createTreeInternal(modelImplRef._serializationData, nNodes, resId);
     if (status.ok())
     {
-        const auto probTbl = new HomogenNumericTable<double>(nNodes, _nClasses, NumericTable::doAllocate);
-        (*(modelImplRef._probTbl))[resId].reset(probTbl);
+        const auto probTbl = HomogenNumericTable<double>::create(nNodes, _nClasses, NumericTable::doAllocate);
+        (*(modelImplRef._probTbl))[resId] = probTbl;
     }
     return status;
 }
