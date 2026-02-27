@@ -612,7 +612,6 @@ protected:
      *  \param[in]    nRows       Number of rows in the corresponding dense table
      *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
      *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-     *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
      */
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
@@ -627,7 +626,6 @@ protected:
 
     /**
      *  Constructor for an empty CSR Numeric Table
-        *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
      */
     CSRNumericTable() : NumericTable(0, 0, DictionaryIface::equal), _indexing(oneBased)
     {
@@ -646,7 +644,6 @@ protected:
      *  \param[in]    nRows       Number of rows in the corresponding dense table
      *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
      *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
-    *  \DAAL_DEPRECATED_USE{ CSRNumericTable::create }
      */
     template <typename DataType>
     CSRNumericTable(DataType * const ptr, size_t * colIndices = 0, size_t * rowOffsets = 0, size_t nColumns = 0, size_t nRows = 0,

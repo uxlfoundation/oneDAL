@@ -406,14 +406,12 @@ protected:
 
     /**
      *  Constructor for an empty merge Numeric Table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
      */
     MergedNumericTable();
 
     /**
      *  Constructor for a merge Numeric Table consisting of one table
      *  \param[in]  table       Pointer to the table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
      */
     MergedNumericTable(NumericTablePtr table);
 
@@ -421,7 +419,6 @@ protected:
      *  Constructor for a merge Numeric Table consisting of two tables
      *  \param[in]  first      Pointer to the first table
      *  \param[in]  second     Pointer to the second table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
      */
     MergedNumericTable(NumericTablePtr first, NumericTablePtr second);
 

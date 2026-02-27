@@ -287,14 +287,6 @@ protected:
 
     /**
      *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     */
-    DAAL_DEPRECATED SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
      *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
      *  \param[in]  nRows                 Number of rows in the table
      *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table

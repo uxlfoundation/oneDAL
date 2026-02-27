@@ -460,21 +460,12 @@ protected:
 
     /**
      *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict   Pointer to the predefined NumericTableDictionary
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED HomogenNumericTable(NumericTableDictionary * ddict) : NumericTable(ddict) { _layout = aos; }
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
      *  \param[in]  ddictForHomogenNumericTable   Pointer to the predefined NumericTableDictionary
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(NumericTableDictionaryPtr ddictForHomogenNumericTable) : NumericTable(ddictForHomogenNumericTable) { _layout = aos; }
 
     /**
      *  Constructor for an empty Numeric Table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable() : NumericTable(0, 0) {}
 
@@ -483,7 +474,6 @@ protected:
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DataType * const ptr, size_t nColumns = 0, size_t nRows = 0) : NumericTable(nColumns, nRows)
     {
@@ -500,7 +490,6 @@ protected:
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows) : NumericTable(nColumns, nRows)
     {
@@ -518,7 +507,6 @@ protected:
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr = 0, size_t nColumns = 0, size_t nRows = 0)
         : NumericTable(nColumns, nRows, featuresEqual)
@@ -537,7 +525,6 @@ protected:
      *  \param[in]  ptr            Pointer to and an array with a homogeneous data set
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
         : NumericTable(nColumns, nRows, featuresEqual)
@@ -556,7 +543,6 @@ protected:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DataType * const ptr, size_t nColumns, size_t nRows, const DataType & constValue) : NumericTable(nColumns, nRows)
     {
@@ -575,7 +561,6 @@ protected:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows, const DataType & constValue)
         : NumericTable(nColumns, nRows)
@@ -596,7 +581,6 @@ protected:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, DataType * const ptr, size_t nColumns, size_t nRows,
                         const DataType & constValue)
@@ -618,7 +602,6 @@ protected:
      *  \param[in]  nColumns       Number of columns in the table
      *  \param[in]  nRows          Number of rows in the table
      *  \param[in]  constValue     Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows,
                         const DataType & constValue)
@@ -638,7 +621,6 @@ protected:
      *  \param[in]  nColumns                Number of columns in the table
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag) : NumericTable(nColumns, nRows)
     {
@@ -657,7 +639,6 @@ protected:
      *  \param[in]  nColumns                Number of columns in the table
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows, AllocationFlag memoryAllocationFlag)
         : NumericTable(nColumns, nRows, featuresEqual)
@@ -677,7 +658,6 @@ protected:
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(size_t nColumns, size_t nRows, NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
         : NumericTable(nColumns, nRows)
@@ -701,7 +681,6 @@ protected:
      *  \param[in]  nRows                   Number of rows in the table
      *  \param[in]  memoryAllocationFlag    Flag that controls internal memory allocation for data in the numeric table
      *  \param[in]  constValue              Constant to initialize entries of the homogeneous numeric table
-     *  \DAAL_DEPRECATED_USE{ HomogenNumericTable::create }
      */
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
                         NumericTable::AllocationFlag memoryAllocationFlag, const DataType & constValue)
