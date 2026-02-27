@@ -75,6 +75,7 @@ def generate_vars_sh(name, out = "env/vars.sh", **kwargs):
         template = select({
             # TODO: add Windows condition when Windows toolchain is ready.
             # "@platforms//os:windows": "@onedal//deploy/local:vars_win.bat",
+            "@platforms//os:osx": "@onedal//deploy/local:vars_mac.sh",
             "//conditions:default": "@onedal//deploy/local:vars_lnx.sh",
         }),
         out = out,
@@ -106,7 +107,7 @@ def _generate_pkgconfig_impl(ctx):
         inputs = [ctx.file.template],
         outputs = [out],
         command = (
-            "gcc -E -P -x c " +
+            "${CC:-gcc} -E -P -x c " +
             "-DDAL_MAJOR_BINARY={binary_major} " +
             "-DDAL_MINOR_BINARY={binary_minor} " +
             "-DDAL_MAJOR={major} " +
