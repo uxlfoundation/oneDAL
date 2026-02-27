@@ -86,7 +86,7 @@ mkl_flags.win32e := mkl_sycl_blas_dll.lib \
     mkl_sycl_lapack_dll.lib mkl_sycl_sparse_dll.lib \
     mkl_sycl_rng_dll.lib \
     mkl_intel_ilp64_dll.lib \
-    mkl_tbb_thread_dll.lib mkl_core_dll.lib
+    mkl_tbb_thread_dll.lib mkl_core_dll.lib -fsycl
 
 mkl_flags.mac32e :=
 mkl_flags.lnxarm :=
