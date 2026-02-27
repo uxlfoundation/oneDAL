@@ -49,15 +49,6 @@ public:
     DECLARE_SERIALIZABLE_IMPL()
 
     /**
-     *  Constructor for an empty Numeric Table
-     *  \param[in]  nColumns      Number of columns in the table
-     *  \param[in]  nRows         Number of rows in the table
-     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
-
-    /**
      *  Constructs an empty Numeric Table
      *  \param[in]  nColumns      Number of columns in the table
      *  \param[in]  nRows         Number of rows in the table
@@ -68,24 +59,6 @@ public:
     static services::SharedPtr<SOANumericTable> create(size_t nColumns = 0, size_t nRows = 0,
                                                        DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual,
                                                        services::Status * stat                      = NULL);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
 
     /**
      *  Constructs an empty Numeric Table with a predefined NumericTableDictionary
@@ -303,6 +276,30 @@ protected:
         DAAL_INT64 * _arrOffsets;
         size_t _count;
     };
+
+    /**
+     *  Constructor for an empty Numeric Table
+     *  \param[in]  nColumns      Number of columns in the table
+     *  \param[in]  nRows         Number of rows in the table
+     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
+     */
+    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddict                 Pointer to the predefined NumericTableDictionary
+     *  \param[in]  nRows                 Number of rows in the table
+     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
+     */
+    DAAL_DEPRECATED SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
+     *  \param[in]  nRows                 Number of rows in the table
+     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
+     */
+    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
 
     SOANumericTable(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual, services::Status & st);
 

@@ -58,15 +58,6 @@ public:
     DECLARE_SERIALIZABLE_IMPL()
 
     /**
-     *  Constructor for an empty Numeric Table with a predefined size of the structure that represents a feature vector
-     *  \param[in]  structSize  Size of the structure that represents the feature vector
-     *  \param[in]  ncol        Number of columns in the table
-     *  \param[in]  nrow        Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    AOSNumericTable(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0);
-
-    /**
      *  Constructs an empty Numeric Table with a predefined size of the structure that represents a feature vector
      *  \param[in]  structSize  Size of the structure that represents the feature vector
      *  \param[in]  ncol        Number of columns in the table
@@ -75,23 +66,6 @@ public:
      *  \return Empty numeric table with a predefined size of the structure that represents a feature vector
      */
     static services::SharedPtr<AOSNumericTable> create(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0, services::Status * stat = NULL);
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr     Pointer to a data set in the AOS format
-     *  \param[in]  ncol    Number of columns in the table
-     *  \param[in]  nrow    Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    template <typename StructDataType>
-    AOSNumericTable(const services::SharedPtr<StructDataType> & ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
-    {
-        _ptr        = services::reinterpretPointerCast<byte, StructDataType>(ptr);
-        _layout     = aos;
-        _structSize = sizeof(StructDataType);
-
-        initOffsets();
-    }
 
     /**
      *  Constructs a Numeric Table with user-allocated memory
@@ -106,23 +80,6 @@ public:
                                                        services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_IMPL_EX(AOSNumericTable, ptr, ncol, nrow);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr     Pointer to a data set in the AOS format
-     *  \param[in]  ncol    Number of columns in the table
-     *  \param[in]  nrow    Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    template <typename StructDataType>
-    AOSNumericTable(StructDataType * ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
-    {
-        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
-        _layout     = aos;
-        _structSize = sizeof(StructDataType);
-
-        initOffsets();
     }
 
     /**
@@ -294,6 +251,46 @@ protected:
         _structSize = sizeof(StructDataType);
 
         st |= initOffsets();
+    }
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined size of the structure that represents a feature vector
+     *  \param[in]  structSize  Size of the structure that represents the feature vector
+     *  \param[in]  ncol        Number of columns in the table
+     *  \param[in]  nrow        Number of rows in the table
+     */
+    AOSNumericTable(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0);
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr     Pointer to a data set in the AOS format
+     *  \param[in]  ncol    Number of columns in the table
+     *  \param[in]  nrow    Number of rows in the table
+     */
+    template <typename StructDataType>
+    AOSNumericTable(StructDataType * ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
+    {
+        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
+        _layout     = aos;
+        _structSize = sizeof(StructDataType);
+
+        initOffsets();
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr     Pointer to a data set in the AOS format
+     *  \param[in]  ncol    Number of columns in the table
+     *  \param[in]  nrow    Number of rows in the table
+     */
+    template <typename StructDataType>
+    AOSNumericTable(const services::SharedPtr<StructDataType> & ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
+    {
+        _ptr        = services::reinterpretPointerCast<byte, StructDataType>(ptr);
+        _layout     = aos;
+        _structSize = sizeof(StructDataType);
+
+        initOffsets();
     }
 
     services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE

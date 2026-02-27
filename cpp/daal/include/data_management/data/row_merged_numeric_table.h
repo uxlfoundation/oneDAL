@@ -50,19 +50,6 @@ public:
     DECLARE_SERIALIZABLE_IMPL()
 
     /**
-     *  Constructor for an empty merge Numeric Table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable();
-
-    /**
-     *  Constructor for a Row Merged Numeric Table consisting of one table
-     *  \param[in]  table  Pointer to the table
-     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
-     */
-    RowMergedNumericTable(NumericTablePtr table);
-
-    /**
      * Constructor for an empty merge Numeric Table
      * \param[out] stat  Status of the RowMergedNumericTable construction
      */
@@ -382,6 +369,19 @@ protected:
 
 protected:
     DataCollectionPtr _tables;
+
+    /**
+     *  Constructor for an empty merge Numeric Table
+     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
+     */
+    RowMergedNumericTable();
+
+    /**
+     *  Constructor for a Row Merged Numeric Table consisting of one table
+     *  \param[in]  table  Pointer to the table
+     *  \DAAL_DEPRECATED_USE{ MergedNumericTable::create }
+     */
+    RowMergedNumericTable(NumericTablePtr table);
 
     RowMergedNumericTable(services::Status & st);
 

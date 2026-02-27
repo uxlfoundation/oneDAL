@@ -518,20 +518,6 @@ public:
     /**
      *  Constructor for a Numeric Table with predefined dictionary
      *  \param[in]  ddict          Pointer to the data dictionary
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED NumericTable(NumericTableDictionary * ddict)
-    {
-        _obsnum            = 0;
-        _ddict             = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
-        _layout            = layout_unknown;
-        _memStatus         = notAllocated;
-        _normalizationFlag = NumericTable::nonNormalized;
-    }
-
-    /**
-     *  Constructor for a Numeric Table with predefined dictionary
-     *  \param[in]  ddict          Pointer to the data dictionary
      */
     NumericTable(NumericTableDictionaryPtr ddict)
     {
@@ -772,6 +758,19 @@ protected:
     services::Status _status;
 
 protected:
+    /**
+     *  Constructor for a Numeric Table with predefined dictionary
+     *  \param[in]  ddict          Pointer to the data dictionary
+     */
+    DAAL_DEPRECATED NumericTable(NumericTableDictionary * ddict)
+    {
+        _obsnum            = 0;
+        _ddict             = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
+        _layout            = layout_unknown;
+        _memStatus         = notAllocated;
+        _normalizationFlag = NumericTable::nonNormalized;
+    }
+
     NumericTable(NumericTableDictionaryPtr ddict, services::Status & /*st*/)
         : _ddict(ddict), _obsnum(0), _memStatus(notAllocated), _layout(layout_unknown), _normalizationFlag(NumericTable::nonNormalized)
     {}
