@@ -149,8 +149,8 @@ protected:
         return true;
     }
 
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
                                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) DAAL_C11_OVERRIDE
     {
         this->_nParallelNodes.inc();

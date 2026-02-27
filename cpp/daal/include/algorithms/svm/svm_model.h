@@ -125,13 +125,13 @@ public:
         if (layout == NumericTableIface::csrArray)
         {
             modelFPType * dummyPtr = NULL;
-            _SV = CSRNumericTable::create(dummyPtr, NULL, NULL, nColumns);
+            _SV                    = CSRNumericTable::create(dummyPtr, NULL, NULL, nColumns);
         }
         else
         {
             _SV = HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0);
         }
-        _SVCoeff = HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
+        _SVCoeff   = HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
         _SVIndices = HomogenNumericTable<int>::create(NULL, 1, 0);
     }
 

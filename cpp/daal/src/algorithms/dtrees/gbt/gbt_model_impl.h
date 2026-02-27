@@ -266,8 +266,8 @@ public:
     typedef TAllocator Allocator;
     typedef TNodeType NodeType;
 
-    services::Status convertGbtTreeToTable(GbtDecisionTree ** pTbl, services::SharedPtr<HomogenNumericTable<double>> & pTblImp, services::SharedPtr<HomogenNumericTable<int>> & pTblSmplCnt,
-                                           size_t nFeature) const
+    services::Status convertGbtTreeToTable(GbtDecisionTree ** pTbl, services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                           services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t nFeature) const
     {
         size_t nLvls        = 0;
         size_t nNodes       = 0;
@@ -275,7 +275,7 @@ public:
         services::Status status;
         getMaxLvLAndNumNodes(*super::top(), nLvls, nNodes, nDenseLayers, 0);
         nNodes += (static_cast<size_t>(1) << (std::min(nLvls, nDenseLayers) + 1)) - 1;
-        *pTbl        = new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
+        *pTbl       = new GbtDecisionTree(nNodes, nLvls, nDenseLayers);
         pTblImp     = HomogenNumericTable<double>::create(1, nNodes, NumericTable::doAllocate);
         pTblSmplCnt = HomogenNumericTable<int>::create(1, nNodes, NumericTable::doAllocate);
 
@@ -369,11 +369,13 @@ public:
     size_t numberOfTrees() const;
     void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const;
     void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const;
-    void add(gbt::internal::GbtDecisionTree * pTbl, services::SharedPtr<HomogenNumericTable<double>> pTblImp, services::SharedPtr<HomogenNumericTable<int>> pTblSmplCnt);
+    void add(gbt::internal::GbtDecisionTree * pTbl, services::SharedPtr<HomogenNumericTable<double> > pTblImp,
+             services::SharedPtr<HomogenNumericTable<int> > pTblSmplCnt);
     void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const;
     void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const;
-    static services::Status treeToTable(TreeType & t, gbt::internal::GbtDecisionTree ** pTbl, services::SharedPtr<HomogenNumericTable<double>> & pTblImp,
-                                        services::SharedPtr<HomogenNumericTable<int>> & pTblSmplCnt, size_t nFeature);
+    static services::Status treeToTable(TreeType & t, gbt::internal::GbtDecisionTree ** pTbl,
+                                        services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t nFeature);
 
     /**
      * \brief Return true if a node is leaf

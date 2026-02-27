@@ -47,16 +47,15 @@ using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::gbt::internal;
 
 template <CpuType cpu>
-void deleteTables(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp, HomogenNumericTable<int> ** aTblSmplCnt, size_t n)
+void deleteTables(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                  services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt, size_t n)
 {
     for (size_t i = 0; i < n; ++i)
     {
         delete aTbl[i];
-        delete aTblImp[i];
-        delete aTblSmplCnt[i];
-        aTbl[i]        = nullptr;
-        aTblImp[i]     = nullptr;
-        aTblSmplCnt[i] = nullptr;
+        aTbl[i] = nullptr;
+        aTblImp[i].reset();
+        aTblSmplCnt[i].reset();
     }
 }
 
@@ -449,9 +448,9 @@ public:
 class TreeBuilderBase : public Base
 {
 public:
-    virtual services::Status init()                                                     = 0;
-    virtual services::Status run(gbt::internal::GbtDecisionTree *& pRes, HomogenNumericTable<double> *& pTblImp,
-                                 HomogenNumericTable<int> *& pTblSmplCnt, size_t iTree) = 0;
+    virtual services::Status init()                                                                          = 0;
+    virtual services::Status run(gbt::internal::GbtDecisionTree *& pRes, services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                 services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t iTree) = 0;
 };
 
 class GbtTask

@@ -143,7 +143,8 @@ public:
         }
         else
         {
-            data_management::SOANumericTablePtr tbl = data_management::SOANumericTable::create(value->getNumberOfColumns(), value->getNumberOfRows(), data_management::DictionaryIface::equal);
+            data_management::SOANumericTablePtr tbl = data_management::SOANumericTable::create(value->getNumberOfColumns(), value->getNumberOfRows(),
+                                                                                               data_management::DictionaryIface::equal);
             DAAL_CHECK_MALLOC(tbl.get())
             tbl->getDictionary()->setAllFeatures<algorithmFPType>(); // Just to set type of all features. Also, no way to use featuresEqual flag.
             tbl->resize(value->getNumberOfRows());

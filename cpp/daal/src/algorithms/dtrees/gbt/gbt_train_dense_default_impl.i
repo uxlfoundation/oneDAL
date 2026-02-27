@@ -90,8 +90,9 @@ public:
     algorithmFPType accuracy() const { return _accuracy; }
     size_t nTrees() const { return _nTrees; }
 
-    services::Status run(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp, HomogenNumericTable<int> ** aTblSmplCnt,
-                         size_t iIteration, GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF);
+    services::Status run(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                         services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt, size_t iIteration,
+                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF);
     virtual services::Status init();
     bool isIndirect() const { return _bIndirect; }
     double computeLeafWeightUpdateF(const int * idx, size_t n, const ImpurityType & imp, size_t iTree);
@@ -161,8 +162,8 @@ protected:
     }
 
     virtual void initLossFunc()                                                                           = 0;
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
                                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) = 0;
     virtual void step(const algorithmFPType * y)                                                          = 0;
     virtual bool getInitialF(algorithmFPType & val) { return false; }
@@ -265,15 +266,16 @@ double TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::computeLeafWeight
 
 template <typename algorithmFPType, typename BinIndexType, CpuType cpu>
 services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::run(gbt::internal::GbtDecisionTree ** aTbl,
-                                                                             HomogenNumericTable<double> ** aTblImp,
-                                                                             HomogenNumericTable<int> ** aTblSmplCnt, size_t iIteration,
+                                                                             services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                                                             services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
+                                                                             size_t iIteration,
                                                                              GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF)
 {
     for (size_t i = 0; i < _nTrees; ++i)
     {
-        aTbl[i]        = nullptr;
-        aTblImp[i]     = nullptr;
-        aTblSmplCnt[i] = nullptr;
+        aTbl[i] = nullptr;
+        aTblImp[i].reset();
+        aTblSmplCnt[i].reset();
     }
 
     if (iIteration)
@@ -383,16 +385,14 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     DAAL_CHECK_MALLOC(md.reserve(par.maxIterations * nTrees));
 
     TVector<gbt::internal::GbtDecisionTree *, cpu> aTables;
-    TVector<HomogenNumericTable<double> *, cpu> impTables;
-    TVector<HomogenNumericTable<int> *, cpu> nodeSampleCountTables;
+    TVector<services::SharedPtr<HomogenNumericTable<double> >, cpu> impTables;
+    TVector<services::SharedPtr<HomogenNumericTable<int> >, cpu> nodeSampleCountTables;
 
     typename gbt::internal::GbtDecisionTree * pTbl = nullptr;
-    HomogenNumericTable<double> * pTblImp          = nullptr;
-    HomogenNumericTable<int> * pTblSmplCnt         = nullptr;
 
-    gbt::internal::GbtDecisionTree ** aTbl  = &pTbl;
-    HomogenNumericTable<double> ** aTblImp  = &pTblImp;
-    HomogenNumericTable<int> ** aTblSmplCnt = &pTblSmplCnt;
+    gbt::internal::GbtDecisionTree ** aTbl                       = &pTbl;
+    services::SharedPtr<HomogenNumericTable<double> > * aTblImp  = nullptr;
+    services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt = nullptr;
 
     if (nTrees > 1)
     {

@@ -208,9 +208,9 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
     tree.convertToTable(pTbl, impTbl.get(), nodeSamplesTbl.get(), probTbl.get(), 0);
 
     (*_serializationData)[iTree].reset(pTbl);
-    (*_impurityTables)[iTree] = impTbl;
+    (*_impurityTables)[iTree]    = impTbl;
     (*_nNodeSampleTables)[iTree] = nodeSamplesTbl;
-    (*_probTbl)[iTree] = probTbl;
+    (*_probTbl)[iTree]           = probTbl;
 
     return true;
 }

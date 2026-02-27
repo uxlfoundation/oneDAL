@@ -263,11 +263,11 @@ bool ModelImpl::add(const TreeType & tree, size_t nClasses, size_t iTree)
         return false;
     }
 
-    tree.convertToTable(pTbl, impTbl, nodeSamplesTbl, probTbl, nClasses);
+    tree.convertToTable(pTbl, impTbl.get(), nodeSamplesTbl.get(), probTbl.get(), nClasses);
     (*_serializationData)[iTree].reset(pTbl);
-    (*_impurityTables)[iTree].reset(impTbl);
-    (*_nNodeSampleTables)[iTree].reset(nodeSamplesTbl);
-    (*_probTbl)[iTree].reset(probTbl);
+    (*_impurityTables)[iTree]    = impTbl;
+    (*_nNodeSampleTables)[iTree] = nodeSamplesTbl;
+    (*_probTbl)[iTree]           = probTbl;
     return true;
 }
 

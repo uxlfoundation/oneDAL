@@ -27,7 +27,7 @@
 #include "services/base.h"
 
 #include "data_management/data/numeric_table.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -319,6 +319,8 @@ public:
     DECLARE_SERIALIZABLE_IMPL()
 
     DAAL_CAST_OPERATOR(CSRNumericTable)
+
+    friend Creator<CSRNumericTable>;
 
     /**
      *  Constructs CSR numeric table with user-allocated memory

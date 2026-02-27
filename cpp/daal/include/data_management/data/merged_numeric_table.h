@@ -27,7 +27,7 @@
 #include "data_management/data/numeric_table.h"
 #include "services/daal_memory.h"
 #include "services/daal_defines.h"
-#include "data_management/data/data_serialize.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 
 namespace daal
 {
@@ -48,6 +48,8 @@ class DAAL_EXPORT MergedNumericTable : public NumericTable
 public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
+
+    friend Creator<MergedNumericTable>;
 
     /**
      * Constructor for an empty merge Numeric Table

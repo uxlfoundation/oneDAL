@@ -25,6 +25,7 @@
 #define __SOA_NUMERIC_TABLE_H__
 
 #include "data_management/data/numeric_table.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -47,6 +48,8 @@ class DAAL_EXPORT SOANumericTable : public NumericTable
 public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
+
+    friend Creator<SOANumericTable>;
 
     /**
      *  Constructs an empty Numeric Table
