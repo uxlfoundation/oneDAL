@@ -5,7 +5,7 @@ cc_library(
     hdrs = glob([
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
-    ]),
+    ], allow_empty=True),
     includes = [ "include" ],
 )
 
@@ -19,6 +19,7 @@ cc_library(
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
         #       Remove TBB from deps once problem with vml_ipp is resolved
         "@tbb//:tbb_binary",
+        "@mkl//:mkl_static",
     ],
 )
 
@@ -59,9 +60,9 @@ cc_library(
 
 cc_library(
     name = "core_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_core.so",
-    ],
+    srcs = glob([
+        "lib/intel64/libonedal_core.so*",
+    ], allow_empty=True),
     deps = [
         ":headers",
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
@@ -72,9 +73,9 @@ cc_library(
 
 cc_library(
     name = "thread_dynamic",
-    srcs = [
-        "lib/intel64/libonedal_thread.so",
-    ],
+    srcs = glob([
+        "lib/intel64/libonedal_thread.so*",
+    ], allow_empty=True),
     deps = [
         ":headers",
         "@tbb//:tbb_binary",
@@ -84,10 +85,10 @@ cc_library(
 
 cc_library(
     name = "onedal_dynamic",
-    srcs = [
-        "lib/intel64/libonedal.so",
-        "lib/intel64/libonedal_parameters.so",
-    ],
+    srcs = glob([
+        "lib/intel64/libonedal.so*",
+        "lib/intel64/libonedal_parameters.so*",
+    ], allow_empty=True),
     deps = [
         ":headers",
     ],
@@ -95,10 +96,10 @@ cc_library(
 
 cc_library(
     name = "onedal_dynamic_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.so",
-        "lib/intel64/libonedal_parameters_dpc.so",
-    ],
+    srcs = glob([
+        "lib/intel64/libonedal_dpc.so*",
+        "lib/intel64/libonedal_parameters_dpc.so*",
+    ], allow_empty=True),
     deps = [
         ":headers",
         "@mkl//:mkl_dpc",

@@ -76,7 +76,7 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
         **kwargs,
     )
 
-def daal_dynamic_lib(name, lib_tags=["daal"], **kwargs):
+def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
