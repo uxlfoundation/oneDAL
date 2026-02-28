@@ -75,10 +75,10 @@ jobs:
           mkdir -p ${{ github.workspace }}/bazel-cache
 
           docker run \
-            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
+            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel-disk \
             onedal-dev sh -c "
               # Use external disk cache
-              echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
+              echo 'build --disk_cache=/root/.cache/bazel-disk' > ~/.bazelrc
               # In CI we build for avx2 only (override default "all" ISA release build).
               # For a full release with all ISA variants, omit --cpu or use --cpu=all.
               bazel build :release --cpu=avx2 --release_dpc=false
