@@ -66,7 +66,7 @@ public:
      * in the first step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -95,7 +95,7 @@ public:
      * in the second step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -124,7 +124,7 @@ public:
      * in the third step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -153,7 +153,7 @@ public:
      * in the fourth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -182,7 +182,7 @@ public:
      * in the fifth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -211,7 +211,7 @@ public:
      * in the sixth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -240,7 +240,7 @@ public:
      * in the seventh step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -269,7 +269,7 @@ public:
      * in the eighth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -298,7 +298,7 @@ public:
      * in the ninth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -327,7 +327,7 @@ public:
      * in the tenth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -356,7 +356,7 @@ public:
      * in the eleventh step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -385,7 +385,7 @@ public:
      * in the twelfth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -414,7 +414,7 @@ public:
      * in the thirteenth step of the distributed processing mode
      * \param[in] daalEnv   Environment object
      */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
     /** Default destructor */
     ~DistributedContainer();
 
@@ -477,7 +477,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -597,7 +597,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -719,7 +719,7 @@ public:
      *  \param[in] rightBlocks     Number of blocks that will process observations with value of selected
                                    split feature greater than selected split value
      */
-    Distributed(size_t leftBlocks, size_t rightBlocks);
+    DAAL_DEPRECATED Distributed(size_t leftBlocks, size_t rightBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -841,7 +841,7 @@ public:
      *  \param[in] rightBlocks     Number of blocks that will process observations with value of selected
                                    split feature greater than selected split value
      */
-    Distributed(size_t leftBlocks, size_t rightBlocks);
+    DAAL_DEPRECATED Distributed(size_t leftBlocks, size_t rightBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -962,7 +962,7 @@ public:
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      *  \param[in] epsilon       Radius of neighborhood
      */
-    Distributed(size_t blockIndex, size_t nBlocks, algorithmFPType epsilon);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks, algorithmFPType epsilon);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1084,7 +1084,7 @@ public:
      *  \param[in] epsilon          Radius of neighborhood
      *  \param[in] minObservations  Minimal total weight of observations in neighborhood of core observation
      */
-    Distributed(size_t blockIndex, size_t nBlocks, algorithmFPType epsilon, size_t minObservations);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks, algorithmFPType epsilon, size_t minObservations);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1201,7 +1201,7 @@ public:
     /**
      * Constructs a DBSCAN algorithm
      */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1310,7 +1310,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1428,7 +1428,7 @@ public:
     /**
      * Constructs a DBSCAN algorithm
      */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1556,7 +1556,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1676,7 +1676,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1796,7 +1796,7 @@ public:
      *  \param[in] blockIndex    Unique identifier of block initially passed for computation on the local node
      *  \param[in] nBlocks       Number of blocks initially passed for computation on all nodes
      */
-    Distributed(size_t blockIndex, size_t nBlocks);
+    DAAL_DEPRECATED Distributed(size_t blockIndex, size_t nBlocks);
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters
@@ -1914,7 +1914,7 @@ public:
     /**
      * Constructs a DBSCAN algorithm
      */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a DBSCAN algorithm by copying input objects and parameters

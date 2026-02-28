@@ -363,7 +363,7 @@ class DAAL_EXPORT PartialResult : public daal::algorithms::PartialResult
 {
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
 
     virtual ~PartialResult() {};
 
@@ -501,7 +501,7 @@ typedef services::SharedPtr<Result> ResultPtr;
 class DAAL_EXPORT DistributedStep2MasterInput : public InputIface
 {
 public:
-    DistributedStep2MasterInput();
+    DAAL_DEPRECATED DistributedStep2MasterInput();
 
     virtual ~DistributedStep2MasterInput() {}
 
@@ -553,7 +553,7 @@ struct DAAL_EXPORT DistributedStep2LocalPlusPlusParameter : public Parameter
     /**
     *  Main constructor
     */
-    DistributedStep2LocalPlusPlusParameter(size_t _nClusters, bool bFirstIteration);
+    DAAL_DEPRECATED DistributedStep2LocalPlusPlusParameter(size_t _nClusters, bool bFirstIteration);
 
     /**
     * Constructs parameters of the algorithm that computes initial centroids for K-Means algorithm
@@ -575,7 +575,7 @@ struct DAAL_EXPORT DistributedStep2LocalPlusPlusParameter : public Parameter
 class DAAL_EXPORT DistributedStep2LocalPlusPlusInput : public Input
 {
 public:
-    DistributedStep2LocalPlusPlusInput();
+    DAAL_DEPRECATED DistributedStep2LocalPlusPlusInput();
     DistributedStep2LocalPlusPlusInput(const DistributedStep2LocalPlusPlusInput & o);
 
     virtual ~DistributedStep2LocalPlusPlusInput() {}
@@ -638,7 +638,7 @@ public:
 class DAAL_EXPORT DistributedStep3MasterPlusPlusInput : public daal::algorithms::Input
 {
 public:
-    DistributedStep3MasterPlusPlusInput();
+    DAAL_DEPRECATED DistributedStep3MasterPlusPlusInput();
     DistributedStep3MasterPlusPlusInput(const DistributedStep3MasterPlusPlusInput & o);
 
     /**
@@ -679,7 +679,7 @@ public:
 class DAAL_EXPORT DistributedStep4LocalPlusPlusInput : public Input
 {
 public:
-    DistributedStep4LocalPlusPlusInput();
+    DAAL_DEPRECATED DistributedStep4LocalPlusPlusInput();
     DistributedStep4LocalPlusPlusInput(const DistributedStep4LocalPlusPlusInput & o);
 
     /**
@@ -739,7 +739,7 @@ public:
 class DAAL_EXPORT DistributedStep5MasterPlusPlusInput : public daal::algorithms::Input
 {
 public:
-    DistributedStep5MasterPlusPlusInput();
+    DAAL_DEPRECATED DistributedStep5MasterPlusPlusInput();
     DistributedStep5MasterPlusPlusInput(const DistributedStep5MasterPlusPlusInput & o);
 
     virtual ~DistributedStep5MasterPlusPlusInput() {}
@@ -801,7 +801,7 @@ class DAAL_EXPORT DistributedStep2LocalPlusPlusPartialResult : public daal::algo
 {
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedStep2LocalPlusPlusPartialResult)
-    DistributedStep2LocalPlusPlusPartialResult();
+    DAAL_DEPRECATED DistributedStep2LocalPlusPlusPartialResult();
 
     virtual ~DistributedStep2LocalPlusPlusPartialResult() {};
 
@@ -883,7 +883,7 @@ class DAAL_EXPORT DistributedStep3MasterPlusPlusPartialResult : public daal::alg
 {
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedStep3MasterPlusPlusPartialResult)
-    DistributedStep3MasterPlusPlusPartialResult();
+    DAAL_DEPRECATED DistributedStep3MasterPlusPlusPartialResult();
 
     virtual ~DistributedStep3MasterPlusPlusPartialResult() {};
 
@@ -967,7 +967,7 @@ class DAAL_EXPORT DistributedStep4LocalPlusPlusPartialResult : public daal::algo
 {
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedStep4LocalPlusPlusPartialResult)
-    DistributedStep4LocalPlusPlusPartialResult();
+    DAAL_DEPRECATED DistributedStep4LocalPlusPlusPartialResult();
 
     virtual ~DistributedStep4LocalPlusPlusPartialResult() {};
 
@@ -1027,7 +1027,7 @@ class DAAL_EXPORT DistributedStep5MasterPlusPlusPartialResult : public daal::alg
 {
 public:
     DECLARE_SERIALIZABLE_CAST(DistributedStep5MasterPlusPlusPartialResult)
-    DistributedStep5MasterPlusPlusPartialResult();
+    DAAL_DEPRECATED DistributedStep5MasterPlusPlusPartialResult();
 
     virtual ~DistributedStep5MasterPlusPlusPartialResult() {};
 

@@ -365,7 +365,7 @@ template <ComputeStep step>
 class DAAL_EXPORT DistributedInput : public InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other);
     DistributedInput & operator=(const DistributedInput & other);
 

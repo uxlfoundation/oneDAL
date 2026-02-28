@@ -310,7 +310,7 @@ public:
      *  \param[in] nRowsTotal  Number of rows in all data sets
      *  \param[in] offset      Offset in the total data set specifying the start of a block stored on a given local node
      */
-    Distributed(size_t nClusters, size_t nRowsTotal, size_t offset = 0);
+    DAAL_DEPRECATED Distributed(size_t nClusters, size_t nRowsTotal, size_t offset = 0);
     /**
     * Copy constructor
      * \param[in] other An algorithm to be used as the source to initialize the input objects
@@ -446,7 +446,7 @@ public:
      *  \param[in] nClusters   Number of clusters
      *  \param[in] offset      Offset in the total data set specifying the start of a block stored on a given local node
      */
-    Distributed(size_t nClusters, size_t offset = 0);
+    DAAL_DEPRECATED Distributed(size_t nClusters, size_t offset = 0);
 
     /**
     * Returns the method of the algorithm
@@ -625,7 +625,7 @@ public:
     *  \param[in] nClusters        Number of clusters
     *  \param[in] bFirstIteration  true if this is the first iteration in the loop of steps 2-4.
     */
-    Distributed(size_t nClusters, bool bFirstIteration);
+    DAAL_DEPRECATED Distributed(size_t nClusters, bool bFirstIteration);
 
     /**
     * Copy constructor
@@ -742,7 +742,7 @@ public:
     *  Main constructor
     *  \param[in] nClusters   Number of clusters
     */
-    Distributed(size_t nClusters);
+    DAAL_DEPRECATED Distributed(size_t nClusters);
     /**
     * Copy constructor
     * \param[in] other An algorithm to be used as the source to initialize the input objects
@@ -858,7 +858,7 @@ public:
     *  Main constructor
     *  \param[in] nClusters   Number of clusters
     */
-    Distributed(size_t nClusters);
+    DAAL_DEPRECATED Distributed(size_t nClusters);
     /**
     * Copy constructor
     * \param[in] other An algorithm to be used as the source to initialize the input objects
@@ -971,7 +971,7 @@ public:
     *  Main constructor
     *  \param[in] nClusters   Number of clusters
     */
-    Distributed(size_t nClusters);
+    DAAL_DEPRECATED Distributed(size_t nClusters);
 
     /**
     * Copy constructor

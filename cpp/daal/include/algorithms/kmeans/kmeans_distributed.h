@@ -163,7 +163,7 @@ public:
      *  \param[in] nClusters  Number of clusters
      *  \param[in] assignFlag Flag to calculate partial assignment
      */
-    Distributed(size_t nClusters, bool assignFlag = false);
+    DAAL_DEPRECATED Distributed(size_t nClusters, bool assignFlag = false);
 
     /**
      * Constructs K-Means algorithm by copying input objects and parameters
@@ -311,7 +311,7 @@ public:
      *  \param[in] nClusters   Number of clusters
      *  \param[in] nIterations Number of iterations
      */
-    Distributed(size_t nClusters, size_t nIterations = 1);
+    DAAL_DEPRECATED Distributed(size_t nClusters, size_t nIterations = 1);
 
     /**
      * Constructs K-Means algorithm by copying input objects and parameters
