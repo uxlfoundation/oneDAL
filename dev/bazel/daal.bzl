@@ -77,6 +77,7 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
     )
 
 def daal_dynamic_lib(name, lib_tags=["daal"], **kwargs):
+    """Build a oneDAL shared library with SONAME automatically set from @config//:version."""
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,

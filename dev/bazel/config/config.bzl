@@ -120,18 +120,25 @@ VersionInfo = provider(
         "build",
         "buildrev",
         "status",
+        # Binary ABI version (distinct from product version).
+        # Used for SONAME and shared library symlinks.
+        # Matches Make's MAJORBINARY / MINORBINARY variables.
+        "binary_major",
+        "binary_minor",
     ],
 )
 
 def _version_info_impl(ctx):
     return [
         VersionInfo(
-            major    = ctx.attr.major,
-            minor    = ctx.attr.minor,
-            update   = ctx.attr.update,
-            build    = ctx.attr.build,
-            buildrev = ctx.attr.buildrev,
-            status   = ctx.attr.status,
+            major        = ctx.attr.major,
+            minor        = ctx.attr.minor,
+            update       = ctx.attr.update,
+            build        = ctx.attr.build,
+            buildrev     = ctx.attr.buildrev,
+            status       = ctx.attr.status,
+            binary_major = ctx.attr.binary_major,
+            binary_minor = ctx.attr.binary_minor,
         )
     ]
 
@@ -144,6 +151,10 @@ version_info = rule(
         "build": attr.string(mandatory=True),
         "buildrev": attr.string(mandatory=True),
         "status": attr.string(mandatory=True),
+        # ABI binary version — used for SONAME and symlinks.
+        # Must match MAJORBINARY/MINORBINARY in makefile.
+        "binary_major": attr.string(mandatory=True),
+        "binary_minor": attr.string(mandatory=True),
     },
 )
 
@@ -209,12 +220,15 @@ def _declare_onedal_config_impl(repo_ctx):
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
             "%{auto_cpu}":         auto_cpu,
-            "%{version_major}":    "2026",
-            "%{version_minor}":    "0",
-            "%{version_update}":   "0",
-            "%{version_build}":    utils.datestamp(repo_ctx),
-            "%{version_buildrev}": "work",
-            "%{version_status}":   "P",
+            "%{version_major}":         "2026",
+            "%{version_minor}":         "0",
+            "%{version_update}":        "0",
+            "%{version_build}":         utils.datestamp(repo_ctx),
+            "%{version_buildrev}":      "work",
+            "%{version_status}":        "P",
+            # Binary ABI version — must match MAJORBINARY/MINORBINARY in makefile.ver
+            "%{version_binary_major}":  "3",
+            "%{version_binary_minor}":  "0",
         },
     )
 

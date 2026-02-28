@@ -23,6 +23,7 @@ load("@onedal//dev/bazel:utils.bzl",
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "VersionInfo",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -186,6 +187,22 @@ def _cc_dynamic_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
+
+    # SONAME linker flags: resolved via select() in macro (_make_soname_linkopts),
+    # stored as a string list in soname_linkopts attr, and passed to the linker here.
+    # If not set by macro, falls back to empty list (no SONAME).
+    soname_linkopts = ctx.attr.soname_linkopts
+    # Fallback: if macro didn't set soname_linkopts (binary_major=None), auto-derive
+    # from @config//:version — but only on Linux (SONAME is Linux-specific).
+    if ctx.attr.lib_name and not soname_linkopts and ctx.attr._version_info:
+        is_linux = ctx.target_platform_has_constraint(
+            ctx.attr._linux_constraint[platform_common.ConstraintValueInfo])
+        if is_linux:
+            vi = ctx.attr._version_info[VersionInfo]
+            if vi.binary_major:
+                soname = "lib{}.so.{}".format(ctx.attr.lib_name, vi.binary_major)
+                soname_linkopts = ["-Wl,-soname,{}".format(soname)]
+
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -194,6 +211,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
+        user_link_flags = soname_linkopts,
     )
     default_info = DefaultInfo(
         files = depset([ dynamic_lib ]),
@@ -204,17 +222,73 @@ def _cc_dynamic_lib_impl(ctx):
     )
     return [default_info, cc_info]
 
-cc_dynamic_lib = rule(
+def _make_soname_linkopts(lib_name, binary_major):
+    """Return platform-aware SONAME linker flags via select().
+
+    Must be called from a macro (not a rule impl) because select() is not
+    allowed inside rule implementation functions.
+
+    On Linux, embeds -Wl,-soname,lib<name>.so.<binary_major> into the link.
+    On Windows and macOS, returns an empty list (handled by other mechanisms).
+    """
+    if not lib_name or not binary_major:
+        return []
+    soname = "lib{}.so.{}".format(lib_name, binary_major)
+    return select({
+        "@platforms//os:linux": ["-Wl,-soname,{}".format(soname)],
+        # macOS: -install_name is set by the toolchain via install_name_tool.
+        # Windows: DLL versioning uses PE resources, not SONAME.
+        "//conditions:default": [],
+    })
+
+_cc_dynamic_lib = rule(
     implementation = _cc_dynamic_lib_impl,
     attrs = {
         "lib_name": attr.string(),
         "lib_tags": attr.string_list(),
         "deps": attr.label_list(mandatory=True),
         "def_file": attr.label(allow_single_file=True),
+        # Platform-resolved SONAME linker flags, set by the cc_dynamic_lib macro.
+        "soname_linkopts": attr.string_list(
+            default = [],
+            doc = "Linker flags for SONAME embedding. Use cc_dynamic_lib macro which sets this automatically.",
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+        "_linux_constraint": attr.label(
+            default = "@platforms//os:linux",
+            providers = [platform_common.ConstraintValueInfo],
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],
 )
+
+def cc_dynamic_lib(name, lib_name = "", lib_tags = [], deps = [], def_file = None,
+                   binary_major = None, **kwargs):
+    """Build a oneDAL shared library with proper SONAME embedding.
+
+    Args:
+        name:         Bazel target name.
+        lib_name:     Output library name (e.g. "onedal_core" → libonedal_core.so).
+        lib_tags:     Module tags to collect from deps.
+        deps:         Dependencies.
+        def_file:     Optional .def file for Windows symbol export.
+        binary_major: Binary ABI major version for SONAME (e.g. "2").
+                      If not set, falls back to no SONAME flag.
+    """
+    soname_linkopts = _make_soname_linkopts(lib_name, binary_major)
+    _cc_dynamic_lib(
+        name = name,
+        lib_name = lib_name,
+        lib_tags = lib_tags,
+        deps = deps,
+        def_file = def_file,
+        soname_linkopts = soname_linkopts,
+        **kwargs
+    )
 
 
 def _cc_exec_impl(ctx):

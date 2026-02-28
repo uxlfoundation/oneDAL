@@ -181,11 +181,12 @@ def _link(owner, name, actions, cc_toolchain,
 
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None):
+             def_file=None, user_link_flags=[]):
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         def_file,
+        user_link_flags = user_link_flags,
     )
     library_to_link = linking_outputs.library_to_link
     if not (library_to_link and library_to_link.resolved_symlink_dynamic_library):

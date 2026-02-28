@@ -16,6 +16,7 @@
 
 load("@onedal//dev/bazel:utils.bzl", "utils", "paths")
 load("@onedal//dev/bazel:cc.bzl", "ModuleInfo")
+load("@onedal//dev/bazel/config:config.bzl", "VersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 
 def _match_file_name(file, entries):
@@ -73,31 +74,145 @@ def _copy_include(ctx, prefix):
             dst_files.append(dst_file)
     return dst_files
 
-def _copy_lib(ctx, prefix):
+def _symlink(ctx, link_name, target_name, prefix):
+    """Create a relative symlink in the release directory.
+
+    Args:
+        ctx: Rule context.
+        link_name: Basename of the symlink to create (e.g. "libonedal_core.so").
+        target_name: Basename of the symlink target (e.g. "libonedal_core.so.2").
+        prefix: Directory prefix inside the rule's output tree.
+
+    Returns:
+        The declared symlink File object.
+    """
+    link_file = ctx.actions.declare_symlink(paths.join(prefix, link_name))
+    ctx.actions.symlink(
+        output = link_file,
+        # Relative symlink — target lives in the same directory.
+        target_path = target_name,
+    )
+    return link_file
+
+def _copy_lib(ctx, prefix, version_info):
+    """Copy libraries to release directory with versioning and symlinks for .so files.
+
+    For each shared library (.so) on Linux, this creates:
+      libonedal_core.so.{binary_major}.{binary_minor}   (real file)
+      libonedal_core.so.{binary_major}  -> .so.{binary_major}.{binary_minor}  (symlink)
+      libonedal_core.so                 -> .so.{binary_major}           (symlink)
+
+    Static libraries (.a) and Windows DLLs (.dll) are copied as-is without versioning.
+
+    macOS .dylib versioning is not yet implemented (tracked separately).
+    """
     lib_prefix = paths.join(prefix, "lib", "intel64")
     libs = _collect_default_files(ctx.attr.lib)
     dst_files = []
+
     for lib in libs:
-        dst_path = paths.join(lib_prefix, lib.basename)
-        dst_file = _copy(ctx, lib, dst_path)
-        dst_files.append(dst_file)
+        # Determine if this is a shared library that needs versioning.
+        # On Linux: .so extension; on macOS: .dylib (handled separately).
+        is_shared_lib = lib.extension == "so"
+
+        if is_shared_lib and not version_info:
+            fail("Shared library '{}' requires VersionInfo for SONAME versioning, " +
+                 "but no version_info was provided to _copy_lib.".format(lib.basename))
+
+        if is_shared_lib and version_info:
+            binary_major = version_info.binary_major
+            binary_minor = version_info.binary_minor
+
+            # 1. Real versioned file: libonedal_core.so.2.9
+            versioned_name = "{}.{}.{}".format(lib.basename, binary_major, binary_minor)
+            versioned_file = _copy(ctx, lib, paths.join(lib_prefix, versioned_name))
+            dst_files.append(versioned_file)
+
+            # 2. Major symlink: libonedal_core.so.2 -> libonedal_core.so.2.9
+            major_link_name = "{}.{}".format(lib.basename, binary_major)
+            dst_files.append(_symlink(ctx, major_link_name, versioned_name, lib_prefix))
+
+            # 3. Unversioned symlink: libonedal_core.so -> libonedal_core.so.2
+            dst_files.append(_symlink(ctx, lib.basename, major_link_name, lib_prefix))
+        else:
+            # Static libs (.a), DLLs (.dll), import libs (.lib) — copy as-is.
+            dst_path = paths.join(lib_prefix, lib.basename)
+            dst_files.append(_copy(ctx, lib, dst_path))
+
+    return dst_files
+
+def _copy_extra_files(ctx, prefix):
+    """Copy extra generated files (vars.sh, pkg-config, etc.) into the release tree.
+
+    Each entry in extra_files is a (label, dst_subpath) pair encoded as two
+    parallel lists: extra_files and extra_files_dst.
+
+    dst_subpath is the desired path *relative to the release root*
+    (e.g. "env/vars.sh", "lib/pkgconfig/onedal.pc").
+    """
+    if len(ctx.attr.extra_files) != len(ctx.attr.extra_files_dst):
+        fail("extra_files and extra_files_dst must have the same length: got {} vs {}".format(
+            len(ctx.attr.extra_files), len(ctx.attr.extra_files_dst)))
+
+    dst_files = []
+    for dep, dst_subpath in zip(ctx.attr.extra_files, ctx.attr.extra_files_dst):
+        srcs = dep[DefaultInfo].files.to_list()
+        if len(srcs) != 1:
+            fail("extra_files entry '{}' must produce exactly one file, got {}".format(
+                dep.label, len(srcs)))
+        src = srcs[0]
+        dst_path = paths.join(prefix, dst_subpath)
+        dst_files.append(_copy(ctx, src, dst_path))
     return dst_files
 
 def _copy_to_release_impl(ctx):
     extra_toolchain = ctx.toolchains["@onedal//dev/bazel/toolchains:extra"]
     prefix = ctx.attr.name + "/daal/latest"
+    version_info = ctx.attr._version_info[VersionInfo] if ctx.attr._version_info else None
     files = []
     files += _copy_include(ctx, prefix)
-    files += _copy_lib(ctx, prefix)
+    files += _copy_lib(ctx, prefix, version_info)
+    files += _copy_extra_files(ctx, prefix)
     return [DefaultInfo(files=depset(files))]
+
+def _release_cpu_all_transition_impl(settings, attr):
+    """Transition to --cpu=all if the current CPU is the default ('auto').
+    This ensures that when a user runs `bazel build //:release` without
+    specifying a target CPU, all required ISA variants are built and
+    bundled. If the user specifies `--cpu=avx2`, we respect that and
+    do not transition.
+    """
+    if settings["//command_line_option:cpu"] == "auto":
+        return {"//command_line_option:cpu": "all"}
+    return {"//command_line_option:cpu": settings["//command_line_option:cpu"]}
+
+_release_cpu_all_transition = transition(
+    implementation = _release_cpu_all_transition_impl,
+    inputs = ["//command_line_option:cpu"],
+    outputs = ["//command_line_option:cpu"],
+)
 
 _release = rule(
     implementation = _copy_to_release_impl,
     attrs = {
-        "include": attr.label_list(allow_files=True),
+        "include": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "include_prefix": attr.string_list(),
         "include_skip_prefix": attr.string_list(),
-        "lib": attr.label_list(allow_files=True),
+        "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
+        "extra_files": attr.label_list(
+            allow_files = True,
+            doc = "Additional generated files to include in release. Must be paired 1:1 with extra_files_dst.",
+        ),
+        "extra_files_dst": attr.string_list(
+            doc = "Destination paths for extra_files, relative to the release root.",
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
+        ),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        ),
     },
     toolchains = [
         "@onedal//dev/bazel/toolchains:extra"
@@ -131,7 +246,21 @@ headers_filter = rule(
 def release_include(hdrs, skip_prefix="", add_prefix=""):
     return (hdrs, add_prefix, skip_prefix)
 
-def release(name, include, lib):
+def release(name, include, lib, extra_files = []):
+    """Assemble the oneDAL release directory tree.
+
+    Args:
+        name:        Target name (also used as the output directory prefix).
+        include:     List of release_include() tuples for headers.
+        lib:         List of library targets (static, shared).
+        extra_files: List of (label, dst_path) tuples for additional files.
+                     Use release_extra_file() helper to construct entries.
+                     Example:
+                       extra_files = [
+                           release_extra_file(":release_vars_sh", "env/vars.sh"),
+                           release_extra_file(":release_pkgconfig", "lib/pkgconfig/onedal.pc"),
+                       ]
+    """
     rule_include = []
     rule_include_prefix = []
     rule_include_skip_prefix = []
@@ -140,10 +269,31 @@ def release(name, include, lib):
             rule_include.append(dep)
             rule_include_prefix.append(prefix)
             rule_include_skip_prefix.append(skip_prefix)
+
+    rule_extra_files = []
+    rule_extra_files_dst = []
+    for label, dst in extra_files:
+        rule_extra_files.append(label)
+        rule_extra_files_dst.append(dst)
+
     _release(
         name = name,
         include = rule_include,
         include_prefix = rule_include_prefix,
         include_skip_prefix = rule_include_skip_prefix,
         lib = lib,
+        extra_files = rule_extra_files,
+        extra_files_dst = rule_extra_files_dst,
     )
+
+def release_extra_file(label, dst_path):
+    """Helper to declare an extra file for release().
+
+    Args:
+        label:    Bazel label of the target producing the file.
+        dst_path: Destination path relative to the release root (e.g. "env/vars.sh").
+
+    Returns:
+        A tuple (label, dst_path) for use in release(extra_files=...).
+    """
+    return (label, dst_path)

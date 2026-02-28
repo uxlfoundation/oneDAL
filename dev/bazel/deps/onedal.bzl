@@ -31,11 +31,23 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
 
         # Dynamic
         "lib/intel64/libonedal_core.so",
+        "lib/intel64/libonedal_core.so.3",
+        "lib/intel64/libonedal_core.so.3.0",
         "lib/intel64/libonedal_thread.so",
+        "lib/intel64/libonedal_thread.so.3",
+        "lib/intel64/libonedal_thread.so.3.0",
         "lib/intel64/libonedal.so",
+        "lib/intel64/libonedal.so.3",
+        "lib/intel64/libonedal.so.3.0",
         "lib/intel64/libonedal_dpc.so",
+        "lib/intel64/libonedal_dpc.so.3",
+        "lib/intel64/libonedal_dpc.so.3.0",
         "lib/intel64/libonedal_parameters.so",
+        "lib/intel64/libonedal_parameters.so.3",
+        "lib/intel64/libonedal_parameters.so.3.0",
         "lib/intel64/libonedal_parameters_dpc.so",
+        "lib/intel64/libonedal_parameters_dpc.so.3",
+        "lib/intel64/libonedal_parameters_dpc.so.3.0",
     ],
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
 )
