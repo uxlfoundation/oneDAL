@@ -84,7 +84,6 @@ TEMPLATE_LIST_TEST_M(covariance_spmd_test,
                      "covariance common flow",
                      "[covariance][integration][spmd]",
                      covariance_types) {
-    SKIP_IF(this->get_policy().is_cpu());
     SKIP_IF(this->not_float64_friendly());
 
     using Float = std::tuple_element_t<0, TestType>;
