@@ -126,6 +126,17 @@ static result_t call_daal_kernel(const context_cpu& ctx,
         result.set_singular_values(homogen_table::wrap(arr_singular_values, 1, component_count));
     }
 
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        double noiseVariance = 0.0;
+        interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
+            return daal_pca_cor_kernel_t<
+                       Float,
+                       dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
+                .computeNoiseVariances(*daal_eigenvalues, *daal_variances, noiseVariance);
+        }));
+        result.set_noise_variance(noiseVariance);
+    }
+
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
         result.set_explained_variances_ratio(
             homogen_table::wrap(arr_explained_variances_ratio, 1, component_count));

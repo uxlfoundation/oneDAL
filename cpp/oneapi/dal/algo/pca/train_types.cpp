@@ -37,10 +37,11 @@ public:
 template <typename Task>
 class train_result_impl : public base {
 public:
-    model<Task> trained_model;
+    double noise_variance;
+    result_option_id result_options;
     table singular_values;
     table explained_variances_ratio;
-    result_option_id result_options;
+    model<Task> trained_model;
 };
 
 template <typename Task>
@@ -208,6 +209,14 @@ const table& train_result<Task>::get_singular_values() const {
 }
 
 template <typename Task>
+double train_result<Task>::get_noise_variance() const {
+    if (!get_result_options().test(result_options::noise_variance)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    return impl_->noise_variance;
+}
+
+template <typename Task>
 const table& train_result<Task>::get_explained_variances_ratio() const {
     if (!get_result_options().test(result_options::explained_variances_ratio)) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
@@ -258,6 +267,14 @@ void train_result<Task>::set_singular_values_impl(const table& value) {
         throw domain_error(msg::this_result_is_not_enabled_via_result_options());
     }
     impl_->singular_values = value;
+}
+
+template <typename Task>
+void train_result<Task>::set_noise_variance_impl(const double value) {
+    if (!get_result_options().test(result_options::noise_variance)) {
+        throw domain_error(msg::this_result_is_not_enabled_via_result_options());
+    }
+    impl_->noise_variance = value;
 }
 
 template <typename Task>

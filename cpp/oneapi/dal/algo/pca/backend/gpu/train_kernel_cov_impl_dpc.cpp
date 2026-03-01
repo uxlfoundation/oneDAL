@@ -18,7 +18,6 @@
 #include "oneapi/dal/algo/pca/backend/gpu/misc.hpp"
 
 #include "oneapi/dal/algo/pca/backend/common.hpp"
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
@@ -125,43 +124,45 @@ result_t train_kernel_cov_impl<Float>::operator()(const descriptor_t& desc, cons
     auto [eigvals, syevd_event] =
         syevd_computation(q_, eigenvectors, { cov_event, corr_event, vars_event });
 
-    auto flipped_eigvals_host = flip_eigenvalues(q_, eigvals, component_count, { syevd_event });
+    // Compute noise variance on the host (CPU) since it's a simple operation and
+    // doesn't benefit much from parallelization on the device (GPU/accelerator).
+    // This avoids unnecessary overhead from device-side execution.
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        auto range = std::min(row_count, column_count) - component_count;
+        auto noise_variance = compute_noise_variance(q_, eigvals, range, { syevd_event });
+        result.set_noise_variance(noise_variance);
+    }
+
+    auto [reordered_eigvals, reordered_eigenvectors] =
+        reorder_eigenpairs_descending(q_, eigvals, eigenvectors, component_count, { syevd_event });
 
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
-            homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));
+            homogen_table::wrap(reordered_eigvals.flatten(q_, {}), 1, component_count));
     }
 
-    auto flipped_eigenvectors_host =
-        flip_eigenvectors(q_, eigenvectors, component_count, { syevd_event });
-
     if (desc.get_result_options().test(result_options::singular_values)) {
-        auto singular_values = compute_singular_values_on_host(q_,
-                                                               flipped_eigvals_host,
-                                                               rows_count_global,
-                                                               { syevd_event });
+        auto singular_values =
+            compute_singular_values(q_, reordered_eigvals, rows_count_global, { syevd_event });
         result.set_singular_values(
-            homogen_table::wrap(singular_values.flatten(), 1, component_count));
+            homogen_table::wrap(singular_values.flatten(q_), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
-        auto vars_host = vars.to_host(q_);
-        auto explained_variances_ratio = compute_explained_variances_on_host(q_,
-                                                                             flipped_eigvals_host,
-                                                                             vars_host,
-                                                                             { syevd_event });
+        auto explained_variances_ratio =
+            compute_explained_variances(q_, reordered_eigvals, vars, { syevd_event });
         result.set_explained_variances_ratio(
-            homogen_table::wrap(explained_variances_ratio.flatten(), 1, component_count));
+            homogen_table::wrap(explained_variances_ratio.flatten(q_), 1, component_count));
     }
 
     if (desc.get_deterministic()) {
-        sign_flip(flipped_eigenvectors_host);
+        sign_flip(q_, reordered_eigenvectors, {}).wait_and_throw();
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
-        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(),
-                                                    flipped_eigenvectors_host.get_dimension(0),
-                                                    flipped_eigenvectors_host.get_dimension(1)));
+        result.set_eigenvectors(homogen_table::wrap(reordered_eigenvectors.flatten(q_),
+                                                    reordered_eigenvectors.get_dimension(0),
+                                                    reordered_eigenvectors.get_dimension(1)));
     }
 
     return result;

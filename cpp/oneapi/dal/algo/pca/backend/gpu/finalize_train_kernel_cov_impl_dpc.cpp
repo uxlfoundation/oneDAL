@@ -24,7 +24,6 @@
 #include "oneapi/dal/backend/primitives/stat.hpp"
 #include "oneapi/dal/backend/primitives/utils.hpp"
 
-#include "oneapi/dal/algo/pca/backend/sign_flip.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 #ifdef ONEDAL_DATA_PARALLEL
@@ -57,7 +56,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
 
     auto result = train_result<task_t>{}.set_result_options(desc.get_result_options());
 
-    const auto nobs_host = pr::table2ndarray<Float>(q, input.get_partial_n_rows());
+    const auto nobs_host = pr::table2ndarray<Float>(input.get_partial_n_rows());
     auto rows_count_global = nobs_host.get_data()[0];
     auto sums = pr::table2ndarray_1d<Float>(q, input.get_partial_sum(), sycl::usm::alloc::device);
     auto xtx =
@@ -95,6 +94,7 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
         auto [means, means_event] = compute_means(q, sums, rows_count_global, {});
         result.set_means(homogen_table::wrap(means.flatten(q, { means_event }), 1, column_count));
     }
+
     auto [cov, cov_event] = compute_covariance(q, rows_count_global, xtx, sums, {});
 
     auto [vars, vars_event] = compute_variances(q, cov, { cov_event });
@@ -116,46 +116,51 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     auto [eigvals, syevd_event] =
         syevd_computation(q, data_to_compute, { cov_event, corr_event, vars_event });
 
-    auto flipped_eigvals_host = flip_eigenvalues(q, eigvals, component_count, { syevd_event });
+    // Compute noise variance on the host (CPU) since it's a simple operation and
+    // doesn't benefit much from parallelization on the device (GPU/accelerator).
+    // This avoids unnecessary overhead from device-side execution.
+    if (desc.get_result_options().test(result_options::noise_variance)) {
+        std::int64_t rows_count_ = rows_count_global;
+        auto range = std::min(rows_count_, column_count) - component_count;
+        auto noise_variance = compute_noise_variance(q, eigvals, range, { syevd_event });
+        result.set_noise_variance(noise_variance);
+    }
 
-    auto flipped_eigenvectors_host =
-        flip_eigenvectors(q, data_to_compute, component_count, { syevd_event });
+    auto [reordered_eigvals, reordered_eigenvectors] =
+        reorder_eigenpairs_descending(q,
+                                      eigvals,
+                                      data_to_compute,
+                                      component_count,
+                                      { syevd_event });
+
     if (desc.get_result_options().test(result_options::eigenvalues)) {
         result.set_eigenvalues(
-            homogen_table::wrap(flipped_eigvals_host.flatten(), 1, component_count));
+            homogen_table::wrap(reordered_eigvals.flatten(q, {}), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::singular_values)) {
         auto singular_values =
-            compute_singular_values_on_host(q,
-                                            flipped_eigvals_host,
-                                            rows_count_global,
-                                            { corr_event, vars_event, cov_event });
+            compute_singular_values(q, reordered_eigvals, rows_count_global, { syevd_event });
         result.set_singular_values(
-            homogen_table::wrap(singular_values.flatten(), 1, component_count));
+            homogen_table::wrap(singular_values.flatten(q), 1, component_count));
     }
 
     if (desc.get_result_options().test(result_options::explained_variances_ratio)) {
-        auto vars_host = vars.to_host(q);
         auto explained_variances_ratio =
-            compute_explained_variances_on_host(q,
-                                                flipped_eigvals_host,
-                                                vars_host,
-                                                { corr_event, vars_event, cov_event });
+            compute_explained_variances(q, reordered_eigvals, vars, { syevd_event, vars_event });
         result.set_explained_variances_ratio(
-            homogen_table::wrap(explained_variances_ratio.flatten(), 1, component_count));
+            homogen_table::wrap(explained_variances_ratio.flatten(q), 1, component_count));
     }
 
     if (desc.get_deterministic()) {
-        sign_flip(flipped_eigenvectors_host);
+        sign_flip(q, reordered_eigenvectors, {}).wait_and_throw();
     }
 
     if (desc.get_result_options().test(result_options::eigenvectors)) {
-        result.set_eigenvectors(homogen_table::wrap(flipped_eigenvectors_host.flatten(),
-                                                    component_count,
-                                                    column_count));
+        result.set_eigenvectors(homogen_table::wrap(reordered_eigenvectors.flatten(q),
+                                                    reordered_eigenvectors.get_dimension(0),
+                                                    reordered_eigenvectors.get_dimension(1)));
     }
-
     return result;
 }
 

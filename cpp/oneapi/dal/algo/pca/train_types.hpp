@@ -204,6 +204,14 @@ public:
         set_singular_values_impl(value);
         return *this;
     }
+    /// A value that contains the noise variance.
+    double get_noise_variance() const;
+
+    auto& set_noise_variance(const double value) {
+        set_noise_variance_impl(value);
+        return *this;
+    }
+
     /// A $1 \\times r$ table that contains the explained variances values for the first :literal:`r`
     /// features.
     /// @remark default = table{}
@@ -228,6 +236,7 @@ protected:
     void set_eigenvectors_impl(const table&);
     void set_variances_impl(const table&);
     void set_means_impl(const table&);
+    void set_noise_variance_impl(const double);
     void set_explained_variances_ratio_impl(const table&);
     void set_singular_values_impl(const table&);
     void set_result_options_impl(const result_option_id&);
