@@ -1,11 +1,11 @@
 alabaster==1.0.0
 Babel==2.18.0
 beautifulsoup4==4.14.3
-certifi==2026.1.4
+certifi==2026.2.25
 chardet==6.0.0.post1
 click==8.3.1
 colorama==0.4.6
-docutils~=0.21.2
+docutils~=0.22.4
 idna==3.11
 imagesize==1.4.1
 importlib-metadata==8.7.1
@@ -24,7 +24,7 @@ six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.8.3
 Sphinx==8.2.3
-sphinx-book-theme==1.1.3
+sphinx-book-theme==1.1.4
 sphinx-notfound-page==1.1.0
 sphinx-prompt==1.10.2
 Sphinx-Substitution-Extensions==2026.1.12
