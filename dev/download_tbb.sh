@@ -16,7 +16,7 @@
 # limitations under the License.
 #===============================================================================
 
-TBB_VERSION="2021.10.0"
+TBB_VERSION="2022.3.0"
 TBB_URL_ROOT="https://github.com/uxlfoundation/oneTBB/releases/download/v${TBB_VERSION}"
 
 os=$(uname)
