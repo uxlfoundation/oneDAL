@@ -23,6 +23,7 @@
 #include "oneapi/dal/backend/primitives/rng/rng_types.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include <vector>
+#include <unordered_set>
 
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
 #include "oneapi/dal/table/common.hpp"
@@ -108,6 +109,18 @@ public:
             REQUIRE(abs(val_arr_1_host_ptr[el] - val_arr_2_host_ptr[el]) < 0.01);
         }
     }
+
+    void check_unique_results(const ndarray<DataType, 1>& arr_1) {
+        const auto arr_1_host = arr_1.to_host(this->get_queue());
+        const DataType* arr_1_data = arr_1_host.get_data();
+        const std::int32_t size = arr_1_host.get_count();
+
+        std::unordered_set<DataType> unique_elements(arr_1_data, arr_1_data + size);
+
+        if (unique_elements.size() != static_cast<size_t>(size)) {
+            throw std::runtime_error("Array contains duplicate elements");
+        }
+    }
 };
 
 using rng_types = COMBINE_TYPES((float, double), (mt2203, mt19937, mcg59, mrg32k3a, philox4x32x10));
@@ -133,6 +146,38 @@ TEMPLATE_LIST_TEST_M(rng_test, "rng cpu vs gpu", "[rng]", rng_types) {
         .wait_and_throw();
 
     this->check_results(arr_gpu, arr_host);
+}
+
+using rng_types_int = COMBINE_TYPES((std::int32_t, int),
+                                    (mt2203, mt19937, mcg59, mrg32k3a, philox4x32x10));
+
+TEMPLATE_LIST_TEST_M(rng_test, "uniform without replacement test", "[rng]", rng_types_int) {
+    SKIP_IF(this->get_policy().is_cpu());
+    SKIP_IF(this->not_float64_friendly());
+    using Float = std::tuple_element_t<0, TestType>;
+
+    std::int64_t elem_count = GENERATE_COPY(10, 777, 10000, 50000);
+    std::int64_t seed = GENERATE_COPY(777, 999);
+
+    auto arr_gpu = this->allocate_array_device(elem_count);
+    auto arr_host = this->allocate_array_host(elem_count);
+    auto arr_gpu_ptr = arr_gpu.get_mutable_data();
+    auto arr_host_ptr = arr_host.get_mutable_data();
+
+    auto rng_engine = this->get_device_engine(seed);
+    auto rng_engine_ = this->get_device_engine(seed);
+
+    uniform_without_replacement<Float>(elem_count, arr_host_ptr, rng_engine, 0, elem_count);
+    uniform_without_replacement<Float>(this->get_queue(),
+                                       elem_count,
+                                       arr_gpu_ptr,
+                                       rng_engine_,
+                                       0,
+                                       elem_count)
+        .wait_and_throw();
+
+    this->check_unique_results(arr_gpu);
+    this->check_unique_results(arr_host);
 }
 
 using rng_types_skip_ahead_support = COMBINE_TYPES((float, double),
@@ -211,6 +256,6 @@ TEMPLATE_LIST_TEST_M(rng_test, "mixed rng gpu skip", "[rng]", rng_types_skip_ahe
     this->check_results(arr_gpu, arr_host);
 }
 
-//TODO: add engine collection test + separate host_engine tests
+//TODO: add separate host_engine tests
 
 } // namespace oneapi::dal::backend::primitives::test

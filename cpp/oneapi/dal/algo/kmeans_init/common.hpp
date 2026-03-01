@@ -18,6 +18,7 @@
 
 #include "oneapi/dal/detail/common.hpp"
 #include "oneapi/dal/table/common.hpp"
+#include "oneapi/dal/rng.hpp"
 
 namespace oneapi::dal::kmeans_init {
 
@@ -119,6 +120,7 @@ public:
 
     std::int64_t get_local_trials_count() const;
     std::int64_t get_cluster_count() const;
+    engine_type get_engine_type() const;
     std::int64_t get_seed() const;
 
 protected:
@@ -180,6 +182,17 @@ public:
 
     auto& set_cluster_count(std::int64_t value) {
         base_t::set_cluster_count_impl(value);
+        return *this;
+    }
+
+    /// Engine method for the random numbers generator used by the algorithm
+    /// @remark default = engine_method::philox4x32x10
+    engine_type get_engine_type() const {
+        return base_t::get_engine_type();
+    }
+
+    auto& set_engine_type(engine_type value) {
+        base_t::set_engine_type_impl(value);
         return *this;
     }
 
