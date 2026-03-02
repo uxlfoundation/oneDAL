@@ -805,7 +805,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code,)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib OpenCL.lib)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(mkl_flags)
 
 ifdef OS_is_win
@@ -823,7 +823,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win), $(if $(libsycl),$(libsycl),$(libsycl.default)) OpenCL.lib)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win), $(if $(libsycl),$(libsycl),$(libsycl.default)))
 ifdef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(parameters_y.dpc)
 endif
