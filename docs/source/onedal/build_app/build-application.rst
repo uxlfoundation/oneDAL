@@ -50,17 +50,17 @@ Applications on Linux* OS
           * - Static linking
             -
               | libonedal_core.a,
-              | libonedal_thread.a
+              | libonedal_thread.a,
               | libonedal.a,
-              | libonedal_parameters.a,
+              | libonedal_parameters.a
           * - Dynamic linking
             -
               | libonedal_core.so,
-              | libonedal_thread.so
+              | libonedal_thread.so,
               | libonedal.so,
               | libonedal_parameters.so,
               | libonedal_dpc.so,
-              | libonedal_parameters_dpc.so,
+              | libonedal_parameters_dpc.so
 
    - Add an additional |short_name| library:
 
