@@ -53,7 +53,8 @@ ModelPtr buildModel() {
                                                   DataSource::doDictionaryFromContext);
 
     /* Create Numeric Table for beta coefficients */
-    NumericTablePtr beta(new HomogenNumericTable<>(nFeatures + 1, 0, NumericTable::doNotAllocate));
+    NumericTablePtr beta =
+        HomogenNumericTable<>::create(nFeatures + 1, 0, NumericTable::doNotAllocate);
     /* Get beta from trained model */
     modelSource.loadDataBlock(beta.get());
 
@@ -87,9 +88,11 @@ void testModel(ModelPtr &inputModel) {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr testGroundTruth =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Load the data from the data file */
     testDataSource.loadDataBlock(mergedData.get());

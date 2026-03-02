@@ -823,6 +823,7 @@ protected:
     {
         size_t ncols = getNumberOfColumns();
         size_t nobs  = getNumberOfRows();
+
         block.setDetails(0, idx, rwFlag);
 
         if (idx >= nobs)
@@ -838,6 +839,7 @@ protected:
         }
         else
         {
+            if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
             if (rwFlag & (int)readOnly)
             {
                 byte * location = internal_getBlockOfRows(idx);

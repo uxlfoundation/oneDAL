@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &dataFileName);
 
     /* Read data from a file and create a numeric table to store input data */
-    CSRNumericTablePtr dataTable(createSparseTable<float>(dataFileName));
+    CSRNumericTablePtr dataTable = createSparseTable<float>(dataFileName);
 
     /* Create an algorithm for principal component analysis using the correlation method */
     pca::Batch<> algorithm;

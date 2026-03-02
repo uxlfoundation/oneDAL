@@ -56,7 +56,8 @@ class DAAL_EXPORT BlockDescriptor
 {
 public:
     /** \private */
-    DAAL_FORCEINLINE BlockDescriptor() : _ptr(), _nrows(0), _ncols(0), _colsOffset(0), _rowsOffset(0), _rwFlag(0), _pPtr(0), _rawPtr(0) {}
+    DAAL_FORCEINLINE BlockDescriptor() : _ptr(), _nrows(0), _ncols(0), _colsOffset(0), _rowsOffset(0), _rwFlag(0), _capacity(0), _pPtr(0), _rawPtr(0)
+    {}
 
     /**
      *  Gets a pointer to the buffer
@@ -110,11 +111,49 @@ public:
         _colsOffset = 0;
         _rowsOffset = 0;
         _rwFlag     = 0;
+        _capacity   = 0;
         _pPtr       = NULL;
         _rawPtr     = NULL;
     }
 
-public:
+    /**
+     *  Allocates memory of (\p nColumns * \p nRows + \p auxMemorySize) size
+     *  \param[in] nColumns      Number of columns
+     *  \param[in] nRows         Number of rows
+     *  \param[in] auxMemorySize Memory size
+     *
+     *  \return true if memory of (\p nColumns * \p nRows + \p auxMemorySize) size is allocated successfully
+     */
+    inline bool resizeBuffer(size_t nColumns, size_t nRows, size_t auxMemorySize = 0)
+    {
+        _ncols = nColumns;
+        _nrows = nRows;
+
+        const size_t elementsCount = nColumns * nRows;
+        DAAL_ASSERT((elementsCount / nRows) == nColumns);
+
+        const size_t bytesCount = elementsCount * sizeof(DataType);
+        DAAL_ASSERT((bytesCount / sizeof(DataType)) == elementsCount);
+
+        const size_t newSize = bytesCount + auxMemorySize;
+        DAAL_ASSERT((newSize - bytesCount) == auxMemorySize);
+
+        if (newSize > _capacity)
+        {
+            _ptr = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
+            if (!_ptr)
+            {
+                _capacity = newSize;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      *  Sets data pointer to use for in-place calculation
      *  \param[in] ptr      Pointer to the buffer
@@ -123,9 +162,10 @@ public:
      */
     inline void setPtr(DataType * ptr, size_t nColumns, size_t nRows)
     {
-        _ptr   = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
-        _ncols = nColumns;
-        _nrows = nRows;
+        _ptr      = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
+        _ncols    = nColumns;
+        _nrows    = nRows;
+        _capacity = nColumns * nRows * sizeof(DataType);
     }
 
     /**
@@ -136,10 +176,11 @@ public:
      */
     inline void setPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nColumns, size_t nRows)
     {
-        _pPtr   = pPtr;
-        _rawPtr = rawPtr;
-        _ncols  = nColumns;
-        _nrows  = nRows;
+        _pPtr     = pPtr;
+        _rawPtr   = rawPtr;
+        _ncols    = nColumns;
+        _nrows    = nRows;
+        _capacity = nColumns * nRows * sizeof(DataType);
     }
 
     /**
@@ -150,9 +191,10 @@ public:
      */
     inline void setSharedPtr(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
     {
-        _ptr   = ptr;
-        _ncols = nColumns;
-        _nrows = nRows;
+        _ptr      = ptr;
+        _ncols    = nColumns;
+        _nrows    = nRows;
+        _capacity = nColumns * nRows * sizeof(DataType);
     }
 
     /**
@@ -198,6 +240,8 @@ private:
     size_t _colsOffset;
     size_t _rowsOffset;
     int _rwFlag;
+
+    size_t _capacity;
 
     DAAL_DEPRECATED services::SharedPtr<byte> * _pPtr;
     DAAL_DEPRECATED byte * _rawPtr;

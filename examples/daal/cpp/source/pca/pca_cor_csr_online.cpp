@@ -62,10 +62,10 @@ int main(int argc, char* argv[]) {
 
     for (size_t i = 0; i < nBlocks; i++) {
         /* Read data from a file and create a numeric table to store input data */
-        CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileNames[i]));
+        CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[i]);
 
         /* Set input objects for the algorithm */
-        algorithm.input.set(pca::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(pca::data, dataTable);
 
         /* Update PCA decomposition */
         algorithm.compute();

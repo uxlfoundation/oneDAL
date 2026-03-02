@@ -82,7 +82,7 @@ void readRowUnknownLength(char *line, std::vector<item_type> &data) {
 }
 
 template <typename item_type>
-daal::data_management::CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
+daal::data_management::CSRNumericTablePtr createSparseTable(const std::string &datasetFileName) {
     std::ifstream file(datasetFileName.c_str());
 
     if (!file.is_open()) {
@@ -96,7 +96,7 @@ daal::data_management::CSRNumericTable *createSparseTable(const std::string &dat
     std::vector<size_t> rowOffsets;
     readRowUnknownLength<size_t>(&str[0], rowOffsets);
     if (!rowOffsets.size())
-        return NULL;
+        return daal::data_management::CSRNumericTablePtr();
     const size_t nVectors = rowOffsets.size() - 1;
 
     //read cols indices
@@ -125,12 +125,12 @@ daal::data_management::CSRNumericTable *createSparseTable(const std::string &dat
     size_t *resultRowOffsets = NULL;
     size_t *resultColIndices = NULL;
     item_type *resultData = NULL;
-    daal::data_management::CSRNumericTable *numericTable =
-        new daal::data_management::CSRNumericTable(resultData,
-                                                   resultColIndices,
-                                                   resultRowOffsets,
-                                                   nFeatures,
-                                                   nVectors);
+    daal::data_management::CSRNumericTablePtr numericTable =
+        daal::data_management::CSRNumericTable::create(resultData,
+                                                       resultColIndices,
+                                                       resultRowOffsets,
+                                                       nFeatures,
+                                                       nVectors);
     numericTable->allocateDataMemory(nNonZeros);
     numericTable->getArrays<item_type>(&resultData, &resultColIndices, &resultRowOffsets);
     for (size_t i = 0; i < nNonZeros; ++i) {

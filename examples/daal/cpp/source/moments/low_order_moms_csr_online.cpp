@@ -58,10 +58,10 @@ int main(int argc, char* argv[]) {
     low_order_moments::Online<float, low_order_moments::fastCSR> algorithm;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+        CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[i]);
 
         /* Set input objects for the algorithm */
-        algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(low_order_moments::data, dataTable);
 
         /* Compute partial low order moments estimates */
         algorithm.compute();

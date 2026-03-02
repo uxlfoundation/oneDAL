@@ -68,9 +68,11 @@ void trainModel() {
                                                       DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
+    NumericTablePtr trainData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr trainGroundTruth =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(trainData, trainGroundTruth);
 
     /* Retrieve the data from the input file */
     trainDataSource.loadDataBlock(mergedData.get());
@@ -98,10 +100,9 @@ void testModel() {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and labels */
-    testData =
-        NumericTablePtr(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    testData = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    testGroundTruth = HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Retrieve the data from input file */
     testDataSource.loadDataBlock(mergedData.get());

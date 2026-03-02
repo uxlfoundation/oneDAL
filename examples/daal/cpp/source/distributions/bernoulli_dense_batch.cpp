@@ -36,8 +36,8 @@ using namespace daal::algorithms::distributions;
 
 int main() {
     /* Create input table to fill with random numbers */
-    NumericTablePtr dataTable(
-        new HomogenNumericTable<int>(DictionaryIface::equal, 1, 10, NumericTable::doAllocate));
+    NumericTablePtr dataTable =
+        HomogenNumericTable<int>::create(DictionaryIface::equal, 1, 10, NumericTable::doAllocate);
 
     /* Create the algorithm */
     bernoulli::Batch<> bernoulli(0.5);
