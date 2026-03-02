@@ -20,7 +20,7 @@
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
 # TODO: automate binary version getting
-{% set major_binary_version = 3 %}
+{% set major_binary_version = 4 %}
 
 package:
   name: dal-feedstock
