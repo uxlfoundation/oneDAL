@@ -47,7 +47,6 @@ dal_example_suite(
     srcs = glob(["source/decision_forest/*.cpp"],
     exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
     dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/decision_tree:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest/classification:kernel",
@@ -181,7 +180,7 @@ dal_example_suite(
     srcs = glob(["source/logistic_regression/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/logistic_regression:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/sgd:kernel",
+        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
     ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS
@@ -219,9 +218,7 @@ dal_example_suite(
 dal_example_suite(
     name = "optimization_solvers",
     compile_as = [ "c++" ],
-    hdrs = glob(["source/optimization_solvers/*.h"]),
-    srcs = glob(["source/optimization_solvers/*.cpp"],
-    exclude = ["source/optimization_solvers/saga_logistic_loss_dense_batch.cpp"],),
+    srcs = glob(["source/optimization_solvers/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
         "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
