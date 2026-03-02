@@ -28,6 +28,7 @@ define set_daal_rt_deps
           $$(dep_thr) $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
   $$(eval daaldep.win32e.rt.seq  := $$(dep_seq) \
           $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
-
+  $$(eval daaldep.win32e.rt.dpc  := $$(dep_seq) \
+          $$(if $$(CHECK_DLL_SIG),Wintrust.lib))
   $$(eval daaldep.win.threxport.create = grep -v -E '^(;|$$$$$$$$)' $$$$< $$$$(USECPUS.out.grep.filter))
 endef
