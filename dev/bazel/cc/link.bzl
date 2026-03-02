@@ -14,11 +14,14 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
     "paths",
     "sets",
 )
+
 load("@onedal//dev/bazel/toolchains:action_names.bzl",
     "CPP_MERGE_STATIC_LIBRARIES"
 )
