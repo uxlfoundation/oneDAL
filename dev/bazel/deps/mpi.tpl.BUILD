@@ -1,5 +1,6 @@
 package(default_visibility = ["//visibility:public"])
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 filegroup(
     name = "mpi_runfiles",
     srcs = glob([

@@ -91,12 +91,49 @@ def _normalize_download_info(repo_ctx):
         ))
     return result
 
-def _create_symlinks(repo_ctx, root, entries, substitutions={}, mapping={}):
+def _create_symlinks(repo_ctx, root, entries, substitutions=None, mapping=None):
+    substitutions = substitutions or {}
+    mapping = mapping or {}
+
     for entry in entries:
         entry_fmt = utils.substitute(entry, substitutions)
-        src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
-        dst_entry_path = entry_fmt
-        repo_ctx.symlink(src_entry_path, dst_entry_path)
+        if "*" in entry_fmt:
+            pattern = entry_fmt.split("/")[-1]
+            dir_part = entry_fmt[:entry_fmt.rfind("/")] if "/" in entry_fmt else ""
+            root_with_dir = utils.substitute(
+                paths.join(root, dir_part) if dir_part else root,
+                mapping
+            )
+            matched = False
+            for fs_entry in repo_ctx.path(root_with_dir).readdir():
+                if _matches_glob(fs_entry.basename, pattern):
+                    matched = True
+                    dst = (paths.join(dir_part, fs_entry.basename)
+                           if dir_part else fs_entry.basename)
+                    repo_ctx.symlink(str(fs_entry), dst)
+            if not matched:
+                fail("No files matched pattern '%s' in directory '%s' while creating symlinks for entry '%s'" %
+                     (pattern, root_with_dir, entry_fmt))
+        else:
+            src_entry_path = utils.substitute(paths.join(root, entry_fmt), mapping)
+            dst_entry_path = entry_fmt
+            repo_ctx.symlink(src_entry_path, dst_entry_path)
+
+def _matches_glob(name, pattern):
+    if "*" not in pattern:
+        return name == pattern
+    parts = pattern.split("*")
+    if not name.startswith(parts[0]):
+        return False
+    if not name.endswith(parts[-1]):
+        return False
+    pos = len(parts[0])
+    for part in parts[1:-1]:
+        idx = name.find(part, pos)
+        if idx == -1:
+            return False
+        pos = idx + len(part)
+    return True
 
 def _download(repo_ctx):
     output = repo_ctx.path("archive")
