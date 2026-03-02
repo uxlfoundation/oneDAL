@@ -107,7 +107,7 @@ def _generate_pkgconfig_impl(ctx):
         inputs = [ctx.file.template],
         outputs = [out],
         command = (
-            "${CC:-gcc} -E -P -x c " +
+            "${{CC:-gcc}} -E -P -x c " +
             "-DDAL_MAJOR_BINARY={binary_major} " +
             "-DDAL_MINOR_BINARY={binary_minor} " +
             "-DDAL_MAJOR={major} " +
