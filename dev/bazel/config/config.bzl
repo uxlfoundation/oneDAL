@@ -215,23 +215,34 @@ def _detect_cpu_extension(repo_ctx):
 
 def _declare_onedal_config_impl(repo_ctx):
     auto_cpu = _detect_cpu_extension(repo_ctx)
+
+    makefile_ver = repo_ctx.path(Label("@onedal//:makefile.ver"))
+    makefile_content = repo_ctx.read(makefile_ver)
+    
+    # Parse MAJORBINARY and MINORBINARY
+    binary_major = "4"
+    binary_minor = "0"
+    for line in makefile_content.splitlines():
+        if line.startswith("MAJORBINARY"):
+            binary_major = line.split("=")[1].strip()
+        elif line.startswith("MINORBINARY"):
+            binary_minor = line.split("=")[1].strip()
+
     repo_ctx.template(
         "BUILD",
         Label("@onedal//dev/bazel/config:config.tpl.BUILD"),
         substitutions = {
-            "%{auto_cpu}":         auto_cpu,
+            "%{auto_cpu}":              auto_cpu,
             "%{version_major}":         "2026",
             "%{version_minor}":         "0",
             "%{version_update}":        "0",
             "%{version_build}":         utils.datestamp(repo_ctx),
             "%{version_buildrev}":      "work",
             "%{version_status}":        "P",
-            # Binary ABI version — must match MAJORBINARY/MINORBINARY in makefile.ver
-            "%{version_binary_major}":  "3",
-            "%{version_binary_minor}":  "0",
+            "%{version_binary_major}":  binary_major,
+            "%{version_binary_minor}":  binary_minor,
         },
     )
-
 declare_onedal_config = repository_rule(
     implementation = _declare_onedal_config_impl,
     local = True,
