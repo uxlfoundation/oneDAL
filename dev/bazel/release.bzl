@@ -121,8 +121,8 @@ def _copy_lib(ctx, prefix, version_info):
         is_shared_lib = lib.extension == "so"
 
         if is_shared_lib and not version_info:
-            fail("Shared library '{}' requires VersionInfo for SONAME versioning, " +
-                 "but no version_info was provided to _copy_lib.".format(lib.basename))
+            fail(("Shared library '{}' requires VersionInfo for SONAME versioning, " +
+                 "but no version_info was provided to _copy_lib.").format(lib.basename))
 
         if is_shared_lib and version_info:
             binary_major = version_info.binary_major
