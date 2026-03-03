@@ -7,7 +7,7 @@ click==8.3.1
 colorama==0.4.6
 docutils~=0.21.2
 idna==3.11
-imagesize==1.4.1
+imagesize==2.0.0
 importlib-metadata==8.7.1
 importlib-resources==6.5.2
 Jinja2==3.1.6
