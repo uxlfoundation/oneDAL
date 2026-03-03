@@ -111,23 +111,64 @@ public:
         _colsOffset = 0;
         _rowsOffset = 0;
         _rwFlag     = 0;
-        _capacity   = 0;
         _pPtr       = NULL;
         _rawPtr     = NULL;
     }
 
     /**
+     *  Sets data pointer to use for in-place calculation
+     *  \param[in] ptr      Pointer to the buffer
+     *  \param[in] nColumns Number of columns
+     *  \param[in] nRows    Number of rows
+     */
+    inline void setPtr(DataType * ptr, size_t nColumns, size_t nRows)
+    {
+        _ptr   = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
+        _ncols = nColumns;
+        _nrows = nRows;
+    }
+
+    /**
+     *  \param[in] pPtr Pointer to the shared pointer that handles the memory
+     *  \param[in] rawPtr Pointer to the shifted memory
+     *  \param[in] nColumns Number of columns
+     *  \param[in] nRows Number of rows
+     */
+    inline void setPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nColumns, size_t nRows)
+    {
+        _pPtr   = pPtr;
+        _rawPtr = rawPtr;
+        _ncols  = nColumns;
+        _nrows  = nRows;
+    }
+
+    /**
+     *  Sets data pointer to use for in-place calculation
+     *  \param[in] ptr      Shared pointer to the buffer
+     *  \param[in] nColumns Number of columns
+     *  \param[in] nRows    Number of rows
+     */
+    inline void setSharedPtr(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
+    {
+        _ptr   = ptr;
+        _ncols = nColumns;
+        _nrows = nRows;
+    }
+    /**
      *  Allocates memory of (\p nColumns * \p nRows + \p auxMemorySize) size
      *  \param[in] nColumns      Number of columns
      *  \param[in] nRows         Number of rows
-     *  \param[in] auxMemorySize Memory size
+     *  \param[in] auxMemorySize Auxiliary memory size for the memory block typically used for type conversion
+     *                           in get/releaseBlockOfRows and get/releaseBlockOfColumnValues methods
      *
      *  \return true if memory of (\p nColumns * \p nRows + \p auxMemorySize) size is allocated successfully
      */
     inline bool resizeBuffer(size_t nColumns, size_t nRows, size_t auxMemorySize = 0)
     {
-        _ncols = nColumns;
-        _nrows = nRows;
+        _pPtr   = NULL;
+        _rawPtr = NULL;
+        _ncols  = nColumns;
+        _nrows  = nRows;
 
         const size_t elementsCount = nColumns * nRows;
         DAAL_ASSERT((elementsCount / nRows) == nColumns);
@@ -140,8 +181,11 @@ public:
 
         if (newSize > _capacity)
         {
+            _ptr.reset();
+            _capacity = 0;
+
             _ptr = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
-            if (!_ptr)
+            if (_ptr != 0)
             {
                 _capacity = newSize;
             }
@@ -151,50 +195,19 @@ public:
             }
         }
 
+        if (!auxMemorySize)
+        {
+            if (_aux_ptr)
+            {
+                _aux_ptr = services::SharedPtr<DataType>();
+            }
+        }
+        else
+        {
+            _aux_ptr = services::SharedPtr<DataType>(_ptr, _ptr.get() + nColumns * nRows);
+        }
+
         return true;
-    }
-
-    /**
-     *  Sets data pointer to use for in-place calculation
-     *  \param[in] ptr      Pointer to the buffer
-     *  \param[in] nColumns Number of columns
-     *  \param[in] nRows    Number of rows
-     */
-    inline void setPtr(DataType * ptr, size_t nColumns, size_t nRows)
-    {
-        _ptr      = services::SharedPtr<DataType>(ptr, services::EmptyDeleter());
-        _ncols    = nColumns;
-        _nrows    = nRows;
-        _capacity = nColumns * nRows * sizeof(DataType);
-    }
-
-    /**
-     *  \param[in] pPtr Pointer to the shared pointer that handles the memory
-     *  \param[in] rawPtr Pointer to the shifted memory
-     *  \param[in] nColumns Number of columns
-     *  \param[in] nRows Number of rows
-     */
-    inline void setPtr(services::SharedPtr<byte> * pPtr, byte * rawPtr, size_t nColumns, size_t nRows)
-    {
-        _pPtr     = pPtr;
-        _rawPtr   = rawPtr;
-        _ncols    = nColumns;
-        _nrows    = nRows;
-        _capacity = nColumns * nRows * sizeof(DataType);
-    }
-
-    /**
-     *  Sets data pointer to use for in-place calculation
-     *  \param[in] ptr      Shared pointer to the buffer
-     *  \param[in] nColumns Number of columns
-     *  \param[in] nRows    Number of rows
-     */
-    inline void setSharedPtr(const services::SharedPtr<DataType> & ptr, size_t nColumns, size_t nRows)
-    {
-        _ptr      = ptr;
-        _ncols    = nColumns;
-        _nrows    = nRows;
-        _capacity = nColumns * nRows * sizeof(DataType);
     }
 
     /**
@@ -232,6 +245,12 @@ public:
      */
     inline size_t getRWFlag() const { return _rwFlag; }
 
+    /**
+     *  Gets a pointer to the additional memory buffer
+     *  \return pointer
+     */
+    void * getAdditionalBufferPtr() const { return _aux_ptr.get(); }
+
 private:
     services::SharedPtr<DataType> _ptr;
     size_t _nrows;
@@ -241,6 +260,7 @@ private:
     size_t _rowsOffset;
     int _rwFlag;
 
+    services::SharedPtr<DataType> _aux_ptr;
     size_t _capacity;
 
     DAAL_DEPRECATED services::SharedPtr<byte> * _pPtr;

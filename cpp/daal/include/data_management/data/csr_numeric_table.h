@@ -202,6 +202,59 @@ public:
         _rawPtr     = NULL;
     }
 
+    /**
+     *  \param[in] nValues  Number of values
+     */
+    inline bool resizeValuesBuffer(size_t nValues)
+    {
+        size_t newSize = nValues * sizeof(DataType);
+        if (newSize > _values_capacity)
+        {
+            freeValuesBuffer();
+
+            _valuesInternal = services::SharedPtr<DataType>((DataType *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
+            if (_valuesInternal)
+            {
+                _values_capacity = newSize;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        _values_ptr = _valuesInternal;
+
+        return true;
+    }
+
+    /**
+     *  \param[in] nRows    Number of rows
+     */
+    inline bool resizeRowsBuffer(size_t nRows)
+    {
+        _nrows         = nRows;
+        size_t newSize = (nRows + 1) * sizeof(size_t);
+        if (newSize > _rows_capacity)
+        {
+            freeRowsBuffer();
+
+            _rowsInternal = services::SharedPtr<size_t>((size_t *)daal::services::daal_malloc(newSize), services::ServiceDeleter());
+            if (_rowsInternal)
+            {
+                _rows_capacity = newSize;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        _rows_ptr = _rowsInternal;
+
+        return true;
+    }
+
     inline void setDetails(size_t nColumns, size_t rowIdx, int rwFlag)
     {
         _ncols      = nColumns;
@@ -211,6 +264,25 @@ public:
 
     inline size_t getRowsOffset() const { return _rowsOffset; }
     inline size_t getRWFlag() const { return _rwFlag; }
+
+protected:
+    /**
+     *  Frees the values buffer
+     */
+    void freeValuesBuffer()
+    {
+        _valuesInternal  = services::SharedPtr<DataType>();
+        _values_capacity = 0;
+    }
+
+    /**
+     *  Frees the rows buffer
+     */
+    void freeRowsBuffer()
+    {
+        _rowsInternal  = services::SharedPtr<size_t>();
+        _rows_capacity = 0;
+    }
 
 private:
     services::SharedPtr<DataType> _values_ptr;
@@ -222,6 +294,12 @@ private:
 
     size_t _rowsOffset;
     int _rwFlag;
+
+    services::SharedPtr<DataType> _valuesInternal; /*<! Pointer to the values buffer. */
+    size_t _values_capacity;                       /*<! Buffer size in bytes. */
+
+    services::SharedPtr<size_t> _rowsInternal; /*<! Pointer to the row indices buffer. */
+    size_t _rows_capacity;
 
     services::SharedPtr<byte> * _pPtr;
     byte * _rawPtr;
@@ -724,11 +802,6 @@ protected:
     template <typename T>
     services::Status getTBlock(size_t idx, size_t nrows, int rwFlag, BlockDescriptor<T> & block)
     {
-        const NumericTableFeature & f = (*_ddict)[0];
-        const int indexType           = f.indexType;
-
-        if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
-
         size_t ncols = getNumberOfColumns();
         size_t nobs  = getNumberOfRows();
         block.setDetails(0, idx, rwFlag);
@@ -736,54 +809,57 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
-        constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values in CSR format after up-casting
-        size_t di                     = unrollFactor;
+        const NumericTableFeature & f = (*_ddict)[0];
+        const int indexType           = f.indexType;
 
-        T lbuf[unrollFactor];
-        T * buffer        = block.getBlockPtr();
-        T * castingBuffer = lbuf;
+        T * buffer        = nullptr;
+        T * castingBuffer = nullptr;
+        T * location      = (T *)(_ptr.get() + (rowOffsets[idx] - 1) * f.typeSize);
+
+        if (features::internal::getIndexNumType<T>() == indexType)
+        {
+            castingBuffer = location;
+
+            if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
+            buffer = block.getBlockPtr();
+        }
+        else
+        {
+            size_t sparseBlockSize = rowOffsets[idx + nrows] - rowOffsets[idx];
+
+            if (!block.resizeBuffer(ncols, nrows, sparseBlockSize * sizeof(T))) return services::Status(services::ErrorMemoryAllocationFailed);
+            buffer = block.getBlockPtr();
+
+            castingBuffer = (T *)block.getAdditionalBufferPtr();
+
+            if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
+
+            internal::getVectorUpCast(indexType, internal::getConversionDataType<T>())(sparseBlockSize, location, castingBuffer);
+        }
+
+        T * bufRowCursor       = castingBuffer;
+        size_t * indicesCursor = _colIndices.get() + rowOffsets[idx] - 1;
 
         for (size_t i = 0; i < ncols * nrows; i++)
         {
             buffer[i] = (T)0;
         }
 
-        for (size_t ui = 0; ui < nrows; ui += di)
+        for (size_t i = 0; i < nrows; i++)
         {
-            T * location = (T *)(_ptr.get() + (rowOffsets[idx + ui] - 1) * f.typeSize);
+            size_t sparseRowSize = rowOffsets[idx + i + 1] - rowOffsets[idx + i];
 
-            if (ui + di > nrows)
+            for (size_t k = 0; k < sparseRowSize; k++)
             {
-                di = nrows - ui;
+                buffer[i * ncols + indicesCursor[k] - 1] = bufRowCursor[k];
             }
 
-            if (features::internal::getIndexNumType<T>() == indexType)
-            {
-                castingBuffer = location;
-            }
-            else
-            {
-                internal::getVectorUpCast(indexType, internal::getConversionDataType<T>())(di, location, castingBuffer);
-            }
-
-            T * bufRowCursor       = castingBuffer;
-            size_t * indicesCursor = _colIndices.get() + rowOffsets[idx] - 1;
-
-            for (size_t i = ui; i < ui + di; i++)
-            {
-                size_t sparseRowSize = rowOffsets[idx + i + 1] - rowOffsets[idx + i];
-
-                for (size_t k = 0; k < sparseRowSize; k++)
-                {
-                    buffer[i * ncols + indicesCursor[k] - 1] = bufRowCursor[k];
-                }
-
-                bufRowCursor += sparseRowSize;
-                indicesCursor += sparseRowSize;
-            }
+            bufRowCursor += sparseRowSize;
+            indicesCursor += sparseRowSize;
         }
         return services::Status();
     }
@@ -804,10 +880,13 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
+
+        if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         const NumericTableFeature & f = (*_ddict)[0];
         const int indexType           = f.indexType;
@@ -856,6 +935,7 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeValuesBuffer(0);
             return services::Status();
         }
 
@@ -872,6 +952,11 @@ protected:
         }
         else
         {
+            if (!block.resizeValuesBuffer(nValues))
+            {
+                return services::Status();
+            }
+
             if (data_management::features::DAAL_OTHER_T == indexType) return services::Status(services::ErrorDataTypeNotSupported);
 
             services::SharedPtr<byte> location(_ptr, _ptr.get() + (rowOffsets[idx] - 1) * f.typeSize);
@@ -887,6 +972,11 @@ protected:
         }
         else
         {
+            if (!block.resizeRowsBuffer(nrows))
+            {
+                return services::Status();
+            }
+
             size_t * row_offsets = block.getBlockRowIndicesSharedPtr().get();
             if (row_offsets == NULL)
             {

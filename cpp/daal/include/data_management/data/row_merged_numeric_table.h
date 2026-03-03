@@ -223,6 +223,8 @@ protected:
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
 
+        if (!block.resizeBuffer(ncols, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
+
         if (rwFlag & (int)readOnly)
         {
             size_t rows = 0;
@@ -296,6 +298,7 @@ protected:
         }
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
+        if (!block.resizeBuffer(1, nrows)) return services::Status(services::ErrorMemoryAllocationFailed);
 
         if (rwFlag & (int)readOnly)
         {

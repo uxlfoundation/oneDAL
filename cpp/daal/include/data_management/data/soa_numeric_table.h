@@ -367,6 +367,11 @@ protected:
 
         nrows = (idx + nrows < nobs) ? nrows : nobs - idx;
 
+        if (!block.resizeBuffer(ncols, nrows))
+        {
+            return services::Status(services::ErrorMemoryAllocationFailed);
+        }
+
         if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 
         T * buffer    = block.getBlockPtr();
@@ -483,6 +488,10 @@ protected:
             }
 
             byte * location = _arrays[feat_idx].get() + idx * f.typeSize;
+            if (!block.resizeBuffer(1, nrows))
+            {
+                return services::Status(services::ErrorMemoryAllocationFailed);
+            }
 
             if (!(block.getRWFlag() & (int)readOnly)) return services::Status();
 
