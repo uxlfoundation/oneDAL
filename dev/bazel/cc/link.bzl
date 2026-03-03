@@ -151,10 +151,12 @@ def _link(owner, name, actions, cc_toolchain,
         feature_configuration,
         unpacked_linking_context.user_link_flags
     )
+    # Merge user_link_flags from both linking context and function parameters
+    all_user_link_flags = unpacked_user_link_flags + user_link_flags
     linker_input = cc_common.create_linker_input(
         owner = owner,
         libraries = depset(unpacked_linking_context.libraries_to_link),
-        user_link_flags = depset(unpacked_user_link_flags),
+        user_link_flags = depset(all_user_link_flags),
     )
     # TODO: Pass compilations outputs via linking contexts
     #       Individual linking context for each library tag
@@ -181,11 +183,18 @@ def _link(owner, name, actions, cc_toolchain,
 
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
-             def_file=None):
+             def_file=None, user_link_flags=[]):
+    hide_static_symbols_flags = [
+        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
+        "-Wl,--exclude-libs=libmkl_core.a",
+        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
+    ]
+    user_link_flags = user_link_flags + hide_static_symbols_flags
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
         def_file,
+        user_link_flags=user_link_flags,
     )
     library_to_link = linking_outputs.library_to_link
     if not (library_to_link and library_to_link.resolved_symlink_dynamic_library):
