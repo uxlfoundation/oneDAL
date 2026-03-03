@@ -76,10 +76,26 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
         **kwargs,
     )
 
+_MKL_EXCLUDE_LIBS_FLAGS = select({
+    # Hide MKL static symbols from the dynamic lib's export table.
+    # --exclude-libs hides all symbols from the named archive, ensuring that
+    # MKL objects embedded via --whole-archive are not re-exported.
+    # This matches Make's behaviour (see dev/make/deps.mk MKL linkage).
+    # GNU ld only; not supported on Windows (MSVC) or macOS (Apple ld).
+    "@config//:backend_config_mkl": [
+        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
+        "-Wl,--exclude-libs=libmkl_core.a",
+        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
+    ],
+    "//conditions:default": [],
+})
+
 def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
+    linkopts = kwargs.pop("linkopts", [])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
+        linkopts = linkopts + _MKL_EXCLUDE_LIBS_FLAGS,
         **kwargs,
     )
 

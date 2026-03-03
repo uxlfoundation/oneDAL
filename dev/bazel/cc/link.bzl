@@ -173,10 +173,7 @@ def _link(owner, name, actions, cc_toolchain,
         linking_contexts = [linking_context],
         output_type = "executable" if is_executable else "dynamic_library",
         link_deps_statically = True,
-        user_link_flags = (
-            (["@" + def_file.path] if def_file else []) +
-            user_link_flags
-        ),
+        user_link_flags = ["@" + def_file.path] if def_file else [],
         additional_inputs = [def_file] if def_file else [],
     )
     return unpacked_linking_context, linking_outputs
@@ -184,19 +181,6 @@ def _link(owner, name, actions, cc_toolchain,
 def _dynamic(owner, name, actions, cc_toolchain,
              feature_configuration, linking_contexts,
              def_file=None, user_link_flags=[]):
-    is_linux = cc_common.is_enabled(
-        feature_configuration = feature_configuration,
-        feature_name = "targets_linux",
-    )
-    
-    hide_static_symbols_flags = [
-        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
-        "-Wl,--exclude-libs=libmkl_core.a",
-        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
-    ] if is_linux else []
-    
-    user_link_flags = user_link_flags + hide_static_symbols_flags
-    user_link_flags = user_link_flags + hide_static_symbols_flags
     unpacked_linking_context, linking_outputs = _link(
         owner, name, actions, cc_toolchain,
         feature_configuration, linking_contexts,
