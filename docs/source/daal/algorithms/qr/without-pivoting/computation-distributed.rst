@@ -98,7 +98,7 @@ For more details, see :ref:`algorithms`.
 
           By default, these tables are objects of the ``HomogenNumericTable`` class,
           but you can define them as objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class, and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+          except the ``CSRNumericTable`` class.
    * - ``outputOfStep1ForStep3``
      - A collection that contains numeric tables each with the partial result to keep on the local node for :ref:`Step 3 <qr_without_pivoting_step_3>`.
 
@@ -106,7 +106,7 @@ For more details, see :ref:`algorithms`.
 
           By default, these tables are objects of the ``HomogenNumericTable`` class,
           but you can define them as objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 .. _qr_without_pivoting_step_2:
 
@@ -137,8 +137,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
 
-          This collection can contain objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` class and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+          This collection can contain objects of any class derived from ``NumericTable``.
    * - ``key``
      - A key, a number of type int. Keys enable tracking the order in which partial results from :ref:`Step 1 <qr_without_pivoting_step_1>`
        (``inputOfStep2FromStep1``) come to the master node, so that the partial results computed in :ref:`Step 2 <qr_without_pivoting_step_2>`
@@ -162,8 +161,7 @@ For more details, see :ref:`algorithms`.
        .. note::
 
           By default, these tables are objects of the ``HomogenNumericTable`` class,
-          but you can define them as objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class, and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+          but you can define them as objects of any class derived from ``NumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
@@ -179,8 +177,7 @@ For more details, see :ref:`algorithms`.
        .. note::
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
-          but you can define the result as an object of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class, and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+          but you can define the result as an object of any class derived from ``NumericTable``.
 
 .. _qr_without_pivoting_step_3:
 
@@ -211,15 +208,13 @@ For more details, see :ref:`algorithms`.
 
        .. note::
 
-          The collection can contain objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+          The collection can contain objects of any class derived from ``NumericTable``.
    * - ``inputOfStep3FromStep2``
      - A collection that contains results computed in :ref:`Step 2 <qr_without_pivoting_step_2>` on local nodes (``outputOfStep2ForStep3``).
 
        .. note::
 
-          The collection can contain objects of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix`` class and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+          The collection can contain objects of any class derived from ``NumericTable``.
 
 In this step, QR decomposition calculates the results described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -240,4 +235,4 @@ For more details, see :ref:`algorithms`.
 
           By default, the result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.

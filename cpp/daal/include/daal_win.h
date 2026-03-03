@@ -20,7 +20,7 @@
 #pragma warning(disable : 809)
 
 #if defined(_DAAL_PAR_DYNAMIC)
-    #pragma comment(lib, "onedal_core_dll.3.lib")
+    #pragma comment(lib, "onedal_core_dll.4.lib")
     #pragma comment(lib, "tbb12.lib")
     #pragma comment(lib, "tbbmalloc.lib")
 #elif defined(_DAAL_PAR_STATIC)
@@ -55,10 +55,8 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/merged_numeric_table.h"
 #include "data_management/data/row_merged_numeric_table.h"
-#include "data_management/data/matrix.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/soa_numeric_table.h"
-#include "data_management/data/symmetric_matrix.h"
 #include "algorithms/classifier/classifier_training_types.h"
 #include "algorithms/classifier/classifier_training_batch.h"
 #include "algorithms/classifier/classifier_training_online.h"

@@ -106,7 +106,7 @@ For more details, see :ref:`algorithms`.
      - Pointer to the :math:`p \times m` numeric table with the quantiles.
 
        By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-       derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       derived from ``NumericTable`` except ``CSRNumericTable``.
 
 Examples
 ********

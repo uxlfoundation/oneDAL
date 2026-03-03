@@ -26,9 +26,13 @@ def _opencl_repo_impl(repo_ctx):
     if dpcpp_root:
         lib_dir = paths.join(dpcpp_root, "lib")
         libs = [
-            "libOpenCL.so",
-            "libOpenCL.so.1",
-            "libOpenCL.so.1.2",
+            "libOpenCL*.so*",
+            "libsvml.so",
+            "libirng.so",
+            "libimf.so",
+            "libintlc.so*",
+            "libsycl.so.*",
+            "libur_loader.so.*",
         ]
         repos.create_symlinks(repo_ctx, lib_dir, libs)
     repo_ctx.template(

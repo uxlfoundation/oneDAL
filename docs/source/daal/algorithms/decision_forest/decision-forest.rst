@@ -421,8 +421,7 @@ parameter to the methods that access the result of your algorithm.
        .. note::
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
-          but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+          but you can define the result as an object of any class derived from ``NumericTable``.
    * - ``outOfBagErrorPerObservation``
      - A numeric table of size :math:`1 \times n` that contains the computed out-of-bag error
        when the ``computeOutOfBagErrorPerObservation`` option is enabled. The value

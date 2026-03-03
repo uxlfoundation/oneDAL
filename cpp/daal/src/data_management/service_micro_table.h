@@ -26,7 +26,6 @@
 
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/csr_numeric_table.h"
-#include "data_management/data/symmetric_matrix.h"
 #include "src/services/service_defines.h"
 
 using namespace daal::data_management;
@@ -113,28 +112,6 @@ protected:
     CSRBlockDescriptor<T> _block;
 
     CSRNumericTableIface * _snt;
-};
-
-template <typename T, ReadWriteMode rwflag, CpuType cpu>
-class PackedArrayMicroTable : public MicroTable
-{
-public:
-    PackedArrayMicroTable(const NumericTable * table) : MicroTable(table) { _pnt = dynamic_cast<PackedArrayNumericTableIface *>(_nt); }
-
-    PackedArrayMicroTable(NumericTable * table) : MicroTable(table) { _pnt = dynamic_cast<PackedArrayNumericTableIface *>(_nt); }
-
-    size_t getPackedArray(T ** values_ptr)
-    {
-        _pnt->getPackedArray(rwflag, _block);
-        *values_ptr = _block.getBlockPtr();
-        return _block.getNumberOfRows();
-    }
-    void release() { _pnt->releasePackedArray(_block); }
-
-protected:
-    BlockDescriptor<T> _block;
-
-    PackedArrayNumericTableIface * _pnt;
 };
 
 } // namespace internal

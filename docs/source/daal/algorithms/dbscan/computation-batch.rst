@@ -91,9 +91,6 @@ For more details, see :ref:`algorithms`.
 
        .. note::
 
-         The input can be an object of any class derived from ``NumericTable``
-         except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``.
-
          By default all weights are equal to :math:`1`.
 
        .. note::
@@ -132,5 +129,5 @@ For more details, see :ref:`algorithms`.
 
     By default, this result is an object of the ``HomogenNumericTable`` class,
     but you can define the result as an object of any class derived from ``NumericTable``
-    except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+    except ``CSRNumericTable``.
 

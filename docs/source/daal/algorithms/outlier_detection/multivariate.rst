@@ -65,13 +65,13 @@ For more details, see :ref:`algorithms`.
        The input can be an object of any class derived from the ``NumericTable`` class.
    * - ``location``
      - Pointer to the :math:`1 \times p` numeric table with the vector of means.
-       The input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
    * - ``scatter``
      - Pointer to the :math:`p \times p` numeric table that contains the variance-covariance matrix.
-       The input can be an object of any class derived from ``NumericTable`` except ``PackedTriangularMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
    * - ``threshold``
      - Pointer to the :math:`1 \times 1` numeric table with the non-negative number that defines the outlier region.
-       The input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
 
 If you do not provide at least one of the ``location``, ``scatter``, ``threshold`` inputs,
 the library will initialize all of them with the following default values:
@@ -134,7 +134,7 @@ For more details, see :ref:`algorithms`.
        .. note::
           By default, the result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 Examples
 ********
