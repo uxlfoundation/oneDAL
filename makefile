@@ -773,6 +773,7 @@ ONEAPI.objs_a.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(
 PARAMETERS.objs_y.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
 ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
 ifeq ($(OS_is_win),yes)
+PARAMETERS.objs_a.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_a.dpc))
 ONEAPI.objs_a.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_a.dpc))
 endif
 PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
