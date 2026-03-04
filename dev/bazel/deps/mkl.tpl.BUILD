@@ -19,13 +19,8 @@ cc_library(
         "lib/libmkl_tbb_thread.a",
     ],
     linkopts = [
-        # The source libraries have circular symbol dependencies. To successfully build this cc_library,
-        # oneMKL requires wrapping the libraries with -Wl,--start-group and -Wl,--end-group.
-        "-Wl,--start-group",
-        "$(location lib/libmkl_core.a)",
-        "$(location lib/libmkl_intel_ilp64.a)",
-        "$(location lib/libmkl_tbb_thread.a)",
-        "-Wl,--end-group",
+        # Keep only system libs in linkopts. MKL archives are provided via srcs and
+        # linked as proper linker inputs (sandbox-safe).
         "-lpthread",
         "-lm",
         "-ldl",
