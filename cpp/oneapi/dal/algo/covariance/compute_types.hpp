@@ -118,6 +118,8 @@ public:
     /// property value
     compute_input(const table& data);
 
+    virtual ~compute_input() = default;
+
     /// An $n \\times p$ table with the training data, where each row stores one
     /// feature vector.
     /// @remark default = table{}
@@ -248,6 +250,8 @@ public:
     partial_compute_input(const table& data);
 
     partial_compute_input(const partial_compute_result<Task>& prev, const table& data);
+
+    virtual ~partial_compute_input() = default;
 
     const table& get_data() const {
         return compute_input<Task>::get_data();
