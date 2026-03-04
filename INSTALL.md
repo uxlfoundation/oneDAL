@@ -214,7 +214,6 @@ By default, on x86 platforms, oneDAL uses highly optimized aligned memory alloca
 
 It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
 
----
 **NOTE:** Sanitizers cannot be used when building the DPC components.
 
 - To integrate [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) in a debug oneDAL build (recommended), run:
