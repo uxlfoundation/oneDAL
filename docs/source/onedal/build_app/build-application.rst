@@ -158,11 +158,13 @@ Dynamic linking |short_name| with the GPU target:
   .. code-block:: text
 
      icpx -fsycl my_first_dal_program.cpp -Wl,
-     --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc  -Wl,--end-group
+     --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc
+     -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse -lmkl_sycl_rng -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core  -Wl,--end-group
 
 * Windows* OS:
 
   .. code-block:: text
 
      icx-cl -fsycl my_first_dal_program.cpp -Wl,
-     --start-group -L<install dir>/dal/latest/lib/ -lonedal_core -lonedal_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc  -Wl,--end-group
+     --start-group -L<install dir>/dal/latest/lib/ -lonedal_core -lonedal_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc
+     -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse -lmkl_sycl_rng -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core  -Wl,--end-group
