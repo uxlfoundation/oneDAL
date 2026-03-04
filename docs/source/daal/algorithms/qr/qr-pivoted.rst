@@ -87,8 +87,7 @@ Pivoted QR decomposition has the following parameters:
        .. note::
            By default, this parameter is an object of the ``HomogenNumericTable`` class, filled by zeros.
            However, you can define this parameter as an object of any class derived from ``NumericTable``
-           except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class, and ``PackedTriangularMatrix`` class
-           with the ``lowerPackedTriangularMatrix`` layout.
+           except the ``CSRNumericTable`` class.
 
 Algorithm Output
 ----------------
@@ -111,15 +110,14 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+           derived from ``NumericTable`` except ``CSRNumericTable``.
 
    * - ``matrixR``
      - Pointer to the numeric table with the :math:`p \times p` upper triangular matrix :math:`R_1`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable`` except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class,
-           and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+           derived from ``NumericTable`` except the ``CSRNumericTable`` class.
 
    * - ``permutationMatrix``
      - Pointer to the numeric table with the :math:`1 \times p` matrix such that
@@ -127,8 +125,7 @@ For more details, see :ref:`algorithms`.
 
        .. note::
            By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object of any class
-           derived from ``NumericTable`` except the ``PackedSymmetricMatrix`` class, ``CSRNumericTable`` class,
-           and ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+           derived from ``NumericTable`` except the ``CSRNumericTable`` class.
 
 Examples
 ********

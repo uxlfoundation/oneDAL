@@ -37,7 +37,6 @@ Analysis
    algorithms/engines/index.rst
    algorithms/moments/moments-of-low-order.rst
    algorithms/quantiles/index.rst
-   algorithms/quality_metrics/index.rst
    algorithms/sorting/index.rst
    algorithms/normalization/index.rst
 

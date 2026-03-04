@@ -98,7 +98,7 @@ the SAGA optimization solver has the following optional input:
 
        .. note::
             This parameter can be an object of any class derived from ``NumericTable``,
-            except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except for ``CSRNumericTable``.
 
 Algorithm Parameters
 --------------------
@@ -129,7 +129,7 @@ In addition to parameters of the iterative solver, the SAGA optimization solver 
 
        .. note::
             This parameter can be an object of any class derived from ``NumericTable``,
-            except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except for ``CSRNumericTable``.
    * - ``learningRateSequence``
      - Not applicable
      - The numeric table of size :math:`1 \times \mathrm{nIterations}` or :math:`1 \times 1` that contains
@@ -140,7 +140,7 @@ In addition to parameters of the iterative solver, the SAGA optimization solver 
 
        .. note::
             This parameter can be an object of any class derived from ``NumericTable``,
-            except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except for ``CSRNumericTable``.
    * - ``engine``
      - `SharedPtr<engines::mt19937::Batch<>`
      - Pointer to the random number generator engine that is used internally for generation of 32-bit integer index of term in the objective function.
@@ -165,7 +165,7 @@ the SAGA optimization solver calculates the following optional result:
      - A numeric table of size :math:`n \times p` that represents matrix :math:`G_t` updated after all iterations.
 
        This parameter can be an object of any class derived from ``NumericTable``,
-       except for ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+       except for ``CSRNumericTable``.
 
 Examples
 ********

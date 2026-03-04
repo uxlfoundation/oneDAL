@@ -27,7 +27,6 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/soa_numeric_table.h"
 #include "data_management/data/csr_numeric_table.h"
-#include "data_management/data/symmetric_matrix.h"
 #include "data_management/data/internal/conversion.h"
 #include "src/services/service_defines.h"
 #include "src/externals/service_memory.h"
@@ -867,75 +866,6 @@ using WriteColumns = GetColumns<algorithmFPType, algorithmFPType, cpu, readWrite
 
 template <typename algorithmFPType, CpuType cpu, typename NumericTableType = NumericTable>
 using WriteOnlyColumns = GetColumns<algorithmFPType, algorithmFPType, cpu, writeOnly, NumericTableType>;
-
-template <typename algorithmFPType, typename algorithmFPAccessType, CpuType cpu, ReadWriteMode mode, typename NumericTableType>
-class GetPacked
-{
-public:
-    GetPacked(NumericTableType & data)
-    {
-        _data = dynamic_cast<PackedArrayNumericTableIface *>(&data);
-        if (!_data)
-        {
-            _status = services::Status(services::ErrorIncorrectTypeOfNumericTable);
-            return;
-        }
-        _status = _data->getPackedArray(mode, _block);
-    }
-    GetPacked(NumericTableType * data)
-    {
-        _data = dynamic_cast<PackedArrayNumericTableIface *>(data);
-        if (!_data)
-        {
-            _status = services::Status(services::ErrorIncorrectTypeOfNumericTable);
-            return;
-        }
-        _status = _data->getPackedArray(mode, _block);
-    }
-    GetPacked() : _data(nullptr) {}
-    ~GetPacked() { release(); }
-    algorithmFPAccessType * get() { return _data ? _block.getBlockPtr() : nullptr; }
-    algorithmFPAccessType * set(NumericTableType * data)
-    {
-        release();
-        PackedArrayNumericTableIface * ptr = dynamic_cast<PackedArrayNumericTableIface *>(data);
-        if (!ptr)
-        {
-            _status = services::Status(services::ErrorIncorrectTypeOfNumericTable);
-            return nullptr;
-        }
-        else
-        {
-            _data   = ptr;
-            _status = _data->getPackedArray(mode, _block);
-            return _block.getBlockPtr();
-        }
-    }
-    void release()
-    {
-        if (_data)
-        {
-            _data->releasePackedArray(_block);
-            _data = nullptr;
-            _status.clear();
-        }
-    }
-    const services::Status & status() const { return _status; }
-
-private:
-    PackedArrayNumericTableIface * _data;
-    BlockDescriptor<algorithmFPType> _block;
-    services::Status _status;
-};
-
-template <typename algorithmFPType, CpuType cpu, typename NumericTableType = NumericTable>
-using ReadPacked = GetPacked<algorithmFPType, const algorithmFPType, cpu, readOnly, NumericTableType>;
-
-template <typename algorithmFPType, CpuType cpu, typename NumericTableType = NumericTable>
-using WritePacked = GetPacked<algorithmFPType, algorithmFPType, cpu, readWrite, NumericTableType>;
-
-template <typename algorithmFPType, CpuType cpu, typename NumericTableType = NumericTable>
-using WriteOnlyPacked = GetPacked<algorithmFPType, algorithmFPType, cpu, writeOnly, NumericTableType>;
 
 template <typename algorithmFPType>
 services::Status createSparseTable(const NumericTablePtr & inputTable, CSRNumericTablePtr & resTable);

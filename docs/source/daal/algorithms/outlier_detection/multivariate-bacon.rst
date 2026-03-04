@@ -139,7 +139,7 @@ For more details, see :ref:`algorithms`.
        .. note::
           By default, the result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except the ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
 
 Examples
 ********

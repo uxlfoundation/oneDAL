@@ -35,7 +35,6 @@
 #include "algorithms/analysis.h"
 #include "algorithms/training.h"
 #include "algorithms/prediction.h"
-#include "algorithms/algorithm_quality_metric_batch.h"
 
 #include "algorithms/model.h"
 

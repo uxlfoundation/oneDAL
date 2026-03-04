@@ -30,7 +30,7 @@ load("@onedal//dev/bazel/config:config.bzl",
 
 def daal_module(name, features=[], lib_tag="daal",
                 hdrs=[], srcs=[], auto=False,
-                local_defines=[], **kwargs):
+                local_defines=[], copts=[], **kwargs):
     if auto:
         auto_hdrs = native.glob(["**/*.h", "**/*.i"], allow_empty=True,)
         auto_srcs = native.glob(["**/*.cpp"], allow_empty=True,)
@@ -53,11 +53,13 @@ def daal_module(name, features=[], lib_tag="daal",
         },
         hdrs = auto_hdrs + hdrs,
         srcs = auto_srcs + srcs,
-        local_defines = local_defines + select({
-            "@config//:assert_enabled": [
-                "DEBUG_ASSERT=1",
-            ],
-            "//conditions:default": [],
+        copts = copts + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["-fvisibility=hidden"],
+        }),
+        local_defines = select({
+            "@config//:assert_enabled": local_defines + ["__DAAL_IMPLEMENTATION", "DEBUG_ASSERT=1"],
+            "//conditions:default": local_defines + ["__DAAL_IMPLEMENTATION"],
         }) + select({
             "@config//:backend_ref": [
                 "DAAL_REF",
@@ -74,10 +76,26 @@ def daal_static_lib(name, lib_tags=["daal"], **kwargs):
         **kwargs,
     )
 
-def daal_dynamic_lib(name, lib_tags=["daal"], **kwargs):
+_MKL_EXCLUDE_LIBS_FLAGS = select({
+    # Hide MKL static symbols from the dynamic lib's export table.
+    # --exclude-libs hides all symbols from the named archive, ensuring that
+    # MKL objects embedded via --whole-archive are not re-exported.
+    # This matches Make's behaviour (see dev/make/deps.mk MKL linkage).
+    # GNU ld only; not supported on Windows (MSVC) or macOS (Apple ld).
+    "@config//:backend_config_mkl": [
+        "-Wl,--exclude-libs=libmkl_tbb_thread.a",
+        "-Wl,--exclude-libs=libmkl_core.a",
+        "-Wl,--exclude-libs=libmkl_intel_ilp64.a",
+    ],
+    "//conditions:default": [],
+})
+
+def daal_dynamic_lib(name, lib_tags=["daal", "mkl_embed"], **kwargs):
+    linkopts = kwargs.pop("linkopts", [])
     cc_dynamic_lib(
         name = name,
         lib_tags = lib_tags,
+        linkopts = linkopts + _MKL_EXCLUDE_LIBS_FLAGS,
         **kwargs,
     )
 

@@ -69,15 +69,15 @@ For more details, see :ref:`algorithms`.
    * - ``location``
      - Pointer to the :math:`1 \times p` numeric table with the vector of means.
 
-       .. note:: The input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       .. note:: The input can be an object of any class derived from ``NumericTable``.
    * - ``scatter``
      - Pointer to the :math:`1 \times p` numeric table with the vector of standard deviations.
 
-       .. note:: The input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       .. note:: The input can be an object of any class derived from ``NumericTable``.
    * - ``threshold``
      - Pointer to the :math:`1 \times p` numeric table with non-negative numbers that define the outlier region.
 
-       .. note:: The input can be an object of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+       .. note:: The input can be an object of any class derived from ``NumericTable``.
 
 If you do not provide at least one of the ``location``, ``scatter``, ``threshold`` inputs,
 the library will initialize all of them with the following default values:
@@ -140,7 +140,7 @@ For more details, see :ref:`algorithms`.
 
           By default, the result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``СSRNumericTable``.
+          except ``CSRNumericTable``.
 
 Examples
 ********

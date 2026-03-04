@@ -281,30 +281,6 @@ void printAprioriRules(NumericTablePtr leftItemsTable,
     confidenceTable->releaseBlockOfRows(block3);
 }
 
-bool isFull(NumericTableIface::StorageLayout layout) {
-    int layoutInt = (int)layout;
-    if (packed_mask & layoutInt) {
-        return false;
-    }
-    return true;
-}
-
-bool isUpper(NumericTableIface::StorageLayout layout) {
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix ||
-        layout == NumericTableIface::upperPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
-bool isLower(NumericTableIface::StorageLayout layout) {
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix ||
-        layout == NumericTableIface::lowerPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
 template <typename T>
 void printArray(T *array,
                 const size_t nPrintedCols,
@@ -387,7 +363,6 @@ void printNumericTable(NumericTable *dataTable,
                        size_t interval = 10) {
     size_t nRows = dataTable->getNumberOfRows();
     size_t nCols = dataTable->getNumberOfColumns();
-    NumericTableIface::StorageLayout layout = dataTable->getDataLayout();
 
     if (nPrintedRows != 0) {
         nPrintedRows = std::min(nRows, nPrintedRows);
@@ -404,33 +379,14 @@ void printNumericTable(NumericTable *dataTable,
     }
 
     BlockDescriptor<DAAL_DATA_TYPE> block;
-    if (isFull(layout) || layout == NumericTableIface::csrArray) {
-        dataTable->getBlockOfRows(0, nRows, readOnly, block);
-        printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                   nPrintedCols,
-                                   nPrintedRows,
-                                   nCols,
-                                   message,
-                                   interval);
-        dataTable->releaseBlockOfRows(block);
-    }
-    else {
-        PackedArrayNumericTableIface *packedTable =
-            dynamic_cast<PackedArrayNumericTableIface *>(dataTable);
-        packedTable->getPackedArray(readOnly, block);
-        if (isLower(layout)) {
-            printLowerArray<DAAL_DATA_TYPE>(block.getBlockPtr(), nPrintedRows, message, interval);
-        }
-        else if (isUpper(layout)) {
-            printUpperArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                            nPrintedCols,
-                                            nPrintedRows,
-                                            nCols,
-                                            message,
-                                            interval);
-        }
-        packedTable->releasePackedArray(block);
-    }
+    dataTable->getBlockOfRows(0, nRows, readOnly, block);
+    printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
+                               nPrintedCols,
+                               nPrintedRows,
+                               nCols,
+                               message,
+                               interval);
+    dataTable->releaseBlockOfRows(block);
 }
 
 void printNumericTable(NumericTable &dataTable,

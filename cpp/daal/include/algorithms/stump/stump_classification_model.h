@@ -26,7 +26,6 @@
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "data_management/data/matrix.h"
 #include "algorithms/classifier/classifier_model.h"
 #include "algorithms/decision_tree/decision_tree_classification_model.h"
 

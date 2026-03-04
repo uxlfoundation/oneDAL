@@ -114,14 +114,14 @@ Step 1 - on Local Nodes
                 .. note::
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
             * - ``sumCorrelation``
               - Pointer to the :math:`1 \times p` numeric table with partial sums computed so far on the local node.
 
                 .. note::
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
 
     .. group-tab:: SVD method (``svdDense``)
 
@@ -166,20 +166,19 @@ Step 1 - on Local Nodes
                 .. note::
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
             * - ``sumSquaresSVD``
               - Pointer to the :math:`1 \times p` numeric table with partial sums of squares computed so far on the local node.
 
                 .. note::
                     By default, this table is an object of the ``HomogenNumericTable`` class,
                     but you can define it as an object of any class derived from ``NumericTable``
-                    except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+                    except ``CSRNumericTable``.
             * - ``auxiliaryDataSVD``
               - A collection of numeric tables each with the partial result to transmit to the master node for :ref:`Step 2 <pca_step_2>`.
 
                 .. note::
-                    The collection can contain objects of any class derived from ``NumericTable``
-                    except the ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+                    The collection can contain objects of any class derived from ``NumericTable``.
 
 .. _pca_step_2:
 
@@ -207,8 +206,7 @@ Step 2 - on Master Node
                 (``nObservationsCorrelation``, ``crossProductCorrelation``, and ``sumCorrelation``).
 
                 .. note::
-                    The collection can contain objects of any class derived from ``NumericTable``
-                    except the ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+                    The collection can contain objects of any class derived from ``NumericTable``.
 
         In this step, PCA calculates the results described below.
         Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -231,7 +229,7 @@ Step 2 - on Master Node
         .. note::
             By default, these results are object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
 
     .. group-tab:: SVD method (``svdDense``)
 
@@ -252,8 +250,7 @@ Step 2 - on Master Node
                 (``nObservationsSVD``, ``sumSVD``, ``sumSquaresSVD``, and ``auxiliaryDataSVD``).
 
                 .. note::
-                    The collection can contain objects of any class derived from ``NumericTable``
-                    except the ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+                    The collection can contain objects of any class derived from ``NumericTable``.
 
         In this step, PCA calculates the results described below.
         Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.
@@ -276,4 +273,4 @@ Step 2 - on Master Node
         .. note::
             By default, these results are object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.

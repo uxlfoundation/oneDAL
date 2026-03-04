@@ -483,14 +483,10 @@ public:
      */
     enum StorageLayout
     {
-        soa                         = 1, // 1
-        aos                         = 2, // 2
-        csrArray                    = 1 << 4,
-        upperPackedSymmetricMatrix  = 1 << 8,
-        lowerPackedSymmetricMatrix  = 2 << 8,
-        upperPackedTriangularMatrix = 1 << 7,
-        lowerPackedTriangularMatrix = 4 << 8,
-        arrow                       = 8 << 8,
+        soa      = 1, // 1
+        aos      = 2, // 2
+        csrArray = 1 << 4,
+        arrow    = 8 << 8,
 
         layout_unknown = 0x80000000 // the last bit set
     };
@@ -591,9 +587,7 @@ public:
 using interface1::BlockDescriptor;
 using interface1::NumericTableIface;
 
-const int packed_mask = (int)NumericTableIface::csrArray | (int)NumericTableIface::upperPackedSymmetricMatrix
-                        | (int)NumericTableIface::lowerPackedSymmetricMatrix | (int)NumericTableIface::upperPackedTriangularMatrix
-                        | (int)NumericTableIface::lowerPackedTriangularMatrix;
+const int packed_mask = (int)NumericTableIface::csrArray;
 
 namespace interface1
 {

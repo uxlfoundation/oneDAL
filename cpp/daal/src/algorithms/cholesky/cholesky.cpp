@@ -71,17 +71,8 @@ Status Input::check(const daal::algorithms::Parameter * par, int method) const
     DAAL_CHECK(inTable.get(), ErrorNullInputNumericTable);
     DAAL_CHECK(inTable->getNumberOfRows(), ErrorIncorrectNumberOfObservations);
     DAAL_CHECK(inTable->getNumberOfColumns(), ErrorIncorrectNumberOfFeatures);
-
-    NumericTableIface::StorageLayout iLayout = inTable->getDataLayout();
-
     DAAL_CHECK(inTable->getNumberOfColumns() == inTable->getNumberOfRows(), ErrorIncorrectSizeOfInputNumericTable);
 
-    int iLayoutInt = (int)iLayout;
-    if (iLayoutInt & data_management::packed_mask)
-    {
-        DAAL_CHECK(!(iLayout == NumericTableIface::lowerPackedTriangularMatrix || iLayout == NumericTableIface::upperPackedTriangularMatrix),
-                   ErrorIncorrectTypeOfInputNumericTable);
-    }
     return Status();
 }
 
@@ -130,10 +121,7 @@ Status Result::check(const daal::algorithms::Input * input, const daal::algorith
                ErrorIncorrectSizeOfOutputNumericTable);
 
     const int rLayoutInt = (int)rLayout;
-    if (rLayoutInt & data_management::packed_mask)
-    {
-        DAAL_CHECK(rLayout == NumericTableIface::lowerPackedTriangularMatrix, ErrorIncorrectTypeOfOutputNumericTable);
-    }
+    DAAL_CHECK(rLayout != NumericTableIface::csrArray, ErrorIncorrectTypeOfOutputNumericTable);
     return Status();
 }
 

@@ -53,7 +53,7 @@ For more details, see :ref:`algorithms`.
 
        Pointer to the :math:`p_r \times p` numeric table :math:`(p_r \leq p)`.
        You can define it as an object of any class derived from ``NumericTable``,
-       except for ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+       except for ``CSRNumericTable``.
    * - ``dataForTransform``
      - Optional. Pointer to the key value-data collection containing the following data for PCA. The collection contains the following key-value pairs:
 
@@ -118,7 +118,7 @@ Pass the ``Result ID`` as a parameter to the methods that access the results of 
        .. note::
 
             By default, this result is an object of the ``HomogenNumericTable`` class, but you can define the result as an object
-            of any class derived from ``NumericTable`` except ``PackedSymmetricMatrix``, ``PackedTriangularMatrix``, and ``CSRNumericTable``.
+            of any class derived from ``NumericTable`` except ``CSRNumericTable``.
 
 Examples
 *********
