@@ -22,8 +22,8 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto x_data_file_name = get_data_path("x_distance.csv");
-    const auto y_data_file_name = get_data_path("y_distance.csv");
+    const auto x_data_file_name = get_data_path("data/x_distance.csv");
+    const auto y_data_file_name = get_data_path("data/y_distance.csv");
 
     const auto x = dal::read<dal::table>(dal::csv::data_source{ x_data_file_name });
     const auto y = dal::read<dal::table>(dal::csv::data_source{ y_data_file_name });
