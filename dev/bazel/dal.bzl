@@ -343,6 +343,7 @@ def _test_link_mode_deps(dal_deps, use_onedal_release_libs=True):
 def _test_deps_on_daal():
     return _select({
         "@config//:test_link_mode_dev": [
+            "@onedal//cpp/daal:core_static",
             "@onedal//cpp/daal:threading_static",
         ],
         "@config//:test_link_mode_release_static": [
