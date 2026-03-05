@@ -23,6 +23,7 @@ source $CONDA_PREFIX/env/vars.sh
 run_examples() {
     local interface_name=$1
     local linking_type=$2
+    local extra_cmake_args=${3:-""}
 
     if [ "$linking_type" == "dynamic" ]; then
         library_postfix="so"
@@ -44,6 +45,7 @@ run_examples() {
             if [ "$linking_type" == "static" ]; then
                 cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
             fi
+            cmake_args="$cmake_args $extra_cmake_args"
 
             cmake .. $cmake_args
             make -j$(nproc)
@@ -58,8 +60,77 @@ run_examples() {
     )
 }
 
+run_dpc_examples() {
+    local linking_type=$1
+
+    if [ "$linking_type" == "dynamic" ]; then
+        library_postfix="so"
+    else
+        library_postfix="a"
+    fi
+
+    (
+        cd examples/oneapi/dpc
+        mkdir build_$linking_type
+
+        (
+            cd build_$linking_type
+
+            cmake_args="-DONEDAL_LINK=$linking_type"
+            if [ "$linking_type" == "static" ]; then
+                cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
+            fi
+
+            cmake .. $cmake_args
+            make -j$(nproc)
+        )
+
+        for example in _cmake_results/intel_intel64_$library_postfix/*; do
+            echo "================"
+            echo "Running example: oneapi-dpc-$linking_type-$(basename $example)"
+            echo "================"
+            $example
+        done
+    )
+}
+
+# ============================================================
+# CPU-only tests: oneapi/cpp + daal (no GPU lib required)
+# These must pass even without dal-gpu installed.
+# ============================================================
+echo "========================================"
+echo "Running CPU examples: oneapi/cpp dynamic"
+echo "========================================"
 run_examples oneapi dynamic
+
+echo "========================================"
+echo "Running CPU examples: oneapi/cpp static"
+echo "========================================"
 run_examples oneapi static
+
+echo "========================================"
+echo "Running CPU examples: daal/cpp dynamic"
+echo "========================================"
 run_examples daal dynamic
+
+echo "========================================"
+echo "Running CPU examples: daal/cpp static"
+echo "========================================"
 run_examples daal static
+
+# ============================================================
+# GPU/DPC++ tests: oneapi/dpc (requires dal-gpu / libonedal_dpc.so)
+# Skipped if GPU library is not installed.
+# ============================================================
+if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ]; then
+    echo "========================================"
+    echo "Running GPU/DPC++ examples: oneapi/dpc dynamic"
+    echo "========================================"
+    run_dpc_examples dynamic
+else
+    echo "========================================"
+    echo "Skipping GPU/DPC++ examples: dal-gpu not installed"
+    echo "========================================"
+fi
+
 # TODO: add testing for samples

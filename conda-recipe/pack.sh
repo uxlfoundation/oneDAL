@@ -40,9 +40,13 @@ if [ "$PKG_NAME" = "dal-include" ]; then
     mkdir -p "$PREFIX/include"
     cp -r include/* "$PREFIX/include/"
 fi
-# copy libraries
+# copy CPU runtime libraries (excludes libonedal_dpc which goes into dal-gpu)
 if [ "$PKG_NAME" = "dal" ]; then
-    find lib/intel64 -name "libonedal*.so*" -exec cp -P {} "$PREFIX/lib/" \;
+    find lib/intel64 -name "libonedal*.so*" ! -name "libonedal_dpc*" -exec cp -P {} "$PREFIX/lib/" \;
+fi
+# copy GPU/DPC++ runtime library
+if [ "$PKG_NAME" = "dal-gpu" ]; then
+    find lib/intel64 -name "libonedal_dpc*.so*" -exec cp -P {} "$PREFIX/lib/" \;
 fi
 if [ "$PKG_NAME" = "dal-static" ]; then
     find lib/intel64 -name "libonedal*.a" -exec cp {} "$PREFIX/lib/" \;
