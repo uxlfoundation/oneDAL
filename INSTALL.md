@@ -214,6 +214,8 @@ By default, on x86 platforms, oneDAL uses highly optimized aligned memory alloca
 
 It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
 
+**NOTE:** Sanitizers cannot be used when building the DPC components.
+
 - To integrate [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) in a debug oneDAL build (recommended), run:
 
     _Note: Windows support of REQSAN in oneDAL is experimental, static AddressSanitizer can be set with value: static_
@@ -295,7 +297,7 @@ For example, in a Linux platform, assuming one wishes to execute the `adaboost_d
 ./_cmake_results/intel_intel64_so/adaboost_dense_batch
 ```
 
-DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`.
+DPC++ examples (running on devices supported by SYCL, such as GPU) from oneAPI are also auto-generated within these folders when oneDAL is built with DPC++ support (target `oneapi` in the Makefile), but be aware that it requires a DPC++ compiler such as ICX, and executing the examples requires the DPC++ runtime as well as the GPGPU drivers. The DPC++ examples can be found under `examples/oneapi/dpc`. These examples work only with dynamic linking and do not support static linking.
 
 oneDAL samples are also auto-generated in `daal/latest/samples/oneapi/cpp/`(Multi-CPU) and `daal/latest/samples/oneapi/dpc/`(Multi-GPU) when oneDAL is built with DPC++ support (target oneapi in the Makefile). Note that building and running these samples requires a DPC++ compiler for GPU (such as ICX), as well as MPI/CCL for CPU/GPU execution.
 
