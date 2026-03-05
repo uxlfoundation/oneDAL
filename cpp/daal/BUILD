@@ -11,9 +11,11 @@ load("@onedal//dev/bazel:daal.bzl",
     "daal_generate_version",
     "daal_patch_kernel_defines",
 )
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 daal_module(
     name = "microvmlipp",
+    lib_tag = "mkl_embed",
     override_deps_lib_tag = True,
     deps = select({
         "@config//:backend_ref": [ ],
@@ -25,7 +27,14 @@ daal_module(
 
 daal_module(
     name = "mathbackend_thread",
-    override_deps_lib_tag = True,
+    lib_tag = select({
+        "@config//:backend_ref": "daal",
+        "//conditions:default": "mkl_embed",
+    }),
+    override_deps_lib_tag = select({
+        "@config//:backend_ref": False,
+        "//conditions:default": True,
+    }),
     deps = select({
         "@config//:backend_ref": [ "@openblas//:openblas",
                                  ],
@@ -308,3 +317,19 @@ dal_collect_test_suites(
         "dtrees/gbt/regression"
     ],
 )
+
+sh_test(
+    name = "mkl_linkage_test",
+    srcs = ["//dev/bazel/tests:mkl_linkage_test.sh"],
+    data = [
+        ":core_static",
+        ":core_dynamic",
+    ],
+    # Only meaningful with MKL backend; skip for OpenBLAS/reference backend.
+    # Also Linux-only: uses GNU nm -D and .so outputs.
+    target_compatible_with = select({
+        "@config//:backend_ref": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }) + ["@platforms//os:linux"],
+)
+
