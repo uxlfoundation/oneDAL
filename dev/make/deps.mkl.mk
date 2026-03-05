@@ -97,7 +97,7 @@ mkl_libs.lnx32e := -L$(MKLROOT)/lib \
 
 mkl_libs.win32e :=  $(daaldep.win32e.mkl.sycl_blas) $(daaldep.win32e.mkl.sycl_lapack) $(daaldep.win32e.mkl.sycl_sparse) \
     $(daaldep.win32e.mkl.sycl_rng) \
-    $(daaldep.win32e.mkl.sycl_core) $(daaldep.win32e.mkl.sycl_interfaces) $(daaldep.win32e.mkl.sycl_thr) \
+    $(daaldep.win32e.mkl.sycl_core) $(daaldep.win32e.mkl.sycl_interfaces) $(daaldep.win32e.mkl.sycl_thr)
 
 mkl_libs.mac32e :=
 mkl_libs.lnxarm :=
