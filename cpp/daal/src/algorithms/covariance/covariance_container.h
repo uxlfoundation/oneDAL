@@ -194,6 +194,188 @@ namespace algorithms
 {
 namespace covariance
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm.
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ * \tparam method           Computation method of the algorithm, \ref daal::algorithms::covariance::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_DEFAULTDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using default computation method
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, defaultDense, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_SINGLEPASSDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using single-pass computation method
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, singlePassDense, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_SUMDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using precomputed sum computation method
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, sumDense, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_FASTCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, fastCSR, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_SINGLEPASSCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, singlePassCSR, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER_ALGORITHMFPTYPE_SUMCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables
+ *        This class is associated with daal::algorithms::covariance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, sumCSR, cpu> : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the batch processing mode
+     */
+    virtual services::Status compute() DAAL_C11_OVERRIDE;
+};
+
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(singlePassDense, internal::CovarianceDenseBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(sumDense, internal::CovarianceDenseBatchKernel)
@@ -214,6 +396,8 @@ __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(sumDense, internal::CovarianceDenseBat
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(fastCSR, internal::CovarianceCSRBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(singlePassCSR, internal::CovarianceCSRBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(sumCSR, internal::CovarianceCSRBatchKernel)
+
+} // namespace internal
 
 __DAAL_COVARIANCE_ONLINE_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseOnlineKernel)
 __DAAL_COVARIANCE_ONLINE_CONTAINER_CONSTRUCTOR(singlePassDense, internal::CovarianceDenseOnlineKernel)

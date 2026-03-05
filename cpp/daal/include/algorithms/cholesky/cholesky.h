@@ -42,32 +42,6 @@ namespace interface1
  * @ingroup cholesky
  * @{
  */
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__CHOLESKY__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the Cholesky decomposition algorithm.
- *        This class is associated with daal::algorithms::cholesky::Batch class.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the Cholesky decomposition algorithm, double or float
- * \tparam method           Cholesky decomposition computation method, \ref daal::algorithms::cholesky::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the Cholesky decomposition algorithm with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the Cholesky decomposition algorithm in the batch processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-};
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CHOLESKY__BATCH"></a>
@@ -147,12 +121,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -164,7 +133,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace cholesky
