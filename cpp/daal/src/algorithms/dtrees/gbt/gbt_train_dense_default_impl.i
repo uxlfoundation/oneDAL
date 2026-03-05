@@ -389,10 +389,12 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     TVector<services::SharedPtr<HomogenNumericTable<int> >, cpu> nodeSampleCountTables;
 
     typename gbt::internal::GbtDecisionTree * pTbl = nullptr;
+    services::SharedPtr<HomogenNumericTable<double> > pTblImp;
+    services::SharedPtr<HomogenNumericTable<int> > pTblSmplCnt;
 
     gbt::internal::GbtDecisionTree ** aTbl                       = &pTbl;
-    services::SharedPtr<HomogenNumericTable<double> > * aTblImp  = nullptr;
-    services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt = nullptr;
+    services::SharedPtr<HomogenNumericTable<double> > * aTblImp  = &pTblImp;
+    services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt = &pTblSmplCnt;
 
     if (nTrees > 1)
     {

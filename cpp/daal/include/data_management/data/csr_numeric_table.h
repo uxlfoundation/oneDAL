@@ -680,7 +680,6 @@ protected:
         st |= _ddict->setAllFeatures(_defaultFeature);
     }
 
-    template <typename DataType>
     /**
      *  Constructor for a Numeric Table with user-allocated memory
      *  \tparam   DataType        Type of values in the Numeric Table
@@ -693,6 +692,7 @@ protected:
      *  \param[in]    indexing    Indexing scheme used to access data in the CSR layout
      *  \note Present version of oneAPI Data Analytics Library supports 1-based indexing only
      */
+    template <typename DataType>
     CSRNumericTable(const services::SharedPtr<DataType> & ptr, const services::SharedPtr<size_t> & colIndices,
                     const services::SharedPtr<size_t> & rowOffsets, size_t nColumns, size_t nRows, CSRIndexing indexing = oneBased)
         : NumericTable(nColumns, nRows, DictionaryIface::equal), _indexing(indexing)
