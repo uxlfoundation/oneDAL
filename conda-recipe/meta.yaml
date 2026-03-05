@@ -82,6 +82,7 @@ outputs:
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_parameters_dpc.so.{{ major_binary_version }}  # [linux]
     about:
       summary: oneAPI Data Analytics Library (oneDAL) GPU/DPC++ runtime library
 

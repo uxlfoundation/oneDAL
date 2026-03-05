@@ -122,14 +122,14 @@ run_examples daal static
 # GPU/DPC++ tests: oneapi/dpc (requires dal-gpu / libonedal_dpc.so)
 # Skipped if GPU library is not installed.
 # ============================================================
-if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ]; then
+if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ] && [ -f "$CONDA_PREFIX/lib/libonedal_parameters_dpc.so" ]; then
     echo "========================================"
     echo "Running GPU/DPC++ examples: oneapi/dpc dynamic"
     echo "========================================"
     run_dpc_examples dynamic
 else
     echo "========================================"
-    echo "Skipping GPU/DPC++ examples: dal-gpu not installed"
+    echo "Skipping GPU/DPC++ examples: dal-gpu is not fully installed"
     echo "========================================"
 fi
 
