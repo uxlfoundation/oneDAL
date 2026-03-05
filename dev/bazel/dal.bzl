@@ -226,8 +226,6 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             mpi_ranks = mpi_ranks,
             deps = [
                 ":" + module_name + "_dpc",
-                # TODO: Remove once all GPU algorithms are migrated to DPC++
-                "@opencl//:opencl_binary",
             ],
             data = data,
             tags = common_tags + tags + ["dpc", iface_access_tag],
