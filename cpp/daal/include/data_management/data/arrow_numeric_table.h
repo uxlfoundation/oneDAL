@@ -256,6 +256,7 @@ private:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
@@ -346,6 +347,7 @@ private:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(1, 0);
             return services::Status();
         }
 

@@ -218,6 +218,7 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
@@ -294,6 +295,7 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(1, 0);
             return services::Status();
         }
 
