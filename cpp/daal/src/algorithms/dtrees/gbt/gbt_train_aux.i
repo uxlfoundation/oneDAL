@@ -256,37 +256,37 @@ public:
         : super(nFeaturesIdx), _featureSample(nFeaturesIdx), _aGHSum(nDiffFeaturesMax), _aFeatureValue(nFeatureValuesMax)
     {}
 
-    virtual bool init() DAAL_C11_OVERRIDE
+    virtual bool init() override
     {
         return (!_featureSample.size() || _featureSample.get()) && //not required to allocate or allocated
                (!_aGHSum.size() || _aGHSum.get()) && (!_aFeatureValue.size() || _aFeatureValue.get());
     }
 
-    virtual IndexType * getFeatureSampleBuf() DAAL_C11_OVERRIDE { return _featureSample.get(); }
-    virtual void releaseFeatureSampleBuf(IndexType * buf) DAAL_C11_OVERRIDE {}
+    virtual IndexType * getFeatureSampleBuf() override { return _featureSample.get(); }
+    virtual void releaseFeatureSampleBuf(IndexType * buf) override {}
 
-    virtual typename super::ghSumType * getGHSumBuf(size_t size) DAAL_C11_OVERRIDE
+    virtual typename super::ghSumType * getGHSumBuf(size_t size) override
     {
         if (_aGHSum.size() < size) _aGHSum.reset(size);
         return _aGHSum.get();
     }
 
     //get buffer for the feature values to be used for the split at the current level
-    virtual typename super::algorithmFPTypeVector * getFeatureValueBuf(size_t size) DAAL_C11_OVERRIDE
+    virtual typename super::algorithmFPTypeVector * getFeatureValueBuf(size_t size) override
     {
         DAAL_ASSERT(_aFeatureValue.size() >= size);
         return &_aFeatureValue;
     }
     //release the buffer
-    virtual void releaseFeatureValueBuf(typename super::algorithmFPTypeVector * buf) DAAL_C11_OVERRIDE {}
+    virtual void releaseFeatureValueBuf(typename super::algorithmFPTypeVector * buf) override {}
 
-    virtual typename super::IndexTypeVector * getSortedFeatureIdxBuf(size_t size) DAAL_C11_OVERRIDE
+    virtual typename super::IndexTypeVector * getSortedFeatureIdxBuf(size_t size) override
     {
         DAAL_ASSERT(false);
         return nullptr;
     } //should never be called
 
-    virtual void releaseSortedFeatureIdxBuf(typename super::IndexTypeVector * p) DAAL_C11_OVERRIDE {}
+    virtual void releaseSortedFeatureIdxBuf(typename super::IndexTypeVector * p) override {}
 
 protected:
     typename super::IndexTypeVector _featureSample;
@@ -372,34 +372,34 @@ public:
     }
 
 public:
-    virtual bool init() DAAL_C11_OVERRIDE { return true; }
-    virtual IndexType * getFeatureSampleBuf() DAAL_C11_OVERRIDE { return _lsFeatureSample.local(); }
+    virtual bool init() override { return true; }
+    virtual IndexType * getFeatureSampleBuf() override { return _lsFeatureSample.local(); }
 
-    virtual void releaseFeatureSampleBuf(IndexType * p) DAAL_C11_OVERRIDE
+    virtual void releaseFeatureSampleBuf(IndexType * p) override
     {
         DAAL_ASSERT(p);
         _lsFeatureSample.release(p);
     }
 
-    virtual typename super::ghSumType * getGHSumBuf(size_t size) DAAL_C11_OVERRIDE
+    virtual typename super::ghSumType * getGHSumBuf(size_t size) override
     {
         auto ptr = _tlsGHSum.local(size);
         return ptr ? ptr->get() : nullptr;
     }
 
     //get buffer for the feature values to be used for the split at the current level
-    virtual typename super::algorithmFPTypeVector * getFeatureValueBuf(size_t size) DAAL_C11_OVERRIDE { return _lsFeatureValueBuf.local(size); }
+    virtual typename super::algorithmFPTypeVector * getFeatureValueBuf(size_t size) override { return _lsFeatureValueBuf.local(size); }
 
     //release the buffer
-    virtual void releaseFeatureValueBuf(typename super::algorithmFPTypeVector * p) DAAL_C11_OVERRIDE
+    virtual void releaseFeatureValueBuf(typename super::algorithmFPTypeVector * p) override
     {
         DAAL_ASSERT(p);
         _lsFeatureValueBuf.release(p);
     }
 
-    virtual typename super::IndexTypeVector * getSortedFeatureIdxBuf(size_t size) DAAL_C11_OVERRIDE { return _lsSortedFeatureIdxBuf.local(size); }
+    virtual typename super::IndexTypeVector * getSortedFeatureIdxBuf(size_t size) override { return _lsSortedFeatureIdxBuf.local(size); }
 
-    virtual void releaseSortedFeatureIdxBuf(typename super::IndexTypeVector * p) DAAL_C11_OVERRIDE
+    virtual void releaseSortedFeatureIdxBuf(typename super::IndexTypeVector * p) override
     {
         DAAL_ASSERT(p);
         _lsSortedFeatureIdxBuf.release(p);

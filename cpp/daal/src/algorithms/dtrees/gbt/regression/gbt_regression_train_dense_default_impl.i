@@ -53,7 +53,7 @@ class SquaredLoss : public LossFunction<algorithmFPType, cpu>
 {
 public:
     virtual void getGradients(size_t n, size_t nRows, const algorithmFPType * y, const algorithmFPType * f, const IndexType * sampleInd,
-                              algorithmFPType * gh) DAAL_C11_OVERRIDE
+                              algorithmFPType * gh) override
     {
         const size_t nThreads  = daal::threader_get_threads_number();
         const size_t nBlocks   = getNBlocksForOpt<cpu>(nThreads, n);
@@ -107,7 +107,7 @@ public:
     }
     ~TrainBatchTask() { delete _builder; }
     bool done() { return false; }
-    virtual services::Status init() DAAL_C11_OVERRIDE
+    virtual services::Status init() override
     {
         auto s = super::init();
         if (s) s = _builder->init();
@@ -115,7 +115,7 @@ public:
     }
 
 protected:
-    virtual void initLossFunc() DAAL_C11_OVERRIDE
+    virtual void initLossFunc() override
     {
         switch (static_cast<const gbt::regression::training::Parameter &>(this->_par).loss)
         {
@@ -124,7 +124,7 @@ protected:
         }
     }
 
-    virtual bool getInitialF(algorithmFPType & val) DAAL_C11_OVERRIDE
+    virtual bool getInitialF(algorithmFPType & val) override
     {
         const auto py             = this->_dataHelper.y();
         const size_t n            = this->_dataHelper.data()->getNumberOfRows();
@@ -151,7 +151,7 @@ protected:
 
     virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
                                         HomogenNumericTable<int> ** aTblSmplCnt,
-                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) DAAL_C11_OVERRIDE
+                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) override
     {
         this->_nParallelNodes.inc();
         services::Status s = _builder->run(aTbl[0], aTblImp[0], aTblSmplCnt[0], 0, GH_SUMS_BUF);

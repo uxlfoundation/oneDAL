@@ -55,7 +55,7 @@ public:
         push_back(0, BaseRNGsPtr(new daal::internal::BaseRNGsInst<cpu>(seed, __DAAL_BRNG_MT2203)));
     }
 
-    services::Status addImpl(size_t numberOfStreams) DAAL_C11_OVERRIDE
+    services::Status addImpl(size_t numberOfStreams) override
     {
         Collection<size_t> indices(numberOfStreams);
         services::Status s = requestIndices(numberOfStreams, 6024, indices);
@@ -67,13 +67,13 @@ public:
         return s;
     }
 
-    FamilyEnginePtr getImpl(size_t i) const DAAL_C11_OVERRIDE { return FamilyEnginePtr(new BatchImpl(this->getSeed(), _streamIdxs[i], _streams[i])); }
+    FamilyEnginePtr getImpl(size_t i) const override { return FamilyEnginePtr(new BatchImpl(this->getSeed(), _streamIdxs[i], _streams[i])); }
 
-    void * getState() DAAL_C11_OVERRIDE { return _streams[0]->getState(); }
+    void * getState() override { return _streams[0]->getState(); }
 
-    int getStateSize() const DAAL_C11_OVERRIDE { return _streams[0]->getStateSize(); }
+    int getStateSize() const override { return _streams[0]->getStateSize(); }
 
-    services::Status saveStateImpl(byte * dest) const DAAL_C11_OVERRIDE
+    services::Status saveStateImpl(byte * dest) const override
     {
         DAAL_CHECK(dest, ErrorIncorrectErrorcodeFromGenerator);
 
@@ -99,7 +99,7 @@ public:
         return services::Status();
     }
 
-    services::Status loadStateImpl(const byte * src) DAAL_C11_OVERRIDE
+    services::Status loadStateImpl(const byte * src) override
     {
         DAAL_CHECK(src, ErrorIncorrectErrorcodeFromGenerator);
         const int * headerIn = (const int *)(src);
@@ -125,7 +125,7 @@ public:
         return services::Status();
     }
 
-    services::Status leapfrogImpl(size_t threadNum, size_t nThreads) DAAL_C11_OVERRIDE
+    services::Status leapfrogImpl(size_t threadNum, size_t nThreads) override
     {
         Status s;
         for (size_t i = 0; i < this->getNumberOfStreams(); i++)
@@ -135,7 +135,7 @@ public:
         return s;
     }
 
-    services::Status skipAheadImpl(size_t nSkip) DAAL_C11_OVERRIDE
+    services::Status skipAheadImpl(size_t nSkip) override
     {
         Status s;
         for (size_t i = 0; i < this->getNumberOfStreams(); i++)
@@ -145,16 +145,13 @@ public:
         return s;
     }
 
-    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
-    {
-        return new BatchImpl<cpu, algorithmFPType, method>(*this);
-    }
+    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
-    size_t getNumberOfStreamsImpl() const DAAL_C11_OVERRIDE { return _streams.size(); }
+    size_t getNumberOfStreamsImpl() const override { return _streams.size(); }
 
-    size_t getMaxNumberOfStreamsImpl() const DAAL_C11_OVERRIDE { return 6024; }
+    size_t getMaxNumberOfStreamsImpl() const override { return 6024; }
 
-    bool hasSupport(engines::internal::ParallelizationTechnique technique) const DAAL_C11_OVERRIDE
+    bool hasSupport(engines::internal::ParallelizationTechnique technique) const override
     {
         switch (technique)
         {
