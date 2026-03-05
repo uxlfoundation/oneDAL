@@ -57,24 +57,12 @@ cc_library(
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
     ],
-    srcs = [
-        "lib/libmkl_sycl_blas.so",
-        "lib/libmkl_sycl_lapack.so",
-        "lib/libmkl_sycl_sparse.so",
-        "lib/libmkl_sycl_dft.so",
-        "lib/libmkl_sycl_vm.so",
-        "lib/libmkl_sycl_rng.so",
-        "lib/libmkl_sycl_stats.so",
-        "lib/libmkl_sycl_data_fitting.so",
-        "lib/libmkl_sycl_blas.so.5",
-        "lib/libmkl_sycl_lapack.so.5",
-        "lib/libmkl_sycl_sparse.so.5",
-        "lib/libmkl_sycl_dft.so.5",
-        "lib/libmkl_sycl_vm.so.5",
-        "lib/libmkl_sycl_rng.so.5",
-        "lib/libmkl_sycl_stats.so.5",
-        "lib/libmkl_sycl_data_fitting.so.5",
-    ],
+    srcs = glob(
+        [
+            "lib/*.so",
+            "lib/*.so.*",
+        ],
+    ),
 )
 
 cc_library(
