@@ -14,6 +14,9 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
     "paths",
