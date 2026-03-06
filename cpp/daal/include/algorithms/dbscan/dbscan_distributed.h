@@ -74,12 +74,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the first step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the first step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -103,12 +103,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the second step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the second step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -132,12 +132,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the third step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the third step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -161,12 +161,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the fourth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the fourth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -190,12 +190,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the fifth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the fifth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -219,12 +219,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the sixth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the sixth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -248,12 +248,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the seventh step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the seventh step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -277,12 +277,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the eighth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the eighth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -306,12 +306,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the ninth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the ninth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -335,12 +335,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the tenth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the tenth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -364,12 +364,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the eleventh step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the eleventh step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -393,12 +393,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the twelfth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the twelfth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -422,12 +422,12 @@ public:
      * Computes a partial result of DBSCAN algorithm
      * in the thirteenth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of DBSCAN algorithm
      * in the thirteenth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -509,7 +509,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -539,21 +539,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -629,7 +629,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -659,21 +659,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -751,7 +751,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -781,21 +781,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step3Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step3Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step3Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -873,7 +873,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -903,21 +903,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step4Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -994,7 +994,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1024,21 +1024,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step5Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step5Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step5Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1116,7 +1116,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1146,21 +1146,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step6Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step6Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step6Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1217,7 +1217,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1249,24 +1249,24 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status checkPartialResult() override { return services::Status(); }
 
 protected:
-    virtual Distributed<step7Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step7Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step7Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return services::Status();
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1342,7 +1342,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1372,21 +1372,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step8Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step8Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step8Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1444,7 +1444,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed results
@@ -1491,26 +1491,26 @@ public:
     }
 
 protected:
-    virtual Distributed<step9Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step9Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step9Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
         _res               = _result.get();
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1588,7 +1588,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1618,21 +1618,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step10Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step10Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step10Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1708,7 +1708,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1738,21 +1738,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step11Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step11Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step11Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1828,7 +1828,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1858,21 +1858,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step12Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step12Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step12Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -1930,7 +1930,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed results
@@ -1979,29 +1979,29 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status checkPartialResult() override { return services::Status(); }
 
 protected:
-    virtual Distributed<step13Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step13Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step13Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
         _res               = _result.get();
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return services::Status();
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {

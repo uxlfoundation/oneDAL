@@ -120,12 +120,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -152,12 +152,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -184,12 +184,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -217,12 +217,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -250,12 +250,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -283,12 +283,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -369,7 +369,7 @@ public:
     services::SharedPtr<DistributedIface<step1Local> > clone() const { return services::SharedPtr<DistributedIface<step1Local> >(cloneImpl()); }
 
 protected:
-    virtual DistributedIface<step1Local> * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual DistributedIface<step1Local> * cloneImpl() const override = 0;
 };
 
 /**
@@ -465,7 +465,7 @@ public:
     /**
      * Validates parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE
+    services::Status checkFinalizeComputeParams() override
     {
         services::Status s;
         if (this->_partialResult)
@@ -502,7 +502,7 @@ public:
     ParameterType parameter;             /*!< Parameters of the algorithm */
 
 protected:
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -512,7 +512,7 @@ protected:
         _partialResult.reset(new PartialResultType());
     }
 
-    virtual DistributedIface<step2Master> * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual DistributedIface<step2Master> * cloneImpl() const override = 0;
 
     PartialResultPtr _partialResult;
     ResultPtr _result;
@@ -598,7 +598,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -654,7 +654,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -668,12 +668,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         ResultPtr result   = this->getResult();
         services::Status s = result->template allocate<algorithmFPType>(this->_partialResult.get(), this->_par, (int)method);
@@ -682,7 +682,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = this->_partialResult->template allocate<algorithmFPType>(&(this->input), this->_par, (int)method);
         this->_pres        = this->_partialResult.get();

@@ -74,27 +74,27 @@ public:
 
     virtual ~AlgorithmDispatchContainer() { delete _cntr; }
 
-    virtual services::Status compute() DAAL_C11_OVERRIDE
+    virtual services::Status compute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         return _cntr->compute();
     }
 
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE
+    virtual services::Status finalizeCompute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->finalizeCompute();
     }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE
+    virtual services::Status setupCompute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->setupCompute();
     }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return _cntr->resetCompute(); }
+    virtual services::Status resetCompute() override { return _cntr->resetCompute(); }
 
 protected:
     AlgorithmContainerImpl<mode> * _cntr;

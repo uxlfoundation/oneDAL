@@ -67,7 +67,7 @@ public:
     /**
      *  Computes the result of KD-tree based kNN model-based prediction
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -122,13 +122,13 @@ public:
      * Get input objects for the KD-tree based kNN prediction algorithm
      * \return %Input objects for the KD-tree based kNN prediction algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated KD-tree based kNN prediction algorithm with a copy of input objects
@@ -158,9 +158,9 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();
