@@ -113,7 +113,7 @@ public:
      * \param[in] method    Computation method
      * \return Status of checking
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -128,7 +128,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     Parameter(size_t nClasses, VotingMethod votingMethod = weighted) : daal::algorithms::classifier::Parameter(nClasses), votingMethod(votingMethod)
     {}
     VotingMethod votingMethod;
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 

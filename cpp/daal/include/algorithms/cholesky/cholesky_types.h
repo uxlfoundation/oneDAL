@@ -111,7 +111,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -159,7 +159,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check(const algorithms::Input * input, const algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const algorithms::Input * input, const algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
