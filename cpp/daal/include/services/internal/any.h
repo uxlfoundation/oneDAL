@@ -53,7 +53,7 @@ private:
 
         T & get() { return _value; }
 
-        Value<T> * copy() const DAAL_C11_OVERRIDE { return new Value<T>(_value); }
+        Value<T> * copy() const override { return new Value<T>(_value); }
 
     private:
         T _value;
@@ -68,7 +68,7 @@ public:
 
     Any(const Any & other) : _value(other._value ? other._value->copy() : NULL) {}
 
-    ~Any() DAAL_C11_OVERRIDE { delete _value; }
+    ~Any() override { delete _value; }
 
     bool empty() const { return _value == NULL; }
 

@@ -70,7 +70,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -132,13 +132,13 @@ public:
      * Get input objects for the lasso regression training algorithm
      * \return %Input objects for the lasso regression training algorithm
      */
-    virtual regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of lasso regression model-based training
@@ -149,7 +149,7 @@ public:
     /**
      * Resets the results of lasso regression model-based training
      */
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -166,9 +166,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, static_cast<const ParameterType *>(_par), method);
         _res               = _result.get();

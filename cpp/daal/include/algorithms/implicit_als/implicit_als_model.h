@@ -74,7 +74,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     double lambda;              /*!< Regularization parameter */
     double preferenceThreshold; /*!< Threshold used to define preference values */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 

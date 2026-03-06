@@ -133,11 +133,11 @@ public:
         return create(SharedPtr<T>(data, services::EmptyDeleter()), size, status);
     }
 
-    size_t size() const DAAL_C11_OVERRIDE { return _size; }
+    size_t size() const override { return _size; }
 
-    Status apply(BufferVisitor<T> & visitor) const DAAL_C11_OVERRIDE { return visitor(*this); }
+    Status apply(BufferVisitor<T> & visitor) const override { return visitor(*this); }
 
-    HostBuffer<T> * getSubBuffer(size_t offset, size_t size, Status & status) const DAAL_C11_OVERRIDE
+    HostBuffer<T> * getSubBuffer(size_t offset, size_t size, Status & status) const override
     {
         DAAL_ASSERT(offset + size <= _size);
         return create(SharedPtr<T>(_data, _data.get() + offset), size, status);
@@ -163,20 +163,20 @@ class ConvertToHost : public BufferVisitor<T>
 public:
     DAAL_DEPRECATED explicit ConvertToHost(const data_management::ReadWriteMode & rwFlag) : _rwFlag(rwFlag) {}
 
-    Status operator()(const HostBuffer<T> & buffer) DAAL_C11_OVERRIDE
+    Status operator()(const HostBuffer<T> & buffer) override
     {
         _hostSharedPtr = buffer.get();
         return Status();
     }
 
-    Status operator()(const UsmBufferIface<T> & buffer) DAAL_C11_OVERRIDE
+    Status operator()(const UsmBufferIface<T> & buffer) override
     {
         Status status;
         _hostSharedPtr = convertToHost(buffer, status);
         return status;
     }
 
-    Status operator()(const SyclBufferIface<T> & buffer) DAAL_C11_OVERRIDE
+    Status operator()(const SyclBufferIface<T> & buffer) override
     {
         Status status;
         _hostSharedPtr = convertToHost(buffer, status);

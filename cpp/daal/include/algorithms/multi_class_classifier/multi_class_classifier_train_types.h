@@ -96,7 +96,7 @@ public:
      *
      * \return Status of computation
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

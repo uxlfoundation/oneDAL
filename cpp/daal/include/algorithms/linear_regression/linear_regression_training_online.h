@@ -70,14 +70,14 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of linear regression model-based training
      * in the online processing mode
      *
      * \return Status of computations
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -123,13 +123,13 @@ public:
 
     ~Online() {}
 
-    virtual regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains a partial result of linear regression model-based training
@@ -152,23 +152,23 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, method>(*this); }
+    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, &parameter, method);
         _res               = _result.get();
         return s;
     }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = getPartialResult()->template allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         services::Status s = getPartialResult()->template initialize<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
