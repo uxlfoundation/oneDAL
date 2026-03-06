@@ -52,35 +52,6 @@ namespace prediction
 namespace interface2
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__PREDICTION__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the logistic regression algorithm.
- *        This class is associated with daal::algorithms::logistic_regression::prediction::interface2::Batch class
- *        and supports method to compute logistic regression prediction
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
- * \tparam method           logistic regression computation method, \ref Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for logistic regression model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of logistic regression model-based prediction
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__PREDICTION__BATCH"></a>
  * \brief Predicts logistic regression results
  * <!-- \n<a href="DAAL-REF-LOGISTIC-REGRESSION-ALGORITHM">logistic regression algorithm description and usage models</a> -->
@@ -177,19 +148,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _in = &input;
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, interface2::BatchContainer, algorithmFPType, method)(&_env);
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace prediction

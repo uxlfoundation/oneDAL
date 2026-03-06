@@ -27,13 +27,22 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::OnlineContainer, online, DAAL_FPTYPE, ridge_regression::training::normEqDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::internal::OnlineContainer, online, DAAL_FPTYPE, ridge_regression::training::normEqDense)
 namespace ridge_regression
 {
 namespace training
 {
 namespace interface1
 {
+template <>
+void Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, ridge_regression::training::normEqDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResultType());
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Online<DAAL_FPTYPE, ridge_regression::training::normEqDense>::Online()
 {

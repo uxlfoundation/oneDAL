@@ -46,41 +46,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__PRECOMPUTED__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the objective function with precomputed characteristics.
- *        This class is associated with the Batch class and supports the method of computing
- *        the objective function with precomputed characteristics in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the objective function with precomputed characteristics, double or float
- * \tparam method           The objective function with precomputed characteristics method
- *
- * \DAAL_DEPRECATED
- */
-
-template <typename algorithmFPType, Method method>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the objective function with precomputed characteristics with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv) {}
-    virtual ~BatchContainer() {}
-    /**
-     * Runs implementations of the objective function with precomputed characteristics in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    virtual services::Status compute()
-    {
-        /* empty compute */
-        return services::Status();
-    }
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__PRECOMPUTED__BATCH"></a>
  * \brief Computes the objective function with precomputed characteristics in the batch processing mode.
  *
@@ -172,20 +137,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new BatchContainer<algorithmFPType, method>(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-        _result              = objective_function::ResultPtr(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace precomputed

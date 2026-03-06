@@ -376,6 +376,439 @@ public:
     virtual services::Status compute() override;
 };
 
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm.
+ *        This class is associated with daal::algorithms::covariance::Online class
+ *
+ * \tparam method           Computation method for correlation or variance-covariance matrix, \ref daal::algorithms::covariance::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_DEFAULTDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using default computation method.
+ *        This class is associated with daal::algorithms::covariance::Online class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, defaultDense, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SINGLEPASSDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using single-pass computation method.
+ *        This class is associated with daal::algorithms::covariance::Online class.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, singlePassDense, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SUMDENSE_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using sum computation method.
+ *        This class is associated with daal::algorithms::covariance::Online class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, sumDense, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_FASTCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables.
+ *        This class is associated with daal::algorithms::covariance::Online class.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, fastCSR, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SINGLEPASSCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables.
+ *        This class is associated with daal::algorithms::covariance::Online class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, singlePassCSR, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SUMCSR_CPU"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables.
+ *        This class is associated with daal::algorithms::covariance::Online class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, sumCSR, cpu> : public OnlineContainerIface
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm
+     * in the online processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix  algorithm in the distributed processing mode.
+ *        This class is associated with daal::algorithms::covariance::Distributed class
+ *
+ * \tparam step             Step of distributed processing, \ref ComputeStep
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::covariance::Method
+ *
+ * \DAAL_DEPRECATED
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using default computation method in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, defaultDense, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using single-pass computation method in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, singlePassDense, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using sum computation method in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, sumDense, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, fastCSR, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, singlePassCSR, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
+ *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, sumCSR, cpu> : public DistributedContainerIface<step2Master>
+{
+public:
+    /**
+     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
+     * of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(singlePassDense, internal::CovarianceDenseBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(sumDense, internal::CovarianceDenseBatchKernel)
@@ -396,8 +829,6 @@ __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(sumDense, internal::CovarianceDenseBat
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(fastCSR, internal::CovarianceCSRBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(singlePassCSR, internal::CovarianceCSRBatchKernel)
 __DAAL_COVARIANCE_BATCH_CONTAINER_COMPUTE(sumCSR, internal::CovarianceCSRBatchKernel)
-
-} // namespace internal
 
 __DAAL_COVARIANCE_ONLINE_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseOnlineKernel)
 __DAAL_COVARIANCE_ONLINE_CONTAINER_CONSTRUCTOR(singlePassDense, internal::CovarianceDenseOnlineKernel)
@@ -454,7 +885,7 @@ __DAAL_COVARIANCE_DISTR_CONTAINER_FINALIZECOMPUTE(sumDense)
 __DAAL_COVARIANCE_DISTR_CONTAINER_FINALIZECOMPUTE(fastCSR)
 __DAAL_COVARIANCE_DISTR_CONTAINER_FINALIZECOMPUTE(singlePassCSR)
 __DAAL_COVARIANCE_DISTR_CONTAINER_FINALIZECOMPUTE(sumCSR)
-
+} // namespace internal
 } // namespace covariance
 } // namespace algorithms
 } // namespace daal

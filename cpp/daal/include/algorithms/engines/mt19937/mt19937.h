@@ -43,37 +43,6 @@ namespace mt19937
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mt19937 engine.
- *        This class is associated with the \ref mt19937::interface1::Batch "mt19937::Batch" class
- *        and supports the method of mt19937 engine computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float
- * \tparam method           Computation method of the engine, mt19937::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the mt19937 engine with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the mt19937 engine in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
  * \brief Provides methods for mt19937 engine computations in the batch processing mode
  *
@@ -158,12 +127,7 @@ protected:
 
     virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -174,7 +138,6 @@ typedef services::SharedPtr<Batch<> > mt19937Ptr;
 typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 using interface1::mt19937Ptr;
 using interface1::mt19937ConstPtr;

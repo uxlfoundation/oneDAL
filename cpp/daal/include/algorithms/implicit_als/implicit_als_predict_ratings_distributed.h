@@ -46,47 +46,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER"></a>
- * \brief Class that contains methods to run implicit ALS model-based prediction in the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class that contains methods to run implicit ALS model-based prediction in the first step of
- *        the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public DistributedPredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of implicit ALS model-based prediction
-     * in the first step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of implicit ALS model-based prediction
-     * in the first step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTED"></a>
  * \brief Runs implicit ALS model-based prediction in the distributed processing mode
  * <!-- \n<a href="DAAL-REF-IMPLICIT_ALS-ALGORITHM">Implicit ALS algorithm description and usage models</a> -->
@@ -222,20 +181,13 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 private:
     Distributed & operator=(const Distributed &);
 };
 /** @} */
 } // namespace interface1
-using interface1::DistributedContainer;
 using interface1::Distributed;
 
 } // namespace ratings

@@ -37,10 +37,39 @@ namespace prediction
 {
 namespace ratings
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of implicit ALS prediction algorithm
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the implicit ALS ratings prediction algorithm in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for implicit ALS model-based prediction, double or float
+ * \tparam method           Implicit ALS prediction method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of implicit ALS model-based ratings prediction
+     * in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, prediction::ratings::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -116,6 +145,8 @@ services::Status DistributedContainer<step1Local, algorithmFPType, method, cpu>:
 {
     return services::Status();
 }
+
+} // namespace internal
 
 } // namespace ratings
 } // namespace prediction

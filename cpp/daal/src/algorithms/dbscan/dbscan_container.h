@@ -37,6 +37,43 @@ namespace algorithms
 {
 namespace dbscan
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the DBSCAN algorithm.
+ *        This class is associated with the daal::algorithms::dbscan::Batch class
+ *        and supports the method of DBSCAN computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of DBSCAN, double or float
+ * \tparam method           Computation method of the algorithm, \ref daal::algorithms::dbscan::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the DBSCAN algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the DBSCAN algorithm in the batch processing mode
+     */
+    virtual services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the result of DBSCAN algorithm
+ * in the distributed processing mode
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -600,6 +637,8 @@ services::Status DistributedContainer<step13Local, algorithmFPType, method, cpu>
     __DAAL_CALL_KERNEL(env, internal::DBSCANDistrStep13Kernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), finalizeCompute,
                        ntAssignmentQueries.get(), ntAssignments.get(), par);
 }
+
+} // namespace internal
 
 } // namespace dbscan
 } // namespace algorithms

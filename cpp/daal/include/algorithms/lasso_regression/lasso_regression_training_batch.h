@@ -47,33 +47,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__LASSO_REGRESSION__TRAINING__BATCHCONTAINER"></a>
- * \brief Class containing methods for normal equations lasso regression model-based training using algorithmFPType precision arithmetic
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for lasso regression model-based training with a specified environment in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-
-    /** Default destructor */
-    ~BatchContainer();
-
-    /**
-     * Computes the result of lasso regression model-based training in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__LASSO_REGRESSION__TRAINING__BATCH"></a>
  * \brief Provides methods for lasso regression model-based training in the batch processing mode
  * <!-- \n<a href="DAAL-REF-LASSOREGRESSION-ALGORITHM">LASSO regression algorithm description and usage models</a> -->
@@ -175,12 +148,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -188,7 +156,6 @@ private:
 /** @} */
 } // namespace interface1
 
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace training

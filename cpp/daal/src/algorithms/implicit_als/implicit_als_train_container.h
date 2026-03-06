@@ -36,10 +36,44 @@ namespace implicit_als
 {
 namespace training
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of implicit ALS training algorithm
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of implicit ALS model-based training
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of implicit ALS model-based training in the batch processing mode
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the result of implicit ALS model-based training
+ * in the distributed processing mode
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
 template <typename algorithmFPType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : TrainingContainerIface<batch>()
 {
@@ -243,6 +277,8 @@ services::Status DistributedContainer<step4Local, algorithmFPType, method, cpu>:
 {
     return services::Status();
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace implicit_als

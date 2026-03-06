@@ -44,78 +44,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::Distributed class
- *        and supports the method of K-Means computation in the distributed processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
- * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer;
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for K-Means algorithm in the first step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of K-Means algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for K-Means algorithm in the second step of the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the second step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means algorithm in the second step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of K-Means algorithm in the second step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTED"></a>
  * \brief Computes the results of K-Means algorithm in the distributed processing mode
  * <!-- \n<a href="DAAL-REF-KMEANS-ALGORITHM">K-Means algorithm description and usage models</a> -->
@@ -265,11 +193,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -438,11 +362,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -456,7 +376,6 @@ private:
 /** @} */
 } // namespace interface2
 
-using interface2::DistributedContainer;
 using interface2::Distributed;
 } // namespace kmeans
 } // namespace algorithms

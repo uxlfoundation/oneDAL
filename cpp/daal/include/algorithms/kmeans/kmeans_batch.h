@@ -44,35 +44,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::Batch class
- *        and supports the method of K-Means computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
- * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes the result of K-Means algorithm in the batch processing mode
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__BATCH"></a>
  * \brief Computes the results of K-Means algorithm in the batch processing mode
  * <!-- \n<a href="DAAL-REF-KMEANS-ALGORITHM">K-Means algorithm description and usage models</a> -->
@@ -164,11 +135,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -181,7 +148,6 @@ private:
 /** @} */
 } // namespace interface2
 
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace kmeans

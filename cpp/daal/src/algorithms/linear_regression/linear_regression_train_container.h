@@ -41,6 +41,8 @@ namespace linear_regression
 {
 namespace training
 {
+namespace internal
+{
 using namespace daal::data_management;
 using namespace daal::services;
 using namespace daal::internal;
@@ -49,6 +51,73 @@ using namespace daal::internal;
  *  \brief Initialize list of linear regression
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for normal equations linear regression
+ *        model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for linear regression model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of linear regression model-based training in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__ONLINECONTAINER"></a>
+ * \brief Class containing methods for linear regression model-based training
+ * in the online processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public TrainingContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for linear regression model-based training with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~OnlineContainer();
+
+    /**
+     * Computes a partial result of linear regression model-based training
+     * in the online processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of linear regression model-based training
+     * in the online processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods for linear regression model-based training in the distributed processing mode
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
 template <typename algorithmFPType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(Environment::env * daalEnv)
 {
@@ -283,6 +352,8 @@ Status DistributedContainer<step2Master, algorithmFPType, method, cpu>::finalize
                            *(pm->getRTable()), *(pm->getQTYTable()), *(m->getRTable()), *(m->getQTYTable()), *(m->getBeta()), par->interceptFlag);
     }
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace linear_regression

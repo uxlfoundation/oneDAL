@@ -34,8 +34,39 @@ namespace kernel_function
 {
 namespace linear
 {
+namespace internal
+{
 using namespace daal::data_management;
 namespace poly = daal::algorithms::kernel_function::polynomial::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__LINEAR__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the linear kernel function algorithm.
+ *        This class is associated with the Batch class
+ *        and supports the method for computing linear kernel functions in the %batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
+ * \tparam method           Computation method of the algorithm, \ref Method
+ *
+ */
+
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the linear kernel function algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the linear kernel function algorithm in the batch processing mode
+     */
+    virtual services::Status compute() override;
+};
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(services::Environment::env * daalEnv)
@@ -79,6 +110,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        __DAAL_KERNEL_ARGUMENTS((method == defaultDense) ? poly::defaultDense : poly::fastCSR, algorithmFPType), compute, a[0], a[1],
                        r[0], &kernelPar);
 }
+
+} // namespace internal
 
 } // namespace linear
 } // namespace kernel_function

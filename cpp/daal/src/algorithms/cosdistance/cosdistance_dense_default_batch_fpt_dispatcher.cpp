@@ -27,12 +27,19 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(cosine_distance::BatchContainer, batch, DAAL_FPTYPE, cosine_distance::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(cosine_distance::internal::BatchContainer, batch, DAAL_FPTYPE, cosine_distance::defaultDense)
 namespace cosine_distance
 {
 namespace interface1
 {
 
+template <>
+void Batch<DAAL_FPTYPE, cosine_distance::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, cosine_distance::defaultDense)(&_env);
+    _in                  = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, cosine_distance::defaultDense>::Batch()
 {

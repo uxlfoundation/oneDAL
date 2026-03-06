@@ -27,13 +27,22 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, low_order_moments::sumCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, low_order_moments::sumCSR)
 namespace low_order_moments
 {
 namespace interface1
 {
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, low_order_moments::sumCSR>;
 
+template <>
+void Distributed<step2Master, DAAL_FPTYPE, low_order_moments::sumCSR>::initialize()
+{
+    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, low_order_moments::sumCSR)(&_env);
+    _in                        = &input;
+    _par                       = &parameter;
+    _result.reset(new ResultType());
+    _partialResult.reset(new PartialResultType());
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

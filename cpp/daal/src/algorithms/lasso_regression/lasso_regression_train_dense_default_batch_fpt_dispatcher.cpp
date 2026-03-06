@@ -29,7 +29,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(lasso_regression::training::BatchContainer, batch, DAAL_FPTYPE, lasso_regression::training::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(lasso_regression::training::internal::BatchContainer, batch, DAAL_FPTYPE, lasso_regression::training::defaultDense)
 
 namespace lasso_regression
 {
@@ -37,6 +37,13 @@ namespace training
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, lasso_regression::training::defaultDense>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, lasso_regression::training::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, lasso_regression::training::defaultDense>::Batch(const optimization_solver::iterative_solver::BatchPtr & solver)
 {

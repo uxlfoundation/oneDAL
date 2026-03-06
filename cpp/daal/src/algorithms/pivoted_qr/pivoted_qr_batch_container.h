@@ -34,6 +34,34 @@ namespace algorithms
 {
 namespace pivoted_qr
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PIVOTED_QR__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the pivoted QR decomposition algorithm
+ *
+ * \tparam method           Pivoted QR computation method, \ref daal::algorithms::pivoted_qr::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the pivoted QR, double or float
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the pivoted QR decomposition algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the pivoted QR decomposition algorithm in the batch processing mode
+     */
+    virtual services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -63,6 +91,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::PivotedQRKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, *dataTable, *matrixQTable,
                        *matrixRTable, *permutationMatrixTable, permutedColumnsTable);
 }
+
+} // namespace internal
 
 } //namespace pivoted_qr
 

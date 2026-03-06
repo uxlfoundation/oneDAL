@@ -35,6 +35,17 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
+ *
+ */
+template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
 template <typename algorithmFPType, CpuType cpu>
 DistributedContainer<step2Master, algorithmFPType, svdDense, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
 {
@@ -73,6 +84,8 @@ services::Status DistributedContainer<step2Master, algorithmFPType, svdDense, cp
     inputPartialResults->clear();
     return s;
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

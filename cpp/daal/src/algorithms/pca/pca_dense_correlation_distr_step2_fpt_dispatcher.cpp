@@ -29,13 +29,22 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, pca::correlationDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, pca::correlationDense)
 namespace pca
 {
 namespace interface1
 {
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>;
 
+template <>
+void Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, svdDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResult<svdDense>());
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

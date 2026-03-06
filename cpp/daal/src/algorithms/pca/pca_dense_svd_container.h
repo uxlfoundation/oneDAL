@@ -30,6 +30,8 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
 static inline internal::InputDataType getInputDataType(pca::Input * input)
 {
     if (input == 0 || input->size() == 0)
@@ -51,6 +53,8 @@ static inline internal::InputDataType getInputDataType(pca::Input * input)
         return internal::nonNormalizedDataset;
     }
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

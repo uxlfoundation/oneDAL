@@ -30,12 +30,9 @@ namespace algorithms
 {
 namespace covariance
 {
-namespace interface1
-{
-template class OnlineContainer<DAAL_FPTYPE, sumDense, DAAL_CPU>;
-}
 namespace internal
 {
+template class OnlineContainer<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 template class CovarianceDenseOnlineKernel<DAAL_FPTYPE, sumDense, DAAL_CPU>;
 }
 } // namespace covariance

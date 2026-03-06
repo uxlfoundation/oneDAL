@@ -45,36 +45,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__LINEAR__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the linear kernel function algorithm.
- *        This class is associated with the Batch class
- *        and supports the method for computing linear kernel functions in the %batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
- * \tparam method           Computation method of the algorithm, \ref Method
- *
- * \DAAL_DEPRECATED
- */
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the linear kernel function algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the linear kernel function algorithm in the batch processing mode
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__LINEAR__BATCH"></a>
  * \brief Computes a linear kernel function in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-KERNEL_FUNCTION_LINEAR-ALGORITHM">Kernel function algorithm description and usage models</a> -->
@@ -142,12 +112,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-    }
+    void initialize();
 
     virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
@@ -163,7 +128,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace linear
