@@ -77,9 +77,10 @@ run_dpc_examples() {
             cd build_$linking_type
 
             cmake_args="-DONEDAL_LINK=$linking_type"
-            if [ "$linking_type" == "static" ]; then
-                cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
-            fi
+            # Note: MKL cmake config (incl. SYCL variant) requires TBB to be findable at configure time.
+            # conda-forge tbb-devel does not ship TBBConfig.cmake, so we set TBB as found manually
+            # (same approach as for the static CPU build above).
+            cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
 
             cmake .. $cmake_args
             make -j$(nproc)
