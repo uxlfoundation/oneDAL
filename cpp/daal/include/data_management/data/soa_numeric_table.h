@@ -362,6 +362,7 @@ protected:
 
         if (idx >= nobs)
         {
+            block.resizeBuffer(ncols, 0);
             return services::Status();
         }
 
