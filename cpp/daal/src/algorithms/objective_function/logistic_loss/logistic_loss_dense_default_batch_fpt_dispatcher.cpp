@@ -25,7 +25,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::logistic_loss::interface2::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::logistic_loss::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       optimization_solver::logistic_loss::defaultDense)
 namespace optimization_solver
 {
@@ -35,6 +35,14 @@ namespace interface2
 {
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::logistic_loss::defaultDense>;
 
+template <>
+void Batch<DAAL_FPTYPE, optimization_solver::logistic_loss::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new internal::BatchContainer<DAAL_FPTYPE, optimization_solver::logistic_loss::defaultDense>(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+    _result              = objective_function::ResultPtr(new ResultType());
+}
 template <>
 DAAL_EXPORT BatchType::Batch(size_t numberOfTerms) : sum_of_functions::Batch(numberOfTerms, &input, new ParameterType(numberOfTerms))
 {

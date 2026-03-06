@@ -34,6 +34,17 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
+ * \brief Class containing methods to compute the result of the PCA algorithm
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public AnalysisContainerIface<online>
+{};
+
 template <typename algorithmFPType, CpuType cpu>
 OnlineContainer<algorithmFPType, correlationDense, cpu>::OnlineContainer(daal::services::Environment::env * daalEnv)
 {
@@ -74,6 +85,8 @@ services::Status OnlineContainer<algorithmFPType, correlationDense, cpu>::finali
     __DAAL_CALL_KERNEL(env, internal::PCACorrelationKernel, __DAAL_KERNEL_ARGUMENTS(online, algorithmFPType), finalize, partialResult, parameter,
                        *eigenvectors, *eigenvalues);
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

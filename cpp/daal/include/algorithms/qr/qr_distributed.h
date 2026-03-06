@@ -45,86 +45,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the QR decomposition algorithm.
- *
- * \tparam step            Step of the QR decomposition algorithm in the distributed processing mode, \ref ComputeStep
- * \tparam algorithmFPType  Data type to use in intermediate computations of the QR decomposition algorithm, double or float
- * \tparam method           Computation method of the algorithm, \ref daal::algorithms::qr::Method
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of QR decomposition algorithm on the first step in the distributed processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
- * \tparam method           Computation method, \ref daal::algorithms::qr::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for the QR decomposition algorithm with a specified environment
-     * in the second step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the QR decomposition algorithm in the second step of
-     * the distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of the QR decomposition algorithm in the second step of
-     * the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the QR decomposition algorithm on the third step in the distributed processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
- * \tparam method           Computation method, \ref daal::algorithms::qr::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for the QR decomposition algorithm with a specified environment
-     * in the third step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the QR decomposition algorithm in the third step of
-     * the distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of the QR decomposition algorithm in the third step of
-     * the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTED"></a>
  * \brief Computes the results of the QR decomposition algorithm in the distributed processing mode.
  * <!-- \n<a href="DAAL-REF-QR-ALGORITHM">QR decomposition algorithm description and usage models</a> -->
@@ -304,12 +224,7 @@ protected:
         return services::Status();
     }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _par                       = &parameter;
-    }
+    void initialize();
 
 private:
     DistributedPartialResultPtr _partialResult;
@@ -440,12 +355,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step3Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _par                       = &parameter;
-    }
+    void initialize();
 
 private:
     DistributedPartialResultStep3Ptr _partialResult;
@@ -454,7 +364,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::DistributedContainer;
 using interface1::Distributed;
 
 } // namespace qr

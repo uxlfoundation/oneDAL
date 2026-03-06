@@ -44,74 +44,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
- * \brief Class containing methods to compute the result of the PCA algorithm
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public AnalysisContainerIface<online>
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
- * \brief Class containing methods to compute the result of the PCA algorithm
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for the PCA algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the PCA algorithm in the online processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of the PCA algorithm in the online processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
- * \brief Class containing methods to compute the results of the PCA algorithm
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for the PCA algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the PCA algorithm in the online processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of the PCA algorithm in the online processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINE"></a>
  * \brief Computes the results of the PCA algorithm
  * <!-- \n<a href="DAAL-REF-PCA-ALGORITHM">PCA algorithm description and usage models</a> -->
@@ -232,14 +164,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, correlationDense)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResult<correlationDense>());
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Online & operator=(const Online &);
@@ -355,21 +280,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, svdDense)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResult<svdDense>());
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Online & operator=(const Online &);
 };
 /** @} */
 } // namespace interface1
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace pca

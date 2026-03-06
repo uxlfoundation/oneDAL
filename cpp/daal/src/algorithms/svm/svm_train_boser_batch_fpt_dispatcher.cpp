@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::BatchContainer, batch, DAAL_FPTYPE, svm::training::boser)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::internal::BatchContainer, batch, DAAL_FPTYPE, svm::training::boser)
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::internal::BatchContainer, batch, DAAL_FPTYPE, svm::training::boser)
 namespace svm
 {
@@ -35,6 +35,14 @@ namespace training
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, svm::training::boser>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, svm::training::boser)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::boser>::Batch()
 {

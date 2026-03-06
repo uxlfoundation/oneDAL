@@ -29,13 +29,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::rbf::BatchContainer, batch, DAAL_FPTYPE, kernel_function::rbf::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::rbf::internal::BatchContainer, batch, DAAL_FPTYPE, kernel_function::rbf::defaultDense)
 namespace kernel_function
 {
 namespace rbf
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, kernel_function::rbf::defaultDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, kernel_function::rbf::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::rbf::defaultDense>::Batch()
 {

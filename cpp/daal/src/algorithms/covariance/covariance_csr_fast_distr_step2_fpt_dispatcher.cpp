@@ -27,18 +27,21 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, covariance::fastCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, covariance::fastCSR)
 namespace covariance
 {
 namespace interface1
 {
+using DistributedType = Distributed<step2Master, DAAL_FPTYPE, covariance::fastCSR>;
+
 template <>
-DAAL_EXPORT Distributed<step2Master, DAAL_FPTYPE, covariance::fastCSR>::Distributed()
+void DistributedType::initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, covariance::fastCSR)(&_env); }
+
+template <>
+DAAL_EXPORT DistributedType::Distributed()
 {
     initialize();
 }
-
-using DistributedType = Distributed<step2Master, DAAL_FPTYPE, covariance::fastCSR>;
 
 template <>
 DAAL_EXPORT DistributedType::Distributed(const DistributedType & other) : DistributedIface<step2Master>(other)

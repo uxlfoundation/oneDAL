@@ -46,36 +46,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__COORDINATE_DESCENT__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the coordinate descent algorithm.
- *        This class is associated with daal::algorithms::optimization_solver::coordinate_descent::BatchContainer class.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the Coordinate descent algorithm, double or float
- * \tparam method           Coordinate descent computation method, daal::algorithms::optimization_solver::coordinate_descent::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the CoordinateDescent algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the CoordinateDescent algorithm in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__COORDINATE_DESCENT__BATCH"></a>
  * \brief Computes Coordinate descent in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-SGD-ALGORITHM">Coordinate descent algorithm description and usage models</a> -->
@@ -176,19 +146,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace coordinate_descent

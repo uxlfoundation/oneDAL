@@ -27,13 +27,22 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::OnlineContainer, online, DAAL_FPTYPE, linear_regression::training::qrDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::internal::OnlineContainer, online, DAAL_FPTYPE, linear_regression::training::qrDense)
 namespace linear_regression
 {
 namespace training
 {
 namespace interface1
 {
+template <>
+void Online<DAAL_FPTYPE, linear_regression::training::qrDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, linear_regression::training::qrDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResultType());
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Online<DAAL_FPTYPE, qrDense>::Online()
 {

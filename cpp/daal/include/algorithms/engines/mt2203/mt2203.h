@@ -43,37 +43,6 @@ namespace mt2203
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mt2203 engine.
- *        This class is associated with the \ref mt2203::interface1::Batch "mt2203::Batch" class
- *        and supports the method of mt2203 engine computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float
- * \tparam method           Computation method of the engine, mt2203::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the mt2203 engine with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the mt2203 engine in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCH"></a>
  * \brief Provides methods for mt2203 engine computations in the batch processing mode
  *
@@ -159,12 +128,7 @@ protected:
 
     virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -175,7 +139,6 @@ typedef services::SharedPtr<Batch<> > mt2203Ptr;
 typedef services::SharedPtr<const Batch<> > mt2203ConstPtr;
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 using interface1::mt2203Ptr;
 using interface1::mt2203ConstPtr;

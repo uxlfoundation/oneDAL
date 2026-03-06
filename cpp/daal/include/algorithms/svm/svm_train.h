@@ -46,35 +46,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
- *  \brief Class containing methods to compute results of the SVM training
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
- * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for SVM model-based training with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of SVM  model-based training in the batch processing mode
-     *
-     * \return Status of computation
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCH"></a>
  *  \brief %Algorithm class to train the SVM model
  *  <!-- \n<a href="DAAL-REF-SVM-ALGORITHM">SVM algorithm description and usage models</a> -->
@@ -176,20 +147,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace training

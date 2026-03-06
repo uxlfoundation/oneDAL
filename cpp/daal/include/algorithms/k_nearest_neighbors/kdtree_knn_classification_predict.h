@@ -45,31 +45,6 @@ namespace interface3
  * @ingroup kdtree_knn_classification_prediction
  * @{
  */
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
- * \brief Class containing computation methods for KD-tree based kNN model-based prediction
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for KD-tree based kNN model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-
-    ~BatchContainer();
-
-    /**
-     *  Computes the result of KD-tree based kNN model-based prediction
-     */
-    services::Status compute() override;
-};
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__PREDICTION__BATCH"></a>
  * \brief Provides methods to run implementations of the KD-tree based kNN model-based prediction
@@ -167,13 +142,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _in  = &input;
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -182,7 +151,6 @@ private:
 /** @} */
 } // namespace interface3
 
-using interface3::BatchContainer;
 using interface3::Batch;
 
 } // namespace prediction

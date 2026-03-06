@@ -33,6 +33,38 @@ namespace algorithms
 {
 namespace cosine_distance
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__COSINE_DISTANCE__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the cosine distance algorithm.
+ *        This class is associated with daal::algorithms::cosine_distance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the cosine distance, double or float
+ * \tparam method           Cosine distance computation method, \ref Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the cosine distance algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default constructor */
+    ~BatchContainer();
+    /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */
+    BatchContainer(const BatchContainer &)             = delete;
+    BatchContainer & operator=(const BatchContainer &) = delete;
+
+    /**
+     * Computes the result of the cosine distance algorithm in the batch processing mode
+     */
+    virtual services::Status compute() override;
+};
+
 /**
  *  \brief Initialize list of correlation distance, double precission
  *  kernels with implementations for supported architectures
@@ -67,6 +99,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::DistanceKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, na, a, nr, r, par);
 }
+
+} // namespace internal
 
 } // namespace cosine_distance
 

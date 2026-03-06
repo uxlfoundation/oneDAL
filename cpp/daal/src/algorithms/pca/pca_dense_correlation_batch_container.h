@@ -36,8 +36,15 @@ namespace algorithms
 {
 namespace pca
 {
-namespace interface3
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public AnalysisContainerIface<batch>
+{};
+
 template <typename algorithmFPType, CpuType cpu>
 BatchContainer<algorithmFPType, correlationDense, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -78,7 +85,7 @@ services::Status BatchContainer<algorithmFPType, correlationDense, cpu>::compute
                        *variances);
 }
 
-} // namespace interface3
+} // namespace internal
 } // namespace pca
 } // namespace algorithms
 } // namespace daal

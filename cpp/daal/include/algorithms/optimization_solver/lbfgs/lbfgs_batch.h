@@ -47,36 +47,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__LBFGS__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the LBFGS algorithm.
- *        This class is associated with daal::algorithms::optimization_solver::lbfgs::Batch class.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the LBFGS algorithm, double or float
- * \tparam method           Stochastic gradient descent computation method, daal::algorithms::optimization_solver::lbfgs::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the limited-memory BFGS algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the limited-memory BFGS algorithm in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__LBFGS__BATCH"></a>
  * \brief Computes LBFGS in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-LBFGS-ALGORITHM">Limited memory BFGS algorithm description and usage models</a> -->
@@ -170,20 +140,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _par                 = &parameter;
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace lbfgs

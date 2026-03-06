@@ -47,37 +47,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__CROSS_ENTROPY__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the Cross-entropy loss objective function.
- *        This class is associated with the Batch class and supports the method of computing
- *        the Cross-entropy loss objective function in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the Cross-entropy loss objective function, double or float
- * \tparam method           the Cross-entropy loss objective function computation method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for cross_entropy_loss objective function with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes the result of cross_entropy_loss objective function in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__CROSS_ENTROPY__BATCH"></a>
  * \brief Computes the Cross-entropy loss objective function in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-CROSS_ENTROPY-ALGORITHM">The Cross-entropy loss objective function algorithm description and usage models</a> -->
@@ -168,11 +137,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -182,7 +147,6 @@ private:
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace cross_entropy_loss

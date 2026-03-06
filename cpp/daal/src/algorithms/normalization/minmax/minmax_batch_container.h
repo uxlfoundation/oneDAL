@@ -36,8 +36,39 @@ namespace normalization
 {
 namespace minmax
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__NORMALIZATION__MINMAX__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the min-max normalization algorithm.
+ *        It is associated with the daal::algorithms::normalization::minmax::Batch class
+ *        and supports methods of min-max normalization computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the min-max normalization algorithms, double or float
+ * \tparam method           Min-max normalization computation method, daal::algorithms::normalization::minmax::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the min-max normalization algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    virtual ~BatchContainer();
+
+    /**
+     * Computes the result of the min-max normalization algorithm in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    virtual services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -72,7 +103,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        (algorithmFPType)(parameter->upperBound));
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace minmax
 } // namespace normalization
 } // namespace algorithms

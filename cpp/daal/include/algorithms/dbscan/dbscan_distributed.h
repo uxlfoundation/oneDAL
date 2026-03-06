@@ -43,393 +43,6 @@ namespace interface1
  * @ingroup dbscan_compute
  * @{
  */
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER"></a>
- * \brief Class containing methods to compute the result of DBSCAN algorithm
- * in the distributed processing mode
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the first step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the first step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the first step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP2LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the second step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the second step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the second step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the second step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP3LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the third step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the third step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the third step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the third step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP4LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the fourth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step4Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the fourth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the fourth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the fourth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP5LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the fifth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step5Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the fifth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the fifth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the fifth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP6LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the sixth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step6Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the sixth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the sixth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the sixth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP7MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the seventh step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step7Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the seventh step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the seventh step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the seventh step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP8LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the eighth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step8Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the eighth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the eighth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the eighth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP9MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the ninth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step9Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the ninth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the ninth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the ninth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP10LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the tenth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step10Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the tenth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the tenth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the tenth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP11LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the eleventh step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step11Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the eleventh step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the eleventh step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the eleventh step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP12LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the twelfth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step12Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the twelfth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the twelfth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the twelfth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER_STEP13LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for the DBSCAN algorithm in the thirteenth step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step13Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for DBSCAN algorithm with a specified environment
-     * in the thirteenth step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of DBSCAN algorithm
-     * in the thirteenth step of the distributed processing mode
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of DBSCAN algorithm
-     * in the thirteenth step of the distributed processing mode
-     */
-    services::Status finalizeCompute() override;
-};
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTED"></a>
  * \brief Computes the results of the DBSCAN algorithm in the distributed processing mode
@@ -555,12 +168,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -675,12 +283,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -797,12 +400,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step3Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -919,12 +517,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step4Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1040,12 +633,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step5Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1162,12 +750,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step6Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1268,12 +851,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step7Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1388,12 +966,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step8Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1512,13 +1085,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step9Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _result.reset(new ResultType());
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1634,12 +1201,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step10Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1754,12 +1316,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step11Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -1874,12 +1431,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step12Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -2003,13 +1555,7 @@ protected:
 
     virtual services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step13Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-        _result.reset(new ResultType());
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -2023,7 +1569,6 @@ private:
 
 /** @} */
 } // namespace interface1
-using interface1::DistributedContainer;
 using interface1::Distributed;
 
 } // namespace dbscan

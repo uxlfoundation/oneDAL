@@ -27,11 +27,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::OnlineContainer, online, DAAL_FPTYPE, pca::svdDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::internal::OnlineContainer, online, DAAL_FPTYPE, pca::svdDense)
 namespace pca
 {
 namespace interface1
 {
+template <>
+void Online<DAAL_FPTYPE, pca::svdDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, svdDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResult<svdDense>());
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Online<DAAL_FPTYPE, pca::svdDense>::Online()
 {

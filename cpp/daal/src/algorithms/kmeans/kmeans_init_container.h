@@ -39,6 +39,62 @@ namespace kmeans
 {
 namespace init
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of initialization of K-Means algorithm.
+ *        This class is associated with the daal::algorithms::kmeans::init::Batch class
+ *        and supports the method of computing initial clusters for K-Means algorithm in the batch processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of initial clusters for K-Means algorithm, double or float
+ * \tparam method           Method of computing initial clusters for the algorithm, \ref daal::algorithms::kmeans::init::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for initializing K-Means algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes initial values for K-Means algorithm in the batch processing mode
+     */
+    virtual services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods for computing initial clusters for K-Means algorithm in the first step of the distributed processing mode
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for initializing K-Means algorithm with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of K-Means initialization algorithm in the first step of the
+     * distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of K-Means initialization algorithm in the first step of the
+     * distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -300,6 +356,8 @@ services::Status DistributedContainer<step5Master, algorithmFPType, method, cpu>
     __DAAL_CALL_KERNEL(env, internal::KMeansInitStep5MasterKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), finalizeCompute, par,
                        ntCandidates, ntWeights, pRngState, pRes->get(centroids).get(), *par->engine);
 }
+
+} // namespace internal
 
 } // namespace init
 } // namespace kmeans

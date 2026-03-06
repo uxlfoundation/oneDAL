@@ -28,7 +28,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(multi_class_classifier::prediction::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(multi_class_classifier::prediction::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       multi_class_classifier::prediction::multiClassClassifierWu, multi_class_classifier::training::oneAgainstOne)
 namespace multi_class_classifier
 {
@@ -38,6 +38,14 @@ namespace interface2
 {
 using BatchType = Batch<DAAL_FPTYPE, multiClassClassifierWu, training::oneAgainstOne>;
 
+template <>
+void Batch<DAAL_FPTYPE, multi_class_classifier::prediction::multiClassClassifierWu, multi_class_classifier::training::oneAgainstOne>::initialize()
+{
+    _in  = &input;
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, multi_class_classifier::prediction::multiClassClassifierWu, multi_class_classifier::training::oneAgainstOne)(&_env);
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_DEPRECATED BatchType::Batch() : parameter(0)
 {

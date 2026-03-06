@@ -41,10 +41,38 @@ namespace regression
 {
 namespace training
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of gradient boosted trees
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__GBT__REGRESSION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for gradient boosted trees regression
+ *        model-based training using algorithmFPType precision arithmetic
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of model-based training in the batch processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    services::Status setupCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -95,6 +123,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     pImpl->clear();
     return services::Status();
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace regression

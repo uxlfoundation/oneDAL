@@ -94,6 +94,33 @@ using namespace daal::data_management;
 *  \brief Initialize list of SVM kernels with implementations for supported
 * architectures
 */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
+ *  \brief Class containing methods to compute results of the SVM training
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
+ * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for SVM model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of SVM  model-based training in the batch processing mode
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {

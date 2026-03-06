@@ -36,8 +36,36 @@ namespace logistic_regression
 {
 namespace prediction
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the logistic regression algorithm.
+ *        This class is associated with daal::algorithms::logistic_regression::prediction::interface2::Batch class
+ *        and supports method to compute logistic regression prediction
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
+ * \tparam method           logistic regression computation method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for logistic regression model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of logistic regression model-based prediction
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -72,7 +100,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        daal::services::internal::hostApp(*input), a, m, par->nClasses, r, prob, logProb);
 }
 
-} // namespace interface2
+} // namespace internal
 
 } // namespace prediction
 } // namespace logistic_regression

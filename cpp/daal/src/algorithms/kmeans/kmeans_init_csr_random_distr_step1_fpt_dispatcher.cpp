@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::DistributedContainer, distributed, step1Local, DAAL_FPTYPE, kmeans::init::randomCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::internal::DistributedContainer, distributed, step1Local, DAAL_FPTYPE, kmeans::init::randomCSR)
 
 namespace kmeans
 {
@@ -37,6 +37,12 @@ namespace interface2
 {
 using DistributedType = Distributed<step1Local, DAAL_FPTYPE, kmeans::init::randomCSR>;
 
+template <>
+void Distributed<step1Local, DAAL_FPTYPE, kmeans::init::randomCSR>::initialize()
+{
+    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::randomCSR)(&_env);
+    _in                        = &input;
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed(size_t nClusters, size_t nRowsTotal, size_t offset)
     : DistributedBase(new ParameterType(nClusters, offset)), parameter(*static_cast<ParameterType *>(_par))

@@ -35,8 +35,38 @@ namespace optimization_solver
 {
 namespace mse
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__MSE__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mean squared error objective function.
+ *        This class is associated with the Batch class and supports the method of computing
+ *        the Mean squared error objective function in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the Mean squared error objective function, double or float
+ * \tparam method           the mean squared error objective function computation method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the MSE objective function with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the MSE objective function in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    virtual services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -124,7 +154,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        componentOfProximalProjection, parameter);
 }
 
-} // namespace interface2
+} // namespace internal
 
 } // namespace mse
 

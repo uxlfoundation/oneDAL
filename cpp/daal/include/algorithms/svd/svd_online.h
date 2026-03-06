@@ -43,39 +43,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__SVD__ONLINECONTAINER"></a>
- * \brief Provides methods to run implementations of the SVD algorithm in the online processing mode
- *
- * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
- * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for the SVD algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-    /**
-     * Computes a partial result of the SVD algorithm in the online processing mode
-     * \return Status of computations
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of the SVD algorithm in the online processing mode
-     * \return Status of computations
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__SVD__ONLINE"></a>
  * \brief Computes results of the SVD algorithm in the online processing mode.
  * <!-- \n<a href="DAAL-REF-SVD-ALGORITHM">SVD algorithm description and usage models</a> -->
@@ -208,12 +175,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<online>::_ac = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in                   = &input;
-        _par                  = &parameter;
-    }
+    void initialize();
 
 private:
     PartialResultPtr _partialResult;
@@ -223,7 +185,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace svd

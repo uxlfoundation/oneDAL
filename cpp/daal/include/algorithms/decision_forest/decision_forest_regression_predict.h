@@ -46,29 +46,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__PREDICTION__BATCHCONTAINER"></a>
- * \brief Class containing computation methods for decision forest model-based prediction
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for decision forest model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     *  Computes the result of decision forest model-based prediction
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__PREDICTION__BATCH"></a>
  * \brief Provides methods to run implementations of the decision forest model-based prediction
  * <!-- \n<a href="DAAL-REF-DECISIONFOREST-ALGORITHM">decision forest algorithm description and usage models</a> -->
@@ -141,20 +118,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace prediction

@@ -27,13 +27,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(qr::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, qr::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(qr::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, qr::defaultDense)
 namespace qr
 {
 namespace interface1
 {
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, qr::defaultDense>;
 
+template <>
+void Distributed<step2Master, DAAL_FPTYPE, qr::defaultDense>::initialize()
+{
+    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step3Local, DAAL_FPTYPE, qr::defaultDense)(&_env);
+    _in                        = &input;
+    _par                       = &parameter;
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

@@ -44,37 +44,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__QR__ONLINECONTAINER"></a>
- * \brief Provides methods to run implementations of the QR decomposition algorithm in the online processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
- * \tparam method           Computation method, \ref daal::algorithms::qr::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for the QR decomposition algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-    /**
-     * Computes a partial result of the QR decomposition algorithm in the online processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of the QR decomposition algorithm in the online processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__QR__ONLINE"></a>
  * \brief Computes the results of the QR decomposition algorithm in the online processing mode.
  * <!-- \n<a href="DAAL-REF-QR-ALGORITHM">QR decomposition algorithm description and usage models</a> -->
@@ -187,12 +156,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<online>::_ac = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in                   = &input;
-        _par                  = &parameter;
-    }
+    void initialize();
 
 private:
     PartialResultPtr _partialResult;
@@ -202,7 +166,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace qr

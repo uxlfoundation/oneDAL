@@ -44,40 +44,6 @@ namespace interface1
  * @{
  */
 /**
- * \brief Class containing methods for ridge regression model-based training
- * in the online processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public TrainingContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for ridge regression model-based training with a specified environment in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-
-    /** Default destructor */
-    ~OnlineContainer();
-
-    /**
-     * Computes a partial result of ridge regression model-based training in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-
-    /**
-     * Computes the result of ridge regression model-based training in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__RIDGE_REGRESSION__TRAINING__ONLINE"></a>
  * \brief Provides methods for ridge regression model-based training in the online processing mode
  * <!-- \n<a href="DAAL-REF-RIDGEREGRESSION-ALGORITHM">Ridge regression algorithm description and usage models</a> -->
@@ -169,14 +135,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResultType());
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Online & operator=(const Online &);
@@ -184,7 +143,6 @@ private:
 /** @} */
 } // namespace interface1
 
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace training

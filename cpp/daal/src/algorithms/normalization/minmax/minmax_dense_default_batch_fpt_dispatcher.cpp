@@ -25,13 +25,16 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(normalization::minmax::BatchContainer, batch, DAAL_FPTYPE, normalization::minmax::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(normalization::minmax::internal::BatchContainer, batch, DAAL_FPTYPE, normalization::minmax::defaultDense)
 namespace normalization
 {
 namespace minmax
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::initialize()
+{ Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::minmax::defaultDense)(&_env); }
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::Batch()
 {
