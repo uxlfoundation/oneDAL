@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     pca::Distributed<step2Master> masterAlgorithm;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+        CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[i]);
 
         /* Create an algorithm to compute a variance-covariance matrix in the distributed processing mode using the default method */
         pca::Distributed<step1Local> localAlgorithm;
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
             new covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR>());
 
         /* Set input objects for the algorithm */
-        localAlgorithm.input.set(pca::data, CSRNumericTablePtr(dataTable));
+        localAlgorithm.input.set(pca::data, dataTable);
 
         /* Compute partial estimates on local nodes */
         localAlgorithm.compute();

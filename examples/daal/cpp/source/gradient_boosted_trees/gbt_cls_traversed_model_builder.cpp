@@ -329,9 +329,9 @@ void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTableP
                                                       DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for training data and dependent variables */
-    pData.reset(new HomogenNumericTable<double>(nFeatures, 0, NumericTable::notAllocate));
-    pDependentVar.reset(new HomogenNumericTable<double>(1, 0, NumericTable::notAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(pData, pDependentVar));
+    pData = HomogenNumericTable<double>::create(nFeatures, 0, NumericTable::notAllocate);
+    pDependentVar = HomogenNumericTable<double>::create(1, 0, NumericTable::notAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(pData, pDependentVar);
 
     /* Retrieve the data from input file */
     trainDataSource.loadDataBlock(mergedData.get());

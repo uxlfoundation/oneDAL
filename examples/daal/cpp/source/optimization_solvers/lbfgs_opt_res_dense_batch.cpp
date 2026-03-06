@@ -51,10 +51,10 @@ int main(int argc, char* argv[]) {
                                                  DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for input data and dependent variables */
-    NumericTablePtr data(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr dependentVariables(
-        new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(data, dependentVariables));
+    NumericTablePtr data = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr dependentVariables =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(data, dependentVariables);
 
     /* Retrieve the data from input file */
     dataSource.loadDataBlock(mergedData.get());
@@ -70,18 +70,18 @@ int main(int argc, char* argv[]) {
     algorithm.parameter.nIterations = nIterations / 2;
 
     algorithm.parameter.stepLengthSequence =
-        NumericTablePtr(new HomogenNumericTable<>(1, 1, NumericTableIface::doAllocate, stepLength));
+        HomogenNumericTable<>::create(1, 1, NumericTableIface::doAllocate, stepLength);
     algorithm.parameter.optionalResultRequired = true;
 
     /* Set input objects for LBFGS algorithm */
     algorithm.input.set(optimization_solver::iterative_solver::inputArgument,
-                        NumericTablePtr(new HomogenNumericTable<>(startPoint, 1, nFeatures + 1)));
+                        HomogenNumericTable<>::create(startPoint, 1, nFeatures + 1));
 
     /* Compute LBFGS result */
     algorithm.compute();
 
     NumericTablePtr expectedCoefficients =
-        NumericTablePtr(new HomogenNumericTable<>(expectedPoint, 1, nFeatures + 1));
+        HomogenNumericTable<>::create(expectedPoint, 1, nFeatures + 1);
 
     /* Print computed LBFGS results */
     printNumericTable(algorithm.getResult()->get(optimization_solver::iterative_solver::minimum),

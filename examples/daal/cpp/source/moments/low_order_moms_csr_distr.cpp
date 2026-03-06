@@ -75,14 +75,14 @@ int main(int argc, char* argv[]) {
 }
 
 void computestep1Local(size_t block) {
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[block]);
+    CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[block]);
 
     /* Create an algorithm to compute low order moments in the distributed processing mode using the default method */
     low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>
         algorithm;
 
     /* Set input objects for the algorithm */
-    algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
+    algorithm.input.set(low_order_moments::data, dataTable);
 
     /* Compute partial low order moments estimates on nodes */
     algorithm.compute();

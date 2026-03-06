@@ -77,11 +77,11 @@ multi_class_classifier::ModelPtr buildModelFromTraining() {
 
             /* Create Numeric Tables for support vectors and classification coeffes */
             NumericTablePtr supportVectors(
-                new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
+                HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate));
             NumericTablePtr classificationCoefficients(
-                new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
+                HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate));
             NumericTablePtr mergedModel(
-                new MergedNumericTable(supportVectors, classificationCoefficients));
+                MergedNumericTable::create(supportVectors, classificationCoefficients));
 
             /* Retrieve the data from input file */
             modelSource.loadDataBlock(mergedModel.get());
@@ -125,9 +125,10 @@ void testModel(multi_class_classifier::ModelPtr& inputModel) {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    testGroundTruth = HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Retrieve the data from input file */
     testDataSource.loadDataBlock(mergedData.get());

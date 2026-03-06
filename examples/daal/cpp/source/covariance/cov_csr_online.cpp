@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
     covariance::Online<algorithmFPType, covariance::fastCSR> algorithm;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+        CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[i]);
 
         /* Set input objects for the algorithm */
-        algorithm.input.set(covariance::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(covariance::data, dataTable);
 
         /* Compute partial estimates */
         algorithm.compute();

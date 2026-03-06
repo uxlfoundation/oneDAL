@@ -74,13 +74,13 @@ int main(int argc, char* argv[]) {
 }
 
 void computestep1Local(size_t block) {
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[block]);
+    CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileNames[block]);
 
     /* Create an algorithm to compute a correlation matrix in the distributed processing mode using the default method */
     covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR> algorithm;
 
     /* Set input objects for the algorithm */
-    algorithm.input.set(covariance::data, CSRNumericTablePtr(dataTable));
+    algorithm.input.set(covariance::data, dataTable);
 
     /* Compute partial estimates on local nodes */
     algorithm.compute();
