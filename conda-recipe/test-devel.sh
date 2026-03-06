@@ -123,6 +123,12 @@ run_examples daal static
 # Skipped if GPU library is not installed.
 # ============================================================
 if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ] && [ -f "$CONDA_PREFIX/lib/libonedal_parameters_dpc.so" ]; then
+    # Workaround: MKL cmake config requires unversioned libtbb.so for tbb_thread threading.
+    # conda-forge tbb-devel may only provide versioned soname (libtbb.so.<N>).
+    if [ ! -f "$CONDA_PREFIX/lib/libtbb.so" ]; then
+        tbb_so=$(find "$CONDA_PREFIX/lib" -maxdepth 1 -name "libtbb.so.*" | head -1)
+        [ -n "$tbb_so" ] && ln -sf "$(basename "$tbb_so")" "$CONDA_PREFIX/lib/libtbb.so"
+    fi
     echo "========================================"
     echo "Running GPU/DPC++ examples: oneapi/dpc dynamic"
     echo "========================================"
