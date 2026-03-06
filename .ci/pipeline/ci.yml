@@ -691,15 +691,12 @@ jobs:
   pool:
     vmImage: '$(VM_IMAGE)'
     maxParallel: 2
-
   strategy:
     matrix:
       Python311:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
-
   steps:
-
   - checkout: none
   - script: |
       git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
