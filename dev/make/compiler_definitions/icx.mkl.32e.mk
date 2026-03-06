@@ -64,7 +64,7 @@ ifeq ($(STDALLOC), yes)
 endif
 
 -Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
