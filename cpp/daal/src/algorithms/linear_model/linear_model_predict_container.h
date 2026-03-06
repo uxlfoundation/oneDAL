@@ -58,7 +58,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

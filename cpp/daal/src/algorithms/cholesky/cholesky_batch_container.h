@@ -56,7 +56,7 @@ public:
     /**
      * Computes the result of the Cholesky decomposition algorithm in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

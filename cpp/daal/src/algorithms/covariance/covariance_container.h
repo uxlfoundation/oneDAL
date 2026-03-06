@@ -233,7 +233,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -261,7 +261,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -289,7 +289,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -317,7 +317,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -345,7 +345,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -373,7 +373,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseBatchKernel)
