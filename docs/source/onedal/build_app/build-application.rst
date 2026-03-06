@@ -50,23 +50,23 @@ Applications on Linux* OS
           * - Static linking
             -
               | libonedal_core.a,
-              | libonedal_dpc.a,
-              | libonedal_parameters.a,
-              | libonedal_parameters_dpc.a,
-              | libonedal_thread.a
+              | libonedal_thread.a,
+              | libonedal.a,
+              | libonedal_parameters.a
           * - Dynamic linking
             -
               | libonedal_core.so,
-              | libonedal_dpc.so,
+              | libonedal_thread.so,
+              | libonedal.so,
               | libonedal_parameters.so,
-              | libonedal_parameters_dpc.so,
-              | libonedal_thread.so
+              | libonedal_dpc.so,
+              | libonedal_parameters_dpc.so
 
    - Add an additional |short_name| library:
 
      .. code-block:: text
 
-        <install dir>/mkl/latest/lib/libmkl_sycl.a
+        <install dir>/mkl/latest/lib/libmkl_sycl.so
 
 .. _app_on_win:
 
@@ -158,11 +158,13 @@ Dynamic linking |short_name| with the GPU target:
   .. code-block:: text
 
      icpx -fsycl my_first_dal_program.cpp -Wl,
-     --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -lOpenCL -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc <install dir>/dal/latest/lib/libonedal_sycl.a -Wl,--end-group
+     --start-group -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc
+     -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse -lmkl_sycl_rng -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core  -Wl,--end-group
 
 * Windows* OS:
 
   .. code-block:: text
 
      icx-cl -fsycl my_first_dal_program.cpp -Wl,
-     --start-group -L<install dir>/dal/latest/lib/ -lonedal_core -lonedal_dpc -lonedal_thread -lpthread -ldl -lOpenCL -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc <install dir>/dal/latest/lib/libonedal_sycl.a -Wl,--end-group
+     --start-group -L<install dir>/dal/latest/lib/ -lonedal_core -lonedal_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc
+     -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse -lmkl_sycl_rng -lmkl_intel_ilp64 -lmkl_tbb_thread -lmkl_core  -Wl,--end-group

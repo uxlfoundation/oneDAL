@@ -122,7 +122,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -172,8 +172,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter,
-                                   int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -187,14 +186,14 @@ protected:
         return services::Status();
     }
 
-    services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override
     {
         serialImpl<data_management::InputDataArchive, false>(arch);
 
         return services::Status();
     }
 
-    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override
     {
         serialImpl<const data_management::OutputDataArchive, true>(arch);
 

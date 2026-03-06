@@ -43,18 +43,7 @@ cc_library(
     ],
     deps = [
         ":headers",
-    ],
-)
-
-cc_library(
-    name = "onedal_static_dpc",
-    srcs = [
-        "lib/intel64/libonedal_dpc.a",
-        "lib/intel64/libonedal_parameters_dpc.a",
-    ],
-    deps = [
-        ":headers",
-        "@mkl//:mkl_dpc",
+        "@mkl//:mkl_core",
     ],
 )
 

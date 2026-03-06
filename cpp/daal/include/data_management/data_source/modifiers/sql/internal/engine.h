@@ -84,24 +84,24 @@ public:
         : impl(pickedInputFeatures, status)
     {}
 
-    virtual size_t getNumberOfInputFeatures() const DAAL_C11_OVERRIDE { return impl::getNumberOfInputFeatures(); }
+    virtual size_t getNumberOfInputFeatures() const override { return impl::getNumberOfInputFeatures(); }
 
-    virtual services::Status setNumberOfOutputFeatures(size_t numberOfOutputFeatures) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfOutputFeatures(size_t numberOfOutputFeatures) override
     {
         return impl::setNumberOfOutputFeatures(numberOfOutputFeatures);
     }
 
-    virtual services::Status setOutputFeatureType(size_t outputFeatureIndex, features::FeatureType featureType) DAAL_C11_OVERRIDE
+    virtual services::Status setOutputFeatureType(size_t outputFeatureIndex, features::FeatureType featureType) override
     {
         return impl::setOutputFeatureType(outputFeatureIndex, featureType);
     }
 
-    virtual services::Status setNumberOfCategories(size_t outputFeatureIndex, size_t numberOfCategories) DAAL_C11_OVERRIDE
+    virtual services::Status setNumberOfCategories(size_t outputFeatureIndex, size_t numberOfCategories) override
     {
         return impl::setNumberOfCategories(outputFeatureIndex, numberOfCategories);
     }
 
-    virtual services::Status setCategoricalDictionary(size_t outputFeatureIndex, const CategoricalFeatureDictionaryPtr & dictionary) DAAL_C11_OVERRIDE
+    virtual services::Status setCategoricalDictionary(size_t outputFeatureIndex, const CategoricalFeatureDictionaryPtr & dictionary) override
     {
         return impl::setCategoricalDictionary(outputFeatureIndex, dictionary);
     }
@@ -123,11 +123,11 @@ public:
         : impl(pickedInputFeatures, status)
     {}
 
-    virtual size_t getNumberOfColumns() const DAAL_C11_OVERRIDE { return impl::getNumberOfInputFeatures(); }
+    virtual size_t getNumberOfColumns() const override { return impl::getNumberOfInputFeatures(); }
 
-    virtual services::BufferView<DAAL_DATA_TYPE> getOutputBuffer() const DAAL_C11_OVERRIDE { return impl::getOutputBuffer(); }
+    virtual services::BufferView<DAAL_DATA_TYPE> getOutputBuffer() const override { return impl::getOutputBuffer(); }
 
-    virtual services::BufferView<char> getRawValue(size_t columnIndex) const DAAL_C11_OVERRIDE
+    virtual services::BufferView<char> getRawValue(size_t columnIndex) const override
     {
         const InputFeatureInfo & fi = impl::getPickedInputFeature(columnIndex);
         return fi.getFetchBuffer().view();

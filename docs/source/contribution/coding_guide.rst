@@ -1399,7 +1399,7 @@ Below you can find the details of what each class should consist of.
     public:
         typedef some_namespace::internal::ModelInternal ImplType;
 
-        int foo() DAAL_C11_OVERRIDE { return ImplType::fooImpl(); }
+        int foo() override { return ImplType::fooImpl(); }
     };
     }
     }
