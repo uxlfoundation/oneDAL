@@ -73,7 +73,9 @@ outputs:
     about:
       summary: oneAPI Data Analytics Library (oneDAL) CPU runtime libraries
 
-  - name: dal-gpu  # [cxx_compiler == "dpcpp"]
+  - name: dal-gpu
+    build:
+      skip: true  # [cxx_compiler != "dpcpp"]
     script: pack.sh  # [linux]
     requirements:
       run:
