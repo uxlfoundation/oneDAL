@@ -263,8 +263,8 @@ private:
     services::SharedPtr<DataType> _aux_ptr;
     size_t _capacity;
 
-    DAAL_DEPRECATED services::SharedPtr<byte> * _pPtr;
-    DAAL_DEPRECATED byte * _rawPtr;
+    services::SharedPtr<byte> * _pPtr;
+    byte * _rawPtr;
 };
 
 /**
