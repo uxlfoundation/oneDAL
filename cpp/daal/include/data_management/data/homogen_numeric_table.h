@@ -746,7 +746,7 @@ protected:
         df.setType<DataType>();
         st |= _ddict->setAllFeatures(df);
 
-        if (memoryAllocationFlag == doAllocate) st |= allocateDataMemoryImpl();
+        if (memoryAllocationFlag == doAllocate && nColumns > 0 && nRows > 0) st |= allocateDataMemoryImpl();
     }
 
     HomogenNumericTable(DictionaryIface::FeaturesEqual featuresEqual, size_t nColumns, size_t nRows,
