@@ -69,20 +69,8 @@ outputs:
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
-        # - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
-        - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
-    about:
-      summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
-
-  - name: dal-dpcpp
-    script: pack.sh  # [linux]
-    requirements:
-      run:
-        - tbb
-        - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
-    test:
-      commands:
         - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
     about:
       summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
 
@@ -119,29 +107,11 @@ outputs:
         - {{ compiler('cxx') }}
         - dal-static =={{ version }}
         - mkl-devel
+        - mkl-static
+        - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
       source_files:
         - examples
       script: test-devel.sh  # [linux]
-    about:
-      summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
-
-  - name: dal-devel-dpcpp
-    script: pack.sh  # [linux]
-    requirements:
-      run:
-        - {{ pin_subpackage('dal', exact=True) }}
-        - {{ pin_subpackage('dal-include', exact=True) }}
-        - {{ pin_subpackage('dal-dpcpp', exact=True) }}
-        - tbb-devel
-    test:
-      requires:
-        - cmake  # [linux64 or win]
-        - {{ compiler('cxx') }}
-        - dal-static =={{ version }}
-        - mkl-devel
-      source_files:
-        - examples
-      script: test-devel-dpcpp.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
 
