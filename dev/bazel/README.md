@@ -472,24 +472,27 @@ bazel build //:release --config=release-dpc
 
 ### Standard Library Assertions
 
-To enable C++ standard library assertions (e.g., `std::vector` bounds checking), inject the preprocessor macro via `--copt`:
+To enable C++ standard library assertions (e.g., `std::vector` bounds checking), inject the preprocessor macro via `--cxxopt` (C++-only flag):
 
 ```sh
-bazel test //cpp/oneapi/dal:tests --config=dbg --copt=-D_GLIBCXX_DEBUG
+bazel test //cpp/oneapi/dal:tests --config=dbg --cxxopt=-D_GLIBCXX_DEBUG
 ```
 
 ---
 
 ## Custom Compiler and Linker Flags
 
-Equivalent to Make `COPT` / `CXXFLAGS`. Pass via `--copt` and `--linkopt`:
+Equivalent to Make `COPT` / `CXXFLAGS`. Use `--copt` for C and C++ flags, `--cxxopt` for C++-only flags, and `--linkopt` for linker flags:
 
 ```sh
-# Add a custom compiler flag
+# Architecture/optimization flags (C and C++)
 bazel build //:release --copt=-march=native
 
-# Override optimization level
+# Override optimization level (C and C++)
 bazel build //:release --copt=-O2
+
+# C++-only preprocessor/language flags
+bazel build //:release --cxxopt=-std=c++17
 
 # Add a linker flag
 bazel build //:release --linkopt=-Wl,--as-needed
@@ -499,7 +502,8 @@ To make flags permanent for your local environment, add them to `~/.bazelrc`:
 
 ```
 # ~/.bazelrc (user-local, not committed)
-build --copt=-your-flag
+build --copt=-your-c-and-cxx-flag
+build --cxxopt=-your-cxx-only-flag
 build --linkopt=-your-link-flag
 ```
 
@@ -519,7 +523,7 @@ build --linkopt=-your-link-flag
 | | `--config=type` | Type Sanitizer |
 | `COMPILER=gnu` | `CC=gcc bazel build ...` | Override compiler via `CC` env |
 | `OPTFLAG=O2` | `--copt=-O2` | Override optimization level |
-| `COPT=-flag` | `--copt=-flag` | Arbitrary compiler flag |
+| `COPT=-flag` | `--copt=-flag` (C+C++) / `--cxxopt=-flag` (C++ only) | Arbitrary compiler flag |
 | `--cpu=<isa>` (Make `PLAT`) | `--cpu=<isa>` | ISA selection |
 | (Make default all ISAs) | `bazel build //:release` | Transition forces all ISAs |
 | (CI: single ISA) | `--cpu=avx2` | Override for CI speed |
