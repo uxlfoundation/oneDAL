@@ -99,7 +99,7 @@ cc_library(
     srcs = glob([
         "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_parameters_dpc.so*",
-    ]),
+    ], allow_empty=True),
     deps = [
         ":headers",
         "@mkl//:mkl_dpc",
