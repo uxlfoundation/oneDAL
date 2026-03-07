@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -33,7 +33,7 @@ run_examples() {
 
     (
         cd examples/$interface_name/cpp
-        mkdir build_$linking_type
+        mkdir -p build_$linking_type
 
         (
             cd build_$linking_type
@@ -75,7 +75,7 @@ run_dpc_examples() {
 
     (
         cd examples/oneapi/dpc
-        mkdir build_$linking_type
+        mkdir -p build_$linking_type
 
         (
             cd build_$linking_type
