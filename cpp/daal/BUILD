@@ -323,6 +323,5 @@ sh_test(
     srcs = ["@onedal//dev/bazel/tests:isa_coverage_test.sh"],
     args = ["$(location :core_dynamic)"],
     data = [":core_dynamic"],
-    tags = ["manual"],
     target_compatible_with = ["@platforms//os:linux"],
 )
