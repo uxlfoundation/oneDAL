@@ -710,7 +710,9 @@ jobs:
       ls -R $(Pipeline.Workspace)/standalone_release
     displayName: 'Check bazel build'
   - script: |
-      .ci/env/apt.sh tbb
+      # Inline apt install: .ci/env/apt.sh is from the oneDAL repo which is
+      # not checked out in this job (checkout: none + manual sklearnex clone).
+      sudo apt-get update -q && sudo apt-get install -y -q libtbb-dev
     displayName: 'Install TBB'
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
   - task: PublishPipelineArtifact@1

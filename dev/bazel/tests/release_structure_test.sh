@@ -101,25 +101,29 @@ done
 echo ""
 echo "=== SONAME check ==="
 
-for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* ; do
-    [ -f "$lib" ] || continue
-    lib_base=$(basename "$lib" | sed 's/\.so\..*//')
-    # Extract expected SONAME from filename: libonedal_core.so.3.0 → libonedal_core.so.3
-    version_suffix="${lib##*.so.}"
-    major_ver="${version_suffix%%.*}"
-    expected_soname="${lib_base}.so.${major_ver}"
+if ! command -v readelf >/dev/null 2>&1; then
+    _fail "readelf not found on PATH; cannot perform SONAME check"
+else
+    for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* ; do
+        [ -f "$lib" ] || continue
+        lib_base=$(basename "$lib" | sed 's/\.so\..*//')
+        # Extract expected SONAME from filename: libonedal_core.so.3.0 → libonedal_core.so.3
+        version_suffix="${lib##*.so.}"
+        major_ver="${version_suffix%%.*}"
+        expected_soname="${lib_base}.so.${major_ver}"
 
-    soname=$(readelf -d "$lib" 2>/dev/null | grep SONAME | grep -oE '\[[^]]+\]' | tr -d '[]' || true)
-    if [ -n "$soname" ]; then
-        if [ "$soname" = "$expected_soname" ]; then
-            _pass "${lib_base}: SONAME = ${soname} (correct)"
+        soname=$(readelf -d "$lib" 2>/dev/null | grep SONAME | grep -oE '\[[^]]+\]' | tr -d '[]' || true)
+        if [ -n "$soname" ]; then
+            if [ "$soname" = "$expected_soname" ]; then
+                _pass "${lib_base}: SONAME = ${soname} (correct)"
+            else
+                _fail "${lib_base}: SONAME = ${soname}, expected ${expected_soname}"
+            fi
         else
-            _fail "${lib_base}: SONAME = ${soname}, expected ${expected_soname}"
+            _fail "${lib_base}: SONAME not found in ${lib}"
         fi
-    else
-        _fail "${lib_base}: SONAME not found in ${lib}"
-    fi
-done
+    done
+fi
 
 # ---------------------------------------------------------------------------
 # 3. vars.sh

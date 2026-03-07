@@ -615,10 +615,18 @@ def daal_example_suite(name, srcs, **kwargs):
     )
 
 def daal_algo_example_suite(algos, dal_deps=[], **kwargs):
-    dal_algo_example_suite(
-        algos = algos,
-        dal_deps = dal_deps,
-        use_onedal_release_libs = False,
-        is_daal = True,
-        **kwargs,
-    )
+    """Build DAAL example suites using classic DAAL kernel deps.
+
+    Unlike dal_algo_example_suite(), this function does NOT add oneAPI
+    (@onedal//cpp/oneapi/dal/algo/...) targets — DAAL examples use daal.h
+    and depend on DAAL kernels (@onedal//cpp/daal/src/algorithms/<algo>:kernel).
+    """
+    for algo in algos:
+        daal_example_suite(
+            name = algo,
+            srcs = native.glob(["source/{}/*.cpp".format(algo)]),
+            dal_deps = dal_deps + [
+                "@onedal//cpp/daal/src/algorithms/{}:kernel".format(algo),
+            ],
+            **kwargs,
+        )
