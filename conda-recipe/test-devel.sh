@@ -51,11 +51,18 @@ run_examples() {
             make -j$(nproc)
         )
 
-        for example in _cmake_results/intel_intel64_$library_postfix/*; do
+        examples_pattern="_cmake_results/intel_intel64_$library_postfix/*"
+        set -- $examples_pattern
+        if [ "$1" = "$examples_pattern" ]; then
+            echo "ERROR: no built examples found for $interface_name-$linking_type"
+            return 1
+        fi
+
+        for example in "$@"; do
             echo "================"
-            echo "Running example: $interface_name-$linking_type-$(basename $example)"
+            echo "Running example: $interface_name-$linking_type-$(basename "$example")"
             echo "================"
-            $example
+            "$example"
         done
     )
 }
@@ -83,11 +90,18 @@ run_dpc_examples() {
             make -j$(nproc)
         )
 
-        for example in _cmake_results/intel_intel64_$library_postfix/*; do
+        examples_pattern="_cmake_results/intel_intel64_$library_postfix/*"
+        set -- $examples_pattern
+        if [ "$1" = "$examples_pattern" ]; then
+            echo "ERROR: no built oneapi/dpc examples found"
+            return 1
+        fi
+
+        for example in "$@"; do
             echo "================"
-            echo "Running example: oneapi-dpc-$linking_type-$(basename $example)"
+            echo "Running example: oneapi-dpc-$linking_type-$(basename "$example")"
             echo "================"
-            $example
+            "$example"
         done
     )
 }
@@ -120,7 +134,9 @@ run_examples daal static
 # GPU/DPC++ tests: oneapi/dpc (requires dal-gpu / libonedal_dpc.so)
 # Skipped if GPU library is not installed.
 # ============================================================
-if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ] && [ -f "$CONDA_PREFIX/lib/libonedal_parameters_dpc.so" ]; then
+has_dpc=$(find "$CONDA_PREFIX/lib" -maxdepth 1 -name "libonedal_dpc.so*" | head -1)
+has_dpc_params=$(find "$CONDA_PREFIX/lib" -maxdepth 1 -name "libonedal_parameters_dpc.so*" | head -1)
+if [ -n "$has_dpc" ] && [ -n "$has_dpc_params" ]; then
     # Workaround: MKL cmake config requires unversioned libtbb.so for tbb_thread threading.
     # conda-forge tbb-devel may only provide versioned soname (libtbb.so.<N>).
     if [ ! -f "$CONDA_PREFIX/lib/libtbb.so" ]; then

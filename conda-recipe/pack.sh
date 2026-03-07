@@ -27,6 +27,10 @@ if [ "$PKG_NAME" = "dal-devel" ]; then
     # set up links necessary for proper works of pkg-config, cmake and env. script
     mkdir -p "$PREFIX/lib/intel64"
     for lib in lib/intel64/libonedal*.so*; do
+        # Keep dal-devel CPU-oriented: do not create intel64 links for DPC runtime libs.
+        case "$lib" in
+            *"_dpc"*) continue ;;
+        esac
         if [ -f "$lib" ]; then
             libname=$(basename "$lib")
             ln -sf "../$libname" "$PREFIX/lib/intel64/$libname"
