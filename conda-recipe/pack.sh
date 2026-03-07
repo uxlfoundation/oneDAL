@@ -27,6 +27,10 @@ if [ "$PKG_NAME" = "dal-devel" ]; then
     # set up links necessary for proper works of pkg-config, cmake and env. script
     mkdir -p "$PREFIX/lib/intel64"
     for lib in lib/intel64/libonedal*.so*; do
+        # Keep dal-devel CPU-oriented: do not create intel64 links for DPC runtime libs.
+        case "$lib" in
+            *"_dpc"*) continue ;;
+        esac
         if [ -f "$lib" ]; then
             libname=$(basename "$lib")
             ln -sf "../$libname" "$PREFIX/lib/intel64/$libname"
@@ -40,9 +44,13 @@ if [ "$PKG_NAME" = "dal-include" ]; then
     mkdir -p "$PREFIX/include"
     cp -r include/* "$PREFIX/include/"
 fi
-# copy libraries
+# copy CPU runtime libraries (excludes all DPC++ runtime libs, moved to dal-gpu)
 if [ "$PKG_NAME" = "dal" ]; then
-    find lib/intel64 -name "libonedal*.so*" -exec cp -P {} "$PREFIX/lib/" \;
+    find lib/intel64 -name "libonedal*.so*" ! -name "libonedal*_dpc*" -exec cp -P {} "$PREFIX/lib/" \;
+fi
+# copy GPU/DPC++ runtime libraries
+if [ "$PKG_NAME" = "dal-gpu" ]; then
+    find lib/intel64 -name "libonedal*_dpc*.so*" -exec cp -P {} "$PREFIX/lib/" \;
 fi
 if [ "$PKG_NAME" = "dal-static" ]; then
     find lib/intel64 -name "libonedal*.a" -exec cp {} "$PREFIX/lib/" \;

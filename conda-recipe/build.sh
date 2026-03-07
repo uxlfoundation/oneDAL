@@ -18,6 +18,15 @@
 export TBBROOT=$PREFIX
 export DPL_ROOT=$PREFIX
 
+# Workaround: some tbb-devel builds expose only versioned SONAME (libtbb.so.<N>)
+# while oneDAL Make expects unversioned libtbb.so path in prerequisites.
+if [ ! -f "$PREFIX/lib/libtbb.so" ]; then
+    tbb_soname=$(find "$PREFIX/lib" -maxdepth 1 -name "libtbb.so.*" | head -1)
+    if [ -n "$tbb_soname" ]; then
+        ln -sf "$(basename "$tbb_soname")" "$PREFIX/lib/libtbb.so"
+    fi
+fi
+
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
 # CONDA_CXX_COMPILER is set by the conda recipe
