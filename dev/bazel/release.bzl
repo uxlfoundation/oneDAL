@@ -208,8 +208,8 @@ _release = rule(
         "include_skip_prefix": attr.string_list(),
         "lib": attr.label_list(allow_files=True, cfg=_release_cpu_all_transition),
         "extra_files": attr.label_list(
-            allow_files = True,
-            doc = "Additional generated files to include in release. Must be paired 1:1 with extra_files_dst.",
+            allow_files = False,
+            doc = "Additional generated files to include in release. Must be rule targets (not bare file labels). Must be paired 1:1 with extra_files_dst.",
         ),
         "extra_files_dst": attr.string_list(
             doc = "Destination paths for extra_files, relative to the release root.",
