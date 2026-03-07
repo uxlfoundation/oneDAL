@@ -431,9 +431,11 @@ bazel test //cpp/oneapi/dal:tests --config=ubsan
 ### MemorySanitizer (MSan)
 
 Requires Clang or ICPX. GCC does not support MSan.
+The `msan` config enables `-fsanitize-memory-track-origins` for better origin diagnostics.
+If your toolchain requires lld for MSan/TSan linking, add:
 
 ```sh
-bazel test //cpp/oneapi/dal:tests --config=msan
+bazel test //cpp/oneapi/dal:tests --config=msan --linkopt=-fuse-ld=lld
 ```
 
 ### Type Sanitizer

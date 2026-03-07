@@ -217,6 +217,7 @@ common:ubsan \
 #   bazel test //cpp/oneapi/dal:tests --config=msan
 common:msan \
     --copt=-fsanitize=memory \
+    --copt=-fsanitize-memory-track-origins \
     --copt=-fno-omit-frame-pointer \
     --linkopt=-fsanitize=memory \
     --config=dbg-symbols
