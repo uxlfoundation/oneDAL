@@ -91,6 +91,7 @@ cc_library(
     ]),
     deps = [
         ":headers",
+        "@mkl//:mkl_static",
     ],
 )
 
