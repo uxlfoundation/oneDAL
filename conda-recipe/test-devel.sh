@@ -61,13 +61,10 @@ run_examples() {
 }
 
 run_dpc_examples() {
-    local linking_type=$1
-
-    if [ "$linking_type" == "dynamic" ]; then
-        library_postfix="so"
-    else
-        library_postfix="a"
-    fi
+    # DPC++ examples are validated only in dynamic mode.
+    # We do not produce static DPC++ artifacts in conda packaging.
+    local linking_type="dynamic"
+    local library_postfix="so"
 
     (
         cd examples/oneapi/dpc
@@ -133,7 +130,7 @@ if [ -f "$CONDA_PREFIX/lib/libonedal_dpc.so" ] && [ -f "$CONDA_PREFIX/lib/libone
     echo "========================================"
     echo "Running GPU/DPC++ examples: oneapi/dpc dynamic"
     echo "========================================"
-    run_dpc_examples dynamic
+    run_dpc_examples
 else
     echo "========================================"
     echo "Skipping GPU/DPC++ examples: dal-gpu is not fully installed"
