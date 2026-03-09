@@ -123,6 +123,35 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KMeansBatchKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, a, r, par);
 }
 
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing computation methods for K-Means algorithm in the second step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for K-Means algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of K-Means algorithm in the second step of the
+     * distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of K-Means algorithm in the second step of the
+     * distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
 template <typename algorithmFPType, Method method, CpuType cpu>
 DistributedContainer<step1Local, algorithmFPType, method, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
 {

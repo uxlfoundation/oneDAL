@@ -111,6 +111,39 @@ public:
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
 {};
+/**
+ * \brief Provides methods to run implementations of the second step of the low order moments algorithm
+ *        in the distributed processing mode.
+ *        This class is associated with daal::algorithms::low_order_moments::Distributed class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the low order moments algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the low order moments algorithm
+     * in the second step of the distributed processing mode
+     */
+    virtual services::Status compute() override;
+    /**
+     * Computes the result of the low order moments algorithm
+     * in the second step of the distributed processing mode
+     */
+    virtual services::Status finalizeCompute() override;
+};
+
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)

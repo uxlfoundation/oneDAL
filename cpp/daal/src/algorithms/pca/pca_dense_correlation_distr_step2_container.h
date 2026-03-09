@@ -44,6 +44,36 @@ namespace internal
 template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
 {};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm on the master node
+ *
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+
+    /**
+     * Computes a partial result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 
 template <typename algorithmFPType, CpuType cpu>
 DistributedContainer<step2Master, algorithmFPType, correlationDense, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)

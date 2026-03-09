@@ -105,6 +105,36 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
  *  \brief Initialize list of implicit ALS prediction algorithm
  *  kernels with implementations for supported architectures
  */
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class that contains methods to run implicit ALS model-based prediction in the first step of
+ *        the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public DistributedPredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based prediction
+     * in the first step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based prediction
+     * in the first step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
 template <typename algorithmFPType, prediction::ratings::Method method, CpuType cpu>
 DistributedContainer<step1Local, algorithmFPType, method, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
     : DistributedPredictionContainerIface()
@@ -147,7 +177,6 @@ services::Status DistributedContainer<step1Local, algorithmFPType, method, cpu>:
 }
 
 } // namespace internal
-
 } // namespace ratings
 } // namespace prediction
 } // namespace implicit_als

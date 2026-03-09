@@ -35,12 +35,11 @@ namespace implicit_als
 {
 namespace training
 {
-namespace interface1
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, fastCSR, DAAL_CPU>;
+
 template class ImplicitALSTrainDistrStep2Kernel<DAAL_FPTYPE, DAAL_CPU>;
 }
 } // namespace training

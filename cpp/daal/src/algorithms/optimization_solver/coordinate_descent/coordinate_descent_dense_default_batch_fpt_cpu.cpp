@@ -31,13 +31,11 @@ namespace optimization_solver
 {
 namespace coordinate_descent
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
 
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+
 template class CoordinateDescentKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 

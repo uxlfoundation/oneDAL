@@ -32,12 +32,11 @@ namespace algorithms
 {
 namespace low_order_moments
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
+
 template class LowOrderMomentsBatchKernel<DAAL_FPTYPE, singlePassCSR, DAAL_CPU>;
 }
 } // namespace low_order_moments

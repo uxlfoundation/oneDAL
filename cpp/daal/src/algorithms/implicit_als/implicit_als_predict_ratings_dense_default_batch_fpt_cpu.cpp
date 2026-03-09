@@ -35,12 +35,11 @@ namespace prediction
 {
 namespace ratings
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+
 template class ImplicitALSPredictKernel<DAAL_FPTYPE, DAAL_CPU>;
 }
 } // namespace ratings

@@ -117,6 +117,41 @@ public:
 template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
 class DistributedContainer
 {};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods for linear regression model-based training
+ * in the second step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for linear regression model-based training with a specified environment
+     * in the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of linear regression model-based training
+     * in the second step of the distributed processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of linear regression model-based training
+     * in the second step of the distributed processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status finalizeCompute() override;
+};
+
 
 template <typename algorithmFPType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(Environment::env * daalEnv)

@@ -31,12 +31,11 @@ namespace algorithms
 {
 namespace svd
 {
-namespace interface1
-{
-template class DistributedContainer<step3Local, DAAL_FPTYPE, daal::algorithms::svd::defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step3Local, DAAL_FPTYPE, daal::algorithms::svd::defaultDense, DAAL_CPU>;
+
 template class SVDDistributedStep3Kernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 } // namespace svd

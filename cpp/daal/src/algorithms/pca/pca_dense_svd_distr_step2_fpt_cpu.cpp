@@ -29,12 +29,11 @@ namespace algorithms
 {
 namespace pca
 {
-namespace interface1
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, svdDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, svdDense, DAAL_CPU>;
+
 template class PCASVDStep2MasterKernel<DAAL_FPTYPE, DAAL_CPU>;
 }
 } // namespace pca

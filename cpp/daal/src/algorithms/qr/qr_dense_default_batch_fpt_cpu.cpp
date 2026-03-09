@@ -31,12 +31,11 @@ namespace algorithms
 {
 namespace qr
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, daal::algorithms::qr::defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, daal::algorithms::qr::defaultDense, DAAL_CPU>;
+
 template class QRBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 } // namespace qr

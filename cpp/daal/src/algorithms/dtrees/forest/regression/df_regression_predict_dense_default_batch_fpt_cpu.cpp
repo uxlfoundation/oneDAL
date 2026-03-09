@@ -35,12 +35,11 @@ namespace regression
 {
 namespace prediction
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+
 template class DAAL_EXPORT PredictKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 } // namespace prediction

@@ -33,12 +33,11 @@ namespace pca
 {
 namespace transform
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, transform::defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, transform::defaultDense, DAAL_CPU>;
+
 template class DAAL_EXPORT TransformKernel<DAAL_FPTYPE, transform::defaultDense, DAAL_CPU>;
 }
 } // namespace transform

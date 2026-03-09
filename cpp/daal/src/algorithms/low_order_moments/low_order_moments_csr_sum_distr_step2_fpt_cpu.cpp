@@ -32,12 +32,11 @@ namespace algorithms
 {
 namespace low_order_moments
 {
-namespace interface1
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, sumCSR, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, sumCSR, DAAL_CPU>;
+
 template class LowOrderMomentsDistributedKernel<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
 }
 } // namespace low_order_moments

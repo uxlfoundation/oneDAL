@@ -31,12 +31,11 @@ namespace algorithms
 {
 namespace qr
 {
-namespace interface1
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, daal::algorithms::qr::defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, daal::algorithms::qr::defaultDense, DAAL_CPU>;
+
 template class QRDistributedStep2Kernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
 } // namespace qr
