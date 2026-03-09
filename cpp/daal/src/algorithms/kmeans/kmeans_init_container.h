@@ -67,6 +67,19 @@ public:
      */
     virtual services::Status compute() override;
 };
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of initialization of K-Means algorithm.
+ *        This class is associated with the daal::algorithms::kmeans::init::Distributed class
+ *        and supports the method of computing initial clusters for K-Means algorithm in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of initial clusters for K-Means algorithm, double or float
+ * \tparam method           Method of computing initial clusters for the algorithm, \ref daal::algorithms::kmeans::init::Method
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing methods for computing initial clusters for K-Means algorithm in the first step of the distributed processing mode

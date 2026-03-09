@@ -34,7 +34,6 @@ void Batch<DAAL_FPTYPE, bf_knn_classification::training::defaultDense>::initiali
 {
     _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, bf_knn_classification::training::defaultDense)(&_env);
     _in  = &input;
-    _par = &parameter;
     _result.reset(new ResultType());
 }
 template <>

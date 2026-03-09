@@ -48,6 +48,33 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class OnlineContainer : public AnalysisContainerIface<online>
 {};
 
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ */
+template <typename algorithmFPType, CpuType cpu>
+class OnlineContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~OnlineContainer();
+
+    /**
+     * Computes a partial result of the PCA algorithm in the online processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the PCA algorithm in the online processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 OnlineContainer<algorithmFPType, svdDense, cpu>::OnlineContainer(daal::services::Environment::env * daalEnv)
 {

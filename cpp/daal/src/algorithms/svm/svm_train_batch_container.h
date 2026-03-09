@@ -36,9 +36,36 @@ namespace svm
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
 using namespace daal::data_management;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
+ *  \brief Class containing methods to compute results of the SVM training
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
+ * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for SVM model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of SVM  model-based training in the batch processing mode
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
 
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported
@@ -79,73 +106,6 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     kernelPar.shrinkingStep     = par->shrinkingStep;
     kernelPar.doShrinking       = par->doShrinking;
     kernelPar.cacheSize         = par->cacheSize;
-
-    daal::services::Environment::env & env = *_env;
-
-    __DAAL_CALL_KERNEL(env, internal::SVMTrainImpl, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, x, weights, *y, r, kernelPar);
-}
-} // namespace interface2
-
-namespace internal
-{
-using namespace daal::data_management;
-
-/**
-*  \brief Initialize list of SVM kernels with implementations for supported
-* architectures
-*/
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
- *  \brief Class containing methods to compute results of the SVM training
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
- * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for SVM model-based training with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of SVM  model-based training in the batch processing mode
-     *
-     * \return Status of computation
-     */
-    services::Status compute() override;
-};
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
-{
-    __DAAL_INITIALIZE_KERNELS(internal::SVMTrainImpl, method, algorithmFPType);
-}
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
-{
-    __DAAL_DEINITIALIZE_KERNELS();
-}
-
-template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
-{
-    classifier::training::Input * input = static_cast<classifier::training::Input *>(_in);
-    svm::training::Result * result      = static_cast<svm::training::Result *>(_res);
-
-    const NumericTablePtr x       = input->get(classifier::training::data);
-    const NumericTablePtr y       = input->get(classifier::training::labels);
-    const NumericTablePtr weights = input->get(classifier::training::weights);
-
-    daal::algorithms::Model * r = static_cast<daal::algorithms::Model *>(result->get(classifier::training::model).get());
-
-    internal::KernelParameter kernelPar = *static_cast<internal::KernelParameter *>(_par);
 
     daal::services::Environment::env & env = *_env;
 

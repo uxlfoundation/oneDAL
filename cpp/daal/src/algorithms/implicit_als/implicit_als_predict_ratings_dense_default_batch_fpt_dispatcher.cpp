@@ -22,7 +22,7 @@
 */
 
 #include "src/algorithms/kernel.h"
-#include "algorithms/implicit_als/implicit_als_predict_ratings_batch.h"
+#include "src/algorithms/implicit_als/implicit_als_predict_ratings_dense_default_container.h"
 
 namespace daal
 {

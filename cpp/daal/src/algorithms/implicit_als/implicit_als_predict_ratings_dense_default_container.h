@@ -102,9 +102,12 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 }
 
 /**
- *  \brief Initialize list of implicit ALS prediction algorithm
- *  kernels with implementations for supported architectures
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class that contains methods to run implicit ALS model-based prediction in the distributed processing mode
  */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>

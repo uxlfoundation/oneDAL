@@ -44,6 +44,28 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public AnalysisContainerIface<batch>
 {};
 
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the PCA algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 BatchContainer<algorithmFPType, svdDense, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {

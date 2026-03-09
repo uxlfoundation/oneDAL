@@ -39,10 +39,10 @@ using DistributedType = Distributed<step2Master, DAAL_FPTYPE, pca::correlationDe
 template <>
 void Distributed<step2Master, DAAL_FPTYPE, pca::correlationDense>::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, svdDense)(&_env);
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, pca::correlationDense)(&_env);
     _in  = &input;
     _par = &parameter;
-    _partialResult.reset(new PartialResult<svdDense>());
+    _partialResult.reset(new PartialResult<pca::correlationDense>());
     _result.reset(new ResultType());
 }
 template <>

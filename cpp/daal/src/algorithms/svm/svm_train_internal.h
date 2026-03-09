@@ -22,6 +22,7 @@
 
 #include "algorithms/svm/svm_train_types.h"
 #include "src/algorithms/svm/svm_train_kernel.h"
+#include "src/algorithms/svm/svm_train_batch_container.h"
 #include "algorithms/classifier/classifier_training_batch.h"
 
 namespace daal
@@ -34,17 +35,6 @@ namespace training
 {
 namespace internal
 {
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    BatchContainer(daal::services::Environment::env * daalEnv);
-
-    ~BatchContainer();
-
-    services::Status compute() override;
-};
-
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = boser>
 class DAAL_EXPORT Batch : public classifier::training::Batch
 {

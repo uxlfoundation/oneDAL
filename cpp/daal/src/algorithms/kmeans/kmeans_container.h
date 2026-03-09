@@ -66,6 +66,19 @@ public:
      */
     virtual services::Status compute() override;
 };
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of K-Means algorithm.
+ *        This class is associated with the daal::algorithms::kmeans::Distributed class
+ *        and supports the method of K-Means computation in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
+ * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing computation methods for K-Means algorithm in the first step of the distributed processing mode
