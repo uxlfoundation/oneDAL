@@ -200,7 +200,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step1Local> : public InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other) : InputIface(other) {}
 
     virtual ~DistributedInput() {}
@@ -303,7 +303,7 @@ class DAAL_EXPORT PartialResult : public daal::algorithms::PartialResult
 public:
     DECLARE_SERIALIZABLE_CAST(PartialResult)
     /** Default constructor */
-    PartialResult();
+    DAAL_DEPRECATED PartialResult();
     /** Default destructor */
     virtual ~PartialResult() {}
 
