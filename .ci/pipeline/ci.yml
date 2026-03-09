@@ -186,7 +186,7 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
+      export NO_MKL=yes
       .ci/scripts/describe_system.sh
     displayName: 'System info (conda)'
 
@@ -206,8 +206,8 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config conda --target daal
+      export NO_MKL=yes
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal (conda)'
 
   - script: |
@@ -222,8 +222,8 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config conda --target onedal_c
+      export NO_MKL=yes
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
     displayName: 'make onedal_c (conda)'
 
   - task: PublishPipelineArtifact@1
@@ -249,13 +249,13 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
+      export NO_MKL=yes
       .ci/scripts/test.sh \
           --test-kind examples \
           --build-dir $(release.dir) \
           --compiler gnu \
           --interface daal/cpp \
-          --backend-config conda \
+          --backend-config mkl \
           --build-system cmake
     displayName: 'daal/cpp examples (conda)'
 
@@ -271,13 +271,13 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
+      export NO_MKL=yes
       .ci/scripts/test.sh \
           --test-kind examples \
           --build-dir $(release.dir) \
           --compiler gnu \
           --interface oneapi/cpp \
-          --backend-config conda \
+          --backend-config mkl \
           --build-system cmake
     displayName: 'oneapi/cpp examples (conda)'
 
@@ -293,13 +293,13 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-
+      export NO_MKL=yes
       .ci/scripts/test.sh \
           --test-kind samples \
           --build-dir $(release.dir) \
           --compiler gnu \
           --interface daal/cpp/mpi \
-          --backend-config conda \
+          --backend-config mkl \
           --conda-env $(CONDA_ENV) \
           --build-system cmake
     displayName: 'daal/cpp/mpi samples (conda)'
