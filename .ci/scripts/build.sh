@@ -177,8 +177,17 @@ fi
 
 #main actions
 echo "Call env scripts"
+
 if [ "${backend_config}" == "mkl" ]; then
-    source /opt/intel/oneapi/mkl/latest/env/vars.sh
+    if [ ! -z "${conda_env}" ] && [ ! -z "${CONDA_PREFIX}" ]; then
+        echo "Using MKL from conda at ${CONDA_PREFIX}"
+        export MKLROOT="${CONDA_PREFIX}"
+        export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+        export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+        export CPATH="${CONDA_PREFIX}/include:${CPATH}"
+    else
+        source /opt/intel/oneapi/mkl/latest/env/vars.sh
+    fi
 elif [ "${backend_config}" == "ref" ] && [ ! -z "${BLAS_INSTALL_DIR}" ]; then
     export OPENBLASROOT="${BLAS_INSTALL_DIR}"
 elif [ "${backend_config}" == "ref" ]; then
