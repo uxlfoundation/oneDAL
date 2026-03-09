@@ -104,7 +104,7 @@ struct DAAL_EXPORT Parameter : public classifier::Parameter, public daal::algori
 {
     /** Default constructor */
     Parameter(size_t nClasses) : classifier::Parameter(nClasses) {}
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 } // namespace interface3
@@ -122,7 +122,7 @@ public:
     DECLARE_SERIALIZABLE_CAST(Result)
 
     Result();
-    virtual ~Result() DAAL_C11_OVERRIDE;
+    virtual ~Result() override;
 
     /**
      * Returns the model trained with the LogitBoost algorithm
@@ -169,7 +169,7 @@ public:
     * \param[in] method  Computation method
     * \return Status of checking
     */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Returns the engine updated after computations

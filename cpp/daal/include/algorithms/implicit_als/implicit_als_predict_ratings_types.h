@@ -166,20 +166,20 @@ public:
      * Returns the number of rows in the input numeric table
      * \return Number of rows in the input numeric table
      */
-    size_t getNumberOfUsers() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfUsers() const override;
 
     /**
      * Returns the number of columns in the input numeric table
      * \return Number of columns in the input numeric table
      */
-    size_t getNumberOfItems() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfItems() const override;
 
     /**
      * Checks the input objects and parameters of the implicit ALS algorithm in the rating prediction stage
      * \param[in] parameter     Algorithm %parameter
      * \param[in] method        Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -223,20 +223,20 @@ public:
      * Returns the number of rows in the input numeric table
      * \return Number of rows in the input numeric table
      */
-    size_t getNumberOfUsers() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfUsers() const override;
 
     /**
      * Returns the number of columns in the input numeric table
      * \return Number of columns in the input numeric table
      */
-    size_t getNumberOfItems() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfItems() const override;
 
     /**
      * Checks the parameters of the rating prediction stage of the implicit ALS algorithm
      * \param[in] parameter     Algorithm %parameter
      * \param[in] method        Computation method for the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -280,7 +280,7 @@ public:
      * \param[in] parameter   %Parameter of the algorithm
      * \param[in] method      Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;
@@ -336,7 +336,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::PartialResult::check;

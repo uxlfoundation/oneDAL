@@ -104,7 +104,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -134,7 +134,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -164,7 +164,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -194,7 +194,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -224,7 +224,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -254,7 +254,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -340,7 +340,7 @@ protected:
         _par  = &parameter;
         _hpar = nullptr;
     }
-    virtual BatchImpl * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual BatchImpl * cloneImpl() const override = 0;
 };
 
 /**
@@ -389,7 +389,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -400,9 +400,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();

@@ -124,7 +124,7 @@ public:
      */
     void set(InputId id, const data_management::NumericTablePtr & value);
 
-    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -169,7 +169,7 @@ public:
     * \param[in] par    Pointer to the structure of the algorithm parameters
     * \param[in] method Computation method
     */
-    virtual services::Status check(const daal::algorithms::Input * in, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    virtual services::Status check(const daal::algorithms::Input * in, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

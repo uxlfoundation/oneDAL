@@ -84,12 +84,12 @@ public:
      * Computes a partial result of the low order moments algorithm
      * in the second step of the distributed processing mode
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
     /**
      * Computes the result of the low order moments algorithm
      * in the second step of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    virtual services::Status finalizeCompute() override;
 };
 
 /**
@@ -163,7 +163,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -214,7 +214,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns structure that contains final results of the low order moments algorithm
@@ -265,26 +265,26 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, 0, 0);
         _res               = _result.get();
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(_in, 0, 0);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {

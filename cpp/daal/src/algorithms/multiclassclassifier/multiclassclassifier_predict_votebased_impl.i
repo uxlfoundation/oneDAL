@@ -232,7 +232,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         _xRows.set(const_cast<NumericTable *>(a), startRow, nRows);
         DAAL_CHECK_BLOCK_STATUS(_xRows);
@@ -277,7 +277,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         const bool toOneBaseRowIndices = true;
         _xRows.set(dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(a)), startRow, nRows, toOneBaseRowIndices);
