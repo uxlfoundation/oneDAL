@@ -224,6 +224,7 @@ jobs:
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
+      mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_c (conda)'
 
   - task: PublishPipelineArtifact@1
