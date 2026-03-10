@@ -75,7 +75,7 @@ outputs:
 
   - name: dal-gpu
     build:
-      skip: true  # [cxx_compiler != "dpcpp"]
+      skip: true  # [cxx_compiler != "dpcpp" or not linux64]
     script: pack.sh  # [linux]
     requirements:
       run:

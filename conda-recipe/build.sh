@@ -15,15 +15,24 @@
 # limitations under the License.
 #===============================================================================
 
-export TBBROOT=$PREFIX
 export DPL_ROOT=$PREFIX
 
-# Workaround: some tbb-devel builds expose only versioned SONAME (libtbb.so.<N>)
-# while oneDAL Make expects unversioned libtbb.so path in prerequisites.
-if [ ! -f "$PREFIX/lib/libtbb.so" ]; then
+# Use isolated TBBROOT staging so we don't create files under $PREFIX that may
+# accidentally end up in output packages.
+# Some tbb-devel builds expose only versioned SONAME (libtbb.so.<N>) while
+# oneDAL Make expects unversioned libtbb.so in TBBROOT/lib prerequisites.
+export TBBROOT="$SRC_DIR/__tbbroot"
+mkdir -p "$TBBROOT/lib" "$TBBROOT/include"
+
+# Keep headers discoverable via TBBROOT/include
+ln -sfn "$PREFIX/include" "$TBBROOT/include"
+
+if [ -e "$PREFIX/lib/libtbb.so" ] || [ -L "$PREFIX/lib/libtbb.so" ]; then
+    ln -sfn "$PREFIX/lib/libtbb.so" "$TBBROOT/lib/libtbb.so"
+else
     tbb_soname=$(find "$PREFIX/lib" -maxdepth 1 -name "libtbb.so.*" | head -1)
     if [ -n "$tbb_soname" ]; then
-        ln -sf "$(basename "$tbb_soname")" "$PREFIX/lib/libtbb.so"
+        ln -sfn "$tbb_soname" "$TBBROOT/lib/libtbb.so"
     fi
 fi
 

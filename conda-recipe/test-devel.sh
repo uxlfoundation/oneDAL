@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -33,6 +34,7 @@ run_examples() {
 
     (
         cd examples/$interface_name/cpp
+        rm -rf build_$linking_type
         mkdir -p build_$linking_type
 
         (
@@ -75,6 +77,7 @@ run_dpc_examples() {
 
     (
         cd examples/oneapi/dpc
+        rm -rf build_$linking_type
         mkdir -p build_$linking_type
 
         (
