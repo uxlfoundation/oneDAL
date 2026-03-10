@@ -34,10 +34,17 @@ inline bool check_file(const std::string& name) {
 inline const std::string get_data_path(const std::string& name) {
     const std::vector<std::string> paths = { []() {
                                                 if (const char* root = std::getenv("DALROOT")) {
-                                                    return std::string(root);
+                                                    return std::string(root) + "/share/doc/data";
                                                 }
                                                 return std::string{};
                                             }(),
+                                             []() {
+                                                 if (const char* root = std::getenv("DALROOT")) {
+                                                     return std::string(root) + "/data";
+                                                 }
+                                                 return std::string{};
+                                             }(),
+                                             "../../../data",
                                              "../../data",
                                              "../data" };
 
