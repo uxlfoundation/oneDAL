@@ -26,11 +26,9 @@ namespace bf_knn_classification
 {
 namespace training
 {
-
 namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-
 template class DAAL_EXPORT KNNClassificationTrainKernel<DAAL_FPTYPE, DAAL_CPU>;
 }
 } // namespace training
