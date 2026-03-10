@@ -22,7 +22,6 @@
 */
 
 #include "algorithms/svm/svm_train.h"
-#include "src/algorithms/svm/svm_train_internal.h"
 #include "src/algorithms/svm/svm_train_kernel.h"
 #include "src/algorithms/svm/svm_train_boser_kernel.h"
 #include "algorithms/classifier/classifier_training_types.h"
@@ -111,6 +110,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::SVMTrainImpl, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, x, weights, *y, r, kernelPar);
 }
+
 } // namespace internal
 } // namespace training
 } // namespace svm

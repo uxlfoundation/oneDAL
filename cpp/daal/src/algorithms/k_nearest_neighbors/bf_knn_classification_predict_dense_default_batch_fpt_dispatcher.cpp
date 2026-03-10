@@ -24,7 +24,6 @@ namespace algorithms
 {
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(bf_knn_classification::prediction::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       bf_knn_classification::prediction::defaultDense)
-
 namespace bf_knn_classification
 {
 namespace prediction
@@ -33,11 +32,10 @@ namespace interface1
 {
 
 template <>
-void Batch<DAAL_FPTYPE, bf_knn_classification::prediction::defaultDense>::initialize()
+void Batch<DAAL_FPTYPE, defaultDense>::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, bf_knn_classification::prediction::defaultDense)(&_env);
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
     _in  = &input;
-    _par = &parameter;
     _result.reset(new ResultType());
 }
 template <>
