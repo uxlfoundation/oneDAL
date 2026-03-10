@@ -18,6 +18,7 @@
 #define __DAAL_H__
 
 #pragma warning(disable : 809)
+#pragma warning(disable: 4996)
 
 #if defined(_DAAL_PAR_DYNAMIC)
     #pragma comment(lib, "onedal_core_dll.4.lib")
