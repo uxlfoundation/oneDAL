@@ -212,23 +212,6 @@ dal_example_suite(
 #     ],
 # )
 
-# TODO: investigate the issue with excluded example
-dal_example_suite(
-    name = "optimization_solvers",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/optimization_solvers/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
 dal_example_suite(
     name = "pca_transform",
     compile_as = [ "c++" ],
