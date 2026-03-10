@@ -133,7 +133,6 @@ public:
     services::Status finalizeCompute() override { return services::Status(); }
 };
 
-
 template <typename algorithmFPType, training::init::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : TrainingContainerIface<batch>()
 {

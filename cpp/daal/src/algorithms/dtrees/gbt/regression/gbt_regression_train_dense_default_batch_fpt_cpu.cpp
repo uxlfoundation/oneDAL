@@ -38,7 +38,7 @@ namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class RegressionTrainBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace regression
 } // namespace gbt

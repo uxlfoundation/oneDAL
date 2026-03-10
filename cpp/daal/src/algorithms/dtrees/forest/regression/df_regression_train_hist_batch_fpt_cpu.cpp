@@ -39,7 +39,7 @@ namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, hist, DAAL_CPU>;
 template class DAAL_EXPORT RegressionTrainBatchKernel<DAAL_FPTYPE, hist, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace regression
 } // namespace decision_forest

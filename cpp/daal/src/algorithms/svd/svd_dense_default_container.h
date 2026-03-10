@@ -172,7 +172,6 @@ public:
     virtual services::Status finalizeCompute() override;
 };
 
-
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {

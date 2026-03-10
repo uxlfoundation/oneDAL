@@ -136,7 +136,6 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KMeansBatchKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, a, r, par);
 }
 
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
  * \brief Class containing computation methods for K-Means algorithm in the second step of the distributed processing mode

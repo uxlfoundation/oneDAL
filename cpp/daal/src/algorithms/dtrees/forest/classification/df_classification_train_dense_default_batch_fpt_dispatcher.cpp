@@ -43,7 +43,8 @@ using BatchType = Batch<DAAL_FPTYPE, decision_forest::classification::training::
 template <>
 void Batch<DAAL_FPTYPE, decision_forest::classification::training::defaultDense>::initialize()
 {
-    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, decision_forest::classification::training::defaultDense)(&_env);
+    _ac =
+        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, decision_forest::classification::training::defaultDense)(&_env);
     _in = &input;
     _result.reset(new ResultType());
 }

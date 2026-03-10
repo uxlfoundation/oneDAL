@@ -75,7 +75,6 @@ public:
     services::Status finalizeCompute() override;
 };
 
-
 template <typename algorithmFPType, CpuType cpu>
 DistributedContainer<step2Master, algorithmFPType, svdDense, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
 {

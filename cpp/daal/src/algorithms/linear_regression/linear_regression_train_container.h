@@ -152,7 +152,6 @@ public:
     services::Status finalizeCompute() override;
 };
 
-
 template <typename algorithmFPType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(Environment::env * daalEnv)
 {

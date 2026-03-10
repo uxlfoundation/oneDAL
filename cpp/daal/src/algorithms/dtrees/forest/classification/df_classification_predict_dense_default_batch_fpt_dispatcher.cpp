@@ -42,7 +42,8 @@ namespace interface3
 template <>
 void Batch<DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense>::initialize()
 {
-    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, decision_forest::classification::prediction::defaultDense)(&_env);
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE,
+                                         decision_forest::classification::prediction::defaultDense)(&_env);
     _in = &input;
     _result.reset(new ResultType());
 }
