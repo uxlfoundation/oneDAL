@@ -45,7 +45,7 @@ namespace interface1
 class DataBlockIface : public Base
 {
 public:
-    ~DataBlockIface() DAAL_C11_OVERRIDE {}
+    ~DataBlockIface() override {}
     /**
     * Returns a pointer to a byte array stored in DataBlock
     * \return Pointer to the byte array stored in DataBlock
@@ -111,19 +111,19 @@ public:
      */
     DataBlock(const DataBlock & block) : _ptr(block._ptr), _size(block._size) {}
 
-    ~DataBlock() DAAL_C11_OVERRIDE {}
+    ~DataBlock() override {}
 
-    virtual byte * getPtr() const DAAL_C11_OVERRIDE { return _ptr.get(); }
+    virtual byte * getPtr() const override { return _ptr.get(); }
 
-    virtual services::SharedPtr<byte> getSharedPtr() const DAAL_C11_OVERRIDE { return _ptr; }
+    virtual services::SharedPtr<byte> getSharedPtr() const override { return _ptr; }
 
-    virtual size_t getSize() const DAAL_C11_OVERRIDE { return _size; }
+    virtual size_t getSize() const override { return _size; }
 
-    virtual void setPtr(byte * ptr) DAAL_C11_OVERRIDE { _ptr = services::SharedPtr<byte>(ptr, services::EmptyDeleter()); }
+    virtual void setPtr(byte * ptr) override { _ptr = services::SharedPtr<byte>(ptr, services::EmptyDeleter()); }
 
-    virtual void setPtr(const services::SharedPtr<byte> & ptr) DAAL_C11_OVERRIDE { _ptr = ptr; }
+    virtual void setPtr(const services::SharedPtr<byte> & ptr) override { _ptr = ptr; }
 
-    virtual void setSize(size_t size) DAAL_C11_OVERRIDE { _size = size; }
+    virtual void setSize(size_t size) override { _size = size; }
 
 private:
     services::SharedPtr<byte> _ptr;

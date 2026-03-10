@@ -49,25 +49,25 @@ public:
     typedef algorithms::regression::internal::ModelInternal RegressionImplType;
 
     ModelImpl(size_t nFeatures = 0) : RegressionImplType(nFeatures), _predictionBias(0.0f) {}
-    ~ModelImpl() DAAL_C11_OVERRIDE {}
+    ~ModelImpl() override {}
 
-    virtual size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return RegressionImplType::getNumberOfFeatures(); }
+    virtual size_t getNumberOfFeatures() const override { return RegressionImplType::getNumberOfFeatures(); }
 
     //Implementation of regression::Model
-    virtual size_t numberOfTrees() const DAAL_C11_OVERRIDE;
-    virtual void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void clear() DAAL_C11_OVERRIDE { ImplType::clear(); }
-    virtual void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
-    virtual void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const DAAL_C11_OVERRIDE;
+    virtual size_t numberOfTrees() const override;
+    virtual void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    virtual void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    virtual void clear() override { ImplType::clear(); }
+    virtual void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
+    virtual void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
 
-    virtual void setPredictionBias(double value) DAAL_C11_OVERRIDE;
-    virtual double getPredictionBias() const DAAL_C11_OVERRIDE;
+    virtual void setPredictionBias(double value) override;
+    virtual double getPredictionBias() const override;
 
-    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
-    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) override;
+    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
-    virtual size_t getNumberOfTrees() const DAAL_C11_OVERRIDE;
+    virtual size_t getNumberOfTrees() const override;
 
 private:
     /* global bias applied to predictions*/

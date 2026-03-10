@@ -146,7 +146,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated objective function with precomputed characteristics algorithm
@@ -163,9 +163,9 @@ public:
     services::Status allocate() { return allocateResult(); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();

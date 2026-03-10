@@ -74,7 +74,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 /**
@@ -122,7 +122,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated the Cross-entropy loss objective function algorithm with a copy of input objects
@@ -159,9 +159,9 @@ public:
     static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t nClasses, size_t numberOfTerms);
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();

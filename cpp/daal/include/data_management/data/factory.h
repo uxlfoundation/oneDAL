@@ -82,9 +82,9 @@ public:
     /** \private */
     virtual ~Creator() {}
 
-    SerializationIface * create() const DAAL_C11_OVERRIDE { return new Derived(); }
+    SerializationIface * create() const override { return new Derived(); }
 
-    int getTag() const DAAL_C11_OVERRIDE { return Derived::serializationTag(); }
+    int getTag() const override { return Derived::serializationTag(); }
 };
 
 class FactoryImpl;

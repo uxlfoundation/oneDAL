@@ -77,12 +77,12 @@ public:
      * Computes a partial result of implicit ALS model-based training
      * in the first step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of implicit ALS model-based training
      * in the first step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -108,12 +108,12 @@ public:
      * Computes a partial result of implicit ALS model-based training
      * in the second step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of implicit ALS model-based training
      * in the second step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -139,12 +139,12 @@ public:
      * Computes a partial result of implicit ALS model-based training
      * in the third step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of implicit ALS model-based training
      * in the third step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -170,12 +170,12 @@ public:
      * Computes a partial result of implicit ALS model-based training
      * in the fourth step of the distributed processing mode
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
     /**
      * Computes the result of implicit ALS model-based training
      * in the fourth step of the distributed processing mode
      */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -236,7 +236,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS training algorithm
@@ -273,21 +273,21 @@ public:
 protected:
     DistributedPartialResultStep1Ptr _partialResult;
 
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -343,7 +343,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS training algorithm
@@ -380,21 +380,21 @@ public:
 protected:
     DistributedPartialResultStep2Ptr _partialResult;
 
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -450,7 +450,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS training algorithm
@@ -487,21 +487,21 @@ public:
 protected:
     DistributedPartialResultStep3Ptr _partialResult;
 
-    virtual Distributed<step3Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step3Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step3Local, algorithmFPType, method>(*this);
     }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -557,7 +557,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS training algorithm
@@ -594,21 +594,21 @@ public:
 protected:
     DistributedPartialResultStep4Ptr _partialResult;
 
-    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step4Local, algorithmFPType, method>(*this);
     }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
