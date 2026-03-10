@@ -638,13 +638,13 @@ This is useful because CMake and Bazel may run the program from different workin
 so relative paths to data files can differ. */
 inline const std::string get_data_path(const std::string &name) {
     const std::vector<std::string> paths = { []() {
-                                                if (const char* root = std::getenv("DALROOT")) {
+                                                if (const char *root = std::getenv("DALROOT")) {
                                                     return std::string(root) + "/share/doc";
                                                 }
                                                 return std::string{};
                                             }(),
                                              []() {
-                                                 if (const char* root = std::getenv("DALROOT")) {
+                                                 if (const char *root = std::getenv("DALROOT")) {
                                                      return std::string(root);
                                                  }
                                                  return std::string{};
