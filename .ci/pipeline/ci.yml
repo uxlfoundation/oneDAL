@@ -251,13 +251,7 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
-      .ci/scripts/test.sh \
-          --test-kind examples \
-          --build-dir $(release.dir) \
-          --compiler gnu \
-          --interface daal/cpp \
-          --backend-config mkl \
-          --build-system cmake
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
     displayName: 'daal/cpp examples (conda)'
 
   - script: |
@@ -273,13 +267,7 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
-      .ci/scripts/test.sh \
-          --test-kind examples \
-          --build-dir $(release.dir) \
-          --compiler gnu \
-          --interface oneapi/cpp \
-          --backend-config mkl \
-          --build-system cmake
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples (conda)'
 
   - script: |
@@ -295,14 +283,7 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
-      .ci/scripts/test.sh \
-          --test-kind samples \
-          --build-dir $(release.dir) \
-          --compiler gnu \
-          --interface daal/cpp/mpi \
-          --backend-config mkl \
-          --conda-env $(CONDA_ENV) \
-          --build-system cmake
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples (conda)'
 
   - task: PublishPipelineArtifact@1
