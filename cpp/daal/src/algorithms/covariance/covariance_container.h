@@ -233,7 +233,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -261,7 +261,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -289,7 +289,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -317,7 +317,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -345,7 +345,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -373,7 +373,7 @@ public:
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -417,12 +417,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -452,12 +452,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -487,12 +487,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -522,12 +522,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -557,12 +557,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -592,12 +592,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -637,12 +637,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -669,12 +669,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -701,12 +701,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -734,12 +734,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -767,12 +767,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 /**
@@ -800,12 +800,12 @@ public:
      * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 __DAAL_COVARIANCE_BATCH_CONTAINER_CONSTRUCTOR(defaultDense, internal::CovarianceDenseBatchKernel)

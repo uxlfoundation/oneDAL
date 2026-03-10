@@ -64,7 +64,7 @@ public:
     /**
      * Computes the result of K-Means algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -99,12 +99,12 @@ public:
      * Computes a partial result of K-Means algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of K-Means algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -157,12 +157,12 @@ public:
      * Computes a partial result of K-Means algorithm in the second step of the
      * distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of K-Means algorithm in the second step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 template <typename algorithmFPType, Method method, CpuType cpu>
 DistributedContainer<step1Local, algorithmFPType, method, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)

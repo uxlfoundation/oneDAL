@@ -97,26 +97,26 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Get input objects for the iterative solver algorithm
      * \return %Input objects for the iterative solver algorithm
      */
-    virtual iterative_solver::Input * getInput() override { return &input; }
+    iterative_solver::Input * getInput() override { return &input; }
 
     /**
      * Get parameters of the iterative solver algorithm
      * \return Parameters of the iterative solver algorithm
      */
-    virtual iterative_solver::Parameter * getParameter() override { return &parameter(); }
+    iterative_solver::Parameter * getParameter() override { return &parameter(); }
 
     /**
      * Creates user-allocated memory to store results of the iterative solver algorithm
      *
      * \return Status of computations
      */
-    virtual services::Status createResult() override
+    services::Status createResult() override
     {
         _result = iterative_solver::ResultPtr(new ResultType());
         _res    = NULL;
@@ -137,9 +137,9 @@ public:
     static services::SharedPtr<Batch<algorithmFPType, method> > create();
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();

@@ -82,7 +82,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results of the SVD algorithm
@@ -150,9 +150,9 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, 0, 0);
@@ -160,7 +160,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(_in, 0, 0);
@@ -168,7 +168,7 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override
+    services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(_in, 0, 0);
         _pres              = _partialResult.get();

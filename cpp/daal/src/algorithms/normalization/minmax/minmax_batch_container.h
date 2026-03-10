@@ -66,7 +66,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

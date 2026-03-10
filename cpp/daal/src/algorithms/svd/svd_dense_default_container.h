@@ -64,7 +64,7 @@ public:
     /**
      * Computes the result of the SVD algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__SVD__ONLINECONTAINER"></a>
@@ -133,12 +133,12 @@ public:
      * Computes a partial result of the SVD algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the SVD algorithm in the second step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__SVD__DISTRIBUTEDCONTAINER"></a>
@@ -164,12 +164,12 @@ public:
      * Computes a partial result of the SVD algorithm in the third step
      * of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the SVD algorithm in the third step
      * of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -124,7 +124,7 @@ protected:
         _result = ResultPtr(new ResultType());
         _in     = &input;
     }
-    virtual BatchImpl * cloneImpl() const override = 0;
+    BatchImpl * cloneImpl() const override = 0;
 
 private:
     BatchImpl & operator=(const BatchImpl &);
@@ -165,32 +165,32 @@ public:
     Batch(const Batch<algorithmFPType, method> & other);
 
     /** Destructor */
-    virtual ~Batch() override { delete _par; }
+    ~Batch() override { delete _par; }
 
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm
     */
-    virtual ParameterType & parameter() override { return *static_cast<ParameterType *>(_par); }
+    ParameterType & parameter() override { return *static_cast<ParameterType *>(_par); }
 
     /**
     * Gets parameter of the algorithm
     * \return parameter of the algorithm
     */
-    virtual const ParameterType & parameter() const override { return *static_cast<const ParameterType *>(_par); }
+    const ParameterType & parameter() const override { return *static_cast<const ParameterType *>(_par); }
 
     /**
     * Returns the pointer to parameter
     * \return Pointer to parameter
     * \DAAL_DEPRECATED_USE{ Batch::parameter }
     */
-    DAAL_DEPRECATED_VIRTUAL virtual BaseParameter * getParameter() override { return &(this->Batch::parameter()); }
+    DAAL_DEPRECATED_VIRTUAL BaseParameter * getParameter() override { return &(this->Batch::parameter()); }
 
     /**
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated z-score normalization algorithm
@@ -200,9 +200,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &(this->Batch::parameter()), method);
         _res               = _result.get();

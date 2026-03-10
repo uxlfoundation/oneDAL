@@ -65,7 +65,7 @@ public:
     /**
      * Computes initial values for K-Means algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**
@@ -100,12 +100,12 @@ public:
      * Computes a partial result of K-Means initialization algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of K-Means initialization algorithm in the first step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -162,12 +162,12 @@ public:
      * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
      * distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of K-Means initialization algorithm in the 2nd step of the
      * distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP2LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
@@ -190,12 +190,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
     * distributed processing mode
     */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 2nd step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP3MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
@@ -218,12 +218,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 3rd step of the
     * distributed processing mode
     */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 3rd step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP4LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
@@ -245,12 +245,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 4th step of the
     * distributed processing mode
     */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 4th step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
 * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP5MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
@@ -273,12 +273,12 @@ public:
     * Computes a partial result of K-Means initialization algorithm in the 5th step of the
     * distributed processing mode
     */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
     * Computes the result of K-Means initialization algorithm in the 5th step of the
     * distributed processing mode
     */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 template <typename algorithmFPType, Method method, CpuType cpu>
 DistributedContainer<step1Local, algorithmFPType, method, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)

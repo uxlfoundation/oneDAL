@@ -60,7 +60,7 @@ public:
     /**
     * Computes the result of the PCA transformation algorithm in the batch processing mode
     */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, transform::Method method, CpuType cpu>

@@ -84,13 +84,13 @@ public:
 
     ~Online() {}
 
-    virtual regression::training::Input * getInput() override { return &input; }
+    regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains a partial result of ridge regression model-based training
@@ -112,7 +112,7 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {

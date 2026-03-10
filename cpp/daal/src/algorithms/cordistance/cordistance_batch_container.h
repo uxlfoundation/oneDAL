@@ -62,7 +62,7 @@ public:
     /**
      * Computes the result of the correlation distance algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 /**

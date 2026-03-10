@@ -150,7 +150,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated ALS ratings prediction algorithm with a copy of input objects
@@ -165,21 +165,21 @@ public:
 protected:
     PartialResultPtr _partialResult;
 
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 

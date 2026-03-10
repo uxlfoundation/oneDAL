@@ -90,13 +90,13 @@ public:
 
     ~Batch() {}
 
-    virtual regression::training::Input * getInput() override { return &input; }
+    regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of ridge regression model-based training
@@ -107,7 +107,7 @@ public:
     /* Resets the results of the regression model-based training
      * \return Status of the operation
      */
-    virtual services::Status resetResult() override
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult)
@@ -123,7 +123,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {

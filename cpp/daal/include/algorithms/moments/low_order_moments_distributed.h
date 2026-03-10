@@ -113,7 +113,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -164,7 +164,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns structure that contains final results of the low order moments algorithm
@@ -215,26 +215,26 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, 0, 0);
         _res               = _result.get();
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(_in, 0, 0);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 

@@ -141,7 +141,7 @@ protected:
     services::SharedPtr<PartialResult<correlationDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Online<algorithmFPType, correlationDense> * cloneImpl() const override { return new Online<algorithmFPType, correlationDense>(*this); }
+    Online<algorithmFPType, correlationDense> * cloneImpl() const override { return new Online<algorithmFPType, correlationDense>(*this); }
 
     services::Status allocateResult() override
     {
@@ -257,7 +257,7 @@ protected:
     services::SharedPtr<PartialResult<svdDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Online<algorithmFPType, svdDense> * cloneImpl() const override { return new Online<algorithmFPType, svdDense>(*this); }
+    Online<algorithmFPType, svdDense> * cloneImpl() const override { return new Online<algorithmFPType, svdDense>(*this); }
 
     services::Status allocateResult() override
     {

@@ -61,7 +61,7 @@ public:
     /**
      * Computes initial values for the EM for GMM algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

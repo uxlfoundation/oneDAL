@@ -65,7 +65,7 @@ public:
     /**
      * Computes the result of the linear kernel function algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

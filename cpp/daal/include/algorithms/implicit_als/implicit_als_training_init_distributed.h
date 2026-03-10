@@ -99,7 +99,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS initialization algorithm
@@ -132,7 +132,7 @@ public:
 protected:
     PartialResultPtr _partialResult;
 
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -190,7 +190,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Registers user-allocated memory to store partial results of the implicit ALS initialization algorithm
@@ -223,7 +223,7 @@ public:
 protected:
     DistributedPartialResultStep2Ptr _partialResult;
 
-    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Local, algorithmFPType, method>(*this);
     }

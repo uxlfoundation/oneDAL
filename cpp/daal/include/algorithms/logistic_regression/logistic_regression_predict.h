@@ -120,7 +120,7 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated logistic regression prediction algorithm with a copy of input objects
@@ -139,7 +139,7 @@ public:
     InputType input; /*!< %Input objects of the algorithm */
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {

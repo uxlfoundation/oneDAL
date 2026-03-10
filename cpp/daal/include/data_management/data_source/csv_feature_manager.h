@@ -159,7 +159,7 @@ public:
 
     virtual ~MakeCategorical() {}
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
+    void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -185,7 +185,7 @@ public:
 
     virtual ~OneHotEncoder() {}
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
+    void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -245,7 +245,7 @@ public:
         return *this;
     }
 
-    virtual void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
+    void apply(services::Collection<functionT> & funcList, services::Collection<FeatureAuxData> & auxVect) const override
     {
         size_t nCols = funcList.size();
 
@@ -429,7 +429,7 @@ public:
      * \param[in]  rawDataSize  Size of the rawRowData array
      * \param[in]  dictionary   Pointer to the dictionary
      */
-    virtual void parseRowAsDictionary(char * rawRowData, size_t rawDataSize, DataSourceDictionary * dictionary) override
+    void parseRowAsDictionary(char * rawRowData, size_t rawDataSize, DataSourceDictionary * dictionary) override
     {
         DAAL_ASSERT(rawRowData);
         DAAL_ASSERT(dictionary);

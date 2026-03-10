@@ -86,7 +86,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return method; };
+    int getMethod() const override { return method; };
 
     /**
      * Registers user-allocated memory to store the results of the PCA algorithm
@@ -119,7 +119,7 @@ public:
 protected:
     ResultPtr _result;
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {

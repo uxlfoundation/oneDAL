@@ -63,7 +63,7 @@ public:
     /**
      * Computes the result of the DBSCAN algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__DISTRIBUTEDCONTAINER"></a>

@@ -162,7 +162,7 @@ protected:
         _partialResult.reset(new PartialResult());
     }
 
-    virtual OnlineImpl * cloneImpl() const override = 0;
+    OnlineImpl * cloneImpl() const override = 0;
 
     PartialResultPtr _partialResult;
     ResultPtr _result;
@@ -217,7 +217,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -228,9 +228,9 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_partialResult.get(), _par, (int)method);
         _res               = _result.get();
@@ -238,14 +238,14 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override
+    services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();

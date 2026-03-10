@@ -161,7 +161,7 @@ public:
     services::SharedPtr<DistributedIface<step1Local> > clone() const { return services::SharedPtr<DistributedIface<step1Local> >(cloneImpl()); }
 
 protected:
-    virtual DistributedIface<step1Local> * cloneImpl() const override = 0;
+    DistributedIface<step1Local> * cloneImpl() const override = 0;
 };
 
 /**
@@ -294,7 +294,7 @@ public:
     ParameterType parameter;             /*!< Parameters of the algorithm */
 
 protected:
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -304,7 +304,7 @@ protected:
         _partialResult.reset(new PartialResultType());
     }
 
-    virtual DistributedIface<step2Master> * cloneImpl() const override = 0;
+    DistributedIface<step2Master> * cloneImpl() const override = 0;
 
     PartialResultPtr _partialResult;
     ResultPtr _result;
@@ -390,7 +390,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -446,7 +446,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -460,12 +460,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         ResultPtr result   = this->getResult();
         services::Status s = result->template allocate<algorithmFPType>(this->_partialResult.get(), this->_par, (int)method);
@@ -474,7 +474,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = this->_partialResult->template allocate<algorithmFPType>(&(this->input), this->_par, (int)method);
         this->_pres        = this->_partialResult.get();

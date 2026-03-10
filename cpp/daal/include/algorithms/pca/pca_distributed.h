@@ -109,7 +109,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -150,7 +150,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)correlationDense; }
+    int getMethod() const override { return (int)correlationDense; }
 
     /**
      * Registers user-allocated memory to store  partial results of the PCA algorithm
@@ -211,7 +211,7 @@ protected:
     services::SharedPtr<PartialResult<correlationDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Distributed<step2Master, algorithmFPType, correlationDense> * cloneImpl() const override
+    Distributed<step2Master, algorithmFPType, correlationDense> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, correlationDense>(*this);
     }
@@ -270,7 +270,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)svdDense; }
+    int getMethod() const override { return (int)svdDense; }
 
     /**
      * Registers user-allocated memory to store  partial results of the PCA algorithm
@@ -325,7 +325,7 @@ protected:
     services::SharedPtr<PartialResult<svdDense> > _partialResult;
     ResultPtr _result;
 
-    virtual Distributed<step2Master, algorithmFPType, svdDense> * cloneImpl() const override
+    Distributed<step2Master, algorithmFPType, svdDense> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, svdDense>(*this);
     }

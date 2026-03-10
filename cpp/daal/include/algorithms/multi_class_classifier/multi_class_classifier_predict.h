@@ -114,13 +114,13 @@ public:
      * Get input objects for the multi-class classifier prediction algorithm
      * \return %Input objects for the multi-class classifier prediction algorithm
      */
-    virtual InputType * getInput() override { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)pmethod; }
+    int getMethod() const override { return (int)pmethod; }
 
     /**
      * Returns the structure that contains computed prediction results
@@ -155,9 +155,9 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const override { return new Batch<algorithmFPType, pmethod, tmethod>(*this); }
+    Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const override { return new Batch<algorithmFPType, pmethod, tmethod>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())
                                  ->allocate<algorithmFPType>(&input, &parameter, static_cast<int>(pmethod), static_cast<int>(tmethod));

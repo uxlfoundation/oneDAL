@@ -116,7 +116,7 @@ public:
     Input & operator=(const Input & other);
     virtual ~Input() {}
 
-    virtual size_t getNumberOfFeatures() const override;
+    size_t getNumberOfFeatures() const override;
 
     /**
      * Returns the input object in the training stage of the classification algorithm

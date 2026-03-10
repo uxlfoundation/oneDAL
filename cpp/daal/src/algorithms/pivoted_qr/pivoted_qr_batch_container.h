@@ -59,7 +59,7 @@ public:
     /**
      * Computes the result of the pivoted QR decomposition algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

@@ -122,7 +122,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -152,21 +152,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -237,7 +237,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -267,21 +267,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -354,7 +354,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -384,21 +384,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step3Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step3Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step3Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -471,7 +471,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -501,21 +501,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step4Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -587,7 +587,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -617,21 +617,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step5Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step5Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step5Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -704,7 +704,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -734,21 +734,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step6Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step6Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step6Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -800,7 +800,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -832,24 +832,24 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() override { return services::Status(); }
+    services::Status checkPartialResult() override { return services::Status(); }
 
 protected:
-    virtual Distributed<step7Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step7Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step7Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return services::Status();
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -920,7 +920,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -950,21 +950,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step8Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step8Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step8Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -1017,7 +1017,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed results
@@ -1064,26 +1064,26 @@ public:
     }
 
 protected:
-    virtual Distributed<step9Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step9Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step9Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
         _res               = _result.get();
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -1155,7 +1155,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1185,21 +1185,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step10Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step10Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step10Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -1270,7 +1270,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1300,21 +1300,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step11Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step11Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step11Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -1385,7 +1385,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed partial results
@@ -1415,21 +1415,21 @@ public:
     }
 
 protected:
-    virtual Distributed<step12Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step12Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step12Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 
@@ -1482,7 +1482,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains computed results
@@ -1531,29 +1531,29 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() override { return services::Status(); }
+    services::Status checkPartialResult() override { return services::Status(); }
 
 protected:
-    virtual Distributed<step13Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step13Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step13Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
         _res               = _result.get();
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return services::Status();
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize();
 

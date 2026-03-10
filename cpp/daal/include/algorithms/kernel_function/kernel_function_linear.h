@@ -90,19 +90,19 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Get input objects for the kernel function algorithm
      * \return %Input objects for the kernel function algorithm
      */
-    virtual InputType * getInput() override { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Get parameters of the kernel function algorithm
      * \return Parameters of the kernel function algorithm
      */
-    virtual ParameterBase * getParameter() override { return &parameter; }
+    ParameterBase * getParameter() override { return &parameter; }
 
     /**
      * Returns a pointer to the newly allocated linear kernel function algorithm with a copy of input objects
@@ -114,9 +114,9 @@ public:
 protected:
     void initialize();
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();

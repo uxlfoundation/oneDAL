@@ -62,7 +62,7 @@ public:
     /**
      * Computes the result of the low order moments algorithm in the batch processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__ONLINECONTAINER"></a>
@@ -90,12 +90,12 @@ public:
      * Computes a partial result of the low order moments algorithm
      * in the online processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the low order moments algorithm
      * in the online processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__DISTRIBUTEDCONTAINER_STEP_ALGORITHMFPTYPE_METHOD"></a>
@@ -136,12 +136,12 @@ public:
      * Computes a partial result of the low order moments algorithm
      * in the second step of the distributed processing mode
      */
-    virtual services::Status compute() override;
+    services::Status compute() override;
     /**
      * Computes the result of the low order moments algorithm
      * in the second step of the distributed processing mode
      */
-    virtual services::Status finalizeCompute() override;
+    services::Status finalizeCompute() override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>
