@@ -19,22 +19,28 @@ export DPL_ROOT=$PREFIX
 
 # Use isolated TBBROOT staging so we don't create files under $PREFIX that may
 # accidentally end up in output packages.
-# Some tbb-devel builds expose only versioned SONAME (libtbb.so.<N>) while
-# oneDAL Make expects unversioned libtbb.so in TBBROOT/lib prerequisites.
+# conda-forge tbb-devel may expose only versioned SONAMEs (libtbb.so.<N>,
+# libtbbmalloc.so.<N>, etc.) while oneDAL Make expects unversioned names in
+# TBBROOT/lib prerequisites.  Mirror the full libtbb* tree into a staging dir,
+# adding unversioned symlinks where missing.
 export TBBROOT="$SRC_DIR/__tbbroot"
 mkdir -p "$TBBROOT/lib" "$TBBROOT/include"
 
-# Keep headers discoverable via TBBROOT/include
+# Symlink TBB headers (TBBROOT/include -> $PREFIX/include)
 ln -sfn "$PREFIX/include" "$TBBROOT/include"
 
-if [ -e "$PREFIX/lib/libtbb.so" ] || [ -L "$PREFIX/lib/libtbb.so" ]; then
-    ln -sfn "$PREFIX/lib/libtbb.so" "$TBBROOT/lib/libtbb.so"
-else
-    tbb_soname=$(find "$PREFIX/lib" -maxdepth 1 -name "libtbb.so.*" | head -1)
-    if [ -n "$tbb_soname" ]; then
-        ln -sfn "$tbb_soname" "$TBBROOT/lib/libtbb.so"
+# Mirror all libtbb* shared objects and create unversioned symlinks if absent
+for versioned in "$PREFIX/lib"/libtbb*.so.*; do
+    [ -e "$versioned" ] || continue
+    libname=$(basename "$versioned")
+    # Link versioned file into staging dir
+    ln -sfn "$versioned" "$TBBROOT/lib/$libname"
+    # Derive unversioned name: libtbbmalloc.so.2.6 -> libtbbmalloc.so
+    unversioned="${libname%%\.so\.*}.so"
+    if [ ! -e "$TBBROOT/lib/$unversioned" ]; then
+        ln -sfn "$versioned" "$TBBROOT/lib/$unversioned"
     fi
-fi
+done
 
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
