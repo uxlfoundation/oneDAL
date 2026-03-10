@@ -41,7 +41,7 @@ namespace internal
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 template class ImplicitALSPredictKernel<DAAL_FPTYPE, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace ratings
 } // namespace prediction
 } // namespace implicit_als

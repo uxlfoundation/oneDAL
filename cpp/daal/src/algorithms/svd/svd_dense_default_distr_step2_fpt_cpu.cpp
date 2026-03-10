@@ -37,7 +37,7 @@ namespace internal
 template class DistributedContainer<step2Master, DAAL_FPTYPE, daal::algorithms::svd::defaultDense, DAAL_CPU>;
 
 template class SVDDistributedStep2Kernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace svd
 } // namespace algorithms
 } // namespace daal

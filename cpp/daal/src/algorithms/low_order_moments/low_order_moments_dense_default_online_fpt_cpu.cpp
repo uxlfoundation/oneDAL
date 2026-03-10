@@ -38,7 +38,7 @@ namespace internal
 template class OnlineContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 template class DAAL_EXPORT LowOrderMomentsOnlineKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace low_order_moments
 } // namespace algorithms
 } // namespace daal

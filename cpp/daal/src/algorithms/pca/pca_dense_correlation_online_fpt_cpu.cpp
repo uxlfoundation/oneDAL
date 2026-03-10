@@ -37,7 +37,7 @@ namespace internal
 template class OnlineContainer<DAAL_FPTYPE, correlationDense, DAAL_CPU>;
 
 template class DAAL_EXPORT PCACorrelationKernel<online, DAAL_FPTYPE, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace pca
 } // namespace algorithms
 } // namespace daal

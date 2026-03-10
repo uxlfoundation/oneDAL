@@ -37,9 +37,10 @@ using DistributedType = Distributed<step3Local, DAAL_FPTYPE, qr::defaultDense>;
 template <>
 void Distributed<step3Local, DAAL_FPTYPE, qr::defaultDense>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step3Local, DAAL_FPTYPE, qr::defaultDense)(&_env);
-    _in                        = &input;
-    _par                       = &parameter;
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step3Local, DAAL_FPTYPE, qr::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
 }
 template <>
 DAAL_EXPORT DistributedType::Distributed()

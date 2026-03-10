@@ -34,7 +34,7 @@ namespace internal
 {
 template class OnlineContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class DAAL_EXPORT CovarianceDenseOnlineKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace covariance
 } // namespace algorithms
 } // namespace daal

@@ -59,7 +59,6 @@ DAAL_EXPORT BatchType::Batch(size_t nClasses)
     initialize();
 }
 
-
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
 {

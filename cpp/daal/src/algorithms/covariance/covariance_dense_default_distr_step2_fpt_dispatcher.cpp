@@ -35,7 +35,11 @@ namespace interface1
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, covariance::defaultDense>;
 
 template <>
-void DistributedType::initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, covariance::defaultDense)(&_env); }
+void DistributedType::initialize()
+{
+    this->_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, covariance::defaultDense)(&_env);
+}
 
 template <>
 DAAL_EXPORT DistributedType::Distributed()

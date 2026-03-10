@@ -40,7 +40,7 @@ template <>
 void BatchType::initialize()
 {
     Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
-   _in                   = &input;
+    _in                  = &input;
 }
 
 template <>

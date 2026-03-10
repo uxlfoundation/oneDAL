@@ -35,7 +35,9 @@ namespace interface3
 {
 template <>
 void Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::initialize()
-{ Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::zscore::defaultDense)(&_env); }
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::zscore::defaultDense)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch()
 {

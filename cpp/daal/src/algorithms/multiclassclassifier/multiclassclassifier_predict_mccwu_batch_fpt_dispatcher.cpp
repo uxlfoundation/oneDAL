@@ -42,7 +42,8 @@ template <>
 void Batch<DAAL_FPTYPE, multi_class_classifier::prediction::multiClassClassifierWu, multi_class_classifier::training::oneAgainstOne>::initialize()
 {
     _in  = &input;
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, multi_class_classifier::prediction::multiClassClassifierWu, multi_class_classifier::training::oneAgainstOne)(&_env);
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, multi_class_classifier::prediction::multiClassClassifierWu,
+                                          multi_class_classifier::training::oneAgainstOne)(&_env);
     _par = &parameter;
     _result.reset(new ResultType());
 }

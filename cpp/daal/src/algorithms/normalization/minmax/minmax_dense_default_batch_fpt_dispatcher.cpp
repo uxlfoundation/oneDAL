@@ -34,7 +34,9 @@ namespace interface1
 {
 template <>
 void Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::initialize()
-{ Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::minmax::defaultDense)(&_env); }
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::minmax::defaultDense)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::Batch()
 {

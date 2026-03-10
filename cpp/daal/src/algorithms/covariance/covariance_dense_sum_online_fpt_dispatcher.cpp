@@ -36,7 +36,10 @@ namespace interface1
 using OnlineType = Online<DAAL_FPTYPE, covariance::sumDense>;
 
 template <>
-void OnlineType::initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::sumDense)(&_env); }
+void OnlineType::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::sumDense)(&_env);
+}
 
 template <>
 DAAL_EXPORT OnlineType::Online()

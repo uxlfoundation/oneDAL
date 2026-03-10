@@ -40,7 +40,7 @@ namespace internal
 template class OnlineContainer<DAAL_FPTYPE, normEqDense, DAAL_CPU>;
 
 template class DAAL_EXPORT OnlineKernel<DAAL_FPTYPE, normEqDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace linear_regression
 } // namespace algorithms

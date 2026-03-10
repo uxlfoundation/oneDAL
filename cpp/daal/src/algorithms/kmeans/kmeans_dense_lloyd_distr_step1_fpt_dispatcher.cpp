@@ -39,8 +39,9 @@ using DistributedType = Distributed<step1Local, DAAL_FPTYPE, kmeans::lloydDense>
 template <>
 void Distributed<step1Local, DAAL_FPTYPE, kmeans::lloydDense>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::lloydDense)(&_env);
-    _in                        = &input;
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::lloydDense)(&_env);
+    _in = &input;
 }
 template <>
 DAAL_EXPORT DistributedType::Distributed(size_t nClusters, bool assignFlag)

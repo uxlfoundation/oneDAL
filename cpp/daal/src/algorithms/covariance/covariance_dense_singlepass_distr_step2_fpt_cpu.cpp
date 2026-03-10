@@ -34,7 +34,7 @@ namespace internal
 {
 template class DistributedContainer<step2Master, DAAL_FPTYPE, singlePassDense, DAAL_CPU>;
 template class CovarianceDistributedKernel<DAAL_FPTYPE, singlePassDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace covariance
 } // namespace algorithms
 } // namespace daal

@@ -27,7 +27,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::internal::DistributedContainer, distributed, step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::internal::DistributedContainer, distributed, step5Master, DAAL_FPTYPE,
+                                      kmeans::init::parallelPlusDense)
 
 namespace kmeans
 {
@@ -40,8 +41,9 @@ using DistributedType = Distributed<step5Master, DAAL_FPTYPE, kmeans::init::para
 template <>
 void Distributed<step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusDense>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusDense)(&_env);
-    _in                        = &input;
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusDense)(&_env);
+    _in = &input;
 }
 template <>
 DAAL_EXPORT DistributedType::Distributed(size_t nClusters)

@@ -38,7 +38,8 @@ using DistributedType = Distributed<step2Master, DAAL_FPTYPE, low_order_moments:
 template <>
 void Distributed<step2Master, DAAL_FPTYPE, low_order_moments::singlePassCSR>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, low_order_moments::singlePassCSR)(&_env);
+    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE,
+                                                                low_order_moments::singlePassCSR)(&_env);
     _in                        = &input;
     _par                       = &parameter;
     _result.reset(new ResultType());

@@ -35,7 +35,7 @@ namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class CoordinateDescentKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace coordinate_descent
 } // namespace optimization_solver
 } // namespace algorithms

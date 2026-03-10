@@ -35,7 +35,7 @@ namespace internal
 template class DistributedContainer<step2Master, DAAL_FPTYPE, svdDense, DAAL_CPU>;
 
 template class PCASVDStep2MasterKernel<DAAL_FPTYPE, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace pca
 } // namespace algorithms
 } // namespace daal

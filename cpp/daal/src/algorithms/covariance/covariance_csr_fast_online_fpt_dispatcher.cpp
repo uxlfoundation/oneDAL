@@ -35,7 +35,10 @@ namespace interface1
 using OnlineType = Online<DAAL_FPTYPE, covariance::fastCSR>;
 
 template <>
-void OnlineType::initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::fastCSR)(&_env); }
+void OnlineType::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::fastCSR)(&_env);
+}
 
 template <>
 DAAL_EXPORT OnlineType::Online()

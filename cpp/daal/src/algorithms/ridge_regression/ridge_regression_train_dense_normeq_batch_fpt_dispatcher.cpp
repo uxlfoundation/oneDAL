@@ -27,7 +27,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::internal::BatchContainer, batch, DAAL_FPTYPE, ridge_regression::training::normEqDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(ridge_regression::training::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      ridge_regression::training::normEqDense)
 namespace ridge_regression
 {
 namespace training

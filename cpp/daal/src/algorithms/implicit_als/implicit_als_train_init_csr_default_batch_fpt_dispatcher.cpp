@@ -27,7 +27,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::init::internal::BatchContainer, batch, DAAL_FPTYPE, implicit_als::training::init::fastCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::init::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      implicit_als::training::init::fastCSR)
 namespace implicit_als
 {
 namespace training

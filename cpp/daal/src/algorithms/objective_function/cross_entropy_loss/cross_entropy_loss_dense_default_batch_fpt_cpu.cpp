@@ -35,7 +35,7 @@ namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class CrossEntropyLossKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 
 } // namespace cross_entropy_loss
 

@@ -40,8 +40,9 @@ using DistributedType = Distributed<step3Master, DAAL_FPTYPE, kmeans::init::plus
 template <>
 void Distributed<step3Master, DAAL_FPTYPE, kmeans::init::plusPlusCSR>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::plusPlusCSR)(&_env);
-    _in                        = &input;
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::plusPlusCSR)(&_env);
+    _in = &input;
 }
 template <>
 DAAL_EXPORT DistributedType::Distributed(size_t nClusters)

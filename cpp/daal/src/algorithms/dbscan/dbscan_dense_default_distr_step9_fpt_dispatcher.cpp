@@ -39,8 +39,9 @@ using DistributedType = Distributed<step9Master, DAAL_FPTYPE, defaultDense>;
 template <>
 void Distributed<step9Master, DAAL_FPTYPE, dbscan::defaultDense>::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step9Master, DAAL_FPTYPE, dbscan::defaultDense)(&_env);
-    _in                        = &input;
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step9Master, DAAL_FPTYPE, dbscan::defaultDense)(&_env);
+    _in = &input;
     _result.reset(new ResultType());
     _partialResult.reset(new PartialResultType());
 }

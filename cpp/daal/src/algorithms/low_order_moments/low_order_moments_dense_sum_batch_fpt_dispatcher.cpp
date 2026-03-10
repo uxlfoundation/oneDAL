@@ -34,7 +34,9 @@ namespace interface1
 {
 template <>
 void Batch<DAAL_FPTYPE, low_order_moments::sumDense>::initialize()
-{ this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, low_order_moments::sumDense)(&_env); }
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, low_order_moments::sumDense)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, low_order_moments::sumDense>::Batch()
 {

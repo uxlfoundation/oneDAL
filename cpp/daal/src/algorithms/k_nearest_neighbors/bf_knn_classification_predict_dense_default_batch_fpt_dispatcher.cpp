@@ -34,8 +34,8 @@ namespace interface1
 template <>
 void Batch<DAAL_FPTYPE, defaultDense>::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
-    _in  = &input;
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
+    _in = &input;
     _result.reset(new ResultType());
 }
 template <>

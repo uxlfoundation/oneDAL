@@ -40,7 +40,8 @@ using DistributedType = Distributed<step2Master, DAAL_FPTYPE, linear_regression:
 template <>
 void Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::qrDense>::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, linear_regression::training::qrDense)(&_env);
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE,
+                                          linear_regression::training::qrDense)(&_env);
     _in  = &input;
     _par = &parameter;
     _partialResult.reset(new PartialResultType());

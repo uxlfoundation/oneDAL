@@ -37,7 +37,7 @@ namespace internal
 template class DistributedContainer<step2Master, DAAL_FPTYPE, correlationDense, DAAL_CPU>;
 
 template class PCACorrelationKernel<distributed, DAAL_FPTYPE, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace pca
 } // namespace algorithms
 } // namespace daal

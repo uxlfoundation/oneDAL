@@ -36,9 +36,10 @@ namespace interface1
 template <>
 void Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::initialize()
 {
-    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::bernoulli::defaultDense)(&_env);
-    _in                  = &input;
-    _par                 = &parameter;
+    Analysis<batch>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::bernoulli::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
     _result.reset(new ResultType());
 }
 template <>

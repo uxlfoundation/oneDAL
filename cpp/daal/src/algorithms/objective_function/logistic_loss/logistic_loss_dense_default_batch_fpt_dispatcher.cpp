@@ -38,9 +38,9 @@ using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
 template <>
 void Batch<DAAL_FPTYPE, defaultDense>::initialize()
 {
-     Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
-    _in                   = &input;
-    _par                  = sumOfFunctionsParameter;
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = sumOfFunctionsParameter;
 }
 template <>
 DAAL_EXPORT BatchType::Batch(size_t numberOfTerms) : sum_of_functions::Batch(numberOfTerms, &input, new ParameterType(numberOfTerms))

@@ -41,7 +41,7 @@ namespace internal
 template class DistributedContainer<step4Local, DAAL_FPTYPE, fastCSR, DAAL_CPU>;
 
 template class ImplicitALSTrainDistrStep4Kernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace implicit_als
 } // namespace algorithms

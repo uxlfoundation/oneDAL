@@ -39,8 +39,9 @@ using BatchType = Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::de
 template <>
 void Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>::initialize()
 {
-    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense)(&_env);
-    _in                  = &input;
+    Analysis<batch>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense)(&_env);
+    _in = &input;
     _result.reset(new ResultType());
 }
 template <>

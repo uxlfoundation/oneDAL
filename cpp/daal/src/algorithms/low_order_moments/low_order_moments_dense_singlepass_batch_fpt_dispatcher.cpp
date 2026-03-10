@@ -34,7 +34,9 @@ namespace interface1
 {
 template <>
 void Batch<DAAL_FPTYPE, low_order_moments::singlePassDense>::initialize()
-{ this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, low_order_moments::singlePassDense)(&_env); }
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, low_order_moments::singlePassDense)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, low_order_moments::singlePassDense>::Batch()
 {

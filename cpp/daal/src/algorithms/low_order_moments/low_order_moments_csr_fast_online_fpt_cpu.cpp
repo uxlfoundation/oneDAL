@@ -38,7 +38,7 @@ namespace internal
 template class OnlineContainer<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
 
 template class LowOrderMomentsOnlineKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace low_order_moments
 } // namespace algorithms
 } // namespace daal

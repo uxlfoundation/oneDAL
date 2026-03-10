@@ -45,7 +45,7 @@ namespace internal
 template class BatchContainer<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
 
 template class ImplicitALSInitKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace init
 } // namespace training
 } // namespace implicit_als

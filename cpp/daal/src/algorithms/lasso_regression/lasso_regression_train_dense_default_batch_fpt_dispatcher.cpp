@@ -29,7 +29,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(lasso_regression::training::internal::BatchContainer, batch, DAAL_FPTYPE, lasso_regression::training::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(lasso_regression::training::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      lasso_regression::training::defaultDense)
 
 namespace lasso_regression
 {

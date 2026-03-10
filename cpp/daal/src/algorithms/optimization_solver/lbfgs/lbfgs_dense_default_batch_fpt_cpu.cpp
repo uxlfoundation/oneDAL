@@ -35,7 +35,7 @@ namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class LBFGSKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 
 } // namespace lbfgs
 

@@ -38,7 +38,7 @@ namespace internal
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 template class DAAL_EXPORT LowOrderMomentsBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace low_order_moments
 } // namespace algorithms
 } // namespace daal

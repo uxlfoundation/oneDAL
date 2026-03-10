@@ -37,7 +37,7 @@ namespace internal
 template class DistributedContainer<step2Master, DAAL_FPTYPE, daal::algorithms::qr::defaultDense, DAAL_CPU>;
 
 template class QRDistributedStep2Kernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace qr
 } // namespace algorithms
 } // namespace daal

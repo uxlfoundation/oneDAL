@@ -38,7 +38,7 @@ namespace internal
 template class BatchContainer<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
 
 template class LowOrderMomentsBatchKernel<DAAL_FPTYPE, sumCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace low_order_moments
 } // namespace algorithms
 } // namespace daal
