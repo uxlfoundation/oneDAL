@@ -187,8 +187,17 @@ jobs:
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
+
+      echo "=== TBB lib files ==="
+      ls -lh ${CONDA_PREFIX}/lib/libtbb*
+      echo "=== TBB include dir ==="
+      ls -lh ${CONDA_PREFIX}/include/tbb
+
+      echo "=== Check if TBBConfig.cmake exists ==="
+      find ${CONDA_PREFIX}/lib/cmake -name "TBBConfig.cmake"
+
       .ci/scripts/describe_system.sh
-    displayName: 'System info (conda)'
+    displayName: 'System info + TBB contents (conda)'
 
   # =========================
   # BUILD
