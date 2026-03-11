@@ -162,7 +162,7 @@ source "${BUILD_DIR}"/daal/latest/env/vars.sh
 #setup env for TBB
 export TBBROOT="${TBBROOT:-${ONEDAL_DIR}/__deps/tbb/${OS}}"
 export CPATH="${TBBROOT}/include${CPATH:+:$CPATH}"
-export CMAKE_PREFIX_PATH="${TBBROOT}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+export CMAKE_PREFIX_PATH="${TBBROOT}/lib/cmake/TBB:${TBBROOT}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
 
 if [ "${OS}" == "mac" ]; then
     export DYLD_LIBRARY_PATH=${TBBROOT}/lib:${DYLD_LIBRARY_PATH}
