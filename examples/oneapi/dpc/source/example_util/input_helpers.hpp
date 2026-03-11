@@ -16,6 +16,11 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+// Disable MSVC warning C4996 for getenv (marked as "unsafe" by MSVC)
+#pragma warning(disable: 4996)
+#endif
+
 #include <vector>
 #include <string>
 #include <fstream>

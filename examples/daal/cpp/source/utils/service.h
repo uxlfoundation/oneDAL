@@ -23,6 +23,11 @@
 #ifndef _SERVICE_H
 #define _SERVICE_H
 
+#ifdef _MSC_VER
+// Disable MSVC warning C4996 for getenv (marked as "unsafe" by MSVC)
+#pragma warning(disable: 4996)
+#endif
+
 #include "daal.h"
 
 #include <algorithm>
