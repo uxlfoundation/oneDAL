@@ -140,29 +140,3 @@ training::ResultPtr trainModel() {
     /* Retrieve the algorithm results */
     return algorithm.getResult();
 }
-<<<<<<< HEAD
-
-void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTablePtr& pDependentVar) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(fileName,
-                                                      DataSource::notAllocateNumericTable,
-                                                      DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and dependent variables */
-    pData = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::notAllocate);
-    pDependentVar = HomogenNumericTable<>::create(1, 0, NumericTable::notAllocate);
-    NumericTablePtr mergedData = MergedNumericTable::create(pData, pDependentVar);
-
-    /* Retrieve the data from input file */
-    trainDataSource.loadDataBlock(mergedData.get());
-
-    NumericTableDictionaryPtr pDictionary = pData->getDictionarySharedPtr();
-    for (size_t i = 0,
-                n = sizeof(categoricalFeaturesIndices) / sizeof(categoricalFeaturesIndices[0]);
-         i < n;
-         ++i)
-        (*pDictionary)[categoricalFeaturesIndices[i]].featureType =
-            data_feature_utils::DAAL_CATEGORICAL;
-}
-=======
->>>>>>> origin

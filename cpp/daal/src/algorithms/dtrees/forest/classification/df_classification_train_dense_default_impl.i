@@ -629,11 +629,11 @@ public:
     void setLeafData(typename TreeType::NodeType::Leaf & node, const IndexType * idx, size_t n, ImpurityData & imp) const
     {
         DAAL_ASSERT(n > 0);
-        node.count    = n;
-        node.impurity = imp.var;
-        const auto nClasses = this->_nClasses;
+        node.count           = n;
+        node.impurity        = imp.var;
+        const auto nClasses  = this->_nClasses;
         const auto * impHist = imp.hist.get();
-        auto * nodeHist = node.hist;
+        auto * nodeHist      = node.hist;
         PRAGMA_OMP_SIMD
         for (size_t i = 0; i < nClasses; ++i)
         {
@@ -679,9 +679,9 @@ protected:
 
     void computeRightHistogramm(const Histogramm & total, const Histogramm & left, Histogramm & right) const
     {
-        auto histTotal = total.get();
-        auto histRight = right.get();
-        auto histLeft  = left.get();
+        auto histTotal      = total.get();
+        auto histRight      = right.get();
+        auto histLeft       = left.get();
         const auto nClasses = this->_nClasses;
         PRAGMA_OMP_SIMD
         for (size_t iClass = 0; iClass < nClasses; ++iClass) histRight[iClass] = histTotal[iClass] - histLeft[iClass];
@@ -1543,10 +1543,10 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
             || !leftWeights || rightWeights <= 0)
             continue;
-        const auto nClasses = this->_nClasses;
-        const auto * curImpurityHist  = curImpurity.hist.get();
-        const auto * impLeftHist      = this->_impLeft.hist.get();
-        auto * impRightHist            = this->_impRight.hist.get();
+        const auto nClasses          = this->_nClasses;
+        const auto * curImpurityHist = curImpurity.hist.get();
+        const auto * impLeftHist     = this->_impLeft.hist.get();
+        auto * impRightHist          = this->_impRight.hist.get();
         PRAGMA_OMP_SIMD
         for (size_t j = 0; j < nClasses; ++j) impRightHist[j] = curImpurityHist[j] - impLeftHist[j];
         this->calcGini(leftWeights, this->_impLeft);
