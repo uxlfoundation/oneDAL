@@ -147,7 +147,7 @@ jobs:
   timeoutInMinutes: 0
   variables:
     release.dir: '__release_lnx_gnu_conda'
-    platform.type: 'lnx32e-conda'
+    platform.type: 'lnx32e'
     CONDA_ENV: 'onedal_env'
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -185,7 +185,7 @@ jobs:
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
 
       echo "=== TBB lib files ==="
@@ -214,7 +214,7 @@ jobs:
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal (conda)'
@@ -230,7 +230,7 @@ jobs:
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
       mv __release_lnx_gnu __release_lnx_gnu_conda
@@ -253,12 +253,13 @@ jobs:
 
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
       export DPL_ROOT="${CONDA_PREFIX}"
       export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
     displayName: 'daal/cpp examples (conda)'
@@ -269,12 +270,13 @@ jobs:
 
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
       export DPL_ROOT="${CONDA_PREFIX}"
       export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
     displayName: 'oneapi/cpp examples (conda)'
@@ -285,12 +287,13 @@ jobs:
 
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
       export DPL_ROOT="${CONDA_PREFIX}"
       export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       export NO_MKL=yes
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples (conda)'
