@@ -167,7 +167,7 @@ jobs:
       conda install -y -c conda-forge \
           make \
           dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
-          tbb tbb-devel tbb-static \
+          tbb tbb-devel \
           onedpl-devel \
           mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \
           cmake \
