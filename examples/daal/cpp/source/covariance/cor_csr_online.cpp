@@ -38,19 +38,15 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
-                                         "../data/online/covcormoments_csr_2.csv",
-                                         "../data/online/covcormoments_csr_3.csv",
-                                         "../data/online/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    const size_t totalRows = fullData->getNumberOfRows();
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     /* Create an algorithm to compute a correlation matrix in the online processing mode using the default method */
     covariance::Online<algorithmFPType, covariance::fastCSR> algorithm;
@@ -58,11 +54,15 @@ int main(int argc, char* argv[]) {
     /* Set the parameter to choose the type of the output matrix */
     algorithm.parameter.outputMatrixType = covariance::correlationMatrix;
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+    for (size_t block = 0; block < nBlocks; ++block) {
+        const size_t rowStart = block * rowsPerBlock;
+
+        const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
         /* Set input objects for the algorithm */
-        algorithm.input.set(covariance::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(covariance::data, localTable);
 
         /* Compute partial estimates */
         algorithm.compute();
@@ -75,9 +75,10 @@ int main(int argc, char* argv[]) {
     covariance::ResultPtr res = algorithm.getResult();
 
     printNumericTable(res->get(covariance::correlation),
-                      "Correlation matrix (upper left square 10*10) :",
+                      "Correlation matrix (upper left 10x10):",
                       10,
                       10);
+
     printNumericTable(res->get(covariance::mean), "Mean vector:", 1, 10);
 
     return 0;

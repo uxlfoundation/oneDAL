@@ -42,12 +42,10 @@ int rankId, comm_size;
 #define mpi_root 0
 
 /* Number of observations in transposed training data set blocks */
-const std::string trainDatasetFileNames[nBlocks] = {
-    "./data/distributed/implicit_als_trans_csr_1.csv",
-    "./data/distributed/implicit_als_trans_csr_2.csv",
-    "./data/distributed/implicit_als_trans_csr_3.csv",
-    "./data/distributed/implicit_als_trans_csr_4.csv"
-};
+const std::string trainDatasetFileNames[nBlocks] = { "data/implicit_als_trans_csr_1.csv",
+                                                     "data/implicit_als_trans_csr_2.csv",
+                                                     "data/implicit_als_trans_csr_3.csv",
+                                                     "data/implicit_als_trans_csr_4.csv" };
 
 static int usersPartition[1] = { nBlocks };
 
@@ -101,6 +99,13 @@ template <typename T>
 void all2all(ByteBuffer *nodeResults, KeyValueDataCollectionPtr result);
 
 int main(int argc, char *argv[]) {
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileNames[0],
+                   &trainDatasetFileNames[1],
+                   &trainDatasetFileNames[2],
+                   &trainDatasetFileNames[3]);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
