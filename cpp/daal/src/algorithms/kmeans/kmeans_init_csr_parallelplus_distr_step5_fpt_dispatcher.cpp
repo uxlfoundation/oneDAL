@@ -39,7 +39,7 @@ namespace interface2
 using DistributedType = Distributed<step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusCSR>;
 
 template <>
-void Distributed<step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusCSR>::initialize()
+void DistributedType::initialize()
 {
     Analysis<distributed>::_ac =
         new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::parallelPlusCSR)(&_env);

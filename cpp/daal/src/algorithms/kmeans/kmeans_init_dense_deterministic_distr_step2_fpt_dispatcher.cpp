@@ -39,9 +39,9 @@ namespace interface2
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, kmeans::init::deterministicDense>;
 
 template <>
-void Distributed<step2Master, DAAL_FPTYPE, kmeans::init::deterministicDense>::initialize()
+void DistributedType::initialize()
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE,
+    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE,
                                                                 kmeans::init::deterministicDense)(&_env);
     _in                        = &input;
 }
@@ -49,9 +49,7 @@ template <>
 DAAL_EXPORT DistributedType::Distributed(size_t nClusters, size_t offset)
     : DistributedBase(new ParameterType(nClusters, offset)), parameter(*static_cast<ParameterType *>(_par))
 {
-    Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE,
-                                                                kmeans::init::deterministicDense)(&_env);
-    _in                        = &input;
+    initialize();
 }
 
 } // namespace interface2

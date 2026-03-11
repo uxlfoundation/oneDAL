@@ -37,10 +37,10 @@ namespace interface2
 using DistributedType = Distributed<step1Local, DAAL_FPTYPE, kmeans::lloydCSR>;
 
 template <>
-void Distributed<step1Local, DAAL_FPTYPE, kmeans::lloydCSR>::initialize()
+void DistributedType::initialize()
 {
     Analysis<distributed>::_ac =
-        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::lloydCSR)(&_env);
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step1Local, DAAL_FPTYPE, kmeans::lloydCSR)(&_env);
     _in = &input;
 }
 template <>

@@ -41,7 +41,7 @@ template <>
 void Distributed<step2Local, DAAL_FPTYPE, kmeans::init::plusPlusCSR>::initialize()
 {
     Analysis<distributed>::_ac =
-        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step5Master, DAAL_FPTYPE, kmeans::init::plusPlusCSR)(&_env);
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Local, DAAL_FPTYPE, kmeans::init::plusPlusCSR)(&_env);
     _in = &input;
 }
 template <>
