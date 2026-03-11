@@ -145,8 +145,8 @@ KeyValueDataCollectionPtr initializeStep1Local() {
     initAlgorithm.parameter.fullNUsers = nUsers;
     initAlgorithm.parameter.nFactors = nFactors;
     initAlgorithm.parameter.seed += rankId;
-    initAlgorithm.parameter.partition.reset(
-        new HomogenNumericTable<int>((int *)usersPartition, 1, 1));
+    initAlgorithm.parameter.partition =
+        HomogenNumericTable<int>::create((int *)usersPartition, 1, 1);
     /* Pass a training data set and dependent values to the algorithm */
     initAlgorithm.input.set(training::init::data, dataTable);
 
