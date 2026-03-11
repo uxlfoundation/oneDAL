@@ -38,23 +38,24 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 const size_t nClusters = 20;
 const size_t nIterations = 5;
 const size_t nBlocks = 4;
-const size_t nVectorsInBlock = 2500;
-
-const std::string dataFileNames[] = { "../data/distributed/kmeans_dense_1.csv",
-                                      "../data/distributed/kmeans_dense_2.csv",
-                                      "../data/distributed/kmeans_dense_3.csv",
-                                      "../data/distributed/kmeans_dense_4.csv" };
+const size_t nVectorsInBlock = 625;
+/* Input data set parameters */
+const std::string datasetFileName = "data/kmeans_init_dense.csv";
 
 void loadData(NumericTablePtr data[nBlocks]) {
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
     for (size_t i = 0; i < nBlocks; i++) {
         /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-        FileDataSource<CSVFeatureManager> dataSource(dataFileNames[i],
-                                                     DataSource::doAllocateNumericTable,
-                                                     DataSource::doDictionaryFromContext);
-
-        /* Retrieve the data from the input file */
-        dataSource.loadDataBlock();
-        data[i] = dataSource.getNumericTable();
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        data[i] = HomogenNumericTable<algorithmFPType>::create(0, 0, NumericTable::doNotAllocate);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead, data[i].get());
+        remainingRows -= nLoaded;
     }
 }
 
@@ -72,13 +73,7 @@ void runKMeans(const NumericTablePtr data[nBlocks], const char* methodName) {
 }
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     NumericTablePtr data[nBlocks];
     loadData(data);
