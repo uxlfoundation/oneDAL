@@ -22,7 +22,7 @@
 namespace dal = oneapi::dal;
 
 int main(int argc, char const *argv[]) {
-    const auto data_file_name = get_data_path("covcormoments_dense.csv");
+    const auto data_file_name = get_data_path("data/covcormoments_dense.csv");
     const std::int64_t nBlocks = 10;
 
     const auto data = dal::read<dal::table>(dal::csv::data_source{ data_file_name });

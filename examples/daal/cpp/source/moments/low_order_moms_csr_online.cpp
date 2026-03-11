@@ -38,28 +38,25 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
-                                         "../data/online/covcormoments_csr_2.csv",
-                                         "../data/online/covcormoments_csr_3.csv",
-                                         "../data/online/covcormoments_csr_4.csv" };
+const std::string datasetFileName = { "data/covcormoments_csr.csv" };
 
 void printResults(const low_order_moments::ResultPtr& res);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     /* Create an algorithm to compute low order moments in the online processing mode using the default method */
     low_order_moments::Online<float, low_order_moments::fastCSR> algorithm;
+    CSRNumericTablePtr fullData(createSparseTable<float>(datasetFileName));
+    const size_t totalRows = fullData->getNumberOfRows();
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[i]);
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
+    for (size_t block = 0; block < nBlocks; block++) {
+        size_t rowStart = block * rowsPerBlock;
+        size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        CSRNumericTablePtr dataTable = splitCSRBlock<float>(fullData, rowStart, rowEnd);
         /* Set input objects for the algorithm */
         algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
 
