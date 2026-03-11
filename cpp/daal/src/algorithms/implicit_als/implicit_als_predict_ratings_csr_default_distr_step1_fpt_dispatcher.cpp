@@ -42,9 +42,9 @@ namespace interface1
 using DistributedType = Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
 
 template <>
-void Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>::initialize()
+void DistributedType::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Local, DAAL_FPTYPE,
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step1Local, DAAL_FPTYPE,
                                           implicit_als::prediction::ratings::defaultDense)(&_env);
     _in  = &input;
     _par = NULL;

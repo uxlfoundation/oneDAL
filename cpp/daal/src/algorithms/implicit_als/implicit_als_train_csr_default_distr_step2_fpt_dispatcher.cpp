@@ -39,10 +39,10 @@ namespace interface1
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, implicit_als::training::fastCSR>;
 
 template <>
-void Distributed<step2Master, DAAL_FPTYPE, implicit_als::training::fastCSR>::initialize()
+void DistributedType::initialize()
 {
     _ac =
-        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Local, DAAL_FPTYPE, implicit_als::training::fastCSR)(&_env);
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, implicit_als::training::fastCSR)(&_env);
     _in  = &input;
     _par = NULL;
     _partialResult.reset(new PartialResultType());
