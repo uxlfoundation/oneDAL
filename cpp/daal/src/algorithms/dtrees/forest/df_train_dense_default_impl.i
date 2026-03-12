@@ -452,7 +452,6 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
         if (pTree)
         {
             md.add((typename ModelType::TreeType &)*pTree, nClasses, i);
-            std::cout << "Tree " << i << " added to the model, addr:" << std::hex << md.at(i) << std::dec << std::endl;
         }
     });
     s = safeStat.detach();
