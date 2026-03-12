@@ -36,6 +36,9 @@ template <>
 void Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::initialize()
 {
     Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::minmax::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+    _result.reset(new ResultType());
 }
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::minmax::defaultDense>::Batch()
