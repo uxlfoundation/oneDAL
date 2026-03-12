@@ -452,6 +452,7 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
         if (pTree)
         {
             md.add((typename ModelType::TreeType &)*pTree, nClasses, i);
+            std::cout << "Tree " << i << " added to the model, addr:" << std::hex << md.at(i) << std::dec << std::endl;
         }
     });
     s = safeStat.detach();
@@ -563,7 +564,7 @@ protected:
                 ReadRows<algorithmFPType, cpu> bd(const_cast<NumericTable *>(_weights), firstRow, lastRow - firstRow + 1);
                 const auto pbd                = bd.get();
                 intermSummFPType totalWeights = 0.0;
-                PRAGMA_OMP_SIMD_ARGS(reduction(+ : totalWeights))
+                PRAGMA_VECTOR_ALWAYS
                 for (size_t i = 0; i < lastRow; ++i)
                 {
                     totalWeights += pbd[i];
@@ -768,6 +769,8 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
     DAAL_CHECK_MALLOC(_helper.init(_data, _resp, _aSample.get(), _weights));
 
     //use _aSample as an array of response indices stored by helper from now on
+    PRAGMA_OMP_SIMD
+    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 0; i < _aSample.size(); ++i)
     {
         _aSample[i] = i;
