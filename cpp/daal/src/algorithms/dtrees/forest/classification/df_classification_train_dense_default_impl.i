@@ -138,11 +138,11 @@ protected: //enables specific functions for UnorderedRespHelperBest
     {
         const intermSummFPType sqWeights = totalWeights * totalWeights;
         const intermSummFPType cDiv      = isZero<intermSummFPType, cpu>(sqWeights) ? 1.0 : (1.0 / sqWeights);
-        intermSummFPType sum             = 0.0;
+        intermSummFPType sumSq           = 0.0;
         const auto * impHist             = imp.hist.get();
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
-        for (size_t i = 0; i < _nClasses; ++i) sum += impHist[i] * impHist[i];
-        imp.var = 1.0 - cDiv * sum;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumSq))
+        for (size_t i = 0; i < _nClasses; ++i) sumSq += impHist[i] * impHist[i];
+        imp.var = 1.0 - cDiv * sumSq;
         if (!isPositive<intermSummFPType, cpu>(imp.var)) imp.var = 0; //roundoff error
     }
 
@@ -210,8 +210,8 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
         intermSummFPType sumRight = 0;
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
         //proximal impurity improvement
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
         for (size_t iClass = 0; iClass < _nClasses; ++iClass)
         {
             sumLeft += histLeft[iClass] * histLeft[iClass];
@@ -1090,8 +1090,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         nLeft       = nFeatIdx[idx];
         leftWeights = featWeights[idx];
 
-        PRAGMA_OMP_SIMD
         //one against others
+        PRAGMA_OMP_SIMD
         for (size_t iClass = 0; iClass < nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * nClasses + iClass];
     }
     else
@@ -1121,8 +1121,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         intermSummFPType sumLeft  = 0;
         intermSummFPType sumRight = 0;
         const auto nClasses       = this->_nClasses;
-        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
         //proximal impurity improvement
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
         for (size_t iClass = 0; iClass < nClasses; ++iClass)
         {
             sumLeft += histLeft[iClass] * histLeft[iClass];
