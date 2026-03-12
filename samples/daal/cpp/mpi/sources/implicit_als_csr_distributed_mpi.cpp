@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 
 void readData() {
     /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    dataTable.reset(createSparseTable<float>(trainDatasetFileNames[rankId]));
+    dataTable = createSparseTable<float>(trainDatasetFileNames[rankId]);
 }
 
 KeyValueDataCollectionPtr initializeStep1Local() {
