@@ -34,8 +34,10 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/k_nearest_neighbors_train.csv";
-const std::string testDatasetFileName = "../data/batch/k_nearest_neighbors_test.csv";
+const std::string trainDatasetFileName = "data/k_nearest_neighbors_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/k_nearest_neighbors_train_label.csv";
+const std::string testDatasetFileName = "data/k_nearest_neighbors_test_data.csv";
+const std::string testDatasetLabelFileName = "data/k_nearest_neighbors_test_label.csv";
 
 size_t nFeatures = 5;
 size_t nClasses = 5;
@@ -49,7 +51,13 @@ void testModel();
 void printResults();
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     trainModel();
     testModel();
@@ -59,25 +67,25 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Create Numeric Tables for training data and dependent variables */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
-                                                      DataSource::notAllocateNumericTable,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainGroundTruth));
-
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
     /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the KD-tree based kNN model */
     kdtree_knn_classification::training::Batch<> algorithm;
 
     /* Pass the training data set and dependent values to the algorithm */
-    algorithm.input.set(classifier::training::data, trainData);
-    algorithm.input.set(classifier::training::labels, trainGroundTruth);
+    algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
     algorithm.parameter.nClasses = nClasses;
 
     /* Train the KD-tree based kNN model */
@@ -88,24 +96,18 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
-                                                     DataSource::notAllocateNumericTable,
+                                                     DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
-
-    /* Retrieve the data from input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
+    testDataSource.loadDataBlock();
     /* Create algorithm objects for KD-tree based kNN prediction with the default method */
     kdtree_knn_classification::prediction::Batch<> algorithm;
 
     /* Pass the testing data set and trained model to the algorithm */
-    algorithm.input.set(classifier::prediction::data, testData);
+    algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
     algorithm.parameter.nClasses = nClasses;
@@ -118,8 +120,12 @@ void testModel() {
 }
 
 void printResults() {
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
     printNumericTables<int, int>(
-        testGroundTruth,
+        testLabelSource.getNumericTable(),
         predictionResult->get(kdtree_knn_classification::prediction::prediction),
         "Ground truth",
         "Classification results",

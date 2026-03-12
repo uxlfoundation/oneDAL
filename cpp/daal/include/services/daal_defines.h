@@ -66,12 +66,6 @@
     #define DAAL_EXPORT
 #endif
 
-#if (defined(__INTEL_CXX11_MODE__) || __cplusplus > 199711L)
-    #define DAAL_C11_OVERRIDE override
-#else
-    #define DAAL_C11_OVERRIDE
-#endif
-
 /* oneDAL 64-bit integer types */
 #if !(defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)) && defined(_MSC_VER)
     #define DAAL_INT64  __int64

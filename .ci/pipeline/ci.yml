@@ -316,6 +316,16 @@ jobs:
     displayName: 'Clean Bazel cache (expunge)'
 
   - script: |
+      bazel test //cpp/daal:mkl_linkage_test \
+                  --test_env DALROOT
+    displayName: 'Check mkl symbols'
+
+  - script: |
+      echo "Cleaning Bazel cache before running example or tests"
+      bazel clean --expunge
+    displayName: 'Clean Bazel cache (expunge)'
+
+  - script: |
       bazel test //examples/daal/cpp:all \
                  --test_link_mode=dev \
                  --test_thread_mode=par
@@ -352,6 +362,7 @@ jobs:
   - script: |
       bazel test //examples/oneapi/cpp:all \
                  --test_link_mode=release_static \
+                 --config=host \
                  --test_thread_mode=par \
                  --test_env DALROOT
     displayName: 'cpp-examples-thread-release-static'

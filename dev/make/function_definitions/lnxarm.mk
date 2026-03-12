@@ -30,7 +30,7 @@ define set_daal_rt_deps
   $$(eval daaldep.lnxarm.rt.seq := -lpthread $$(daaldep.lnxarm.rt.$$(COMPILER)) \
 	  	  $$(if $$(RNG_OPENRNG), $$(daaldep.rng_backend.lib)) \
           $$(if $$(COV.libia),$$(COV.libia)/libcov.a))
-  $$(eval daaldep.lnxarm.rt.dpc := -lpthread -lOpenCL \
+  $$(eval daaldep.lnxarm.rt.dpc := -lpthread \
           $$(if $$(COV.libia),$$(COV.libia)/libcov.a))
   $$(eval daaldep.lnxarm.threxport := export_lnxarm.$$(BACKEND_CONFIG).def)
 

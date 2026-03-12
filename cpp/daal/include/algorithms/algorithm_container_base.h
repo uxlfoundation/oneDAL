@@ -75,7 +75,7 @@ public:
      */
     AlgorithmContainerIfaceImpl(daal::services::Environment::env * daalEnv) : _env(daalEnv), _kernel(NULL) {}
 
-    virtual ~AlgorithmContainerIfaceImpl() DAAL_C11_OVERRIDE {}
+    virtual ~AlgorithmContainerIfaceImpl() override {}
 
     /**
      * Sets the information about the environment
@@ -206,13 +206,13 @@ public:
      */
     Result * getResult() const { return _res; }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status setupCompute() override { return services::Status(); }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status resetCompute() override { return services::Status(); }
 
-    virtual services::Status setupFinalizeCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status setupFinalizeCompute() override { return services::Status(); }
 
-    virtual services::Status resetFinalizeCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    virtual services::Status resetFinalizeCompute() override { return services::Status(); }
 
 protected:
     Input * _in;

@@ -194,6 +194,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
+        user_link_flags = ctx.attr.linkopts,
     )
     default_info = DefaultInfo(
         files = depset([ dynamic_lib ]),
@@ -211,6 +212,10 @@ cc_dynamic_lib = rule(
         "lib_tags": attr.string_list(),
         "deps": attr.label_list(mandatory=True),
         "def_file": attr.label(allow_single_file=True),
+        "linkopts": attr.string_list(
+            default = [],
+            doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
+        ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
     fragments = ["cpp"],

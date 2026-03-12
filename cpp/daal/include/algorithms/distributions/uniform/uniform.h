@@ -70,7 +70,7 @@ public:
      *
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 /**
@@ -116,7 +116,7 @@ public:
      * Returns method of the distribution
      * \return Method of the distribution
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of uniform distribution
@@ -150,7 +150,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    virtual services::Status allocateResult() override
     {
         _par               = &parameter;
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), &parameter, (int)method);
@@ -161,7 +161,7 @@ public:
     Parameter<algorithmFPType> parameter; /*!< %Parameters of the uniform distribution */
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize()
     {

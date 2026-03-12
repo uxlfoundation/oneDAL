@@ -43,16 +43,13 @@ const size_t nIterations = 5;
 const size_t nBlocks = 4;
 
 /* Input data set parameters */
-const std::string dataFileNames[4] = { "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv",
-                                       "./data/distributed/kmeans_csr.csv" };
+const std::string datasetFileName = "data/kmeans_csr.csv";
 
 int rankId, comm_size;
 #define mpi_root 0
 
 NumericTablePtr loadData(int rankId) {
-    return NumericTablePtr(createSparseTable<float>(dataFileNames[rankId]));
+    return NumericTablePtr(createSparseTable<float>(datasetFileName));
 }
 
 NumericTablePtr init(int rankId, const NumericTablePtr& pData);
@@ -62,6 +59,7 @@ NumericTablePtr compute(int rankId,
 
 int main(int argc, char* argv[]) {
     int rankId, comm_size;
+    checkArguments(argc, argv, 1, &datasetFileName);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);

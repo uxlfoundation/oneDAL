@@ -73,8 +73,8 @@ public:
      * Computes the result of model-based training in the batch processing mode
      * \return Status of computations
      */
-    services::Status compute() DAAL_C11_OVERRIDE;
-    services::Status setupCompute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
+    services::Status setupCompute() override;
 };
 
 /**
@@ -132,13 +132,13 @@ public:
     * Get input objects for the algorithm
     * \return input objects of the algorithm
     */
-    virtual algorithms::regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    virtual algorithms::regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of model-based training
@@ -149,7 +149,7 @@ public:
     /* Resets the results of the regression model-based training
      * \return Status of the operation
      */
-    virtual services::Status resetResult() DAAL_C11_OVERRIDE
+    virtual services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult)
@@ -165,9 +165,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, &parameter(), method);
         _res               = _result.get();

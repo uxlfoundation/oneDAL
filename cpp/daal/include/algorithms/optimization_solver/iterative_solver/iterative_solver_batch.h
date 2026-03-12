@@ -68,7 +68,7 @@ public:
      */
     Batch(const Batch & /*other*/) {}
 
-    ~Batch() DAAL_C11_OVERRIDE {}
+    ~Batch() override {}
 
     /**
      * Get input objects for the iterative solver algorithm
@@ -103,7 +103,7 @@ public:
     services::SharedPtr<Batch> clone() const { return services::SharedPtr<Batch>(cloneImpl()); }
 
 protected:
-    virtual Batch * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    virtual Batch * cloneImpl() const override = 0;
 
     ResultPtr _result;
 
