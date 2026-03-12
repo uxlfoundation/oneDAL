@@ -40,12 +40,12 @@ namespace normal
  * @ingroup distributions_normal
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the normal distribution.
- *        This class is associated with the \ref normal::interface1::Batch "normal::Batch" class
+ *        This class is associated with the \ref normal::internal::Batch "normal::Batch" class
  *        and supports the method of normal distribution computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
@@ -84,8 +84,8 @@ public:
  *      - normal::Method          Computation methods for the normal distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  *
  * \DAAL_DEPRECATED
  */
@@ -177,9 +177,9 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::BatchContainer;
-using interface1::Batch;
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
 /** @} */
 } // namespace normal
 } // namespace distributions

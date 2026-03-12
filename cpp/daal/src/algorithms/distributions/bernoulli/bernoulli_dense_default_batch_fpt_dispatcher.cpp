@@ -31,7 +31,7 @@ namespace distributions
 {
 namespace bernoulli
 {
-namespace interface1
+namespace internal
 {
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::Batch(DAAL_FPTYPE p) : parameter(p)
@@ -47,7 +47,7 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(
     initialize();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace bernoulli
 } // namespace distributions
 } // namespace algorithms

@@ -31,7 +31,7 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace interface1
+namespace internal
 {
 template <typename algorithmFPType>
 DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method)
@@ -42,7 +42,7 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     return services::Status();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

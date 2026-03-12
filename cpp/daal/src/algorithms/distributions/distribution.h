@@ -36,7 +36,7 @@ namespace distributions
  * @ingroup distributions
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BATCHBASE"></a>
@@ -53,8 +53,8 @@ public:
     virtual ~BatchBase() {}
 };
 
-} // namespace interface1
-using interface1::BatchBase;
+} // namespace internal
+using internal::BatchBase;
 /** @} */
 } // namespace distributions
 } // namespace algorithms

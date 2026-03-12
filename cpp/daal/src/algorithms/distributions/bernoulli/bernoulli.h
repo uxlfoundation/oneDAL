@@ -40,12 +40,12 @@ namespace bernoulli
  * @ingroup distributions_bernoulli
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the bernoulli distribution.
- *        This class is associated with the \ref bernoulli::interface1::Batch "bernoulli::Batch" class
+ *        This class is associated with the \ref bernoulli::internal::Batch "bernoulli::Batch" class
  *        and supports the method of bernoulli distribution computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
@@ -84,8 +84,8 @@ public:
  *      - bernoulli::Method          Computation methods for the bernoulli distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  *
  * \DAAL_DEPRECATED
  */
@@ -176,9 +176,9 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::BatchContainer;
-using interface1::Batch;
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
 /** @} */
 } // namespace bernoulli
 } // namespace distributions

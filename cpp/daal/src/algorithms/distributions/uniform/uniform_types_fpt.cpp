@@ -30,7 +30,7 @@ namespace distributions
 {
 namespace uniform
 {
-namespace interface1
+namespace internal
 {
 /**
   * Check the correctness of the %Parameter object
@@ -44,7 +44,7 @@ services::Status Parameter<algorithmFPType>::check() const
 
 template services::Status Parameter<DAAL_FPTYPE>::check() const;
 
-} // namespace interface1
+} // namespace internal
 } // namespace uniform
 } // namespace distributions
 } // namespace algorithms

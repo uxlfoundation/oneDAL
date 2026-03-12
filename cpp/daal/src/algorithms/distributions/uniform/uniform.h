@@ -40,12 +40,12 @@ namespace uniform
  * @ingroup distributions_uniform
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the uniform distribution.
- *        This class is associated with the \ref uniform::interface1::Batch "uniform::Batch" class
+ *        This class is associated with the \ref uniform::internal::Batch "uniform::Batch" class
  *        and supports the method of uniform distribution computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
@@ -84,8 +84,8 @@ public:
  *      - uniform::Method          Computation methods for the uniform distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  *
  * \DAAL_DEPRECATED
  */
@@ -177,9 +177,9 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::BatchContainer;
-using interface1::Batch;
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
 /** @} */
 } // namespace uniform
 } // namespace distributions

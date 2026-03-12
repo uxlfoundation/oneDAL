@@ -29,7 +29,7 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace interface1
+namespace internal
 {
 ParameterBase::ParameterBase() : engine(engines::mt19937::Batch<>::create()) {}
 ParameterBase::~ParameterBase() {}
@@ -81,7 +81,7 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     return data_management::checkNumericTable(get(randomNumbers).get(), randomNumbersStr(), 0, expectedLayouts);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

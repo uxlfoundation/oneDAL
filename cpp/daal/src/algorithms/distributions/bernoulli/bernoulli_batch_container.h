@@ -35,7 +35,7 @@ namespace distributions
 {
 namespace bernoulli
 {
-namespace interface1
+namespace internal
 {
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
@@ -64,7 +64,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::BernoulliKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter->p, *parameter->engine,
                        resultTable);
 }
-} // namespace interface1
+} // namespace internal
 } // namespace bernoulli
 } // namespace distributions
 } // namespace algorithms

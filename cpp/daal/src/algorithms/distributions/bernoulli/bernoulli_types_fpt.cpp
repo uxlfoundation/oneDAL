@@ -30,7 +30,7 @@ namespace distributions
 {
 namespace bernoulli
 {
-namespace interface1
+namespace internal
 {
 /**
   * Check the correctness of the %Parameter object
@@ -44,7 +44,7 @@ services::Status Parameter<algorithmFPType>::check() const
 
 template services::Status Parameter<DAAL_FPTYPE>::check() const;
 
-} // namespace interface1
+} // namespace internal
 } // namespace bernoulli
 } // namespace distributions
 } // namespace algorithms

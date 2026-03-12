@@ -66,7 +66,7 @@ enum ResultId
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__PARAMETERBASE"></a>
@@ -201,11 +201,11 @@ protected:
     }
 };
 typedef services::SharedPtr<Result> ResultPtr;
-} // namespace interface1
-using interface1::Input;
-using interface1::Result;
-using interface1::ResultPtr;
-using interface1::ParameterBase;
+} // namespace internal
+using internal::Input;
+using internal::Result;
+using internal::ResultPtr;
+using internal::ParameterBase;
 /** @} */
 } // namespace distributions
 } // namespace algorithms

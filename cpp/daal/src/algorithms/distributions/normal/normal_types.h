@@ -56,7 +56,7 @@ enum Method
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__PARAMETER"></a>
@@ -84,8 +84,8 @@ public:
     services::Status check() const override;
 };
 
-} // namespace interface1
-using interface1::Parameter;
+} // namespace internal
+using internal::Parameter;
 
 } // namespace normal
 /** @} */
