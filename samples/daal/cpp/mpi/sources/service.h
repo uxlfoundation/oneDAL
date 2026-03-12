@@ -681,7 +681,7 @@ void checkArguments(int argc, char *argv[], int count, ...) {
     va_list ap;
     va_start(ap, count);
     for (int i = 0; i < count; i++) {
-        filelist[i] = va_arg(ap, std::string *const);
+        filelist[i] = va_arg(ap, std::string *);
     }
     va_end(ap);
 
