@@ -36,11 +36,8 @@ run_examples() {
         cd examples/$interface_name/cpp
         # Ensure oneapi example datasets are reachable for get_data_path().
         # Preferred layout is ../data relative to this directory.
-        if [ ! -d ../data ]; then
-            if [ -d "$CONDA_PREFIX/data" ]; then
-                mkdir -p ../data
-                cp -f "$CONDA_PREFIX"/data/*.csv ../data/ 2>/dev/null || true
-            fi
+        if [ ! -d ../data ] && [ -d "$CONDA_PREFIX/share/oneDAL/data" ]; then
+            ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
         if [ ! -e data ] && [ -d ../data ]; then
             ln -s ../data data
@@ -89,11 +86,8 @@ run_dpc_examples() {
     (
         cd examples/oneapi/dpc
         # Keep data path layout consistent with oneapi/cpp examples.
-        if [ ! -d ../data ]; then
-            if [ -d "$CONDA_PREFIX/data" ]; then
-                mkdir -p ../data
-                cp -f "$CONDA_PREFIX"/data/*.csv ../data/ 2>/dev/null || true
-            fi
+        if [ ! -d ../data ] && [ -d "$CONDA_PREFIX/share/oneDAL/data" ]; then
+            ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
         if [ ! -e data ] && [ -d ../data ]; then
             ln -s ../data data
