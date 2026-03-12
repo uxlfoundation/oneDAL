@@ -38,7 +38,7 @@ namespace interface1
 template <>
 void Online<DAAL_FPTYPE, pca::correlationDense>::initialize()
 {
-    _ac  = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, svdDense)(&_env);
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, pca::correlationDense)(&_env);
     _in  = &input;
     _par = &parameter;
     _partialResult.reset(new PartialResult<pca::correlationDense>());

@@ -44,7 +44,7 @@ void DistributedType::initialize()
     _ac =
         new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step3Local, DAAL_FPTYPE, implicit_als::training::fastCSR)(&_env);
     _in  = &input;
-    _par = NULL;
+    _par = &parameter;
     _partialResult.reset(new PartialResultType());
 }
 template <>

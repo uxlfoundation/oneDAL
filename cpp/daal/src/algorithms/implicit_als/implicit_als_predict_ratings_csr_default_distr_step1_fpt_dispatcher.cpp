@@ -47,7 +47,7 @@ void DistributedType::initialize()
     _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step1Local, DAAL_FPTYPE,
                                           implicit_als::prediction::ratings::defaultDense)(&_env);
     _in  = &input;
-    _par = NULL;
+    _par = &parameter;
     _partialResult.reset(new PartialResultType());
 }
 template <>

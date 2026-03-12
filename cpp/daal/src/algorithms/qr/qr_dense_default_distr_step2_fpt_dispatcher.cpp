@@ -38,7 +38,7 @@ template <>
 void Distributed<step2Master, DAAL_FPTYPE, qr::defaultDense>::initialize()
 {
     Analysis<distributed>::_ac =
-        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step3Local, DAAL_FPTYPE, qr::defaultDense)(&_env);
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, qr::defaultDense)(&_env);
     _in  = &input;
     _par = &parameter;
 }
