@@ -34,9 +34,14 @@ run_examples() {
 
     (
         cd examples/$interface_name/cpp
-        # Examples expect data at ../data relative to build dir (i.e., cpp/data).
-        # In conda test phase, source_files may provide data at one level up
-        # (examples/<iface>/data), so create a local symlink when needed.
+        # Ensure oneapi example datasets are reachable for get_data_path().
+        # Preferred layout is ../data relative to this directory.
+        if [ ! -d ../data ]; then
+            if [ -d "$CONDA_PREFIX/data" ]; then
+                mkdir -p ../data
+                cp -f "$CONDA_PREFIX"/data/*.csv ../data/ 2>/dev/null || true
+            fi
+        fi
         if [ ! -e data ] && [ -d ../data ]; then
             ln -s ../data data
         fi
@@ -84,6 +89,12 @@ run_dpc_examples() {
     (
         cd examples/oneapi/dpc
         # Keep data path layout consistent with oneapi/cpp examples.
+        if [ ! -d ../data ]; then
+            if [ -d "$CONDA_PREFIX/data" ]; then
+                mkdir -p ../data
+                cp -f "$CONDA_PREFIX"/data/*.csv ../data/ 2>/dev/null || true
+            fi
+        fi
         if [ ! -e data ] && [ -d ../data ]; then
             ln -s ../data data
         fi
