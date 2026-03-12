@@ -24,7 +24,7 @@
 #ifndef __DISTRIBUTIONS_H__
 #define __DISTRIBUTIONS_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {

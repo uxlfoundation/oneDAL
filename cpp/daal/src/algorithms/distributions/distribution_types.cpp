@@ -19,7 +19,7 @@
 //  Implementation of distribution types.
 //--
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 #include "src/services/daal_strings.h"
 #include "src/algorithms/engines/mt19937/mt19937_batch_impl.h"
 

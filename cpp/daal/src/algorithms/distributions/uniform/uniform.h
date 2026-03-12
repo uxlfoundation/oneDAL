@@ -24,8 +24,8 @@
 #ifndef __UNIFORM_H__
 #define __UNIFORM_H__
 
-#include "algorithms/distributions/distribution.h"
-#include "algorithms/distributions/uniform/uniform_types.h"
+#include "src/algorithms/distributions/distribution.h"
+#include "src/algorithms/distributions/uniform/uniform_types.h"
 
 namespace daal
 {

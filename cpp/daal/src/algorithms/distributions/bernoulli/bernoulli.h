@@ -1,4 +1,4 @@
-/* file: normal.h */
+/* file: bernoulli.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,15 +17,15 @@
 
 /*
 //++
-//  Implementation of the normal distribution
+//  Implementation of the bernoulli distribution
 //--
 */
 
-#ifndef __NORMAL_H__
-#define __NORMAL_H__
+#ifndef __BERNOULLI_H__
+#define __BERNOULLI_H__
 
-#include "algorithms/distributions/distribution.h"
-#include "algorithms/distributions/normal/normal_types.h"
+#include "src/algorithms/distributions/distribution.h"
+#include "src/algorithms/distributions/bernoulli/bernoulli_types.h"
 
 namespace daal
 {
@@ -33,23 +33,23 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace normal
+namespace bernoulli
 {
 /**
- * @defgroup distributions_normal_batch Batch
- * @ingroup distributions_normal
+ * @defgroup distributions_bernoulli_batch Batch
+ * @ingroup distributions_bernoulli
  * @{
  */
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the normal distribution.
- *        This class is associated with the \ref normal::interface1::Batch "normal::Batch" class
- *        and supports the method of normal distribution computation in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the bernoulli distribution.
+ *        This class is associated with the \ref bernoulli::interface1::Batch "bernoulli::Batch" class
+ *        and supports the method of bernoulli distribution computation in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
- * \tparam method           Computation method of the distribution, normal::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
+ * \tparam method           Computation method of the distribution, bernoulli::Method
  * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
  *
  * \DAAL_DEPRECATED
@@ -59,14 +59,14 @@ class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
 {
 public:
     /**
-     * Constructs a container for the normal distribution with a specified environment
+     * Constructs a container for the bernoulli distribution with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
     DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
-     * Computes the result of the normal distribution in the batch processing mode
+     * Computes the result of the bernoulli distribution in the batch processing mode
      *
      * \return Status of computations
      */
@@ -74,14 +74,14 @@ public:
 };
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCH"></a>
- * \brief Provides methods for normal distribution computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__BATCH"></a>
+ * \brief Provides methods for bernoulli distribution computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
- * \tparam method           Computation method of the distribution, normal::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
+ * \tparam method           Computation method of the distribution, bernoulli::Method
  *
  * \par Enumerations
- *      - normal::Method          Computation methods for the normal distribution
+ *      - bernoulli::Method          Computation methods for the bernoulli distribution
  *
  * \par References
  *      - \ref distributions::interface1::Input "distributions::Input" class
@@ -96,19 +96,18 @@ public:
     typedef distributions::BatchBase super;
 
     typedef typename super::InputType InputType;
-    typedef algorithms::distributions::normal::Parameter<algorithmFPType> ParameterType;
+    typedef algorithms::distributions::bernoulli::Parameter<algorithmFPType> ParameterType;
     typedef typename super::ResultType ResultType;
 
     /**
-     * Constructs normal distribution
-     *  \param[in] a     Mean
-     *  \param[in] sigma standard deviation
+     * Constructs bernoulli distribution
+     *  \param[in] p     Success probability of a trial, value from [0.0; 1.0]
      */
-    DAAL_DEPRECATED Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
+    DAAL_DEPRECATED Batch(algorithmFPType p);
 
     /**
-     * Constructs normal distribution by copying input objects and parameters of another normal distribution
-     * \param[in] other Normal distribution
+     * Constructs bernoulli distribution by copying input objects and parameters of another bernoulli distribution
+     * \param[in] other Bernoulli distribution
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
@@ -119,14 +118,14 @@ public:
     virtual int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of normal distribution
-     * \return Structure that contains results of normal distribution
+     * Returns the structure that contains results of bernoulli distribution
+     * \return Structure that contains results of bernoulli distribution
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of normal distribution
-     * \param[in] result  Structure to store results of normal distribution
+     * Registers user-allocated memory to store results of bernoulli distribution
+     * \param[in] result  Structure to store results of bernoulli distribution
      *
      * \return Status of computations
      */
@@ -139,14 +138,14 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated normal distribution
-     * with a copy of input objects and parameters of this normal distribution
+     * Returns a pointer to the newly allocated bernoulli distribution
+     * with a copy of input objects and parameters of this bernoulli distribution
      * \return Pointer to the newly allocated distribution
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
     /**
-     * Allocates memory to store the result of the normal distribution
+     * Allocates memory to store the result of the bernoulli distribution
      *
      * \return Status of computations
      */
@@ -158,7 +157,7 @@ public:
         return s;
     }
 
-    Parameter<algorithmFPType> parameter; /*!< %Parameters of the normal distribution */
+    Parameter<algorithmFPType> parameter; /*!< %Parameters of the bernoulli distribution */
 
 protected:
     virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
@@ -181,7 +180,7 @@ private:
 using interface1::BatchContainer;
 using interface1::Batch;
 /** @} */
-} // namespace normal
+} // namespace bernoulli
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

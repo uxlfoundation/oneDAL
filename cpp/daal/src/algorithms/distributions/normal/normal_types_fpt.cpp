@@ -19,7 +19,7 @@
 //  Implementation of normal distribution algorithm and types methods.
 //--
 
-#include "algorithms/distributions/normal/normal_types.h"
+#include "src/algorithms/distributions/normal/normal_types.h"
 #include "src/services/daal_strings.h"
 
 namespace daal

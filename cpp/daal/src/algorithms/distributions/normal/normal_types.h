@@ -1,4 +1,4 @@
-/* file: bernoulli_types.h */
+/* file: normal_types.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,14 +17,14 @@
 
 /*
 //++
-//  Implementation of bernoulli distribution.
+//  Implementation of normal distribution.
 //--
 */
 
-#ifndef __BERNOULLI__TYPES_H__
-#define __BERNOULLI__TYPES_H__
+#ifndef __NORMAL__TYPES_H__
+#define __NORMAL__TYPES_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -33,23 +33,24 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_bernoulli Bernoulli Distribution
- * \copydoc daal::algorithms::distributions::bernoulli
+ * @defgroup distributions_normal Normal Distribution
+ * \copydoc daal::algorithms::distributions::normal
  * @ingroup distributions
  * @{
  */
 /**
- * \brief Contains classes for bernoulli distribution
+ * \brief Contains classes for normal distribution
  */
-namespace bernoulli
+namespace normal
 {
 /**
- * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__METHOD"></a>
- * Available methods to compute bernoulli distribution
+ * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__NORMAL__METHOD"></a>
+ * Available methods to compute normal distribution
  */
 enum Method
 {
-    defaultDense = 0 /*!< Default: performance-oriented method. */
+    icdf         = 0, /*!< Default: Inverse cumulative distribution function method. */
+    defaultDense = 0  /*!< Default: performance-oriented method. */
 };
 
 /**
@@ -58,8 +59,8 @@ enum Method
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__PARAMETER"></a>
- * \brief Bernoulli distribution parameters
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__PARAMETER"></a>
+ * \brief Normal distribution parameters
  *
  * \DAAL_DEPRECATED
  */
@@ -69,11 +70,13 @@ class DAAL_EXPORT Parameter : public distributions::ParameterBase
 public:
     /**
      *  Main constructor
-     *  \param[in] _p    Success probability of a trial, value from [0.0; 1.0]
+     *  \param[in] _a     Mean
+     *  \param[in] _sigma Standard deviation
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _p) : p(_p) {}
+    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
 
-    algorithmFPType p; /*!< Success probability of a trial, value from [0.0; 1.0] */
+    algorithmFPType a;     /*!< Mean */
+    algorithmFPType sigma; /*!< Standard deviation */
 
     /**
      * Check the correctness of the %Parameter object
@@ -84,7 +87,7 @@ public:
 } // namespace interface1
 using interface1::Parameter;
 
-} // namespace bernoulli
+} // namespace normal
 /** @} */
 } // namespace distributions
 } // namespace algorithms

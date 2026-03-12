@@ -1,4 +1,4 @@
-/* file: normal_types.h */
+/* file: uniform_types.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,14 +17,14 @@
 
 /*
 //++
-//  Implementation of normal distribution.
+//  Implementation of uniform distribution.
 //--
 */
 
-#ifndef __NORMAL__TYPES_H__
-#define __NORMAL__TYPES_H__
+#ifndef __UNIFORM__TYPES_H__
+#define __UNIFORM__TYPES_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -33,24 +33,23 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_normal Normal Distribution
- * \copydoc daal::algorithms::distributions::normal
+ * @defgroup distributions_uniform Uniform Distribution
+ * \copydoc daal::algorithms::distributions::uniform
  * @ingroup distributions
  * @{
  */
 /**
- * \brief Contains classes for normal distribution
+ * \brief Contains classes for uniform distribution
  */
-namespace normal
+namespace uniform
 {
 /**
- * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__NORMAL__METHOD"></a>
- * Available methods to compute normal distribution
+ * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__UNIFORM__METHOD"></a>
+ * Available methods to compute uniform distribution
  */
 enum Method
 {
-    icdf         = 0, /*!< Default: Inverse cumulative distribution function method. */
-    defaultDense = 0  /*!< Default: performance-oriented method. */
+    defaultDense = 0 /*!< Default: performance-oriented method. */
 };
 
 /**
@@ -59,8 +58,8 @@ enum Method
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__PARAMETER"></a>
- * \brief Normal distribution parameters
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__PARAMETER"></a>
+ * \brief Uniform distribution parameters
  *
  * \DAAL_DEPRECATED
  */
@@ -70,13 +69,13 @@ class DAAL_EXPORT Parameter : public distributions::ParameterBase
 public:
     /**
      *  Main constructor
-     *  \param[in] _a     Mean
-     *  \param[in] _sigma Standard deviation
+     *  \param[in] _a    Left bound a
+     *  \param[in] _b    Right bound b
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
+    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _b = 1.0) : a(_a), b(_b) {}
 
-    algorithmFPType a;     /*!< Mean */
-    algorithmFPType sigma; /*!< Standard deviation */
+    algorithmFPType a; /*!< Left bound a */
+    algorithmFPType b; /*!< Right bound b */
 
     /**
      * Check the correctness of the %Parameter object
@@ -87,7 +86,7 @@ public:
 } // namespace interface1
 using interface1::Parameter;
 
-} // namespace normal
+} // namespace uniform
 /** @} */
 } // namespace distributions
 } // namespace algorithms
