@@ -29,7 +29,6 @@
 #include "algorithms/dbscan/dbscan_batch.h"
 #include "algorithms/dbscan/dbscan_distributed.h"
 #include "src/algorithms/dbscan/dbscan_kernel.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {

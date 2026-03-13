@@ -26,4 +26,3 @@ subdivided into the following groups according to their purpose:
    handling-errors.rst
    managing-memory.rst
    managing-computational-environment.rst
-   callback-for-host-application.rst
