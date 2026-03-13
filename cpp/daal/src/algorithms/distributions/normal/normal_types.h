@@ -61,11 +61,9 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__PARAMETER"></a>
  * \brief Normal distribution parameters
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Parameter : public distributions::ParameterBase
+class Parameter : public distributions::ParameterBase
 {
 public:
     /**
@@ -73,7 +71,7 @@ public:
      *  \param[in] _a     Mean
      *  \param[in] _sigma Standard deviation
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
+    Parameter(algorithmFPType _a = 0.0, algorithmFPType _sigma = 1.0) : a(_a), sigma(_sigma) {}
 
     algorithmFPType a;     /*!< Mean */
     algorithmFPType sigma; /*!< Standard deviation */

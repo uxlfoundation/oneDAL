@@ -42,7 +42,7 @@ namespace internal
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BATCHBASE"></a>
  * \brief Class representing distributions
  */
-class DAAL_EXPORT BatchBase : public daal::algorithms::Analysis<batch>
+class BatchBase : public daal::algorithms::Analysis<batch>
 {
 public:
     typedef algorithms::distributions::Input InputType;

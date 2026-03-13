@@ -51,8 +51,6 @@ namespace internal
  * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
  * \tparam method           Computation method of the distribution, uniform::Method
  * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
@@ -63,7 +61,7 @@ public:
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
+    BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
      * Computes the result of the uniform distribution in the batch processing mode
@@ -86,11 +84,9 @@ public:
  * \par References
  *      - \ref distributions::internal::Input "distributions::Input" class
  *      - \ref distributions::internal::Result "distributions::Result" class
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public distributions::BatchBase
+class Batch : public distributions::BatchBase
 {
 public:
     typedef distributions::BatchBase super;
@@ -104,7 +100,7 @@ public:
      *  \param[in] a     Left bound a
      *  \param[in] b     Right bound b
      */
-    DAAL_DEPRECATED Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0);
+    Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0);
 
     /**
      * Constructs uniform distribution by copying input objects and parameters of another uniform distribution

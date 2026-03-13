@@ -33,7 +33,7 @@ namespace normal
 namespace internal
 {
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE sigma) : parameter(a, sigma)
+Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE sigma) : parameter(a, sigma)
 {
     initialize();
 }
@@ -41,7 +41,7 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::Batch(DAAL_
 using BatchType = Batch<DAAL_FPTYPE, distributions::normal::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
 {
     initialize();
 }

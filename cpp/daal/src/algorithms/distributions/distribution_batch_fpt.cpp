@@ -31,8 +31,8 @@ namespace distributions
 {
 namespace internal
 {
-template DAAL_EXPORT services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
-                                                                    const int method);
+template services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
+                                                        const int method);
 
 } // namespace internal
 } // namespace distributions
