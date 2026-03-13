@@ -24,7 +24,6 @@
 #include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"
 #include "src/algorithms/optimization_solver/lbfgs/lbfgs_base.h"
 #include "src/algorithms/optimization_solver/lbfgs/lbfgs_dense_default_kernel.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -70,10 +69,9 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     NumericTable * averageArgLIterResult      = result->get(averageArgumentLIterations).get();
     OptionalArgument * optionalArgumentResult = result->get(iterative_solver::optionalResult).get();
 
-    __DAAL_CALL_KERNEL(env, internal::LBFGSKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), correctionPairsInput, correctionIndicesInput, inputArgument, averageArgLIterInput,
-                       optionalArgumentInput, correctionPairsResult, correctionIndicesResult, minimum, nIterations, averageArgLIterResult,
-                       optionalArgumentResult, parameter, *parameter->engine);
+    __DAAL_CALL_KERNEL(env, internal::LBFGSKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, correctionPairsInput,
+                       correctionIndicesInput, inputArgument, averageArgLIterInput, optionalArgumentInput, correctionPairsResult,
+                       correctionIndicesResult, minimum, nIterations, averageArgLIterResult, optionalArgumentResult, parameter, *parameter->engine);
 }
 
 } // namespace interface2

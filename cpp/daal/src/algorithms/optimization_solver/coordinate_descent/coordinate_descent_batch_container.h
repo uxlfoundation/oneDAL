@@ -26,7 +26,6 @@
 
 #include "algorithms/optimization_solver/coordinate_descent/coordinate_descent_batch.h"
 #include "src/algorithms/optimization_solver/coordinate_descent/coordinate_descent_dense_default_kernel.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -69,9 +68,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     optimization_solver::objective_function::ResultPtr proxResultPtr =
         optimization_solver::objective_function::ResultPtr(new optimization_solver::objective_function::Result());
 
-    __DAAL_CALL_KERNEL(env, internal::CoordinateDescentKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), inputArgument, minimum, nIterations, parameter, *parameter->engine, hesGrResultPtr,
-                       proxResultPtr);
+    __DAAL_CALL_KERNEL(env, internal::CoordinateDescentKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, inputArgument, minimum,
+                       nIterations, parameter, *parameter->engine, hesGrResultPtr, proxResultPtr);
 }
 
 } // namespace interface1

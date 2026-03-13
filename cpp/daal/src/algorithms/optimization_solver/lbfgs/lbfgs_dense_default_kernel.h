@@ -43,11 +43,11 @@ template <typename algorithmFPType, CpuType cpu>
 class LBFGSKernel<algorithmFPType, defaultDense, cpu> : public Kernel
 {
 public:
-    services::Status compute(HostAppIface * pHost, NumericTable * correctionPairsInput, NumericTable * correctionIndicesInput,
-                             NumericTable * inputArgument, NumericTable * averageArgLIterInput, OptionalArgument * optionalArgumentInput,
-                             NumericTable * correctionPairsResult, NumericTable * correctionIndicesResult, NumericTable * minimum,
-                             NumericTable * nIterationsNT, NumericTable * averageArgLIterResult, OptionalArgument * optionalArgumentResult,
-                             Parameter * parameter, engines::BatchBase & engine);
+    services::Status compute(NumericTable * correctionPairsInput, NumericTable * correctionIndicesInput, NumericTable * inputArgument,
+                             NumericTable * averageArgLIterInput, OptionalArgument * optionalArgumentInput, NumericTable * correctionPairsResult,
+                             NumericTable * correctionIndicesResult, NumericTable * minimum, NumericTable * nIterationsNT,
+                             NumericTable * averageArgLIterResult, OptionalArgument * optionalArgumentResult, Parameter * parameter,
+                             engines::BatchBase & engine);
 };
 
 } // namespace internal

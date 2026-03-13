@@ -29,8 +29,6 @@
 #include "services/daal_memory.h"
 #include "services/internal/daal_kernel_defines.h"
 
-#include "services/host_app.h"
-
 namespace daal
 {
 namespace algorithms
@@ -51,17 +49,11 @@ class DAAL_EXPORT AlgorithmImpl : public Algorithm<mode>
 {
 public:
     /** Deafult constructor */
-    AlgorithmImpl() : wasSetup(false), resetFlag(true), wasFinalizeSetup(false), resetFinalizeFlag(true) {}
+    AlgorithmImpl() {}
 
-    AlgorithmImpl(const AlgorithmImpl & /*other*/)
-        : Algorithm<mode>(), wasSetup(false), resetFlag(true), wasFinalizeSetup(false), resetFinalizeFlag(true)
-    {}
+    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<mode>() {}
 
-    virtual ~AlgorithmImpl()
-    {
-        resetCompute();
-        resetFinalizeCompute();
-    }
+    virtual ~AlgorithmImpl() {}
 
     /**
      * Computes final results of the algorithm in the %batch mode,
@@ -102,9 +94,7 @@ public:
             if (!s) return s;
         }
 
-        s = setupFinalizeCompute();
         if (s) s |= this->_ac->finalizeCompute();
-        if (resetFinalizeFlag) s |= resetFinalizeCompute();
         return s;
     }
 
@@ -151,71 +141,7 @@ public:
         return this->_res ? this->_res->check(this->_pres, this->_par, this->getMethod()) : services::Status();
     }
 
-    services::Status setupCompute()
-    {
-        services::Status s;
-        if (!wasSetup)
-        {
-            s        = this->_ac->setupCompute();
-            wasSetup = true;
-        }
-        return s;
-    }
-
-    services::Status resetCompute()
-    {
-        services::Status s;
-        if (wasSetup)
-        {
-            s        = this->_ac->resetCompute();
-            wasSetup = false;
-        }
-        return s;
-    }
-
-    void enableResetOnCompute(bool flag) { resetFlag = flag; }
-
-    services::Status setupFinalizeCompute()
-    {
-        services::Status s;
-        if (!wasFinalizeSetup)
-        {
-            s                = this->_ac->setupFinalizeCompute();
-            wasFinalizeSetup = true;
-        }
-        return s;
-    }
-
-    services::Status resetFinalizeCompute()
-    {
-        services::Status s;
-        if (wasFinalizeSetup)
-        {
-            s                = this->_ac->resetFinalizeCompute();
-            wasFinalizeSetup = false;
-        }
-        return s;
-    }
-
-    void enableResetOnFinalizeCompute(bool flag) { resetFinalizeFlag = flag; }
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
-
 private:
-    bool wasSetup;
-    bool resetFlag;
-    bool wasFinalizeSetup;
-    bool resetFinalizeFlag;
-
     AlgorithmImpl & operator=(const AlgorithmImpl &);
 };
 
@@ -228,11 +154,11 @@ class DAAL_EXPORT AlgorithmImpl<batch> : public Algorithm<batch>
 {
 public:
     /** Deafult constructor */
-    AlgorithmImpl() : wasSetup(false), resetFlag(true) {}
+    AlgorithmImpl() {}
 
-    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<batch>(), wasSetup(false), resetFlag(true) {}
+    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<batch>() {}
 
-    virtual ~AlgorithmImpl() { resetCompute(); }
+    virtual ~AlgorithmImpl() {}
 
     /**
      * Computes final results of the algorithm in the %batch mode without possibility of throwing an exception.
@@ -272,46 +198,7 @@ public:
         return services::Status(services::ErrorNullResult);
     }
 
-    services::Status setupCompute()
-    {
-        services::Status s;
-        if (!wasSetup)
-        {
-            s        = this->_ac->setupCompute();
-            wasSetup = true;
-        }
-        return s;
-    }
-
-    services::Status resetCompute()
-    {
-        services::Status s;
-        if (wasSetup)
-        {
-            s        = this->_ac->resetCompute();
-            wasSetup = false;
-        }
-        return s;
-    }
-
-    void enableResetOnCompute(bool flag) { resetFlag = flag; }
-
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
-
 private:
-    bool wasSetup;
-    bool resetFlag;
-
     AlgorithmImpl & operator=(const AlgorithmImpl &);
 };
 /** @} */

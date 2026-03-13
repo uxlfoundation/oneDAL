@@ -25,7 +25,6 @@
 
 #include "algorithms/gradient_boosted_trees/gbt_classification_predict.h"
 #include "src/algorithms/dtrees/gbt/classification/gbt_classification_predict_kernel.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -72,9 +71,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     const bool predShapContributions = par->resultsToCompute & shapContributions;
     const bool predShapInteractions  = par->resultsToCompute & shapInteractions;
-    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), a, m, r, prob, par->nClasses, par->nIterations, predShapContributions,
-                       predShapInteractions);
+    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, r, prob, par->nClasses,
+                       par->nIterations, predShapContributions, predShapInteractions);
 }
 
 } // namespace interface2

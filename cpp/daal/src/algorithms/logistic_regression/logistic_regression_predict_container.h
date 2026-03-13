@@ -25,7 +25,6 @@
 
 #include "algorithms/logistic_regression/logistic_regression_predict.h"
 #include "algorithms/classifier/classifier_model.h"
-#include "src/services/service_algo_utils.h"
 #include "src/algorithms/logistic_regression/logistic_regression_predict_kernel.h"
 
 namespace daal
@@ -68,8 +67,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     daal::services::Environment::env & env = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), a, m, par->nClasses, r, prob, logProb);
+    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, par->nClasses, r, prob,
+                       logProb);
 }
 
 } // namespace interface2
