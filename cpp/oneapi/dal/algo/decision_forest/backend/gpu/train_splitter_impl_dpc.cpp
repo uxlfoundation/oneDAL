@@ -162,15 +162,10 @@ sycl::event train_splitter_impl<Float, Bin, Index, Task>::random_split(
             split_info_t bs;
 
             // slm pointers declaration
-#if __SYCL_COMPILER_VERSION >= 20230828
             hist_type_t* hist_ptr =
                 local_hist_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
             Float* local_buf_float_ptr =
                 local_float_buf.template get_multi_ptr<sycl::access::decorated::yes>().get_raw();
-#else
-            hist_type_t* hist_ptr = local_hist_buf.get_pointer().get();
-            Float* local_buf_float_ptr = local_float_buf.get_pointer().get();
-#endif
 
             bs.init_clear(hist_ptr + 0 * hist_prop_count, hist_prop_count);
             split_scalar_t& bs_scal = bs.scalars;
