@@ -111,6 +111,7 @@ outputs:
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
       source_files:
         - examples
+        - data
       script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
