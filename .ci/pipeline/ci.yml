@@ -143,6 +143,169 @@ jobs:
     condition: failed()
     continueOnError: true
 
+- job: 'LinuxMakeGNU_MKL_Conda'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx_gnu_conda'
+    platform.type: 'lnx32e'
+    CONDA_ENV: 'onedal_env'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+      .ci/env/apt.sh miniforge
+    displayName: 'Install base deps + Miniforge'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda create -y -n $(CONDA_ENV)
+
+      conda activate $(CONDA_ENV)
+
+      conda install -y -c conda-forge \
+          make \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+          tbb tbb-devel \
+          onedpl-devel \
+          mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \
+          cmake \
+          impi-devel impi_rt
+    displayName: 'Create and configure conda environment'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+
+      echo "=== TBB lib files ==="
+      ls -lh ${CONDA_PREFIX}/lib/libtbb*
+      echo "=== TBB include dir ==="
+      ls -lh ${CONDA_PREFIX}/include/tbb
+
+      echo "=== Check if TBBConfig.cmake exists ==="
+      find ${CONDA_PREFIX}/lib/cmake -name "TBBConfig.cmake"
+
+      .ci/scripts/describe_system.sh
+    displayName: 'System info + TBB contents (conda)'
+
+  # =========================
+  # BUILD
+  # =========================
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
+    displayName: 'make daal (conda)'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
+      mv __release_lnx_gnu __release_lnx_gnu_conda
+    displayName: 'make onedal_c (conda)'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+
+  # =========================
+  # TESTS
+  # =========================
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
+      export MKL_THREADING=tbb_thread
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake/TBB:${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples (conda)'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples (conda)'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
+      export MKLROOT="${CONDA_PREFIX}"
+      export TBBROOT="${CONDA_PREFIX}"
+      export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
+      export DPL_ROOT="${CONDA_PREFIX}"
+      export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}"
+      export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
+      export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
+      export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
+      export NO_MKL=yes
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples (conda)'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0
