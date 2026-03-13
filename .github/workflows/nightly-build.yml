@@ -132,7 +132,7 @@ jobs:
           # iterate through all dirs in basekit (%%s), use dir to find the symlink target for symlinks named 'latest' (%%H)
           # delete the symlink, and make a new symlink using the last foldername (%%~nxH) in a relative fashion
           for /D %%s in (.\oneapi\*) do for /f "tokens=2 delims=[]" %%H in ('dir /al %%s\ ^| findstr /i /c:"latest"') do rmdir %%s\latest & mklink /D %%s\latest .\%%~nxH
-          tar -cvzf oneapi.tar.gz .\oneapi
+          tar -chvzf oneapi.tar.gz .\oneapi
       - name: Archive build
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
