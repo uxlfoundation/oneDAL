@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
             new covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR>());
 
         /* Set input objects for the algorithm */
-        localAlgorithm.input.set(pca::data, CSRNumericTablePtr(dataTable));
+        localAlgorithm.input.set(pca::data, dataTable);
 
         /* Compute partial estimates on local nodes */
         localAlgorithm.compute();

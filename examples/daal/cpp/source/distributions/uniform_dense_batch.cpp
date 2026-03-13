@@ -36,7 +36,7 @@ using namespace daal::algorithms::distributions;
 
 int main() {
     /* Create input table to fill with random numbers */
-    NumericTablePtr dataTable(new HomogenNumericTable<>(1, 10, NumericTable::doAllocate));
+    NumericTablePtr dataTable = HomogenNumericTable<>::create(1, 10, NumericTable::doAllocate);
 
     /* Create the algorithm */
     uniform::Batch<> uniform;

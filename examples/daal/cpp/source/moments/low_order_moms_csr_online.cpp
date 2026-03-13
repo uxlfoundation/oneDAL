@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
 
         CSRNumericTablePtr dataTable = splitCSRBlock<float>(fullData, rowStart, rowEnd);
         /* Set input objects for the algorithm */
-        algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(low_order_moments::data, dataTable);
 
         /* Compute partial low order moments estimates */
         algorithm.compute();
