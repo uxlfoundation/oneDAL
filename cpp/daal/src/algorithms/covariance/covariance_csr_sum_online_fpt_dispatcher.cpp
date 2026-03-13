@@ -27,19 +27,25 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::OnlineContainer, online, DAAL_FPTYPE, covariance::sumCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::internal::OnlineContainer, online, DAAL_FPTYPE, covariance::sumCSR)
 
 namespace covariance
 {
 namespace interface1
 {
+using OnlineType = Online<DAAL_FPTYPE, covariance::sumCSR>;
+
 template <>
-DAAL_EXPORT Online<DAAL_FPTYPE, covariance::sumCSR>::Online()
+void OnlineType::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::sumCSR)(&_env);
+}
+
+template <>
+DAAL_EXPORT OnlineType::Online()
 {
     initialize();
 }
-
-using OnlineType = Online<DAAL_FPTYPE, covariance::sumCSR>;
 
 template <>
 DAAL_EXPORT OnlineType::Online(const OnlineType & other) : OnlineImpl(other)

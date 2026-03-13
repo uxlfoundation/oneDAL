@@ -28,7 +28,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::classification::training::BatchContainer, batch, DAAL_FPTYPE, gbt::classification::training::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::classification::training::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      gbt::classification::training::defaultDense)
 namespace gbt
 {
 namespace classification
@@ -37,6 +38,13 @@ namespace training
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, gbt::classification::training::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::classification::training::defaultDense>::Batch(size_t nClasses)
 {

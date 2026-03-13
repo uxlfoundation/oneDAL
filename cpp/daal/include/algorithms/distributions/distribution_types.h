@@ -172,7 +172,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::interface1::Result::check;

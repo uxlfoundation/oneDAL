@@ -145,7 +145,7 @@ public:
         return s;
     }
 
-    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     size_t getNumberOfStreamsImpl() const override { return _streams.size(); }
 

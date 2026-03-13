@@ -33,14 +33,10 @@ namespace svm
 {
 namespace prediction
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template struct DAAL_EXPORT SVMPredictImpl<defaultDense, DAAL_FPTYPE, DAAL_CPU>;
-
 } // namespace internal
 } // namespace prediction
 } // namespace svm

@@ -44,37 +44,6 @@ namespace mrg32k3a
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mrg32k3a engine.
- *        This class is associated with the \ref mrg32k3a::interface1::Batch "mrg32k3a::Batch" class
- *        and supports the method of mrg32k3a engine computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
- * \tparam method           Computation method of the engine, mrg32k3a::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the mrg32k3a engine with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the mrg32k3a engine in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCH"></a>
  * \brief Provides methods for mrg32k3a engine computations in the batch processing mode
  *
@@ -111,7 +80,7 @@ public:
      * Returns method of the engine
      * \return Method of the engine
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of mrg32k3a engine
@@ -145,7 +114,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), NULL, (int)method);
         this->_res         = this->_result.get();
@@ -159,14 +128,9 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -177,7 +141,6 @@ typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
 typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 using interface1::mrg32k3aPtr;
 using interface1::mrg32k3aConstPtr;

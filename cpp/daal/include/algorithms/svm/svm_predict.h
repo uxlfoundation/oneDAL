@@ -48,36 +48,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__SVM__PREDICTION__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the SVM algorithm.
- *        It is associated with the Prediction class
- *        and supports methods to run predictions based on the SVM model
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM prediction algorithm, double or float
- * \tparam method           SVM model-based prediction method, \ref Method
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for SVM model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of SVM model-based prediction
-     *
-     * \return Status of computation
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__PREDICTION__BATCH"></a>
  * \brief %Algorithm class for making predictions based on the SVM model
  * <!-- \n<a href="DAAL-REF-SVM-ALGORITHM">SVM algorithm description and usage models</a> -->
@@ -134,7 +104,7 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated SVM prediction algorithm with a copy of input objects
@@ -144,7 +114,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {
@@ -153,19 +123,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _in  = &input;
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _par = &parameter;
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace prediction

@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::BatchContainer, batch, DAAL_FPTYPE, kmeans::init::plusPlusDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::internal::BatchContainer, batch, DAAL_FPTYPE, kmeans::init::plusPlusDense)
 
 namespace kmeans
 {
@@ -37,6 +37,12 @@ namespace interface2
 {
 using BatchType = Batch<DAAL_FPTYPE, kmeans::init::plusPlusDense>;
 
+template <>
+void Batch<DAAL_FPTYPE, kmeans::init::plusPlusDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, kmeans::init::plusPlusDense)(&_env);
+    _in                  = &input;
+}
 template <>
 DAAL_EXPORT BatchType::Batch(size_t nClasses) : BatchBase(new ParameterType(nClasses)), parameter(*static_cast<ParameterType *>(_par))
 {

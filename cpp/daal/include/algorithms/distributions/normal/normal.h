@@ -43,37 +43,6 @@ namespace normal
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the normal distribution.
- *        This class is associated with the \ref normal::interface1::Batch "normal::Batch" class
- *        and supports the method of normal distribution computation in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
- * \tparam method           Computation method of the distribution, normal::Method
- * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the normal distribution with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     * Computes the result of the normal distribution in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCH"></a>
  * \brief Provides methods for normal distribution computations in the batch processing mode
  *
@@ -116,7 +85,7 @@ public:
      * Returns method of the distribution
      * \return Method of the distribution
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of normal distribution
@@ -150,7 +119,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _par               = &parameter;
         services::Status s = this->_result->template allocate<algorithmFPType>(&(this->input), &parameter, (int)method);
@@ -161,15 +130,9 @@ public:
     Parameter<algorithmFPType> parameter; /*!< %Parameters of the normal distribution */
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -178,7 +141,6 @@ private:
 };
 
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 /** @} */
 } // namespace normal

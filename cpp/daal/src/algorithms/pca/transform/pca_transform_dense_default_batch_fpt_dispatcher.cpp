@@ -29,13 +29,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::transform::BatchContainer, batch, DAAL_FPTYPE, pca::transform::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::transform::internal::BatchContainer, batch, DAAL_FPTYPE, pca::transform::defaultDense)
 namespace pca
 {
 namespace transform
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, pca::transform::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, pca::transform::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, pca::transform::defaultDense>::Batch(size_t nComponents) : parameter(nComponents)
 {

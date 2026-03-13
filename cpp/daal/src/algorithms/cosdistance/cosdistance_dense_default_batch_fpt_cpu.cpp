@@ -31,13 +31,11 @@ namespace algorithms
 {
 namespace cosine_distance
 {
-namespace interface1
+
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
-}
-namespace internal
-{
 template class DAAL_EXPORT DistanceKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 } // namespace internal
