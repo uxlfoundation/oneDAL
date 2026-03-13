@@ -25,42 +25,32 @@ ONEDAL_EXPORT int _onedal_threader_get_current_thread_index() {
     return _daal_threader_get_current_thread_index();
 }
 
-ONEDAL_EXPORT void _onedal_threader_for(std::int32_t n,
-                                        std::int32_t threads_request,
+ONEDAL_EXPORT void _onedal_threader_for(std::int64_t n,
+                                        std::int64_t reserved,
                                         const void *a,
                                         oneapi::dal::preview::functype func) {
-    _daal_threader_for(n, threads_request, a, static_cast<daal::functype>(func));
+    _daal_threader_for(n, reserved, a, static_cast<daal::functype>(func));
 }
 
-ONEDAL_EXPORT void _onedal_threader_for_int64(std::int64_t n,
-                                              const void *a,
-                                              oneapi::dal::preview::functype_int64 func) {
-    _daal_threader_for_int64(n, a, static_cast<daal::functype_int64>(func));
-}
-
-ONEDAL_EXPORT void _onedal_threader_for_simple(std::int32_t n,
-                                               std::int32_t threads_request,
+ONEDAL_EXPORT void _onedal_threader_for_simple(std::int64_t n,
+                                               std::int64_t reserved,
                                                const void *a,
                                                oneapi::dal::preview::functype func) {
-    _daal_threader_for_simple(n, threads_request, a, static_cast<daal::functype>(func));
+    _daal_threader_for_simple(n, reserved, a, static_cast<daal::functype>(func));
 }
 
-ONEDAL_EXPORT void _onedal_threader_for_int32ptr(const std::int32_t *begin,
-                                                 const std::int32_t *end,
+ONEDAL_EXPORT void _onedal_threader_for_int64ptr(const std::int64_t *begin,
+                                                 const std::int64_t *end,
                                                  const void *a,
-                                                 oneapi::dal::preview::functype_int32ptr func) {
-    _daal_threader_for_int32ptr(begin, end, a, static_cast<daal::functype_int32ptr>(func));
+                                                 oneapi::dal::preview::functype_int64ptr func) {
+    _daal_threader_for_int64ptr(begin, end, a, static_cast<daal::functype_int64ptr>(func));
 }
 
-ONEDAL_EXPORT void _onedal_threader_for_blocked_size(
-    std::size_t count,
-    std::size_t block,
-    const void *a,
-    oneapi::dal::preview::functype_blocked_size func) {
-    _daal_threader_for_blocked_size(count,
-                                    block,
-                                    a,
-                                    static_cast<daal::functype_blocked_size>(func));
+ONEDAL_EXPORT void _onedal_threader_for_blocked(std::int64_t count,
+                                                std::int64_t block,
+                                                const void *a,
+                                                oneapi::dal::preview::functype2 func) {
+    _daal_threader_for_blocked(count, block, a, static_cast<daal::functype2>(func));
 }
 
 ONEDAL_EXPORT std::int64_t _onedal_parallel_reduce_int32_int64(
