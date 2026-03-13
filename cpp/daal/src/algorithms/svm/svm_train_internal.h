@@ -42,7 +42,7 @@ public:
 
     ~BatchContainer();
 
-    services::Status compute() DAAL_C11_OVERRIDE;
+    services::Status compute() override;
 };
 
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = boser>
@@ -66,13 +66,13 @@ public:
 
     virtual ~Batch() {}
 
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    virtual int getMethod() const override { return (int)method; }
 
     ResultPtr getResult() { return ResultType::cast(_result); }
 
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -83,9 +83,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         ResultPtr res = getResult();
         DAAL_CHECK(res, services::ErrorNullResult);

@@ -49,12 +49,8 @@ public:
     services::Status compute(NumericTable * a, NumericTable * r, const daal::algorithms::Parameter * par);
 
 private:
-    services::Status copyMatrix(NumericTableIface::StorageLayout iLayout, const algorithmFPType * pA, NumericTableIface::StorageLayout rLayout,
-                                algorithmFPType * pL, size_t dim) const;
-    services::Status performCholesky(NumericTableIface::StorageLayout rLayout, algorithmFPType * pL, size_t dim);
-    bool copyToFullMatrix(NumericTableIface::StorageLayout iLayout, const algorithmFPType * pA, algorithmFPType * pL, size_t dim) const;
-    services::Status copyToLowerTrianglePacked(NumericTableIface::StorageLayout iLayout, const algorithmFPType * pA, algorithmFPType * pL,
-                                               size_t dim) const;
+    services::Status copyMatrix(const algorithmFPType * pA, algorithmFPType * pL, size_t dim) const;
+    services::Status performCholesky(algorithmFPType * pL, size_t dim);
 };
 
 } // namespace internal

@@ -128,9 +128,9 @@ services::Status DistributedPartialResultStep1::check(const daal::algorithms::In
 
     const Parameter * alsParameter = static_cast<const Parameter *>(parameter);
     size_t nFactors                = alsParameter->nFactors;
-    int unexpectedLayouts          = (int)NumericTableIface::upperPackedTriangularMatrix | (int)NumericTableIface::csrArray;
+    int unexpectedLayout           = (int)NumericTableIface::csrArray;
     services::Status s;
-    s |= checkNumericTable(get(outputOfStep1ForStep2).get(), crossProductStr(), unexpectedLayouts, 0, nFactors, nFactors);
+    s |= checkNumericTable(get(outputOfStep1ForStep2).get(), crossProductStr(), unexpectedLayout, 0, nFactors, nFactors);
     if (!s) return s;
 
     const DistributedInput<step1Local> * alsInput = static_cast<const DistributedInput<step1Local> *>(input);

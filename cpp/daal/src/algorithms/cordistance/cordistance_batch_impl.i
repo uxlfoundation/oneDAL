@@ -31,8 +31,6 @@
 static const int blockSizeDefault = 128;
 #include "src/algorithms/cordistance/cordistance_impl.i"
 #include "src/algorithms/cordistance/cordistance_full_impl.i"
-#include "src/algorithms/cordistance/cordistance_up_impl.i"
-#include "src/algorithms/cordistance/cordistance_lp_impl.i"
 
 using namespace daal::internal;
 
@@ -46,10 +44,7 @@ namespace internal
 {
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout);
-template <typename algorithmFPType, CpuType cpu>
-bool isUpper(NumericTableIface::StorageLayout layout);
-template <typename algorithmFPType, CpuType cpu>
-bool isLower(NumericTableIface::StorageLayout layout);
+
 /**
  *  \brief Kernel for Correlation distances calculation
  */
@@ -79,18 +74,7 @@ services::Status DistanceKernel<algorithmFPType, method, cpu>::compute(const siz
     }
     else
     {
-        if (isLower<algorithmFPType, cpu>(rLayout))
-        {
-            return corDistanceLowerPacked<algorithmFPType, cpu>(xTable, rTable);
-        }
-        else if (isUpper<algorithmFPType, cpu>(rLayout))
-        {
-            return corDistanceUpperPacked<algorithmFPType, cpu>(xTable, rTable);
-        }
-        else
-        {
-            return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
-        }
+        return services::Status(services::ErrorIncorrectTypeOfOutputNumericTable);
     }
 }
 
@@ -103,26 +87,6 @@ bool isFull(NumericTableIface::StorageLayout layout)
         return false;
     }
     return true;
-}
-
-template <typename algorithmFPType, CpuType cpu>
-bool isUpper(NumericTableIface::StorageLayout layout)
-{
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix || layout == NumericTableIface::upperPackedTriangularMatrix)
-    {
-        return true;
-    }
-    return false;
-}
-
-template <typename algorithmFPType, CpuType cpu>
-bool isLower(NumericTableIface::StorageLayout layout)
-{
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix || layout == NumericTableIface::lowerPackedTriangularMatrix)
-    {
-        return true;
-    }
-    return false;
 }
 
 } // namespace internal

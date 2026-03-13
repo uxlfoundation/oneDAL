@@ -1,5 +1,5 @@
 package(default_visibility = ["//visibility:public"])
-
+load("@rules_cc//cc:defs.bzl", "cc_library")
 cc_library(
     name = "headers",
     hdrs = glob([
@@ -35,7 +35,6 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@opencl//:opencl_binary",
     ],
     alwayslink = 1,
     linkstatic = 1,
@@ -91,5 +90,6 @@ cc_library(
     deps = [
         ":headers",
         ":mkl_dpc_utils",
+        "@opencl//:opencl_binary",
     ],
 )

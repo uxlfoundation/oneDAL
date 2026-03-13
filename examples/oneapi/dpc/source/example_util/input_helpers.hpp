@@ -16,6 +16,11 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+// Disable MSVC warning C4996 for getenv (marked as "unsafe" by MSVC)
+#pragma warning(disable : 4996)
+#endif
+
 #include <vector>
 #include <string>
 #include <fstream>
@@ -27,12 +32,33 @@ inline bool check_file(const std::string& name) {
     return std::ifstream{ name }.good();
 }
 
-inline std::string get_data_path(const std::string& name) {
-    const std::vector<std::string> paths = { "../data", "examples/oneapi/data" };
+// The function tries to find the file `name` in several possible directories.
+// This is useful because CMake and Bazel may run the program from different working directories,
+// so relative paths to data files can differ.
+inline const std::string get_data_path(const std::string& name) {
+    const std::vector<std::string> paths = { []() {
+                                                if (const char* root = std::getenv("DALROOT")) {
+                                                    return std::string(root) + "/share/doc";
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             []() {
+                                                 if (const char* root = std::getenv("DALROOT")) {
+                                                     return std::string(root);
+                                                 }
+                                                 return std::string{};
+                                             }(),
+                                             "../../..",
+                                             "../..",
+                                             ".." };
 
     for (const auto& path : paths) {
+        if (path.empty())
+            continue;
+
         const std::string try_path = path + "/" + name;
-        if (check_file(try_path)) {
+
+        if (std::ifstream{ try_path }.good()) {
             return try_path;
         }
     }

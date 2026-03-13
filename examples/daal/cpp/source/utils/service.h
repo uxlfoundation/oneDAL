@@ -23,6 +23,11 @@
 #ifndef _SERVICE_H
 #define _SERVICE_H
 
+#ifdef _MSC_VER
+// Disable MSVC warning C4996 for getenv (marked as "unsafe" by MSVC)
+#pragma warning(disable : 4996)
+#endif
+
 #include "daal.h"
 
 #include <algorithm>
@@ -57,6 +62,48 @@ size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
     }
 
     return fileSize;
+}
+
+template <typename algorithmFPType>
+daal::data_management::CSRNumericTablePtr splitCSRBlock(
+    const daal::data_management::CSRNumericTablePtr &src,
+    size_t rowStart,
+    size_t rowEnd) {
+    using namespace daal::data_management;
+
+    const size_t nRows = rowEnd - rowStart;
+
+    const size_t nCols = src->getNumberOfColumns();
+
+    CSRBlockDescriptor<algorithmFPType> block;
+    src->getSparseBlock(rowStart, nRows, readOnly, block);
+
+    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr();
+    const size_t *srcColIndices = block.getBlockColumnIndicesPtr();
+    const algorithmFPType *srcValues = block.getBlockValuesPtr();
+
+    const size_t nnz = srcRowOffsets[nRows] - srcRowOffsets[0];
+
+    size_t *localRowOffsets = new size_t[nRows + 1];
+    size_t *localColIndices = new size_t[nnz];
+    algorithmFPType *localValues = new algorithmFPType[nnz];
+
+    localRowOffsets[0] = 1;
+    for (size_t i = 1; i <= nRows; ++i) {
+        localRowOffsets[i] = srcRowOffsets[i] - srcRowOffsets[0] + 1;
+    }
+
+    std::copy_n(srcColIndices, nnz, localColIndices);
+    std::copy_n(srcValues, nnz, localValues);
+
+    src->releaseSparseBlock(block);
+
+    return CSRNumericTable::create(localValues,
+                                   localColIndices,
+                                   localRowOffsets,
+                                   nCols,
+                                   nRows,
+                                   CSRNumericTableIface::CSRIndexing::oneBased);
 }
 
 template <typename item_type>
@@ -272,34 +319,6 @@ void printAprioriRules(daal::data_management::NumericTablePtr leftItemsTable,
     confidenceTable->releaseBlockOfRows(block3);
 }
 
-bool isFull(daal::data_management::NumericTableIface::StorageLayout layout) {
-    int layoutInt = (int)layout;
-    if (daal::data_management::packed_mask & layoutInt) {
-        return false;
-    }
-    return true;
-}
-
-bool isUpper(daal::data_management::NumericTableIface::StorageLayout layout) {
-    using daal::data_management::NumericTableIface;
-
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix ||
-        layout == NumericTableIface::upperPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
-bool isLower(daal::data_management::NumericTableIface::StorageLayout layout) {
-    using daal::data_management::NumericTableIface;
-
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix ||
-        layout == NumericTableIface::lowerPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
 template <typename T>
 void printArray(T *array,
                 const size_t nPrintedCols,
@@ -384,7 +403,6 @@ void printNumericTable(daal::data_management::NumericTable *dataTable,
 
     size_t nRows = dataTable->getNumberOfRows();
     size_t nCols = dataTable->getNumberOfColumns();
-    NumericTableIface::StorageLayout layout = dataTable->getDataLayout();
 
     if (nPrintedRows != 0) {
         nPrintedRows = std::min(nRows, nPrintedRows);
@@ -401,33 +419,14 @@ void printNumericTable(daal::data_management::NumericTable *dataTable,
     }
 
     BlockDescriptor<DAAL_DATA_TYPE> block;
-    if (isFull(layout) || layout == NumericTableIface::csrArray) {
-        dataTable->getBlockOfRows(0, nRows, readOnly, block);
-        printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                   nPrintedCols,
-                                   nPrintedRows,
-                                   nCols,
-                                   message,
-                                   interval);
-        dataTable->releaseBlockOfRows(block);
-    }
-    else {
-        PackedArrayNumericTableIface *packedTable =
-            dynamic_cast<PackedArrayNumericTableIface *>(dataTable);
-        packedTable->getPackedArray(readOnly, block);
-        if (isLower(layout)) {
-            printLowerArray<DAAL_DATA_TYPE>(block.getBlockPtr(), nPrintedRows, message, interval);
-        }
-        else if (isUpper(layout)) {
-            printUpperArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                            nPrintedCols,
-                                            nPrintedRows,
-                                            nCols,
-                                            message,
-                                            interval);
-        }
-        packedTable->releasePackedArray(block);
-    }
+    dataTable->getBlockOfRows(0, nRows, readOnly, block);
+    printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
+                               nPrintedCols,
+                               nPrintedRows,
+                               nCols,
+                               message,
+                               interval);
+    dataTable->releaseBlockOfRows(block);
 }
 
 void printNumericTable(daal::data_management::NumericTable &dataTable,
@@ -444,41 +443,6 @@ void printNumericTable(const daal::data_management::NumericTablePtr &dataTable,
                        size_t nPrintedCols = 0,
                        size_t interval = 10) {
     printNumericTable(dataTable.get(), message, nPrintedRows, nPrintedCols, interval);
-}
-
-void printPackedNumericTable(daal::data_management::NumericTable *dataTable,
-                             size_t nFeatures,
-                             const char *message = "",
-                             size_t interval = 10) {
-    using namespace daal::data_management;
-
-    BlockDescriptor<DAAL_DATA_TYPE> block;
-
-    dataTable->getBlockOfRows(0, 1, readOnly, block);
-
-    DAAL_DATA_TYPE *data = block.getBlockPtr();
-
-    std::cout << std::setiosflags(std::ios::left);
-    std::cout << message << std::endl;
-    size_t index = 0;
-    for (size_t i = 0; i < nFeatures; i++) {
-        for (size_t j = 0; j <= i; j++, index++) {
-            std::cout << std::setw(interval) << std::setiosflags(std::ios::fixed)
-                      << std::setprecision(3);
-            std::cout << data[index];
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
-    dataTable->releaseBlockOfRows(block);
-}
-
-void printPackedNumericTable(daal::data_management::NumericTable &dataTable,
-                             size_t nFeatures,
-                             const char *message = "",
-                             size_t interval = 10) {
-    printPackedNumericTable(&dataTable, nFeatures, message, interval);
 }
 
 /**
@@ -658,19 +622,50 @@ void printNumericTables(daal::data_management::NumericTablePtr dataTable1,
                                      interval);
 }
 
-// The function tries to find the file `name` in several possible directories.
-// This is useful because CMake and Bazel may run the program from different working directories,
-// so relative paths to data files can differ.
+/* The function tries to find the file `name` in several possible directories.
+This is useful because CMake and Bazel may run the program from different working directories,
+so relative paths to data files can differ. */
 inline const std::string get_data_path(const std::string &name) {
-    const std::vector<std::string> paths = { "../data", "examples/daal/data" };
+    const std::vector<std::string> paths = { []() {
+                                                if (const char *root = std::getenv("DALROOT")) {
+                                                    return std::string(root) + "/share/doc";
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             []() {
+                                                 if (const char *root = std::getenv("DALROOT")) {
+                                                     return std::string(root);
+                                                 }
+                                                 return std::string{};
+                                             }(),
+                                             "../../..",
+                                             "../..",
+                                             ".." };
+
     for (const auto &path : paths) {
+        if (path.empty())
+            continue;
+
         const std::string try_path = path + "/" + name;
+
         if (std::ifstream{ try_path }.good()) {
             return try_path;
         }
     }
 
     return name;
+}
+
+size_t countRowsCSV(const std::string &file) {
+    std::ifstream f(file);
+    size_t rows = 0;
+    std::string line;
+
+    while (std::getline(f, line)) {
+        if (!line.empty())
+            rows++;
+    }
+    return rows;
 }
 
 void checkArguments(int argc, char *argv[], int count, ...) {

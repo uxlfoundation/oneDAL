@@ -130,11 +130,8 @@ struct TreeNodeSplit : public TreeNodeBase
         featureIdx       = featIdx;
         featureUnordered = bUnordered;
     }
-    virtual bool isSplit() const DAAL_C11_OVERRIDE { return true; }
-    virtual size_t numChildren() const DAAL_C11_OVERRIDE
-    {
-        return (kid[0] ? kid[0]->numChildren() + 1 : 0) + (kid[1] ? kid[1]->numChildren() + 1 : 0);
-    }
+    virtual bool isSplit() const override { return true; }
+    virtual size_t numChildren() const override { return (kid[0] ? kid[0]->numChildren() + 1 : 0) + (kid[1] ? kid[1]->numChildren() + 1 : 0); }
 };
 
 template <typename TResponseType>
@@ -152,8 +149,8 @@ struct TreeNodeLeaf : public TreeNodeBase
 
     virtual ~TreeNodeLeaf() {}
 
-    virtual bool isSplit() const DAAL_C11_OVERRIDE { return false; }
-    virtual size_t numChildren() const DAAL_C11_OVERRIDE { return 0; }
+    virtual bool isSplit() const override { return false; }
+    virtual size_t numChildren() const override { return 0; }
 };
 
 template <typename algorithmFPType>

@@ -45,16 +45,16 @@ public:
     ModelImpl(size_t nFeatures, bool interceptFlag, size_t nClasses, modelFPType dummy, services::Status * st);
     ~ModelImpl() {}
 
-    virtual size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return ClassificationImplType::getNumberOfFeatures(); }
+    virtual size_t getNumberOfFeatures() const override { return ClassificationImplType::getNumberOfFeatures(); }
 
     //Implementation of classification::Model
-    virtual size_t getNumberOfBetas() const DAAL_C11_OVERRIDE;
-    virtual bool getInterceptFlag() const DAAL_C11_OVERRIDE;
-    virtual data_management::NumericTablePtr getBeta() DAAL_C11_OVERRIDE;
-    virtual const data_management::NumericTablePtr getBeta() const DAAL_C11_OVERRIDE;
+    virtual size_t getNumberOfBetas() const override;
+    virtual bool getInterceptFlag() const override;
+    virtual data_management::NumericTablePtr getBeta() override;
+    virtual const data_management::NumericTablePtr getBeta() const override;
 
-    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) DAAL_C11_OVERRIDE;
-    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) DAAL_C11_OVERRIDE;
+    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) override;
+    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
     services::Status reset(bool interceptFlag);
     static logistic_regression::ModelPtr create(size_t nFeatures, bool interceptFlag, services::Status * stat = nullptr);
