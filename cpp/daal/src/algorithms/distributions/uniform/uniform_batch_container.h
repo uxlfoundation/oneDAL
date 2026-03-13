@@ -24,7 +24,7 @@
 #ifndef __UNIFORM_BATCH_CONTAINER_H__
 #define __UNIFORM_BATCH_CONTAINER_H__
 
-#include "algorithms/distributions/uniform/uniform.h"
+#include "src/algorithms/distributions/uniform/uniform.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 
 namespace daal
@@ -35,7 +35,7 @@ namespace distributions
 {
 namespace uniform
 {
-namespace interface1
+namespace internal
 {
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
@@ -63,7 +63,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::UniformKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *parameter, *parameter->engine,
                        resultTable);
 }
-} // namespace interface1
+} // namespace internal
 } // namespace uniform
 } // namespace distributions
 } // namespace algorithms
