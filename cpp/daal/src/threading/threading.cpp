@@ -282,19 +282,22 @@ DAAL_EXPORT void _daal_static_threader_for(size_t n, const void * a, daal::funct
     {
         const size_t nblocks_per_thread = n / nthreads + !!(n % nthreads);
 
-        tbb::parallel_for(
-            tbb::blocked_range<size_t>(0, nthreads, 1),
-            [&](tbb::blocked_range<size_t> r) {
-                const size_t tid   = r.begin();
-                const size_t begin = tid * nblocks_per_thread;
-                const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
+        tbb::task_arena tmp_arena(nthreads);
+        tmp_arena.execute([&] {
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, nthreads, 1),
+                [&](tbb::blocked_range<size_t> r) {
+                    const size_t tid   = r.begin();
+                    const size_t begin = tid * nblocks_per_thread;
+                    const size_t end   = n < begin + nblocks_per_thread ? n : begin + nblocks_per_thread;
 
-                for (size_t i = begin; i < end; ++i)
-                {
-                    func(i, tid, a);
-                }
-            },
-            tbb::static_partitioner());
+                    for (size_t i = begin; i < end; ++i)
+                    {
+                        func(i, tid, a);
+                    }
+                },
+                tbb::static_partitioner());
+        });
     }
     else
     {
