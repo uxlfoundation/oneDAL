@@ -138,18 +138,10 @@ private:
 typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
 typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
-<<<<<<< HEAD
 } // namespace internal
 using internal::Batch;
 using internal::philox4x32x10Ptr;
 using internal::philox4x32x10ConstPtr;
-=======
-} // namespace internal
-using internal::BatchContainer;
-using internal::Batch;
-using internal::philox4x32x10Ptr;
-using internal::philox4x32x10ConstPtr;
->>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace philox4x32x10
 } // namespace engines

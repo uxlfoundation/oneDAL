@@ -138,18 +138,10 @@ private:
 typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
 typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
-<<<<<<< HEAD
 } // namespace internal
 using internal::Batch;
 using internal::mrg32k3aPtr;
 using internal::mrg32k3aConstPtr;
-=======
-} // namespace internal
-using internal::BatchContainer;
-using internal::Batch;
-using internal::mrg32k3aPtr;
-using internal::mrg32k3aConstPtr;
->>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace mrg32k3a
 } // namespace engines

@@ -31,6 +31,7 @@ namespace engines
 {
 namespace mrg32k3a
 {
+
 namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
