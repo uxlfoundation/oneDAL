@@ -41,7 +41,7 @@ namespace mrg32k3a
  * @ingroup engines_mrg32k3a
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCH"></a>
@@ -54,13 +54,11 @@ namespace interface1
  *      - mrg32k3a::Method          Computation methods for the mrg32k3a engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -74,7 +72,7 @@ public:
      *
      * \return Pointer to mrg32k3a engine
      */
-    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
@@ -140,10 +138,18 @@ private:
 typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
 typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
+<<<<<<< HEAD
 } // namespace interface1
 using interface1::Batch;
 using interface1::mrg32k3aPtr;
 using interface1::mrg32k3aConstPtr;
+=======
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
+using internal::mrg32k3aPtr;
+using internal::mrg32k3aConstPtr;
+>>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace mrg32k3a
 } // namespace engines

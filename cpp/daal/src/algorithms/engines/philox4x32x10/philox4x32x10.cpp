@@ -32,7 +32,7 @@ namespace engines
 {
 namespace philox4x32x10
 {
-namespace interface1
+namespace internal
 {
 using namespace daal::services;
 using namespace philox4x32x10::internal;
@@ -49,10 +49,10 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
     return engPtr;
 }
 
-template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
-template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<double, defaultDense> > Batch<double, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<float, defaultDense> > Batch<float, defaultDense>::create(size_t seed);
 
-} // namespace interface1
+} // namespace internal
 } // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms

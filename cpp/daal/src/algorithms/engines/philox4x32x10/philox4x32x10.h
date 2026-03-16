@@ -41,7 +41,7 @@ namespace philox4x32x10
  * @ingroup engines_philox4x32x10
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCH"></a>
@@ -54,13 +54,11 @@ namespace interface1
  *      - philox4x32x10::Method          Computation methods for the philox4x32x10 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -74,7 +72,7 @@ public:
      *
      * \return Pointer to philox4x32x10 engine
      */
-    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
@@ -140,10 +138,18 @@ private:
 typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
 typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
+<<<<<<< HEAD
 } // namespace interface1
 using interface1::Batch;
 using interface1::philox4x32x10Ptr;
 using interface1::philox4x32x10ConstPtr;
+=======
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
+using internal::philox4x32x10Ptr;
+using internal::philox4x32x10ConstPtr;
+>>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace philox4x32x10
 } // namespace engines

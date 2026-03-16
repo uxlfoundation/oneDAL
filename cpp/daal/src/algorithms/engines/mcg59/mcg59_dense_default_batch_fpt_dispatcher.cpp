@@ -30,7 +30,7 @@ namespace engines
 {
 namespace mcg59
 {
-namespace interface1
+namespace internal
 {
 template <>
 void Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>::initialize()
@@ -48,12 +48,12 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>::Batch(size_t seed)
 using BatchType = Batch<DAAL_FPTYPE, engines::mcg59::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+BatchType::Batch(const BatchType & other) : super(other)
 {
     initialize();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mcg59
 } // namespace engines
 } // namespace algorithms

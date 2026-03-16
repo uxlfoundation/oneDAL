@@ -31,7 +31,7 @@ namespace engines
  * @ingroup engines
  * @{
  */
-namespace interface1
+namespace internal
 {
 FamilyBatchBase::FamilyBatchBase() {}
 
@@ -57,7 +57,7 @@ size_t FamilyBatchBase::getMaxNumberOfStreams() const
     return getMaxNumberOfStreamsImpl();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

@@ -40,7 +40,7 @@ namespace mt19937
  * @ingroup engines_mt19937
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
@@ -53,13 +53,11 @@ namespace interface1
  *      - mt19937::Method          Computation methods for the mt19937 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -73,7 +71,7 @@ public:
      *
      * \return Pointer to mt19937 engine
      */
-    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
@@ -137,10 +135,18 @@ private:
 typedef services::SharedPtr<Batch<> > mt19937Ptr;
 typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
 
+<<<<<<< HEAD
 } // namespace interface1
 using interface1::Batch;
 using interface1::mt19937Ptr;
 using interface1::mt19937ConstPtr;
+=======
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
+using internal::mt19937Ptr;
+using internal::mt19937ConstPtr;
+>>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace mt19937
 } // namespace engines

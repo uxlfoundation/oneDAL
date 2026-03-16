@@ -65,21 +65,19 @@ enum ResultId
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__INPUT"></a>
  * \brief %Input objects for engines
- *
- * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT Input : public daal::algorithms::Input
+class Input : public daal::algorithms::Input
 {
 public:
     /**
      * Default constructor
      */
-    DAAL_DEPRECATED Input();
+    Input();
     /** Copy constructor */
     Input(const Input & other);
 
@@ -112,14 +110,12 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of the engine
- *
- * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT Result : public daal::algorithms::Result
+class Result : public daal::algorithms::Result
 {
 public:
     /** \brief Constructor */
-    DAAL_DEPRECATED Result();
+    Result();
 
     virtual ~Result() {}
 
@@ -132,7 +128,7 @@ public:
      * \return Status of computations
      */
     template <typename algorithmFPType>
-    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
+    services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
 
     /**
      * Returns result of the engine
@@ -185,10 +181,10 @@ protected:
     }
 };
 typedef services::SharedPtr<Result> ResultPtr;
-} // namespace interface1
-using interface1::Input;
-using interface1::Result;
-using interface1::ResultPtr;
+} // namespace internal
+using internal::Input;
+using internal::Result;
+using internal::ResultPtr;
 } // namespace engines
 /** @} */
 } // namespace algorithms

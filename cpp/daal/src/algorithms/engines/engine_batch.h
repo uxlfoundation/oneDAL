@@ -31,10 +31,10 @@ namespace algorithms
 {
 namespace engines
 {
-namespace interface1
+namespace internal
 {
 template <typename algorithmFPType>
-DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method)
+services::Status Result::allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method)
 {
     const Input * algInput = static_cast<const Input *>(input);
 
@@ -42,7 +42,7 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     return services::Status();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

@@ -40,7 +40,7 @@ namespace mcg59
  * @ingroup engines_mcg59
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCH"></a>
@@ -53,13 +53,11 @@ namespace interface1
  *      - mcg59::Method          Computation methods for the mcg59 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -73,7 +71,7 @@ public:
      *
      * \return Pointer to mcg59 engine
      */
-    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
+    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
