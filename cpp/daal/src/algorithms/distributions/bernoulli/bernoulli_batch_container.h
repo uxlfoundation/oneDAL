@@ -82,7 +82,7 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 {
-    bernoulli::Parameter<algorithmFPType> * parameter = static_cast<bernoulli::Parameter<algorithmFPType> *>(_par);
+    bernoulli::internal::Parameter<algorithmFPType> * parameter = static_cast<bernoulli::internal::Parameter<algorithmFPType> *>(_par);
     ;
     daal::services::Environment::env & env = *_env;
 

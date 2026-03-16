@@ -58,7 +58,7 @@ public:
     typedef distributions::BatchBase super;
 
     typedef typename super::InputType InputType;
-    typedef algorithms::distributions::uniform::Parameter<algorithmFPType> ParameterType;
+    typedef algorithms::distributions::uniform::internal::Parameter<algorithmFPType> ParameterType;
     typedef typename super::ResultType ResultType;
 
     /**

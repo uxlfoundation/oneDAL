@@ -33,12 +33,6 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_bernoulli Bernoulli Distribution
- * \copydoc daal::algorithms::distributions::bernoulli
- * @ingroup distributions
- * @{
- */
-/**
  * \brief Contains classes for bernoulli distribution
  */
 namespace bernoulli
@@ -80,10 +74,7 @@ public:
 };
 
 } // namespace internal
-using internal::Parameter;
-
 } // namespace bernoulli
-/** @} */
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

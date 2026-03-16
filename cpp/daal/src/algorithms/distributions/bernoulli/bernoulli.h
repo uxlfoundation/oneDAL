@@ -58,7 +58,7 @@ public:
     typedef distributions::BatchBase super;
 
     typedef typename super::InputType InputType;
-    typedef algorithms::distributions::bernoulli::Parameter<algorithmFPType> ParameterType;
+    typedef algorithms::distributions::bernoulli::internal::Parameter<algorithmFPType> ParameterType;
     typedef typename super::ResultType ResultType;
 
     /**

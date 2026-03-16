@@ -82,8 +82,8 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 {
-    normal::Parameter<algorithmFPType> * parameter = static_cast<normal::Parameter<algorithmFPType> *>(_par);
-    daal::services::Environment::env & env         = *_env;
+    normal::internal::Parameter<algorithmFPType> * parameter = static_cast<normal::internal::Parameter<algorithmFPType> *>(_par);
+    daal::services::Environment::env & env                   = *_env;
 
     distributions::Result * result = static_cast<distributions::Result *>(_res);
 

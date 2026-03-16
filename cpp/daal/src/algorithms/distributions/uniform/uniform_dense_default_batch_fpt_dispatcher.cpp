@@ -35,6 +35,15 @@ namespace internal
 using BatchType = Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
 
 template <>
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::uniform::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+    _result.reset(new ResultType());
+}
+
+template <>
 BatchType::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
 {
     initialize();
