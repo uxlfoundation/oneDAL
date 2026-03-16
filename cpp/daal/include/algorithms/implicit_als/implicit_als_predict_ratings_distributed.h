@@ -136,7 +136,7 @@ public:
     /**
      * Default constructor
      */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an implicit ALS ratings prediction algorithm by copying input objects and parameters

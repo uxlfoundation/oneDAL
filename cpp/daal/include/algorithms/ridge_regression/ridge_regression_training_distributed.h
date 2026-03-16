@@ -142,7 +142,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed() : Online<algorithmFPType, method>() {}
+    DAAL_DEPRECATED Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs a ridge regression training algorithm in the first step of the distributed processing mode by copying input objects and parameters
@@ -199,7 +199,7 @@ public:
     typedef algorithms::ridge_regression::training::PartialResult PartialResultType;
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a ridge regression training algorithm in the second step of the distributed processing mode by copying input objects and parameters

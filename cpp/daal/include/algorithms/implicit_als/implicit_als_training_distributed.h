@@ -222,7 +222,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -329,7 +329,7 @@ public:
     ParameterType parameter;             /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -436,7 +436,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters
@@ -543,7 +543,7 @@ public:
     ParameterType parameter;            /*!< %Training \ref implicit_als::interface1::Parameter "parameters" */
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs an implicit ALS training algorithm by copying input objects and parameters

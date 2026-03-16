@@ -18,6 +18,29 @@ Deprecation Notice
 
 This page provides information about the deprecations of a specific oneAPI Data Analytics Library (oneDAL) functionality.
 
+Distributed DAAL Functionality
+******************************
+
+**Deprecation:** The distributed DAAL functionality in the oneDAL library is marked as deprecated.
+The 2026.x releases are the last to provide it. The list of the deprecated DAAL distributed algorithms includes:
+
+- :ref:`Correlation and Variance-Covariance Matrices <cor_cov>`
+- :ref:`Density-Based Spatial Clustering of Applications with Noise (DBSCAN) <dbscan>`
+- :ref:`Implicit Alternating Least Squares <implicit_als>`
+- :ref:`K-Means Clustering <kmeans>`
+- :ref:`Linear <linear_regression>` and :ref:`Ridge <ridge>` Regression
+- :ref:`Moments of Low Order <moments_low_order>`
+- :ref:`Principal Component Analysis (PCA) <pca>`
+- :ref:`QR Decomposition <qr_without_pivoting>`
+- :ref:`SVD Decomposition <svd>`
+
+**Reasons for deprecation:** The distributed functionality running on CPUs is being transitioned from DAAL to oneDAL.
+By the 2027.0 release, all distributed algorithms will be available through oneDAL interfaces only.
+
+**Alternatives:** Use the oneDAL interface equivalents of the deprecated DAAL classes.
+For example, use :ref:`oneapi::dal::linear_regression <api_linear-regression>` with :ref:`SPMD communicator <api_communicator>` instead of the deprecated DAAL
+``linear_regression::training::Distributed`` class.
+
 Selected DAAL Algorithms
 ************************
 

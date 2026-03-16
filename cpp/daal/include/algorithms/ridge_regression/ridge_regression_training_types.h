@@ -286,7 +286,7 @@ template <>
 class DAAL_EXPORT DistributedInput<step2Master> : public daal::algorithms::Input, public InputIface
 {
 public:
-    DistributedInput();
+    DAAL_DEPRECATED DistributedInput();
     DistributedInput(const DistributedInput & other);
     DistributedInput operator=(const DistributedInput & other);
 

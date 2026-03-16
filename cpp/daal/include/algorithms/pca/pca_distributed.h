@@ -192,7 +192,7 @@ public:
     typedef typename super::PartialResultType PartialResultType;
 
     /** Default constructor */
-    Distributed() : Online<algorithmFPType, method>() {}
+    DAAL_DEPRECATED Distributed() : Online<algorithmFPType, method>() {}
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
@@ -238,7 +238,7 @@ public:
     typedef algorithms::pca::PartialResult<correlationDense> PartialResultType;
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
@@ -365,7 +365,7 @@ public:
     typedef algorithms::pca::PartialResult<svdDense> PartialResultType;
 
     /** Default constructor */
-    Distributed();
+    DAAL_DEPRECATED Distributed();
 
     /**
      * Constructs a PCA algorithm by copying input objects and parameters of another PCA algorithm
