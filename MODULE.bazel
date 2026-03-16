@@ -161,7 +161,7 @@ mkl_repo(
 
         # oneMKL devel core 
         # Provides libmkl_core.so.5 for random number generation with SYCL
-        "https://anaconda.org/conda-forge/mkl-devel/2025.3.0/linux-64/mkl-devel-2025.3.0-ha770c72_463.conda",
+        "https://anaconda.org/conda-forge/mkl/2025.3.0/download/linux-64/mkl-2025.3.0-h0e700b2_463.conda",
     ],
     sha256s = [
         # Core static MKL runtime libraries (.a)
@@ -179,7 +179,7 @@ mkl_repo(
         # oneMKL SYCL - Random Number Generator (RNG)
         "e5664adaca1c2e15a771b0d67ec7691137c8ba8e0a5a6af6fdffece9ae37692e",
         # oneMKL devel
-        "9ba3f1af5adfb9910864525d678aec91abab2161c65155bf8150528ad794f2c3",
+        "659d79976f06d2b796a0836414573a737a0856b05facfa77e5cc114081a8b3d4",
     ],
     strip_prefixes = [
         "",  # mkl-static .conda extracts directly to lib/, no .data/data wrapper
