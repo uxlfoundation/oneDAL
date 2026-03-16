@@ -37,6 +37,36 @@ namespace normal
 {
 namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the normal distribution.
+ *        This class is associated with the \ref normal::interface1::Batch "normal::Batch" class
+ *        and supports the method of normal distribution computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
+ * \tparam method           Computation method of the distribution, normal::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the normal distribution with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the normal distribution in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -52,8 +82,8 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 {
-    normal::Parameter<algorithmFPType> * parameter = static_cast<normal::Parameter<algorithmFPType> *>(_par);
-    daal::services::Environment::env & env         = *_env;
+    normal::internal::Parameter<algorithmFPType> * parameter = static_cast<normal::internal::Parameter<algorithmFPType> *>(_par);
+    daal::services::Environment::env & env                   = *_env;
 
     distributions::Result * result = static_cast<distributions::Result *>(_res);
 

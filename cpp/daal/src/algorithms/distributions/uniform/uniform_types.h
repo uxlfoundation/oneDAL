@@ -33,12 +33,6 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_uniform Uniform Distribution
- * \copydoc daal::algorithms::distributions::uniform
- * @ingroup distributions
- * @{
- */
-/**
  * \brief Contains classes for uniform distribution
  */
 namespace uniform
@@ -85,7 +79,6 @@ public:
 using internal::Parameter;
 
 } // namespace uniform
-/** @} */
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

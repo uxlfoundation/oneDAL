@@ -48,37 +48,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__MSE__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the mean squared error objective function.
- *        This class is associated with the Batch class and supports the method of computing
- *        the Mean squared error objective function in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the Mean squared error objective function, double or float
- * \tparam method           the mean squared error objective function computation method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the MSE objective function with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes the result of the MSE objective function in the batch processing mode
-     *
-     * \return Status of computations
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__MSE__BATCH"></a>
  * \brief Computes the Mean squared error objective function in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-MSE-ALGORITHM">The Mean squared error objective function algorithm description and usage models</a> -->
@@ -135,7 +104,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated the Mean squared error objective function algorithm with a copy of input objects
@@ -152,20 +121,16 @@ public:
     services::Status allocate() { return allocateResult(); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, _par, (int)method);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -175,7 +140,6 @@ private:
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace mse

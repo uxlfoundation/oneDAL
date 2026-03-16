@@ -113,17 +113,17 @@ public:
 
     ~DataBlock() override {}
 
-    virtual byte * getPtr() const override { return _ptr.get(); }
+    byte * getPtr() const override { return _ptr.get(); }
 
-    virtual services::SharedPtr<byte> getSharedPtr() const override { return _ptr; }
+    services::SharedPtr<byte> getSharedPtr() const override { return _ptr; }
 
-    virtual size_t getSize() const override { return _size; }
+    size_t getSize() const override { return _size; }
 
-    virtual void setPtr(byte * ptr) override { _ptr = services::SharedPtr<byte>(ptr, services::EmptyDeleter()); }
+    void setPtr(byte * ptr) override { _ptr = services::SharedPtr<byte>(ptr, services::EmptyDeleter()); }
 
-    virtual void setPtr(const services::SharedPtr<byte> & ptr) override { _ptr = ptr; }
+    void setPtr(const services::SharedPtr<byte> & ptr) override { _ptr = ptr; }
 
-    virtual void setSize(size_t size) override { _size = size; }
+    void setSize(size_t size) override { _size = size; }
 
 private:
     services::SharedPtr<byte> _ptr;

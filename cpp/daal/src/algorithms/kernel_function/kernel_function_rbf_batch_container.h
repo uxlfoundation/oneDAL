@@ -33,7 +33,37 @@ namespace kernel_function
 {
 namespace rbf
 {
+namespace internal
+{
 using namespace daal::data_management;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RBF__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the RBF kernel algorithm.
+ *        This class is associated with the Batch class
+ *        and supports the method for computing RBF kernel functions in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
+ * \tparam method           Computation method of the algorithm, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the RBF kernel algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the RBF kernel algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
@@ -79,6 +109,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::KernelImplRBF, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, a[0], a[1], r[0], &kernelPar);
 }
+
+} // namespace internal
 
 } // namespace rbf
 } // namespace kernel_function

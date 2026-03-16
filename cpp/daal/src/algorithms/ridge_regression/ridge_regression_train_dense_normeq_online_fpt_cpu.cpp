@@ -32,14 +32,11 @@ namespace ridge_regression
 {
 namespace training
 {
-namespace interface1
-{
-template class OnlineContainer<DAAL_FPTYPE, normEqDense, DAAL_CPU>;
-
-} // namespace interface1
 
 namespace internal
 {
+template class OnlineContainer<DAAL_FPTYPE, normEqDense, DAAL_CPU>;
+
 template class DAAL_EXPORT OnlineKernel<DAAL_FPTYPE, normEqDense, DAAL_CPU>;
 
 } // namespace internal

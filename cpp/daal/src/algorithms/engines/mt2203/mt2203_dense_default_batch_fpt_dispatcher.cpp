@@ -25,13 +25,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mt2203::BatchContainer, batch, DAAL_FPTYPE, engines::mt2203::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(engines::mt2203::internal::BatchContainer, batch, DAAL_FPTYPE, engines::mt2203::defaultDense)
 namespace engines
 {
 namespace mt2203
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, engines::mt2203::defaultDense)(&_env);
+    _in                  = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::Batch(size_t seed)
 {

@@ -37,6 +37,36 @@ namespace bernoulli
 {
 namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the bernoulli distribution.
+ *        This class is associated with the \ref bernoulli::interface1::Batch "bernoulli::Batch" class
+ *        and supports the method of bernoulli distribution computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
+ * \tparam method           Computation method of the distribution, bernoulli::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the bernoulli distribution with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the bernoulli distribution in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -52,7 +82,7 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 {
-    bernoulli::Parameter<algorithmFPType> * parameter = static_cast<bernoulli::Parameter<algorithmFPType> *>(_par);
+    bernoulli::internal::Parameter<algorithmFPType> * parameter = static_cast<bernoulli::internal::Parameter<algorithmFPType> *>(_par);
     ;
     daal::services::Environment::env & env = *_env;
 

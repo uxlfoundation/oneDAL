@@ -27,11 +27,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::OnlineContainer, online, DAAL_FPTYPE, low_order_moments::fastCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::internal::OnlineContainer, online, DAAL_FPTYPE, low_order_moments::fastCSR)
 namespace low_order_moments
 {
 namespace interface1
 {
+template <>
+void Online<DAAL_FPTYPE, low_order_moments::fastCSR>::initialize()
+{
+    Analysis<online>::_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, low_order_moments::fastCSR)(&_env);
+    _in                   = &input;
+    _par                  = &parameter;
+    _result.reset(new ResultType());
+    _partialResult.reset(new PartialResultType());
+}
 template <>
 DAAL_EXPORT Online<DAAL_FPTYPE, low_order_moments::fastCSR>::Online()
 {

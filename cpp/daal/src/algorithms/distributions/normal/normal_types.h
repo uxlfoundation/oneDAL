@@ -33,12 +33,6 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_normal Normal Distribution
- * \copydoc daal::algorithms::distributions::normal
- * @ingroup distributions
- * @{
- */
-/**
  * \brief Contains classes for normal distribution
  */
 namespace normal
@@ -86,7 +80,6 @@ public:
 using internal::Parameter;
 
 } // namespace normal
-/** @} */
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

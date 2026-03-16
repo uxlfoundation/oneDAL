@@ -41,8 +41,33 @@ namespace regression
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__REGRESSION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for decision forest regression
+ *        model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for decision forest model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of decision forest model-based training in the batch processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    services::Status setupCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -87,7 +112,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     pImpl->clear();
     return services::Status();
 }
-} // namespace interface2
+} // namespace internal
 } // namespace training
 } // namespace regression
 } // namespace decision_forest

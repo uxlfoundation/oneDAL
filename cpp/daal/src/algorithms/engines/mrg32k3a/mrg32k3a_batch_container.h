@@ -35,8 +35,38 @@ namespace engines
 {
 namespace mrg32k3a
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mrg32k3a engine.
+ *        This class is associated with the \ref mrg32k3a::interface1::Batch "mrg32k3a::Batch" class
+ *        and supports the method of mrg32k3a engine computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
+ * \tparam method           Computation method of the engine, mrg32k3a::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the mrg32k3a engine with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the mrg32k3a engine in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -59,7 +89,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::mrg32k3aKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, resultTable);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms

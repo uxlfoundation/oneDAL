@@ -109,7 +109,7 @@ public:
     services::SharedPtr<Batch> clone() const { return services::SharedPtr<Batch>(cloneImpl()); }
 
 protected:
-    virtual Batch * cloneImpl() const override = 0;
+    Batch * cloneImpl() const override = 0;
 
     void initialize() { _result = objective_function::ResultPtr(new ResultType()); }
 

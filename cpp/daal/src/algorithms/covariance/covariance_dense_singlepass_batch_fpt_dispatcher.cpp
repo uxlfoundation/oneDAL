@@ -27,18 +27,23 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::BatchContainer, batch, DAAL_FPTYPE, covariance::singlePassDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::internal::BatchContainer, batch, DAAL_FPTYPE, covariance::singlePassDense)
 namespace covariance
 {
 namespace interface1
 {
+using BatchType = Batch<DAAL_FPTYPE, covariance::singlePassDense>;
+
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, covariance::singlePassDense>::Batch()
+void BatchType::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, covariance::singlePassDense)(&_env);
+}
+template <>
+DAAL_EXPORT BatchType::Batch()
 {
     initialize();
 }
-
-using BatchType = Batch<DAAL_FPTYPE, covariance::singlePassDense>;
 
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : BatchImpl(other)

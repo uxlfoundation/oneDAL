@@ -46,197 +46,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of initialization of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::init::Distributed class
- *        and supports the method of computing initial clusters for K-Means algorithm in the distributed processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of initial clusters for K-Means algorithm, double or float
- * \tparam method           Method of computing initial clusters for the algorithm, \ref daal::algorithms::kmeans::init::Method
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer;
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing methods for computing initial clusters for K-Means algorithm in the first step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for initializing K-Means algorithm with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means initialization algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of K-Means initialization algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing methods for computing initial clusters for K-Means algorithm in the 2nd step of the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for initializing K-Means algorithm with a specified environment
-     * in the 2nd step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() override;
-    /**
-     * Computes the result of K-Means initialization algorithm in the 2nd step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
-* <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP2LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
-* \brief Class containing methods for computing initial clusters for K-Means algorithm in the 2nd step of the distributed processing mode
-*        performed on a local node
-* \DAAL_DEPRECATED
-*/
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-    * Constructs a container for initializing K-Means algorithm with a specified environment
-    * in the 2nd step of the distributed processing mode
-    * \param[in] daalEnv   Environment object
-    */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-    * Computes a partial result of K-Means initialization algorithm in the 2nd step of the
-    * distributed processing mode
-    */
-    virtual services::Status compute() override;
-    /**
-    * Computes the result of K-Means initialization algorithm in the 2nd step of the
-    * distributed processing mode
-    */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
-* <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP3MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
-* \brief Class containing methods for computing initial clusters for K-Means algorithm in the 3rd step of the distributed processing mode
-*        performed on the master mode
-* \DAAL_DEPRECATED
-*/
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step3Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-    * Constructs a container for initializing K-Means algorithm with a specified environment
-    * in the 3rd step of the distributed processing mode
-    * \param[in] daalEnv   Environment object
-    */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-    * Computes a partial result of K-Means initialization algorithm in the 3rd step of the
-    * distributed processing mode
-    */
-    virtual services::Status compute() override;
-    /**
-    * Computes the result of K-Means initialization algorithm in the 3rd step of the
-    * distributed processing mode
-    */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
-* <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP4LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
-* \brief Class containing methods for comp
-* \DAAL_DEPRECATED
-*/
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step4Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-    * Constructs a container for initializing K-Means algorithm with a specified environment
-    * in the 4th step of the distributed processing mode
-    * \param[in] daalEnv   Environment object
-    */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-    * Computes a partial result of K-Means initialization algorithm in the 4th step of the
-    * distributed processing mode
-    */
-    virtual services::Status compute() override;
-    /**
-    * Computes the result of K-Means initialization algorithm in the 4th step of the
-    * distributed processing mode
-    */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
-* <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTEDCONTAINER_STEP5MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
-* \brief Class containing methods for computing initial clusters for K-Means algorithm in the 5th step of the distributed processing mode
-*        performed on the master node
-* \DAAL_DEPRECATED
-*/
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step5Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-    * Constructs a container for initializing K-Means algorithm with a specified environment
-    * in the 5th step of the distributed processing mode
-    * \param[in] daalEnv   Environment object
-    */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-    * Computes a partial result of K-Means initialization algorithm in the 5th step of the
-    * distributed processing mode
-    */
-    virtual services::Status compute() override;
-    /**
-    * Computes the result of K-Means initialization algorithm in the 5th step of the
-    * distributed processing mode
-    */
-    virtual services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__DISTRIBUTED"></a>
  *  \brief Base class representing K-Means algorithm initialization in the distributed processing mode
  */
@@ -322,7 +131,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -376,12 +185,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -389,7 +198,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -397,13 +206,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -452,7 +257,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -530,12 +335,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -543,7 +348,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -558,13 +363,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -638,7 +439,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -674,14 +475,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step2Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new DistributedStep2LocalPlusPlusPartialResult());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -689,17 +490,13 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override
+    services::Status initializePartialResult() override
     {
         _partialResult->initialize(&input, _par, (int)method);
         return services::Status();
     }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -754,7 +551,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -790,14 +587,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step3Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step3Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step3Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -805,17 +602,13 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override
+    services::Status initializePartialResult() override
     {
         _partialResult->initialize(&input, _par, (int)method);
         return services::Status();
     }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step3Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -870,7 +663,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains computed partial results
@@ -906,14 +699,14 @@ public:
     }
 
 protected:
-    virtual Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step4Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step4Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -921,13 +714,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step4Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -984,7 +773,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -1038,12 +827,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step5Master, algorithmFPType, method> * cloneImpl() const override
+    Distributed<step5Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step5Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -1051,7 +840,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() override
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -1059,13 +848,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() override { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step5Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input;           /*!< %Input data structure */
@@ -1078,7 +863,6 @@ private:
     Distributed & operator=(const Distributed &);
 };
 } // namespace interface2
-using interface2::DistributedContainer;
 using interface2::DistributedBase;
 using interface2::DistributedStep2LocalPlusPlusBase;
 using interface2::Distributed;
