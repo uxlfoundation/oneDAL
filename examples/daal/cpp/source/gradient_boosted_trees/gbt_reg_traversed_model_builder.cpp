@@ -40,9 +40,11 @@ using namespace daal::data_management;
 using namespace daal::algorithms::gbt::regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/df_regression_train.csv";
-const std::string testDatasetFileName = "../data/batch/df_regression_test.csv";
-const size_t categoricalFeaturesIndices[] = { 3 };
+const std::string trainDatasetFileName = "data/df_regression_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/df_regression_train_label.csv";
+const std::string testDatasetFileName = "data/df_regression_test_data.csv";
+const std::string testDatasetLabelFileName = "data/df_regression_test_label.csv";
+
 const size_t nFeatures = 13; /* Number of features in training and testing data sets */
 
 /* Gradient boosted trees training parameters */
@@ -163,7 +165,6 @@ public:
 
 training::ResultPtr trainModel();
 double testModel(ModelPtr modelPtr);
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar);
 ModelPtr buildModel(Tree *trees);
 Tree *traverseModel(ModelPtr m, BFSNodeVisitor &visitor);
 
@@ -174,7 +175,13 @@ bool buildTree(size_t treeId,
                const ParentPlace &parentPlace);
 
 int main(int argc, char *argv[]) {
-    checkArguments(argc, argv, 2, &trainDatasetFileName, &testDatasetFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
 
     /* Train DAAL Gradient Boosted Trees Regression model */
     training::ResultPtr trainingResult = trainModel();
@@ -264,17 +271,23 @@ bool buildTree(size_t treeId,
 }
 
 double testModel(daal::algorithms::gbt::regression::ModelPtr modelPtr) {
-    /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData;
-    NumericTablePtr testGroundTruth;
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
+    FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
+                                                     DataSource::doAllocateNumericTable,
+                                                     DataSource::doDictionaryFromContext);
 
-    loadData(testDatasetFileName, testData, testGroundTruth);
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    testLabelSource.loadDataBlock();
 
     /* Create an algorithm object to predict values of decision forest classification */
     prediction::Batch<> algorithm;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(prediction::data, testData);
+    algorithm.input.set(prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(prediction::model, modelPtr);
 
     /* Predict values of decision forest classification */
@@ -283,13 +296,14 @@ double testModel(daal::algorithms::gbt::regression::ModelPtr modelPtr) {
     /* Retrieve the algorithm results */
     NumericTablePtr prediction = algorithm.getResult()->get(prediction::prediction);
     printNumericTable(prediction, "Gradient boosted trees prediction results (first 10 rows):", 10);
-    printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
+    printNumericTable(testLabelSource.getNumericTable(), "Ground truth (first 10 rows):", 10);
     size_t nRows = 0;
     if (prediction.get())
         nRows = prediction->getNumberOfRows();
     double error = 0;
     for (size_t i = 0; i < nRows; i++) {
-        error += prediction->getValue<float>(0, i) - testGroundTruth->getValue<float>(0, i);
+        error += prediction->getValue<float>(0, i) -
+                 testLabelSource.getNumericTable()->getValue<float>(0, i);
     }
 
     std::cout << "Error: " << error << std::endl;
@@ -298,17 +312,24 @@ double testModel(daal::algorithms::gbt::regression::ModelPtr modelPtr) {
 
 training::ResultPtr trainModel() {
     /* Create Numeric Tables for training data and dependent variables */
-    NumericTablePtr trainData;
-    NumericTablePtr trainDependentVariable;
-
-    loadData(trainDatasetFileName, trainData, trainDependentVariable);
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
+     * from a .csv file */
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
+    /* Retrieve the data from the input file */
+    trainDataSource.loadDataBlock();
+    trainLabelSource.loadDataBlock();
 
     /* Create an algorithm object to train the decision forest classification model */
     training::Batch<> algorithm;
 
     /* Pass a training data set and dependent values to the algorithm */
-    algorithm.input.set(training::data, trainData);
-    algorithm.input.set(training::dependentVariable, trainDependentVariable);
+    algorithm.input.set(training::data, trainDataSource.getNumericTable());
+    algorithm.input.set(training::dependentVariable, trainLabelSource.getNumericTable());
 
     algorithm.parameter().maxIterations = maxIterations;
 
@@ -317,29 +338,6 @@ training::ResultPtr trainModel() {
 
     /* Retrieve the algorithm results */
     return algorithm.getResult();
-}
-
-void loadData(const std::string &fileName, NumericTablePtr &pData, NumericTablePtr &pDependentVar) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(fileName,
-                                                      DataSource::notAllocateNumericTable,
-                                                      DataSource::doDictionaryFromContext);
-
-    /* Create Numeric Tables for training data and dependent variables */
-    pData.reset(new HomogenNumericTable<double>(nFeatures, 0, NumericTable::notAllocate));
-    pDependentVar.reset(new HomogenNumericTable<double>(1, 0, NumericTable::notAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(pData, pDependentVar));
-
-    /* Retrieve the data from input file */
-    trainDataSource.loadDataBlock(mergedData.get());
-
-    NumericTableDictionaryPtr pDictionary = pData->getDictionarySharedPtr();
-    for (size_t i = 0,
-                n = sizeof(categoricalFeaturesIndices) / sizeof(categoricalFeaturesIndices[0]);
-         i < n;
-         ++i)
-        (*pDictionary)[categoricalFeaturesIndices[i]].featureType =
-            data_feature_utils::DAAL_CATEGORICAL;
 }
 
 Tree *traverseModel(const daal::algorithms::gbt::regression::ModelPtr m, BFSNodeVisitor &visitor) {

@@ -31,10 +31,10 @@ namespace distributions
 {
 namespace normal
 {
-namespace interface1
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-} // namespace interface1
+} // namespace internal
 
 namespace internal
 {

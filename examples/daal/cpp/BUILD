@@ -40,12 +40,10 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-# TODO: investigate the issue with excluded example
 dal_example_suite(
     name = "decision_forest",
     compile_as = [ "c++" ],
-    srcs = glob(["source/decision_forest/*.cpp"],
-    exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
+    srcs = glob(["source/decision_forest/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
@@ -63,17 +61,6 @@ dal_example_suite(
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/cordistance:kernel",
         "@onedal//cpp/daal/src/algorithms/cosdistance:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
-    name = "distributions",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/distributions/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
     ],
     data = _DATA_DEPS,
     extra_deps = _TEST_DEPS
@@ -213,23 +200,6 @@ dal_example_suite(
 #         "@tbb//:tbb",
 #     ],
 # )
-
-# TODO: investigate the issue with excluded example
-dal_example_suite(
-    name = "optimization_solvers",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/optimization_solvers/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-        "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
-        "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
 
 dal_example_suite(
     name = "pca_transform",
