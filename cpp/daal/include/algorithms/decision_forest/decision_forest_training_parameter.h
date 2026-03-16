@@ -28,7 +28,7 @@
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
 #include "services/daal_defines.h"
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 
 namespace daal
 {

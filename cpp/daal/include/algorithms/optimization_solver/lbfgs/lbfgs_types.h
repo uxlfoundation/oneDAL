@@ -31,7 +31,7 @@
 #include "services/daal_defines.h"
 #include "algorithms/optimization_solver/iterative_solver/iterative_solver_batch.h"
 #include "algorithms/optimization_solver/objective_function/sum_of_functions_batch.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 namespace daal
 {

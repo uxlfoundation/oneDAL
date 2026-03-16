@@ -28,8 +28,8 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
 #include "algorithms/optimization_solver/iterative_solver/iterative_solver_types.h"
-#include "algorithms/engines/mt19937/mt19937.h"
 #include "algorithms/optimization_solver/objective_function/logistic_loss_batch.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 namespace daal
 {

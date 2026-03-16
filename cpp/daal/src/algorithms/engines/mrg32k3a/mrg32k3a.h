@@ -1,6 +1,6 @@
-/* file: mt19937.h */
+/* file: mrg32k3a.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,15 +17,16 @@
 
 /*
 //++
-//  Implementation of the Mersenne Twister engine in the batch processing mode
+//  Implementation of the MRG32k3a engine: a 32-bit combined multiple recursive generator
+//  with two components of order 3, optimized for batch processing.
 //--
 */
 
-#ifndef __MT19937_H__
-#define __MT19937_H__
+#ifndef __MRG32K3A_H__
+#define __MRG32K3A_H__
 
-#include "algorithms/engines/mt19937/mt19937_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a_types.h"
+#include "src/algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -33,24 +34,24 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt19937
+namespace mrg32k3a
 {
 /**
- * @defgroup engines_mt19937_batch Batch
- * @ingroup engines_mt19937
+ * @defgroup engines_mrg32k3a_batch Batch
+ * @ingroup engines_mrg32k3a
  * @{
  */
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
- * \brief Provides methods for mt19937 engine computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCH"></a>
+ * \brief Provides methods for mrg32k3a engine computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float
- * \tparam method           Computation method of the engine, mt19937::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
+ * \tparam method           Computation method of the engine, mrg32k3a::Method
  *
  * \par Enumerations
- *      - mt19937::Method          Computation methods for the mt19937 engine
+ *      - mrg32k3a::Method          Computation methods for the mrg32k3a engine
  *
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
@@ -68,10 +69,10 @@ public:
     typedef typename super::ResultType ResultType;
 
     /**
-     * Creates mt19937 engine
-     * \param[in] seed  Initial condition for mt19937 engine
+     * Creates mrg32k3a engine
+     * \param[in] seed  Initial condition for mrg32k3a engine
      *
-     * \return Pointer to mt19937 engine
+     * \return Pointer to mrg32k3a engine
      */
     DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
@@ -82,14 +83,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of mt19937 engine
-     * \return Structure that contains results of mt19937 engine
+     * Returns the structure that contains results of mrg32k3a engine
+     * \return Structure that contains results of mrg32k3a engine
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of mt19937 engine
-     * \param[in] result  Structure to store results of mt19937 engine
+     * Registers user-allocated memory to store results of mrg32k3a engine
+     * \param[in] result  Structure to store results of mrg32k3a engine
      *
      * \return Status of computations
      */
@@ -102,14 +103,14 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mt19937 engine
-     * with a copy of input objects and parameters of this mt19937 engine
+     * Returns a pointer to the newly allocated mrg32k3a engine
+     * with a copy of input objects and parameters of this mrg32k3a engine
      * \return Pointer to the newly allocated engine
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
     /**
-     * Allocates memory to store the result of the mt19937 engine
+     * Allocates memory to store the result of the mrg32k3a engine
      *
      * \return Status of computations
      */
@@ -119,6 +120,8 @@ public:
         this->_res         = this->_result.get();
         return s;
     }
+
+    ~Batch();
 
 protected:
     Batch(size_t seed = 777);
@@ -134,15 +137,15 @@ private:
 
     Batch & operator=(const Batch &);
 };
-typedef services::SharedPtr<Batch<> > mt19937Ptr;
-typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
+typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
+typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
 } // namespace interface1
 using interface1::Batch;
-using interface1::mt19937Ptr;
-using interface1::mt19937ConstPtr;
+using interface1::mrg32k3aPtr;
+using interface1::mrg32k3aConstPtr;
 /** @} */
-} // namespace mt19937
+} // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

@@ -22,7 +22,7 @@
 #ifndef __MCG59_KERNEL_H__
 #define __MCG59_KERNEL_H__
 
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 

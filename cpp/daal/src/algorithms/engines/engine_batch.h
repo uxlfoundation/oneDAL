@@ -23,7 +23,7 @@
 #ifndef __ENGINE_BATCH__
 #define __ENGINE_BATCH__
 
-#include "algorithms/engines/engine_types.h"
+#include "src/algorithms/engines/engine_types.h"
 
 namespace daal
 {

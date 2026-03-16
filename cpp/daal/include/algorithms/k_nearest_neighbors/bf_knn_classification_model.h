@@ -25,7 +25,7 @@
 #define __BF_KNN_CLASSIFICATION_MODEL_H__
 
 #include "algorithms/classifier/classifier_model.h"
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 
 namespace daal
 {

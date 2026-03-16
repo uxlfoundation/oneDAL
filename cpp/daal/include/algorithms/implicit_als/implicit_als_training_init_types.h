@@ -27,7 +27,7 @@
 #include "algorithms/implicit_als/implicit_als_model.h"
 #include "algorithms/implicit_als/implicit_als_training_types.h"
 #include "data_management/data/csr_numeric_table.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 namespace daal
 {

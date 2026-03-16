@@ -22,7 +22,7 @@
 #ifndef __MRG32K3A_KERNEL_H__
 #define __MRG32K3A_KERNEL_H__
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 

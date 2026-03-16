@@ -20,7 +20,7 @@
 //  that uses 4x32-bit keys and performs 10 rounds of mixing to produce high-quality randomness.
 //--
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/externals/service_dispatch.h"
 #include "src/algorithms/engines/philox4x32x10/philox4x32x10_batch_impl.h"
 

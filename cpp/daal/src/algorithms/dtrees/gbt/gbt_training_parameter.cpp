@@ -25,7 +25,7 @@
 #include "src/algorithms/dtrees/gbt/gbt_training_parameter.h"
 #include "src/services/daal_strings.h"
 #include "src/algorithms/dtrees/gbt/gbt_internal.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 using namespace daal::data_management;
 using namespace daal::services;

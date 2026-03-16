@@ -28,7 +28,7 @@
 #include "data_management/data/aos_numeric_table.h"
 #include "data_management/data/soa_numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 
 namespace daal
 {

@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
