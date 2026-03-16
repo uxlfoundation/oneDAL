@@ -53,7 +53,7 @@ public:
      * \param[in] daalEnv   Environment object
      */
     BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default constructor */
+    /** Destructor */
     ~BatchContainer();
     /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */
     BatchContainer(const BatchContainer &)             = delete;
