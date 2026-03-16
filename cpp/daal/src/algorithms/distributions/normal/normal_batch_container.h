@@ -24,7 +24,7 @@
 #ifndef __NORMAL_BATCH_CONTAINER_H__
 #define __NORMAL_BATCH_CONTAINER_H__
 
-#include "algorithms/distributions/normal/normal.h"
+#include "src/algorithms/distributions/normal/normal.h"
 #include "src/algorithms/distributions/normal/normal_kernel.h"
 
 namespace daal
@@ -35,7 +35,7 @@ namespace distributions
 {
 namespace normal
 {
-namespace interface1
+namespace internal
 {
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
@@ -63,7 +63,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::NormalKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter, *parameter->engine,
                        resultTable);
 }
-} // namespace interface1
+} // namespace internal
 } // namespace normal
 } // namespace distributions
 } // namespace algorithms
