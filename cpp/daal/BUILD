@@ -1,4 +1,5 @@
 package(default_visibility = ["//visibility:public"])
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@onedal//dev/bazel:dal.bzl",
     "dal_test_suite",
     "dal_collect_test_suites",
@@ -11,7 +12,6 @@ load("@onedal//dev/bazel:daal.bzl",
     "daal_generate_version",
     "daal_patch_kernel_defines",
 )
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 daal_module(
     name = "microvmlipp",
@@ -317,3 +317,10 @@ sh_test(
     }) + ["@platforms//os:linux"],
 )
 
+sh_test(
+    name = "isa_coverage_test",
+    srcs = ["@onedal//dev/bazel/tests:isa_coverage_test.sh"],
+    args = ["$(location :core_dynamic)"],
+    data = [":core_dynamic"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
