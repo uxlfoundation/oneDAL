@@ -76,14 +76,14 @@ endif
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
                      -Werror -Wreturn-type -fsycl-device-code-split=per_kernel -qopenmp
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
-                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel -qopenmp
+                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=per_kernel
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -qopenmp \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
-link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 -qopenmp \
+link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
                      -fsycl-device-code-split=per_kernel -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
