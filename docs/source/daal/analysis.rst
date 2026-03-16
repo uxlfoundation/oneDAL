@@ -31,7 +31,6 @@ Analysis
    algorithms/cholesky/cholesky.rst
    algorithms/qr/qr-decomposition.rst
    algorithms/distance/index.rst
-   algorithms/distributions/index.rst
    algorithms/engines/index.rst
    algorithms/moments/moments-of-low-order.rst
    algorithms/normalization/index.rst

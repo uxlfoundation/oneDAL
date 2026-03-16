@@ -1,4 +1,4 @@
-/* file: uniform.h */
+/* file: normal.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,15 +17,15 @@
 
 /*
 //++
-//  Implementation of the uniform distribution
+//  Implementation of the normal distribution
 //--
 */
 
-#ifndef __UNIFORM_H__
-#define __UNIFORM_H__
+#ifndef __NORMAL_H__
+#define __NORMAL_H__
 
-#include "algorithms/distributions/distribution.h"
-#include "algorithms/distributions/uniform/uniform_types.h"
+#include "src/algorithms/distributions/distribution.h"
+#include "src/algorithms/distributions/normal/normal_types.h"
 
 namespace daal
 {
@@ -33,40 +33,38 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace uniform
+namespace normal
 {
 /**
- * @defgroup distributions_uniform_batch Batch
- * @ingroup distributions_uniform
+ * @defgroup distributions_normal_batch Batch
+ * @ingroup distributions_normal
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the uniform distribution.
- *        This class is associated with the \ref uniform::interface1::Batch "uniform::Batch" class
- *        and supports the method of uniform distribution computation in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the normal distribution.
+ *        This class is associated with the \ref normal::internal::Batch "normal::Batch" class
+ *        and supports the method of normal distribution computation in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
- * \tparam method           Computation method of the distribution, uniform::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
+ * \tparam method           Computation method of the distribution, normal::Method
  * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
 {
 public:
     /**
-     * Constructs a container for the uniform distribution with a specified environment
+     * Constructs a container for the normal distribution with a specified environment
      * in the batch processing mode
      * \param[in] daalEnv   Environment object
      */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
+    BatchContainer(daal::services::Environment::env * daalEnv);
     ~BatchContainer();
     /**
-     * Computes the result of the uniform distribution in the batch processing mode
+     * Computes the result of the normal distribution in the batch processing mode
      *
      * \return Status of computations
      */
@@ -74,41 +72,39 @@ public:
 };
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__BATCH"></a>
- * \brief Provides methods for uniform distribution computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCH"></a>
+ * \brief Provides methods for normal distribution computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
- * \tparam method           Computation method of the distribution, uniform::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
+ * \tparam method           Computation method of the distribution, normal::Method
  *
  * \par Enumerations
- *      - uniform::Method          Computation methods for the uniform distribution
+ *      - normal::Method          Computation methods for the normal distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public distributions::BatchBase
+class Batch : public distributions::BatchBase
 {
 public:
     typedef distributions::BatchBase super;
 
     typedef typename super::InputType InputType;
-    typedef algorithms::distributions::uniform::Parameter<algorithmFPType> ParameterType;
+    typedef algorithms::distributions::normal::Parameter<algorithmFPType> ParameterType;
     typedef typename super::ResultType ResultType;
 
     /**
-     * Constructs uniform distribution
-     *  \param[in] a     Left bound a
-     *  \param[in] b     Right bound b
+     * Constructs normal distribution
+     *  \param[in] a     Mean
+     *  \param[in] sigma standard deviation
      */
-    DAAL_DEPRECATED Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0);
+    Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
 
     /**
-     * Constructs uniform distribution by copying input objects and parameters of another uniform distribution
-     * \param[in] other Uniform distribution
+     * Constructs normal distribution by copying input objects and parameters of another normal distribution
+     * \param[in] other Normal distribution
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
@@ -119,14 +115,14 @@ public:
     virtual int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of uniform distribution
-     * \return Structure that contains results of uniform distribution
+     * Returns the structure that contains results of normal distribution
+     * \return Structure that contains results of normal distribution
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of uniform distribution
-     * \param[in] result  Structure to store results of uniform distribution
+     * Registers user-allocated memory to store results of normal distribution
+     * \param[in] result  Structure to store results of normal distribution
      *
      * \return Status of computations
      */
@@ -139,14 +135,14 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated uniform distribution
-     * with a copy of input objects and parameters of this uniform distribution
+     * Returns a pointer to the newly allocated normal distribution
+     * with a copy of input objects and parameters of this normal distribution
      * \return Pointer to the newly allocated distribution
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
     /**
-     * Allocates memory to store the result of the uniform distribution
+     * Allocates memory to store the result of the normal distribution
      *
      * \return Status of computations
      */
@@ -158,7 +154,7 @@ public:
         return s;
     }
 
-    Parameter<algorithmFPType> parameter; /*!< %Parameters of the uniform distribution */
+    Parameter<algorithmFPType> parameter; /*!< %Parameters of the normal distribution */
 
 protected:
     virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
@@ -177,11 +173,11 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::BatchContainer;
-using interface1::Batch;
+} // namespace internal
+using internal::BatchContainer;
+using internal::Batch;
 /** @} */
-} // namespace uniform
+} // namespace normal
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

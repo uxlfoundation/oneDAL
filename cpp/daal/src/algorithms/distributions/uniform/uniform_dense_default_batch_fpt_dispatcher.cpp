@@ -30,10 +30,10 @@ namespace distributions
 {
 namespace uniform
 {
-namespace interface1
+namespace internal
 {
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
+Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
 {
     initialize();
 }
@@ -41,12 +41,12 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>::Batch(DAAL
 using BatchType = Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
 {
     initialize();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace uniform
 } // namespace distributions
 } // namespace algorithms

@@ -66,18 +66,16 @@ enum ResultId
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__PARAMETERBASE"></a>
  * Parameters of the distributions
- *
- * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT ParameterBase : public daal::algorithms::Parameter
+class ParameterBase : public daal::algorithms::Parameter
 {
 public:
-    DAAL_DEPRECATED ParameterBase();
+    ParameterBase();
     virtual ~ParameterBase();
 
     engines::EnginePtr engine; /*!<Pointer to the engine */
@@ -86,16 +84,14 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__INPUT"></a>
  * \brief %Input objects for distributions
- *
- * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT Input : public daal::algorithms::Input
+class Input : public daal::algorithms::Input
 {
 public:
     /**
      * Default constructor
      */
-    DAAL_DEPRECATED Input();
+    Input();
     /** Copy constructor */
     Input(const Input & other);
 
@@ -128,14 +124,12 @@ public:
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTION__RESULT"></a>
  * \brief Provides methods to access the result obtained with the compute() method of the distribution
- *
- * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT Result : public daal::algorithms::Result
+class Result : public daal::algorithms::Result
 {
 public:
     /** \brief Constructor */
-    DAAL_DEPRECATED Result();
+    Result();
 
     virtual ~Result();
 
@@ -148,7 +142,7 @@ public:
      * \return Status of computations
      */
     template <typename algorithmFPType>
-    DAAL_EXPORT services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
+    services::Status allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method);
 
     /**
      * Returns result of the distribution
@@ -201,11 +195,11 @@ protected:
     }
 };
 typedef services::SharedPtr<Result> ResultPtr;
-} // namespace interface1
-using interface1::Input;
-using interface1::Result;
-using interface1::ResultPtr;
-using interface1::ParameterBase;
+} // namespace internal
+using internal::Input;
+using internal::Result;
+using internal::ResultPtr;
+using internal::ParameterBase;
 /** @} */
 } // namespace distributions
 } // namespace algorithms

@@ -1,4 +1,4 @@
-/* file: bernoulli_types.h */
+/* file: uniform_types.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,14 +17,14 @@
 
 /*
 //++
-//  Implementation of bernoulli distribution.
+//  Implementation of uniform distribution.
 //--
 */
 
-#ifndef __BERNOULLI__TYPES_H__
-#define __BERNOULLI__TYPES_H__
+#ifndef __UNIFORM__TYPES_H__
+#define __UNIFORM__TYPES_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -33,19 +33,19 @@ namespace algorithms
 namespace distributions
 {
 /**
- * @defgroup distributions_bernoulli Bernoulli Distribution
- * \copydoc daal::algorithms::distributions::bernoulli
+ * @defgroup distributions_uniform Uniform Distribution
+ * \copydoc daal::algorithms::distributions::uniform
  * @ingroup distributions
  * @{
  */
 /**
- * \brief Contains classes for bernoulli distribution
+ * \brief Contains classes for uniform distribution
  */
-namespace bernoulli
+namespace uniform
 {
 /**
- * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__METHOD"></a>
- * Available methods to compute bernoulli distribution
+ * <a name="DAAL-ENUM-ALGORITHMS__DISTRIBUTIONS__UNIFORM__METHOD"></a>
+ * Available methods to compute uniform distribution
  */
 enum Method
 {
@@ -55,25 +55,25 @@ enum Method
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__PARAMETER"></a>
- * \brief Bernoulli distribution parameters
- *
- * \DAAL_DEPRECATED
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__PARAMETER"></a>
+ * \brief Uniform distribution parameters
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Parameter : public distributions::ParameterBase
+class Parameter : public distributions::ParameterBase
 {
 public:
     /**
      *  Main constructor
-     *  \param[in] _p    Success probability of a trial, value from [0.0; 1.0]
+     *  \param[in] _a    Left bound a
+     *  \param[in] _b    Right bound b
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _p) : p(_p) {}
+    Parameter(algorithmFPType _a = 0.0, algorithmFPType _b = 1.0) : a(_a), b(_b) {}
 
-    algorithmFPType p; /*!< Success probability of a trial, value from [0.0; 1.0] */
+    algorithmFPType a; /*!< Left bound a */
+    algorithmFPType b; /*!< Right bound b */
 
     /**
      * Check the correctness of the %Parameter object
@@ -81,10 +81,10 @@ public:
     services::Status check() const override;
 };
 
-} // namespace interface1
-using interface1::Parameter;
+} // namespace internal
+using internal::Parameter;
 
-} // namespace bernoulli
+} // namespace uniform
 /** @} */
 } // namespace distributions
 } // namespace algorithms
