@@ -47,6 +47,10 @@ else()
     set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
 endif()
 
+if(POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
 #Backward compatibility section to be removed with next major version
 if(NOT DEFINED ONEDAL_LINK AND DEFINED TARGET_LINK)
   message(STATUS "TARGET_LINK is deprecated. Please use ONEDAL_LINK instead.")
