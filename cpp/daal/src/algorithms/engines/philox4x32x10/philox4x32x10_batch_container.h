@@ -40,7 +40,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the philox4x32x10 engine.
- *        This class is associated with the \ref philox4x32x10::interface1::Batch "philox4x32x10::Batch" class
+ *        This class is associated with the \ref philox4x32x10::internal::Batch "philox4x32x10::Batch" class
  *        and supports the method of philox4x32x10 engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of philox4x32x10 engine, double or float

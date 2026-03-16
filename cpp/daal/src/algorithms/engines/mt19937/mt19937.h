@@ -136,10 +136,10 @@ typedef services::SharedPtr<Batch<> > mt19937Ptr;
 typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
 
 <<<<<<< HEAD
-} // namespace interface1
-using interface1::Batch;
-using interface1::mt19937Ptr;
-using interface1::mt19937ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mt19937Ptr;
+using internal::mt19937ConstPtr;
 =======
 } // namespace internal
 using internal::BatchContainer;

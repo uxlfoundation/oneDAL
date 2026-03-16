@@ -40,7 +40,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the mt19937 engine.
- *        This class is associated with the \ref mt19937::interface1::Batch "mt19937::Batch" class
+ *        This class is associated with the \ref mt19937::internal::Batch "mt19937::Batch" class
  *        and supports the method of mt19937 engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float

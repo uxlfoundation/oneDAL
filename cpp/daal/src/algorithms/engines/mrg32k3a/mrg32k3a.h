@@ -139,10 +139,10 @@ typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
 typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
 <<<<<<< HEAD
-} // namespace interface1
-using interface1::Batch;
-using interface1::mrg32k3aPtr;
-using interface1::mrg32k3aConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mrg32k3aPtr;
+using internal::mrg32k3aConstPtr;
 =======
 } // namespace internal
 using internal::BatchContainer;

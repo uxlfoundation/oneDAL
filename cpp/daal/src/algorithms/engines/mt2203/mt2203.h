@@ -136,18 +136,10 @@ private:
 typedef services::SharedPtr<Batch<> > mt2203Ptr;
 typedef services::SharedPtr<const Batch<> > mt2203ConstPtr;
 
-<<<<<<< HEAD
-} // namespace interface1
-using interface1::Batch;
-using interface1::mt2203Ptr;
-using interface1::mt2203ConstPtr;
-=======
 } // namespace internal
-using internal::BatchContainer;
 using internal::Batch;
 using internal::mt2203Ptr;
 using internal::mt2203ConstPtr;
->>>>>>> 8de6185d5 (remove deprecated and daal export macros)
 /** @} */
 } // namespace mt2203
 } // namespace engines

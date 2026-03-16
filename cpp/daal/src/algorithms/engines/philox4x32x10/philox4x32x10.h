@@ -139,10 +139,10 @@ typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
 typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
 <<<<<<< HEAD
-} // namespace interface1
-using interface1::Batch;
-using interface1::philox4x32x10Ptr;
-using interface1::philox4x32x10ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::philox4x32x10Ptr;
+using internal::philox4x32x10ConstPtr;
 =======
 } // namespace internal
 using internal::BatchContainer;

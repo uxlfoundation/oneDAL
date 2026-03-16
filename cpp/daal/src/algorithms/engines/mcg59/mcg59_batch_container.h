@@ -40,7 +40,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the mcg59 engine.
- *        This class is associated with the \ref mcg59::interface1::Batch "mcg59::Batch" class
+ *        This class is associated with the \ref mcg59::internal::Batch "mcg59::Batch" class
  *        and supports the method of mcg59 engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float

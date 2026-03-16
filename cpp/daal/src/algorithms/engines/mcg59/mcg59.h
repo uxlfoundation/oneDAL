@@ -135,10 +135,10 @@ private:
 typedef services::SharedPtr<Batch<> > mcg59Ptr;
 typedef services::SharedPtr<const Batch<> > mcg59ConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::mcg59Ptr;
-using interface1::mcg59ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mcg59Ptr;
+using internal::mcg59ConstPtr;
 /** @} */
 } // namespace mcg59
 } // namespace engines
