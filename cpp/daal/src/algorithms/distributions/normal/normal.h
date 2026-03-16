@@ -24,8 +24,8 @@
 #ifndef __NORMAL_H__
 #define __NORMAL_H__
 
-#include "algorithms/distributions/distribution.h"
-#include "algorithms/distributions/normal/normal_types.h"
+#include "src/algorithms/distributions/distribution.h"
+#include "src/algorithms/distributions/normal/normal_types.h"
 
 namespace daal
 {
@@ -35,12 +35,7 @@ namespace distributions
 {
 namespace normal
 {
-/**
- * @defgroup distributions_normal_batch Batch
- * @ingroup distributions_normal
- * @{
- */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__NORMAL__BATCH"></a>
@@ -53,13 +48,11 @@ namespace interface1
  *      - normal::Method          Computation methods for the normal distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public distributions::BatchBase
+class Batch : public distributions::BatchBase
 {
 public:
     typedef distributions::BatchBase super;
@@ -73,7 +66,7 @@ public:
      *  \param[in] a     Mean
      *  \param[in] sigma standard deviation
      */
-    DAAL_DEPRECATED Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
+    Batch(algorithmFPType a = 0.0, algorithmFPType sigma = 1.0);
 
     /**
      * Constructs normal distribution by copying input objects and parameters of another normal distribution
@@ -140,9 +133,7 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::Batch;
-/** @} */
+} // namespace internal
 } // namespace normal
 } // namespace distributions
 } // namespace algorithms

@@ -1,4 +1,4 @@
-/* file: bernoulli.h */
+/* file: uniform.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,15 +17,15 @@
 
 /*
 //++
-//  Implementation of the bernoulli distribution
+//  Implementation of the uniform distribution
 //--
 */
 
-#ifndef __BERNOULLI_H__
-#define __BERNOULLI_H__
+#ifndef __UNIFORM_H__
+#define __UNIFORM_H__
 
-#include "algorithms/distributions/distribution.h"
-#include "algorithms/distributions/bernoulli/bernoulli_types.h"
+#include "src/algorithms/distributions/distribution.h"
+#include "src/algorithms/distributions/uniform/uniform_types.h"
 
 namespace daal
 {
@@ -33,50 +33,44 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace bernoulli
+namespace uniform
+{
+namespace internal
 {
 /**
- * @defgroup distributions_bernoulli_batch Batch
- * @ingroup distributions_bernoulli
- * @{
- */
-namespace interface1
-{
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__BATCH"></a>
- * \brief Provides methods for bernoulli distribution computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__BATCH"></a>
+ * \brief Provides methods for uniform distribution computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of bernoulli distribution, double or float
- * \tparam method           Computation method of the distribution, bernoulli::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
+ * \tparam method           Computation method of the distribution, uniform::Method
  *
  * \par Enumerations
- *      - bernoulli::Method          Computation methods for the bernoulli distribution
+ *      - uniform::Method          Computation methods for the uniform distribution
  *
  * \par References
- *      - \ref distributions::interface1::Input "distributions::Input" class
- *      - \ref distributions::interface1::Result "distributions::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref distributions::internal::Input "distributions::Input" class
+ *      - \ref distributions::internal::Result "distributions::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public distributions::BatchBase
+class Batch : public distributions::BatchBase
 {
 public:
     typedef distributions::BatchBase super;
 
     typedef typename super::InputType InputType;
-    typedef algorithms::distributions::bernoulli::Parameter<algorithmFPType> ParameterType;
+    typedef algorithms::distributions::uniform::Parameter<algorithmFPType> ParameterType;
     typedef typename super::ResultType ResultType;
 
     /**
-     * Constructs bernoulli distribution
-     *  \param[in] p     Success probability of a trial, value from [0.0; 1.0]
+     * Constructs uniform distribution
+     *  \param[in] a     Left bound a
+     *  \param[in] b     Right bound b
      */
-    DAAL_DEPRECATED Batch(algorithmFPType p);
+    Batch(algorithmFPType a = 0.0, algorithmFPType b = 1.0);
 
     /**
-     * Constructs bernoulli distribution by copying input objects and parameters of another bernoulli distribution
-     * \param[in] other Bernoulli distribution
+     * Constructs uniform distribution by copying input objects and parameters of another uniform distribution
+     * \param[in] other Uniform distribution
      */
     Batch(const Batch<algorithmFPType, method> & other);
 
@@ -87,14 +81,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of bernoulli distribution
-     * \return Structure that contains results of bernoulli distribution
+     * Returns the structure that contains results of uniform distribution
+     * \return Structure that contains results of uniform distribution
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of bernoulli distribution
-     * \param[in] result  Structure to store results of bernoulli distribution
+     * Registers user-allocated memory to store results of uniform distribution
+     * \param[in] result  Structure to store results of uniform distribution
      *
      * \return Status of computations
      */
@@ -107,14 +101,14 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated bernoulli distribution
-     * with a copy of input objects and parameters of this bernoulli distribution
+     * Returns a pointer to the newly allocated uniform distribution
+     * with a copy of input objects and parameters of this uniform distribution
      * \return Pointer to the newly allocated distribution
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
     /**
-     * Allocates memory to store the result of the bernoulli distribution
+     * Allocates memory to store the result of the uniform distribution
      *
      * \return Status of computations
      */
@@ -126,7 +120,7 @@ public:
         return s;
     }
 
-    Parameter<algorithmFPType> parameter; /*!< %Parameters of the bernoulli distribution */
+    Parameter<algorithmFPType> parameter; /*!< %Parameters of the uniform distribution */
 
 protected:
     Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
@@ -139,10 +133,8 @@ private:
     Batch & operator=(const Batch &);
 };
 
-} // namespace interface1
-using interface1::Batch;
-/** @} */
-} // namespace bernoulli
+} // namespace internal
+} // namespace uniform
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

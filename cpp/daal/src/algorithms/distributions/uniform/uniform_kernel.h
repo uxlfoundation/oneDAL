@@ -22,7 +22,7 @@
 #ifndef __UNIFORM_KERNEL_H__
 #define __UNIFORM_KERNEL_H__
 
-#include "algorithms/distributions/uniform/uniform.h"
+#include "src/algorithms/distributions/uniform/uniform.h"
 
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"

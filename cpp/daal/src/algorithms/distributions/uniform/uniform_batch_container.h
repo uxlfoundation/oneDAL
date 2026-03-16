@@ -24,7 +24,7 @@
 #ifndef __UNIFORM_BATCH_CONTAINER_H__
 #define __UNIFORM_BATCH_CONTAINER_H__
 
-#include "algorithms/distributions/uniform/uniform.h"
+#include "src/algorithms/distributions/uniform/uniform.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 
 namespace daal

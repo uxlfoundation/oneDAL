@@ -31,32 +31,23 @@ namespace distributions
 {
 namespace bernoulli
 {
-namespace interface1
+namespace internal
 {
-template <>
-void Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::initialize()
-{
-    Analysis<batch>::_ac =
-        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::bernoulli::defaultDense)(&_env);
-    _in  = &input;
-    _par = &parameter;
-    _result.reset(new ResultType());
-}
-template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::Batch(DAAL_FPTYPE p) : parameter(p)
-{
-    initialize();
-}
-
 using BatchType = Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+BatchType::Batch(DAAL_FPTYPE p) : parameter(p)
 {
     initialize();
 }
 
-} // namespace interface1
+template <>
+BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace internal
 } // namespace bernoulli
 } // namespace distributions
 } // namespace algorithms

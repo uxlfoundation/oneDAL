@@ -31,14 +31,11 @@ namespace distributions
 {
 namespace uniform
 {
-
 namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-
 template class UniformKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 } // namespace internal
-
 } // namespace uniform
 } // namespace distributions
 } // namespace algorithms

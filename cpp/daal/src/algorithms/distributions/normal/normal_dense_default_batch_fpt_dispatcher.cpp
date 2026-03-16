@@ -30,31 +30,23 @@ namespace distributions
 {
 namespace normal
 {
-namespace interface1
+namespace internal
 {
-template <>
-void Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::initialize()
-{
-    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::normal::defaultDense)(&_env);
-    _in                  = &input;
-    _par                 = &parameter;
-    _result.reset(new ResultType());
-}
-template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, distributions::normal::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE sigma) : parameter(a, sigma)
-{
-    initialize();
-}
-
 using BatchType = Batch<DAAL_FPTYPE, distributions::normal::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+BatchType::Batch(DAAL_FPTYPE a, DAAL_FPTYPE sigma) : parameter(a, sigma)
 {
     initialize();
 }
 
-} // namespace interface1
+template <>
+BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)
+{
+    initialize();
+}
+
+} // namespace internal
 } // namespace normal
 } // namespace distributions
 } // namespace algorithms
