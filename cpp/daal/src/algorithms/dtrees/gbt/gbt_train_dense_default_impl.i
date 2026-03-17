@@ -402,9 +402,16 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
         impTables.reset(nTrees);
         nodeSampleCountTables.reset(nTrees);
 
-        DAAL_CHECK_MALLOC(aTables.get());
         DAAL_CHECK_MALLOC(impTables.get());
         DAAL_CHECK_MALLOC(nodeSampleCountTables.get());
+
+        for (size_t i = 0; i < nTrees; ++i)
+        {
+            impTables[i]             = services::SharedPtr<HomogenNumericTable<double> >();
+            nodeSampleCountTables[i] = services::SharedPtr<HomogenNumericTable<int> >();
+        }
+
+        DAAL_CHECK_MALLOC(aTables.get());
 
         aTbl        = aTables.get();
         aTblImp     = impTables.get();
