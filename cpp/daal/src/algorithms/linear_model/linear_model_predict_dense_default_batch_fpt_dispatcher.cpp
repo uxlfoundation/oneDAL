@@ -24,6 +24,7 @@
 */
 
 #include "src/algorithms/linear_model/linear_model_predict_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

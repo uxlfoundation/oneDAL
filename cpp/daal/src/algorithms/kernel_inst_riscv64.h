@@ -21,17 +21,16 @@
 //--
 */
 #include "services/daal_defines.h"
-//useage of DAAL_EXPORT is only to not break ABI. It can be removed in the next major release (2026.0)
 
 #ifndef __KERNEL_INST_RISCV64_H__
     #define __KERNEL_INST_RISCV64_H__
 
     #define __DAAL_INSTANTIATE_DISPATCH_IMPL(ContainerTemplate, Mode, ClassName, BaseClassName, GetCpuid, ...)                                   \
         DAAL_KERNEL_RV64_CONTAINER1(ContainerTemplate, __VA_ARGS__)                                                                              \
-        namespace interface1                                                                                                                     \
+        namespace internal                                                                                                                       \
         {                                                                                                                                        \
         template <>                                                                                                                              \
-        DAAL_EXPORT ClassName<Mode, ContainerTemplate<__VA_ARGS__, rv64> DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName( \
+        ClassName<Mode, ContainerTemplate<__VA_ARGS__, rv64> DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName(             \
             daal::services::Environment::env * daalEnv)                                                                                          \
             : BaseClassName(daalEnv), _cntr(nullptr)                                                                                             \
         {                                                                                                                                        \

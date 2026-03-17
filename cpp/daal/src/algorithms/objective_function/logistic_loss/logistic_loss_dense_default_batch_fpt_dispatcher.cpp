@@ -20,6 +20,7 @@
 //--
 
 #include "src/algorithms/objective_function/logistic_loss/logistic_loss_dense_default_batch_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

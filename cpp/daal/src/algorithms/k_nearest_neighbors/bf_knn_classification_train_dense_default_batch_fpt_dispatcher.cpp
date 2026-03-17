@@ -16,6 +16,7 @@
 *******************************************************************************/
 
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_train_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

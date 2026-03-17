@@ -24,6 +24,7 @@
 #include "src/algorithms/svm/svm_train_kernel.h"
 #include "algorithms/classifier/classifier_training_batch.h"
 #include "src/algorithms/svm/svm_train_batch_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {
