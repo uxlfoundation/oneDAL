@@ -25,8 +25,16 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 _CPU_SETTING = str(Label("@config//:cpu"))
 
 def _match_file_name(file, entries):
+    # Use short_path (workspace-relative, e.g. "cpp/oneapi/dal/foo.h" or
+    # "../mkl_repo~mkl/include/mkl.h") instead of file.path (which contains
+    # bazel-out/ prefixes and Bzlmod repo hashes like "+mkl_repo+mkl/").
+    # This makes external-repo detection stable across workspace and Bzlmod:
+    #   - workspace style:  short_path starts with "../<repo>/"
+    #   - Bzlmod style:     short_path starts with "../<repo>~<ver>/"
+    # Callers can use "../" as an exclude pattern to reject all external repos.
+    path = file.short_path
     for entry in entries:
-        if entry in file.path:
+        if entry in path:
             return True
     return False
 
