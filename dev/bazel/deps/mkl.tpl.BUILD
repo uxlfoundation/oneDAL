@@ -55,13 +55,17 @@ cc_library(
     name = "mkl_dpc_utils",
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
+        "-lgomp",  # Required by libmkl_gnu_thread.so
     ],
-    srcs = glob(
-        [
-            "lib/*.so",
-            "lib/*.so.*",
-        ],
-    ),
+    srcs = glob([
+        "lib/libmkl_core.so*",
+        "lib/libmkl_intel_lp64.so*",
+        "lib/libmkl_gnu_thread.so*",
+        "lib/libmkl_sycl_blas.so*",
+        "lib/libmkl_sycl_lapack.so*",
+        "lib/libmkl_sycl_sparse.so*",
+        "lib/libmkl_sycl_rng.so*",
+    ]),
 )
 
 cc_library(
@@ -71,9 +75,6 @@ cc_library(
         # Currently its hardcoded to 16 to get the best trade-off between linking speedup and resources used.
         # If the number of processors on machine is below 16 it will be defaulted to `nproc`.
         "-fsycl-max-parallel-link-jobs=16",
-    ],
-    srcs = [
-        "lib/libmkl_sycl.so",
     ],
     deps = [
         ":headers",
