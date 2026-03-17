@@ -113,7 +113,13 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
         exclude = [
             "backend/",
             "test/",
-            "bazel-",
+            # Exclude all external-repository headers.  _match_file_name uses
+            # file.short_path, where every external dep starts with "../":
+            #   workspace style:  ../mkl_repo/include/mkl.h
+            #   Bzlmod style:     ../mkl_repo~2024.2/include/mkl.h
+            # The old "bazel-" pattern only caught workspace-style paths in
+            # file.path; it missed Bzlmod "+mkl_repo+mkl/" hashes entirely.
+            "../",
         ],
     )
 

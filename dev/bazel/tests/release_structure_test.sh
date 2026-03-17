@@ -173,6 +173,52 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 5. No external dependency headers in include/
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== No external headers in release include/ ==="
+
+INCLUDE_DIR="${RELEASE_DIR}/include"
+if [ ! -d "$INCLUDE_DIR" ]; then
+    _fail "include/ directory not found at ${INCLUDE_DIR}"
+else
+    # Allowed top-level subdirs inside include/:
+    # - oneapi/   (oneAPI DAL public API)
+    # - services/ (legacy DAAL services)
+    # - algorithms/, data_management/, ... (legacy DAAL)
+    # Forbidden: anything that looks like an external repo artifact.
+    # In Bazel, external repo headers land under include/external/ (workspace
+    # style) or include/+<repo>+<name>/ (Bzlmod style).
+    bad_dirs=()
+    # workspace-style: include/external/<repo>/
+    while IFS= read -r -d '' d; do
+        bad_dirs+=("$d")
+    done < <(find "${INCLUDE_DIR}/external" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
+    # Bzlmod-style: include/+<repo>+<name>/
+    while IFS= read -r -d '' d; do
+        bad_dirs+=("$d")
+    done < <(find "${INCLUDE_DIR}" -maxdepth 1 -mindepth 1 -type d -name '+*' -print0 2>/dev/null)
+
+    if [ "${#bad_dirs[@]}" -eq 0 ]; then
+        _pass "No external dependency headers found in include/"
+    else
+        for d in "${bad_dirs[@]}"; do
+            _fail "External headers leaked into release: $(basename "$d")"
+        done
+        echo "  ℹ️  These directories should not be part of the oneDAL public include tree."
+        echo "     Fix: ensure headers_filter excludes external repos (short_path starts with '../')."
+    fi
+
+    # Also scan for any file whose path contains known external repo markers
+    leaked=$(find "${INCLUDE_DIR}" -type f \( -name "mkl*.h" -o -name "tbb*.h" -o -name "dpl_*.h" \) 2>/dev/null || true)
+    if [ -n "$leaked" ]; then
+        while IFS= read -r f; do
+            _fail "Known external header in release: ${f#${INCLUDE_DIR}/}"
+        done <<< "$leaked"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
