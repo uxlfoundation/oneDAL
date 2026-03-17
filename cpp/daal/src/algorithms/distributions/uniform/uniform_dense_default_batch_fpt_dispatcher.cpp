@@ -25,20 +25,29 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::uniform::BatchContainer, batch, DAAL_FPTYPE, distributions::uniform::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::uniform::internal::BatchContainer, batch, DAAL_FPTYPE, distributions::uniform::defaultDense)
 namespace distributions
 {
 namespace uniform
 {
 namespace internal
 {
+using BatchType = Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
+
 template <>
-Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::uniform::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+    _result.reset(new ResultType());
+}
+
+template <>
+BatchType::Batch(DAAL_FPTYPE a, DAAL_FPTYPE b) : parameter(a, b)
 {
     initialize();
 }
-
-using BatchType = Batch<DAAL_FPTYPE, distributions::uniform::defaultDense>;
 
 template <>
 BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)

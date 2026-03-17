@@ -25,7 +25,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::coordinate_descent::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::coordinate_descent::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       optimization_solver::coordinate_descent::defaultDense)
 
 namespace optimization_solver
@@ -36,6 +36,14 @@ namespace interface1
 {
 using BatchType = Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>;
 
+template <>
+void Batch<DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, optimization_solver::coordinate_descent::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT BatchType::Batch(const sum_of_functions::BatchPtr & objectiveFunction)
 {

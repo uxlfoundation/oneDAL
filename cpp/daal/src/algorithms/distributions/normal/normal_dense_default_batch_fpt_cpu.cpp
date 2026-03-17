@@ -34,13 +34,8 @@ namespace normal
 namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-} // namespace internal
-
-namespace internal
-{
 template class NormalKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 } // namespace internal
-
 } // namespace normal
 } // namespace distributions
 } // namespace algorithms

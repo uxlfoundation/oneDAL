@@ -45,42 +45,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__ONLINECONTAINER"></a>
- * \brief Class containing methods for linear regression model-based training
- * in the online processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public TrainingContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for linear regression model-based training with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~OnlineContainer();
-
-    /**
-     * Computes a partial result of linear regression model-based training
-     * in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() override;
-    /**
-     * Computes the result of linear regression model-based training
-     * in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status finalizeCompute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_REGRESSION__TRAINING__ONLINE"></a>
  * \brief Provides methods for linear regression model-based training in the online processing mode
  * <!-- \n<a href="DAAL-REF-LINEARREGRESSION-ALGORITHM">Linear regression algorithm description and usage models</a> -->
@@ -123,13 +87,13 @@ public:
 
     ~Online() {}
 
-    virtual regression::training::Input * getInput() override { return &input; }
+    regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains a partial result of linear regression model-based training
@@ -152,7 +116,7 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {
@@ -175,21 +139,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResultType());
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Online & operator=(const Online &);
 }; // class  : public Training
 /** @} */
 } // namespace interface1
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace training

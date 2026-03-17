@@ -33,13 +33,10 @@ namespace svm
 {
 namespace training
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, thunder, DAAL_CPU>;
-}
 namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, thunder, DAAL_CPU>;
+template class NuBatchContainer<DAAL_FPTYPE, thunder, DAAL_CPU>;
 template struct DAAL_EXPORT SVMTrainImpl<thunder, DAAL_FPTYPE, DAAL_CPU>;
 
 } // namespace internal

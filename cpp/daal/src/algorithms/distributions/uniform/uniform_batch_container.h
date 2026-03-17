@@ -37,6 +37,36 @@ namespace uniform
 {
 namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the uniform distribution.
+ *        This class is associated with the \ref uniform::interface1::Batch "uniform::Batch" class
+ *        and supports the method of uniform distribution computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
+ * \tparam method           Computation method of the distribution, uniform::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the uniform distribution with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the uniform distribution in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -52,8 +82,8 @@ BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 {
-    uniform::Parameter<algorithmFPType> * parameter = static_cast<uniform::Parameter<algorithmFPType> *>(_par);
-    daal::services::Environment::env & env          = *_env;
+    uniform::internal::Parameter<algorithmFPType> * parameter = static_cast<uniform::internal::Parameter<algorithmFPType> *>(_par);
+    daal::services::Environment::env & env                    = *_env;
 
     distributions::Result * result = static_cast<distributions::Result *>(_res);
 
