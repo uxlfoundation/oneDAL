@@ -491,7 +491,7 @@ jobs:
   pool:
     vmImage: '$(WIN_VM_IMAGE)'
   steps:
-  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
+  - script: .ci/scripts/install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS) 
     displayName: Install oneAPI Base Toolkit
   - script: |
       set PATH=C:\msys64\usr\bin;%PATH%
