@@ -39,7 +39,12 @@ inline sycl::event sort_inplace(sycl::queue& queue_,
     std::string device_name = device.get_info<sycl::info::device::name>();
     auto src_ind = pr::ndarray<Index, 1>::empty(queue_, { src.get_count() });
     //TODO: re-enable when https://github.com/uxlfoundation/oneDPL/pull/2575 is merged.
-    return pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_, src, src_ind, deps);
+    if (false) {
+        return pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_, src, src_ind, deps);
+    }
+    else {
+        return pr::radix_sort_indices_inplace<Float, Index>{ queue_ }(src, src_ind, deps);
+    }
 }
 
 template <typename Float, typename Bin, typename Index>
@@ -437,14 +442,34 @@ sycl::event indexed_features<Float, Bin, Index>::operator()(const table& tbl,
     auto device = queue_.get_device();
     std::string device_name = device.get_info<sycl::info::device::name>();
 
-    for (Index i = 0; i < column_count_; i++) {
-        last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
-        last_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_,
-                                                                      values_nd,
-                                                                      indices_nd,
-                                                                      { last_event });
-        last_event =
-            compute_bins(values_nd, indices_nd, column_bin_vec_[i], entries_[i], i, { last_event });
+    //TODO: re-enable when https://github.com/uxlfoundation/oneDPL/pull/2575 is merged.
+    if (false) {
+        for (Index i = 0; i < column_count_; i++) {
+            last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
+            last_event = pr::radix_sort_indices_inplace_dpl<Float, Index>(queue_,
+                                                                          values_nd,
+                                                                          indices_nd,
+                                                                          { last_event });
+            last_event = compute_bins(values_nd,
+                                      indices_nd,
+                                      column_bin_vec_[i],
+                                      entries_[i],
+                                      i,
+                                      { last_event });
+        }
+    }
+    else {
+        pr::radix_sort_indices_inplace<Float, Index> sort{ queue_ };
+        for (Index i = 0; i < column_count_; i++) {
+            last_event = extract_column(data_nd_, values_nd, indices_nd, i, { last_event });
+            last_event = sort(values_nd, indices_nd, { last_event });
+            last_event = compute_bins(values_nd,
+                                      indices_nd,
+                                      column_bin_vec_[i],
+                                      entries_[i],
+                                      i,
+                                      { last_event });
+        }
     }
 
     last_event.wait_and_throw();
