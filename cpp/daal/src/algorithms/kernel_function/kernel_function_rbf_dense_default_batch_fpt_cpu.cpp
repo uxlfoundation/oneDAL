@@ -33,13 +33,11 @@ namespace kernel_function
 {
 namespace rbf
 {
-namespace interface1
+
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
-}
-namespace internal
-{
 template class DAAL_EXPORT KernelImplRBF<defaultDense, DAAL_FPTYPE, DAAL_CPU>;
 
 } // namespace internal

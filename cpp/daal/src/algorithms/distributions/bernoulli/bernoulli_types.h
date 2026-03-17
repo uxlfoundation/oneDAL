@@ -24,7 +24,7 @@
 #ifndef __BERNOULLI__TYPES_H__
 #define __BERNOULLI__TYPES_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -32,12 +32,6 @@ namespace algorithms
 {
 namespace distributions
 {
-/**
- * @defgroup distributions_bernoulli Bernoulli Distribution
- * \copydoc daal::algorithms::distributions::bernoulli
- * @ingroup distributions
- * @{
- */
 /**
  * \brief Contains classes for bernoulli distribution
  */
@@ -55,23 +49,21 @@ enum Method
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BERNOULLI__PARAMETER"></a>
  * \brief Bernoulli distribution parameters
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Parameter : public distributions::ParameterBase
+class Parameter : public distributions::ParameterBase
 {
 public:
     /**
      *  Main constructor
      *  \param[in] _p    Success probability of a trial, value from [0.0; 1.0]
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _p) : p(_p) {}
+    Parameter(algorithmFPType _p) : p(_p) {}
 
     algorithmFPType p; /*!< Success probability of a trial, value from [0.0; 1.0] */
 
@@ -81,11 +73,8 @@ public:
     services::Status check() const override;
 };
 
-} // namespace interface1
-using interface1::Parameter;
-
+} // namespace internal
 } // namespace bernoulli
-/** @} */
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

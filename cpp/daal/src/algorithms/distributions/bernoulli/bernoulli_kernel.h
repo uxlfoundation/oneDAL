@@ -22,7 +22,7 @@
 #ifndef __BERNOULLI_KERNEL_H__
 #define __BERNOULLI_KERNEL_H__
 
-#include "algorithms/distributions/bernoulli/bernoulli.h"
+#include "src/algorithms/distributions/bernoulli/bernoulli.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 #include "src/data_management/service_numeric_table.h"

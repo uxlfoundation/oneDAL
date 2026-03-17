@@ -33,12 +33,9 @@ namespace kmeans
 {
 namespace init
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, parallelPlusCSR, DAAL_CPU>;
-}
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, parallelPlusCSR, DAAL_CPU>;
 template class DAAL_EXPORT KMeansInitKernel<parallelPlusCSR, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace init

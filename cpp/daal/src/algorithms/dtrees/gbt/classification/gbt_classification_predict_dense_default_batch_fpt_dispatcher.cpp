@@ -29,7 +29,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::classification::prediction::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::classification::prediction::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       gbt::classification::prediction::defaultDense)
 
 namespace gbt
@@ -40,6 +40,13 @@ namespace prediction
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, gbt::classification::prediction::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::classification::prediction::defaultDense>::Batch(size_t nClasses)
 {

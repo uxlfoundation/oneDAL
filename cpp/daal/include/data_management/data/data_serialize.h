@@ -51,7 +51,7 @@ class OutputDataArchive;
 class DAAL_EXPORT SerializationIface : public Base
 {
 public:
-    virtual ~SerializationIface() override {}
+    ~SerializationIface() override {}
 
     /**
      *  Performs serialization
@@ -127,7 +127,7 @@ private:                                             \
 public:                                              \
     DECLARE_SERIALIZABLE_IMPL()                      \
     static int serializationTag();                   \
-    virtual int getSerializationTag() const override;
+    int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_IFACE()                 \
 private:                                             \
@@ -135,12 +135,12 @@ private:                                             \
                                                      \
 public:                                              \
     static int serializationTag();                   \
-    virtual int getSerializationTag() const override;
+    int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_TAG() \
 public:                            \
     static int serializationTag(); \
-    virtual int getSerializationTag() const override;
+    int getSerializationTag() const override;
 
 #define DECLARE_SERIALIZABLE_CAST(ClassName) \
     DECLARE_SERIALIZABLE()                   \

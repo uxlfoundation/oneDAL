@@ -24,7 +24,7 @@
 #ifndef __DISTRIBUTIONS_H__
 #define __DISTRIBUTIONS_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -36,13 +36,13 @@ namespace distributions
  * @ingroup distributions
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__BATCHBASE"></a>
  * \brief Class representing distributions
  */
-class DAAL_EXPORT BatchBase : public daal::algorithms::Analysis<batch>
+class BatchBase : public daal::algorithms::Analysis<batch>
 {
 public:
     typedef algorithms::distributions::Input InputType;
@@ -53,8 +53,8 @@ public:
     virtual ~BatchBase() {}
 };
 
-} // namespace interface1
-using interface1::BatchBase;
+} // namespace internal
+using internal::BatchBase;
 /** @} */
 } // namespace distributions
 } // namespace algorithms

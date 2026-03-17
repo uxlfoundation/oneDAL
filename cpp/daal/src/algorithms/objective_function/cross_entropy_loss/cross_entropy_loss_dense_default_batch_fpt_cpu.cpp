@@ -31,15 +31,11 @@ namespace optimization_solver
 {
 namespace cross_entropy_loss
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
-
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class CrossEntropyLossKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 
 } // namespace cross_entropy_loss
 

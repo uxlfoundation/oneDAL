@@ -51,23 +51,23 @@ public:
     ModelImpl(size_t nFeatures = 0) : RegressionImplType(nFeatures), _predictionBias(0.0f) {}
     ~ModelImpl() override {}
 
-    virtual size_t getNumberOfFeatures() const override { return RegressionImplType::getNumberOfFeatures(); }
+    size_t getNumberOfFeatures() const override { return RegressionImplType::getNumberOfFeatures(); }
 
     //Implementation of regression::Model
-    virtual size_t numberOfTrees() const override;
-    virtual void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
-    virtual void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
-    virtual void clear() override { ImplType::clear(); }
-    virtual void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
-    virtual void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
+    size_t numberOfTrees() const override;
+    void traverseDF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    void traverseBF(size_t iTree, algorithms::regression::TreeNodeVisitor & visitor) const override;
+    void clear() override { ImplType::clear(); }
+    void traverseDFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
+    void traverseBFS(size_t iTree, tree_utils::regression::TreeNodeVisitor & visitor) const override;
 
-    virtual void setPredictionBias(double value) override;
-    virtual double getPredictionBias() const override;
+    void setPredictionBias(double value) override;
+    double getPredictionBias() const override;
 
-    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) override;
-    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
-    virtual size_t getNumberOfTrees() const override;
+    size_t getNumberOfTrees() const override;
 
 private:
     /* global bias applied to predictions*/

@@ -90,22 +90,7 @@ Interface layers of certain DAAL algorithms
 The 2025.x releases are the last to provide it.
 The list of the deprecated DAAL classes includes:
 
-:doc:`daal/algorithms/distributions/index`
-
-- ``distributions::Input``
-- ``distributions::Result``
-
-- ``distributions::bernoulli::Batch``
-- ``distributions::bernoulli::BatchContainer``
-- ``distributions::bernoulli::Parameter``
-
-- ``distributions::normal::Batch``
-- ``distributions::normal::BatchContainer``
-- ``distributions::normal::Parameter``
-
-- ``distributions::uniform::Batch``
-- ``distributions::uniform::BatchContainer``
-- ``distributions::uniform::Parameter``
+The DAAL Distributions functionality has been removed from the documentation and public API.
 
 :doc:`daal/algorithms/engines/index`
 

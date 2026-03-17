@@ -123,7 +123,7 @@ public:
 
 protected:
     void initialize() { _result.reset(new ResultType()); }
-    virtual Batch * cloneImpl() const override = 0;
+    Batch * cloneImpl() const override = 0;
     ResultPtr _result;
 
 private:

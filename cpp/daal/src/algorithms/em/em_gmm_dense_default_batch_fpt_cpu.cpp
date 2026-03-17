@@ -31,13 +31,11 @@ namespace algorithms
 {
 namespace em_gmm
 {
-namespace interface1
+
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
-}
-namespace internal
-{
 template class EMKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 
 } // namespace internal
