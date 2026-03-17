@@ -168,6 +168,7 @@ services::Status AlgorithmImpl<mode>::computeNoThrow()
         this->setInitFlag(true);
     }
 
+    s = setupCompute();
     if (s)
     {
 #if !(defined DAAL_THREAD_PINNING_DISABLED)
@@ -186,6 +187,7 @@ services::Status AlgorithmImpl<mode>::computeNoThrow()
         }
     }
 
+    s |= resetCompute();
     return s;
 }
 
@@ -212,6 +214,7 @@ services::Status DAAL_EXPORT AlgorithmImpl<batch>::computeNoThrow()
         s = this->checkResult();
         if (!s) return s;
     }
+    s = setupCompute();
 
     if (s)
     {
@@ -231,6 +234,7 @@ services::Status DAAL_EXPORT AlgorithmImpl<batch>::computeNoThrow()
         }
     }
 
+    if (resetFlag) s |= resetCompute();
     _res = this->_ac->getResult();
     return s;
 }

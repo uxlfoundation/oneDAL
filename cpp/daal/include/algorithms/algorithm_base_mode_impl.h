@@ -49,11 +49,17 @@ class DAAL_EXPORT AlgorithmImpl : public Algorithm<mode>
 {
 public:
     /** Deafult constructor */
-    AlgorithmImpl() {}
+    AlgorithmImpl() : wasSetup(false), resetFlag(true), wasFinalizeSetup(false), resetFinalizeFlag(true) {}
 
-    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<mode>() {}
+    AlgorithmImpl(const AlgorithmImpl & /*other*/)
+        : Algorithm<mode>(), wasSetup(false), resetFlag(true), wasFinalizeSetup(false), resetFinalizeFlag(true)
+    {}
 
-    virtual ~AlgorithmImpl() {}
+    virtual ~AlgorithmImpl()
+    {
+        resetCompute();
+        resetFinalizeCompute();
+    }
 
     /**
      * Computes final results of the algorithm in the %batch mode,
@@ -94,7 +100,9 @@ public:
             if (!s) return s;
         }
 
+        s = setupFinalizeCompute();
         if (s) s |= this->_ac->finalizeCompute();
+        if (resetFinalizeFlag) s |= resetFinalizeCompute();
         return s;
     }
 
@@ -141,7 +149,60 @@ public:
         return this->_res ? this->_res->check(this->_pres, this->_par, this->getMethod()) : services::Status();
     }
 
+    services::Status setupCompute()
+    {
+        services::Status s;
+        if (!wasSetup)
+        {
+            s        = this->_ac->setupCompute();
+            wasSetup = true;
+        }
+        return s;
+    }
+
+    services::Status resetCompute()
+    {
+        services::Status s;
+        if (wasSetup)
+        {
+            s        = this->_ac->resetCompute();
+            wasSetup = false;
+        }
+        return s;
+    }
+
+    void enableResetOnCompute(bool flag) { resetFlag = flag; }
+
+    services::Status setupFinalizeCompute()
+    {
+        services::Status s;
+        if (!wasFinalizeSetup)
+        {
+            s                = this->_ac->setupFinalizeCompute();
+            wasFinalizeSetup = true;
+        }
+        return s;
+    }
+
+    services::Status resetFinalizeCompute()
+    {
+        services::Status s;
+        if (wasFinalizeSetup)
+        {
+            s                = this->_ac->resetFinalizeCompute();
+            wasFinalizeSetup = false;
+        }
+        return s;
+    }
+
+    void enableResetOnFinalizeCompute(bool flag) { resetFinalizeFlag = flag; }
+
 private:
+    bool wasSetup;
+    bool resetFlag;
+    bool wasFinalizeSetup;
+    bool resetFinalizeFlag;
+
     AlgorithmImpl & operator=(const AlgorithmImpl &);
 };
 
@@ -154,11 +215,11 @@ class DAAL_EXPORT AlgorithmImpl<batch> : public Algorithm<batch>
 {
 public:
     /** Deafult constructor */
-    AlgorithmImpl() {}
+    AlgorithmImpl() : wasSetup(false), resetFlag(true) {}
 
-    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<batch>() {}
+    AlgorithmImpl(const AlgorithmImpl & /*other*/) : Algorithm<batch>(), wasSetup(false), resetFlag(true) {}
 
-    virtual ~AlgorithmImpl() {}
+    virtual ~AlgorithmImpl() { resetCompute(); }
 
     /**
      * Computes final results of the algorithm in the %batch mode without possibility of throwing an exception.
@@ -198,7 +259,34 @@ public:
         return services::Status(services::ErrorNullResult);
     }
 
+    services::Status setupCompute()
+    {
+        services::Status s;
+        if (!wasSetup)
+        {
+            s        = this->_ac->setupCompute();
+            wasSetup = true;
+        }
+        return s;
+    }
+
+    services::Status resetCompute()
+    {
+        services::Status s;
+        if (wasSetup)
+        {
+            s        = this->_ac->resetCompute();
+            wasSetup = false;
+        }
+        return s;
+    }
+
+    void enableResetOnCompute(bool flag) { resetFlag = flag; }
+
 private:
+    bool wasSetup;
+    bool resetFlag;
+
     AlgorithmImpl & operator=(const AlgorithmImpl &);
 };
 /** @} */
