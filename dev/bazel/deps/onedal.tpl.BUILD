@@ -86,8 +86,11 @@ cc_library(
 cc_library(
     name = "onedal_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal.so*",
-        "lib/intel64/libonedal_parameters.so*",
+        # Use exact versioned filenames to avoid linking the same .so multiple
+        # times when the release tree contains .so, .so.<major>, and
+        # .so.<major>.<minor> all pointing to the same library.
+        "lib/intel64/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}.%{version_binary_minor}",
     ]),
     deps = [
         ":headers",
