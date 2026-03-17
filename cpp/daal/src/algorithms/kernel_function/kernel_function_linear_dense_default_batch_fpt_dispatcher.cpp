@@ -28,13 +28,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::linear::BatchContainer, batch, DAAL_FPTYPE, kernel_function::linear::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kernel_function::linear::internal::BatchContainer, batch, DAAL_FPTYPE, kernel_function::linear::defaultDense)
 namespace kernel_function
 {
 namespace linear
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, kernel_function::linear::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>::Batch()
 {

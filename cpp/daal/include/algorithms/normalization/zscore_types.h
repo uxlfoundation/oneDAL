@@ -292,7 +292,7 @@ public:
      *
      * \return Status of computations
      */
-    virtual services::Status check() const override;
+    services::Status check() const override;
 };
 } // namespace interface3
 

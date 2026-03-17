@@ -36,8 +36,36 @@ namespace classification
 {
 namespace prediction
 {
-namespace interface3
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the decision_forest algorithm.
+ *        This class is associated with daal::algorithms::decision_forest::prediction::interface3::Batch class
+ *        and supports method to compute decision_forest prediction
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the decision_forest, double or float
+ * \tparam method           decision_forest computation method, \ref Method
+ * \tparam cpu              Type of CPU
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for decision_forest model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of decision_forest model-based prediction
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -79,7 +107,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, r, prob, par->nClasses,
                        votingMethod);
 }
-} // namespace interface3
+} // namespace internal
 } // namespace prediction
 } // namespace classification
 } // namespace decision_forest

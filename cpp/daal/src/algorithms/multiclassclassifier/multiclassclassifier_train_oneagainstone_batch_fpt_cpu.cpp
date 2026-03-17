@@ -34,14 +34,10 @@ namespace multi_class_classifier
 {
 namespace training
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, oneAgainstOne, DAAL_CPU>;
-} // namespace interface2
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, oneAgainstOne, DAAL_CPU>;
 template class DAAL_EXPORT MultiClassClassifierTrainKernel<oneAgainstOne, DAAL_FPTYPE, DAAL_CPU>;
-
 } // namespace internal
 } // namespace training
 } // namespace multi_class_classifier

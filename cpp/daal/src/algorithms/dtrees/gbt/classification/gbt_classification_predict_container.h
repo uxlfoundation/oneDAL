@@ -36,8 +36,36 @@ namespace classification
 {
 namespace prediction
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the gradient boosted trees algorithm.
+ *        This class is associated with daal::algorithms::gbt::prediction::interface1::Batch class
+ *        and supports method to compute gbt prediction
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
+ * \tparam method           gradient boosted trees computation method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for gradient boosted trees model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of gbt model-based prediction
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -75,7 +103,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        par->nIterations, predShapContributions, predShapInteractions);
 }
 
-} // namespace interface2
+} // namespace internal
 } // namespace prediction
 } // namespace classification
 } // namespace gbt

@@ -38,6 +38,34 @@ namespace elastic_net
 {
 namespace training
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ELASTIC_NET__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for normal equations elastic net model-based training using algorithmFPType precision arithmetic
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for elastic net model-based training with a specified environment in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    /** Default destructor */
+    ~BatchContainer();
+
+    /**
+     * Computes the result of elastic net model-based training in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -65,6 +93,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
         new daal::algorithms::optimization_solver::mse::Batch<algorithmFPType>(x->getNumberOfRows()));
     __DAAL_CALL_KERNEL(env, internal::TrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, *m, *result, *par, objFunc);
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace elastic_net

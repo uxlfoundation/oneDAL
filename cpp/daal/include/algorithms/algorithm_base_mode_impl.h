@@ -110,7 +110,7 @@ public:
     /**
      * Validates parameters of the compute method
      */
-    virtual services::Status checkComputeParams() override
+    services::Status checkComputeParams() override
     {
         services::Status s;
         if (this->_par) s = this->_par->check();
@@ -120,7 +120,7 @@ public:
     /**
      * Validates result parameters of the compute method
      */
-    virtual services::Status checkResult() override
+    services::Status checkResult() override
     {
         return this->_pres ? this->_pres->check(this->_in, this->_par, this->getMethod()) : services::Status(services::ErrorNullPartialResult);
     }
@@ -128,7 +128,7 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() override
+    services::Status checkPartialResult() override
     {
         return this->_pres ? this->_pres->check(this->_par, this->getMethod()) : services::Status(services::ErrorNullPartialResult);
     }
@@ -136,7 +136,7 @@ public:
     /**
      * Validates parameters of the finalizeCompute method
      */
-    virtual services::Status checkFinalizeComputeParams() override
+    services::Status checkFinalizeComputeParams() override
     {
         return this->_res ? this->_res->check(this->_pres, this->_par, this->getMethod()) : services::Status();
     }
@@ -177,7 +177,7 @@ public:
     /**
      * Validates parameters of the compute method
      */
-    virtual services::Status checkComputeParams() override
+    services::Status checkComputeParams() override
     {
         services::Status s;
         if (_par)
@@ -192,7 +192,7 @@ public:
     /**
      * Validates result parameters of the compute method
      */
-    virtual services::Status checkResult() override
+    services::Status checkResult() override
     {
         if (_res) return _res->check(_in, _par, getMethod());
         return services::Status(services::ErrorNullResult);

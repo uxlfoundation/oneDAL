@@ -36,9 +36,142 @@ namespace algorithms
 {
 namespace svd
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of cholesky kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVD__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the SVD algorithm.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
+ * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the SVD algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the SVD algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVD__ONLINECONTAINER"></a>
+ * \brief Provides methods to run implementations of the SVD algorithm in the online processing mode
+ *
+ * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for the SVD algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+    /**
+     * Computes a partial result of the SVD algorithm in the online processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the SVD algorithm in the online processing mode
+     * \return Status of computations
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVD__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the SVD algorithm.
+ *
+ * \tparam step             Step of the computing algorithm in the distributed processing mode, \ref ComputeStep
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::svd::Method
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVD__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the second step of the SVD algorithm in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
+ * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the SVD algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the SVD algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the SVD algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVD__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the third step of the SVD algorithm in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVD algorithm, double or float
+ * \tparam method           SVD computation method, \ref daal::algorithms::svd::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the SVD algorithm with a specified environment
+     * in the third step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the SVD algorithm in the third step
+     * of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the SVD algorithm in the third step
+     * of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -291,6 +424,8 @@ Status DistributedContainer<step3Local, algorithmFPType, method, cpu>::finalizeC
 {
     return Status();
 }
+
+} // namespace internal
 
 } // namespace svd
 } // namespace algorithms

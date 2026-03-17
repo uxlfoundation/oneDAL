@@ -128,7 +128,7 @@ protected:
     PartialResultPtr _partialResult;
     ResultPtr _result;
 
-    virtual Online * cloneImpl() const override = 0;
+    Online * cloneImpl() const override = 0;
 
 private:
     Online & operator=(const Online &);

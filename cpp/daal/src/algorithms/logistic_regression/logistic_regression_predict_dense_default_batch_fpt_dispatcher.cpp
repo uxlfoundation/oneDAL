@@ -29,7 +29,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(logistic_regression::prediction::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(logistic_regression::prediction::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       logistic_regression::prediction::defaultDense)
 namespace logistic_regression
 {
@@ -37,6 +37,13 @@ namespace prediction
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, logistic_regression::prediction::defaultDense>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, logistic_regression::prediction::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, logistic_regression::prediction::defaultDense>::Batch(size_t nClasses)
 {

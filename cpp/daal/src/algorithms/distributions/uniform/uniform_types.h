@@ -24,7 +24,7 @@
 #ifndef __UNIFORM__TYPES_H__
 #define __UNIFORM__TYPES_H__
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 
 namespace daal
 {
@@ -32,12 +32,6 @@ namespace algorithms
 {
 namespace distributions
 {
-/**
- * @defgroup distributions_uniform Uniform Distribution
- * \copydoc daal::algorithms::distributions::uniform
- * @ingroup distributions
- * @{
- */
 /**
  * \brief Contains classes for uniform distribution
  */
@@ -55,16 +49,14 @@ enum Method
 /**
  * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DISTRIBUTIONS__UNIFORM__PARAMETER"></a>
  * \brief Uniform distribution parameters
- *
- * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType>
-class DAAL_EXPORT Parameter : public distributions::ParameterBase
+class Parameter : public distributions::ParameterBase
 {
 public:
     /**
@@ -72,7 +64,7 @@ public:
      *  \param[in] _a    Left bound a
      *  \param[in] _b    Right bound b
      */
-    DAAL_DEPRECATED Parameter(algorithmFPType _a = 0.0, algorithmFPType _b = 1.0) : a(_a), b(_b) {}
+    Parameter(algorithmFPType _a = 0.0, algorithmFPType _b = 1.0) : a(_a), b(_b) {}
 
     algorithmFPType a; /*!< Left bound a */
     algorithmFPType b; /*!< Right bound b */
@@ -83,11 +75,10 @@ public:
     services::Status check() const override;
 };
 
-} // namespace interface1
-using interface1::Parameter;
+} // namespace internal
+using internal::Parameter;
 
 } // namespace uniform
-/** @} */
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

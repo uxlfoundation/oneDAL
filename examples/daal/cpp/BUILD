@@ -67,17 +67,6 @@ dal_example_suite(
 )
 
 dal_example_suite(
-    name = "distributions",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/distributions/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
-
-dal_example_suite(
     name = "elastic_net",
     compile_as = [ "c++" ],
     srcs = glob(["source/elastic_net/*.cpp"]),
@@ -195,22 +184,17 @@ dal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-# TODO: investigate the issue with excluded example
-# Both examples are failing, its the reason of disabling this test
-# dal_example_suite(
-#     name = "normalization",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/normalization/*.cpp"],
-#     exclude = ["source/normalization/minmax_dense_batch.cpp", "source/normalization/zscore_dense_batch.cpp"],),
-#     dal_deps = [
-#         "@onedal//cpp/daal/src/algorithms/normalization/minmax:kernel",
-#         "@onedal//cpp/daal/src/algorithms/normalization/zscore:kernel",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS + [
-#         "@tbb//:tbb",
-#     ],
-# )
+dal_example_suite(
+    name = "normalization",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/normalization/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/normalization/minmax:kernel",
+        "@onedal//cpp/daal/src/algorithms/normalization/zscore:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS
+)
 
 dal_example_suite(
     name = "pca_transform",

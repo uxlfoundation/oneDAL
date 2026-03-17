@@ -122,7 +122,7 @@ public:
     DECLARE_SERIALIZABLE_CAST(Result)
 
     Result();
-    virtual ~Result() override;
+    ~Result() override;
 
     /**
      * Returns the model trained with the LogitBoost algorithm

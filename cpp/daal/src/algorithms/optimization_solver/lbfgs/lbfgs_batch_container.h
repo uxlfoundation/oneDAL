@@ -33,8 +33,37 @@ namespace optimization_solver
 {
 namespace lbfgs
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__LBFGS__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the LBFGS algorithm.
+ *        This class is associated with daal::algorithms::optimization_solver::lbfgs::Batch class.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the LBFGS algorithm, double or float
+ * \tparam method           Stochastic gradient descent computation method, daal::algorithms::optimization_solver::lbfgs::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the limited-memory BFGS algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the limited-memory BFGS algorithm in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -74,7 +103,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        correctionIndicesResult, minimum, nIterations, averageArgLIterResult, optionalArgumentResult, parameter, *parameter->engine);
 }
 
-} // namespace interface2
+} // namespace internal
 } // namespace lbfgs
 
 } // namespace optimization_solver

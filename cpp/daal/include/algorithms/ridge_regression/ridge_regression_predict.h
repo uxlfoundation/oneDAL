@@ -115,7 +115,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)defaultDense; }
+    int getMethod() const override { return (int)defaultDense; }
 
     /**
      * Returns the structure that contains the result of ridge regression model-based prediction
@@ -133,10 +133,10 @@ public:
         return services::SharedPtr<Batch<algorithmFPType, defaultDense> >(cloneImpl());
     }
 
-    virtual regression::prediction::Input * getInput() override { return &input; }
+    regression::prediction::Input * getInput() override { return &input; }
 
 protected:
-    virtual Batch<algorithmFPType, defaultDense> * cloneImpl() const override { return new Batch<algorithmFPType, defaultDense>(*this); }
+    Batch<algorithmFPType, defaultDense> * cloneImpl() const override { return new Batch<algorithmFPType, defaultDense>(*this); }
 
     services::Status allocateResult() override
     {
