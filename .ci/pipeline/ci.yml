@@ -251,6 +251,16 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
 
+      # Fix MKLConfig.cmake for TBB
+      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+      fi
+    displayName: 'Fix MKL TBB issue'
+
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
       export TBB_DIR="${CONDA_PREFIX}/lib/cmake/TBB"
