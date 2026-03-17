@@ -93,7 +93,7 @@ pedantic.opts.win.icx = -Wall \
                         -Wwritable-strings \
                         -Wno-unused-parameter
 
-p4_OPT.icx   = -march=nocona
+p4_OPT.icx   = -march=nehalem
 mc3_OPT.icx  = -march=nehalem
-avx2_OPT.icx = -march=haswell
+avx2_OPT.icx = -march=nehalem
 skx_OPT.icx  = -march=skx

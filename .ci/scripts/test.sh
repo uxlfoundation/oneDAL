@@ -238,7 +238,8 @@ for link_mode in "${link_modes[@]}"; do
             -DREF_BACKEND="${ref_backend}"
             -DOPENRNG_BACKEND="${openrng_backend}"
             -DTBB_DIR="${TBBROOT}/lib/cmake/TBB"
-            -DTBB_ROOT="${TBBROOT}")
+            -DTBB_ROOT="${TBBROOT}"
+            -DCMAKE_PREFIX_PATH="${TBBROOT}/lib/cmake/TBB;${TBBROOT}")
 
         if [ "${cross_compile}" == "yes" ] ; then
             # Set the cmake toolchain file to set up the cross-compilation
