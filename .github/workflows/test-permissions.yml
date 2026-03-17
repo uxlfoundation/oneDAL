@@ -1,0 +1,23 @@
+name: Test PR Permissions
+on: workflow_dispatch # So you can trigger it manually
+
+jobs:
+  test-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Attempt PR
+        run: |
+          date > probe.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b test-permission-branch
+          git add .
+          git commit -m "Permission probe"
+          git push origin test-permission-branch
+          gh pr create --title "Test PR" --body "Checking if Actions can make PRs"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
