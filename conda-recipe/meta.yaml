@@ -104,6 +104,9 @@ outputs:
       summary: oneAPI Data Analytics Library (oneDAL) GPU/DPC++ runtime library
 
   - name: dal-include
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64 or win]
     script: pack.sh  # [linux]
     test:
       commands:
@@ -112,6 +115,9 @@ outputs:
       summary: Headers for building against oneAPI Data Analytics Library (oneDAL)
 
   - name: dal-static
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64 or win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -124,6 +130,9 @@ outputs:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
 
   - name: dal-devel
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64 or win]
     script: pack.sh  # [linux]
     requirements:
       run:
