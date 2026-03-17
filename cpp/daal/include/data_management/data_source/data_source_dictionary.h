@@ -229,7 +229,7 @@ public:
         return status;
     }
 
-    DAAL_EXPORT virtual int getSerializationTag() const override { return SERIALIZATION_DATAFEATURE_NT_ID; }
+    DAAL_EXPORT int getSerializationTag() const override { return SERIALIZATION_DATAFEATURE_NT_ID; }
 
     features::IndexNumType getIndexType() const { return ntFeature.indexType; }
 

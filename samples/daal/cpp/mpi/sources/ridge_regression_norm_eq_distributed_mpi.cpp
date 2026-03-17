@@ -34,15 +34,13 @@
 using namespace daal;
 using namespace daal::algorithms::ridge_regression;
 
-const std::string trainDatasetFileNames[] = { "./data/distributed/linear_regression_train_1.csv",
-                                              "./data/distributed/linear_regression_train_2.csv",
-                                              "./data/distributed/linear_regression_train_3.csv",
-                                              "./data/distributed/linear_regression_train_4.csv" };
-std::string testDatasetFileName = "./data/distributed/linear_regression_test.csv";
+const std::string trainDatasetFileName = "data/linear_regression_train_data.csv";
+const std::string trainDatasetLabelFileName = "data/linear_regression_train_responses.csv";
+const std::string testDatasetFileName = "data/linear_regression_test_data.csv";
+const std::string testDatasetLabelFileName = "data/linear_regression_test_responses.csv";
 
-const size_t nBlocks = 4;
+size_t nBlocks;
 
-const size_t nFeatures = 10; /* Number of features in training and testing data sets */
 const size_t nDependentVariables =
     2; /* Number of dependent variables that correspond to each observation */
 
@@ -56,10 +54,17 @@ training::ResultPtr trainingResult;
 prediction::ResultPtr predictionResult;
 
 int main(int argc, char* argv[]) {
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileName,
+                   &trainDatasetLabelFileName,
+                   &testDatasetFileName,
+                   &testDatasetLabelFileName);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
-
+    nBlocks = comm_size;
     trainModel();
 
     if (rankId == mpi_root) {
@@ -72,28 +77,42 @@ int main(int argc, char* argv[]) {
 }
 
 void trainModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileNames[rankId],
-                                                      DataSource::notAllocateNumericTable,
+    size_t totalRows = countRowsCSV(trainDatasetFileName);
+    size_t rowsPerRank = (totalRows + comm_size - 1) / comm_size;
+
+    size_t rowStart = rankId * rowsPerRank;
+    size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
+
+    /* Load only this rank's block */
+    FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
+                                                      DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for training data and labels */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainDependentVariables(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainDependentVariables));
+    FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
+                                                       DataSource::doAllocateNumericTable,
+                                                       DataSource::doDictionaryFromContext);
+    /* Skip rows before rowStart */
+    size_t skip = rowStart;
+    while (skip > 0) {
+        size_t s1 = trainDataSource.loadDataBlock(skip);
+        size_t s2 = trainLabelSource.loadDataBlock(skip);
+        if (s1 == 0 || s2 == 0)
+            break;
+        skip -= s1;
+    }
 
-    /* Retrieve the data from the input file */
-    trainDataSource.loadDataBlock(mergedData.get());
+    size_t rowsToRead = rowEnd - rowStart;
+    /* Load rows for this rank */
+    trainDataSource.loadDataBlock(rowsToRead);
+    trainLabelSource.loadDataBlock(rowsToRead);
 
-    /* Create an algorithm object to train the ridge regression model based on the local-node data */
+    NumericTablePtr trainData = trainDataSource.getNumericTable();
+    NumericTablePtr trainLabels = trainLabelSource.getNumericTable();
+
     training::Distributed<step1Local> localAlgorithm;
-
-    /* Pass a training data set and dependent values to the algorithm */
     localAlgorithm.input.set(training::data, trainData);
-    localAlgorithm.input.set(training::dependentVariables, trainDependentVariables);
+    localAlgorithm.input.set(training::dependentVariables, trainLabels);
 
-    /* Train the ridge regression model on local nodes */
     localAlgorithm.compute();
 
     /* Serialize partial results required by step 2 */
@@ -151,28 +170,26 @@ void trainModel() {
 }
 
 void testModel() {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
+    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
+     * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
 
-    /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    testDataSource.loadDataBlock();
+    FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
+                                                      DataSource::doAllocateNumericTable,
+                                                      DataSource::doDictionaryFromContext);
 
-    /* Retrieve the data from an input file */
-    testDataSource.loadDataBlock(mergedData.get());
-
-    /* Create an algorithm object to predict values of ridge regression */
+    testLabelSource.loadDataBlock();
+    /* Create an algorithm object to predict values of multiple linear regression */
     prediction::Batch<> algorithm;
 
     /* Pass a testing data set and the trained model to the algorithm */
-    algorithm.input.set(prediction::data, testData);
+    algorithm.input.set(prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(prediction::model, trainingResult->get(training::model));
 
-    /* Predict values of ridge regression */
+    /* Predict values of multiple linear regression */
     algorithm.compute();
 
     /* Retrieve the algorithm results */
@@ -180,5 +197,5 @@ void testModel() {
     printNumericTable(predictionResult->get(prediction::prediction),
                       "Ridge Regression prediction results: (first 10 rows):",
                       10);
-    printNumericTable(testGroundTruth, "Ground truth (first 10 rows):", 10);
+    printNumericTable(testLabelSource.getNumericTable(), "Ground truth (first 10 rows):", 10);
 }

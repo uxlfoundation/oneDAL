@@ -46,35 +46,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of initialization of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::init::Batch class
- *        and supports the method of computing initial clusters for K-Means algorithm in the batch processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of initial clusters for K-Means algorithm, double or float
- * \tparam method           Method of computing initial clusters for the algorithm, \ref daal::algorithms::kmeans::init::Method
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for initializing K-Means algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-     * Computes initial values for K-Means algorithm in the batch processing mode
-     */
-    virtual services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__INIT__BATCHBASE"></a>
  *  \brief Base class representing K-Means algorithm initialization in the batch processing mode
  * \DAAL_DEPRECATED
@@ -133,7 +104,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of computing initial clusters for K-Means algorithm
@@ -161,9 +132,9 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_in, _par, (int)method);
@@ -171,11 +142,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-    }
+    void initialize();
 
 public:
     ParameterType & parameter; /*!< %Parameters */
@@ -188,7 +155,6 @@ private:
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::BatchBase;
 using interface2::Batch;
 } // namespace init

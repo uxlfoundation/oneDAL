@@ -129,7 +129,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskCSR : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskCSR() override {}
+    ~SubTaskCSR() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskCSR * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable, const algorithmFPType * weights,
@@ -173,7 +173,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskDense : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskDense() override {}
+    ~SubTaskDense() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskDense * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable,

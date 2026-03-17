@@ -57,7 +57,7 @@ public:
     /** Default constructor */
     Model() {}
 
-    virtual ~Model() override {}
+    ~Model() override {}
 
     /**
      * \copydoc daal::data_management::interface1::SerializationIface::getSerializationTag()

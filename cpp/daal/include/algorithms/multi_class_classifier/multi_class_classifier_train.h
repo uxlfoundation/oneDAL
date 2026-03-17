@@ -53,35 +53,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__TRAINING__BATCHCONTAINER"></a>
- * \brief Class containing methods to compute the results of multi-class classifier model-based training
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class classifier, double or float
- * \tparam method           Computation method of the algprithm, \ref daal::algorithms::multi_class_classifier::training::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for multi-class classifier model-based training with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of multi-class classifier model-based training in the batch processing mode
-     *
-     * \return Status of computation
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__TRAINING__BATCH"></a>
  * \brief Algorithm for the multi-class classifier model training
  * <!-- \n<a href="DAAL-REF-MULTICLASSCLASSIFIER-ALGORITHM">Multi-class classifier algorithm description and usage models</a> -->
@@ -143,7 +114,7 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the training results of the multi-class classifier algorithm
@@ -170,7 +141,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {
@@ -181,20 +152,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace training

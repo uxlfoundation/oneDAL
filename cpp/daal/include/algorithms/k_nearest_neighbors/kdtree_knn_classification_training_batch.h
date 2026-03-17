@@ -44,32 +44,6 @@ namespace interface3
  * @ingroup kdtree_knn_classification_training
  * @{
  */
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
- * \brief Class containing methods for KD-tree based kNN model-based training using algorithmFPType precision arithmetic
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for KD-tree based kNN model-based training with a specified environment in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-
-    /** Default destructor */
-    ~BatchContainer();
-
-    /**
-     * Computes the result of KD-tree based kNN model-based training in the batch processing mode
-     */
-    services::Status compute() override;
-};
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__TRAINING__BATCH"></a>
  * \brief Provides methods for KD-tree based kNN model-based training in the batch processing mode
@@ -127,7 +101,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of KD-tree based kNN model-based training
@@ -155,7 +129,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {
@@ -166,13 +140,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -181,7 +149,6 @@ private:
 /** @} */
 } // namespace interface3
 
-using interface3::BatchContainer;
 using interface3::Batch;
 
 } // namespace training

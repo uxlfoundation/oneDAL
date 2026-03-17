@@ -44,8 +44,7 @@ daal_example_suite(
 daal_example_suite(
     name = "decision_forest",
     compile_as = [ "c++" ],
-    srcs = glob(["source/decision_forest/*.cpp"],
-    exclude = ["source/decision_forest/df_cls_traversed_model_builder.cpp"],),
+    srcs = glob(["source/decision_forest/*.cpp"]),
     dal_deps = [
         "@onedal//cpp/daal/src/algorithms/dtrees:kernel",
         "@onedal//cpp/daal/src/algorithms/dtrees/forest:kernel",
@@ -68,16 +67,6 @@ daal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-daal_example_suite(
-    name = "distributions",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/distributions/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
 
 daal_example_suite(
     name = "elastic_net",
@@ -197,43 +186,17 @@ daal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-# TODO: investigate the issue with excluded example
-# Both examples are failing, its the reason of disabling this test
-# daal_example_suite(
-#     name = "normalization",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/normalization/*.cpp"],
-#     exclude = ["source/normalization/minmax_dense_batch.cpp", "source/normalization/zscore_dense_batch.cpp"],),
-#     dal_deps = [
-#         "@onedal//cpp/daal/src/algorithms/normalization/minmax:kernel",
-#         "@onedal//cpp/daal/src/algorithms/normalization/zscore:kernel",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS + [
-#         "@tbb//:tbb",
-#     ],
-# )
-
-# TODO: investigate the issue with excluded examples
-# optimization_solvers examples fail to build due to missing kernel dependencies
-# (optimization_solver kernels are not yet wired in the Bazel build graph).
-# Source directory: source/optimization_solvers/
-# daal_example_suite(
-#     name = "optimization_solvers",
-#     compile_as = [ "c++" ],
-#     srcs = glob(["source/optimization_solvers/*.cpp"]),
-#     dal_deps = [
-#         "@onedal//cpp/daal/src/algorithms/optimization_solver:kernel",
-#         "@onedal//cpp/daal/src/algorithms/optimization_solver/coordinate_descent:kernel",
-#         "@onedal//cpp/daal/src/algorithms/optimization_solver/lbfgs:kernel",
-#         "@onedal//cpp/daal/src/algorithms/objective_function/mse:kernel",
-#         "@onedal//cpp/daal/src/algorithms/objective_function/cross_entropy_loss:kernel",
-#         "@onedal//cpp/daal/src/algorithms/objective_function/logistic_loss:kernel",
-#     ],
-#     data = _DATA_DEPS,
-#     extra_deps = _TEST_DEPS
-# )
-
+daal_example_suite(
+    name = "normalization",
+    compile_as = [ "c++" ],
+    srcs = glob(["source/normalization/*.cpp"]),
+    dal_deps = [
+        "@onedal//cpp/daal/src/algorithms/normalization/minmax:kernel",
+        "@onedal//cpp/daal/src/algorithms/normalization/zscore:kernel",
+    ],
+    data = _DATA_DEPS,
+    extra_deps = _TEST_DEPS
+)
 daal_example_suite(
     name = "pca_transform",
     compile_as = [ "c++" ],

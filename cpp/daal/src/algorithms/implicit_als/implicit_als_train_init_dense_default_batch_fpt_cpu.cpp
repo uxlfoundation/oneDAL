@@ -38,14 +38,13 @@ namespace training
 {
 namespace init
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+
 template class ImplicitALSInitKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace init
 } // namespace training
 } // namespace implicit_als

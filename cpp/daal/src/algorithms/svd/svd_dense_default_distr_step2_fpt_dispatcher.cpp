@@ -27,13 +27,21 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svd::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, svd::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svd::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE, svd::defaultDense)
 namespace svd
 {
 namespace interface1
 {
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, svd::defaultDense>;
 
+template <>
+void Distributed<step2Master, DAAL_FPTYPE, svd::defaultDense>::initialize()
+{
+    Analysis<distributed>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE, svd::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

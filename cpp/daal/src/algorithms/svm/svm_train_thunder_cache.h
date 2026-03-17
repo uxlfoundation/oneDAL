@@ -55,7 +55,7 @@ public:
 
     virtual services::Status getRowsBlock(const uint32_t * const indices, const size_t n, algorithmFPType **& soablock) = 0;
 
-    virtual size_t getDataRowIndex(size_t rowIndex) const override { return rowIndex; }
+    size_t getDataRowIndex(size_t rowIndex) const override { return rowIndex; }
 
     virtual services::Status clear() = 0;
 

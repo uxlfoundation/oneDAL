@@ -319,7 +319,7 @@ public:
     */
     DAAL_DEPRECATED services::SharedPtr<services::ErrorCollection> getErrors() { return status().getCollection(); }
 
-    virtual size_t getNumericTableNumberOfColumns() override { return getNumberOfColumns(); }
+    size_t getNumericTableNumberOfColumns() override { return getNumberOfColumns(); }
 
 protected:
     DataSourceDictionaryPtr _dict;
@@ -466,9 +466,9 @@ public:
 
     virtual ~DataSourceTemplate() {}
 
-    virtual void freeNumericTable() override { _spnt = NumericTablePtr(); }
+    void freeNumericTable() override { _spnt = NumericTablePtr(); }
 
-    virtual services::Status allocateNumericTable() override
+    services::Status allocateNumericTable() override
     {
         if (_spnt.get() != NULL) return services::throwIfPossible(services::Status(services::ErrorNumericTableAlreadyAllocated));
 

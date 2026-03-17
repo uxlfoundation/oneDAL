@@ -103,7 +103,7 @@ public:
 
 protected:
     void initialize() { _result = ResultPtr(new kernel_function::Result()); }
-    virtual KernelIface * cloneImpl() const override = 0;
+    KernelIface * cloneImpl() const override = 0;
     ResultPtr _result;
 
 private:

@@ -27,18 +27,24 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::OnlineContainer, online, DAAL_FPTYPE, covariance::singlePassCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(covariance::internal::OnlineContainer, online, DAAL_FPTYPE, covariance::singlePassCSR)
 namespace covariance
 {
 namespace interface1
 {
+using OnlineType = Online<DAAL_FPTYPE, covariance::singlePassCSR>;
+
 template <>
-DAAL_EXPORT Online<DAAL_FPTYPE, covariance::singlePassCSR>::Online()
+void OnlineType::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, internal::OnlineContainer, DAAL_FPTYPE, covariance::singlePassCSR)(&_env);
+}
+
+template <>
+DAAL_EXPORT OnlineType::Online()
 {
     initialize();
 }
-
-using OnlineType = Online<DAAL_FPTYPE, covariance::singlePassCSR>;
 
 template <>
 DAAL_EXPORT OnlineType::Online(const OnlineType & other) : OnlineImpl(other)
