@@ -438,11 +438,6 @@ jobs:
       targetPath: '$(DALROOT)'
     displayName: 'Upload build artifacts'
 
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) Bazel standalone'
-      targetPath: 'standalone_release'
-    displayName: 'Upload standalone bazel release'
   - script: |
       echo "Cleaning Bazel cache before running example or tests"
       bazel clean --expunge
@@ -678,47 +673,6 @@ jobs:
     displayName: 'Uploading on fail'
     condition: failed()
     continueOnError: true
-
-- job: LinuxSklearnexBazel
-  dependsOn: LinuxBazel
-  timeoutInMinutes: 0
-  variables:
-    platform.type: 'lnx32e'
-    DALROOT: '$(Pipeline.Workspace)/standalone_release/daal/latest'
-    TBBROOT: '/opt/intel/oneapi/tbb/latest'
-    NO_DPC: 1
-    NO_DIST: 1
-  pool:
-    vmImage: '$(VM_IMAGE)'
-    maxParallel: 2
-  strategy:
-    matrix:
-      Python311:
-        PYTHON_VERSION: '$(PY_VERSION)'
-        SKLEARN_VERSION: '$(SKL_VERSION)'
-  steps:
-  - checkout: none
-  - script: |
-      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
-    displayName: 'Clone sklearnex'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: '$(platform.type) Bazel standalone'
-      path: $(Pipeline.Workspace)/standalone_release
-  - script: |
-      echo "DALROOT = $(DALROOT)"
-      ls -R $(Pipeline.Workspace)/standalone_release
-    displayName: 'Check bazel build'
-  - script: |
-      # Inline apt install: .ci/env/apt.sh is from the oneDAL repo which is
-      # not checked out in this job (checkout: none + manual sklearnex clone).
-      sudo apt-get update -q && sudo apt-get install -y -q libtbb-dev
-    displayName: 'Install TBB'
-  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) sklearnex bazel build'
-      targetPath: '$(Build.Repository.LocalPath)/build'
 
   
 - job: 'WindowsMakeIntel'
