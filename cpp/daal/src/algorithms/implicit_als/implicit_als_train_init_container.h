@@ -28,7 +28,7 @@
 #include "algorithms/implicit_als/implicit_als_training_init_distributed.h"
 #include "src/algorithms/implicit_als/implicit_als_train_init_kernel.h"
 #include "src/data_management/service_numeric_table.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms

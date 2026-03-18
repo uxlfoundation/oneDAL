@@ -1,28 +1,6 @@
-/* file: df_regression_training_types_result.h */
-/*******************************************************************************
-* Copyright 2014 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
-
-/*
-//++
-//  Implementation of decision forest algorithm classes.
-//--
-*/
-
 #include "algorithms/decision_forest/decision_forest_regression_training_types.h"
-#include "src/algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/engine.h"
+#include "src/algorithms/engines/engine_factory.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -48,15 +26,18 @@ public:
         _engine = other._engine;
     }
 
-    void setEngine(engines::engine_type engine) { _engine = engine; }
-    engines::engine_type getEngine()
+    void setEngine(engines::EnginePtr engine)
     {
-        if (_engine == engines::engine_type::mt2203) _engine = engines::engine_type::mt2203;
+        _engine = engine;
+    }
+
+    engines::EnginePtr getEngine()
+    {
         return _engine;
     }
 
 private:
-    engines::engine_type _engine;
+    engines::EnginePtr _engine;
 };
 
 } // namespace interface1

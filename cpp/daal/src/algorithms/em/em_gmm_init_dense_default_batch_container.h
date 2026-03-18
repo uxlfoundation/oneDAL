@@ -25,7 +25,7 @@
 #define __EM_GMM_INIT_DENSE_DEFAULT_BATCH_CONTAINER_H__
 
 #include "src/algorithms/em/em_gmm_init_dense_default_batch_kernel.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms
@@ -90,9 +90,9 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     data_management::DataCollectionPtr inputCovariances = pRes->get(covariances);
 
     daal::services::Environment::env & env = *_env;
-
+    engines::EnginePtr enginePtr = engines::createEngine(emPar->engine);
     __DAAL_CALL_KERNEL(env, internal::EMInitKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *inputData, *inputWeights, *inputMeans,
-                       inputCovariances, *emPar, *emPar->engine);
+                       inputCovariances, *emPar, *enginePtr);
 }
 
 } // namespace internal

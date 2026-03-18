@@ -30,7 +30,7 @@
 #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_training_batch.h"
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h"
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_classification_model_impl.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms

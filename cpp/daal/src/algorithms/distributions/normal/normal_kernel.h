@@ -31,7 +31,7 @@
 #include "src/externals/service_rng.h"
 #include "src/services/service_unique_ptr.h"
 #include "src/data_management/service_numeric_table.h"
-
+#include "src/algorithms/engines/engine.h"
 using namespace daal::services;
 using namespace daal::internal;
 using namespace daal::data_management;

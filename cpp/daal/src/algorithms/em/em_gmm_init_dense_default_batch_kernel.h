@@ -33,7 +33,7 @@
 #include "algorithms/em/em_gmm_init_batch.h"
 #include "algorithms/em/em_gmm.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
-
+#include "src/algorithms/engines/engine.h"
 namespace daal
 {
 namespace algorithms

@@ -30,7 +30,7 @@
 #include "algorithms/kmeans/kmeans_init_distributed.h"
 #include "src/algorithms/kmeans/kmeans_init_kernel.h"
 #include "src/algorithms/kmeans/kmeans_init_impl.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms

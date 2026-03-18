@@ -28,7 +28,7 @@
 #include "algorithms/algorithm_base_common.h"
 #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_training_types.h"
 #include "src/algorithms/service_error_handling.h"
-
+#include "src/algorithms/engines/engine.h"
 #if defined(_MSC_VER)
     #define DAAL_FORCEINLINE   __forceinline
     #define DAAL_FORCENOINLINE __declspec(noinline)

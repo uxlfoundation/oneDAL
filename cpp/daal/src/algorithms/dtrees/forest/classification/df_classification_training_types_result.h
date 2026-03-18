@@ -53,16 +53,20 @@ public:
         _engine = other._engine;
     }
 
-    void setEngine(engines::engine_type engine) { _engine = engine; }
-    engines::engine_type getEngine()
+    void setEngine(engines::EnginePtr engine)
     {
-        if (_engine == engines::engine_type::mt2203) _engine = engines::engine_type::mt2203;
+        _engine = engine;
+    }
+
+    engines::EnginePtr getEngine()
+    {
         return _engine;
     }
 
 private:
-    engines::engine_type _engine;
+    engines::EnginePtr _engine;
 };
+
 
 } // namespace interface1
 } // namespace training

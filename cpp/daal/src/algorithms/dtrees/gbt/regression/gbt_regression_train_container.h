@@ -31,6 +31,7 @@
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_model_impl.h"
 #include "src/services/service_algo_utils.h"
 #include "src/algorithms/engines/engine_factory.h"
+
 namespace daal
 {
 namespace algorithms
