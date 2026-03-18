@@ -49,8 +49,8 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
     return engPtr;
 }
 
-template SharedPtr<Batch<double, defaultDense> > Batch<double, defaultDense>::create(size_t seed, services::Status * st);
-template SharedPtr<Batch<float, defaultDense> > Batch<float, defaultDense>::create(size_t seed, services::Status * st);
+template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed, services::Status * st);
+template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed, services::Status * st);
 
 } // namespace internal
 } // namespace mt2203
