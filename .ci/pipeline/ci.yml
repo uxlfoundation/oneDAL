@@ -178,7 +178,7 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export skip_mkl_env=yes
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --skip-mkl-env --target daal
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
