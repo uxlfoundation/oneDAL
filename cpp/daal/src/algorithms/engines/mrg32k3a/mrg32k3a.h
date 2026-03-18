@@ -26,7 +26,7 @@
 #define __MRG32K3A_H__
 
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_types.h"
-#include "src/algorithms/engines/engine.h"
+#include "include/algorithms/engines/engine.h"
 
 namespace daal
 {

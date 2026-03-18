@@ -21,7 +21,7 @@
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_batch.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_types.h>
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h>
-
+#include <daal/src/algorithms/engines/mt2203/mt2203.h>
 #include "oneapi/dal/algo/decision_forest/train_types.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/cpu/train_kernel.hpp"
 

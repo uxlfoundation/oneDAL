@@ -125,6 +125,7 @@ CORE.ALGORITHMS.INC :=                                                        \
     distance                                                                  \
     dbscan                                                                    \
     elastic_net                                                               \
+    engines                                                                   \
     em                                                                        \
     gradient_boosted_trees                                                    \
     implicit_als                                                              \

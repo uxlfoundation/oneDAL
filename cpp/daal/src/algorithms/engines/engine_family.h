@@ -24,7 +24,7 @@
 #ifndef __ENGINE_FAMILY_H__
 #define __ENGINE_FAMILY_H__
 
-#include "src/algorithms/engines/engine.h"
+#include "include/algorithms/engines/engine.h"
 
 namespace daal
 {

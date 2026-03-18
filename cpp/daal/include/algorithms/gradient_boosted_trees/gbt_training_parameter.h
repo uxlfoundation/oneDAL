@@ -25,9 +25,9 @@
 #define __GBT_TRAINING_PARAMETER_H__
 
 #include "algorithms/algorithm.h"
+#include "algorithms/engines/engine.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
-#include "src/algorithms/engines/engine.h"
 
 namespace daal
 {

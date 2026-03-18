@@ -25,10 +25,10 @@
 #define __DISTRIBUTIONS__TYPES__H__
 
 #include "algorithms/algorithm.h"
+#include "algorithms/engines/engine.h"
 #include "services/daal_defines.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "src/algorithms/engines/engine.h"
 
 namespace daal
 {

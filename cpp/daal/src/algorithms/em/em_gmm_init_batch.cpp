@@ -25,6 +25,7 @@
 #include "services/daal_defines.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 using namespace daal::data_management;
 using namespace daal::services;

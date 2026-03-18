@@ -25,7 +25,7 @@
 #define __MCG59_H__
 
 #include "src/algorithms/engines/mcg59/mcg59_types.h"
-#include "src/algorithms/engines/engine.h"
+#include "include/algorithms/engines/engine.h"
 
 namespace daal
 {

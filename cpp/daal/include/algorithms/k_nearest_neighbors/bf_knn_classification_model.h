@@ -25,7 +25,7 @@
 #define __BF_KNN_CLASSIFICATION_MODEL_H__
 
 #include "algorithms/classifier/classifier_model.h"
-#include "src/algorithms/engines/mcg59/mcg59.h"
+#include "algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -96,16 +96,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      *  \param[in] vote                 The option to select voting method
      */
     Parameter(size_t nClasses = 2, size_t nNeighbors = 1, DataUseInModel dataUse = doNotUse, DAAL_UINT64 resToCompute = 0,
-              DAAL_UINT64 resToEvaluate = daal::algorithms::classifier::computeClassLabels, VoteWeights vote = voteUniform)
-        : daal::algorithms::classifier::Parameter(nClasses),
-          k(nNeighbors),
-          dataUseInModel(dataUse),
-          resultsToCompute(resToCompute),
-          voteWeights(vote),
-          engine(engines::mcg59::Batch<>::create())
-    {
-        this->resultsToEvaluate = resToEvaluate;
-    }
+              DAAL_UINT64 resToEvaluate = daal::algorithms::classifier::computeClassLabels, VoteWeights vote = voteUniform);
 
     /**
      *  Parameter copy constructor

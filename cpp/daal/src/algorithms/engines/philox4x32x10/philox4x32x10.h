@@ -26,7 +26,7 @@
 #define __PHILOX4X32X10_H__
 
 #include "src/algorithms/engines/philox4x32x10/philox4x32x10_types.h"
-#include "src/algorithms/engines/engine.h"
+#include "include/algorithms/engines/engine.h"
 
 namespace daal
 {

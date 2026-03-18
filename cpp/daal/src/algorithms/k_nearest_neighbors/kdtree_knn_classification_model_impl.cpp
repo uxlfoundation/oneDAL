@@ -24,6 +24,7 @@
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_classification_model_impl.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -91,6 +92,19 @@ KDTreeTable::KDTreeTable(services::Status & st) : KDTreeTable(0, st) {}
 
 namespace interface3
 {
+Parameter::Parameter(size_t nClasses, size_t nNeighbors, int randomSeed, DataUseInModel dataUse, DAAL_UINT64 resToCompute, DAAL_UINT64 resToEvaluate,
+                     VoteWeights vote)
+    : daal::algorithms::classifier::Parameter(nClasses),
+      k(nNeighbors),
+      seed(randomSeed),
+      dataUseInModel(dataUse),
+      engine(engines::mcg59::Batch<>::create()),
+      resultsToCompute(resToCompute),
+      voteWeights(vote)
+{
+    this->resultsToEvaluate = resToEvaluate;
+}
+
 services::Status Parameter::check() const
 {
     DAAL_CHECK_EX(nClasses > 0, services::ErrorIncorrectParameter, services::ParameterName, nClassesStr());

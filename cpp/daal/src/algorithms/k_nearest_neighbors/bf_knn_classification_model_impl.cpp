@@ -19,6 +19,7 @@
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
 #include "src/services/service_data_utils.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -61,6 +62,18 @@ services::Status Model::deserializeImpl(const data_management::OutputDataArchive
 size_t Model::getNumberOfFeatures() const
 {
     return _impl->getNumberOfFeatures();
+}
+
+Parameter::Parameter(size_t nClasses, size_t nNeighbors, DataUseInModel dataUse, DAAL_UINT64 resToCompute, DAAL_UINT64 resToEvaluate,
+                     VoteWeights vote)
+    : daal::algorithms::classifier::Parameter(nClasses),
+      k(nNeighbors),
+      dataUseInModel(dataUse),
+      resultsToCompute(resToCompute),
+      voteWeights(vote),
+      engine(engines::mcg59::Batch<>::create())
+{
+    this->resultsToEvaluate = resToEvaluate;
 }
 
 services::Status Parameter::check() const

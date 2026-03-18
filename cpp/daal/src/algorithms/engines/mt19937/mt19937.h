@@ -25,7 +25,7 @@
 #define __MT19937_H__
 
 #include "src/algorithms/engines/mt19937/mt19937_types.h"
-#include "src/algorithms/engines/engine.h"
+#include "include/algorithms/engines/engine.h"
 
 namespace daal
 {

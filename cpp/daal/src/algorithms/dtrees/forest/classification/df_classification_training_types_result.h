@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/decision_forest/decision_forest_classification_training_types.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 
 using namespace daal::data_management;
 using namespace daal::services;

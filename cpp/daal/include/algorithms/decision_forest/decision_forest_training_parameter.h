@@ -25,10 +25,10 @@
 #define __DECISION_FOREST_TRAINING_PARAMETER_H__
 
 #include "algorithms/algorithm.h"
+#include "algorithms/engines/engine.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
 #include "services/daal_defines.h"
-#include "src/algorithms/engines/mt2203/mt2203.h"
 
 namespace daal
 {

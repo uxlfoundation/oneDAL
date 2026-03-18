@@ -25,11 +25,11 @@
 #define __KMEANS_INIT_TYPES_H__
 
 #include "algorithms/algorithm.h"
+#include "algorithms/engines/engine.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/data_collection.h"
 #include "services/daal_defines.h"
-#include "src/algorithms/engines/mt19937/mt19937.h"
 
 namespace daal
 {
