@@ -153,7 +153,6 @@ jobs:
     vmImage: '$(VM_IMAGE)'
   steps:
   - script: |
-      .ci/env/apt.sh dev-base
       .ci/env/apt.sh miniforge
     displayName: 'apt-get install'
   - script: |
@@ -185,7 +184,6 @@ jobs:
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
       export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-      export skip_mkl_env=yes
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target daal
     displayName: 'make daal'
   - script: |
@@ -198,8 +196,7 @@ jobs:
       export LIBRARY_PATH="${CONDA_PREFIX}/lib:${LIBRARY_PATH}"
       export CPLUS_INCLUDE_PATH="${CONDA_PREFIX}/include:${CPLUS_INCLUDE_PATH}"
       export PKG_CONFIG_PATH="${CONDA_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}:${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
-      export skip_mkl_env=yes
+      export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_c
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_c'
@@ -212,6 +209,7 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
+      # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
       if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
           sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
               "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"

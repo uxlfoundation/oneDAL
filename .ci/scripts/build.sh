@@ -177,7 +177,7 @@ fi
 
 #main actions
 echo "Call env scripts"
-if [ "${backend_config}" == "mkl" ] && [ "${skip_mkl_env}" != "yes" ]; then
+if [ "${backend_config}" == "mkl" ] && [ -z "${MKLROOT}" ]; then
     echo "Sourcing MKL env..."
     source /opt/intel/oneapi/mkl/latest/env/vars.sh
 elif [ "${backend_config}" == "ref" ] && [ ! -z "${BLAS_INSTALL_DIR}" ]; then
