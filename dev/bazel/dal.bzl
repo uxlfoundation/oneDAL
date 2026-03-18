@@ -295,12 +295,13 @@ def dal_collect_parameters(name, root, modules=[], target="parameters", dal_deps
     )
 
 def dal_example(name, dal_deps=[], use_onedal_release_libs=True, is_daal=False, **kwargs):
+    base_deps = [] if is_daal else [
+        "@onedal//cpp/oneapi/dal:core",
+        "@onedal//cpp/oneapi/dal/io",
+    ]
     dal_test(
         name = name,
-        dal_deps = [
-            "@onedal//cpp/oneapi/dal:core",
-            "@onedal//cpp/oneapi/dal/io",
-        ] + dal_deps if not is_daal else dal_deps,
+        dal_deps = base_deps + dal_deps,
         use_onedal_release_libs = use_onedal_release_libs,
         framework = "none",
         **kwargs,
