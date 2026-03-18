@@ -1,4 +1,4 @@
-/* file: engine_batch.h */
+/* file: engine.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,13 +17,12 @@
 
 /*
 //++
-//  Implementation of engine methods.
+//  Implementation engine.
 //--
 */
-#ifndef __ENGINE_BATCH__
-#define __ENGINE_BATCH__
 
-#include "src/algorithms/engines/engine_types.h"
+#ifndef __ENGINE_BACKEND_H__
+#define __ENGINE_BACKEND_H__
 
 namespace daal
 {
@@ -31,20 +30,24 @@ namespace algorithms
 {
 namespace engines
 {
-namespace internal
+/**
+ * @ingroup engines
+ * @{
+ */
+namespace interface1
 {
-template <typename algorithmFPType>
-services::Status Result::allocate(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, const int method)
-{
-    const Input * algInput = static_cast<const Input *>(input);
+enum class engine_type {
+    mt2203,
+    mcg59,
+    philox4x32x10,
+    mt19937,
+    mrg32k3a
+};
 
-    set(randomNumbers, algInput->get(tableToFill));
-    return services::Status();
-}
-
-} // namespace internal
+} // namespace interface1
+using interface1::engine_type;
+/** @} */
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
-
 #endif

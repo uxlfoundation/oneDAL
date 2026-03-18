@@ -45,18 +45,18 @@ public:
     ResultImpl() {}
     ResultImpl(const ResultImpl & other)
     {
-        if (other._engine) _engine = other._engine->clone();
+        _engine = other._engine;
     }
 
-    void setEngine(engines::EnginePtr engine) { _engine = engine; }
-    engines::EnginePtr getEngine()
+    void setEngine(engines::engine_type engine) { _engine = engine; }
+    engines::engine_type getEngine()
     {
-        if (!_engine) _engine = engines::mt2203::Batch<>::create();
+        if (_engine == engines::engine_type::mt2203) _engine = engines::engine_type::mt2203;
         return _engine;
     }
 
 private:
-    engines::EnginePtr _engine;
+    engines::engine_type _engine;
 };
 
 } // namespace interface1

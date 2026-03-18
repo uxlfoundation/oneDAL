@@ -24,7 +24,7 @@
 #ifndef __ENGINE_H__
 #define __ENGINE_H__
 
-#include "algorithms/engines/engine_types.h"
+#include "src/algorithms/engines/engine_types.h"
 
 namespace daal
 {

@@ -25,7 +25,7 @@
 #define __GBT_TRAINING_PARAMETER_H__
 
 #include "algorithms/algorithm.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
 
@@ -113,7 +113,7 @@ public:
                                                  Default is 0 (use all features) */
     size_t minObservationsInLeafNode;   /*!< Minimal number of observations in a leaf node. Default is 5. */
     bool memorySavingMode;              /*!< If true then use memory saving (but slower) mode. Default is false */
-    engines::EnginePtr engine;          /*!< Engine for the random numbers generator used by the algorithms */
+    engines::engine_type engine;          /*!< Engine for the random numbers generator used by the algorithms */
     size_t maxBins;                     /*!< Used with 'inexact' split finding method only.
                                                  Maximal number of discrete bins to bucket continuous features.
                                                  Default is 256. Increasing the number results in higher computation costs */

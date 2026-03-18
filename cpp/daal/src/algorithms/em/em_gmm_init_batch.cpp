@@ -50,7 +50,7 @@ Parameter::Parameter(size_t nComponents, size_t nTrials, size_t nIterations, siz
       seed(seed),
       accuracyThreshold(accuracyThreshold),
       covarianceStorage(covarianceStorage),
-      engine(engines::mt19937::Batch<>::create())
+      engine(engines::engine_type::mt19937)
 {}
 
 /**

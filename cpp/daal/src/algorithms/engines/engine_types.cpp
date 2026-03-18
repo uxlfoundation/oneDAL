@@ -19,7 +19,7 @@
 //  Implementation of initializer types.
 //--
 
-#include "include/algorithms/engines/engine_types.h"
+#include "src/algorithms/engines/engine_types.h"
 #include "src/services/daal_strings.h"
 
 namespace daal

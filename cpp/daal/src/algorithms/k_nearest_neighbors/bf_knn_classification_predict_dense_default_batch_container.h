@@ -82,7 +82,7 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     kernelPar.dataUseInModel    = par->dataUseInModel;
     kernelPar.resultsToCompute  = par->resultsToCompute;
     kernelPar.voteWeights       = par->voteWeights;
-    kernelPar.engine            = par->engine->clone();
+    kernelPar.engine            = par->engine;
     kernelPar.resultsToEvaluate = par->resultsToEvaluate;
 
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationPredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType), compute, a.get(), m.get(),

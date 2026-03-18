@@ -25,7 +25,7 @@
 #define __DECISION_FOREST_TRAINING_PARAMETER_H__
 
 #include "algorithms/algorithm.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/data_serialize.h"
 #include "services/daal_defines.h"
@@ -138,7 +138,7 @@ public:
     size_t minObservationsInLeafNode;      /*!< Minimal number of observations in a leaf node.
                                                   Default is 1 for classification, 5 for regression. */
     size_t seed;                           /*!< Seed for the random numbers generator used by the algorithms \DAAL_DEPRECATED_USE{ engine } */
-    engines::EnginePtr engine;             /*!< Engine for the random numbers generator used by the algorithms */
+    engines::engine_type engine;             /*!< Engine for the random numbers generator used by the algorithms */
     double impurityThreshold;              /*!< Threshold value used as stopping criteria: if the impurity value in the node is smaller
                                                   than the threshold then the node is not split anymore.*/
     VariableImportanceMode varImportance;  /*!< Variable importance computation mode */

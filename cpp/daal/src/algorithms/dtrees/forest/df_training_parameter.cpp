@@ -47,7 +47,7 @@ Parameter::Parameter()
       maxTreeDepth(0),
       minObservationsInLeafNode(0),
       seed(777),
-      engine(engines::mt2203::Batch<>::create()),
+      engine(engines::engine_type::mt2203),
       impurityThreshold(0.),
       varImportance(none),
       resultsToCompute(0),

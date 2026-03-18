@@ -98,7 +98,7 @@ Parameter::Parameter(size_t nClasses, size_t nNeighbors, int randomSeed, DataUse
       k(nNeighbors),
       seed(randomSeed),
       dataUseInModel(dataUse),
-      engine(engines::mcg59::Batch<>::create()),
+      engine(engines::engine_type::mcg59),
       resultsToCompute(resToCompute),
       voteWeights(vote)
 {

@@ -29,7 +29,7 @@
 #include "services/daal_defines.h"
 #include "algorithms/optimization_solver/iterative_solver/iterative_solver_types.h"
 #include "algorithms/optimization_solver/objective_function/logistic_loss_batch.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -101,7 +101,7 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
 
     size_t seed;               /*!< Seed for random generation of 32 bit integer indices of terms
                                                       in the objective function. \DAAL_DEPRECATED_USE{ engine } */
-    engines::EnginePtr engine; /*!< Engine for random generation of 32 bit integer indices of terms
+    engines::engine_type engine; /*!< Engine for random generation of 32 bit integer indices of terms
                                                                    in the objective function. */
     SelectionStrategy selection;
     bool positive;

@@ -25,7 +25,7 @@
 #define __BF_KNN_CLASSIFICATION_MODEL_H__
 
 #include "algorithms/classifier/classifier_model.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -108,7 +108,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
           dataUseInModel(other.dataUseInModel),
           resultsToCompute(other.resultsToCompute),
           voteWeights(other.voteWeights),
-          engine(other.engine->clone())
+          engine(other.engine)
     {
         this->resultsToEvaluate = other.resultsToEvaluate;
     }
@@ -124,7 +124,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
             daal::algorithms::classifier::Parameter::operator=(other);
             k                       = other.k;
             dataUseInModel          = other.dataUseInModel;
-            engine                  = other.engine->clone();
+            engine                  = other.engine;
             voteWeights             = other.voteWeights;
             resultsToCompute        = other.resultsToCompute;
             this->resultsToEvaluate = other.resultsToEvaluate;
@@ -142,7 +142,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     DataUseInModel dataUseInModel; /*!< The option to enable/disable an usage of the input dataset in kNN model */
     DAAL_UINT64 resultsToCompute;  /*!< 64 bit integer flag that indicates the results to compute */
     VoteWeights voteWeights;       /*!< Weight function used in prediction */
-    engines::EnginePtr engine;     /*!< Engine for random choosing elements from training dataset */
+    engines::engine_type engine;     /*!< Engine for random choosing elements from training dataset */
 };
 /* [Parameter source code] */
 

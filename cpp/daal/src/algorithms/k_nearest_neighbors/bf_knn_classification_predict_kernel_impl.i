@@ -18,7 +18,7 @@
 #ifndef __BF_KNN_CLASSIFICATION_PREDICT_KERNEL_IMPL_I__
 #define __BF_KNN_CLASSIFICATION_PREDICT_KERNEL_IMPL_I__
 
-#include "include/algorithms/engines/engine.h"
+#include "src/algorithms/engines/engine.h"
 #include "services/daal_defines.h"
 
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_model.h"

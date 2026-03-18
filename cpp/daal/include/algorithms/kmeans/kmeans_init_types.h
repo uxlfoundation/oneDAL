@@ -25,7 +25,7 @@
 #define __KMEANS_INIT_TYPES_H__
 
 #include "algorithms/algorithm.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/data_collection.h"
@@ -296,7 +296,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
                                                    L = nClusters* oversamplingFactor points are sampled in a round. */
     size_t nRounds;            /*!< Kmeans|| only. Number of rounds for k-means||. (oversamplingFactor*nRounds) > 1 is a requirement.*/
 
-    engines::EnginePtr engine; /*!< Engine to be used for generating random numbers for the initialization */
+    engines::engine_type engine; /*!< Engine to be used for generating random numbers for the initialization */
 
     services::Status check() const override;
 };

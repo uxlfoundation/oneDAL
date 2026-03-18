@@ -42,7 +42,7 @@ Parameter::Parameter(const sum_of_functions::BatchPtr & function, size_t nIterat
 
       optimization_solver::iterative_solver::Parameter(function, nIterations, accuracyThreshold, false, 1),
       seed(seed),
-      engine(engines::mt19937::Batch<>::create()),
+      engine(engines::engine_type::mt19937),
       selection(cyclic),
       positive(false),
       skipTheFirstComponents(false)

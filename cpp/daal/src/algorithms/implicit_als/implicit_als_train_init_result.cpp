@@ -43,7 +43,7 @@ namespace interface1
 {
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_IMPLICIT_ALS_TRAINING_INIT_RESULT_ID);
 Parameter::Parameter(size_t nFactors, size_t fullNUsers, size_t seed)
-    : nFactors(nFactors), fullNUsers(fullNUsers), seed(seed), engine(engines::mt19937::Batch<>::create())
+    : nFactors(nFactors), fullNUsers(fullNUsers), seed(seed), engine(engines::engine_type::mt19937)
 {}
 
 services::Status Parameter::check() const

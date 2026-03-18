@@ -31,7 +31,7 @@
 #include "services/daal_defines.h"
 #include "algorithms/optimization_solver/iterative_solver/iterative_solver_batch.h"
 #include "algorithms/optimization_solver/objective_function/sum_of_functions_batch.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -119,7 +119,7 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
                                          of inverse Hessian matrix. */
     size_t L;                  /*!< The number of iterations between the curvature estimates calculations */
     size_t seed;               /*!< Seed for random choosing terms from objective function. \DAAL_DEPRECATED_USE{ engine } */
-    engines::EnginePtr engine; /*!< Engine for random choosing terms from objective function. */
+    engines::engine_type engine; /*!< Engine for random choosing terms from objective function. */
 
     data_management::NumericTablePtr batchIndices;
 

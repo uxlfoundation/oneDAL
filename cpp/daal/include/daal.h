@@ -205,7 +205,7 @@
 #include "algorithms/regression/regression_predict.h"
 #include "algorithms/linear_model/linear_model_training_batch.h"
 #include "algorithms/linear_model/linear_model_predict.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 #include "algorithms/dbscan/dbscan_types.h"
 #include "algorithms/dbscan/dbscan_batch.h"
 #include "algorithms/dbscan/dbscan_distributed.h"

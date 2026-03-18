@@ -71,7 +71,7 @@ Parameter::Parameter(size_t nClasses, size_t nNeighbors, DataUseInModel dataUse,
       dataUseInModel(dataUse),
       resultsToCompute(resToCompute),
       voteWeights(vote),
-      engine(engines::mcg59::Batch<>::create())
+      engine(engines::engine_type::mcg59)
 {
     this->resultsToEvaluate = resToEvaluate;
 }

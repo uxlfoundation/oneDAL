@@ -176,7 +176,6 @@ public:
      * \param[in] id    Identifier of the result
      * \return          Result that corresponds to the given identifier
      */
-    engines::EnginePtr get(ResultEngineId id) const;
 
 protected:
     using daal::algorithms::interface1::Result::check;

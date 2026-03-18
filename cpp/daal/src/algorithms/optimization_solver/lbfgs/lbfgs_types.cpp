@@ -49,7 +49,7 @@ Parameter::Parameter(sum_of_functions::BatchPtr function, size_t nIterations, do
       L(L),
       seed(seed),
       stepLengthSequence(HomogenNumericTable<>::create(1, 1, NumericTableIface::doAllocate, 1.0)),
-      engine(engines::mt19937::Batch<>::create())
+      engine(engines::engine_type::mt19937)
 {}
 
 services::Status Parameter::check() const

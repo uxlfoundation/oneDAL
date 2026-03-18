@@ -108,9 +108,9 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
         r->impl()->setLabels<algorithmFpType>(y, copy);
         labelsPtr = r->impl()->getLabels().get();
     }
-
+    engines::EnginePtr enginePtr = engines::createEngine(par->engine);
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType, method), compute,
-                       r->impl()->getData().get(), labelsPtr, r.get(), *par->engine);
+                       r->impl()->getData().get(), labelsPtr, r.get(), *enginePtr);
 }
 } // namespace internal
 } // namespace training

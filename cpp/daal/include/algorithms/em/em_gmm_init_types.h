@@ -29,7 +29,7 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
 #include "algorithms/em/em_gmm_covariance_storage_id.h"
-#include "algorithms/engines/engine.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -131,7 +131,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t seed;                                   /*!< Seed for randomly generating data points to start the initialization of short EM */
     double accuracyThreshold;                      /*!< Threshold for the termination of the algorithm */
     em_gmm::CovarianceStorageId covarianceStorage; /*!< Type of covariance in the Gaussian mixture model. */
-    engines::EnginePtr engine; /*!< Engine to be used for randomly generating data points to start the initialization of short EM */
+    engines::engine_type engine; /*!< Engine to be used for randomly generating data points to start the initialization of short EM */
 };
 /* [Parameter source code] */
 
