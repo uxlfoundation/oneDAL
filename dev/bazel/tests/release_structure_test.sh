@@ -30,16 +30,25 @@ LIB_DIR="${RELEASE_DIR}/lib/intel64"
 PASS=0
 FAIL=0
 
-_pass() { echo "  ✅ PASS: $1"; PASS=$((PASS + 1)); }
-_fail() { echo "  ❌ FAIL: $1"; FAIL=$((FAIL + 1)); }
+OS="$(uname -s)"
+IS_LINUX=false
+[ "${OS}" = "Linux" ] && IS_LINUX=true
+
+_pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
+_fail() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
 
 # ---------------------------------------------------------------------------
-# 1. Library versioning and symlinks
+# 1. Library versioning and symlinks  (Linux .so only)
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Library versioning & symlinks ==="
 
+if ! ${IS_LINUX}; then
+    echo "  SKIP: .so versioning checks are Linux-only (detected OS: ${OS})"
+fi
+
 for lib_base in libonedal_core libonedal libonedal_thread; do
+    if ! ${IS_LINUX}; then continue; fi
     so="${LIB_DIR}/${lib_base}.so"
     # Find versioned file using bash globbing (more robust than ls+grep)
     shopt -s nullglob
@@ -73,7 +82,7 @@ for lib_base in libonedal_core libonedal libonedal_thread; do
         target=$(readlink "$major_link")
         expected_target="$(basename "$versioned")"
         if [ "$target" = "$expected_target" ]; then
-            _pass "${lib_base}.so.${major_ver} → ${expected_target}"
+            _pass "${lib_base}.so.${major_ver} -> ${expected_target}"
         else
             _fail "${lib_base}.so.${major_ver} points to $target, expected $expected_target"
         fi
@@ -86,7 +95,7 @@ for lib_base in libonedal_core libonedal libonedal_thread; do
         target=$(readlink "$so")
         expected_target="${lib_base}.so.${major_ver}"
         if [ "$target" = "$expected_target" ]; then
-            _pass "${lib_base}.so → ${expected_target}"
+            _pass "${lib_base}.so -> ${expected_target}"
         else
             _fail "${lib_base}.so points to $target, expected $expected_target"
         fi
@@ -96,18 +105,20 @@ for lib_base in libonedal_core libonedal libonedal_thread; do
 done
 
 # ---------------------------------------------------------------------------
-# 2. SONAME check
+# 2. SONAME check  (Linux only; macOS uses install_name / otool)
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== SONAME check ==="
 
-if ! command -v readelf >/dev/null 2>&1; then
+if ! ${IS_LINUX}; then
+    echo "  SKIP: SONAME check is Linux-only (detected OS: ${OS})"
+elif ! command -v readelf >/dev/null 2>&1; then
     _fail "readelf not found on PATH; cannot perform SONAME check"
 else
     for lib in "${LIB_DIR}"/libonedal_core.so.*.* "${LIB_DIR}"/libonedal.so.*.* "${LIB_DIR}"/libonedal_thread.so.*.* ; do
         [ -f "$lib" ] || continue
         lib_base=$(basename "$lib" | sed 's/\.so\..*//')
-        # Extract expected SONAME from filename: libonedal_core.so.3.0 → libonedal_core.so.3
+        # Extract expected SONAME from filename: libonedal_core.so.3.0 -> libonedal_core.so.3
         version_suffix="${lib##*.so.}"
         major_ver="${version_suffix%%.*}"
         expected_soname="${lib_base}.so.${major_ver}"
