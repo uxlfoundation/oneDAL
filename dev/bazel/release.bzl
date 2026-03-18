@@ -80,7 +80,11 @@ def _copy_include(ctx, prefix):
         headers = _collect_headers(include)
         for header in headers:
             if skip_prefix:
-                dst_path = _try_relativize(header.path, skip_prefix)
+                # Use short_path for deterministic workspace-relative include layout.
+                # file.path contains bazel-out/<cfg>/... prefixes that prevent
+                # _try_relativize(skip_prefix) from matching and may leak bazel-out
+                # directories into release/include.
+                dst_path = _try_relativize(header.short_path, skip_prefix)
             elif prefix:
                 dst_path = paths.join(prefix, header.basename)
             dst_file = _copy(ctx, header, paths.join(include_prefix, dst_path))
