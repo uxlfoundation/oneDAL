@@ -1,6 +1,6 @@
-/* file: algorithm_container_base.h */
+/* file: algorithm_container_base_common.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
 //--
 */
 
-#ifndef __ALGORITHM_CONTAINER_BASE_H__
-#define __ALGORITHM_CONTAINER_BASE_H__
+#ifndef __ALGORITHM_CONTAINER_BASE_COMMON_H__
+#define __ALGORITHM_CONTAINER_BASE_COMMON_H__
 
 #include "services/daal_memory.h"
 #include "services/internal/daal_kernel_defines.h"
@@ -34,14 +34,14 @@ namespace daal
 namespace algorithms
 {
 /**
- * @addtogroup base_algorithms
- * @{
- */
-/**
 * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
 */
 namespace interface1
 {
+/**
+ * @addtogroup base_algorithms
+ * @{
+ */
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ALGORITHMCONTAINERIFACE"></a>
  * \brief Implements the abstract interface AlgorithmContainerIface. It is associated with the Algorithm class

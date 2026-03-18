@@ -15,8 +15,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __riscv64_KERNEL_DEFINES_H__
-#define __riscv64_KERNEL_DEFINES_H__
+#ifndef __RISCV64_KERNEL_DEFINES_H__
+#define __RISCV64_KERNEL_DEFINES_H__
 
 #define DAAL_KERNEL_RV64
 

@@ -1,6 +1,6 @@
 /* file: algorithm_container_base_batch.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,10 +15,16 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
+//++
+//  Implementation of base classes defining algorithm interface for batch processing mode.
+//--
+*/
+
 #ifndef __ALGORITHM_CONTAINER_BASE_BATCH_H__
 #define __ALGORITHM_CONTAINER_BASE_BATCH_H__
 
-#include "algorithms/algorithm_container_base.h"
+#include "algorithms/algorithm_container_base_common.h"
 
 namespace daal
 {

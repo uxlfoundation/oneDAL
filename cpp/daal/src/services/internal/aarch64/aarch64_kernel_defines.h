@@ -15,8 +15,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __aarch64_KERNEL_DEFINES_H__
-#define __aarch64_KERNEL_DEFINES_H__
+#ifndef __AARCH64_KERNEL_DEFINES_H__
+#define __AARCH64_KERNEL_DEFINES_H__
 
 #define DAAL_KERNEL_SVE
 
