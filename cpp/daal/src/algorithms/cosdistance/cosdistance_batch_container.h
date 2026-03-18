@@ -35,6 +35,7 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__COSINE_DISTANCE__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the cosine distance algorithm.

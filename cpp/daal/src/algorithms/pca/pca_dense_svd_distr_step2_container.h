@@ -37,6 +37,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
@@ -107,7 +109,7 @@ services::Status DistributedContainer<step2Master, algorithmFPType, svdDense, cp
 
     daal::services::Environment::env & env = *_env;
 
-    Status s = __DAAL_CALL_KERNEL_STATUS(env, internal::PCASVDStep2MasterKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType), finalizeMerge,
+    services::Status s = __DAAL_CALL_KERNEL_STATUS(env, internal::PCASVDStep2MasterKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType), finalizeMerge,
                                          internal::nonNormalizedDataset, inputPartialResults, *eigenvalues, *eigenvectors);
 
     inputPartialResults->clear();

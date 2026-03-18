@@ -37,6 +37,8 @@ namespace covariance
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status CovarianceDenseBatchKernel<algorithmFPType, method, cpu>::compute(NumericTable * dataTable, NumericTable * covTable,
                                                                                    NumericTable * meanTable, const Parameter * parameter,

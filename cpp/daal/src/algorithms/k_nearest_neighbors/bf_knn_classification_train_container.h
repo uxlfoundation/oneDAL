@@ -37,6 +37,7 @@ namespace training
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>

@@ -42,6 +42,8 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__TRAINING__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of logistic regression model-based training.

@@ -36,6 +36,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode

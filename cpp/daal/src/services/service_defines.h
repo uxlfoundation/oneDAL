@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 #include "services/daal_defines.h"
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
@@ -37,11 +37,11 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();
 
 #if defined(TARGET_X86_64)
-    #define DAAL_BASE_CPU daal::sse2
+    #define DAAL_BASE_CPU daal::internal::sse42
 #elif defined(TARGET_ARM)
-    #define DAAL_BASE_CPU daal::sve
+    #define DAAL_BASE_CPU daal::internal::sve
 #elif defined(TARGET_RISCV64)
-    #define DAAL_BASE_CPU daal::rv64
+    #define DAAL_BASE_CPU daal::internal::rv64
 #endif
 
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())
@@ -117,7 +117,6 @@ enum DataFormat
 
 /* CPU comparison macro */
 #if defined(TARGET_X86_64)
-    #define __sse2__   (0)
     #define __sse42__  (2)
     #define __avx2__   (4)
     #define __avx512__ (6)
@@ -131,7 +130,6 @@ enum DataFormat
 #define __double__ (1)
 
 #if defined(TARGET_X86_64)
-    #define CPU_sse2   __sse2__
     #define CPU_sse42  __sse42__
     #define CPU_avx2   __avx2__
     #define CPU_avx512 __avx512__

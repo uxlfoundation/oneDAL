@@ -35,6 +35,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported architectures
 */

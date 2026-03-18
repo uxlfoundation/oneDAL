@@ -34,7 +34,7 @@ namespace polynomial
 {
 namespace internal
 {
-template <typename algorithmFPType, Method method, CpuType cpu>
+template <typename algorithmFPType, Method method, daal::internal::CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
 {
 public:

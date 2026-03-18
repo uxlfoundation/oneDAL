@@ -28,8 +28,6 @@
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h"
 #include "src/algorithms/kernel.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -40,6 +38,9 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__PREDICTION__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the  multi-class classifier prediction algorithm

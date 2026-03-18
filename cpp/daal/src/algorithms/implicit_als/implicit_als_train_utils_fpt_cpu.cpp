@@ -27,6 +27,7 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
 template services::Status csr2csc<DAAL_FPTYPE, DAAL_CPU>(size_t nItems, size_t nUsers, const DAAL_FPTYPE * csrdata, const size_t * colIndices,
                                                          const size_t * rowOffsets, DAAL_FPTYPE * cscdata, size_t * rowIndices, size_t * colOffsets);
 }

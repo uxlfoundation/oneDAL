@@ -39,6 +39,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_MODEL__PREDICTION__BATCHCONTAINER"></a>
  *  \brief Class containing computation methods for the regression model-based prediction

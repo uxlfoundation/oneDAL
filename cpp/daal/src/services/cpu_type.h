@@ -20,23 +20,26 @@
 
 namespace daal
 {
+namespace internal
+{
 /**
- * <a name="DAAL-ENUM-CPUTYPE"></a>
  * Supported types of processor architectures
  */
 enum CpuType
 {
 #if defined(TARGET_X86_64)
-    sse2        = 0, /*!< Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2) */
     sse42       = 2, /*!< Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2) */
+    firstCpuType = sse42,
     avx2        = 4, /*!< Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2) */
     avx512      = 6, /*!< Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512) */
     lastCpuType = avx512
 #elif defined(TARGET_ARM)
     sve         = 0, /*!< ARM(R) processors based on Arm's Scalable Vector Extension (SVE) */
+    firstCpuType = sve,
     lastCpuType = sve
 #elif defined(TARGET_RISCV64)
     rv64        = 0,
+    firstCpuType = rv64,
     lastCpuType = rv64
 #endif
 };
@@ -60,5 +63,6 @@ enum CpuFeature
     tb3         = (1ULL << 4), /*!< Intel(R) Turbo Boost Max 3.0 */
 #endif
 };
+} // namespace internal
 } // namespace daal
 #endif

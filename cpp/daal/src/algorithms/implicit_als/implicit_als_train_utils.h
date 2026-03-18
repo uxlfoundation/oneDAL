@@ -18,8 +18,8 @@
 #ifndef __IMPLICIT_ALS_TRAIN_UTILS_H__
 #define __IMPLICIT_ALS_TRAIN_UTILS_H__
 
-#include "services/env_detect.h"
 #include "services/error_handling.h"
+#include "src/services/service_defines.h"
 
 namespace daal
 {
@@ -31,6 +31,8 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 services::Status csr2csc(size_t nItems, size_t nUsers, const algorithmFPType * csrdata, const size_t * colIndices, const size_t * rowOffsets,
                          algorithmFPType * cscdata, size_t * rowIndices, size_t * colOffsets);

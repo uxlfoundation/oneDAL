@@ -23,7 +23,7 @@
 #ifndef __SERVICE_UTILS_H__
 #define __SERVICE_UTILS_H__
 
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 #include "src/services/service_type_traits.h"
 #include "src/services/service_defines.h"
 
@@ -33,6 +33,9 @@ namespace services
 {
 namespace internal
 {
+
+using CpuType = daal::internal::CpuType;
+
 template <CpuType cpu, typename T>
 inline typename RemoveReference<cpu, T>::type && move(T && object)
 {

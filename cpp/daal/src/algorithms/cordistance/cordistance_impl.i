@@ -16,7 +16,6 @@
 *******************************************************************************/
 
 #include "src/services/service_defines.h"
-using namespace daal::internal;
 
 namespace daal
 {
@@ -26,6 +25,7 @@ namespace correlation_distance
 {
 namespace internal
 {
+using namespace daal::internal;
 /// Compute sum of each row of the input matrix x and store the result in sum
 ///
 /// \tparam algorithmFPType  Data type to use in intermediate computations for the correlation distance algorithm, double or float

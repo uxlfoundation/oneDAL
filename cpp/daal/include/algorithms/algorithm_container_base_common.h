@@ -25,7 +25,6 @@
 #define __ALGORITHM_CONTAINER_BASE_COMMON_H__
 
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 #include "algorithms/algorithm_types.h"
 #include "algorithms/algorithm_kernel.h"
 

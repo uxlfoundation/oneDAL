@@ -27,7 +27,7 @@
 
 #include "services/daal_defines.h"
 #include "src/services/service_defines.h"
-#include "services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_kernel_defines.h"
 
 #if defined(TARGET_X86_64)
     #include "src/algorithms/kernel_inst_x86.h"

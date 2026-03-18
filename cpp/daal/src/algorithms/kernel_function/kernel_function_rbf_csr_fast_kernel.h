@@ -37,7 +37,9 @@ namespace rbf
 {
 namespace internal
 {
-template <typename algorithmFPType, CpuType cpu>
+using namespace daal::data_management;
+
+template <typename algorithmFPType, daal::internal::CpuType cpu>
 struct KernelImplRBF<fastCSR, algorithmFPType, cpu> : public daal::algorithms::kernel_function::internal::KernelCSRImplBase<algorithmFPType, cpu>
 {
     using daal::algorithms::kernel_function::internal::KernelCSRImplBase<algorithmFPType, cpu>::computeDotProduct;

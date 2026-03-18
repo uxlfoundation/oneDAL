@@ -38,6 +38,8 @@ namespace transform
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__TRANSFORM__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the PCA transformation algorithm in the batch processing mode

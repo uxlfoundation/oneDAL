@@ -40,6 +40,7 @@ namespace kdtree_knn_classification
 namespace training
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 namespace internal
 {

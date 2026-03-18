@@ -22,17 +22,16 @@ namespace oneapi::dal::detail {
 namespace v1 {
 
 ONEDAL_EXPORT cpu_extension from_daal_cpu_type(int cpu_type) {
-    daal::CpuType cpu = static_cast<daal::CpuType>(cpu_type);
+    daal::internal::CpuType cpu = static_cast<daal::internal::CpuType>(cpu_type);
     switch (cpu) {
 #if defined(TARGET_X86_64)
-        case daal::sse2: return cpu_extension::sse2;
-        case daal::sse42: return cpu_extension::sse42;
-        case daal::avx2: return cpu_extension::avx2;
-        case daal::avx512: return cpu_extension::avx512;
+        case daal::internal::sse42: return cpu_extension::sse42;
+        case daal::internal::avx2: return cpu_extension::avx2;
+        case daal::internal::avx512: return cpu_extension::avx512;
 #elif defined(TARGET_ARM)
-        case daal::sve: return cpu_extension::sve;
+        case daal::internal::sve: return cpu_extension::sve;
 #elif defined(TARGET_RISCV64)
-        case daal::rv64: return cpu_extension::rv64;
+        case daal::internal::rv64: return cpu_extension::rv64;
 #endif
     }
     return cpu_extension::none;

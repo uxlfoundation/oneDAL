@@ -21,7 +21,7 @@
 //--
 */
 
-#include "services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_kernel_defines.h"
 #include "src/externals/service_dispatch.h"
 #include "src/data_management/data_conversion_cpu.h"
 #include "data_management/data/internal/conversion.h"

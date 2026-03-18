@@ -32,8 +32,6 @@
 #include "data_management/data/numeric_table.h"
 #include "src/services/service_algo_utils.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -46,6 +44,9 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 class PredictClassificationTask;
 template <typename algorithmFpType, prediction::Method method, CpuType cpu>

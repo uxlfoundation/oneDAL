@@ -27,7 +27,6 @@
 
 #include "services/env_detect.h"
 
-#define DAAL_KERNEL_SSE2
 #define DAAL_KERNEL_SSE42
 #define DAAL_KERNEL_AVX2
 #define DAAL_KERNEL_AVX512

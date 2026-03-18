@@ -74,8 +74,8 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS = ["sse2", "sse42", "avx2", "avx512"]
-_ISA_EXTENSIONS_MODERN = ["sse2", "avx2", "avx512"]
+_ISA_EXTENSIONS = ["sse42", "avx2", "avx512"]
+_ISA_EXTENSIONS_MODERN = ["sse42", "avx2", "avx512"]
 _ISA_EXTENSION_AUTO_DEFAULT = "avx2"
 
 def _check_cpu_extensions(extensions):

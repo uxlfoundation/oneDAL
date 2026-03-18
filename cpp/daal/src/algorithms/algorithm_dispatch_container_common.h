@@ -22,6 +22,7 @@
 
 #include "algorithms/algorithm_container_base_common.h"
 #include "services/error_handling.h"
+#include "src/services/internal/daal_kernel_defines.h"
 
 namespace daal
 {
@@ -36,14 +37,13 @@ namespace internal
  * \brief Implements a container to dispatch algorithms to cpu-specific implementations.
  *
  * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
- * \tparam sse2Container        Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
  * \tparam sse42Container       Implementation for Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
  * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
  * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
  */
 
 #if defined(TARGET_X86_64)
-template <ComputeMode mode, typename sse2Container DAAL_KERNEL_SSE42_ONLY(typename sse42Container) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
+template <ComputeMode mode, typename sse42Container DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
                                 DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
 #elif defined(TARGET_ARM)
 template <ComputeMode mode, typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>
@@ -94,15 +94,15 @@ private:
 #if defined(TARGET_X86_64)
     #define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                               \
         algorithms::internal::AlgorithmDispatchContainer<                                                          \
-            Mode, ContainerTemplate<__VA_ARGS__, sse2> DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__) \
-                      DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__) DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>
+            Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse42> DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__) \
+                     DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>
 #elif defined(TARGET_ARM)
     #define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                            \
-        algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, \
+        algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sve> DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, \
                                                                                                                              __VA_ARGS__)>
 #elif defined(TARGET_RISCV64)
     #define __DAAL_ALGORITHM_CONTAINER(Mode, ContainerTemplate, ...)                                                                              \
-        algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, rv64> DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, \
+        algorithms::internal::AlgorithmDispatchContainer<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::rv64> DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, \
                                                                                                                                __VA_ARGS__)>
 #endif
 

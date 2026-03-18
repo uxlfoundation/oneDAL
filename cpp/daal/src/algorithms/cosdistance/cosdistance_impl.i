@@ -16,7 +16,6 @@
 *******************************************************************************/
 
 #include "src/services/service_defines.h"
-using namespace daal::internal;
 
 namespace daal
 {
@@ -26,6 +25,8 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /// Compute the diagonal block of the cosine distance matrix
 ///
 /// \tparam algorithmFPType  Data type to use in intermediate computations for the cosine distance algorithm, double or float
