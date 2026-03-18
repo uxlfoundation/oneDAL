@@ -23,6 +23,7 @@ load("@onedal//dev/bazel:utils.bzl",
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@onedal//dev/bazel/config:config.bzl",
     "CpuInfo",
+    "VersionInfo",
 )
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -186,6 +187,12 @@ def _cc_dynamic_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
+    soname = "lib{}.so.{}".format(
+        ctx.attr.lib_name,
+        ctx.attr._version_info[VersionInfo].binary_major,
+    )
+    link_flags = ["-Wl,-soname,{}".format(soname)] + ctx.attr.linkopts
+
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
         name = ctx.attr.lib_name,
@@ -194,7 +201,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = ctx.attr.linkopts,
+        user_link_flags = link_flags,
     )
     default_info = DefaultInfo(
         files = depset([ dynamic_lib ]),
@@ -215,6 +222,10 @@ cc_dynamic_lib = rule(
         "linkopts": attr.string_list(
             default = [],
             doc = "Additional linker flags (e.g. --exclude-libs for MKL symbol hiding).",
+        ),
+        "_version_info": attr.label(
+            default = "@config//:version",
+            providers = [VersionInfo],
         ),
     },
     toolchains = ["@bazel_tools//tools/cpp:toolchain_type"],
