@@ -104,3 +104,12 @@ mkl_libs.lnxarm :=
 mkl_libs.lnxriscv64 :=
 
 daaldep.math_backend.dpc_link_deps := $(mkl_libs.$(PLAT))
+
+# MKL SYCL runtime shared libraries to co-locate in the release directory.
+# On Linux, .so files live in $(MKLROOT)/lib alongside the static .a files.
+# On Windows, runtime .dll files live in $(MKLROOT)/bin (import .libs are in lib/).
+MKLDIR.soia := $(if $(OS_is_win),$(MKLDIR)/bin,$(MKLDIR.libia))
+
+MKL_SYCL_BASE_NAMES := mkl_sycl_blas mkl_sycl_lapack mkl_sycl_sparse mkl_sycl_rng mkl_core mkl_intel_ilp64 mkl_tbb_thread
+
+releasemkl.SYCL_LIBS := $(foreach base,$(MKL_SYCL_BASE_NAMES),$(wildcard $(MKLDIR.soia)/$(plib)$(base).$(so)*) $(wildcard $(MKLDIR.soia)/$(plib)$(base)*.$(so)))

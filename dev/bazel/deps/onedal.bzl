@@ -34,6 +34,15 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
         "lib/intel64/libonedal_dpc.so",
         "lib/intel64/libonedal_parameters.so",
         "lib/intel64/libonedal_parameters_dpc.so",
+
+        # MKL SYCL runtime dependencies (co-located by make build)
+        "lib/intel64/libmkl_sycl_blas.so",
+        "lib/intel64/libmkl_sycl_lapack.so",
+        "lib/intel64/libmkl_sycl_sparse.so",
+        "lib/intel64/libmkl_sycl_rng.so",
+        "lib/intel64/libmkl_core.so",
+        "lib/intel64/libmkl_intel_ilp64.so",
+        "lib/intel64/libmkl_tbb_thread.so",
     ],
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
 )

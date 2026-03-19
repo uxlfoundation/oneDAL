@@ -1129,6 +1129,13 @@ endef
 $(foreach t,$(releasetbb.LIBS_Y),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.soia))))
 $(foreach t,$(releasetbb.LIBS_A),$(eval $(call .release.t,$t,$(RELEASEDIR.tbb.libia))))
 
+#----- releasing MKL SYCL runtime libraries (co-locate with oneDAL DPC libraries)
+define .release.mkl
+_release_oneapi_dpc: $(RELEASEDIR.soia)/$(notdir $1)
+$(RELEASEDIR.soia)/$(notdir $1): $(call frompf1,$1) | $(RELEASEDIR.soia)/. ; $(value cpy)
+endef
+$(foreach m,$(releasemkl.SYCL_LIBS),$(eval $(call .release.mkl,$m)))
+
 #----- cmake configs generation
 
 _release_cmake_configs:
