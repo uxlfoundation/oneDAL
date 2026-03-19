@@ -206,19 +206,9 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Upload build artifacts'
     continueOnError: true
-  # - script: |
-  #     source $(conda info --base)/etc/profile.d/conda.sh
-  #     conda activate $(CONDA_ENV)
-  #     # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
-  #     if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
-  #         sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
-  #             "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
-  #     fi
-  #   displayName: 'Fix MKLConfig.cmake TBB target'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export EXTRA_CMAKE_OPTIONS="-DTBB_tbb_FOUND=TRUE -DTBB_tbbmalloc_FOUND=TRUE"
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
       export DPL_ROOT="${CONDA_PREFIX}"
@@ -232,7 +222,6 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export EXTRA_CMAKE_OPTIONS="-DTBB_tbb_FOUND=TRUE -DTBB_tbbmalloc_FOUND=TRUE"
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
       export DPL_ROOT="${CONDA_PREFIX}"
@@ -246,7 +235,6 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
-      export EXTRA_CMAKE_OPTIONS="-DTBB_tbb_FOUND=TRUE -DTBB_tbbmalloc_FOUND=TRUE"
       export MKLROOT="${CONDA_PREFIX}"
       export TBBROOT="${CONDA_PREFIX}"
       export DPL_ROOT="${CONDA_PREFIX}"

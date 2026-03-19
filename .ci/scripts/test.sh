@@ -236,8 +236,7 @@ for link_mode in "${link_modes[@]}"; do
             -G "Unix Makefiles"
             -DONEDAL_LINK="${link_mode}"
             -DREF_BACKEND="${ref_backend}"
-            -DOPENRNG_BACKEND="${openrng_backend}"
-            ${EXTRA_CMAKE_OPTIONS})
+            -DOPENRNG_BACKEND="${openrng_backend}")
 
         if [ "${cross_compile}" == "yes" ] ; then
             # Set the cmake toolchain file to set up the cross-compilation
