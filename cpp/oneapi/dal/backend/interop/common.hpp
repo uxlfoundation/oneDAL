@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <daal/include/services/env_detect.h>
 #include <daal/src/services/cpu_type.h>
 
 #include "oneapi/dal/backend/dispatcher.hpp"

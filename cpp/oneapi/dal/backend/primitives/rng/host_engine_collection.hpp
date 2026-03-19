@@ -40,7 +40,7 @@ public:
             op(i, params_.nSkip[i]);
         }
         select_parallelization_technique(technique_);
-        daal::algorithms::engines::internal::EnginesCollection<daal::sse2> host_engine_collection(
+        daal::algorithms::engines::internal::EnginesCollection<DAAL_BASE_CPU> host_engine_collection(
             engine_,
             technique_,
             params_,
@@ -102,9 +102,9 @@ private:
 private:
     std::int64_t count_;
     daal::algorithms::engines::EnginePtr engine_;
-    daal::algorithms::engines::internal::Params<daal::sse2> params_;
+    daal::algorithms::engines::internal::Params<DAAL_BASE_CPU> params_;
     daal::algorithms::engines::internal::ParallelizationTechnique technique_;
-    daal::services::internal::TArray<daal::algorithms::engines::EnginePtr, daal::sse2>
+    daal::services::internal::TArray<daal::algorithms::engines::EnginePtr, DAAL_BASE_CPU>
         daal_engine_list_;
 };
 
