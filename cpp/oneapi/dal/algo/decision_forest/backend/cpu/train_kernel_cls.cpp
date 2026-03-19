@@ -46,11 +46,11 @@ namespace interop = dal::backend::interop;
 
 using daal_hyperparameters_t = daal_df_cls_train::internal::Hyperparameter;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using cls_dense_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::defaultDense, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using cls_hist_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::hist, Cpu>;
 
@@ -73,7 +73,7 @@ static daal_hyperparameters_t convert_parameters(const param_t& params) {
     return daal_hyperparameter;
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
+template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel>
 static result_t call_daal_kernel(const context_cpu& ctx,
                                  const descriptor_t& desc,
                                  const param_t& params,
@@ -247,7 +247,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     return res.set_model(dal::detail::make_private<model_t>(model_impl));
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
+template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel>
 static result_t train(const context_cpu& ctx,
                       const descriptor_t& desc,
                       const param_t& params,

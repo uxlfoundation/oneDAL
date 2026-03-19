@@ -183,7 +183,7 @@ std::string detect_cpu() {
             return "sse42";
         }
         else {
-            return "unsupported";
+            return "sse2";
         }
     #elif defined(TARGET_ARM)
         return "sve";

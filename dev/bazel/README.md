@@ -162,9 +162,10 @@ The most used Bazel commands are `build`, `test` and `run`.
   Possible values:
   - `auto` _(default)_ Automatically detects highest available instruction set
     on the local machine. If detection failed, uses `avx2`.
-  - `modern` Compiles for `sse4.2`, `avx2`, `avx512`.
+  - `modern` Compiles for `sse2`, `avx2`, `avx512`.
   - `all` Compiles for all instruction sets listed below.
   - Any comma-separated combination of the following values:
+    - `sse2`
     - `sse42`
     - `avx2`
     - `avx512`

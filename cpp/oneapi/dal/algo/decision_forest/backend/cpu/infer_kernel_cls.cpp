@@ -45,7 +45,7 @@ namespace daal_df = daal::algorithms::decision_forest;
 namespace daal_df_cls_pred = daal_df::classification::prediction;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using cls_dense_predict_kernel_t =
     daal_df_cls_pred::internal::PredictKernel<Float, daal_df_cls_pred::defaultDense, Cpu>;
 

@@ -33,7 +33,7 @@ namespace log_loss = daal::algorithms::optimization_solver::logistic_loss;
 using dal::backend::context_cpu;
 using descriptor_t = detail::descriptor_base<task::compute>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_logloss_kernel_t =
     log_loss::internal::LogLossKernel<Float, log_loss::Method::defaultDense, Cpu>;
 

@@ -45,7 +45,7 @@ namespace internal
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of normal distribution, double or float
  * \tparam method           Computation method of the distribution, normal::Method
- * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ * \tparam cpu              Version of the cpu-specific implementation of the distribution, CpuType
  *
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

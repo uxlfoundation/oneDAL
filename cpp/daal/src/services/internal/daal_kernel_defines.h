@@ -26,7 +26,9 @@
 #define __DAAL_KERNEL_DEFINES_H__
 
 #include "services/env_detect.h"
+#include "src/services/cpu_type.h"
 
+#define DAAL_KERNEL_SSE2
 #define DAAL_KERNEL_SSE42
 #define DAAL_KERNEL_AVX2
 #define DAAL_KERNEL_AVX512

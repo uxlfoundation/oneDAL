@@ -47,7 +47,7 @@ struct to_daal_method<method::lloyd_dense> : daal_method_constant<daal_kmeans::l
 template <>
 struct to_daal_method<method::lloyd_csr> : daal_method_constant<daal_kmeans::lloydCSR> {};
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using batch_kernel_t =
     daal_kmeans::internal::KMeansBatchKernel<to_daal_method<Method>::value, Float, Cpu>;
 

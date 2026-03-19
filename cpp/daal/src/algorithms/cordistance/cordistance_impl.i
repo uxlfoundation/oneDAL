@@ -29,7 +29,7 @@ using namespace daal::internal;
 /// Compute sum of each row of the input matrix x and store the result in sum
 ///
 /// \tparam algorithmFPType  Data type to use in intermediate computations for the correlation distance algorithm, double or float
-/// \tparam cpu              Type of CPU, e.g. daal::CpuType::sse2, daal::CpuType::avx2, etc.
+/// \tparam cpu              Type of CPU, e.g. CpuType::sse2, CpuType::avx2, etc.
 ///
 /// \param[in] nRows            Number of rows in the input matrix x
 /// \param[in] nColumns         Number of columns in the input matrix x
@@ -53,7 +53,7 @@ void sumByRows(const size_t nRows, const size_t nColumns, const algorithmFPType 
 /// Compute the diagonal block of the correlation distance matrix
 ///
 /// \tparam algorithmFPType  Data type to use in intermediate computations for the correlation distance algorithm, double or float
-/// \tparam cpu              Type of CPU, e.g. daal::CpuType::sse2, daal::CpuType::avx2, etc.
+/// \tparam cpu              Type of CPU, e.g. CpuType::sse2, CpuType::avx2, etc.
 /// \tparam upper            If true, compute the upper triangle of the block, otherwise compute the lower triangle
 ///
 /// \param[in] blockSize     Size of the block to compute

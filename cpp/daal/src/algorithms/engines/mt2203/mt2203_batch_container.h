@@ -45,7 +45,7 @@ namespace internal
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float
  * \tparam method           Computation method of the engine, mt2203::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, CpuType
  *
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

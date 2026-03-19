@@ -490,6 +490,7 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
             ["dpc++"] if is_dpc else []
         ),
         cpu_defines = {
+            "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
             "sse42":  [ "__CPU_TAG__=__CPU_TAG_SSE42__"  ],
             "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
