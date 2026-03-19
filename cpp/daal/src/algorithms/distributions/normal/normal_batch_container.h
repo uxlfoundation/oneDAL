@@ -26,7 +26,7 @@
 
 #include "src/algorithms/distributions/normal/normal.h"
 #include "src/algorithms/distributions/normal/normal_kernel.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms
@@ -90,7 +90,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     result->set(distributions::randomNumbers, static_cast<const distributions::Input *>(_in)->get(distributions::tableToFill));
     NumericTable * resultTable = result->get(distributions::randomNumbers).get();
 
-    __DAAL_CALL_KERNEL(env, internal::NormalKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter, *parameter->engine,
+    engines::EnginePtr enginePtr = engines::createEngine(parameter->engine);
+    __DAAL_CALL_KERNEL(env, internal::NormalKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter, *enginePtr,
                        resultTable);
 }
 } // namespace internal

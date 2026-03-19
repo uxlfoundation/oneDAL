@@ -26,7 +26,7 @@
 
 #include "src/algorithms/distributions/bernoulli/bernoulli.h"
 #include "src/algorithms/distributions/bernoulli/bernoulli_kernel.h"
-
+#include "src/algorithms/engines/engine_factory.h"
 namespace daal
 {
 namespace algorithms
@@ -91,7 +91,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     result->set(distributions::randomNumbers, static_cast<const distributions::Input *>(_in)->get(distributions::tableToFill));
     NumericTable * resultTable = result->get(distributions::randomNumbers).get();
 
-    __DAAL_CALL_KERNEL(env, internal::BernoulliKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter->p, *parameter->engine,
+    engines::EnginePtr enginePtr = engines::createEngine(parameter->engine);
+    __DAAL_CALL_KERNEL(env, internal::BernoulliKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, parameter->p, *enginePtr,
                        resultTable);
 }
 } // namespace internal

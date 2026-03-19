@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
@@ -37,10 +37,10 @@ namespace mcg59
 namespace internal
 {
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class BatchImpl : public algorithms::engines::mcg59::interface1::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
+class BatchImpl : public algorithms::engines::mcg59::internal::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
 {
 public:
-    typedef algorithms::engines::mcg59::interface1::Batch<algorithmFPType, method> super1;
+    typedef algorithms::engines::mcg59::internal::Batch<algorithmFPType, method> super1;
     typedef algorithms::engines::internal::BatchBaseImpl super2;
     BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_MCG59), super2(seed) {}
 

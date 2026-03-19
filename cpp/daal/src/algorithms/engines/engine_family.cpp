@@ -19,7 +19,7 @@
 //  Implementation of initializer types.
 //--
 
-#include "algorithms/engines/engine_family.h"
+#include "src/algorithms/engines/engine_family.h"
 
 namespace daal
 {
@@ -31,7 +31,7 @@ namespace engines
  * @ingroup engines
  * @{
  */
-namespace interface1
+namespace internal
 {
 FamilyBatchBase::FamilyBatchBase() {}
 
@@ -57,7 +57,7 @@ size_t FamilyBatchBase::getMaxNumberOfStreams() const
     return getMaxNumberOfStreamsImpl();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

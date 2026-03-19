@@ -1,4 +1,4 @@
-/* file: mcg59_kernel.h */
+/* file: engine.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -15,19 +15,14 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
 //++
-//  Declaration of template function that calculate mcg59s.
+//  Implementation engine.
 //--
+*/
 
-#ifndef __MCG59_KERNEL_H__
-#define __MCG59_KERNEL_H__
-
-#include "src/algorithms/engines/mcg59/mcg59.h"
-#include "src/algorithms/kernel.h"
-#include "data_management/data/numeric_table.h"
-
-using namespace daal::services;
-using namespace daal::data_management;
+#ifndef __ENGINE_BACKEND_H__
+#define __ENGINE_BACKEND_H__
 
 namespace daal
 {
@@ -35,24 +30,24 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mcg59
-{
-namespace internal
-{
 /**
- *  \brief Kernel for mcg59 calculation
+ * @ingroup engines
+ * @{
  */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class Mcg59Kernel : public Kernel
+namespace interface1
 {
-public:
-    Status compute(NumericTable * resultTable);
+enum class engine_type {
+    mt2203,
+    mcg59,
+    philox4x32x10,
+    mt19937,
+    mrg32k3a
 };
 
-} // namespace internal
-} // namespace mcg59
+} // namespace interface1
+using interface1::engine_type;
+/** @} */
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
-
 #endif

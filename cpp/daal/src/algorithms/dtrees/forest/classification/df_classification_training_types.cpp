@@ -134,10 +134,6 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     return s;
 }
 
-engines::EnginePtr Result::get(ResultEngineId id) const
-{
-    return _impl->getEngine();
-}
 } // namespace interface1
 
 namespace interface3

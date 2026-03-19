@@ -19,7 +19,7 @@
 //  Implementation of mt2203 engine
 //--
 
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 #include "src/externals/service_dispatch.h"
 #include "src/algorithms/engines/mt2203/mt2203_batch_impl.h"
 
@@ -31,7 +31,7 @@ namespace engines
 {
 namespace mt2203
 {
-namespace interface1
+namespace internal
 {
 using namespace daal::services;
 using namespace mt2203::internal;
@@ -52,7 +52,7 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
 template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed, services::Status * st);
 template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed, services::Status * st);
 
-} // namespace interface1
+} // namespace internal
 } // namespace mt2203
 } // namespace engines
 } // namespace algorithms

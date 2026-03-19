@@ -23,6 +23,7 @@
 
 #include "algorithms/decision_forest/decision_forest_training_parameter.h"
 #include "src/services/daal_strings.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -46,7 +47,7 @@ Parameter::Parameter()
       maxTreeDepth(0),
       minObservationsInLeafNode(0),
       seed(777),
-      engine(engines::mt2203::Batch<>::create()),
+      engine(engines::engine_type::mt2203),
       impurityThreshold(0.),
       varImportance(none),
       resultsToCompute(0),

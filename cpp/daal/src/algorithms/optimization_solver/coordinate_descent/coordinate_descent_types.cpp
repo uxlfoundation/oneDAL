@@ -24,7 +24,7 @@
 #include "algorithms/optimization_solver/coordinate_descent/coordinate_descent_types.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
-
+#include "src/algorithms/engines/mt19937/mt19937.h"
 namespace daal
 {
 namespace algorithms
@@ -42,7 +42,7 @@ Parameter::Parameter(const sum_of_functions::BatchPtr & function, size_t nIterat
 
       optimization_solver::iterative_solver::Parameter(function, nIterations, accuracyThreshold, false, 1),
       seed(seed),
-      engine(engines::mt19937::Batch<>::create()),
+      engine(engines::engine_type::mt19937),
       selection(cyclic),
       positive(false),
       skipTheFirstComponents(false)

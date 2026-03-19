@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/decision_forest/decision_forest_classification_training_types.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -49,19 +50,23 @@ public:
     ResultImpl() {}
     ResultImpl(const ResultImpl & other)
     {
-        if (other._engine) _engine = other._engine->clone();
+        _engine = other._engine;
     }
 
-    void setEngine(engines::EnginePtr engine) { _engine = engine; }
+    void setEngine(engines::EnginePtr engine)
+    {
+        _engine = engine;
+    }
+
     engines::EnginePtr getEngine()
     {
-        if (!_engine) _engine = engines::mt2203::Batch<>::create();
         return _engine;
     }
 
 private:
     engines::EnginePtr _engine;
 };
+
 
 } // namespace interface1
 } // namespace training

@@ -25,7 +25,7 @@
 #include "src/algorithms/dtrees/gbt/gbt_training_parameter.h"
 #include "src/services/daal_strings.h"
 #include "src/algorithms/dtrees/gbt/gbt_internal.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -51,7 +51,7 @@ Parameter::Parameter()
       featuresPerNode(0),
       minObservationsInLeafNode(5),
       memorySavingMode(false),
-      engine(engines::mt19937::Batch<>::create()),
+      engine(engines::engine_type::mt19937),
       minBinSize(5),
       maxBins(256),
       internalOptions(gbt::internal::parallelAll)

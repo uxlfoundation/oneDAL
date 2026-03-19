@@ -27,7 +27,7 @@
 #include "data_management/data/numeric_table.h"
 #include "src/externals/service_math.h"
 #include "src/data_management/service_micro_table.h"
-
+#include "src/algorithms/engines/engine.h"
 using namespace daal::data_management;
 using namespace daal::internal;
 using namespace daal::services;

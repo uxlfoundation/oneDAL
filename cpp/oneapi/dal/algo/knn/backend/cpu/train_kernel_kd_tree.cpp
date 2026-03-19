@@ -24,7 +24,7 @@
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
-
+#include <daal/include/algorithms/engines/engine_backend.h>
 #include "oneapi/dal/table/row_accessor.hpp"
 
 #include "oneapi/dal/exceptions.hpp"
@@ -85,7 +85,7 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
         knn_model->impl()->getData().get(),
         knn_model->impl()->getLabels().get(),
         knn_model,
-        *daal_parameter.engine.get()));
+        daal::engines::mt2203));
 
     const auto model_impl =
         std::make_shared<kd_tree_model_impl<Task>>(new daal_model_interop_t(model_ptr));

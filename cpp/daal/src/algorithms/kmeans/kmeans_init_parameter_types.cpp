@@ -24,7 +24,7 @@
 #include "algorithms/kmeans/kmeans_init_types.h"
 #include "services/daal_defines.h"
 #include "src/services/daal_strings.h"
-
+#include "src/algorithms/engines/mt19937/mt19937.h"
 using namespace daal::data_management;
 using namespace daal::services;
 
@@ -45,7 +45,7 @@ Parameter::Parameter(size_t _nClusters, size_t _offset, size_t _seed)
       seed(_seed),
       oversamplingFactor(0.5),
       nRounds(5),
-      engine(engines::mt19937::Batch<>::create(_seed))
+      engine(engines::engine_type::mt19937)
 {}
 
 /**

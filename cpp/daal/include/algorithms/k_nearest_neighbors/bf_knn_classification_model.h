@@ -25,7 +25,7 @@
 #define __BF_KNN_CLASSIFICATION_MODEL_H__
 
 #include "algorithms/classifier/classifier_model.h"
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -96,16 +96,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      *  \param[in] vote                 The option to select voting method
      */
     Parameter(size_t nClasses = 2, size_t nNeighbors = 1, DataUseInModel dataUse = doNotUse, DAAL_UINT64 resToCompute = 0,
-              DAAL_UINT64 resToEvaluate = daal::algorithms::classifier::computeClassLabels, VoteWeights vote = voteUniform)
-        : daal::algorithms::classifier::Parameter(nClasses),
-          k(nNeighbors),
-          dataUseInModel(dataUse),
-          resultsToCompute(resToCompute),
-          voteWeights(vote),
-          engine(engines::mcg59::Batch<>::create())
-    {
-        this->resultsToEvaluate = resToEvaluate;
-    }
+              DAAL_UINT64 resToEvaluate = daal::algorithms::classifier::computeClassLabels, VoteWeights vote = voteUniform);
 
     /**
      *  Parameter copy constructor
@@ -117,7 +108,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
           dataUseInModel(other.dataUseInModel),
           resultsToCompute(other.resultsToCompute),
           voteWeights(other.voteWeights),
-          engine(other.engine->clone())
+          engine(other.engine)
     {
         this->resultsToEvaluate = other.resultsToEvaluate;
     }
@@ -133,7 +124,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
             daal::algorithms::classifier::Parameter::operator=(other);
             k                       = other.k;
             dataUseInModel          = other.dataUseInModel;
-            engine                  = other.engine->clone();
+            engine                  = other.engine;
             voteWeights             = other.voteWeights;
             resultsToCompute        = other.resultsToCompute;
             this->resultsToEvaluate = other.resultsToEvaluate;
@@ -151,7 +142,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     DataUseInModel dataUseInModel; /*!< The option to enable/disable an usage of the input dataset in kNN model */
     DAAL_UINT64 resultsToCompute;  /*!< 64 bit integer flag that indicates the results to compute */
     VoteWeights voteWeights;       /*!< Weight function used in prediction */
-    engines::EnginePtr engine;     /*!< Engine for random choosing elements from training dataset */
+    engines::engine_type engine;     /*!< Engine for random choosing elements from training dataset */
 };
 /* [Parameter source code] */
 

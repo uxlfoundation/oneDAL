@@ -29,6 +29,7 @@
 #include "src/threading/threading.h"
 #include "src/algorithms/dtrees/dtrees_model_impl.h"
 #include "src/algorithms/engines/engine_types_internal.h"
+#include "src/algorithms/engines/engine_factory.h"
 #include "src/algorithms/service_heap.h"
 #include "src/services/service_defines.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
@@ -311,7 +312,8 @@ Ctx * createTlsContext(const NumericTable * x, const Parameter & par, size_t nCl
 template <CpuType cpu>
 services::Status selectParallelizationTechnique(const Parameter & par, engines::internal::ParallelizationTechnique & technique)
 {
-    auto engineImpl = dynamic_cast<engines::internal::BatchBaseImpl *>(par.engine.get());
+    engines::EnginePtr enginePtr = engines::createEngine(par.engine);
+    auto engineImpl = dynamic_cast<engines::internal::BatchBaseImpl *>(enginePtr.get());
 
     if (engineImpl == NULL)
     {
@@ -433,7 +435,8 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
     }
     DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION(size_t, par.nTrees, sizeof(engines::EnginePtr));
     TArray<engines::EnginePtr, cpu> engines(par.nTrees);
-    engines::internal::EnginesCollection<cpu> enginesCollection(par.engine, technique, params, engines, &s);
+    engines::EnginePtr enginePtr = engines::createEngine(par.engine);
+    engines::internal::EnginesCollection<cpu> enginesCollection(enginePtr, technique, params, engines, &s);
     DAAL_CHECK_STATUS_VAR(s);
 
     services::internal::TArray<size_t, cpu> numElems(par.nTrees);
@@ -470,7 +473,7 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
     DAAL_CHECK_STATUS_VAR(s);
     DAAL_CHECK_MALLOC(md.size() == par.nTrees);
 
-    res.updatedEngine = enginesCollection.getUpdatedEngine(par.engine, engines, numElems);
+    res.updatedEngine = enginesCollection.getUpdatedEngine(enginePtr, engines, numElems);
 
     //finalize results computation
     //variable importance

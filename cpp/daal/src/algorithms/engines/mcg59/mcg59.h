@@ -1,4 +1,4 @@
-/* file: mt2203.h */
+/* file: mcg59.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -21,11 +21,11 @@
 //--
 */
 
-#ifndef __MT2203_H__
-#define __MT2203_H__
+#ifndef __MCG59_H__
+#define __MCG59_H__
 
-#include "algorithms/engines/mt2203/mt2203_types.h"
-#include "algorithms/engines/engine_family.h"
+#include "src/algorithms/engines/mcg59/mcg59_types.h"
+#include "src/algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -33,48 +33,45 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt2203
+namespace mcg59
 {
 /**
- * @defgroup engines_mt2203_batch Batch
- * @ingroup engines_mt2203
+ * @defgroup engines_mcg59_batch Batch
+ * @ingroup engines_mcg59
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCH"></a>
- * \brief Provides methods for mt2203 engine computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCH"></a>
+ * \brief Provides methods for mcg59 engine computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float
- * \tparam method           Computation method of the engine, mt2203::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
+ * \tparam method           Computation method of the engine, mcg59::Method
  *
  * \par Enumerations
- *      - mt2203::Method          Computation methods for the mt2203 engine
+ *      - mcg59::Method          Computation methods for the mcg59 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
- *
- * \DAAL_DEPRECATED
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::FamilyBatchBase
+class Batch : public engines::BatchBase
 {
 public:
-    typedef engines::FamilyBatchBase super;
+    typedef engines::BatchBase super;
 
     typedef typename super::InputType InputType;
     typedef typename super::ResultType ResultType;
 
     /**
-     * Creates mt2203 engine
-     * \param[in]   seed  Initial condition for mt2203 engine
-     * \param[out]  st    Status of the batch construction
+     * Creates mcg59 engine
+     * \param[in] seed  Initial condition for mcg59 engine
      *
-     * \return Pointer to mt2203 engine
+     * \return Pointer to mcg59 engine
      */
-    DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777, services::Status * st = NULL);
+    static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
     /**
      * Returns method of the engine
@@ -83,14 +80,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of mt2203 engine
-     * \return Structure that contains results of mt2203 engine
+     * Returns the structure that contains results of mcg59 engine
+     * \return Structure that contains results of mcg59 engine
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of mt2203 engine
-     * \param[in] result  Structure to store results of mt2203 engine
+     * Registers user-allocated memory to store results of mcg59 engine
+     * \param[in] result  Structure to store results of mcg59 engine
      *
      * \return Status of computations
      */
@@ -103,14 +100,14 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mt2203 engine
-     * with a copy of input objects and parameters of this mt2203 engine
+     * Returns a pointer to the newly allocated mcg59 engine
+     * with a copy of input objects and parameters of this mcg59 engine
      * \return Pointer to the newly allocated engine
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
     /**
-     * Allocates memory to store the result of the mt2203 engine
+     * Allocates memory to store the result of the mcg59 engine
      *
      * \return Status of computations
      */
@@ -135,15 +132,15 @@ private:
 
     Batch & operator=(const Batch &);
 };
-typedef services::SharedPtr<Batch<> > mt2203Ptr;
-typedef services::SharedPtr<const Batch<> > mt2203ConstPtr;
+typedef services::SharedPtr<Batch<> > mcg59Ptr;
+typedef services::SharedPtr<const Batch<> > mcg59ConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::mt2203Ptr;
-using interface1::mt2203ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mcg59Ptr;
+using internal::mcg59ConstPtr;
 /** @} */
-} // namespace mt2203
+} // namespace mcg59
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

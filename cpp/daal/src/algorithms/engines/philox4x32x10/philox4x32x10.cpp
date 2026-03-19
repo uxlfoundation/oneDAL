@@ -20,7 +20,7 @@
 //  that uses 4x32-bit keys and performs 10 rounds of mixing to produce high-quality randomness.
 //--
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/externals/service_dispatch.h"
 #include "src/algorithms/engines/philox4x32x10/philox4x32x10_batch_impl.h"
 
@@ -32,7 +32,7 @@ namespace engines
 {
 namespace philox4x32x10
 {
-namespace interface1
+namespace internal
 {
 using namespace daal::services;
 using namespace philox4x32x10::internal;
@@ -52,7 +52,7 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
 template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
 template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
 
-} // namespace interface1
+} // namespace internal
 } // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms

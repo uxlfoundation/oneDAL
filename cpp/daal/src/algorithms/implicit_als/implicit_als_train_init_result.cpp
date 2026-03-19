@@ -24,6 +24,7 @@
 #include "algorithms/implicit_als/implicit_als_training_init_types.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -42,7 +43,7 @@ namespace interface1
 {
 __DAAL_REGISTER_SERIALIZATION_CLASS(Result, SERIALIZATION_IMPLICIT_ALS_TRAINING_INIT_RESULT_ID);
 Parameter::Parameter(size_t nFactors, size_t fullNUsers, size_t seed)
-    : nFactors(nFactors), fullNUsers(fullNUsers), seed(seed), engine(engines::mt19937::Batch<>::create())
+    : nFactors(nFactors), fullNUsers(fullNUsers), seed(seed), engine(engines::engine_type::mt19937)
 {}
 
 services::Status Parameter::check() const

@@ -25,10 +25,10 @@
 #define __DISTRIBUTIONS__TYPES__H__
 
 #include "algorithms/algorithm.h"
+#include "algorithms/engines/engine_backend.h"
 #include "services/daal_defines.h"
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -78,7 +78,7 @@ public:
     ParameterBase();
     virtual ~ParameterBase();
 
-    engines::EnginePtr engine; /*!<Pointer to the engine */
+    engines::engine_type engine; /*!<Pointer to the engine */
 };
 
 /**

@@ -22,7 +22,7 @@
 #ifndef __MT2203_KERNEL_H__
 #define __MT2203_KERNEL_H__
 
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 

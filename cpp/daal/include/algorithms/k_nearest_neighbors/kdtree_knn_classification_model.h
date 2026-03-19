@@ -28,7 +28,7 @@
 #include "data_management/data/aos_numeric_table.h"
 #include "data_management/data/soa_numeric_table.h"
 #include "data_management/data/homogen_numeric_table.h"
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "algorithms/engines/engine_backend.h"
 
 namespace daal
 {
@@ -102,17 +102,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      *  \param[in] vote                 The option to select voting method
      */
     Parameter(size_t nClasses = 2, size_t nNeighbors = 1, int randomSeed = 777, DataUseInModel dataUse = doNotUse, DAAL_UINT64 resToCompute = 0,
-              DAAL_UINT64 resToEvaluate = classifier::computeClassLabels, VoteWeights vote = voteUniform)
-        : daal::algorithms::classifier::Parameter(nClasses),
-          k(nNeighbors),
-          seed(randomSeed),
-          dataUseInModel(dataUse),
-          engine(engines::mcg59::Batch<>::create()),
-          resultsToCompute(resToCompute),
-          voteWeights(vote)
-    {
-        this->resultsToEvaluate = resToEvaluate;
-    }
+              DAAL_UINT64 resToEvaluate = classifier::computeClassLabels, VoteWeights vote = voteUniform);
 
     /**
      * Checks a parameter of the KD-tree based kNN algorithm
@@ -122,7 +112,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
     size_t k;                      /*!< Number of neighbors */
     int seed;                      /*!< Seed for random choosing elements from training dataset \DAAL_DEPRECATED_USE{ engine } */
     DataUseInModel dataUseInModel; /*!< The option to enable/disable an usage of the input dataset in kNN model */
-    engines::EnginePtr engine;     /*!< Engine for random choosing elements from training dataset */
+    engines::engine_type engine;     /*!< Engine for random choosing elements from training dataset */
     DAAL_UINT64 resultsToCompute;  /*!< 64 bit integer flag that indicates the results to compute */
     VoteWeights voteWeights;       /*!< Weight function used in prediction */
 };

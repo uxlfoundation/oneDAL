@@ -26,7 +26,7 @@
 #include "oneapi/dal/table/row_accessor.hpp"
 #include <daal/src/algorithms/k_nearest_neighbors/bf_knn_classification_train_kernel.h>
 #include <algorithms/k_nearest_neighbors/bf_knn_classification_model.h>
-
+#include <daal/include/algorithms/engines/engine_backend.h>
 #include "oneapi/dal/exceptions.hpp"
 
 namespace oneapi::dal::knn::backend {
@@ -75,7 +75,7 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
                                                                daal_responses.get(),
                                                                model_ptr.get(),
                                                                daal_parameter,
-                                                               *daal_parameter.engine));
+                                                               daal::engines::mt2203));
 
     const auto model_impl = std::make_shared<brute_force_model_impl<Task>>(data, responses);
     return train_result<Task>().set_model(dal::detail::make_private<model_t>(model_impl));

@@ -92,25 +92,7 @@ The list of the deprecated DAAL classes includes:
 
 The DAAL Distributions functionality has been removed from the documentation and public API.
 
-:doc:`daal/algorithms/engines/index`
-
-- ``engines::Input``
-- ``engines::Result``
-
-- ``engines::mcg59::BatchContainer``
-- ``engines::mcg59::Batch``
-
-- ``engines::mrg32k3a::BatchContainer``
-- ``engines::mrg32k3a::Batch``
-
-- ``engines::mt19937::BatchContainer``
-- ``engines::mt19937::Batch``
-
-- ``engines::mt2203::BatchContainer``
-- ``engines::mt2203::Batch``
-
-- ``engines::philox4x32x10::BatchContainer``
-- ``engines::philox4x32x10::Batch``
+The DAAL Engines functionality has been removed from the documentation and public API.
 
 :doc:`daal/algorithms/kernel_function/kernel-functions`
 
