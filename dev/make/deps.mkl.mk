@@ -112,4 +112,4 @@ MKLDIR.soia := $(if $(OS_is_win),$(MKLDIR)/bin,$(MKLDIR.libia))
 
 MKL_SYCL_BASE_NAMES := mkl_sycl_blas mkl_sycl_lapack mkl_sycl_sparse mkl_sycl_rng mkl_core mkl_intel_ilp64 mkl_tbb_thread
 
-releasemkl.SYCL_LIBS := $(foreach base,$(MKL_SYCL_BASE_NAMES),$(wildcard $(MKLDIR.soia)/$(plib)$(base).$(so)*) $(wildcard $(MKLDIR.soia)/$(plib)$(base)*.$(so)))
+releasemkl.SYCL_LIBS := $(sort $(foreach base,$(MKL_SYCL_BASE_NAMES),$(wildcard $(MKLDIR.soia)/$(plib)$(base).$(so)*) $(wildcard $(MKLDIR.soia)/$(plib)$(base)*.$(so))))

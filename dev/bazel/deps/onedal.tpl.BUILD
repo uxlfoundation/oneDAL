@@ -85,19 +85,6 @@ cc_library(
 )
 
 cc_library(
-    name = "mkl_sycl_rt",
-    srcs = glob([
-        "lib/intel64/libmkl_sycl_blas.so*",
-        "lib/intel64/libmkl_sycl_lapack.so*",
-        "lib/intel64/libmkl_sycl_sparse.so*",
-        "lib/intel64/libmkl_sycl_rng.so*",
-        "lib/intel64/libmkl_core.so*",
-        "lib/intel64/libmkl_intel_ilp64.so*",
-        "lib/intel64/libmkl_tbb_thread.so*",
-    ], allow_empty=True),
-)
-
-cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
         "lib/intel64/libonedal_dpc.so*",
@@ -105,6 +92,6 @@ cc_library(
     ], allow_empty=True),
     deps = [
         ":headers",
-        ":mkl_sycl_rt",
+        "@mkl//:mkl_dpc",
     ],
 )
