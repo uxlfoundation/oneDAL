@@ -34,7 +34,7 @@ enum class cpu_extension : uint64_t {
     none = 0U
 #if defined(TARGET_X86_64)
     ,
-    sse2 = 1U << 1, /// Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSEE2)
+    sse2 = 1U << 0, /// Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
     sse42 = 1U << 2, /// Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
     avx2 = 1U << 4, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
     avx512 =

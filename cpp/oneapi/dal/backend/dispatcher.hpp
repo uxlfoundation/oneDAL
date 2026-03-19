@@ -346,7 +346,6 @@ inline constexpr auto dispatch_by_cpu(const context_cpu& ctx, Op&& op) {
     })
     ONEDAL_IF_CPU_DISPATCH_AVX2(
         if (test_cpu_extension(cpu_ex, cpu_extension::avx2)) { return op(cpu_dispatch_avx2{}); })
-
     ONEDAL_IF_CPU_DISPATCH_SSE42(
         if (test_cpu_extension(cpu_ex, cpu_extension::sse42)) { return op(cpu_dispatch_sse42{}); })
 

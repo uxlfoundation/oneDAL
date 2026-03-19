@@ -244,7 +244,12 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
         return daal::internal::avx2;
     }
 
-    return daal::internal::sse42;
+    if (check_sse42_features())
+    {
+        return daal::internal::sse42;
+    }
+
+    return daal::internal::sse2;
 }
 
 int __daal_internal_enabled_cpu_detect()
@@ -263,7 +268,14 @@ int __daal_internal_enabled_cpu_detect()
     }
     #endif
 
-    return daal::internal::sse42;
+    #ifdef DAAL_KERNEL_SSE42
+    if (check_sse42_features())
+    {
+        return daal::internal::sse42;
+    }
+    #endif
+
+    return daal::internal::sse2;
 }
 
 DAAL_EXPORT int daal_enabled_cpu_detect()
@@ -281,7 +293,7 @@ DAAL_EXPORT int daal_enabled_cpu_detect()
     /// \param abcd_id  The index of the output register to check:
     ///                 0 - EAX, 1 - EBX, 2 - ECX, 3 - EDX.
     /// \param bit      The bit position in the output register to check.
-    /// \param feature  The CPU feature to check of type daal::CpuFeature.
+    /// \param feature  The CPU feature to check of type CpuFeature.
     #define DAAL_TEST_CPU_FEATURE(result, eax, ecx, abcd_id, bit, feature) \
         if (check_cpuid(eax, ecx, abcd_id, (1 << bit)))                    \
         {                                                                  \
@@ -357,7 +369,7 @@ bool daal_check_is_intel_cpu()
 
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
-    return daal::CpuFeature::unknown;
+    return daal::internal::CpuFeature::unknown;
 }
 
 #elif defined(TARGET_RISCV64)
@@ -383,6 +395,6 @@ bool daal_check_is_intel_cpu()
 
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
-    return daal::CpuFeature::unknown;
+    return daal::internal::CpuFeature::unknown;
 }
 #endif
