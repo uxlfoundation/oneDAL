@@ -187,11 +187,6 @@ def _cc_dynamic_lib_impl(ctx):
     compilation_context = onedal_cc_common.collect_and_merge_compilation_contexts(ctx.attr.deps)
     linking_contexts = onedal_cc_common.collect_and_filter_linking_contexts(
         ctx.attr.deps, ctx.attr.lib_tags)
-    soname = "lib{}.so.{}".format(
-        ctx.attr.lib_name,
-        ctx.attr._version_info[VersionInfo].binary_major,
-    )
-    link_flags = ["-Wl,-soname,{}".format(soname)] + ctx.attr.linkopts
 
     linking_context, dynamic_lib = onedal_cc_link.dynamic(
         owner = ctx.label,
@@ -201,7 +196,7 @@ def _cc_dynamic_lib_impl(ctx):
         feature_configuration = feature_config,
         linking_contexts = linking_contexts,
         def_file = ctx.file.def_file,
-        user_link_flags = link_flags,
+        user_link_flags = ctx.attr.linkopts,
     )
     default_info = DefaultInfo(
         files = depset([ dynamic_lib ]),
