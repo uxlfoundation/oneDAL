@@ -97,7 +97,7 @@ public:
     ResultPtr getResult() { return _result; }
 
 protected:
-    virtual Batch * cloneImpl() const override = 0;
+    Batch * cloneImpl() const override = 0;
     ResultPtr _result;
 };
 /** @} */

@@ -142,7 +142,7 @@ public:
         return services::Status();
     }
 
-    DAAL_EXPORT virtual int getSerializationTag() const override { return SERIALIZATION_DATAFEATURE_NT_ID; }
+    DAAL_EXPORT int getSerializationTag() const override { return SERIALIZATION_DATAFEATURE_NT_ID; }
 
     features::IndexNumType getIndexType() const { return indexType; }
 };
@@ -172,7 +172,7 @@ class DAAL_EXPORT Dictionary : public SerializationIface, public DictionaryIface
 {
 public:
     static int serializationTag() { return SerializationTag; }
-    virtual int getSerializationTag() const override { return serializationTag(); }
+    int getSerializationTag() const override { return serializationTag(); }
 
     /**
      *  Constructor of a data dictionary

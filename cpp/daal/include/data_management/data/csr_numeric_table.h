@@ -447,7 +447,7 @@ public:
 
     virtual ~CSRNumericTable() { freeDataMemoryImpl(); }
 
-    virtual services::Status resize(size_t nrows) override { return setNumberOfRowsImpl(nrows); }
+    services::Status resize(size_t nrows) override { return setNumberOfRowsImpl(nrows); }
 
     /**
      *  Returns  pointers to a data set stored in the CSR layout
@@ -647,7 +647,7 @@ public:
     /**
      * \copydoc NumericTableIface::check
      */
-    virtual services::Status check(const char * description, bool checkDataAllocation = true) const override
+    services::Status check(const char * description, bool checkDataAllocation = true) const override
     {
         services::Status s;
         DAAL_CHECK_STATUS(s, data_management::NumericTable::check(description, checkDataAllocation));
@@ -1020,7 +1020,7 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status setNumberOfColumnsImpl(size_t ncol) override
+    services::Status setNumberOfColumnsImpl(size_t ncol) override
     {
         _ddict->setNumberOfFeatures(ncol);
         _ddict->setAllFeatures(_defaultFeature);

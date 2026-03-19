@@ -610,19 +610,19 @@ public:
     /** \private */
     virtual ~NumericTable() {}
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status setDictionary(NumericTableDictionary * ddict) override
+    DAAL_DEPRECATED_VIRTUAL services::Status setDictionary(NumericTableDictionary * ddict) override
     {
         _ddict = NumericTableDictionaryPtr(ddict, services::EmptyDeleter());
         return services::Status();
     }
 
-    DAAL_DEPRECATED_VIRTUAL virtual NumericTableDictionary * getDictionary() const override { return _ddict.get(); }
+    DAAL_DEPRECATED_VIRTUAL NumericTableDictionary * getDictionary() const override { return _ddict.get(); }
 
-    virtual NumericTableDictionaryPtr getDictionarySharedPtr() const override { return _ddict; }
+    NumericTableDictionaryPtr getDictionarySharedPtr() const override { return _ddict; }
 
-    DAAL_DEPRECATED_VIRTUAL virtual services::Status resetDictionary() override { return services::Status(); }
+    DAAL_DEPRECATED_VIRTUAL services::Status resetDictionary() override { return services::Status(); }
 
-    virtual services::Status resize(size_t nrows) override
+    services::Status resize(size_t nrows) override
     {
         size_t obsnum      = _obsnum;
         services::Status s = setNumberOfRowsImpl(nrows);
@@ -717,12 +717,12 @@ public:
     /**
      *  Allocates Numeric Tables for basic statistics
      */
-    virtual services::Status allocateBasicStatistics() override;
+    services::Status allocateBasicStatistics() override;
 
     /**
      * \copydoc NumericTableIface::check
      */
-    virtual services::Status check(const char * description, bool checkDataAllocation = true) const override
+    services::Status check(const char * description, bool checkDataAllocation = true) const override
     {
         if (getDataMemoryStatus() == notAllocated && checkDataAllocation)
         {

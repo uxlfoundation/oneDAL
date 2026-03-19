@@ -30,16 +30,11 @@ namespace algorithms
 {
 namespace covariance
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
-
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class DAAL_EXPORT CovarianceDenseBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
-
+} // namespace internal
 } // namespace covariance
 } // namespace algorithms
 } // namespace daal

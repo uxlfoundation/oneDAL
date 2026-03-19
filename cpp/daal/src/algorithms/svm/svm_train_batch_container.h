@@ -21,8 +21,10 @@
 //--
 */
 
+#ifndef __SVM_TRAIN_BATCH_CONTAINER_H__
+#define __SVM_TRAIN_BATCH_CONTAINER_H__
+
 #include "algorithms/svm/svm_train.h"
-#include "src/algorithms/svm/svm_train_internal.h"
 #include "src/algorithms/svm/svm_train_kernel.h"
 #include "src/algorithms/svm/svm_train_boser_kernel.h"
 #include "algorithms/classifier/classifier_training_types.h"
@@ -36,9 +38,36 @@ namespace svm
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
 using namespace daal::data_management;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>
+ *  \brief Class containing methods to compute results of the SVM training
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM training algorithm, double or float
+ * \tparam method           SVM training computation method, \ref daal::algorithms::svm::training::Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for SVM model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of SVM  model-based training in the batch processing mode
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
 
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported
@@ -84,30 +113,36 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::SVMTrainImpl, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, x, weights, *y, r, kernelPar);
 }
-} // namespace interface2
 
-namespace internal
+template <typename algorithmFPType, Method method, CpuType cpu>
+class NuBatchContainer : public TrainingContainerIface<batch>
 {
-using namespace daal::data_management;
+public:
+    NuBatchContainer(daal::services::Environment::env * daalEnv);
+
+    ~NuBatchContainer();
+
+    services::Status compute() override;
+};
 
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported
 * architectures
 */
 template <typename algorithmFPType, Method method, CpuType cpu>
-BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
+NuBatchContainer<algorithmFPType, method, cpu>::NuBatchContainer(daal::services::Environment::env * daalEnv)
 {
     __DAAL_INITIALIZE_KERNELS(internal::SVMTrainImpl, method, algorithmFPType);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-BatchContainer<algorithmFPType, method, cpu>::~BatchContainer()
+NuBatchContainer<algorithmFPType, method, cpu>::~NuBatchContainer()
 {
     __DAAL_DEINITIALIZE_KERNELS();
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
+services::Status NuBatchContainer<algorithmFPType, method, cpu>::compute()
 {
     classifier::training::Input * input = static_cast<classifier::training::Input *>(_in);
     svm::training::Result * result      = static_cast<svm::training::Result *>(_res);
@@ -124,8 +159,11 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::SVMTrainImpl, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, x, weights, *y, r, kernelPar);
 }
+
 } // namespace internal
 } // namespace training
 } // namespace svm
 } // namespace algorithms
 } // namespace daal
+
+#endif

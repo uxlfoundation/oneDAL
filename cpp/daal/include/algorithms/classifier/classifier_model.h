@@ -101,7 +101,7 @@ public:
     Model(const Model & other)             = default;
     Model & operator=(const Model & other) = default;
 
-    virtual ~Model() override {}
+    ~Model() override {}
 
     /**
      *  Retrieves the number of features in the dataset was used on the training stage

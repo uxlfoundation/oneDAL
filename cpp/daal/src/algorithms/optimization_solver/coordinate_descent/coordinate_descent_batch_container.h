@@ -36,8 +36,37 @@ namespace optimization_solver
 {
 namespace coordinate_descent
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__OPTIMIZATION_SOLVER__COORDINATE_DESCENT__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the coordinate descent algorithm.
+ *        This class is associated with daal::algorithms::optimization_solver::coordinate_descent::BatchContainer class.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the Coordinate descent algorithm, double or float
+ * \tparam method           Coordinate descent computation method, daal::algorithms::optimization_solver::coordinate_descent::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the CoordinateDescent algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the CoordinateDescent algorithm in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -74,7 +103,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        proxResultPtr);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace coordinate_descent
 } // namespace optimization_solver
 } // namespace algorithms

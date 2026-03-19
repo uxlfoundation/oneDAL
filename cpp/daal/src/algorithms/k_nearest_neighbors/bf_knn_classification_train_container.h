@@ -34,7 +34,32 @@ namespace bf_knn_classification
 {
 namespace training
 {
+namespace internal
+{
 using namespace daal::data_management;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for BF kNN model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for BF kNN model-based training with a specified environment in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    /** Default destructor */
+    ~BatchContainer();
+
+    /**
+     * Computes the result of BF kNN model-based training in the batch processing mode
+     */
+    services::Status compute() override;
+};
 
 template <typename algorithmFpType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFpType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
@@ -75,6 +100,8 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationTrainKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType), compute, r->impl()->getData().get(),
                        r->impl()->getLabels().get(), r.get(), *par, *par->engine);
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace bf_knn_classification

@@ -409,17 +409,17 @@ public:
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(float value) override { return assign<DataType>((DataType)value); }
+    services::Status assign(float value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(double value) override { return assign<DataType>((DataType)value); }
+    services::Status assign(double value) override { return assign<DataType>((DataType)value); }
 
     /**
      * \copydoc NumericTable::assign
      */
-    virtual services::Status assign(int value) override { return assign<DataType>((DataType)value); }
+    services::Status assign(int value) override { return assign<DataType>((DataType)value); }
 
     services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
     {

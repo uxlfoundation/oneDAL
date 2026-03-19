@@ -25,7 +25,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::bernoulli::BatchContainer, batch, DAAL_FPTYPE, distributions::bernoulli::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(distributions::bernoulli::internal::BatchContainer, batch, DAAL_FPTYPE, distributions::bernoulli::defaultDense)
 
 namespace distributions
 {
@@ -33,13 +33,23 @@ namespace bernoulli
 {
 namespace internal
 {
+using BatchType = Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
+
 template <>
-Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>::Batch(DAAL_FPTYPE p) : parameter(p)
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac =
+        new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, distributions::bernoulli::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
+
+template <>
+BatchType::Batch(DAAL_FPTYPE p) : parameter(p)
 {
     initialize();
 }
-
-using BatchType = Batch<DAAL_FPTYPE, distributions::bernoulli::defaultDense>;
 
 template <>
 BatchType::Batch(const BatchType & other) : super(other), parameter(other.parameter)

@@ -31,12 +31,9 @@ namespace algorithms
 {
 namespace kmeans
 {
-namespace interface2
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, lloydCSR, DAAL_CPU>;
-}
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, lloydCSR, DAAL_CPU>;
 template class KMeansDistributedStep2Kernel<lloydCSR, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace kmeans

@@ -283,7 +283,7 @@ public:
         */
     data_management::NumericTablePtr get(PartialCorrelationResultId id) const;
 
-    virtual size_t getNFeatures() const override;
+    size_t getNFeatures() const override;
 
     /**
         * Sets partial result of the PCA Correlation algorithm
@@ -361,7 +361,7 @@ public:
     */
     data_management::NumericTablePtr get(PartialSVDTableResultId id) const;
 
-    virtual size_t getNFeatures() const override;
+    size_t getNFeatures() const override;
 
     /**
     * Gets partial results of the PCA SVD algorithm

@@ -52,27 +52,27 @@ public:
     ~ModelImpl() override {}
 
     //Implementation of classifier::Model
-    virtual size_t getNumberOfFeatures() const override { return ClassifierImplType::getNumberOfFeatures(); }
-    virtual size_t getNFeatures() const override { return getNumberOfFeatures(); }
-    virtual void setNFeatures(size_t nFeatures) override { ClassifierImplType::setNumberOfFeatures(nFeatures); }
-    virtual size_t getNumberOfClasses() const override { return getNumClasses(); }
+    size_t getNumberOfFeatures() const override { return ClassifierImplType::getNumberOfFeatures(); }
+    size_t getNFeatures() const override { return getNumberOfFeatures(); }
+    void setNFeatures(size_t nFeatures) override { ClassifierImplType::setNumberOfFeatures(nFeatures); }
+    size_t getNumberOfClasses() const override { return getNumClasses(); }
 
     //Implementation of decision_forest::classification::Model
-    virtual size_t numberOfTrees() const override;
-    virtual void traverseDF(size_t iTree, classifier::TreeNodeVisitor & visitor) const override;
-    virtual void traverseBF(size_t iTree, classifier::TreeNodeVisitor & visitor) const override;
-    virtual void clear() override { ImplType::clear(); }
+    size_t numberOfTrees() const override;
+    void traverseDF(size_t iTree, classifier::TreeNodeVisitor & visitor) const override;
+    void traverseBF(size_t iTree, classifier::TreeNodeVisitor & visitor) const override;
+    void clear() override { ImplType::clear(); }
 
-    virtual services::Status serializeImpl(data_management::InputDataArchive * arch) override;
-    virtual services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override;
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override;
 
     void copyModelCls(const ModelImpl & other, size_t idx, size_t global_count);
     bool add(const TreeType & tree, size_t nClasses, size_t iTree);
 
-    virtual size_t getNumberOfTrees() const override;
+    size_t getNumberOfTrees() const override;
 
-    virtual void traverseDFS(size_t iTree, tree_utils::classification::TreeNodeVisitor & visitor) const override;
-    virtual void traverseBFS(size_t iTree, tree_utils::classification::TreeNodeVisitor & visitor) const override;
+    void traverseDFS(size_t iTree, tree_utils::classification::TreeNodeVisitor & visitor) const override;
+    void traverseBFS(size_t iTree, tree_utils::classification::TreeNodeVisitor & visitor) const override;
 };
 
 } // namespace internal
