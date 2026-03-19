@@ -160,7 +160,7 @@ mkl_repo(
         "https://anaconda.org/conda-forge/onemkl-sycl-rng/2025.2.0/download/linux-64/onemkl-sycl-rng-2025.2.0-haf5e11a_628.conda",
 
         # oneMKL devel core 
-        # Provides libmkl_core.so.5 for random number generation with SYCL
+        # Provides libmkl_core.so.2 for correct SYCL execution
         "https://anaconda.org/conda-forge/mkl/2025.3.0/download/linux-64/mkl-2025.3.0-h0e700b2_463.conda",
     ],
     sha256s = [
