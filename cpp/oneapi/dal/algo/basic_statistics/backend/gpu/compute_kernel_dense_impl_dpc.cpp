@@ -72,11 +72,9 @@ std::int64_t compute_kernel_dense_impl<Float, List>::get_row_block_count(std::in
     if (row_count < 5000)
         row_block_count = 1;
     else if (row_count < 10000)
-        // TODO: Temporary workaround. The block size 8 causes test_batch_dpc failures.
-        row_block_count = 1;
+        row_block_count = 8;
     else if (row_count < 20000)
-        // TODO: Temporary workaround. The block size 16 causes test_batch_dpc failures.
-        row_block_count = 1;
+        row_block_count = 16;
     else if (row_count < 50000)
         row_block_count = 32;
     else if (row_count < 100000)
