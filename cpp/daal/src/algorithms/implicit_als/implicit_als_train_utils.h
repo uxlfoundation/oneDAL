@@ -36,7 +36,7 @@ using namespace daal::internal;
 template <typename algorithmFPType, CpuType cpu>
 services::Status csr2csc(size_t nItems, size_t nUsers, const algorithmFPType * csrdata, const size_t * colIndices, const size_t * rowOffsets,
                          algorithmFPType * cscdata, size_t * rowIndices, size_t * colOffsets);
-}
+} // namespace internal
 } // namespace training
 } // namespace implicit_als
 } // namespace algorithms

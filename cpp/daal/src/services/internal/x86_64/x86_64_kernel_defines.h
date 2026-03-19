@@ -77,7 +77,8 @@
     #define DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, ...) , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::avx512, __VA_ARGS__)
     #define DAAL_KERNEL_AVX512_CONTAINER1(ContainerTemplate, ...) \
         extern template class DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::avx512, __VA_ARGS__);
-    #define DAAL_KERNEL_AVX512_CONTAINER_CASE(ContainerTemplate, ...) DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, daal::internal::avx512, __VA_ARGS__)
+    #define DAAL_KERNEL_AVX512_CONTAINER_CASE(ContainerTemplate, ...) \
+        DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, daal::internal::avx512, __VA_ARGS__)
 #else
     #define DAAL_KERNEL_AVX512_ONLY(something)
     #define DAAL_KERNEL_AVX512_ONLY_CODE(...)

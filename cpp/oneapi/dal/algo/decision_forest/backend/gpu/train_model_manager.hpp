@@ -241,10 +241,8 @@ public:
 
     Float get_tree_response(Index tree_idx, const Float* x) const {
         ONEDAL_ASSERT(static_cast<std::size_t>(tree_idx) < tree_list_.size());
-        const typename NodeType::Base* node_ptr =
-            daal::algorithms::dtrees::prediction::internal::findNode<Float, TreeType, DAAL_BASE_CPU>(
-                tree_list_[tree_idx],
-                x);
+        const typename NodeType::Base* node_ptr = daal::algorithms::dtrees::prediction::internal::
+            findNode<Float, TreeType, DAAL_BASE_CPU>(tree_list_[tree_idx], x);
         ONEDAL_ASSERT(node_ptr);
         if constexpr (std::is_same_v<task::classification, Task>) {
             return NodeType::castLeaf(node_ptr)->response.value;

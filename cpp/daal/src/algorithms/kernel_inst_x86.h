@@ -34,7 +34,7 @@
         {                                                                                                                                            \
         template <>                                                                                                                                  \
         ClassName<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse2> DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__)             \
-                                DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                                                           \
+                            DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                                                               \
                                 DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName(daal::services::Environment::env * daalEnv) \
             : BaseClassName(daalEnv), _cntr(nullptr)                                                                                                 \
         {                                                                                                                                            \
@@ -47,9 +47,8 @@
             }                                                                                                                                        \
         }                                                                                                                                            \
                                                                                                                                                      \
-        template class ClassName<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse2>                                                          \
-                                           DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__)                                               \
-                                           DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                                                \
+        template class ClassName<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse2> DAAL_KERNEL_SSE42_CONTAINER(                             \
+                                           ContainerTemplate, __VA_ARGS__) DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                \
                                            DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>;                                            \
         }
 

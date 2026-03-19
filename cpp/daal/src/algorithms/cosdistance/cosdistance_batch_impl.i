@@ -32,7 +32,6 @@ static const int blockSizeDefault = 128;
 #include "src/algorithms/cosdistance/cosdistance_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_full_impl.i"
 
-
 namespace daal
 {
 namespace algorithms

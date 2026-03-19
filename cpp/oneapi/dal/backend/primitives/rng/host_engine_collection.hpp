@@ -40,12 +40,8 @@ public:
             op(i, params_.nSkip[i]);
         }
         select_parallelization_technique(technique_);
-        daal::algorithms::engines::internal::EnginesCollection<DAAL_BASE_CPU> host_engine_collection(
-            engine_,
-            technique_,
-            params_,
-            daal_engine_list_,
-            &status);
+        daal::algorithms::engines::internal::EnginesCollection<DAAL_BASE_CPU>
+            host_engine_collection(engine_, technique_, params_, daal_engine_list_, &status);
         if (!status) {
             dal::backend::interop::status_to_exception(status);
         }

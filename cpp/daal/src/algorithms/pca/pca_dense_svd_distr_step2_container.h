@@ -110,7 +110,7 @@ services::Status DistributedContainer<step2Master, algorithmFPType, svdDense, cp
     daal::services::Environment::env & env = *_env;
 
     services::Status s = __DAAL_CALL_KERNEL_STATUS(env, internal::PCASVDStep2MasterKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType), finalizeMerge,
-                                         internal::nonNormalizedDataset, inputPartialResults, *eigenvalues, *eigenvectors);
+                                                   internal::nonNormalizedDataset, inputPartialResults, *eigenvalues, *eigenvectors);
 
     inputPartialResults->clear();
     return s;

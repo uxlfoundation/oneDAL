@@ -22,11 +22,12 @@
 
 #if defined(DAAL_KERNEL_SVE)
     #undef DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID
-    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID               daal::internal::sve
-    #define DAAL_KERNEL_SVE_ONLY(something)                        , something
-    #define DAAL_KERNEL_SVE_ONLY_CODE(...)                         __VA_ARGS__
-    #define DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, ...)      , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::sve, __VA_ARGS__)
-    #define DAAL_KERNEL_SVE_CONTAINER1(ContainerTemplate, ...)     extern template class DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::sve, __VA_ARGS__);
+    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID          daal::internal::sve
+    #define DAAL_KERNEL_SVE_ONLY(something)                   , something
+    #define DAAL_KERNEL_SVE_ONLY_CODE(...)                    __VA_ARGS__
+    #define DAAL_KERNEL_SVE_CONTAINER(ContainerTemplate, ...) , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::sve, __VA_ARGS__)
+    #define DAAL_KERNEL_SVE_CONTAINER1(ContainerTemplate, ...) \
+        extern template class DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::sve, __VA_ARGS__);
     #define DAAL_KERNEL_SVE_CONTAINER_CASE(ContainerTemplate, ...) DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, daal::internal::sve, __VA_ARGS__)
 #else
     #define DAAL_KERNEL_SVE_ONLY(something)

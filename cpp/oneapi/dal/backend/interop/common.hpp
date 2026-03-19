@@ -52,7 +52,10 @@ struct to_daal_cpu_type<cpu_dispatch_rv64> : daal_cpu_value<daal::internal::rv64
 
 #endif
 
-template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().compute(
@@ -60,7 +63,10 @@ inline auto call_daal_kernel(const context_cpu& ctx, Args&&... args) {
     });
 }
 
-template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel_finalize_merge(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeMerge(
@@ -68,7 +74,10 @@ inline auto call_daal_kernel_finalize_merge(const context_cpu& ctx, Args&&... ar
     });
 }
 
-template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel_finalize_compute(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeCompute(
