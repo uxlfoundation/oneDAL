@@ -50,14 +50,14 @@ class PredictKernel : public daal::algorithms::Kernel
 {
 public:
     /**
-     *  \brief Compute decision forest prediction results.
+     *  \brief Compute decision forest regression prediction results.
      *
-     *  \param a[in]    Matrix of input variables X
+     *  \param a[in]    Matrix of input variables X of size [N x P], where N is a number of observations
+     *                  and P is a number of features.
      *  \param m[in]    decision forest model obtained on training stage
-     *  \param r[out]   Prediction results
-     *  \param par[in]  decision forest algorithm parameters
+     *  \param r[out]   Prediction results stored in the numeric table of size [N x 1]
      */
-    services::Status compute(services::HostAppIface * pHostApp, const NumericTable * a, const regression::Model * m, NumericTable * r);
+    services::Status compute(const NumericTable * a, const regression::Model * m, NumericTable * r);
 };
 
 } // namespace internal

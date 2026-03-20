@@ -65,10 +65,10 @@ static size_t mod(size_t a, size_t m)
  */
 template <typename algorithmFPType, CpuType cpu>
 services::Status LBFGSKernel<algorithmFPType, defaultDense, cpu>::compute(
-    HostAppIface * pHost, NumericTable * correctionPairsInput, NumericTable * correctionIndicesInput, NumericTable * inputArgument,
-    NumericTable * averageArgLIterInput, OptionalArgument * optionalArgumentInput, NumericTable * correctionPairsResult,
-    NumericTable * correctionIndicesResult, NumericTable * minimum, NumericTable * nIterationsNT, NumericTable * averageArgLIterResult,
-    OptionalArgument * optionalArgumentResult, Parameter * parameter, engines::BatchBase & engine)
+    NumericTable * correctionPairsInput, NumericTable * correctionIndicesInput, NumericTable * inputArgument, NumericTable * averageArgLIterInput,
+    OptionalArgument * optionalArgumentInput, NumericTable * correctionPairsResult, NumericTable * correctionIndicesResult, NumericTable * minimum,
+    NumericTable * nIterationsNT, NumericTable * averageArgLIterResult, OptionalArgument * optionalArgumentResult, Parameter * parameter,
+    engines::BatchBase & engine)
 {
     services::Status s;
     size_t maxEpoch = parameter->nIterations;
@@ -137,7 +137,6 @@ services::Status LBFGSKernel<algorithmFPType, defaultDense, cpu>::compute(
 
     daal::algorithms::engines::internal::BatchBaseImpl * engineImpl = dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl *>(&engine);
 
-    services::internal::HostAppHelper host(pHost, 10);
     for (; t < nLIterations;)
     {
         for (; epoch < (t + 1) * L; ++epoch, ++curIteration)
@@ -178,7 +177,7 @@ services::Status LBFGSKernel<algorithmFPType, defaultDense, cpu>::compute(
             {
                 s = hessianFunction->computeNoThrow();
             }
-            if (!s || host.isCancelled(s, 1))
+            if (!s)
             {
                 s |= task.setToResult(correctionIndicesResult, nIterationsNT, optionalArgumentResult, curIteration, epoch, correctionIndex);
                 return s;

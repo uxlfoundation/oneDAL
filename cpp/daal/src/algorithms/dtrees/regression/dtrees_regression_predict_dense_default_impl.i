@@ -30,7 +30,6 @@
 #include "src/algorithms/dtrees/dtrees_feature_type_helper.h"
 #include "src/services/service_environment.h"
 #include "src/algorithms/dtrees/dtrees_predict_dense_default_impl.i"
-#include "src/services/service_algo_utils.h"
 
 using namespace daal::internal;
 using namespace daal::services::internal;
@@ -77,7 +76,7 @@ protected:
         for (size_t iTree = iFirstTree; iTree < iLastTree; ++iTree) val += predict(*_aTree[iTree], _featHelper, x);
         return val;
     }
-    services::Status run(services::HostAppIface * pHostApp, algorithmFPType factor);
+    services::Status run(algorithmFPType factor);
 
 protected:
     dtrees::internal::FeatureTypes _featHelper;
@@ -87,7 +86,7 @@ protected:
 };
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PredictRegressionTaskBase<algorithmFPType, cpu>::run(services::HostAppIface * pHostApp, algorithmFPType factor)
+services::Status PredictRegressionTaskBase<algorithmFPType, cpu>::run(algorithmFPType factor)
 {
     const auto nTreesTotal = _aTree.size();
     const auto treeSize    = _aTree[0]->getNumberOfRows() * sizeof(dtrees::internal::DecisionTreeNode);
@@ -99,10 +98,9 @@ services::Status PredictRegressionTaskBase<algorithmFPType, cpu>::run(services::
     const size_t nThreads = daal::threader_get_threads_number();
     SafeStatus safeStat;
     services::Status s;
-    HostAppHelper host(pHostApp, 100);
     for (size_t iTree = 0; iTree < nTreesTotal; iTree += dim.nTreesInBlock)
     {
-        if (!s || host.isCancelled(s, 1)) return s;
+        if (!s) return s;
         size_t nTreesToUse = ((iTree + dim.nTreesInBlock) < nTreesTotal ? dim.nTreesInBlock : (nTreesTotal - iTree));
         daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {
             const size_t iStartRow      = iBlock * dim.nRowsInBlock;

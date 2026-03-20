@@ -52,15 +52,16 @@ public:
     /**
      *  \brief Compute gradient boosted trees prediction results.
      *
-     *  \param a[in]    Matrix of input variables X
-     *  \param m[in]    gradient boosted trees model obtained on training stage
-     *  \param r[out]   Prediction results
+     *  \param a[in]    Matrix of input variables X of size [N x P], where N is a number of observations
+     *                  and P is a number of features
+     *  \param m[in]    Gradient boosted trees model obtained on training stage
+     *  \param r[out]   Prediction results stored in the numeric table of size [N x 1]
      *  \param nIterations[in]  Number of iterations to predict in gradient boosted trees algorithm parameter
      *  \param predShapContributions[in] Predict SHAP contributions
-     *  \param predShapInteractions[in] Predict SHAP interactions
+     *  \param predShapInteractions[in]  Predict SHAP interactions
      */
-    services::Status compute(services::HostAppIface * pHostApp, const NumericTable * a, const regression::Model * m, NumericTable * r,
-                             size_t nIterations, bool predShapContributions, bool predShapInteractions);
+    services::Status compute(const NumericTable * a, const regression::Model * m, NumericTable * r, size_t nIterations, bool predShapContributions,
+                             bool predShapInteractions);
 };
 
 } // namespace internal

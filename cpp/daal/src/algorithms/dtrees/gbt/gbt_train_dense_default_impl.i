@@ -334,10 +334,9 @@ public:
     typedef typename super::DataHelperType DataHelperType;
     typedef gh<algorithmFPType, cpu> ghType;
 
-    TrainBatchTaskBaseXBoost(HostAppIface * hostApp, const NumericTable * x, const NumericTable * y, const Parameter & par,
-                             const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
-                             engines::internal::BatchBaseImpl & engine, size_t nClasses)
-        : super(x, y, par, featTypes, indexedFeatures, engine, nClasses), _hostApp(hostApp)
+    TrainBatchTaskBaseXBoost(const NumericTable * x, const NumericTable * y, const Parameter & par, const dtrees::internal::FeatureTypes & featTypes,
+                             const dtrees::internal::IndexedFeatures * indexedFeatures, engines::internal::BatchBaseImpl & engine, size_t nClasses)
+        : super(x, y, par, featTypes, indexedFeatures, engine, nClasses)
     {}
 
     //loss function gradient and hessian values calculated in f() points
@@ -360,14 +359,13 @@ public:
 
 protected:
     TVector<ghType, cpu> _aGH; //loss function first and second order derivatives
-    HostAppIface * _hostApp;
 };
 
 template <typename algorithmFPType, typename RowIndexType, typename BinIndexType, CpuType cpu, typename TaskType, typename ResultType>
-services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md,
-                                 const gbt::training::Parameter & par, engines::internal::BatchBaseImpl & engine, size_t nClasses,
-                                 dtrees::internal::IndexedFeatures & indexedFeatures, dtrees::internal::FeatureTypes & featTypes, ResultType * res,
-                                 algorithmFPType * ptrWeight, algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
+services::Status computeTypeDisp(const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md, const gbt::training::Parameter & par,
+                                 engines::internal::BatchBaseImpl & engine, size_t nClasses, dtrees::internal::IndexedFeatures & indexedFeatures,
+                                 dtrees::internal::FeatureTypes & featTypes, ResultType * res, algorithmFPType * ptrWeight,
+                                 algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
                                  algorithmFPType * ptrTotalGain)
 {
     services::Status s;
@@ -376,7 +374,7 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     const bool inexactWithHistMethod =
         !par.memorySavingMode && par.splitMethod == gbt::training::inexact && x->getNumberOfColumns() == nFeaturesPerNode;
 
-    TaskType task(pHostApp, x, y, par, featTypes, par.memorySavingMode ? nullptr : &indexedFeatures, engine, nClasses);
+    TaskType task(x, y, par, featTypes, par.memorySavingMode ? nullptr : &indexedFeatures, engine, nClasses);
     DAAL_CHECK_STATUS(s, task.init());
 
     const size_t nTrees = task.nTrees();
@@ -481,7 +479,7 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     DAAL_CHECK_MALLOC(allWeightVec.get());
     allWeight = allWeightVec.get();
 
-    for (size_t i = 0; (i < par.maxIterations) && !algorithms::internal::isCancelled(s, pHostApp); ++i)
+    for (size_t i = 0; i < par.maxIterations; ++i)
     {
         s = task.run(aTbl, aTblImp, aTblSmplCnt, i, storage);
         if (!s)
@@ -555,15 +553,14 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
 // compute() implementation
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, CpuType cpu, typename BinIndexType, typename TaskType, typename ResultType>
-services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md,
-                             const gbt::training::Parameter & par, engines::internal::BatchBaseImpl & engine, size_t nClasses,
-                             dtrees::internal::IndexedFeatures & indexedFeatures, dtrees::internal::FeatureTypes & featTypes, ResultType * res,
-                             algorithmFPType * ptrWeight, algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
-                             algorithmFPType * ptrTotalGain)
+services::Status computeImpl(const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md, const gbt::training::Parameter & par,
+                             engines::internal::BatchBaseImpl & engine, size_t nClasses, dtrees::internal::IndexedFeatures & indexedFeatures,
+                             dtrees::internal::FeatureTypes & featTypes, ResultType * res, algorithmFPType * ptrWeight, algorithmFPType * ptrCover,
+                             algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain, algorithmFPType * ptrTotalGain)
 
 {
-    return computeTypeDisp<algorithmFPType, int, BinIndexType, cpu, TaskType>(pHostApp, x, y, md, par, engine, nClasses, indexedFeatures, featTypes,
-                                                                              res, ptrWeight, ptrCover, ptrTotalCover, ptrGain,
+    return computeTypeDisp<algorithmFPType, int, BinIndexType, cpu, TaskType>(x, y, md, par, engine, nClasses, indexedFeatures, featTypes, res,
+                                                                              ptrWeight, ptrCover, ptrTotalCover, ptrGain,
                                                                               ptrTotalGain); // TODO: remove int
 }
 

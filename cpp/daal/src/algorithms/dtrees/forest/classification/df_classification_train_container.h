@@ -29,7 +29,6 @@
 #include "algorithms/decision_forest/decision_forest_classification_training_batch.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_kernel.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_model_impl.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -100,8 +99,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     const decision_forest::classification::training::Parameter * par = static_cast<decision_forest::classification::training::Parameter *>(_par);
     daal::services::Environment::env & env                           = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::ClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), x, y, w, *m, *result, *par);
+    __DAAL_CALL_KERNEL(env, internal::ClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, w, *m, *result,
+                       *par);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>

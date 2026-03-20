@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <daal/src/services/service_algo_utils.h>
 #include <daal/src/algorithms/dtrees/forest/regression/df_regression_predict_dense_default_batch.h>
 
 #include "oneapi/dal/algo/decision_forest/backend/cpu/infer_kernel.hpp"
@@ -72,12 +71,11 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     const daal_df::regression::Model* const daal_model_ptr =
         static_cast<daal_df::regression::Model*>(daal_model.get());
-    interop::status_to_exception(interop::call_daal_kernel<Float, reg_dense_predict_kernel_t>(
-        ctx,
-        daal::services::internal::hostApp(daal_input),
-        daal_data.get(),
-        daal_model_ptr,
-        daal_responses_res.get()));
+    interop::status_to_exception(
+        interop::call_daal_kernel<Float, reg_dense_predict_kernel_t>(ctx,
+                                                                     daal_data.get(),
+                                                                     daal_model_ptr,
+                                                                     daal_responses_res.get()));
 
     return result_t{}.set_responses(
         interop::convert_from_daal_homogen_table<Float>(daal_responses_res));
