@@ -24,7 +24,7 @@
 #ifndef __ALGORITHM_CONTAINER_BASE_BATCH_H__
 #define __ALGORITHM_CONTAINER_BASE_BATCH_H__
 
-#include "algorithms/algorithm_container_base_common.h"
+#include "algorithms/algorithm_container_base.h"
 
 namespace daal
 {

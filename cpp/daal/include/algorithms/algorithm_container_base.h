@@ -1,4 +1,4 @@
-/* file: algorithm_container_base_common.h */
+/* file: algorithm_container_base.h */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -21,8 +21,8 @@
 //--
 */
 
-#ifndef __ALGORITHM_CONTAINER_BASE_COMMON_H__
-#define __ALGORITHM_CONTAINER_BASE_COMMON_H__
+#ifndef __ALGORITHM_CONTAINER_BASE_H__
+#define __ALGORITHM_CONTAINER_BASE_H__
 
 #include "services/daal_memory.h"
 #include "algorithms/algorithm_types.h"
