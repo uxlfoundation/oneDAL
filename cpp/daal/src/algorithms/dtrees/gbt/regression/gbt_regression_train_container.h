@@ -29,7 +29,6 @@
 #include "algorithms/gradient_boosted_trees/gbt_regression_training_batch.h"
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_train_kernel.h"
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_model_impl.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -109,8 +108,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     daal::algorithms::engines::internal::BatchBaseImpl * engine =
         dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl *>(par->engine.get());
 
-    __DAAL_CALL_KERNEL(env, internal::RegressionTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), x, y, *m, *result, *par, *engine);
+    __DAAL_CALL_KERNEL(env, internal::RegressionTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, *m, *result, *par,
+                       *engine);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>

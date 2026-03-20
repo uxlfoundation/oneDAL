@@ -48,8 +48,8 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class TrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
-    services::Status compute(const HostAppIfacePtr & pHost, const NumericTablePtr & x, const NumericTablePtr & y, logistic_regression::Model & m,
-                             Result & res, const Parameter & par);
+    services::Status compute(const NumericTablePtr & x, const NumericTablePtr & y, logistic_regression::Model & m, Result & res,
+                             const Parameter & par);
 };
 
 } // namespace internal

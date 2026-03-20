@@ -155,7 +155,7 @@ public:
                && (_scaleFactorForVectParallelCompute > 0.0f);
     }
 
-    Status run(services::HostAppIface * pHostApp);
+    Status run();
 
 protected:
     Status predictByTrees(const size_t iFirstTree, const size_t nTrees, const algorithmFPType * const x, algorithmFPType * const resPtr,
@@ -177,8 +177,7 @@ protected:
 
     Status predictAllPointsByAllTrees(const size_t nTreesTotal);
 
-    Status predictByBlocksOfTrees(services::HostAppIface * const pHostApp, const size_t nTreesTotal, const DimType & dim,
-                                  algorithmFPType * const aClsCounters);
+    Status predictByBlocksOfTrees(const size_t nTreesTotal, const DimType & dim, algorithmFPType * const aClsCounters);
 
     Status predictOneRowByAllTrees(const size_t nTreesTotal);
 
@@ -261,10 +260,9 @@ PredictKernel<algorithmFPType, method, cpu>::~PredictKernel()
 }
 
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>
-Status PredictKernel<algorithmFPType, method, cpu>::compute(services::HostAppIface * const pHostApp, const NumericTable * const x,
-                                                            const decision_forest::classification::Model * const m, NumericTable * const r,
-                                                            NumericTable * const prob, const size_t nClasses, const VotingMethod votingMethod,
-                                                            const HyperparameterType * hyperparameter)
+Status PredictKernel<algorithmFPType, method, cpu>::compute(const NumericTable * const x, const decision_forest::classification::Model * const m,
+                                                            NumericTable * const r, NumericTable * const prob, const size_t nClasses,
+                                                            const VotingMethod votingMethod, const HyperparameterType * hyperparameter)
 {
     const daal::algorithms::decision_forest::classification::internal::ModelImpl * const pModel =
         static_cast<const daal::algorithms::decision_forest::classification::internal::ModelImpl * const>(m);
@@ -311,7 +309,7 @@ Status PredictKernel<algorithmFPType, method, cpu>::compute(services::HostAppIfa
         _task->setHyperparams();
     }
 
-    return _task->run(pHostApp);
+    return _task->run();
 }
 
 template <typename algorithmFPType, CpuType cpu>
@@ -1263,7 +1261,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictAllPointsByAllTre
 }
 
 template <typename algorithmFPType, CpuType cpu>
-Status PredictClassificationTask<algorithmFPType, cpu>::run(services::HostAppIface * const pHostApp)
+Status PredictClassificationTask<algorithmFPType, cpu>::run()
 {
     DAAL_CHECK(assertHyperparameters(), services::ErrorHyperparameterBadValue);
 
@@ -1316,7 +1314,7 @@ Status PredictClassificationTask<algorithmFPType, cpu>::run(services::HostAppIfa
         {
             return predictByAllTrees(nTreesTotal, dim);
         }
-        return predictByBlocksOfTrees(pHostApp, nTreesTotal, dim, aClsCounters.get());
+        return predictByBlocksOfTrees(nTreesTotal, dim, aClsCounters.get());
     }
     else
     {
@@ -1325,8 +1323,8 @@ Status PredictClassificationTask<algorithmFPType, cpu>::run(services::HostAppIfa
 }
 
 template <typename algorithmFPType, CpuType cpu>
-Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(services::HostAppIface * const pHostApp, const size_t nTreesTotal,
-                                                                               const DimType & dim, algorithmFPType * const aClsCount)
+Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(const size_t nTreesTotal, const DimType & dim,
+                                                                               algorithmFPType * const aClsCount)
 {
     WriteOnlyRows<algorithmFPType, cpu> resBD(_res, 0, dim.nRowsTotal);
     DAAL_CHECK_BLOCK_STATUS(resBD);
@@ -1337,11 +1335,9 @@ Status PredictClassificationTask<algorithmFPType, cpu>::predictByBlocksOfTrees(s
     const size_t nThreads = daal::threader_get_threads_number();
     daal::SafeStatus safeStat;
     Status s;
-    HostAppHelper host(pHostApp, 100);
     for (size_t iTree = 0; iTree < nTreesTotal; iTree += dim.nTreesInBlock)
     {
         DAAL_CHECK_STATUS_VAR(s);
-        if (host.isCancelled(s, 1)) return s;
         const bool bLastGroup(nTreesTotal <= (iTree + dim.nTreesInBlock));
         const size_t nTreesToUse = (bLastGroup ? (nTreesTotal - iTree) : dim.nTreesInBlock);
         daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&, nTreesToUse, bLastGroup](size_t iBlock) {

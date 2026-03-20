@@ -28,8 +28,6 @@
 #include "algorithms/algorithm_base_common.h"
 #include "services/daal_memory.h"
 
-#include "services/host_app.h"
-
 namespace daal
 {
 namespace algorithms
@@ -197,17 +195,6 @@ public:
     }
 
     void enableResetOnFinalizeCompute(bool flag) { resetFinalizeFlag = flag; }
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
 
 private:
     bool wasSetup;
@@ -294,18 +281,6 @@ public:
     }
 
     void enableResetOnCompute(bool flag) { resetFlag = flag; }
-
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
 
 private:
     bool wasSetup;

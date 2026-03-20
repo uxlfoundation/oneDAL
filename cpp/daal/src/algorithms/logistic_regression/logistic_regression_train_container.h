@@ -30,7 +30,6 @@
 #include "src/algorithms/logistic_regression/logistic_regression_train_kernel.h"
 #include "src/algorithms/logistic_regression/logistic_regression_model_impl.h"
 #include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -96,8 +95,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     const logistic_regression::training::Parameter * par = static_cast<logistic_regression::training::Parameter *>(_par);
     daal::services::Environment::env & env               = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::TrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::getHostApp(*input), x, y, *m, *result, *par);
+    __DAAL_CALL_KERNEL(env, internal::TrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, *m, *result, *par);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
