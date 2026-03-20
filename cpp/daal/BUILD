@@ -45,7 +45,7 @@ daal_module(
 
 daal_patch_kernel_defines(
     name = "kernel_defines",
-    src = "include/services/internal/daal_kernel_defines.h",
+    src = "src/services/internal/daal_kernel_defines.h",
 )
 
 daal_module(
