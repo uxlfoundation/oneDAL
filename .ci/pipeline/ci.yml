@@ -144,7 +144,7 @@ jobs:
     continueOnError: true
 
 - job: 'LinuxMakeGNU_MKL_Conda'
-  timeoutInMinutes: 0
+  timeoutInMinutes: 300
   variables:
     release.dir: '__release_lnx_gnu_conda'
     platform.type: 'lnx32e'
@@ -186,6 +186,15 @@ jobs:
       targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
     displayName: 'Upload build artifacts'
     continueOnError: true
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
+      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
+              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+      fi
+    displayName: 'Fix MKLConfig.cmake TBB target'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
