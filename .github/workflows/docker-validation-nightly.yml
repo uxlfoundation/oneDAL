@@ -75,9 +75,6 @@ jobs:
           mkdir -p ${{ github.workspace }}/bazel-cache
 
           docker run \
-            -v ${{ github.workspace }}/bazel-cache:/root/.cache/bazel \
-            onedal-dev sh -c "
-              # Use external disk cache
-              echo 'build --disk_cache=/root/.cache/bazel' > ~/.bazelrc
-              bazel build :release
-            "
+            -v ${{ github.workspace }}/bazel-cache:/bazel-disk-cache \
+            onedal-dev \
+            bazel build :release --disk_cache=/bazel-disk-cache

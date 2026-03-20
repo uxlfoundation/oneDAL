@@ -143,6 +143,89 @@ jobs:
     condition: failed()
     continueOnError: true
 
+- job: 'LinuxMakeGNU_MKL_Conda'
+  timeoutInMinutes: 300
+  variables:
+    release.dir: '__release_lnx_gnu_conda'
+    platform.type: 'lnx32e'
+    CONDA_ENV: 'onedal_env'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'apt-get install'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda create -y -n $(CONDA_ENV)
+      conda activate $(CONDA_ENV)
+      conda install -y -c conda-forge \
+          make \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+          tbb tbb-devel \
+          onedpl-devel \
+          mkl mkl-devel mkl-static mkl-dpcpp mkl-devel-dpcpp \
+          cmake \
+          impi-devel impi_rt
+    displayName: 'Create conda environment'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
+      mv __release_lnx_gnu __release_lnx_gnu_conda
+    displayName: 'make onedal_c'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) conda build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
+      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
+              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+      fi
+    displayName: 'Fix MKLConfig.cmake TBB target'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
+    displayName: 'oneapi/dpc examples'
+  - script: |
+      source $(conda info --base)/etc/profile.d/conda.sh
+      conda activate $(CONDA_ENV)
+      export TBBROOT="${CONDA_PREFIX}"
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) conda fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
 - job: 'LinuxMakeLLVM_OpenBLAS_rv64'
   timeoutInMinutes: 0

@@ -214,8 +214,6 @@ By default, on x86 platforms, oneDAL uses highly optimized aligned memory alloca
 
 It is possible to integrate various sanitizers by specifying the REQSAN flag, available sanitizers are dependent on the compiler.
 
-**NOTE:** Sanitizers cannot be used when building the DPC components.
-
 - To integrate [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer) in a debug oneDAL build (recommended), run:
 
     _Note: Windows support of REQSAN in oneDAL is experimental, static AddressSanitizer can be set with value: static_
@@ -395,6 +393,15 @@ export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 ```
 
 _Note: variable `$PATH` is also required to contain `${CONDA_PREFIX}/bin`, but that should have been handled automatically by `conda activate`._
+
+_Note: there is a known issue with MKL and TBB from conda. Please use the fix below; without this fix, the build fails due to the known MKL bug with TBB detection._
+
+```shell
+      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
+              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+      fi
+```
 
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.
 
