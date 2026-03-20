@@ -98,10 +98,10 @@ class TrainBatchTask : public TrainBatchTaskBaseXBoost<algorithmFPType, BinIndex
     typedef TrainBatchTaskBaseXBoost<algorithmFPType, BinIndexType, cpu> super;
 
 public:
-    TrainBatchTask(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
+    TrainBatchTask(const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
                    const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
                    engines::internal::BatchBaseImpl & engine, size_t dummy)
-        : super(pHostApp, x, y, par, featTypes, indexedFeatures, engine, 1), _builder(nullptr)
+        : super(x, y, par, featTypes, indexedFeatures, engine, 1), _builder(nullptr)
     {
         _builder = TreeBuilder<algorithmFPType, int, BinIndexType, cpu>::create(*this); // TODO: replace int
     }
@@ -167,9 +167,9 @@ protected:
 // RegressionTrainBatchKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, gbt::regression::training::Method method, CpuType cpu>
-services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compute(HostAppIface * pHostApp, const NumericTable * x,
-                                                                                   const NumericTable * y, gbt::regression::Model & m, Result & res,
-                                                                                   const Parameter & par, engines::internal::BatchBaseImpl & engine)
+services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const NumericTable * y,
+                                                                                   gbt::regression::Model & m, Result & res, const Parameter & par,
+                                                                                   engines::internal::BatchBaseImpl & engine)
 {
     const size_t nFeaturesPerNode = par.featuresPerNode ? par.featuresPerNode : x->getNumberOfColumns();
     const bool inexactWithHistMethod =
@@ -220,22 +220,22 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
     {
         if (indexedFeatures.maxNumIndices() <= 256)
             return computeImpl<algorithmFPType, cpu, uint8_t, TrainBatchTask<algorithmFPType, uint8_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else if (indexedFeatures.maxNumIndices() <= 65536)
             return computeImpl<algorithmFPType, cpu, uint16_t, TrainBatchTask<algorithmFPType, uint16_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else
             return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
     else
     {
         return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-            pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes,
-            &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+            x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+            ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
 }
 
