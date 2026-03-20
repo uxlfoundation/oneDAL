@@ -38,6 +38,8 @@ namespace dbscan
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__DBSCAN__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the DBSCAN algorithm.

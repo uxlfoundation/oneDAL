@@ -37,6 +37,7 @@ namespace linear
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 namespace poly = daal::algorithms::kernel_function::polynomial::internal;
 
 /**

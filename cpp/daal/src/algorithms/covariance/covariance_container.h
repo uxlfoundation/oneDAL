@@ -196,6 +196,7 @@ namespace covariance
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm.

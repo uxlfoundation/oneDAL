@@ -41,7 +41,7 @@ namespace kdtree_knn_classification
 {
 namespace internal
 {
-template <typename T, CpuType cpu>
+template <typename T, daal::internal::CpuType cpu>
 class Stack;
 } // namespace internal
 

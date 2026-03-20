@@ -23,6 +23,7 @@
 
 #include "algorithms/kernel_function/kernel_function_linear.h"
 #include "src/algorithms/kernel_function/kernel_function_linear_batch_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

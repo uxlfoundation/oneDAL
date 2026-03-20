@@ -20,6 +20,7 @@
 //--
 
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_batch_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

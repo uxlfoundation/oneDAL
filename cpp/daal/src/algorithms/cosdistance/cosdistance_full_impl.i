@@ -21,7 +21,6 @@
 //--
 */
 #include "src/services/service_defines.h"
-using namespace daal::internal;
 
 namespace daal
 {
@@ -31,6 +30,8 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 services::Status cosDistanceFull(const NumericTable * xTable, NumericTable * rTable)
 {

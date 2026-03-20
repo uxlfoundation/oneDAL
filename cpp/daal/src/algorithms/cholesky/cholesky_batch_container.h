@@ -32,6 +32,7 @@ namespace cholesky
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CHOLESKY__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the Cholesky decomposition algorithm.

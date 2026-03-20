@@ -37,7 +37,7 @@ namespace rbf
 {
 namespace internal
 {
-template <Method method, typename algorithmFPType, CpuType cpu>
+template <Method method, typename algorithmFPType, daal::internal::CpuType cpu>
 struct KernelImplRBF
 {};
 

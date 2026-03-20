@@ -19,7 +19,7 @@
 #define __SERVICE_DELETERS_H__
 
 #include <type_traits>
-#include "services/cpu_type.h"
+#include "src/services/service_defines.h"
 
 namespace daal
 {
@@ -27,9 +27,9 @@ namespace services
 {
 namespace internal
 {
+using CpuType = daal::internal::CpuType;
 
 /* CPU specific deleters */
-
 template <typename T, CpuType cpu>
 struct DefaultDeleter
 {

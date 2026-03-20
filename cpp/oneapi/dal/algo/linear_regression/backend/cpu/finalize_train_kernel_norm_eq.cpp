@@ -45,10 +45,10 @@ using daal_lr_hyperparameters_t = daal_lr::internal::Hyperparameter;
 constexpr auto daal_lr_method = daal_lr::training::normEqDense;
 constexpr auto daal_rr_method = daal_rr::training::normEqDense;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using online_lr_kernel_t = daal_lr::training::internal::OnlineKernel<Float, daal_lr_method, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using online_rr_kernel_t = daal_rr::training::internal::OnlineKernel<Float, daal_rr_method, Cpu>;
 
 template <typename Float, typename Task>

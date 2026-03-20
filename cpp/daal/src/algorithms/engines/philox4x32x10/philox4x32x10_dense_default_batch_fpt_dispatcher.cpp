@@ -20,6 +20,7 @@
 //--
 
 #include "src/algorithms/engines/philox4x32x10/philox4x32x10_batch_container.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

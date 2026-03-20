@@ -39,6 +39,7 @@ namespace services
 {
 namespace internal
 {
+using namespace daal::internal;
 
 /// Initializes block of memory of length `num` with value.
 ///

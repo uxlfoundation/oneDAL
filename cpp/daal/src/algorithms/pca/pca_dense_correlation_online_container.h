@@ -36,6 +36,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm

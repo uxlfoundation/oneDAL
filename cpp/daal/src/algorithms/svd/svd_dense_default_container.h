@@ -38,6 +38,8 @@ namespace svd
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  *  \brief Initialize list of cholesky kernels with implementations for supported architectures
  */

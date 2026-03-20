@@ -206,7 +206,7 @@ services::Status PCASVDOnlineKernel<algorithmFPType, cpu>::normalizeDataset(cons
     computeMean<algorithmFPType, cpu>(totalObservations, nFeatures, sums, mean.get());
     computeVariance<algorithmFPType, cpu>(totalObservations, nFeatures, sums, ssq, mean.get(), variance.get());
     normalizeData<algorithmFPType, cpu>(nVectors, nFeatures, dataArray, mean.get(), variance.get(), normalizedDataArray);
-    return Status();
+    return services::Status();
 }
 
 } // namespace internal

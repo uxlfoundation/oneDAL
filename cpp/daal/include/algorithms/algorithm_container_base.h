@@ -1,6 +1,7 @@
 /* file: algorithm_container_base.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,7 +26,6 @@
 #define __ALGORITHM_CONTAINER_BASE_H__
 
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 #include "algorithms/algorithm_types.h"
 #include "algorithms/algorithm_kernel.h"
 

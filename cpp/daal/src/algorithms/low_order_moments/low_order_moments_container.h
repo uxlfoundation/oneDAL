@@ -38,6 +38,7 @@ namespace low_order_moments
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the low order moments algorithm.

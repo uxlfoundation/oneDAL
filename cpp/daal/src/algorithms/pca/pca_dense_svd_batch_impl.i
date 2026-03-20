@@ -57,7 +57,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::compute
         if (!s) return s;
     }
 
-    Status s = decompose(normalizedData.get(), eigenvalues, eigenvectors);
+    services::Status s = decompose(normalizedData.get(), eigenvalues, eigenvectors);
     if (s) s = this->scaleSingularValues(eigenvalues, data->getNumberOfRows());
     return s;
 }
@@ -69,7 +69,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::compute
                                                                                  NumericTable & variances)
 {
     NumericTable * normalizedData;
-    Status status;
+    services::Status status;
     if (type == normalizedDataset)
     {
         normalizedData = &data;
@@ -120,7 +120,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::compute
     data_management::NumericTable & singular_values, data_management::NumericTable & means, data_management::NumericTable & variances,
     data_management::NumericTable * eigenvalues, data_management::NumericTable * explained_variances_ratio, const ParameterType * parameter)
 {
-    Status status;
+    services::Status status;
     this->compute(type, data, parameter, singular_values, eigenvectors, means, variances);
     if (eigenvalues != nullptr && parameter->doScale == false)
     {
@@ -176,7 +176,7 @@ services::Status PCASVDBatchKernel<algorithmFPType, ParameterType, cpu>::normali
     DAAL_CHECK_BLOCK_STATUS(block);
     const algorithmFPType * dataArray = block.get();
 
-    Status status;
+    services::Status status;
     HomogenNumericTableCPU<algorithmFPType, cpu> * normalized = new HomogenNumericTableCPU<algorithmFPType, cpu>(nFeatures, nObservations, status);
     DAAL_CHECK_STATUS_VAR(status);
 

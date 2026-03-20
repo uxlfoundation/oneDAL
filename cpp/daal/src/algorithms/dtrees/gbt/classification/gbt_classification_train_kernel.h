@@ -30,9 +30,6 @@
 #include "algorithms/gradient_boosted_trees/gbt_classification_training_types.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -45,6 +42,10 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class ClassificationTrainBatchKernel : public daal::algorithms::Kernel
 {

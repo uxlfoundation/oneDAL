@@ -37,6 +37,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__PREDICTION__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the logistic regression algorithm.

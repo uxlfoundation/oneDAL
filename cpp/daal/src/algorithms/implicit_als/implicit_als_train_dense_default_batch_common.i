@@ -36,6 +36,8 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 void computeXtX(size_t * nRows, size_t * nCols, algorithmFPType * beta, algorithmFPType * x, size_t * ldx, algorithmFPType * xtx, size_t * ldxtx)
 {
