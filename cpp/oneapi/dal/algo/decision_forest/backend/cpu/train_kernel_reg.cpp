@@ -16,7 +16,6 @@
 
 #include <daal/include/services/error_handling.h>
 #include <daal/src/algorithms/dtrees/forest/regression/df_regression_model_impl.h>
-#include <daal/src/services/service_algo_utils.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_regression_training_batch.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_regression_training_types.h>
 #include <daal/src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h>
@@ -160,15 +159,13 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     daal_df::regression::ModelPtr mptr =
         daal_df::regression::ModelPtr(new daal_df::regression::internal::ModelImpl(column_count));
 
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, CpuKernel>(ctx,
-                                                    daal::services::internal::hostApp(daal_input),
-                                                    daal_data.get(),
-                                                    daal_responses.get(),
-                                                    daal_weights.get(),
-                                                    *mptr,
-                                                    daal_result,
-                                                    daal_parameter));
+    interop::status_to_exception(interop::call_daal_kernel<Float, CpuKernel>(ctx,
+                                                                             daal_data.get(),
+                                                                             daal_responses.get(),
+                                                                             daal_weights.get(),
+                                                                             *mptr,
+                                                                             daal_result,
+                                                                             daal_parameter));
 
     /* extract results from daal objects */
     if (check_mask_flag(desc.get_error_metric_mode(), error_metric_mode::out_of_bag_error)) {

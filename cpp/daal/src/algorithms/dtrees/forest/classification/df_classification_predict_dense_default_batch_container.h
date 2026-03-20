@@ -25,7 +25,6 @@
 
 #include "algorithms/decision_forest/decision_forest_classification_predict.h"
 #include "src/algorithms/dtrees/forest/classification/df_classification_predict_dense_default_batch.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -105,8 +104,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     const VotingMethod votingMethod = par->votingMethod;
 
-    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*const_cast<Input *>(input)), a, m, r, prob, par->nClasses, votingMethod);
+    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, r, prob, par->nClasses,
+                       votingMethod);
 }
 } // namespace internal
 } // namespace prediction

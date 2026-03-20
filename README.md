@@ -73,7 +73,6 @@ Python Examples:
 <details><summary>Other Examples</summary>
 
 - [MPI](https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/mpi)
-- [MySQL](https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/mysql)
 
 </details>
 

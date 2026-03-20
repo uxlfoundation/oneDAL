@@ -381,8 +381,8 @@ services::Status copyBinIndex(const size_t nRows, const size_t nCols, const Inde
 }
 
 template <typename algorithmFPType, typename BinIndexType, CpuType cpu, typename ModelType, typename TaskType, typename HyperparameterType>
-services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w, ModelType & md,
-                             ResultData & res, const Parameter & par, size_t nClasses, const dtrees::internal::FeatureTypes & featTypes,
+services::Status computeImpl(const NumericTable * x, const NumericTable * y, const NumericTable * w, ModelType & md, ResultData & res,
+                             const Parameter & par, size_t nClasses, const dtrees::internal::FeatureTypes & featTypes,
                              const dtrees::internal::IndexedFeatures * indexedFeatures, const HyperparameterType * hyperparameter = nullptr)
 {
     services::Status s;
@@ -421,7 +421,7 @@ services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, co
     daal::tls<TaskType *> tlsTask([&]() -> TaskType * {
         //in case of single thread no need to allocate
         Ctx * ctx = tlsCtx.local();
-        return ctx ? new TaskType(pHostApp, x, y, w, par, featTypes, indexedFeatures, binIndex, *ctx, nClasses, hyperparameter) : nullptr;
+        return ctx ? new TaskType(x, y, w, par, featTypes, indexedFeatures, binIndex, *ctx, nClasses, hyperparameter) : nullptr;
     });
 
     engines::internal::ParallelizationTechnique technique = engines::internal::family;
@@ -521,11 +521,10 @@ protected:
     typedef dtrees::internal::TVector<algorithmFPType, cpu> algorithmFPTypeArray;
     typedef dtrees::internal::TVector<intermSummFPType, cpu> intermSummFPTypeArray;
     typedef dtrees::internal::TVector<IndexType, cpu> IndexTypeArray;
-    TrainBatchTaskBase(HostAppIface * hostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w, const Parameter & par,
+    TrainBatchTaskBase(const NumericTable * x, const NumericTable * y, const NumericTable * w, const Parameter & par,
                        const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
                        const BinIndexType * binIndex, ThreadCtxType & threadCtx, size_t nClasses, const HyperparameterType * hyperparameter = nullptr)
-        : _hostApp(hostApp, 0), //set granularity later
-          _data(x),
+        : _data(x),
           _resp(y),
           _weights(w),
           _par(par),
@@ -649,34 +648,10 @@ protected:
     algorithmFPType computeOOBErrorPerm(const dtrees::internal::Tree & t, size_t n, const IndexType * aInd, const IndexType * aPerm,
                                         size_t iPermutedFeature);
 
-    void setupHostApp()
-    {
-        DAAL_INT64 minPartCoeff = 4l;
-        DAAL_INT64 minSizeCoeff = 24000l;
-        if (this->_hyperparameter != nullptr)
-        {
-            if (std::is_same<HyperparameterType, decision_forest::classification::training::internal::Hyperparameter>::value)
-            {
-                this->_hyperparameter->find(classification::training::internal::minPartCoefficient, minPartCoeff);
-                this->_hyperparameter->find(classification::training::internal::minSizeCoefficient, minSizeCoeff);
-            }
-            else if (std::is_same<HyperparameterType, decision_forest::regression::training::internal::Hyperparameter>::value)
-            {
-                this->_hyperparameter->find(regression::training::internal::minPartCoefficient, minPartCoeff);
-                this->_hyperparameter->find(regression::training::internal::minSizeCoefficient, minSizeCoeff);
-            }
-        }
-        const size_t minPart = minPartCoeff * _helper.size();    // corresponds to the 4 topmost levels, if minPartCoeff == 4
-        const size_t minSize = minSizeCoeff / _nFeaturesPerNode; // at least that many, corresponds to the tree 1000 obs/10 features/8 levels,
-                                                                 // if minSizeCoeff == 24000
-        _hostApp.setup(minPart < minSize ? minSize : minPart);
-    }
-
 protected:
     TArray<IndexType, cpu> _aFeatureIdx;      //indices of features to be used for the split at the current level
     TArray<IndexType, cpu> _aConstFeatureIdx; //indices of found constant features
     DataHelper _helper;
-    services::internal::HostAppHelper _hostApp;
     typename DataHelper::TreeType _tree;
     mutable TVector<IndexType, cpu> _aSample;
     mutable TArray<intermSummFPTypeArray, cpu> _aFeatureBuf;
@@ -773,8 +748,6 @@ services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, DataHelper, H
         _aSample[i] = i;
     }
 
-    setupHostApp();
-
     typename DataHelper::intermSummFPType totalWeights = 0;
     typename DataHelper::ImpurityData initialImpurity;
     const bool noWeights = !_helper.providedWeights();
@@ -837,7 +810,6 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
     size_t nClasses, intermSummFPType totalWeights)
 {
     const size_t maxFeatures = nFeatures();
-    if (_hostApp.isCancelled(s, n)) return nullptr;
 
     if (terminateCriteria(n, level, curImpurity, totalWeights)) return makeLeaf(_aSample.get() + iStart, n, curImpurity, nClasses);
 
@@ -1042,10 +1014,6 @@ typename DataHelper::NodeType::Base * TrainBatchTaskBase<algorithmFPType, BinInd
         }
     };
 
-    if (_hostApp.isCancelled(s, n))
-    {
-        return nullptr;
-    }
     BinaryHeap<WorkItem, cpu> binaryHeap(s);
     if (!s.ok())
     {
