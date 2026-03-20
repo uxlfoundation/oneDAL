@@ -46,7 +46,8 @@
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <Windows.h>
+    #define NOMINMAX
+    #include <windows.h>
 #endif
 
 DAAL_EXPORT void * _threaded_scalable_malloc(const size_t size, const size_t alignment)
