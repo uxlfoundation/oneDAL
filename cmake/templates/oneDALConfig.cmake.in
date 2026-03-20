@@ -176,8 +176,8 @@ if(MKL_DEPENDENCY STREQUAL "yes")
         set(MKL_INTERFACE lp64)
         set(MKL_SYCL_INTERFACE lp64)
     endif()
-
     find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+
     if(ONEDAL_LINK STREQUAL "static")
         list(APPEND oneDAL_IMPORTED_TARGETS
             MKL::mkl_core
