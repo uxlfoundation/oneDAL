@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_rbf.h"
+#include "src/algorithms/kernel_function/kernel_function_rbf.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_batch_container.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_csr_fast_kernel.h"
 

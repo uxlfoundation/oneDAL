@@ -28,7 +28,7 @@
 #include "data_management/data/csr_numeric_table.h"
 #include "algorithms/model.h"
 #include "algorithms/kernel_function/kernel_function.h"
-#include "algorithms/kernel_function/kernel_function_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_linear.h"
 #include "algorithms/kernel_function/kernel_function_types.h"
 #include "algorithms/classifier/classifier_model.h"
 
