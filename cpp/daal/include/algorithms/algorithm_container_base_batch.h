@@ -1,5 +1,6 @@
 /* file: algorithm_container_base_batch.h */
 /*******************************************************************************
+* Copyright 2014 Intel Corporation
 * Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,14 +32,14 @@ namespace daal
 namespace algorithms
 {
 /**
- * @addtogroup base_algorithms
- * @{
- */
-/**
 * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
 */
 namespace interface1
 {
+/**
+ * @addtogroup base_algorithms
+ * @{
+ */
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ALGORITHMCONTAINER"></a>

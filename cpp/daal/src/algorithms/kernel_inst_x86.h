@@ -33,9 +33,9 @@
         namespace internal                                                                                                                           \
         {                                                                                                                                            \
         template <>                                                                                                                                  \
-        ClassName<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse2> DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__)             \
-                            DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__)                                                               \
-                                DAAL_KERNEL_AVX512_CONTAINER(ContainerTemplate, __VA_ARGS__)>::ClassName(daal::services::Environment::env * daalEnv) \
+        DAAL_EXPORT ClassName<Mode, ContainerTemplate<__VA_ARGS__, daal::internal::sse2> DAAL_KERNEL_SSE42_CONTAINER(ContainerTemplate, __VA_ARGS__) \
+                                        DAAL_KERNEL_AVX2_CONTAINER(ContainerTemplate, __VA_ARGS__) DAAL_KERNEL_AVX512_CONTAINER(                     \
+                                            ContainerTemplate, __VA_ARGS__)>::ClassName(daal::services::Environment::env * daalEnv)                  \
             : BaseClassName(daalEnv), _cntr(nullptr)                                                                                                 \
         {                                                                                                                                            \
             GetCpuid switch (__DAAL_KERNEL_MIN(DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID, cpuid))                                                     \
