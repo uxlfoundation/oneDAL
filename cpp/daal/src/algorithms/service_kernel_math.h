@@ -46,6 +46,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_profiler.h"
 
+#include <mutex>
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include "immintrin.h"
 #endif
@@ -131,7 +132,7 @@ public:
         : _a(a), _b(b), _squared(squared), _isSqrtNorm(isSqrtNorm)
     {}
 
-    ~EuclideanDistances() override {}
+    virtual ~EuclideanDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::euclidean; }
 
@@ -292,8 +293,32 @@ protected:
 
         return safeStat.detach();
     }
+#ifndef DAAL_REF
+    // AMX-BF16 capability check (MKL builds only; cross-platform)
+    static bool knn_has_amx_bf16()
+    {
+        static bool v = []() {
+    #if defined(_MSC_VER)
+            int info[4];
+            __cpuidex(info, 7, 0);
+            if (!((info[3] >> 22) & 1)) return false;
+            unsigned long long xcr = _xgetbv(0);
+            return ((xcr >> 17) & 3) == 3;
+    #else
+            unsigned int a = 0, b = 0, c = 0, d = 0;
+            __asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(7), "c"(0));
+            if (!((d >> 22) & 1u)) return false;
+            unsigned int lo = 0, hi = 0;
+            __asm__ volatile("xgetbv" : "=a"(lo), "=d"(hi) : "c"(0));
+            return ((lo >> 17) & 3u) == 3u;
+    #endif
+        }();
+        return v;
+    }
+#endif // !DAAL_REF
 
-    // compute (A x B')
+    // compute (A x B') -- EuclideanDistances inner GEMM
+    // GEMM call: out = B * A^T  (col-major: M=nRowsB, N=nRowsA, K=nColsA)
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
         const char transa    = 't';
@@ -306,7 +331,45 @@ protected:
         const DAAL_INT ldy   = nColsA;
         const FPType beta    = 0.0;
         const DAAL_INT ldaty = nRowsB;
-
+#ifndef DAAL_REF
+        // AMX BF16 path: float only, all dims >= 64, MKL builds only
+        if constexpr (std::is_same<FPType, float>::value)
+        {
+            if (knn_has_amx_bf16() && _m >= 64 && _n >= 64 && _k >= 64)
+            {
+                union
+                {
+                    float f;
+                    unsigned int u;
+                } cv;
+                const size_t szA = (size_t)_n * (size_t)_k;
+                const size_t szB = (size_t)_m * (size_t)_k;
+                MKL_BF16 * a16   = (MKL_BF16 *)mkl_malloc(szA * sizeof(MKL_BF16), 64);
+                MKL_BF16 * b16   = (MKL_BF16 *)mkl_malloc(szB * sizeof(MKL_BF16), 64);
+                if (a16 && b16)
+                {
+                    for (size_t i = 0; i < szA; i++)
+                    {
+                        cv.f   = a[i];
+                        a16[i] = (MKL_BF16)(cv.u >> 16);
+                    }
+                    for (size_t i = 0; i < szB; i++)
+                    {
+                        cv.f   = b[i];
+                        b16[i] = (MKL_BF16)(cv.u >> 16);
+                    }
+                    // col-major: C = B16 * A16^T  => cblas: NoTrans B, Trans A
+                    cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, (MKL_INT)_m, (MKL_INT)_n, (MKL_INT)_k, 1.0f, b16, (MKL_INT)_m,
+                                           a16, (MKL_INT)_n, 0.0f, out, (MKL_INT)_m);
+                    mkl_free(a16);
+                    mkl_free(b16);
+                    return;
+                }
+                if (a16) mkl_free(a16);
+                if (b16) mkl_free(b16);
+            }
+        }
+#endif // !DAAL_REF
         BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
     }
 
@@ -329,7 +392,7 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    ~CosineDistances() override {}
+    virtual ~CosineDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
@@ -372,7 +435,7 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    ~MinkowskiDistances() override {}
+    virtual ~MinkowskiDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
@@ -471,7 +534,7 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    ~ChebyshevDistances() override {}
+    virtual ~ChebyshevDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
