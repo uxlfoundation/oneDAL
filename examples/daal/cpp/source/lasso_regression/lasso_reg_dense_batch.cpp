@@ -66,10 +66,11 @@ void trainModel() {
                                                       DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for training data and dependent variables */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainDependentVariables(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainDependentVariables));
+    NumericTablePtr trainData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr trainDependentVariables =
+        HomogenNumericTable<>::create(nDependentVariables, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(trainData, trainDependentVariables);
 
     /* Retrieve the data from input file */
     trainDataSource.loadDataBlock(mergedData.get());
@@ -80,8 +81,8 @@ void trainModel() {
     /* Pass a training data set and dependent values to the algorithm */
     algorithm.input.set(training::data, trainData);
     algorithm.input.set(training::dependentVariables, trainDependentVariables);
-    algorithm.parameter().lassoParameters = NumericTablePtr(
-        new HomogenNumericTable<>(nDependentVariables, 1, NumericTable::doAllocate, 0.01f));
+    algorithm.parameter().lassoParameters =
+        HomogenNumericTable<>::create(nDependentVariables, 1, NumericTable::doAllocate, 0.01f);
     /* Build the multiple lasso regression model */
     algorithm.compute();
 
@@ -98,10 +99,11 @@ void testModel() {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr testGroundTruth =
+        HomogenNumericTable<>::create(nDependentVariables, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Load the data from the data file */
     testDataSource.loadDataBlock(mergedData.get());
