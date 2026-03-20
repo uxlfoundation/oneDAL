@@ -113,7 +113,13 @@ def dal_public_includes(name, dal_deps=[], **kwargs):
         exclude = [
             "backend/",
             "test/",
-            "bazel-",
+            # Exclude all external-repository headers.  _match_file_name uses
+            # file.short_path, where every external dep starts with "../":
+            #   workspace style:  ../mkl_repo/include/mkl.h
+            #   Bzlmod style:     ../mkl_repo~2024.2/include/mkl.h
+            # The old "bazel-" pattern only caught workspace-style paths in
+            # file.path; it missed Bzlmod "+mkl_repo+mkl/" hashes entirely.
+            "../",
         ],
     )
 
@@ -159,7 +165,8 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
              extra_deps=[], host_hdrs=[], host_srcs=[], host_deps=[],
              dpc_hdrs=[], dpc_srcs=[], dpc_deps=[], compile_as=[ "c++", "dpc++" ],
              framework="catch2", data=[], tags=[], private=False,
-             mpi=False, ccl=False, mpi_ranks=0, args=[], **kwargs):
+             mpi=False, ccl=False, mpi_ranks=0, args=[],
+             use_onedal_release_libs=True, **kwargs):
     # TODO: Check `compile_as` parameter
     # TODO: Refactor this rule once decision on the tests structure is made
     if not framework in ["catch2", "none"]:
@@ -179,7 +186,7 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
         compile_as = compile_as,
         dal_deps = (
             dal_test_deps +
-            _test_link_mode_deps(dal_deps)
+            _test_link_mode_deps(dal_deps, use_onedal_release_libs)
         ) + ([
             "@onedal//cpp/oneapi/dal/test/engine:common",
             "@onedal//cpp/oneapi/dal/test/engine:catch2_main",
@@ -287,24 +294,27 @@ def dal_collect_parameters(name, root, modules=[], target="parameters", dal_deps
         **kwargs,
     )
 
-def dal_example(name, dal_deps=[], **kwargs):
+def dal_example(name, dal_deps=[], use_onedal_release_libs=True, is_daal=False, **kwargs):
+    base_deps = [] if is_daal else [
+        "@onedal//cpp/oneapi/dal:core",
+        "@onedal//cpp/oneapi/dal/io",
+    ]
     dal_test(
         name = name,
-        dal_deps = [
-            "@onedal//cpp/oneapi/dal:core",
-            "@onedal//cpp/oneapi/dal/io",
-        ] + dal_deps,
+        dal_deps = base_deps + dal_deps,
+        use_onedal_release_libs = use_onedal_release_libs,
         framework = "none",
         **kwargs,
     )
 
-def dal_example_suite(name, srcs, **kwargs):
+def dal_example_suite(name, srcs, is_daal=False, **kwargs):
     suite_deps = []
     for src in srcs:
         _, alg_name, src_file = src.rsplit('/', 2)
         example_name, _ = paths.split_extension(src_file)
         dal_example(
             name = example_name,
+            is_daal = is_daal,
             srcs = [ src ],
             **kwargs,
         )
@@ -314,10 +324,11 @@ def dal_example_suite(name, srcs, **kwargs):
         tests = suite_deps,
     )
 
-def dal_algo_example_suite(algos, dal_deps=[], **kwargs):
+def dal_algo_example_suite(algos, dal_deps=[], is_daal=False, **kwargs):
     for algo in algos:
         dal_example_suite(
             name = algo,
+            is_daal = is_daal,
             srcs = native.glob(["source/{}/*.cpp".format(algo)]),
             dal_deps = dal_deps + [
                 "@onedal//cpp/oneapi/dal/algo:{}".format(algo),
@@ -325,20 +336,21 @@ def dal_algo_example_suite(algos, dal_deps=[], **kwargs):
             **kwargs,
         )
 
-def _test_link_mode_deps(dal_deps):
+def _test_link_mode_deps(dal_deps, use_onedal_release_libs=True):
     return _select({
         "@config//:test_link_mode_dev": dal_deps,
         "@config//:test_link_mode_release_static": [
             "@onedal_release//:onedal_static",
-        ],
+        ] if use_onedal_release_libs else [],
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:onedal_dynamic",
-        ],
+        ] if use_onedal_release_libs else [],
     })
 
 def _test_deps_on_daal():
     return _select({
         "@config//:test_link_mode_dev": [
+            "@onedal//cpp/daal:core_static",
             "@onedal//cpp/daal:threading_static",
         ],
         "@config//:test_link_mode_release_static": [
@@ -600,3 +612,29 @@ def _expand_select(deps):
         else:
             expanded += [dep]
     return expanded
+
+def daal_example_suite(name, srcs, **kwargs):
+    dal_example_suite(
+        name = name,
+        srcs = srcs,
+        use_onedal_release_libs = False,
+        is_daal = True,
+        **kwargs,
+    )
+
+def daal_algo_example_suite(algos, dal_deps=[], **kwargs):
+    """Build DAAL example suites using classic DAAL kernel deps.
+
+    Unlike dal_algo_example_suite(), this function does NOT add oneAPI
+    (@onedal//cpp/oneapi/dal/algo/...) targets — DAAL examples use daal.h
+    and depend on DAAL kernels (@onedal//cpp/daal/src/algorithms/<algo>:kernel).
+    """
+    for algo in algos:
+        daal_example_suite(
+            name = algo,
+            srcs = native.glob(["source/{}/*.cpp".format(algo)]),
+            dal_deps = dal_deps + [
+                "@onedal//cpp/daal/src/algorithms/{}:kernel".format(algo),
+            ],
+            **kwargs,
+        )

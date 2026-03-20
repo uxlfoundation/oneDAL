@@ -5,7 +5,7 @@ cc_library(
     hdrs = glob([
         "include/**/*.h",
         "include/oneapi/**/*.hpp",
-    ], allow_empty=True),
+    ]),
     includes = [ "include" ],
 )
 
@@ -43,15 +43,26 @@ cc_library(
     ],
     deps = [
         ":headers",
-        "@mkl//:mkl_core",
+    ],
+)
+
+cc_library(
+    name = "onedal_static_dpc",
+    srcs = [
+        "lib/intel64/libonedal_dpc.a",
+        "lib/intel64/libonedal_parameters_dpc.a",
+    ],
+    deps = [
+        ":headers",
+        "@mkl//:mkl_dpc",
     ],
 )
 
 cc_library(
     name = "core_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_core.so*",
-    ], allow_empty=True),
+        "lib/intel64/libonedal_core.so.%{version_binary_major}.%{version_binary_minor}",
+    ]),
     deps = [
         ":headers",
         # TODO: Currently vml_ipp lib depends on TBB, but it shouldn't
@@ -63,8 +74,8 @@ cc_library(
 cc_library(
     name = "thread_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal_thread.so*",
-    ], allow_empty=True),
+        "lib/intel64/libonedal_thread.so.%{version_binary_major}.%{version_binary_minor}",
+    ]),
     deps = [
         ":headers",
         "@tbb//:tbb_binary",
@@ -75,9 +86,12 @@ cc_library(
 cc_library(
     name = "onedal_dynamic",
     srcs = glob([
-        "lib/intel64/libonedal.so*",
-        "lib/intel64/libonedal_parameters.so*",
-    ], allow_empty=True),
+        # Use exact versioned filenames to avoid linking the same .so multiple
+        # times when the release tree contains .so, .so.<major>, and
+        # .so.<major>.<minor> all pointing to the same library.
+        "lib/intel64/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}.%{version_binary_minor}",
+    ]),
     deps = [
         ":headers",
         "@mkl//:mkl_static",
@@ -87,7 +101,7 @@ cc_library(
 cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
-        "lib/intel64/libonedal_dpc.so*",
+        "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_parameters_dpc.so*",
     ], allow_empty=True),
     deps = [
