@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_types_rbf.h"
+#include "src/algorithms/kernel_function/kernel_function_types_rbf.h"
 #include "src/services/service_defines.h"
 
 using namespace daal::data_management;

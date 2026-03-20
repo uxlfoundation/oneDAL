@@ -26,7 +26,7 @@
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
-#include "algorithms/kernel_function/kernel_function_types_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_types_linear.h"
 #include "algorithms/kernel_function/kernel_function.h"
 
 namespace daal
