@@ -20,15 +20,39 @@
 ; deselect daal::internal namespaces
 
 [suppress_type]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+NK?4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+NK?4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+NK?4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_type]
+symbol_name_regexp = _ZT[VSI]N4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _ZT[VSI]N4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _ZT[VSI]N4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_type]
+symbol_name_regexp = _ZThn8_N4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _ZThn8_N4daal[[:digit:]].*8internal[[:digit:]].*
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _ZThn8_N4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
