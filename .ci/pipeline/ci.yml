@@ -189,6 +189,7 @@ jobs:
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
+      # The issue has been solved in 2026.0 release. Remove after updating conda packages.
       # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
       if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
           sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
@@ -543,28 +544,27 @@ jobs:
       Python311:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
+      Python314_Sklearn18:
+        PYTHON_VERSION: '3.14'
+        SKLEARN_VERSION: '1.8'
+      Python310_Sklearn10:
+        PYTHON_VERSION: '3.10'
+        SKLEARN_VERSION: '1.0'
   steps:
-  - checkout: none
-  - script: |
-      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
-    displayName: 'Clone sklearnex'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: 'oneDAL environment'
-      path: '$(Build.Repository.LocalPath)/.ci/env'
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifact: '$(platform.type) build'
-      path: $(Pipeline.Workspace)
-  - script: |
-      chmod -R 755 .ci/env
-      .ci/env/apt.sh tbb
-    displayName: 'tbb installation'
-  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) sklearnex build'
-      targetPath: '$(Build.Repository.LocalPath)/build'
+steps:
+- checkout: none
+- script: |
+    git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
+  displayName: 'Clone sklearnex'
+- task: DownloadPipelineArtifact@2
+  inputs:
+    artifact: '$(platform.type) build'
+    path: $(Pipeline.Workspace)
+- template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
+- task: PublishPipelineArtifact@1
+  inputs:
+    artifactName: '$(platform.type) sklearnex build'
+    targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
   timeoutInMinutes: 0
@@ -646,6 +646,9 @@ jobs:
       Python311:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
+      Python310_Sklearn10:
+        PYTHON_VERSION: '3.10'
+        SKLEARN_VERSION: '1.0'
   steps:
   - checkout: none
   - script: |

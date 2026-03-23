@@ -171,7 +171,11 @@ if(MKL_DEPENDENCY STREQUAL "yes")
         set(MKL_INTERFACE ilp64)
     else()
         set(MKL_LINK dynamic)
-        set(MKL_THREADING tbb_thread)
+        if(WIN32)
+            set(MKL_THREADING intel_thread)
+        else()
+            set(MKL_THREADING gnu_thread)
+        endif()
         set(MKL_SYCL_LINK dynamic)
         set(MKL_INTERFACE lp64)
         set(MKL_SYCL_INTERFACE lp64)
@@ -184,10 +188,17 @@ if(MKL_DEPENDENCY STREQUAL "yes")
             MKL::mkl_intel_ilp64
             MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
     else()
-        list(APPEND oneDAL_IMPORTED_TARGETS
-            MKL::mkl_core
-            MKL::mkl_intel_lp64
-            MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
+        if(WIN32)
+            list(APPEND oneDAL_IMPORTED_TARGETS
+                MKL::mkl_core
+                MKL::mkl_intel_lp64
+                MKL::mkl_intel_thread${DAL_DEBUG_SUFFIX})
+        else()
+            list(APPEND oneDAL_IMPORTED_TARGETS
+                MKL::mkl_core
+                MKL::mkl_intel_lp64
+                MKL::mkl_gnu_thread${DAL_DEBUG_SUFFIX})
+        endif()
     endif()
 
 endif()
