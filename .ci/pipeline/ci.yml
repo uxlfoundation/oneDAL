@@ -170,7 +170,7 @@ jobs:
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icpx --optimizations avx2 --target onedal_dpc
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
     displayName: 'make onedal_dpc'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -194,7 +194,7 @@ jobs:
     displayName: 'oneapi/cpp examples'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icpx --interface oneapi/dpc --build-system cmake
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/dpc --build-system cmake
     displayName: 'oneapi/dpc examples'
   - script: |
       .ci/env/apt.sh miniforge
