@@ -48,7 +48,6 @@ services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::B
 
 multi_class_classifier::training::ResultPtr trainingResult;
 multi_class_classifier::prediction::ResultPtr predictionResult;
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
 
 void trainModel();
 void testModel();
@@ -62,9 +61,6 @@ int main(int argc, char* argv[]) {
                    &trainDatasetLabelFileName,
                    &testDatasetFileName,
                    &testDatasetLabelFileName);
-
-    training->parameter.kernel = kernel;
-    prediction->parameter.kernel = kernel;
 
     trainModel();
     testModel();

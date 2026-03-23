@@ -25,7 +25,6 @@
 #define __SVM_TRAIN_TYPES_H__
 
 #include "algorithms/algorithm.h"
-#include "algorithms/kernel_function/kernel_function.h"
 #include "algorithms/svm/svm_model.h"
 #include "algorithms/classifier/classifier_training_types.h"
 

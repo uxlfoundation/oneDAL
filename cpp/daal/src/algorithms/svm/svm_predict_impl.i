@@ -30,6 +30,9 @@
 #include "src/externals/service_memory.h"
 #include "src/services/service_environment.h"
 
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
+
 namespace daal
 {
 namespace algorithms
@@ -86,12 +89,12 @@ public:
 
 protected:
     PredictTask(const size_t nRowsPerBlock, const size_t nSVPerBlock, const NumericTablePtr & xTable, const NumericTablePtr & svTable,
-                kernel_function::KernelIfacePtr & kernel)
+                services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : _xTable(xTable), _svTable(svTable), _nFeatures(svTable->getNumberOfColumns())
     {
         _buff.reset(nSVPerBlock * nRowsPerBlock);
-        _kernel = kernel->clone();
-        _shRes  = kernel_function::ResultPtr(new kernel_function::Result());
+        _kernel = services::staticPointerCast<daal_kf_internal::KernelIfaceImpl, kernel_function::KernelIface>(kernel->clone());
+        _shRes  = services::SharedPtr<kernel_function::Result>(new kernel_function::Result());
         _kernel->setResult(_shRes);
     }
 
@@ -103,8 +106,8 @@ protected:
     const NumericTablePtr & _svTable;
     const size_t _nFeatures;
     TArrayScalable<algorithmFPType, cpu> _buff;
-    kernel_function::KernelIfacePtr _kernel;
-    kernel_function::ResultPtr _shRes;
+    services::SharedPtr<daal_kf_internal::KernelIfaceImpl> _kernel;
+    services::SharedPtr<kernel_function::Result> _shRes;
 };
 
 template <typename algorithmFPType, CpuType cpu>
@@ -115,7 +118,7 @@ public:
     virtual ~PredictTaskDense() {}
 
     static Super * create(const size_t nRowsPerBlock, const size_t nSVPerBlock, const NumericTablePtr & xTable, const NumericTablePtr & svTable,
-                          kernel_function::KernelIfacePtr & kernel)
+                          services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
     {
         auto val = new PredictTaskDense(nRowsPerBlock, nSVPerBlock, xTable, svTable, kernel);
         if (val && val->isValid()) return val;
@@ -125,7 +128,7 @@ public:
 
 protected:
     PredictTaskDense(const size_t nRowsPerBlock, const size_t nSVPerBlock, const NumericTablePtr & xTable, const NumericTablePtr & svTable,
-                     kernel_function::KernelIfacePtr & kernel)
+                     services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : Super(nRowsPerBlock, nSVPerBlock, xTable, svTable, kernel)
     {}
 
@@ -156,7 +159,7 @@ public:
     virtual ~PredictTaskCSR() {}
 
     static Super * create(const size_t nRowsPerBlock, const size_t nSVPerBlock, const NumericTablePtr & xTable, const NumericTablePtr & svTable,
-                          kernel_function::KernelIfacePtr & kernel)
+                          services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
     {
         auto val = new PredictTaskCSR(nRowsPerBlock, nSVPerBlock, xTable, svTable, kernel);
         if (val && val->isValid()) return val;
@@ -166,7 +169,7 @@ public:
 
 protected:
     PredictTaskCSR(const size_t nRowsPerBlock, const size_t nSVPerBlock, const NumericTablePtr & xTable, const NumericTablePtr & svTable,
-                   kernel_function::KernelIfacePtr & kernel)
+                   services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : Super(nRowsPerBlock, nSVPerBlock, xTable, svTable, kernel)
     {}
 
@@ -203,7 +206,7 @@ struct SVMPredictImpl<defaultDense, algorithmFPType, cpu> : public Kernel
     using TPredictTask = PredictTask<algorithmFPType, cpu>;
 
     services::Status computeSequential(const NumericTablePtr & xTable, const NumericTablePtr & svCoeffTable, const NumericTablePtr & svTable,
-                                       NumericTable & r, kernel_function::KernelIfacePtr & kernel, const algorithmFPType bias, const size_t nVectors,
+                                       NumericTable & r, services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, const algorithmFPType bias, const size_t nVectors,
                                        const size_t nSV, const bool isSparse)
     {
         services::Status st;
@@ -249,7 +252,7 @@ struct SVMPredictImpl<defaultDense, algorithmFPType, cpu> : public Kernel
     }
 
     services::Status computeThreading(const NumericTablePtr & xTable, const NumericTablePtr & svCoeffTable, const NumericTablePtr & svTable,
-                                      NumericTable & r, kernel_function::KernelIfacePtr & kernel, const algorithmFPType bias, const size_t nVectors,
+                                      NumericTable & r, services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, const algorithmFPType bias, const size_t nVectors,
                                       const size_t nSV, const bool isSparse, const size_t nRowsPerBlock, const size_t nBlocks,
                                       const size_t nSVPerBlock, const size_t nBlocksSV)
     {
@@ -326,7 +329,7 @@ struct SVMPredictImpl<defaultDense, algorithmFPType, cpu> : public Kernel
     {
         services::Status st;
 
-        kernel_function::KernelIfacePtr kernel = par->kernel->clone();
+        services::SharedPtr<daal_kf_internal::KernelIfaceImpl> kernel = services::staticPointerCast<daal_kf_internal::KernelIfaceImpl, kernel_function::KernelIface>(par->kernel->clone());
         DAAL_CHECK(kernel, ErrorNullParameterNotSupported);
 
         const NumericTablePtr svCoeffTable = model->getClassificationCoefficients();

@@ -28,8 +28,6 @@
 #include "data_management/data/csr_numeric_table.h"
 #include "algorithms/model.h"
 #include "algorithms/kernel_function/kernel_function.h"
-#include "algorithms/kernel_function/kernel_function_linear.h"
-#include "algorithms/kernel_function/kernel_function_types.h"
 #include "algorithms/classifier/classifier_model.h"
 
 namespace daal
@@ -65,18 +63,9 @@ namespace interface2
 /* [Parameter source code] */
 struct DAAL_EXPORT Parameter : public classifier::Parameter
 {
-    Parameter(const services::SharedPtr<kernel_function::KernelIface> & kernelForParameter =
-                  services::SharedPtr<kernel_function::KernelIface>(new kernel_function::linear::Batch<>()),
+    Parameter(const services::SharedPtr<kernel_function::KernelIface> & kernelForParameter = services::SharedPtr<kernel_function::KernelIface>(),
               double C = 1.0, double accuracyThreshold = 0.001, double tau = 1.0e-6, size_t maxIterations = 1000000, size_t cacheSize = 8000000,
-              bool doShrinking = true, size_t shrinkingStep = 1000)
-        : C(C),
-          accuracyThreshold(accuracyThreshold),
-          tau(tau),
-          maxIterations(maxIterations),
-          cacheSize(cacheSize),
-          doShrinking(doShrinking),
-          shrinkingStep(shrinkingStep),
-          kernel(kernelForParameter) {};
+              bool doShrinking = true, size_t shrinkingStep = 1000);
 
     double C;                                           /*!< Upper bound in constraints of the quadratic optimization problem */
     double accuracyThreshold;                           /*!< Training accuracy */

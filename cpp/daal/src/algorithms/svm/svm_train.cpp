@@ -24,6 +24,8 @@
 #include "algorithms/svm/svm_train_types.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
+#include "src/algorithms/kernel_function/kernel_function_types_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_linear.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -42,6 +44,24 @@ __DAAL_REGISTER_SERIALIZATION_CLASS(Model, SERIALIZATION_SVM_MODEL_ID);
 
 namespace interface2
 {
+Parameter::Parameter(const services::SharedPtr<kernel_function::KernelIface> & kernelForParameter, double C, double accuracyThreshold, double tau,
+                     size_t maxIterations, size_t cacheSize, bool doShrinking, size_t shrinkingStep)
+    : C(C),
+      accuracyThreshold(accuracyThreshold),
+      tau(tau),
+      maxIterations(maxIterations),
+      cacheSize(cacheSize),
+      doShrinking(doShrinking),
+      shrinkingStep(shrinkingStep),
+      kernel(kernelForParameter)
+{
+    // Create default linear kernel if none provided
+    if (!kernel)
+    {
+        kernel = services::SharedPtr<kernel_function::KernelIface>(new kernel_function::linear::Batch<>());
+    }
+}
+
 services::Status Parameter::check() const
 {
     services::Status s;

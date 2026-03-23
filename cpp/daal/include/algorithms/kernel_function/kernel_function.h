@@ -25,8 +25,7 @@
 #define __KERNEL_FUNCTION_H__
 
 #include "algorithms/algorithm.h"
-#include "data_management/data/numeric_table.h"
-#include "algorithms/kernel_function/kernel_function_types.h"
+#include "services/daal_shared_ptr.h"
 
 namespace daal
 {
@@ -44,55 +43,13 @@ namespace interface1
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__KERNELIFACE"></a>
  * \brief Abstract class that specifies the interface of the algorithms
  *        for computing kernel functions in the batch processing mode
+ *
+ * \DAAL_DEPRECATED
  */
-class KernelIface : public daal::algorithms::Analysis<batch>
+class DAAL_EXPORT KernelIface : public daal::algorithms::Analysis<batch>
 {
 public:
-    typedef algorithms::kernel_function::Input InputType;
-    typedef algorithms::kernel_function::ParameterBase ParameterType;
-    typedef algorithms::kernel_function::Result ResultType;
-
-    KernelIface() { initialize(); }
-
-    /**
-     * Constructs an algorithm for computing kernel functions by copying input objects and parameters
-     * of another algorithm for computing kernel functions
-     * \param[in] other An algorithm to be used as the source to initialize the input objects
-     *                  and parameters of the algorithm
-     */
-    KernelIface(const KernelIface & /*other*/) { initialize(); }
-
-    /**
-     * Get input objects for the kernel function algorithm
-     * \return %Input objects for the kernel function algorithm
-     */
-    virtual Input * getInput() = 0;
-
-    /**
-     * Get parameters of the kernel function algorithm
-     * \return Parameters of the kernel function algorithm
-     */
-    virtual ParameterBase * getParameter() = 0;
-
     virtual ~KernelIface() {}
-
-    /**
-     * Returns the structure that contains computed results of the kernel function algorithm
-     * \returns the Structure that contains computed results of the kernel function algorithm
-     */
-    ResultPtr getResult() { return _result; }
-
-    /**
-     * Registers user-allocated memory to store results of the kernel function algorithm
-     * \param[in] res  Structure to store the results
-     */
-    services::Status setResult(const ResultPtr & res)
-    {
-        DAAL_CHECK(res, services::ErrorNullResult)
-        _result = res;
-        _res    = _result.get();
-        return services::Status();
-    }
 
     /**
      * Returns a pointer to the newly allocated algorithm for computing kernel functions with a copy of input objects
@@ -102,9 +59,9 @@ public:
     DAAL_FORCEINLINE services::SharedPtr<KernelIface> clone() const { return services::SharedPtr<KernelIface>(cloneImpl()); }
 
 protected:
-    void initialize() { _result = ResultPtr(new kernel_function::Result()); }
+    KernelIface() {}
+    KernelIface(const KernelIface &) {}
     KernelIface * cloneImpl() const override = 0;
-    ResultPtr _result;
 
 private:
     KernelIface & operator=(const KernelIface &);

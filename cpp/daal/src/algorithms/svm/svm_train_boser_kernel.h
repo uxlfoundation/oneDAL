@@ -31,6 +31,7 @@
 #include "data_management/data/numeric_table.h"
 #include "algorithms/model.h"
 #include "services/daal_defines.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 #include "src/algorithms/svm/svm_train_boser_cache.i"
 
 namespace daal

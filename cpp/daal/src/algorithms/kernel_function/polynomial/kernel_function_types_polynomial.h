@@ -18,7 +18,7 @@
 #ifndef __KERNEL_FUNCTION_TYPES_POLYNOMIAL_H__
 #define __KERNEL_FUNCTION_TYPES_POLYNOMIAL_H__
 
-#include "algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 #include "src/algorithms/kernel_function/kernel_function_dense_base.h"
 
 namespace daal

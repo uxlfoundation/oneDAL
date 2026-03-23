@@ -59,6 +59,9 @@
 
 #include "src/algorithms/svm/svm_train_common_impl.i"
 
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
+
 namespace daal
 {
 namespace algorithms
@@ -85,7 +88,7 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
     const algorithmFPType nu                = svmPar.nu;
     const size_t maxIterations              = svmPar.maxIterations;
     const size_t cacheSize                  = svmPar.cacheSize;
-    const auto kernel                       = svmPar.kernel->clone();
+    const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> kernel = services::staticPointerCast<daal_kf_internal::KernelIfaceImpl, kernel_function::KernelIface>(svmPar.kernel->clone());
     const auto svmType                      = svmPar.svmType;
 
     const size_t nVectors = xTable->getNumberOfRows();
@@ -588,7 +591,7 @@ bool SVMTrainImpl<thunder, algorithmFPType, cpu>::checkStopCondition(const algor
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::initGrad(const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel,
+services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::initGrad(const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel,
                                                                        const size_t nVectors, const size_t nTrainVectors, algorithmFPType * const y,
                                                                        algorithmFPType * const alpha, algorithmFPType * grad)
 {

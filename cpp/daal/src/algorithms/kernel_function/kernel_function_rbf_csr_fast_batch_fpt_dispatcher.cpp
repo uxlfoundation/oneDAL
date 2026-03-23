@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_rbf.h"
+#include "src/algorithms/kernel_function/kernel_function_rbf.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_batch_container.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_csr_fast_kernel.h"
 
@@ -52,7 +52,7 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::rbf::fastCSR>::Batch()
 using BatchType = Batch<DAAL_FPTYPE, kernel_function::rbf::fastCSR>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : kernel_function::internal::KernelIfaceImpl(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }

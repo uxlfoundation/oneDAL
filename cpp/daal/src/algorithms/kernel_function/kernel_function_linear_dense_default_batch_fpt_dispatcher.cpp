@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_linear.h"
 #include "src/algorithms/kernel_function/kernel_function_linear_batch_container.h"
 
 namespace daal
@@ -51,7 +51,7 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>::Batch()
 using BatchType = Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), parameter(other.parameter), input(other.input)
+DAAL_EXPORT BatchType::Batch(const BatchType & other) : kernel_function::internal::KernelIfaceImpl(other), parameter(other.parameter), input(other.input)
 {
     initialize();
 }

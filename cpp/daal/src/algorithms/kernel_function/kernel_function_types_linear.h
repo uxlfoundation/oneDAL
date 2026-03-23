@@ -24,7 +24,7 @@
 #ifndef __KERNEL_FUNCTION_TYPES_LINEAR_H__
 #define __KERNEL_FUNCTION_TYPES_LINEAR_H__
 
-#include "algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 
 namespace daal
 {

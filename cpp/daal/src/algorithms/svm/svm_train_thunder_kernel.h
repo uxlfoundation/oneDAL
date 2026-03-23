@@ -30,8 +30,13 @@
 #include "algorithms/svm/svm_train_types.h"
 #include "src/algorithms/kernel.h"
 #include "src/data_management/service_micro_table.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
 
 #include "src/algorithms/svm/svm_train_kernel.h"
+
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
 
 namespace daal
 {
@@ -68,7 +73,7 @@ private:
 
     bool checkStopCondition(const algorithmFPType diff, const algorithmFPType diffPrev, const algorithmFPType eps, size_t & sameLocalDiff);
 
-    services::Status initGrad(const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel, const size_t nVectors,
+    services::Status initGrad(const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, const size_t nVectors,
                               const size_t nTrainVectors, algorithmFPType * const y, algorithmFPType * const alpha, algorithmFPType * grad);
 
     // One of the conditions for stopping is diff stays unchanged. nNoChanges - number of repetitions

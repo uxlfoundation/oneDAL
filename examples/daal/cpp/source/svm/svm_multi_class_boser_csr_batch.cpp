@@ -49,8 +49,6 @@ services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::B
 
 multi_class_classifier::training::ResultPtr trainingResult;
 multi_class_classifier::prediction::ResultPtr predictionResult;
-kernel_function::KernelIfacePtr kernel(
-    new kernel_function::linear::Batch<float, kernel_function::linear::fastCSR>());
 NumericTablePtr testGroundTruth;
 
 void trainModel();
@@ -67,8 +65,6 @@ int main(int argc, char* argv[]) {
                    &testLabelsFileName);
 
     training->parameter.cacheSize = 100000000;
-    training->parameter.kernel = kernel;
-    prediction->parameter.kernel = kernel;
 
     trainModel();
     testModel();

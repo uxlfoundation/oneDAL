@@ -1,4 +1,4 @@
-/* file: kernel_function_rbf.h */
+/* file: kernel_function_linear.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,17 +17,17 @@
 
 /*
 //++
-//  Implementation of the interface for the radial basis function (RBF) kernel algorithm
+//  Implementation of the interface for the linear kernel function algorithm
 //--
 */
 
-#ifndef __KERNEL_FUNCTION_RBF_H__
-#define __KERNEL_FUNCTION_RBF_H__
+#ifndef __KERNEL_FUNCTION_LINEAR_H__
+#define __KERNEL_FUNCTION_LINEAR_H__
 
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
-#include "algorithms/kernel_function/kernel_function_types_rbf.h"
-#include "algorithms/kernel_function/kernel_function.h"
+#include "src/algorithms/kernel_function/kernel_function_types_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
 
 namespace daal
 {
@@ -35,21 +35,21 @@ namespace algorithms
 {
 namespace kernel_function
 {
-namespace rbf
+namespace linear
 {
 namespace interface1
 {
 /**
- * @defgroup kernel_function_rbf_batch Batch
- * @ingroup kernel_function_rbf
+ * @defgroup kernel_function_linear_batch Batch
+ * @ingroup kernel_function_linear
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RBF__BATCH"></a>
- * \brief Computes the RBF kernel function in the batch processing mode.
- * <!-- \n<a href="DAAL-REF-KERNEL_FUNCTION_RBF-ALGORITHM">Kernel function algorithm description and usage models</a> -->
+ * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__LINEAR__BATCH"></a>
+ * \brief Computes a linear kernel function in the batch processing mode.
+ * <!-- \n<a href="DAAL-REF-KERNEL_FUNCTION_LINEAR-ALGORITHM">Kernel function algorithm description and usage models</a> -->
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
+ * \tparam algorithmFPType  Data type to use in intermediate computations  of kernel functions, double or float
  * \tparam method           Computation method of the algorithm, \ref Method
  *
  * \par Enumerations
@@ -63,13 +63,13 @@ namespace interface1
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public KernelIface
+class DAAL_EXPORT Batch : public internal::KernelIfaceImpl
 {
 public:
-    typedef KernelIface super;
+    typedef internal::KernelIfaceImpl super;
 
-    typedef algorithms::kernel_function::rbf::Input InputType;
-    typedef algorithms::kernel_function::rbf::Parameter ParameterType;
+    typedef algorithms::kernel_function::linear::Input InputType;
+    typedef algorithms::kernel_function::linear::Parameter ParameterType;
     typedef typename super::ResultType ResultType;
 
     ParameterType parameter; /*!< Parameter of the kernel function*/
@@ -79,8 +79,8 @@ public:
     DAAL_DEPRECATED Batch();
 
     /**
-     * Constructs RBF kernel function algorithm by copying input objects and parameters
-     * of another RBF kernel function algorithm
+     * Constructs linear kernel function algorithm by copying input objects and parameters
+     * of another linear kernel function algorithm
      * \param[in] other An algorithm to be used as the source to initialize the input objects
      *                  and parameters of the algorithm
      */
@@ -105,14 +105,15 @@ public:
     ParameterBase * getParameter() override { return &parameter; }
 
     /**
-     * Returns a pointer to the newly allocated RBF kernel function algorithm with a copy of input objects
-     * and parameters of this RBF kernel function algorithm
+     * Returns a pointer to the newly allocated linear kernel function algorithm with a copy of input objects
+     * and parameters of this linear kernel function algorithm
      * \return Pointer to the newly allocated algorithm
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
     void initialize();
+
     Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
@@ -129,7 +130,7 @@ private:
 } // namespace interface1
 using interface1::Batch;
 
-} // namespace rbf
+} // namespace linear
 } // namespace kernel_function
 } // namespace algorithms
 } // namespace daal

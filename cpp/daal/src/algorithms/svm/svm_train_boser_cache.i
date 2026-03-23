@@ -30,6 +30,10 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_profiler.h"
 #include "src/algorithms/svm/svm_train_cache.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
+
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
 
 namespace daal
 {
@@ -108,7 +112,7 @@ protected:
      * \param[in] doShrinking   Flag that enables use of the shrinking optimization technique
      * \param[in] kernel        Kernel function
      */
-    SVMCacheImpl(size_t lineSize, bool doShrinking, const kernel_function::KernelIfacePtr & kernel)
+    SVMCacheImpl(size_t lineSize, bool doShrinking, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : _lineSize(lineSize), _doShrinking(doShrinking), _kernel(kernel)
     {}
 
@@ -126,7 +130,7 @@ protected:
 protected:
     TArray<algorithmFPType, cpu> _cache;
     const size_t _lineSize;                        /*!< Number of elements in the cache line */
-    const kernel_function::KernelIfacePtr _kernel; /*!< Kernel function */
+    const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> _kernel; /*!< Kernel function */
     const bool _doShrinking;                       /*!< Flag that enables use of the shrinking optimization technique */
     TArray<size_t, cpu> _shrinkingRowIndices;      /*!< Array of input data row indices used with shrinking technique */
 };
@@ -156,7 +160,7 @@ public:
      * \param[in] xTable        Input data set
      * \param[in] kernel        Kernel function
      */
-    static SVMCache * create(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel,
+    static SVMCache * create(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel,
                              Status & s)
     {
         s.clear();
@@ -217,7 +221,7 @@ protected:
 
         auto kfResultPtr = new kernel_function::Result();
         DAAL_CHECK_MALLOC(kfResultPtr)
-        kernel_function::ResultPtr shRes(kfResultPtr);
+        services::SharedPtr<kernel_function::Result> shRes(kfResultPtr);
         shRes->set(kernel_function::values, _cacheTable);
         _kernel->setResult(shRes);
         return _kernel->computeNoThrow();
@@ -229,7 +233,7 @@ protected:
     * \param[in] xTable        Input data set
     * \param[in] kernel        Kernel function
     */
-    SVMCache(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel)
+    SVMCache(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : super(lineSize, doShrinking, kernel), _nLines(lineSize)
     {}
 
@@ -264,7 +268,7 @@ public:
      * \param[in] kernel        Kernel function
      */
     static SVMCache * create(size_t cacheSize, size_t lineSize, bool doShrinking, const NumericTablePtr & xTable,
-                             const kernel_function::KernelIfacePtr & kernel, Status & s)
+                             const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, Status & s)
     {
         s.clear();
         this_type * res = new this_type(lineSize, doShrinking, xTable, kernel);
@@ -308,7 +312,7 @@ protected:
      * \param[in] xTable        Input data set
      * \param[in] kernel        Kernel function
      */
-    SVMCache(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel)
+    SVMCache(size_t lineSize, bool doShrinking, const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : super(lineSize, doShrinking, kernel)
     {}
 
@@ -326,7 +330,7 @@ protected:
 
         auto kfResultPtr = new kernel_function::Result();
         DAAL_CHECK_MALLOC(kfResultPtr)
-        kernel_function::ResultPtr shRes(kfResultPtr);
+        services::SharedPtr<kernel_function::Result> shRes(kfResultPtr);
         shRes->set(kernel_function::values, _cacheTable);
         _kernel->setResult(shRes);
         return s;

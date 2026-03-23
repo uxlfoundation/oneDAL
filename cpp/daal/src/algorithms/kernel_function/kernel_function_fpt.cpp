@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 #include "data_management/data/homogen_numeric_table.h"
 
 namespace daal

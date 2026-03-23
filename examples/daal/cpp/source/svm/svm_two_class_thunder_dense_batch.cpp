@@ -40,9 +40,6 @@ const std::string trainDatasetLabelFileName = "data/svm_two_class_train_dense_la
 const std::string testDatasetFileName = "data/svm_two_class_test_dense_data.csv";
 const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_label.csv";
 
-/* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
-
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
@@ -84,8 +81,6 @@ void trainModel() {
     /* Create an algorithm object to train the SVM model using the Thunder method */
     svm::training::Batch<float, svm::training::thunder> algorithm;
 
-    algorithm.parameter.kernel = kernel;
-
     /* Pass a training data set and dependent values to the algorithm */
     algorithm.input.set(classifier::training::data, trainDataSource.getNumericTable());
     algorithm.input.set(classifier::training::labels, trainLabelSource.getNumericTable());
@@ -108,8 +103,6 @@ void testModel() {
 
     /* Create an algorithm object to predict SVM values */
     svm::prediction::Batch<> algorithm;
-
-    algorithm.parameter.kernel = kernel;
 
     /* Pass a testing data set and the trained model to the algorithm */
     algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());

@@ -29,6 +29,11 @@
 #include "services/daal_defines.h"
 #include "algorithms/svm/svm_predict_types.h"
 #include "src/algorithms/kernel.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
+
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
 
 namespace daal
 {
@@ -48,12 +53,12 @@ struct SVMPredictImpl : public Kernel
 
     services::Status computeSequential(const data_management::NumericTablePtr & xTable, const data_management::NumericTablePtr & svCoeffTable,
                                        const data_management::NumericTablePtr & svTable, data_management::NumericTable & r,
-                                       kernel_function::KernelIfacePtr & kernel, const algorithmFPType bias, const size_t nVectors, const size_t nSV,
+                                       services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, const algorithmFPType bias, const size_t nVectors, const size_t nSV,
                                        const bool isSparse);
 
     services::Status computeThreading(const data_management::NumericTablePtr & xTable, const data_management::NumericTablePtr & svCoeffTable,
                                       const data_management::NumericTablePtr & svTable, data_management::NumericTable & r,
-                                      kernel_function::KernelIfacePtr & kernel, const algorithmFPType bias, const size_t nVectors, const size_t nSV,
+                                      services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel, const algorithmFPType bias, const size_t nVectors, const size_t nSV,
                                       const bool isSparse, const size_t nRowsPerBlock, const size_t nBlocks);
 };
 

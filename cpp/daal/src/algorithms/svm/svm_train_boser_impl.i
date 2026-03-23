@@ -49,6 +49,9 @@
 #include "src/algorithms/svm/svm_train_result.h"
 #include "src/algorithms/svm/svm_train_common_impl.i"
 
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
+
 namespace daal
 {
 namespace algorithms
@@ -466,7 +469,7 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::setup(const KernelParameter
     _kernelDiag.reset(_nVectors);
     DAAL_CHECK_MALLOC(_alpha.get() && _flags.get() && _y.get() && _grad.get() && _cw.get() && _kernelDiag.get());
 
-    kernel_function::KernelIfacePtr kernel = svmPar.kernel->clone();
+    services::SharedPtr<daal_kf_internal::KernelIfaceImpl> kernel = services::staticPointerCast<daal_kf_internal::KernelIfaceImpl, kernel_function::KernelIface>(svmPar.kernel->clone());
     size_t cacheSize                       = svmPar.cacheSize;
     services::Status s;
     if (cacheSize >= _nVectors * _nVectors * sizeof(algorithmFPType))

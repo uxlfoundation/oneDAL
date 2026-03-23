@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
 

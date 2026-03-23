@@ -47,7 +47,6 @@ const size_t nClasses = 3;
 services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::Batch<>());
 
 classifier::prediction::ResultPtr predictionResult;
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
 NumericTablePtr testGroundTruth;
 
 multi_class_classifier::ModelPtr buildModelFromTraining();
@@ -63,7 +62,7 @@ int main(int argc, char* argv[]) {
                    &trainedModelsFileNames[2]);
 
     multi_class_classifier::ModelPtr builtModel = buildModelFromTraining();
-    prediction->parameter.kernel = kernel;
+    // Note: kernel is now created by default in SVM parameter (linear kernel)
     testModel(builtModel);
     return 0;
 }

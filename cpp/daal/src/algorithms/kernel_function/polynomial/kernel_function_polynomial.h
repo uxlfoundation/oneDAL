@@ -21,7 +21,7 @@
 #include "algorithms/algorithm.h"
 #include "data_management/data/numeric_table.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_types_polynomial.h"
-#include "algorithms/kernel_function/kernel_function.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
 
 namespace daal
 {
@@ -45,10 +45,10 @@ public:
 };
 
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public KernelIface
+class DAAL_EXPORT Batch : public kernel_function::internal::KernelIfaceImpl
 {
 public:
-    typedef KernelIface super;
+    typedef kernel_function::internal::KernelIfaceImpl super;
 
     typedef algorithms::kernel_function::polynomial::internal::Input InputType;
     typedef algorithms::kernel_function::polynomial::internal::Parameter ParameterType;

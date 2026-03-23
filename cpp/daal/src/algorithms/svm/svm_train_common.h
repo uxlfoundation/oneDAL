@@ -22,6 +22,7 @@
 #include "src/services/service_profiler.h"
 #include "src/services/service_utils.h"
 #include "src/algorithms/service_hash_table.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
 
 namespace daal
 {

@@ -42,9 +42,6 @@ const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_labe
 const size_t nFeatures = 20;
 const float bias = -0.562F;
 
-/* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
-
 void testModel(svm::ModelPtr &);
 svm::ModelPtr buildModelFromTraining();
 
@@ -124,8 +121,6 @@ void testModel(svm::ModelPtr &inputModel) {
 
     /* Create an algorithm object to predict SVM values */
     svm::prediction::Batch<float> algorithm;
-
-    algorithm.parameter.kernel = kernel;
 
     /* Pass a testing data set and the trained model to the algorithm */
     algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());

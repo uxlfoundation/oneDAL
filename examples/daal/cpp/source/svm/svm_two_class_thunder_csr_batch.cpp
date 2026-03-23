@@ -41,10 +41,6 @@ const std::string trainLabelsFileName = "data/svm_two_class_train_sparse_labels.
 const std::string testDatasetFileName = "data/svm_two_class_test_csr.csv";
 const std::string testLabelsFileName = "data/svm_two_class_test_sparse_labels.csv";
 
-/* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(
-    new kernel_function::linear::Batch<float, kernel_function::linear::fastCSR>());
-
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
@@ -86,8 +82,6 @@ void trainModel() {
     /* Create an algorithm object to train the SVM model */
     svm::training::Batch<float, svm::training::thunder> algorithm;
 
-    algorithm.parameter.kernel = kernel;
-
     /* Pass a training data set and dependent values to the algorithm */
     algorithm.input.set(classifier::training::data, trainData);
     algorithm.input.set(classifier::training::labels, trainLabelsDataSource.getNumericTable());
@@ -105,8 +99,6 @@ void testModel() {
 
     /* Create an algorithm object to predict SVM values */
     svm::prediction::Batch<> algorithm;
-
-    algorithm.parameter.kernel = kernel;
 
     /* Pass a testing data set and the trained model to the algorithm */
     algorithm.input.set(classifier::prediction::data, testData);

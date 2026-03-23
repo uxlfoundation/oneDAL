@@ -28,9 +28,14 @@
 #include "src/externals/service_memory.h"
 #include "src/data_management/service_micro_table.h"
 #include "src/data_management/service_numeric_table.h"
+#include "src/algorithms/kernel_function/kernel_function_types.h"
+#include "src/algorithms/kernel_function/kernel_function_iface_impl.h"
 #include "src/algorithms/svm/svm_train_cache.h"
 #include "src/externals/service_service.h"
 #include "data_management/data/soa_numeric_table.h"
+
+// Typedef to avoid namespace conflicts with local 'internal'
+namespace daal_kf_internal = ::daal::algorithms::kernel_function::internal;
 
 namespace daal
 {
@@ -62,13 +67,13 @@ public:
     virtual services::Status resize(const size_t nSize) = 0;
 
 protected:
-    SVMCacheIface(const size_t cacheSize, const size_t lineSize, const kernel_function::KernelIfacePtr & kernel)
+    SVMCacheIface(const size_t cacheSize, const size_t lineSize, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : _lineSize(lineSize), _cacheSize(cacheSize), _kernel(kernel)
     {}
 
     const size_t _lineSize;                        /*!< Number of elements in the cache line */
     const size_t _cacheSize;                       /*!< Number of cache lines */
-    const kernel_function::KernelIfacePtr _kernel; /*!< Kernel function */
+    const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> _kernel; /*!< Kernel function */
 };
 
 /**
@@ -89,7 +94,7 @@ public:
     DAAL_NEW_DELETE();
 
     static SVMCachePtr<thunder, algorithmFPType, cpu> create(const size_t cacheSize, const size_t nSize, const size_t lineSize,
-                                                             const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel,
+                                                             const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel,
                                                              services::Status & status)
     {
         services::SharedPtr<thisType> res = services::SharedPtr<thisType>(new thisType(cacheSize, lineSize, xTable, kernel));
@@ -175,7 +180,7 @@ public:
     }
 
 protected:
-    SVMCache(const size_t cacheSize, const size_t lineSize, const NumericTablePtr & xTable, const kernel_function::KernelIfacePtr & kernel)
+    SVMCache(const size_t cacheSize, const size_t lineSize, const NumericTablePtr & xTable, const services::SharedPtr<daal_kf_internal::KernelIfaceImpl> & kernel)
         : super(cacheSize, lineSize, kernel), _lruCache(cacheSize), _xTable(xTable)
     {}
 
@@ -200,7 +205,7 @@ protected:
         _kernel->getInput()->set(kernel_function::X, _xTable);
         _kernel->getInput()->set(kernel_function::Y, _blockTask->getTableData());
 
-        kernel_function::ResultPtr shRes(new kernel_function::Result());
+        services::SharedPtr<kernel_function::Result> shRes(new kernel_function::Result());
         shRes->set(kernel_function::values, kernelComputeTable);
         _kernel->setResult(shRes);
         DAAL_CHECK_STATUS(status, _kernel->computeNoThrow());
