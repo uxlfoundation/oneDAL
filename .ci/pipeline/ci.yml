@@ -155,6 +155,9 @@ jobs:
       .ci/env/apt.sh dev-base
     displayName: 'apt-get install'
   - script: |
+      .ci/env/apt.sh dpcpp
+    displayName: 'dpcpp installation'
+  - script: |
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: |
