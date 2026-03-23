@@ -99,7 +99,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     kernelPar.rowIndexResult  = par->rowIndexResult;
     kernelPar.computationMode = par->computationMode;
     kernelPar.sigma           = static_cast<const Parameter *>(par)->sigma;
-    kernelPar.kernelType      = KernelType::rbf;
+    kernelPar.kernelType      = kernel_function::internal::KernelType::rbf;
 
     if (method == fastCSR)
     {

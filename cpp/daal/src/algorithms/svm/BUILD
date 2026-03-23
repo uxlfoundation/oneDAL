@@ -8,5 +8,6 @@ daal_module(
         "@onedal//cpp/daal:core",
         "@onedal//cpp/daal:engines",
         "@onedal//cpp/daal/src/algorithms/classifier:kernel",
+        "@onedal//cpp/daal/src/algorithms/kernel_function:kernel",
     ],
 )

@@ -43,7 +43,7 @@ struct DAAL_EXPORT Parameter : public ParameterBase
     double scale;  /*!< Polynomial kernel coefficient k in the (k(X,Y) + b)^d model */
     double shift;  /*!< Polynomial kernel coefficient b in the (k(X,Y) + b)^d model */
     size_t degree; /*!< Polynomial kernel coefficient d in the (k(X,Y) + b)^d model */
-    KernelType kernelType = KernelType::polynomial;
+    kernel_function::internal::KernelType kernelType = kernel_function::internal::KernelType::polynomial;
 };
 
 class DAAL_EXPORT Input : public kernel_function::Input

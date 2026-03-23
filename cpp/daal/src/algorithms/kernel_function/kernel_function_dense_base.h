@@ -86,7 +86,6 @@ struct KernelImplBase : public Kernel
 };
 
 } // namespace internal
-using internal::KernelType;
 using internal::KernelParameter;
 } // namespace kernel_function
 } // namespace algorithms

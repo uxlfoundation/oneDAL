@@ -104,7 +104,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     kernelPar.scale           = static_cast<const Parameter *>(par)->k;
     kernelPar.shift           = static_cast<const Parameter *>(par)->b;
     kernelPar.degree          = 1;
-    kernelPar.kernelType      = KernelType::linear;
+    kernelPar.kernelType      = kernel_function::internal::KernelType::linear;
 
     __DAAL_CALL_KERNEL(env, poly::KernelImplPolynomial,
                        __DAAL_KERNEL_ARGUMENTS((method == defaultDense) ? poly::defaultDense : poly::fastCSR, algorithmFPType), compute, a[0], a[1],

@@ -41,7 +41,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                                                                                                        const NumericTable * a2, NumericTable * r,
                                                                                                        const KernelParameter * par)
 {
-    if (par->kernelType != KernelType::linear)
+    if (par->kernelType != kernel_function::internal::KernelType::linear)
     {
         return services::ErrorMethodNotImplemented;
     }
@@ -111,11 +111,11 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
         dataR[i] = k * dataR[i];
     }
 
-    if (par->kernelType == KernelType::sigmoid)
+    if (par->kernelType == kernel_function::internal::KernelType::sigmoid)
     {
         daal::internal::MathInst<algorithmFPType, cpu>::vTanh(nVectors1, dataR, dataR);
     }
-    if (par->kernelType == KernelType::polynomial)
+    if (par->kernelType == kernel_function::internal::KernelType::polynomial)
     {
         daal::internal::MathInst<algorithmFPType, cpu>::vPowx(nVectors1, dataR, par->degree, dataR);
     }
@@ -141,7 +141,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
     algorithmFPType beta  = 0.0;
     algorithmFPType one   = 1.0;
     algorithmFPType shift = (algorithmFPType)(par->shift);
-    const size_t degree   = (par->kernelType == KernelType::sigmoid) ? 1 : static_cast<size_t>(par->degree);
+    const size_t degree   = (par->kernelType == kernel_function::internal::KernelType::sigmoid) ? 1 : static_cast<size_t>(par->degree);
 
     const bool isSOARes = r->getDataLayout() & NumericTableIface::soa;
 
@@ -203,7 +203,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                             dataR[i * nVectors2 + j] = one;
                         }
                     }
-                    if (par->kernelType == KernelType::sigmoid)
+                    if (par->kernelType == kernel_function::internal::KernelType::sigmoid)
                     {
                         daal::internal::MathInst<algorithmFPType, cpu>::vTanh(nRowsInBlock2, dataR + i * nVectors2, dataR + i * nVectors2);
                     }
@@ -237,7 +237,7 @@ services::Status KernelImplPolynomial<defaultDense, algorithmFPType, cpu>::compu
                     }
                 }
 
-                if (par->kernelType == KernelType::sigmoid)
+                if (par->kernelType == kernel_function::internal::KernelType::sigmoid)
                 {
                     daal::internal::MathInst<algorithmFPType, cpu>::vTanh(blockSize * blockSize, mklBuff, mklBuff);
                 }

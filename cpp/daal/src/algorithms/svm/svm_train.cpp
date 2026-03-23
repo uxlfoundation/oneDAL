@@ -24,7 +24,6 @@
 #include "algorithms/svm/svm_train_types.h"
 #include "src/services/serialization_utils.h"
 #include "src/services/daal_strings.h"
-#include "src/algorithms/kernel_function/kernel_function_types_linear.h"
 #include "src/algorithms/kernel_function/kernel_function_linear.h"
 
 using namespace daal::data_management;

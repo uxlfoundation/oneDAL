@@ -33,12 +33,22 @@ namespace algorithms
 {
 namespace kernel_function
 {
+/**
+ * @ingroup kernel_function
+ * @{
+ */
 namespace interface1
 {
 /**
- * @addtogroup kernel_function
- * @{
+ * \brief Kernel function types
  */
+enum class KernelType
+{
+    linear,       /*!< Linear kernel */
+    rbf,          /*!< Radial Basis Function (RBF) kernel */
+    polynomial    /*!< Polynomial kernel */
+};
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__KERNELIFACE"></a>
  * \brief Abstract class that specifies the interface of the algorithms
@@ -69,8 +79,10 @@ private:
 typedef services::SharedPtr<KernelIface> KernelIfacePtr;
 /** @} */
 } // namespace interface1
+using interface1::KernelType;
 using interface1::KernelIface;
 using interface1::KernelIfacePtr;
+/** @} */
 
 } // namespace kernel_function
 } // namespace algorithms

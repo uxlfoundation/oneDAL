@@ -93,6 +93,8 @@ private:
 };
 
 } // namespace internal
+using internal::Batch;
+
 } // namespace polynomial
 } // namespace kernel_function
 } // namespace algorithms
