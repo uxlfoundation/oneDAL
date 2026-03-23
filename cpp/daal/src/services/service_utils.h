@@ -290,7 +290,6 @@ size_t getMaxElementIndex(const algorithmFPType * val, size_t n)
     DAAL_ASSERT(n > 0);
     algorithmFPType maxVal = val[0];
     size_t maxIdx          = 0;
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 1; i < n; ++i)
     {
         if (maxVal < val[i])

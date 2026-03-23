@@ -146,6 +146,7 @@ complete the following steps:
   Add nodes to the created tree in accordance with the pre-calculated structure of the tree.
   Check that the leaf nodes do not have children nodes and that the splits have exactly two children.
 
+
 Examples
 ********
 
