@@ -143,6 +143,76 @@ jobs:
     condition: failed()
     continueOnError: true
 
+- job: 'LinuxMakeIntel_MKL'
+  timeoutInMinutes: 0
+  variables:
+    release.dir: '__release_lnx'
+    platform.type : 'lnx32e'
+  pool:
+    vmImage: '$(VM_IMAGE)'
+  steps:
+  - script: |
+      .ci/env/apt.sh dev-base
+    displayName: 'apt-get install'
+  - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/describe_system.sh
+    displayName: 'System info'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+    displayName: 'make daal'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/build.sh --compiler icpx --optimizations avx2 --target onedal_dpc
+    displayName: 'make onedal_dpc'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL environment'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/env'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface daal/cpp --build-system cmake
+    displayName: 'daal/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface oneapi/cpp --build-system cmake
+    displayName: 'oneapi/cpp examples'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icpx --interface oneapi/dpc --build-system cmake
+    displayName: 'oneapi/dpc examples'
+  - script: |
+      .ci/env/apt.sh miniforge
+    displayName: 'conda install'
+  - script: |
+      source /opt/intel/oneapi/setvars.sh
+      .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
+    displayName: 'daal/cpp/mpi samples'
+  - script: |
+      deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
+      tree -h -I include __nuget/inteldal*/
+      ls -lh __nuget/inteldal*.nupkg
+    displayName: 'nuget pkg'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
+
 - job: 'LinuxMakeGNU_MKL_Conda'
   timeoutInMinutes: 300
   variables:
@@ -527,10 +597,10 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: LinuxSklearnex
-  dependsOn: LinuxMakeGNU_MKL
+  dependsOn: LinuxMakeIntel_MKL
   timeoutInMinutes: 0
   variables:
-    release.dir: '__release_lnx_gnu'
+    release.dir: '__release_lnx'
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
     TBBROOT: '/opt/intel/oneapi/tbb/latest'
@@ -551,23 +621,30 @@ jobs:
         PYTHON_VERSION: '3.10'
         SKLEARN_VERSION: '1.0'
   steps:
-steps:
-- checkout: none
-- script: |
-    git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
-  displayName: 'Clone sklearnex'
-- task: DownloadPipelineArtifact@2
-  inputs:
-    artifact: '$(platform.type) build'
-    path: $(Pipeline.Workspace)
-- template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-- script: |
-    python -c "import onedal._onedal_py_dpc"
-  displayName: 'Check DPC module import'
-- task: PublishPipelineArtifact@1
-  inputs:
-    artifactName: '$(platform.type) sklearnex build'
-    targetPath: '$(Build.Repository.LocalPath)/build'
+  - checkout: none
+  - script: |
+      git clone --depth 1 https://github.com/uxlfoundation/scikit-learn-intelex.git .
+    displayName: 'Clone sklearnex'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'oneDAL environment'
+      path: '$(Build.Repository.LocalPath)/.ci/env'
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: '$(platform.type) build'
+      path: $(Pipeline.Workspace)
+  - script: |
+      chmod -R 755 .ci/env
+      .ci/env/apt.sh tbb
+    displayName: 'tbb installation'
+  - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
+  - script: |
+      python -c "import onedal._onedal_py_dpc"
+    displayName: 'Check DPC module import'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) sklearnex build'
+      targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
   timeoutInMinutes: 0
