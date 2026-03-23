@@ -244,12 +244,7 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
         return daal::internal::avx2;
     }
 
-    if (check_sse42_features())
-    {
-        return daal::internal::sse42;
-    }
-
-    return daal::internal::sse2;
+    return daal::internal::sse42;
 }
 
 int __daal_internal_enabled_cpu_detect()
@@ -268,14 +263,7 @@ int __daal_internal_enabled_cpu_detect()
     }
     #endif
 
-    #ifdef DAAL_KERNEL_SSE42
-    if (check_sse42_features())
-    {
-        return daal::internal::sse42;
-    }
-    #endif
-
-    return daal::internal::sse2;
+    return daal::internal::sse42;
 }
 
 DAAL_EXPORT int daal_enabled_cpu_detect()

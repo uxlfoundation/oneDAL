@@ -34,9 +34,7 @@ struct daal_cpu_value {
 
 #if defined(TARGET_X86_64)
 template <>
-struct to_daal_cpu_type<cpu_dispatch_default> : daal_cpu_value<daal::internal::sse2> {};
-template <>
-struct to_daal_cpu_type<cpu_dispatch_sse42> : daal_cpu_value<daal::internal::sse42> {};
+struct to_daal_cpu_type<cpu_dispatch_default> : daal_cpu_value<daal::internal::sse42> {};
 template <>
 struct to_daal_cpu_type<cpu_dispatch_avx2> : daal_cpu_value<daal::internal::avx2> {};
 template <>

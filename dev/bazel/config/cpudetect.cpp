@@ -179,11 +179,8 @@ std::string detect_cpu() {
         else if (check_avx2_features()) {
             return "avx2";
         }
-        else if (check_sse42_features()) {
-            return "sse42";
-        }
         else {
-            return "sse2";
+            return "sse42";
         }
     #elif defined(TARGET_ARM)
         return "sve";

@@ -8,7 +8,7 @@
 - **Memory**: `daal::services::SharedPtr<T>` custom smart pointers
 - **Errors**: `services::Status` return codes with `throwIfPossible()`
 - **Threading**: TBB-based with CPU-specific kernels
-- **Optimization**: Multi-architecture dispatch (SSE2, AVX2, AVX-512, ARM SVE, RISC-V)
+- **Optimization**: Multi-architecture dispatch (SSE4.2, AVX2, AVX-512, ARM SVE, RISC-V)
 
 ## 🚀 Essential Commands
 
@@ -95,7 +95,7 @@ public:
 // CPU type enumeration
 enum CpuType {
 #if defined(TARGET_X86_64)
-    sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6
+    sse42 = 2, avx2 = 4, avx512 = 6
 #elif defined(TARGET_ARM)
     sve = 0     // ARM Scalable Vector Extension
 #elif defined(TARGET_RISCV64)

@@ -74,8 +74,8 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS = ["sse2", "sse42", "avx2", "avx512"]
-_ISA_EXTENSIONS_MODERN = ["sse2", "avx2", "avx512"]
+_ISA_EXTENSIONS = ["sse42", "avx2", "avx512"]
+_ISA_EXTENSIONS_MODERN = ["sse42", "avx2", "avx512"]
 _ISA_EXTENSION_AUTO_DEFAULT = "avx2"
 
 def _check_cpu_extensions(extensions):
@@ -96,7 +96,7 @@ def _cpu_info_impl(ctx):
     else:
         isa_extensions = ctx.build_setting_value.split(" ")
         isa_extensions = [x.strip() for x in isa_extensions]
-    isa_extensions = utils.unique(["sse2"] + isa_extensions)
+    isa_extensions = utils.unique(["sse42"] + isa_extensions)
     _check_cpu_extensions(isa_extensions)
     return CpuInfo(
         enabled = isa_extensions,

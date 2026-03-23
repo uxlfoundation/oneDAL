@@ -7,7 +7,7 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 ## Build System Priority
 
 1. **Make** - Primary production builds, core library
-2. **CMake** - End-user integration, examples  
+2. **CMake** - End-user integration, examples
 3. **Bazel** - Development, testing, new features
 
 ## 🚀 Essential Commands
@@ -29,7 +29,7 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 `make BACKEND_CONFIG=ref`  # Reference/OpenBLAS
 ```
 
-### Bazel (Development) 
+### Bazel (Development)
 ```bash
 # Build targets
 `bazel build //cpp/oneapi/dal:core`
@@ -49,8 +49,8 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 
 ## 🏗️ CPU Architecture Support
 
-- **x86-64**: sse2, sse42, avx2, avx512 (Intel/AMD)
-- **ARM64**: sve (ARM Scalable Vector Extension)  
+- **x86-64**: sse42, avx2, avx512 (Intel/AMD)
+- **ARM64**: sve (ARM Scalable Vector Extension)
 - **RISC-V**: rv64 (RISC-V 64-bit)
 
 ### CPU Dispatch Pattern
@@ -72,7 +72,7 @@ COMPILER := gnu     # GCC
 COMPILER := clang   # Clang
 ```
 
-### Windows (win32e)  
+### Windows (win32e)
 ```makefile
 PLAT := win32e
 COMPILER := vc      # Microsoft Visual C++
@@ -101,13 +101,13 @@ daal_module(
     name = "kmeans",
     features = [ "c++17" ],
     cpu_defines = {
-        "sse2":   [ "DAAL_CPU=sse2" ],
+        "sse42":  [ "DAAL_CPU=sse42" ],
         "avx2":   [ "DAAL_CPU=avx2" ],
         "avx512": [ "DAAL_CPU=avx512" ],
     },
 )
 
-# oneAPI module  
+# oneAPI module
 dal_module(
     name = "kmeans",
     compile_as = ["c++", "dpc++"],  # CPU and GPU
