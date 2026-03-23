@@ -561,6 +561,9 @@ steps:
     artifact: '$(platform.type) build'
     path: $(Pipeline.Workspace)
 - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
+- script: |
+    python -c "import onedal._onedal_py_dpc"
+  displayName: 'Check DPC module import'
 - task: PublishPipelineArtifact@1
   inputs:
     artifactName: '$(platform.type) sklearnex build'
@@ -664,6 +667,9 @@ steps:
       path: $(Pipeline.Workspace)
   - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'TBB installation'
+  - script: |
+      python -c "import onedal._onedal_py_dpc"
+    displayName: 'Check DPC module import'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
     inputs:
