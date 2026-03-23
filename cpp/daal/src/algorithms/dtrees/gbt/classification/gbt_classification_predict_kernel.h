@@ -49,19 +49,20 @@ class PredictKernel : public daal::algorithms::Kernel
 {
 public:
     /**
-     *  \brief Compute gradient boosted trees prediction results.
+     *  \brief Compute gradient boosted trees classification prediction results.
      *
-     *  \param a[in]            Matrix of input variables X
+     *  \param a[in]            Matrix of input variables X of size [N x P], where N is a number of observations
+     *                          and P is a number of features
      *  \param m[in]            Gradient boosted trees model obtained on training stage
-     *  \param r[out]           Prediction results
-     *  \param prob[out]        Prediction class probabilities
-     *  \param nClasses[in]     Number of classes in gradient boosted trees algorithm parameter
+     *  \param r[out]           Prediction results stored in the numeric table of size [N x 1]
+     *  \param prob[out]        Prediction class probabilities stored in the numeric table of size [N x C], where C is the number of classes
+     *  \param nClasses[in]     Number of classes in gradient boosted trees algorithm parameter, C
      *  \param nIterations[in]  Number of iterations to predict in gradient boosted trees algorithm parameter
      *  \param predShapContributions[in] Predict SHAP contributions
-     *  \param predShapInteractions[in] Predict SHAP interactions
+     *  \param predShapInteractions[in]  Predict SHAP interactions
      */
-    services::Status compute(services::HostAppIface * pHostApp, const NumericTable * a, const classification::Model * m, NumericTable * r,
-                             NumericTable * prob, size_t nClasses, size_t nIterations, bool predShapContributions, bool predShapInteractions);
+    services::Status compute(const NumericTable * a, const classification::Model * m, NumericTable * r, NumericTable * prob, size_t nClasses,
+                             size_t nIterations, bool predShapContributions, bool predShapInteractions);
 };
 
 } // namespace internal

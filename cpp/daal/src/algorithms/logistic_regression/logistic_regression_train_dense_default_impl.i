@@ -28,7 +28,6 @@
 #include "src/algorithms/logistic_regression/logistic_regression_train_kernel.h"
 #include "src/algorithms/logistic_regression/logistic_regression_model_impl.h"
 #include "src/algorithms/service_error_handling.h"
-#include "src/services/service_algo_utils.h"
 #include "algorithms/optimization_solver/objective_function/logistic_loss_batch.h"
 #include "algorithms/optimization_solver/objective_function/cross_entropy_loss_batch.h"
 #include "src/data_management/service_numeric_table.h"
@@ -53,14 +52,12 @@ namespace internal
 // TrainBatchKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, logistic_regression::training::Method method, CpuType cpu>
-services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(const HostAppIfacePtr & pHost, const NumericTablePtr & x,
-                                                                         const NumericTablePtr & y, logistic_regression::Model & m, Result & res,
-                                                                         const Parameter & par)
+services::Status TrainBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTablePtr & x, const NumericTablePtr & y,
+                                                                         logistic_regression::Model & m, Result & res, const Parameter & par)
 {
     const size_t p = x->getNumberOfColumns() + 1;
     DAAL_ASSERT(p == m.getNumberOfBetas());
     services::SharedPtr<optimization_solver::iterative_solver::Batch> pSolver = par.optimizationSolver->clone();
-    pSolver->setHostApp(pHost);
     if (par.nClasses == 2)
     {
         services::SharedPtr<logistic_loss::Batch<algorithmFPType> > objFunc(logistic_loss::Batch<algorithmFPType>::create(x->getNumberOfRows()));

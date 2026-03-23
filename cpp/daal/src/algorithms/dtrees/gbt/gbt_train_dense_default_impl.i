@@ -90,8 +90,9 @@ public:
     algorithmFPType accuracy() const { return _accuracy; }
     size_t nTrees() const { return _nTrees; }
 
-    services::Status run(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp, HomogenNumericTable<int> ** aTblSmplCnt,
-                         size_t iIteration, GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF);
+    services::Status run(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                         services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt, size_t iIteration,
+                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF);
     virtual services::Status init();
     bool isIndirect() const { return _bIndirect; }
     double computeLeafWeightUpdateF(const int * idx, size_t n, const ImpurityType & imp, size_t iTree);
@@ -161,8 +162,8 @@ protected:
     }
 
     virtual void initLossFunc()                                                                           = 0;
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
                                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) = 0;
     virtual void step(const algorithmFPType * y)                                                          = 0;
     virtual bool getInitialF(algorithmFPType & val) { return false; }
@@ -265,15 +266,16 @@ double TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::computeLeafWeight
 
 template <typename algorithmFPType, typename BinIndexType, CpuType cpu>
 services::Status TrainBatchTaskBase<algorithmFPType, BinIndexType, cpu>::run(gbt::internal::GbtDecisionTree ** aTbl,
-                                                                             HomogenNumericTable<double> ** aTblImp,
-                                                                             HomogenNumericTable<int> ** aTblSmplCnt, size_t iIteration,
+                                                                             services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                                                             services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
+                                                                             size_t iIteration,
                                                                              GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF)
 {
     for (size_t i = 0; i < _nTrees; ++i)
     {
-        aTbl[i]        = nullptr;
-        aTblImp[i]     = nullptr;
-        aTblSmplCnt[i] = nullptr;
+        aTbl[i] = nullptr;
+        aTblImp[i].reset();
+        aTblSmplCnt[i].reset();
     }
 
     if (iIteration)
@@ -334,10 +336,9 @@ public:
     typedef typename super::DataHelperType DataHelperType;
     typedef gh<algorithmFPType, cpu> ghType;
 
-    TrainBatchTaskBaseXBoost(HostAppIface * hostApp, const NumericTable * x, const NumericTable * y, const Parameter & par,
-                             const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
-                             engines::internal::BatchBaseImpl & engine, size_t nClasses)
-        : super(x, y, par, featTypes, indexedFeatures, engine, nClasses), _hostApp(hostApp)
+    TrainBatchTaskBaseXBoost(const NumericTable * x, const NumericTable * y, const Parameter & par, const dtrees::internal::FeatureTypes & featTypes,
+                             const dtrees::internal::IndexedFeatures * indexedFeatures, engines::internal::BatchBaseImpl & engine, size_t nClasses)
+        : super(x, y, par, featTypes, indexedFeatures, engine, nClasses)
     {}
 
     //loss function gradient and hessian values calculated in f() points
@@ -360,14 +361,13 @@ public:
 
 protected:
     TVector<ghType, cpu> _aGH; //loss function first and second order derivatives
-    HostAppIface * _hostApp;
 };
 
 template <typename algorithmFPType, typename RowIndexType, typename BinIndexType, CpuType cpu, typename TaskType, typename ResultType>
-services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md,
-                                 const gbt::training::Parameter & par, engines::internal::BatchBaseImpl & engine, size_t nClasses,
-                                 dtrees::internal::IndexedFeatures & indexedFeatures, dtrees::internal::FeatureTypes & featTypes, ResultType * res,
-                                 algorithmFPType * ptrWeight, algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
+services::Status computeTypeDisp(const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md, const gbt::training::Parameter & par,
+                                 engines::internal::BatchBaseImpl & engine, size_t nClasses, dtrees::internal::IndexedFeatures & indexedFeatures,
+                                 dtrees::internal::FeatureTypes & featTypes, ResultType * res, algorithmFPType * ptrWeight,
+                                 algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
                                  algorithmFPType * ptrTotalGain)
 {
     services::Status s;
@@ -376,23 +376,23 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     const bool inexactWithHistMethod =
         !par.memorySavingMode && par.splitMethod == gbt::training::inexact && x->getNumberOfColumns() == nFeaturesPerNode;
 
-    TaskType task(pHostApp, x, y, par, featTypes, par.memorySavingMode ? nullptr : &indexedFeatures, engine, nClasses);
+    TaskType task(x, y, par, featTypes, par.memorySavingMode ? nullptr : &indexedFeatures, engine, nClasses);
     DAAL_CHECK_STATUS(s, task.init());
 
     const size_t nTrees = task.nTrees();
     DAAL_CHECK_MALLOC(md.reserve(par.maxIterations * nTrees));
 
     TVector<gbt::internal::GbtDecisionTree *, cpu> aTables;
-    TVector<HomogenNumericTable<double> *, cpu> impTables;
-    TVector<HomogenNumericTable<int> *, cpu> nodeSampleCountTables;
+    TVector<services::SharedPtr<HomogenNumericTable<double> >, cpu> impTables;
+    TVector<services::SharedPtr<HomogenNumericTable<int> >, cpu> nodeSampleCountTables;
 
     typename gbt::internal::GbtDecisionTree * pTbl = nullptr;
-    HomogenNumericTable<double> * pTblImp          = nullptr;
-    HomogenNumericTable<int> * pTblSmplCnt         = nullptr;
+    services::SharedPtr<HomogenNumericTable<double> > pTblImp;
+    services::SharedPtr<HomogenNumericTable<int> > pTblSmplCnt;
 
-    gbt::internal::GbtDecisionTree ** aTbl  = &pTbl;
-    HomogenNumericTable<double> ** aTblImp  = &pTblImp;
-    HomogenNumericTable<int> ** aTblSmplCnt = &pTblSmplCnt;
+    gbt::internal::GbtDecisionTree ** aTbl                       = &pTbl;
+    services::SharedPtr<HomogenNumericTable<double> > * aTblImp  = &pTblImp;
+    services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt = &pTblSmplCnt;
 
     if (nTrees > 1)
     {
@@ -400,9 +400,16 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
         impTables.reset(nTrees);
         nodeSampleCountTables.reset(nTrees);
 
-        DAAL_CHECK_MALLOC(aTables.get());
         DAAL_CHECK_MALLOC(impTables.get());
         DAAL_CHECK_MALLOC(nodeSampleCountTables.get());
+
+        for (size_t i = 0; i < nTrees; ++i)
+        {
+            impTables[i]             = services::SharedPtr<HomogenNumericTable<double> >();
+            nodeSampleCountTables[i] = services::SharedPtr<HomogenNumericTable<int> >();
+        }
+
+        DAAL_CHECK_MALLOC(aTables.get());
 
         aTbl        = aTables.get();
         aTblImp     = impTables.get();
@@ -481,7 +488,7 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
     DAAL_CHECK_MALLOC(allWeightVec.get());
     allWeight = allWeightVec.get();
 
-    for (size_t i = 0; (i < par.maxIterations) && !algorithms::internal::isCancelled(s, pHostApp); ++i)
+    for (size_t i = 0; i < par.maxIterations; ++i)
     {
         s = task.run(aTbl, aTblImp, aTblSmplCnt, i, storage);
         if (!s)
@@ -555,15 +562,14 @@ services::Status computeTypeDisp(HostAppIface * pHostApp, const NumericTable * x
 // compute() implementation
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, CpuType cpu, typename BinIndexType, typename TaskType, typename ResultType>
-services::Status computeImpl(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md,
-                             const gbt::training::Parameter & par, engines::internal::BatchBaseImpl & engine, size_t nClasses,
-                             dtrees::internal::IndexedFeatures & indexedFeatures, dtrees::internal::FeatureTypes & featTypes, ResultType * res,
-                             algorithmFPType * ptrWeight, algorithmFPType * ptrCover, algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain,
-                             algorithmFPType * ptrTotalGain)
+services::Status computeImpl(const NumericTable * x, const NumericTable * y, gbt::internal::ModelImpl & md, const gbt::training::Parameter & par,
+                             engines::internal::BatchBaseImpl & engine, size_t nClasses, dtrees::internal::IndexedFeatures & indexedFeatures,
+                             dtrees::internal::FeatureTypes & featTypes, ResultType * res, algorithmFPType * ptrWeight, algorithmFPType * ptrCover,
+                             algorithmFPType * ptrTotalCover, algorithmFPType * ptrGain, algorithmFPType * ptrTotalGain)
 
 {
-    return computeTypeDisp<algorithmFPType, int, BinIndexType, cpu, TaskType>(pHostApp, x, y, md, par, engine, nClasses, indexedFeatures, featTypes,
-                                                                              res, ptrWeight, ptrCover, ptrTotalCover, ptrGain,
+    return computeTypeDisp<algorithmFPType, int, BinIndexType, cpu, TaskType>(x, y, md, par, engine, nClasses, indexedFeatures, featTypes, res,
+                                                                              ptrWeight, ptrCover, ptrTotalCover, ptrGain,
                                                                               ptrTotalGain); // TODO: remove int
 }
 

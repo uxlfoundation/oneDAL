@@ -125,14 +125,14 @@ public:
         if (layout == NumericTableIface::csrArray)
         {
             modelFPType * dummyPtr = NULL;
-            _SV.reset(new CSRNumericTable(dummyPtr, NULL, NULL, nColumns));
+            _SV                    = CSRNumericTable::create(dummyPtr, NULL, NULL, nColumns);
         }
         else
         {
-            _SV.reset(new HomogenNumericTable<modelFPType>(NULL, nColumns, 0));
+            _SV = HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0);
         }
-        _SVCoeff.reset(new HomogenNumericTable<modelFPType>(NULL, 1, 0));
-        _SVIndices.reset(new HomogenNumericTable<int>(NULL, 1, 0));
+        _SVCoeff   = HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
+        _SVIndices = HomogenNumericTable<int>::create(NULL, 1, 0);
     }
 
     /**
