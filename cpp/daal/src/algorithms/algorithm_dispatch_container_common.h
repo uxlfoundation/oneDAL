@@ -22,7 +22,7 @@
 
 #include "algorithms/algorithm_container_base.h"
 #include "services/error_handling.h"
-#include "src/services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_internal_kernel_defines.h"
 
 namespace daal
 {
@@ -87,8 +87,8 @@ protected:
     AlgorithmContainerImpl<mode> * _cntr;
 
 private:
-    AlgorithmDispatchContainer(const AlgorithmDispatchContainer &);
-    AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &);
+    AlgorithmDispatchContainer(const AlgorithmDispatchContainer &)             = delete;
+    AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &) = delete;
 };
 
 #if defined(TARGET_X86_64)

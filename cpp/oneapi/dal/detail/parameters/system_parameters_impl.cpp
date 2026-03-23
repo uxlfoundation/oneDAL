@@ -19,7 +19,7 @@
 #include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/detail/parameters/system_parameters_impl.hpp"
 #include <daal/src/services/service_defines.h>
-#include <daal/src/services/internal/daal_kernel_defines.h>
+#include <daal/src/services/internal/daal_internal_kernel_defines.h>
 
 #include <sstream>
 

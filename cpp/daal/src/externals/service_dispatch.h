@@ -25,7 +25,7 @@
 #ifndef __SERVICE_DISPATCH_H__
 #define __SERVICE_DISPATCH_H__
 
-#include "src/services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_internal_kernel_defines.h"
 
 #if defined(TARGET_X86_64)
 

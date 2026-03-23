@@ -1,4 +1,4 @@
-/* file: daal_kernel_defines.h */
+/* file: daal_internal_kernel_defines.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 * Copyright contributors to the oneDAL project
@@ -22,16 +22,13 @@
 //--
 */
 
-#ifndef __DAAL_KERNEL_DEFINES_H__
-#define __DAAL_KERNEL_DEFINES_H__
+#ifndef __DAAL_INTERNAL_KERNEL_DEFINES_H__
+#define __DAAL_INTERNAL_KERNEL_DEFINES_H__
 
 #include "services/env_detect.h"
 #include "src/services/cpu_type.h"
 
-#define DAAL_KERNEL_SSE2
-#define DAAL_KERNEL_SSE42
-#define DAAL_KERNEL_AVX2
-#define DAAL_KERNEL_AVX512
+#include "services/internal/daal_kernel_defines.h"
 
 #define __DAAL_KERNEL_MIN(a, b) ((a) < (b) ? (a) : (b))
 

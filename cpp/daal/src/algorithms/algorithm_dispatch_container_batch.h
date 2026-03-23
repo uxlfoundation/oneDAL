@@ -87,8 +87,8 @@ protected:
     AlgorithmContainerImpl<batch> * _cntr;
 
 private:
-    AlgorithmDispatchContainer(const AlgorithmDispatchContainer &);
-    AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &);
+    AlgorithmDispatchContainer(const AlgorithmDispatchContainer &)             = delete;
+    AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &) = delete;
 };
 
 } // namespace internal
