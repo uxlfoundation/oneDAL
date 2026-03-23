@@ -851,7 +851,6 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_lnx),-Wl,-rpath=$(MKLROOT)/lib)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.math_backend.dpc_link_deps)
 
 ifdef OS_is_win
