@@ -48,16 +48,17 @@ using reduction_types = std::tuple<std::tuple<float, sum<float>, identity<float>
 
 using finiteness_types = std::tuple<std::tuple<float, sum<float>, identity<float>>,
                                     std::tuple<double, sum<double>, identity<double>>,
-                                    std::tuple<float, logical_or<float>, isinfornan<float>>,
-                                    std::tuple<float, logical_or<float>, isinf<float>>,
-                                    std::tuple<double, logical_or<double>, isinfornan<double>>,
-                                    std::tuple<double, logical_or<double>, isinf<double>>>;
+                                    std::tuple<float, logical_or<bool>, isinfornan<float>>,
+                                    std::tuple<float, logical_or<bool>, isinf<float>>,
+                                    std::tuple<double, logical_or<bool>, isinfornan<double>>,
+                                    std::tuple<double, logical_or<bool>, isinf<double>>>;
 
 template <typename Param>
 class reduction_rm_test_random : public te::float_algo_fixture<std::tuple_element_t<0, Param>> {
 public:
     using float_t = std::tuple_element_t<0, Param>;
     using binary_t = std::tuple_element_t<1, Param>;
+    using acc_t = bin_op_t<binary_t>;
     using unary_t = std::tuple_element_t<2, Param>;
 
     void generate() {
@@ -103,7 +104,7 @@ public:
     }
 
     array<float_t> groundtruth_cw() const {
-        auto res = array<float_t>::full(width_, binary_.init_value);
+        auto res = array<float_t>::full(width_, static_cast<float_t>(binary_.init_value));
         auto* res_ptr = res.get_mutable_data();
         for (std::int64_t j = 0; j < height_; ++j) {
             //input_table_ is a float ndarray
@@ -117,7 +118,7 @@ public:
     }
 
     array<float_t> groundtruth_rw() const {
-        auto res = array<float_t>::full(height_, binary_.init_value);
+        auto res = array<float_t>::full(height_, static_cast<float_t>(binary_.init_value));
         auto* res_ptr = res.get_mutable_data();
         for (std::int64_t j = 0; j < height_; ++j) {
             const auto row_acc = row_accessor<const float>{ input_table_ }.pull({ j, j + 1 });
@@ -156,7 +157,7 @@ public:
     }
 
     void test_raw_rw_reduce_narrow() {
-        using reduction_t = reduction_rm_rw_narrow<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw_narrow<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(height_);
@@ -172,7 +173,7 @@ public:
     }
 
     void test_raw_rw_reduce_wide() {
-        using reduction_t = reduction_rm_rw_wide<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw_wide<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(height_);
@@ -188,7 +189,7 @@ public:
     }
 
     void test_raw_rw_reduce_wrapper() {
-        using reduction_t = reduction_rm_rw<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_rw<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(height_);
@@ -204,7 +205,7 @@ public:
     }
 
     void test_raw_cw_reduce_naive() {
-        using reduction_t = reduction_rm_cw_naive<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw_naive<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(width_);
@@ -220,7 +221,7 @@ public:
     }
 
     void test_raw_cw_reduce_atomic() {
-        using reduction_t = reduction_rm_cw_atomic<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw_atomic<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(width_);
@@ -236,7 +237,7 @@ public:
     }
 
     void test_raw_cw_reduce_wrapper() {
-        using reduction_t = reduction_rm_cw<float_t, binary_t, unary_t>;
+        using reduction_t = reduction_rm_cw<float_t, acc_t, binary_t, unary_t>;
         const auto input_array =
             row_accessor<const float_t>{ input_table_ }.pull(this->get_queue());
         auto [out_array, out_event] = output(width_);

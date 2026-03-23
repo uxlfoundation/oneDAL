@@ -185,7 +185,7 @@ NumericTablePtr compute(int rankId,
     /* Deserialize centroids data */
     OutputDataArchive outArch(nodeCentroids.size() ? &nodeCentroids[0] : NULL, CentroidsArchLength);
 
-    NumericTablePtr centroids(new HomogenNumericTable<>());
+    NumericTablePtr centroids(HomogenNumericTable<>::create());
 
     centroids->deserialize(outArch);
 

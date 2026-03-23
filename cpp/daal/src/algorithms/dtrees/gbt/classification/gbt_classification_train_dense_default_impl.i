@@ -30,7 +30,6 @@
 #include "src/algorithms/dtrees/gbt/gbt_train_dense_default_impl.i"
 #include "src/algorithms/dtrees/gbt/gbt_train_tree_builder.i"
 #include "src/algorithms/service_error_handling.h"
-#include "src/services/service_algo_utils.h"
 
 using namespace daal::algorithms::dtrees::training::internal;
 using namespace daal::algorithms::gbt::training::internal;
@@ -204,10 +203,10 @@ class TrainBatchTask : public TrainBatchTaskBaseXBoost<algorithmFPType, BinIndex
     typedef ls<TreeBuilderType *> lsType;
 
 public:
-    TrainBatchTask(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
+    TrainBatchTask(const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
                    const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
                    engines::internal::BatchBaseImpl & engine, size_t nClasses)
-        : super(pHostApp, x, y, par, featTypes, indexedFeatures, engine, nClasses), _builder(nullptr), _ls(nullptr)
+        : super(x, y, par, featTypes, indexedFeatures, engine, nClasses), _builder(nullptr), _ls(nullptr)
     {}
 
     ~TrainBatchTask()
@@ -256,8 +255,8 @@ protected:
         }
     }
 
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
                                         GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) override
     {
         if (this->isParallelTrees())
@@ -276,7 +275,7 @@ protected:
         }
 
         services::Status s;
-        for (size_t i = 0; s.ok() && (i < this->_nTrees) && !daal::algorithms::internal::isCancelled(s, this->_hostApp); ++i)
+        for (size_t i = 0; s.ok() && i < this->_nTrees; ++i)
         {
             DAAL_ASSERT(this->_nParallelNodes.get() == 0);
             this->_nParallelNodes.inc();
@@ -287,17 +286,15 @@ protected:
         return s;
     }
 
-    services::Status buildTreeThreadLocal(gbt::internal::GbtDecisionTree *& tbl, HomogenNumericTable<double> *& pTblImp,
-                                          HomogenNumericTable<int> *& pTblSmplCnt, size_t iTree,
+    services::Status buildTreeThreadLocal(gbt::internal::GbtDecisionTree *& tbl, services::SharedPtr<HomogenNumericTable<double> > & pTblImp,
+                                          services::SharedPtr<HomogenNumericTable<int> > & pTblSmplCnt, size_t iTree,
                                           GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF)
     {
         auto pBuilder = _ls->local();
         DAAL_CHECK_MALLOC(pBuilder);
         services::Status s;
-        if ((pBuilder->isInitialized() || (s = pBuilder->init()).ok()) && !algorithms::internal::isCancelled(s, this->_hostApp))
-            s = pBuilder->run(tbl, pTblImp, pTblSmplCnt, iTree, GH_SUMS_BUF);
+        if ((pBuilder->isInitialized() || (s = pBuilder->init()).ok())) s = pBuilder->run(tbl, pTblImp, pTblSmplCnt, iTree, GH_SUMS_BUF);
         _ls->release(pBuilder);
-        if (s) algorithms::internal::isCancelled(s, this->_hostApp);
         return s;
     }
 
@@ -311,9 +308,9 @@ protected:
 //////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename algorithmFPType, gbt::classification::training::Method method, CpuType cpu>
-services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::compute(HostAppIface * pHost, const NumericTable * x,
-                                                                                       const NumericTable * y, gbt::classification::Model & m,
-                                                                                       Result & res, const Parameter & par,
+services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const NumericTable * y,
+                                                                                       gbt::classification::Model & m, Result & res,
+                                                                                       const Parameter & par,
                                                                                        engines::internal::BatchBaseImpl & engine)
 {
     const size_t nFeaturesPerNode = par.featuresPerNode ? par.featuresPerNode : x->getNumberOfColumns();
@@ -370,21 +367,21 @@ services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::c
     {
         if (indexedFeatures.maxNumIndices() <= 256)
             return computeImpl<algorithmFPType, cpu, uint8_t, TrainBatchTask<algorithmFPType, uint8_t, method, cpu>, Result>(
-                pHost, x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses,
-                indexedFeatures, featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses, indexedFeatures,
+                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else if (indexedFeatures.maxNumIndices() <= 65536)
             return computeImpl<algorithmFPType, cpu, uint16_t, TrainBatchTask<algorithmFPType, uint16_t, method, cpu>, Result>(
-                pHost, x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses,
-                indexedFeatures, featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses, indexedFeatures,
+                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else
             return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-                pHost, x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses,
-                indexedFeatures, featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses, indexedFeatures,
+                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
     else
     {
         return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-            pHost, x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses, indexedFeatures,
+            x, y, *static_cast<daal::algorithms::gbt::classification::internal::ModelImpl *>(&m), par, engine, par.nClasses, indexedFeatures,
             featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
 }

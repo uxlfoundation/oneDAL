@@ -90,7 +90,7 @@ NumericTablePtr deserializeNumericTable(byte* buffer, size_t length) {
     OutputDataArchive dataArch(buffer, length);
 
     /* Create a numeric table object */
-    NumericTablePtr dataTable = NumericTablePtr(new HomogenNumericTable<>());
+    NumericTablePtr dataTable = HomogenNumericTable<>::create();
 
     /* Deserialize the numeric table from the data archive */
     dataTable->deserialize(dataArch);

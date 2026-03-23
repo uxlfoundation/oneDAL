@@ -43,7 +43,7 @@
 using namespace daal::services;
 
     #if defined(_WIN32) || defined(_WIN64)
-        #include <Windows.h>
+        #include <windows.h>
         #define __PINNER_WINDOWS__
 
         #if defined(_WIN64)
