@@ -161,6 +161,14 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - script: |
+      # The issue has been solved in 2026.0 release. Remove after updating to MKL 2026.0.
+      # Patch MKLConfig.cmake to add gnu_thread support to MKL_SYCL_THREADING_LIST.
+      if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
+              /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
+      fi
+    displayName: 'Fix MKLConfig.cmake threading list'
+  - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
     displayName: 'System info'
@@ -266,6 +274,8 @@ jobs:
       # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
       if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
           sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
+              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+          sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
               "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
       fi
     displayName: 'Fix MKLConfig.cmake TBB target'
@@ -747,10 +757,10 @@ jobs:
       path: $(Pipeline.Workspace)
   - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'TBB installation'
+  - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - script: |
       python -c "import onedal._onedal_py_dpc"
     displayName: 'Check DPC module import'
-  - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) sklearnex build'
