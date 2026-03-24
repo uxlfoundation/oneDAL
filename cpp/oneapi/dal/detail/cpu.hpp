@@ -34,11 +34,11 @@ enum class cpu_extension : uint64_t {
     none = 0U
 #if defined(TARGET_X86_64)
     ,
-    sse42 = 1U << 2, /// Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
-    avx2 = 1U << 4, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
+    sse2 = 1U << 0, /// Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
+    avx2 = 1U << 1, /// Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
     avx512 =
         1U
-        << 5 /// Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512)
+        << 2 /// Intel(R) Xeon(R) processors based on Intel(R) Advanced Vector Extensions 512 (Intel(R) AVX-512)
 #elif defined(TARGET_ARM)
     ,
     sve = 1U << 0 /// Arm(R) processors based on Arm's Scalable Vector Extension (SVE)

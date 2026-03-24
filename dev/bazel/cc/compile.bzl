@@ -27,12 +27,12 @@ load("@onedal//dev/bazel/cc:common.bzl",
 
 # TODO: Replace file sufix to ISA
 _CPU_SUFFIX_TO_ISA_MAP = {
-    "_neh": "sse42",
+    "_nrh": "sse2",
     "_hsw": "avx2",
     "_skx": "avx512",
 }
 _CPU_SUFFIX_TO_ISA_BACK_MAP = {
-    "sse42":      "_neh",
+    "sse2":       "_nrh",
     "avx2":       "_hsw",
     "avx512":     "_skx",
 }

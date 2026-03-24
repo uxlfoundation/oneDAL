@@ -37,16 +37,16 @@ namespace internal
  * \brief Implements a container to dispatch batch processing algorithms to CPU-specific implementations.
  *
  * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
- * \tparam sse42Container       Implementation for Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
+ * \tparam sse2Container       Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSEE2)
  * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
  * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
  * \tparam sve                  Implementation for ARM processors based on Arm Scalable Vector Extension
  */
 
 #if defined(TARGET_X86_64)
-template <typename sse42Container DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
+template <typename sse2Container DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
               DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
-class AlgorithmDispatchContainer<batch, sse42Container DAAL_KERNEL_AVX2_ONLY(avx2Container)
+class AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_AVX2_ONLY(avx2Container)
                                             DAAL_KERNEL_AVX512_ONLY(avx512Container)> : public AlgorithmContainerImpl<batch>
 #elif defined(TARGET_ARM)
 template <typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>

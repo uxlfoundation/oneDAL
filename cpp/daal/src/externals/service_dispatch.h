@@ -35,7 +35,7 @@
         {                                                                                                                        \
             DAAL_KERNEL_AVX2_ONLY_CODE(case daal::internal::avx2 : func(daal::internal::avx2, __VA_ARGS__); break;)              \
             DAAL_KERNEL_AVX512_ONLY_CODE(case daal::internal::avx512 : func(daal::internal::avx512, __VA_ARGS__); break;)        \
-            DAAL_EXPAND(default : func(daal::internal::sse42, __VA_ARGS__); break;)                                              \
+            DAAL_EXPAND(default : func(daal::internal::sse2, __VA_ARGS__); break;)                                              \
         }
 
 #elif defined(TARGET_ARM)

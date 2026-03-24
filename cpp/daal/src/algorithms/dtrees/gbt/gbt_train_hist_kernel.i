@@ -311,12 +311,6 @@ struct MergeGHSums
 };
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
-    #if __CPUID__(DAAL_CPU) >= __sse42__
-        #define SSE42_ALL DAAL_CPU
-    #else
-        #define SSE42_ALL sse42
-    #endif
-
     #if __CPUID__(DAAL_CPU) >= __avx512__
         #define AVX512_ALL DAAL_CPU
     #else
@@ -324,7 +318,7 @@ struct MergeGHSums
     #endif
 
 template <typename RowIndexType, typename BinIndexType>
-struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
+struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, DAAL_CPU>
 {
     static void run(float * aGHSumFP, const BinIndexType * indexedFeature, const RowIndexType * aIdx, float * pgh, size_t nFeatures, size_t iStart,
                     size_t iEnd, size_t nRows, size_t * UniquesArr)
@@ -333,8 +327,8 @@ struct ComputeGHSumByRows<RowIndexType, BinIndexType, float, SSE42_ALL>
         const size_t prefetchOffset      = 10; // heuristic, prefetch on 10 rows ahead
         const size_t elementsInCacheLine = cacheLineSize / sizeof(IndexType);
 
-        const size_t noPrefetchSize              = services::internal::min<SSE42_ALL, size_t>(prefetchOffset + elementsInCacheLine, nRows);
-        const size_t iEndWithPrefetch            = services::internal::min<SSE42_ALL, size_t>(nRows - noPrefetchSize, iEnd);
+        const size_t noPrefetchSize              = services::internal::min<DAAL_CPU, size_t>(prefetchOffset + elementsInCacheLine, nRows);
+        const size_t iEndWithPrefetch            = services::internal::min<DAAL_CPU, size_t>(nRows - noPrefetchSize, iEnd);
         const size_t nCacheLinesToPrefetchOneRow = nFeatures / elementsInCacheLine + !!(nFeatures % elementsInCacheLine);
 
         __m128 adds;
