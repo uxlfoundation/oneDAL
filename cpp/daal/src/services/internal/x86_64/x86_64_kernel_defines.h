@@ -20,7 +20,7 @@
 
 #if defined(DAAL_KERNEL_SSE2)
     #undef DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID
-    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID            daal::internal::sse2
+    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID           daal::internal::sse2
     #define DAAL_KERNEL_SSE2_ONLY(something)                   , something
     #define DAAL_KERNEL_SSE2_ONLY_CODE(...)                    __VA_ARGS__
     #define DAAL_KERNEL_SSE2_CONTAINER(ContainerTemplate, ...) , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::sse2, __VA_ARGS__)

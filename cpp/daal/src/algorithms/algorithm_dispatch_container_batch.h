@@ -44,10 +44,9 @@ namespace internal
  */
 
 #if defined(TARGET_X86_64)
-template <typename sse2Container DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
-              DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
-class AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_AVX2_ONLY(avx2Container)
-                                            DAAL_KERNEL_AVX512_ONLY(avx512Container)> : public AlgorithmContainerImpl<batch>
+template <typename sse2Container DAAL_KERNEL_AVX2_ONLY(typename avx2Container) DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
+class AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_AVX2_ONLY(avx2Container) DAAL_KERNEL_AVX512_ONLY(avx512Container)>
+    : public AlgorithmContainerImpl<batch>
 #elif defined(TARGET_ARM)
 template <typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>
 class AlgorithmDispatchContainer<batch, SVEContainer DAAL_KERNEL_SVE_ONLY(sveContainer)> : public AlgorithmContainerImpl<batch>

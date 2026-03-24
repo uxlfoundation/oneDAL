@@ -55,7 +55,7 @@ struct cpu_dispatch_rv64 {};
 #if defined(TARGET_X86_64)
 using cpu_dispatch_default = cpu_dispatch_sse2;
 
-#define __CPU_TAG_SSE2__   oneapi::dal::backend::cpu_dispatch_sse2
+#define __CPU_TAG_SSE2__    oneapi::dal::backend::cpu_dispatch_sse2
 #define __CPU_TAG_AVX2__    oneapi::dal::backend::cpu_dispatch_avx2
 #define __CPU_TAG_AVX512__  oneapi::dal::backend::cpu_dispatch_avx512
 #define __CPU_TAG_DEFAULT__ oneapi::dal::backend::cpu_dispatch_default
