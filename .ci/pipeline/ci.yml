@@ -163,10 +163,11 @@ jobs:
   - script: |
       # The issue has been solved in 2026.0 release. Remove after updating to MKL 2026.0.
       # Patch MKLConfig.cmake to add gnu_thread support to MKL_SYCL_THREADING_LIST.
-      if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
-          sudo sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
-              /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
-      fi
+      # tmp
+      # if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
+      #     sudo sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
+      #         /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
+      # fi
     displayName: 'Fix MKLConfig.cmake threading list'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -275,8 +276,8 @@ jobs:
       if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
           sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
               "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
-          sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
-              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+          # sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
+          #     "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
       fi
     displayName: 'Fix MKLConfig.cmake TBB target'
   - script: |
