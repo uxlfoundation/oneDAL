@@ -23,6 +23,103 @@
 # 1. TBB target detection: uses TARGET TBB::tbb instead of TBB_tbb_FOUND
 # 2. gnu_thread support is already included for non-Windows SYCL
 
+#===============================================================================
+# Input parameters
+#=================
+#-------------
+# Main options
+#-------------
+# MKL_ROOT: oneMKL root directory (May be required for non-standard install locations. Optional otherwise.)
+#    Default: use location from MKLROOT environment variable or <Full path to this file>/../../../ if MKLROOT is not defined
+# MKL_LINK
+#    Values:  static, dynamic, sdl
+#    Default: dynamic
+#       Exceptions: SYCL doesn't support static and sdl
+#                   OpenMP Offload doesn't support static
+# MKL_THREADING
+#    Values:  sequential,
+#             intel_thread (Intel OpenMP),
+#             gnu_thread (GNU OpenMP),
+#             tbb_thread
+#    Default: intel_thread
+#       Exceptions: SYCL defaults to oneTBB
+# MKL_INTERFACE
+#    Values:  lp64, ilp64
+#       GNU or INTEL interface will be selected based on Compiler.
+#    Default: ilp64
+# MKL_MPI
+#    Values:  intelmpi, mpich, openmpi, msmpi, mshpc
+#    Default: intelmpi
+#-----------------------------------
+# Special options (OFF by default)
+#-----------------------------------
+# ENABLE_BLAS95:           Enables BLAS Fortran95 API in MKL::MKL
+# ENABLE_LAPACK95:         Enables LAPACK Fortran95 API in MKL::MKL
+# ENABLE_BLACS:            Enables cluster BLAS library in MKL::MKL
+# ENABLE_CDFT:             Enables cluster DFT library in MKL::MKL
+# ENABLE_SCALAPACK:        Enables cluster LAPACK library in MKL::MKL
+# ENABLE_OMP_OFFLOAD:      Enables OpenMP Offload functionality in MKL::MKL
+# ENABLE_TRY_SYCL_COMPILE: Enables compiling a test program that calls a oneMKL SYCL API
+#-----------------------------------
+# Special options (AUTO by default)
+#-----------------------------------
+# ENABLE_SYCL_COMPILER:    Enables or disables treating the C++ compiler as a SYCL compiler.
+#                          By default, the compiler will be checked if it is a SYCL compiler.
+#
+#==================
+# Output parameters
+#==================
+# MKL_ROOT
+#     oneMKL root directory.
+# MKL_INCLUDE
+#     Use of target_include_directories() is recommended.
+#     INTERFACE_INCLUDE_DIRECTORIES property is set on mkl_core and mkl_rt libraries.
+#     Alternatively, this variable can be used directly (not recommended as per Modern CMake)
+# MKL_ENV
+#     Provides all environment variables based on input parameters.
+#     Currently useful for mkl_rt linking and BLACS on Windows.
+#     Must be set as an ENVIRONMENT property.
+#     Example:
+#     add_test(NAME mytest COMMAND myexe)
+#     if(MKL_ENV)
+#       set_tests_properties(mytest PROPERTIES ENVIRONMENT "${MKL_ENV}")
+#     endif()
+#
+# MKL::<library name>
+#     IMPORTED targets to link oneMKL libraries individually or when using a custom link-line.
+#     mkl_core and mkl_rt have INTERFACE_* properties set to them.
+#     Please refer to Intel(R) oneMKL Link Line Advisor for help with linking.
+#
+# Below INTERFACE targets provide full link-lines for direct use.
+# Example:
+#     target_link_options(<my_linkable_target> PUBLIC MKL::MKL)
+#
+# MKL::MKL
+#     Link line for C and Fortran API
+# MKL::MKL_SYCL
+#     Link line for SYCL API
+# MKL::MKL_SYCL::<domain>
+#     Link line for specific domain SYCL API
+#     Where <domain> could be: BLAS, LAPACK, DFT, SPARSE, RNG, STATS, VM, DATA_FITTING (experimental)
+# MKL::MKL_CDFT
+#     Link line for CDFT and Cluster FFTW API (includes MKL::MKL and MKL::MKL_BLACS)
+#     !IMPORTANT!: Because of specific link order it must not be used together
+#     with any other oneMKL targets in case of MKL_LINK=static on Linux
+# MKL::MKL_SCALAPACK
+#     Link line for ScaLAPACK and PBLAS API (includes MKL::MKL and MKL::MKL_BLACS)
+# MKL::MKL_BLACS
+#     Link line for BLACS and CPARDISO API (includes MKL::MKL)
+# MKL::MKL_SYCL_DISTRIBUTED_DFT
+#     Link line for SYCL Distributed DFT library (includes MKL::MKL_SYCL::DFT, Linux only)
+#
+# Note: For Device API, library linking is not required.
+#       Compile options can be added from the INTERFACE_COMPILE_OPTIONS property on MKL::MKL_SYCL
+#       Include directories can be added from the INTERFACE_INCLUDE_DIRECTORIES property on MKL::MKL_SYCL
+#
+# Note: Output parameters' and targets' availability can change
+# based on Input parameters and application project languages.
+#===============================================================================
+
 include_guard()
 
 if(NOT TARGET MKL::MKL)
@@ -221,6 +318,10 @@ endif()
 #================
 
 # Extensions
+set(SO_VER "2")
+set(CLUSTER_SO_VER "2")
+set(SYCL_SO_VER "5")
+set(DIST_SYCL_SO_VER "2")
 if(UNIX)
   set(LIB_PREFIX "lib")
   set(LIB_EXT ".a")
@@ -776,7 +877,6 @@ endforeach()
 # Threading selection
 if(MKL_THREADING STREQUAL "tbb_thread" OR MKL_SYCL_THREADING STREQUAL "tbb_thread")
   find_package(TBB CONFIG COMPONENTS tbb)
-  # PATCHED: Use TARGET TBB::tbb instead of TBB_tbb_FOUND for proper target detection
   if(NOT TARGET TBB::tbb)
     if(MKL_THREADING STREQUAL "tbb_thread")
       if(NOT MKL_LINK STREQUAL "sdl")
@@ -854,7 +954,7 @@ if(NOT MKL_THREADING STREQUAL "tbb_thread" AND MKL_THREADING MATCHES "_thread")
 
     find_library(OMP_LIBRARY ${OMP_LIBNAME}
       HINTS $ENV{LIB} ${ENV_LIBRARY_PATH} $ENV{MKLROOT} ${MKL_ROOT} $ENV{CMPLR_ROOT}
-      PATH_SUFFIXES "../../compiler/${MKL_PACKAGE_VERSION}/lib"
+      PATH_SUFFIXES "../../compiler/2025.3/lib"
              "lib" "lib/${MKL_ARCH}"
              "lib/${MKL_ARCH}_lin" "lib/${MKL_ARCH}_win"
              "linux/compiler/lib/${MKL_ARCH}"
@@ -873,7 +973,7 @@ if(NOT MKL_THREADING STREQUAL "tbb_thread" AND MKL_THREADING MATCHES "_thread")
       set(OMP_DLLNAME ${LIB_PREFIX}${MKL_OMP_LIB}.dll)
       find_path(OMP_DLL_DIR ${OMP_DLLNAME}
         HINTS $ENV{LIB} ${ENV_LIBRARY_PATH} $ENV{MKLROOT} ${MKL_ROOT} $ENV{CMPLR_ROOT}
-        PATH_SUFFIXES "../../compiler/${MKL_PACKAGE_VERSION}/bin"
+        PATH_SUFFIXES "../../compiler/2025.3/bin"
               "bin"
               # Legacy layout support for oneMKL
               "redist/${MKL_ARCH}"
@@ -1083,7 +1183,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/blas.hpp\"
-
+        
         int main()
         {
             sycl::queue q;
@@ -1097,7 +1197,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/lapack.hpp\"
-
+        
         int main()
         {
             sycl::queue q;
@@ -1112,7 +1212,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/dft.hpp\"
-
+        
         int main()
         {
             namespace dft = oneapi::mkl::dft;
@@ -1127,7 +1227,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/spblas.hpp\"
-
+        
         int main()
         {
             sycl::queue q;
@@ -1142,7 +1242,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/experimental/data_fitting.hpp\"
-
+        
         int main()
         {
             namespace df = oneapi::mkl::experimental::data_fitting;
@@ -1156,7 +1256,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/rng.hpp\"
-
+        
         int main()
         {
             sycl::queue q;
@@ -1169,7 +1269,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/stats.hpp\"
-
+        
         int main()
         {
             namespace stats = oneapi::mkl::stats;
@@ -1184,7 +1284,7 @@ if(ENABLE_TRY_SYCL_COMPILE AND "CXX" IN_LIST CURR_LANGS AND SYCL_COMPILER AND MK
       check_cxx_source_compiles("
         #include <sycl/sycl.hpp>
         #include \"oneapi/mkl/vm.hpp\"
-
+        
         int main()
         {
             sycl::queue q;

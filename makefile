@@ -133,6 +133,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 -fPIC          := $(if $(OS_is_win),,-fPIC)
 -visibility    := $(if $(OS_is_win),,-fvisibility=hidden)
 -DMKL_ILP64    := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_ILP64)
+-DMKL_LP64     := $(if $(filter mkl,$(BACKEND_CONFIG)),-DMKL_LP64)
 -Zl            := $(-Zl.$(COMPILER))
 -Zl_DPCPP      := $(-Zl.dpcpp)
 # if REQDBG set to 'symbols', it will disable assert checking.

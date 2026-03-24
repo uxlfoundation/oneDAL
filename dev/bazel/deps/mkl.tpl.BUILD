@@ -9,9 +9,6 @@ cc_library(
     includes = [
         "include",
     ],
-    defines = [
-        "MKL_ILP64"
-    ],
 )
 
 cc_library(
@@ -35,6 +32,9 @@ cc_library(
     ],
     deps = [
         ":headers",
+    ],
+    defines = [
+        "MKL_ILP64"
     ],
     alwayslink = 1,
     linkstatic = 1,
@@ -82,5 +82,8 @@ cc_library(
         ":headers",
         ":mkl_dpc_utils",
         "@opencl//:opencl_binary",
+    ],
+    defines = [
+        # "MKL_LP64"
     ],
 )
