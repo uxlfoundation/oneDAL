@@ -55,7 +55,6 @@ cc_library(
     name = "mkl_dpc_utils",
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
-        "-lgomp",  # Required by libmkl_gnu_thread.so
     ],
     srcs = glob([
         "lib/libmkl_core.so*",
@@ -66,6 +65,9 @@ cc_library(
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
     ]),
+    deps = [
+        "@openmp//:openmp_binary",
+    ]
 )
 
 cc_library(

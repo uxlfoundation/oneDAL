@@ -48,9 +48,9 @@ opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
 
 # GNU OpenMP (libgomp) - required by MKL gnu_thread
-gnu_openmp_repo = use_repo_rule("@onedal//dev/bazel/deps:gnu_openmp.bzl", "gnu_openmp_repo")
-gnu_openmp_repo(
-    name = "gnu_openmp",
+openmp_repo = use_repo_rule("@onedal//dev/bazel/deps:openmp.bzl", "openmp_repo")
+openmp_repo(
+    name = "openmp",
     root_env_var = "GOMPROOT",
     urls = [
         "https://anaconda.org/conda-forge/libgomp/14.2.0/download/linux-64/libgomp-14.2.0-h77fa898_1.conda",
