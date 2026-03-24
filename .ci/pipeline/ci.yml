@@ -162,13 +162,12 @@ jobs:
     displayName: 'mkl installation'
   - script: |
       # The issue has been solved in 2026.0 release. Remove after updating to MKL 2026.0.
-      # Patch MKLConfig.cmake to add gnu_thread support to MKL_SYCL_THREADING_LIST.
-      # tmp
-      # if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
-      #     sudo sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
-      #         /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
-      # fi
-    displayName: 'Fix MKLConfig.cmake threading list'
+      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
+      if [ -f "/opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake" ]; then
+          sudo cp .ci/env/MKLConfig.cmake /opt/intel/oneapi/mkl/latest/lib/cmake/mkl/MKLConfig.cmake
+          echo "Replaced oneAPI MKLConfig.cmake with patched version from .ci/env/"
+      fi
+    displayName: 'Replace MKLConfig.cmake with patched version'
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/describe_system.sh
@@ -272,14 +271,12 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       # The issue has been solved in 2026.0 release. Remove after updating conda packages.
-      # Patch MKLConfig.cmake: without this fix, build fails due to known MKL bug with TBB detection.
+      # Use custom patched MKLConfig.cmake: fixes TBB target detection and includes gnu_thread support.
       if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
-          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
-              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
-          # sed -i 's/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread"/set(MKL_SYCL_THREADING_LIST "sequential" "intel_thread" "tbb_thread" "gnu_thread"/' \
-          #     "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+          cp .ci/env/MKLConfig.cmake "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+          echo "Replaced MKLConfig.cmake with patched version from .ci/env/"
       fi
-    displayName: 'Fix MKLConfig.cmake TBB target'
+    displayName: 'Replace MKLConfig.cmake with patched version'
   - script: |
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)

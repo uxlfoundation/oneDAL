@@ -60,7 +60,7 @@ cc_library(
     srcs = glob([
         "lib/libmkl_core.so*",
         "lib/libmkl_intel_lp64.so*",
-        "lib/libmkl_tbb_thread.so*",
+        "lib/libmkl_gnu_thread.so*",
         "lib/libmkl_sycl_blas.so*",
         "lib/libmkl_sycl_lapack.so*",
         "lib/libmkl_sycl_sparse.so*",
