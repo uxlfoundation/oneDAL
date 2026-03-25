@@ -14,6 +14,10 @@
 # limitations under the License.
 #===============================================================================
 
+# This file is a copy of the CMake config file from MKL with small fixes
+# introduced in later versions of MKL, in order to enable its usage in
+# oneDAL CI jobs with older versions of MKL that do not have the fix
+
 #===================================================================
 # CMake Config file for Intel(R) oneAPI Math Kernel Library (oneMKL)
 # Custom patched version for oneDAL CI
