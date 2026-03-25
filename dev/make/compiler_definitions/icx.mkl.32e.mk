@@ -63,8 +63,8 @@ ifeq ($(STDALLOC), yes)
   -stdalloc.icx := -static-libstdc++ -Wno-unused-command-line-argument
 endif
 
--Zl.icx = $(if $(OS_is_win),-Zl,) $(-Q)no-intel-lib
--DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -Wno-pass-failed
+-Zl.icx = $(if $(OS_is_win),-Zl -Qno-intel-lib,-no-intel-lib)
+-DEBC.icx = $(if $(OS_is_win),-debug:all -Z7,-g) -fno-system-debug -Wno-pass-failed
 
 -asanstatic.icx = -static-libasan
 -asanshared.icx = -shared-libasan
