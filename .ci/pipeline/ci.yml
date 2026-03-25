@@ -614,17 +614,27 @@ jobs:
   - script: |
       conda run -n CB python -c "import onedal._onedal_py_dpc"
     displayName: 'Check DPC module import 1'
+    workingDirectory: /tmp
     condition: always()
   - script: |
+      export LD_LIBRARY_PATH="${TBBROOT}/lib/intel64/gcc4.8:${TBBROOT}/lib:${LD_LIBRARY_PATH}"
       conda activate CB
       python -c "import onedal._onedal_py_dpc"
     displayName: 'Check DPC module import 2'
+    workingDirectory: /tmp
     condition: always()
   - script: |
       echo "Python used:"
       conda run -n CB python -V
+      echo "TBBROOT=${TBBROOT}"
+      echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
+      echo "TBB libs:"
+      ls -la ${TBBROOT}/lib/ 2>/dev/null || echo "No ${TBBROOT}/lib/"
+      ls -la ${TBBROOT}/lib/intel64/gcc4.8/ 2>/dev/null || echo "No ${TBBROOT}/lib/intel64/gcc4.8/"
+      echo "Checking installed daal4py location:"
+      conda run -n CB python -c "import daal4py; print(daal4py.__file__)"
       echo "Checking DPC import"
-      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
+      conda run --cwd /tmp -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import 3'
     condition: always()
   - task: PublishPipelineArtifact@1
