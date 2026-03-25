@@ -578,7 +578,6 @@ jobs:
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
     TBBROOT: '/opt/intel/oneapi/tbb/latest'
-    NO_DPC: 1
     NO_DIST: 1
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -736,10 +735,10 @@ jobs:
 
 
 - job: WindowsSklearnex
-  dependsOn: WindowsMakeVC
+  dependsOn: WindowsMakeIntel
   timeoutInMinutes: 0
   variables:
-    release.dir: '__release_win_vc'
+    release.dir: '__release_win'
     platform.type: 'win32e'
     DALROOT: '$(Pipeline.Workspace)\daal\latest'
     TBBROOT: '%TEMP%\oneapi\tbb\latest'
@@ -751,6 +750,9 @@ jobs:
       Python311:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
+      Python314_Sklearn18:
+        PYTHON_VERSION: '3.14'
+        SKLEARN_VERSION: '1.8'
       Python310_Sklearn10:
         PYTHON_VERSION: '3.10'
         SKLEARN_VERSION: '1.0'
