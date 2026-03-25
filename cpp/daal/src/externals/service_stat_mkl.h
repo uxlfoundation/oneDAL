@@ -97,16 +97,14 @@ public:
     VSLSSTaskPtr task;
     int errcode = 0;
 
-    MKLTaskInterfacer(const __int64 * nFeatures, const __int64 * nVectors, const double * data)
+    MKLTaskInterfacer(const MKL_INT * nFeatures, const MKL_INT * nVectors, const double * data)
     {
-        __DAAL_VSLFN_CALL(vsldSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &storageCols, data, 0, 0),
-                          this->errcode);
+        __DAAL_VSLFN_CALL(vsldSSNewTask, (&this->task, nFeatures, nVectors, &storageCols, data, 0, 0), this->errcode);
     }
 
-    MKLTaskInterfacer(const __int64 * nFeatures, const __int64 * nVectors, const float * data)
+    MKLTaskInterfacer(const MKL_INT * nFeatures, const MKL_INT * nVectors, const float * data)
     {
-        __DAAL_VSLFN_CALL(vslsSSNewTask, (&this->task, (const MKL_INT *)nFeatures, (const MKL_INT *)nVectors, &storageCols, data, 0, 0),
-                          this->errcode);
+        __DAAL_VSLFN_CALL(vslsSSNewTask, (&this->task, nFeatures, nVectors, &storageCols, data, 0, 0), this->errcode);
     }
 
     ~MKLTaskInterfacer() { __DAAL_VSLFN_CALL(vslSSDeleteTask, (&this->task), this->errcode); }
@@ -115,16 +113,16 @@ public:
 
     void edit(const MKL_INT taskId, const float * data) { __DAAL_VSLFN_CALL(vslsSSEditTask, (this->task, taskId, data), this->errcode); }
 
-    void edit_i(const MKL_INT taskId, const __int64 * data) { __DAAL_VSLFN_CALL(vsliSSEditTask, (this->task, taskId, data), this->errcode); }
+    void edit_i(const MKL_INT taskId, const MKL_INT * data) { __DAAL_VSLFN_CALL(vsliSSEditTask, (this->task, taskId, data), this->errcode); }
 
-    void edit_outliers_detection(const __int64 * nParams, const double * params, double * w)
+    void edit_outliers_detection(const MKL_INT * nParams, const double * params, double * w)
     {
-        __DAAL_VSLFN_CALL(vsldSSEditOutliersDetection, (this->task, (const MKL_INT *)nParams, params, w), this->errcode);
+        __DAAL_VSLFN_CALL(vsldSSEditOutliersDetection, (this->task, nParams, params, w), this->errcode);
     }
 
-    void edit_outliers_detection(const __int64 * nParams, const float * params, float * w)
+    void edit_outliers_detection(const MKL_INT * nParams, const float * params, float * w)
     {
-        __DAAL_VSLFN_CALL(vslsSSEditOutliersDetection, (this->task, (const MKL_INT *)nParams, params, w), this->errcode);
+        __DAAL_VSLFN_CALL(vslsSSEditOutliersDetection, (this->task, nParams, params, w), this->errcode);
     }
 
     void compute(const MKL_INT taskId, const MKL_INT method)
@@ -165,11 +163,11 @@ public:
 template <class fpType, CpuType cpu>
 struct MklStatistics
 {
-    typedef __int64 SizeType;
-    typedef __int64 MethodType;
+    typedef MKL_INT SizeType;
+    typedef MKL_INT MethodType;
     typedef int ErrorType;
 
-    static int xmeansOnePass(const fpType * data, __int64 nFeatures, __int64 nVectors, fpType * means)
+    static int xmeansOnePass(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * means)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_MEAN, means));
@@ -177,8 +175,8 @@ struct MklStatistics
         return 0;
     }
 
-    static int xcp(const fpType * data, __int64 nFeatures, __int64 nVectors, fpType * nPreviousObservations, fpType * sum, fpType * crossProduct,
-                   __int64 method)
+    static int xcp(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * nPreviousObservations, fpType * sum, fpType * crossProduct,
+                   MKL_INT method)
     {
         DaalManagedMalloc<fpType> meanHolder(nFeatures);
         fpType * mean = meanHolder.ptr;
@@ -204,8 +202,8 @@ struct MklStatistics
         return 0;
     }
 
-    static int xxcp_weight(const fpType * data, __int64 nFeatures, __int64 nVectors, fpType * weight, fpType * accumWeight, fpType * mean,
-                           fpType * crossProduct, __int64 method)
+    static int xxcp_weight(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * weight, fpType * accumWeight, fpType * mean,
+                           fpType * crossProduct, MKL_INT method)
     {
         DaalManagedScalableMalloc<fpType, cpu> sumHolder(nFeatures);
         fpType * sum = sumHolder.ptr;
@@ -224,8 +222,8 @@ struct MklStatistics
         return 0;
     }
 
-    static int xxvar_weight(const fpType * data, __int64 nFeatures, __int64 nVectors, fpType * weight, fpType * accumWeight, fpType * mean,
-                            fpType * sampleVariance, __int64 method)
+    static int xxvar_weight(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * weight, fpType * accumWeight, fpType * mean,
+                            fpType * sampleVariance, MKL_INT method)
     {
         DaalManagedScalableMalloc<fpType, cpu> sumHolder(nFeatures);
         DaalManagedScalableMalloc<fpType, cpu> rawSecondHolder(nFeatures);
@@ -248,7 +246,7 @@ struct MklStatistics
         return 0;
     }
 
-    static int x2c_mom(const fpType * data, const __int64 nFeatures, const __int64 nVectors, fpType * variance, const __int64 method)
+    static int x2c_mom(const fpType * data, const MKL_INT nFeatures, const MKL_INT nVectors, fpType * variance, const MKL_INT method)
     {
         DaalManagedMalloc<fpType> meanHolder(nFeatures);
         DaalManagedMalloc<fpType> secondOrderRawMomentHolder(nFeatures);
@@ -264,7 +262,7 @@ struct MklStatistics
         return 0;
     }
 
-    static int xoutlierdetection(const fpType * data, const __int64 nFeatures, const __int64 nVectors, const __int64 nParams,
+    static int xoutlierdetection(const fpType * data, const MKL_INT nFeatures, const MKL_INT nVectors, const MKL_INT nParams,
                                  const fpType * baconParams, fpType * baconWeights)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
@@ -273,7 +271,7 @@ struct MklStatistics
         return 0;
     }
 
-    static int xLowOrderMoments(const fpType * data, __int64 nFeatures, __int64 nVectors, __int64 method, fpType * sum, fpType * mean,
+    static int xLowOrderMoments(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, MKL_INT method, fpType * sum, fpType * mean,
                                 fpType * secondOrderRawMoment, fpType * variance, fpType * variation)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
@@ -287,7 +285,7 @@ struct MklStatistics
         return 0;
     }
 
-    static int xSumAndVariance(fpType * data, __int64 nFeatures, __int64 nVectors, fpType * nPreviousObservations, __int64 method, fpType * sum,
+    static int xSumAndVariance(fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * nPreviousObservations, MKL_INT method, fpType * sum,
                                fpType * mean, fpType * secondOrderRawMoment, fpType * variance)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
@@ -301,18 +299,18 @@ struct MklStatistics
         return 0;
     }
 
-    static int xQuantiles(const fpType * data, const __int64 nFeatures, const __int64 nVectors, const __int64 quantOrderN, const fpType * quantOrder,
+    static int xQuantiles(const fpType * data, const MKL_INT nFeatures, const MKL_INT nVectors, const MKL_INT quantOrderN, const fpType * quantOrder,
                           fpType * quants)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
-        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_QUANT_ORDER_N, (const MKL_INT *)&quantOrderN));
+        CALL_AND_CHECK(task.edit_i(__DAAL_VSL_SS_ED_QUANT_ORDER_N, &quantOrderN));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_QUANT_ORDER, quantOrder));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_QUANT_QUANTILES, quants));
         CALL_AND_CHECK(task.compute(__DAAL_VSL_SS_QUANTS, __DAAL_VSL_SS_METHOD_FAST));
         return 0;
     }
 
-    static int xSort(const fpType * data, __int64 nFeatures, __int64 nVectors, fpType * sortedData)
+    static int xSort(const fpType * data, MKL_INT nFeatures, MKL_INT nVectors, fpType * sortedData)
     {
         CALL_AND_CHECK(MKLTaskInterfacer<fpType> task(&nFeatures, &nVectors, data));
         CALL_AND_CHECK(task.edit(__DAAL_VSL_SS_ED_SORTED_OBSERV, sortedData));
