@@ -376,16 +376,25 @@ release.ONEAPI.LIBS_A := $(oneapi_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(oneapi_a),$(ilib:%.lib=%_dll.lib)),)
 release.ONEAPI.LIBS_Y := $(oneapi_y)
 
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 release.ONEAPI.LIBS_A.dpc := $(oneapi_a.dpc) \
                              $(if $(OS_is_win),$(foreach ilib,$(oneapi_a.dpc),$(ilib:%.lib=%_dll.lib)),)
+else
+release.ONEAPI.LIBS_A.dpc :=
+endif
 release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
 
 release.PARAMETERS.LIBS_A := $(parameters_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(parameters_a),$(ilib:%.lib=%_dll.lib)),)
 release.PARAMETERS.LIBS_Y := $(parameters_y)
 
+ifdef OS_is_win
 release.PARAMETERS.LIBS_A.dpc := $(parameters_a.dpc) \
                              $(if $(OS_is_win),$(foreach ilib,$(parameters_a.dpc),$(ilib:%.lib=%_dll.lib)),)
+else
+release.PARAMETERS.LIBS_A.dpc :=
+endif
 release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 
 
@@ -641,7 +650,12 @@ ONEAPI.srcs.mangled.dpc := $(subst /,-,$(ONEAPI.srcs.dpc))
 
 ONEAPI.objs_a     := $(ONEAPI.srcs.mangled:%.cpp=$(ONEAPI.tmpdir_a)/%.$o)
 ONEAPI.objs_y     := $(ONEAPI.srcs.mangled:%.cpp=$(ONEAPI.tmpdir_y)/%.$o)
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 ONEAPI.objs_a.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_a.dpc)/%.$o)
+else
+ONEAPI.objs_a.dpc :=
+endif
 ONEAPI.objs_y.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_y.dpc)/%.$o)
 ONEAPI.objs_a.all := $(ONEAPI.objs_a) $(ONEAPI.objs_a.dpc)
 ONEAPI.objs_y.all := $(ONEAPI.objs_y) $(ONEAPI.objs_y.dpc)
@@ -662,12 +676,18 @@ endef
 
 $(eval $(call .populate_cpus,ONEAPI.objs_a,$(ONEAPI.objs_a)))
 $(eval $(call .populate_cpus,ONEAPI.objs_y,$(ONEAPI.objs_y)))
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 $(eval $(call .populate_cpus,ONEAPI.objs_a.dpc,$(ONEAPI.objs_a.dpc)))
+endif
 $(eval $(call .populate_cpus,ONEAPI.objs_y.dpc,$(ONEAPI.objs_y.dpc)))
 
 -include $(ONEAPI.tmpdir_a)/*.d
 -include $(ONEAPI.tmpdir_y)/*.d
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 -include $(ONEAPI.tmpdir_a.dpc)/*.d
+endif
 -include $(ONEAPI.tmpdir_y.dpc)/*.d
 
 # Declares target for object file compilation
@@ -704,8 +724,11 @@ $(ONEAPI.tmpdir_a)/inc_a_folders.txt: | $(ONEAPI.tmpdir_a)/.
 $(ONEAPI.tmpdir_y)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y)/.
 	$(call WRITE.PREREQS,$(ONEAPI.include_options),$(space))
 
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 $(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt: | $(ONEAPI.tmpdir_a.dpc)/.
 	$(call WRITE.PREREQS,$(ONEAPI.include_options),$(space))
+endif
 
 $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y.dpc)/.
 	$(call WRITE.PREREQS,$(ONEAPI.include_options),$(space))
@@ -722,6 +745,8 @@ $(ONEAPI.objs_a): COPT += $(-fPIC) $(-cxx17) $(-optlevel) $(-Zl) $(-sanitize) $(
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a)))
 
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 $(ONEAPI.objs_a.dpc): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt
 $(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP) $(-sanitize) $(-DMKL_ILP64) $(-DEBC_DPCPP) $(-EHsc) $(pedantic.opts.dpcpp) \
                               -DDAAL_NOTHROW_EXCEPTIONS \
@@ -733,6 +758,7 @@ $(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP)
                                @$(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_a.dpc),.dpcpp))
+endif
 
 # Set compilation options to the object files which are part of DYNAMIC lib
 $(ONEAPI.objs_y): $(ONEAPI.dispatcher_cpu) $(ONEAPI.tmpdir_y)/inc_y_folders.txt
@@ -770,8 +796,14 @@ PARAMETERS.objs_a.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(
 ONEAPI.objs_a.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
 PARAMETERS.objs_y.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
 ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 PARAMETERS.objs_a.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_a.dpc))
 ONEAPI.objs_a.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_a.dpc))
+else
+PARAMETERS.objs_a.dpc.filtered :=
+ONEAPI.objs_a.dpc.filtered :=
+endif
 PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
 ONEAPI.objs_y.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
 
@@ -780,17 +812,25 @@ $(foreach x,$(ONEAPI.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.
 $(foreach x,$(ONEAPI.objs_y.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y),C)))
 $(foreach x,$(PARAMETERS.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a),C)))
 $(foreach x,$(PARAMETERS.objs_y.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y),C)))
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 $(foreach x,$(ONEAPI.objs_a.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a.dpc),DPC)))
-$(foreach x,$(ONEAPI.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y.dpc),DPC)))
 $(foreach x,$(PARAMETERS.objs_a.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a.dpc),DPC)))
+endif
+$(foreach x,$(ONEAPI.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y.dpc),DPC)))
 $(foreach x,$(PARAMETERS.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y.dpc),DPC)))
 
 # Create Host and DPC++ oneapi libraries
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a.filtered)))
+# DPC++ static library is only built on Windows
+ifdef OS_is_win
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc.filtered)))
+endif
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(PARAMETERS.objs_a.filtered)))
+ifdef OS_is_win
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a.dpc),$(PARAMETERS.objs_a.dpc.filtered)))
+endif
 else
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a)))
 $(if $(OS_is_win),$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc))))
@@ -809,7 +849,6 @@ $(WORKDIR.lib)/$(oneapi_y): \
     $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
-$(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(REQDBG),-fno-system-debug,)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
@@ -825,7 +864,6 @@ $(WORKDIR.lib)/$(parameters_y): \
     $(ONEAPI.tmpdir_y)/$(parameters_y:%.$y=%_link.txt) ; $(LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(daaldep.rt.seq)
-$(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(REQDBG),-fno-system-debug,)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
@@ -846,7 +884,7 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code -fno-system-debug --offload-compress,)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
@@ -865,7 +903,7 @@ $(WORKDIR.lib)/$(parameters_y.dpc): \
     $(ONEAPI.tmpdir_y.dpc)/$(parameters_y.dpc:%.$y=%_link.txt) ; $(DPC.LINK.DYNAMIC) ; $(LINK.DYNAMIC.POST)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.rt.dpc)
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code -fno-system-debug --offload-compress,)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(REQDBG),-flink-huge-device-code --offload-compress,)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
@@ -962,7 +1000,8 @@ _parameters_c: info.building.parameters.C++.part
 _parameters_c: $(WORKDIR.lib)/$(parameters_a) $(WORKDIR.lib)/$(parameters_y)
 
 _parameters_dpc: info.building.parameters.DPC++.part
-_parameters_dpc: $(WORKDIR.lib)/$(parameters_a.dpc) $(WORKDIR.lib)/$(parameters_y.dpc)
+# DPC++ static library is only built on Windows
+_parameters_dpc: $(if $(OS_is_win),$(WORKDIR.lib)/$(parameters_a.dpc),) $(WORKDIR.lib)/$(parameters_y.dpc)
 
 _release_parameters_c: _parameters_c
 _release_parameters_dpc: _parameters_dpc

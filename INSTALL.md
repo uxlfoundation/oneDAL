@@ -394,15 +394,6 @@ export CMAKE_PREFIX_PATH="${CONDA_PREFIX}/lib/cmake:${CMAKE_PREFIX_PATH}"
 
 _Note: variable `$PATH` is also required to contain `${CONDA_PREFIX}/bin`, but that should have been handled automatically by `conda activate`._
 
-_Note: there is a known issue with MKL and TBB from conda. Please use the fix below; without this fix, the build fails due to the known MKL bug with TBB detection._
-
-```shell
-      if [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
-          sed -i 's/if(NOT TBB_tbb_FOUND)/if(NOT TARGET TBB::tbb)/g' \
-              "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
-      fi
-```
-
 After that, it should be possible to build oneDAL and run the examples using the ICX compiler and the oneMKL libraries as per the instructions.
 
 For other setups in **Linux\***, such as building for platforms like `aarch64` that are not supported by Intel's toolkits or using non-default options offered by the Makefile, other software can be installed as follows:
