@@ -22,7 +22,6 @@
 */
 
 #include "src/algorithms/low_order_moments/low_order_moments_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

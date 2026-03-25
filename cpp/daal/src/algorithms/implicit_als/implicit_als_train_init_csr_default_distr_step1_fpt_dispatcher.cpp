@@ -23,7 +23,6 @@
 */
 
 #include "src/algorithms/implicit_als/implicit_als_train_init_container.h"
-#include "src/algorithms/algorithm_dispatch_container_common.h"
 
 namespace daal
 {

@@ -24,7 +24,6 @@
 */
 
 #include "src/algorithms/dtrees/gbt/classification/gbt_classification_predict_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

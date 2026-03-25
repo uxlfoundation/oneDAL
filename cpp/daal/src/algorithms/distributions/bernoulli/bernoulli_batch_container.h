@@ -24,6 +24,7 @@
 #ifndef __BERNOULLI_BATCH_CONTAINER_H__
 #define __BERNOULLI_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/distributions/bernoulli/bernoulli.h"
 #include "src/algorithms/distributions/bernoulli/bernoulli_kernel.h"
 

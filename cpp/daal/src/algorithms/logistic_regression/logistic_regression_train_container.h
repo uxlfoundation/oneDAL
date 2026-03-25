@@ -27,6 +27,7 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/logistic_regression/logistic_regression_training_types.h"
 #include "algorithms/logistic_regression/logistic_regression_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/logistic_regression/logistic_regression_train_kernel.h"
 #include "src/algorithms/logistic_regression/logistic_regression_model_impl.h"
 #include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"

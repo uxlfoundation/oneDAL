@@ -22,7 +22,6 @@
 */
 
 #include "src/algorithms/implicit_als/implicit_als_train_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

@@ -28,7 +28,7 @@
 #if defined(TARGET_X86_64)
     #include <immintrin.h>
 
-    #if defined(__GNUC__) || defined(__clang__)
+    #if defined(__GNUC__) || (defined(__clang__) && !defined(_MSC_VER))
         #include <cpuid.h> // __cpuidex
     #endif
 

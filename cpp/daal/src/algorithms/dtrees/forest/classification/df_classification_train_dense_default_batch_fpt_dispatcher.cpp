@@ -23,7 +23,6 @@
 
 #include "src/algorithms/dtrees/forest/classification/df_classification_train_container.h"
 #include "src/services/daal_strings.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

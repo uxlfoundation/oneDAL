@@ -19,8 +19,8 @@
 #define __KERNEL_FUNCTION_POLYNOMIAL_H__
 
 #include "algorithms/algorithm.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "data_management/data/numeric_table.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_types_polynomial.h"
 #include "algorithms/kernel_function/kernel_function.h"
 

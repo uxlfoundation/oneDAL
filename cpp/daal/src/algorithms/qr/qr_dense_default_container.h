@@ -26,6 +26,7 @@
 #include "algorithms/qr/qr_batch.h"
 #include "algorithms/qr/qr_online.h"
 #include "algorithms/qr/qr_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/qr/qr_dense_default_kernel.h"
 #include "src/data_management/service_numeric_table.h"
 
