@@ -30,6 +30,8 @@ set errorcode=0
 
 if "%compiler%"=="icx" (
     set release_dir=__release_win
+) else if "%compiler%"=="msvs" (
+    set release_dir=__release_win_vc
 ) else (
     set release_dir=__release_win_%compiler%
 )
