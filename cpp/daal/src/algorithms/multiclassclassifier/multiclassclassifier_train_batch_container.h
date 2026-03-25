@@ -23,6 +23,7 @@
 */
 
 #include "algorithms/multi_class_classifier/multi_class_classifier_train.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h"
 #include "src/algorithms/kernel.h"

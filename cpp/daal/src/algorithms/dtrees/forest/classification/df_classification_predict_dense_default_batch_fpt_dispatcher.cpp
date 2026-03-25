@@ -24,7 +24,6 @@
 */
 
 #include "src/algorithms/dtrees/forest/classification/df_classification_predict_dense_default_batch_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

@@ -24,7 +24,6 @@
 #include "algorithms/kernel_function/kernel_function_rbf.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_batch_container.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_dense_default_kernel.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

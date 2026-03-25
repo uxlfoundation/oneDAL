@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/pca_dense_svd_distr_step2_kernel.h"
 #include "src/algorithms/pca/pca_dense_svd_container.h"
 

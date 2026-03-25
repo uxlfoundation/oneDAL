@@ -24,10 +24,10 @@
 #ifndef __DBSCAN_CONTAINER_H__
 #define __DBSCAN_CONTAINER_H__
 
-#include "src/algorithms/kernel.h"
 #include "algorithms/dbscan/dbscan_types.h"
 #include "algorithms/dbscan/dbscan_batch.h"
 #include "algorithms/dbscan/dbscan_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dbscan/dbscan_kernel.h"
 
 namespace daal

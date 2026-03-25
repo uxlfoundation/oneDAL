@@ -24,6 +24,7 @@
 #ifndef __NORMAL_BATCH_CONTAINER_H__
 #define __NORMAL_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/distributions/normal/normal.h"
 #include "src/algorithms/distributions/normal/normal_kernel.h"
 

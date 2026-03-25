@@ -25,6 +25,7 @@
 #define __PHILOX4X32X10_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/philox4x32x10/philox4x32x10_kernel.h"
 
 namespace daal

@@ -24,7 +24,6 @@
 */
 
 #include "src/algorithms/logistic_regression/logistic_regression_predict_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

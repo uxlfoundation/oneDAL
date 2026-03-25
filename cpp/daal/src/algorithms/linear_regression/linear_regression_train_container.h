@@ -28,6 +28,7 @@
 #include "algorithms/linear_regression/linear_regression_training_batch.h"
 #include "algorithms/linear_regression/linear_regression_training_online.h"
 #include "algorithms/linear_regression/linear_regression_training_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/linear_regression/linear_regression_train_kernel.h"
 #include "algorithms/linear_regression/linear_regression_ne_model.h"
 #include "algorithms/linear_regression/linear_regression_qr_model.h"

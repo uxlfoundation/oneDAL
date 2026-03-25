@@ -23,7 +23,6 @@
 
 #include "algorithms/multi_class_classifier/multi_class_classifier_predict.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_predict_batch_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

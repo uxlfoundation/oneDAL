@@ -24,6 +24,7 @@
 #ifndef __UNIFORM_BATCH_CONTAINER_H__
 #define __UNIFORM_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/distributions/uniform/uniform.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 

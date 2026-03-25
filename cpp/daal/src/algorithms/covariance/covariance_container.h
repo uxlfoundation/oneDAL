@@ -24,10 +24,10 @@
 #ifndef __COVARIANCE_CONTAINER_H__
 #define __COVARIANCE_CONTAINER_H__
 
-#include "src/algorithms/kernel.h"
 #include "algorithms/covariance/covariance_batch.h"
 #include "algorithms/covariance/covariance_online.h"
 #include "algorithms/covariance/covariance_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/covariance/covariance_hyperparameter_impl.h"
 #include "src/algorithms/covariance/covariance_kernel.h"
 

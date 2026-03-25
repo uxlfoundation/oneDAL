@@ -25,6 +25,7 @@
 #define __CORDISTANCE_BATCH_CONTAINER_H__
 
 #include "algorithms/distance/correlation_distance.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/cordistance/cordistance_kernel.h"
 
 namespace daal

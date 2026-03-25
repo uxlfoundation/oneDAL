@@ -22,7 +22,6 @@
 */
 
 #include "src/algorithms/pca/pca_dense_svd_batch_container.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

@@ -25,6 +25,7 @@
 #define __MT19937_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mt19937/mt19937_kernel.h"
 
 namespace daal

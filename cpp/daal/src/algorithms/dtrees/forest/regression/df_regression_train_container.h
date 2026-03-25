@@ -27,6 +27,7 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/decision_forest/decision_forest_regression_training_types.h"
 #include "algorithms/decision_forest/decision_forest_regression_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_model_impl.h"
 

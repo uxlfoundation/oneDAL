@@ -26,6 +26,7 @@
 
 #include "algorithms/implicit_als/implicit_als_training_init_batch.h"
 #include "algorithms/implicit_als/implicit_als_training_init_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/implicit_als/implicit_als_train_init_kernel.h"
 #include "src/data_management/service_numeric_table.h"
 

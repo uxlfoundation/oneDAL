@@ -24,7 +24,6 @@
 #include "src/algorithms/lasso_regression/lasso_regression_train_container.h"
 
 #include "src/services/daal_strings.h"
-#include "src/algorithms/algorithm_dispatch_container_batch.h"
 
 namespace daal
 {

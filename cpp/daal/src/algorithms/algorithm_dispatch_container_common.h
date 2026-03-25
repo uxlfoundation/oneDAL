@@ -20,7 +20,7 @@
 
 #include "services/daal_defines.h"
 
-#include "algorithms/algorithm_container_base.h"
+#include "algorithms/algorithm_container_base_batch.h"
 #include "services/error_handling.h"
 #include "src/services/internal/daal_internal_kernel_defines.h"
 

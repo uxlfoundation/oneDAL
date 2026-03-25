@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_online.h"
+#include "src/algorithms/algorithm_dispatch_container_common.h"
 #include "src/algorithms/pca/pca_dense_correlation_online_kernel.h"
 
 namespace daal

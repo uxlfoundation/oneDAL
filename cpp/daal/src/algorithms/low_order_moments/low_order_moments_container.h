@@ -28,6 +28,7 @@
 #include "algorithms/moments/low_order_moments_batch.h"
 #include "algorithms/moments/low_order_moments_online.h"
 #include "algorithms/moments/low_order_moments_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/low_order_moments/low_order_moments_kernel.h"
 
 namespace daal
