@@ -22,7 +22,7 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 `make PLAT=win32e COMPILER=vc`
 
 # CPU targets
-`make REQCPU="sse42 avx2 avx512"`
+`make REQCPU="sse2 avx2 avx512"`
 
 # Backend selection
 `make BACKEND_CONFIG=mkl`  # Intel MKL (default)
@@ -49,7 +49,7 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 
 ## 🏗️ CPU Architecture Support
 
-- **x86-64**: sse42, avx2, avx512 (Intel/AMD)
+- **x86-64**: sse2, avx2, avx512 (Intel/AMD)
 - **ARM64**: sve (ARM Scalable Vector Extension)
 - **RISC-V**: rv64 (RISC-V 64-bit)
 
@@ -101,7 +101,7 @@ daal_module(
     name = "kmeans",
     features = [ "c++17" ],
     cpu_defines = {
-        "sse42":  [ "DAAL_CPU=sse42" ],
+        "sse2":   [ "DAAL_CPU=sse2" ],
         "avx2":   [ "DAAL_CPU=avx2" ],
         "avx512": [ "DAAL_CPU=avx512" ],
     },

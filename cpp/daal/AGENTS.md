@@ -8,7 +8,7 @@
 - **Memory**: `daal::services::SharedPtr<T>` custom smart pointers
 - **Errors**: `services::Status` return codes with `throwIfPossible()`
 - **Threading**: TBB-based with CPU-specific kernels
-- **Optimization**: Multi-architecture dispatch (SSE4.2, AVX2, AVX-512, ARM SVE, RISC-V)
+- **Optimization**: Multi-architecture dispatch (SSE2, AVX2, AVX-512, ARM SVE, RISC-V)
 
 ## 🚀 Essential Commands
 
