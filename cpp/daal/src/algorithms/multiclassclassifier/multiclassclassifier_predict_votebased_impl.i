@@ -47,7 +47,7 @@ using namespace daal::services::internal;
 template <typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
 {
-    Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+    Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred, NumericTable * df,
                    const daal::algorithms::Parameter * par);
 };
 
@@ -303,7 +303,7 @@ private:
 template <typename algorithmFPType, CpuType cpu>
 Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * a,
                                                                                                             const daal::algorithms::Model * m,
-                                                                                                            SvmModel * svmModel, NumericTable * pred,
+                                                                                                            svm::internal::ModelImpl * svmModel, NumericTable * pred,
                                                                                                             NumericTable * df,
                                                                                                             const daal::algorithms::Parameter * par)
 {

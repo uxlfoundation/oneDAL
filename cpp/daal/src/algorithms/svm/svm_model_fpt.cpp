@@ -17,11 +17,11 @@
 
 /*
 //++
-//  Implementation of the class defining the SVM model.
+//  Implementation of the constructor of the class defining the SVM model.
 //--
 */
 
-#include "algorithms/svm/svm_model.h"
+#include "src/algorithms/svm/svm_model_impl.h"
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/csr_numeric_table.h"
 
@@ -31,19 +31,18 @@ namespace algorithms
 {
 namespace svm
 {
-namespace interface1
+namespace internal
 {
 namespace dm  = daal::data_management;
-namespace dmi = daal::data_management::internal;
-template <typename modelFPType>
-services::SharedPtr<Model> Model::create(size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status * stat)
-{
-    DAAL_DEFAULT_CREATE_IMPL_EX(Model, (modelFPType)0.0, nColumns, layout);
-}
 
 template <typename modelFPType>
-Model::Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st) : _bias(0.0)
+ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st) : _nIterations(0)
 {
+    if (nClasses < 2)
+    {
+        st.add(services::ErrorIncorrectNumberOfClasses);
+        return;
+    }
     if (layout == dm::NumericTableIface::csrArray)
     {
         _SV = dm::CSRNumericTable::create<modelFPType>(NULL, NULL, NULL, nColumns, 0, dm::CSRNumericTable::oneBased, &st);
@@ -52,19 +51,26 @@ Model::Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIf
     {
         _SV = dm::HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0, &st);
     }
+    if (!st) return;
     _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, 1, 0, &st);
     if (!st) return;
     _SVIndices = dm::HomogenNumericTable<int>::create(NULL, 1, 0, &st);
+    if (!st) return;
+    bool overflow = false;
+    DAAL_OVERFLOW_CHECK_BY_MULTIPLICATION_BOOL(size_t, nClasses, (nClasses - 1) / 2, overflow);
+    if (overflow)
+    {
+        st.add(services::ErrorBufferSizeIntegerOverflow);
+        return;
+    }
+    _biases = dm::HomogenNumericTable<modelFPType>::create(1, nClasses * (nClasses - 1) / 2, dm::NumericTable::doAllocate, &st);
 
     return;
 }
 
-template DAAL_EXPORT services::SharedPtr<Model> Model::create<DAAL_FPTYPE>(size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
-                                                                           services::Status * stat);
+template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
 
-template DAAL_EXPORT Model::Model(DAAL_FPTYPE, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
-
-} // namespace interface1
+} // namespace internal
 } // namespace svm
 } // namespace algorithms
 } // namespace daal

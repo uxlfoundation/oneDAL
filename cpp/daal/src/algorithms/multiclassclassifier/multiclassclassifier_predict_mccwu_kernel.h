@@ -141,7 +141,7 @@ private:
 template <typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel<multiClassClassifierWu, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
 {
-    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
+    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred, NumericTable * df,
                              const daal::algorithms::Parameter * par);
 };
 

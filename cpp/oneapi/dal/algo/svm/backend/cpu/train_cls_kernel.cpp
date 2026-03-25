@@ -18,7 +18,6 @@
 #include <daal/src/algorithms/svm/svm_train_thunder_kernel.h>
 #include <daal/src/algorithms/svm/svm_train_internal.h>
 #include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h>
-#include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h>
 
 #include "algorithms/svm/svm_train.h"
 
@@ -113,8 +112,10 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         daal_multiclass::Model::create(column_count, &daal_multiclass_parameter_public);
 
     const auto daal_layout = daal_data->getDataLayout();
-    auto daal_svm_model =
-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count, daal_layout);
+    daal::services::Status status;
+    daal_svm::ModelPtr daal_svm_model(new daal_svm::internal::ModelImpl(
+            Float(0), class_count, column_count, daal_layout, status));
+    interop::status_to_exception(status);
     using svm_batch_t =
         typename daal_svm::training::internal::Batch<Float, to_daal_method<Method>::value>;
     auto svm_batch = daal::services::SharedPtr<svm_batch_t>(new svm_batch_t());
@@ -171,7 +172,9 @@ static train_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
     const auto daal_responses = interop::convert_to_daal_table<Float>(new_responses);
 
     const auto daal_layout = daal_data->getDataLayout();
-    auto daal_model = daal_svm::Model::create<Float>(column_count, daal_layout);
+    daal::services::Status status;
+    daal_svm::ModelPtr daal_model(new daal_svm::internal::ModelImpl(Float(0), 2 /* class_count */, column_count, daal_layout, status));
+    interop::status_to_exception(status);
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return daal_svm_kernel_t<
                    Float,

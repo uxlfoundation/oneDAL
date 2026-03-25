@@ -47,14 +47,12 @@ using namespace daal::internal;
 using namespace daal::services::internal;
 using namespace daal::data_management;
 using namespace daal::services;
-using namespace multi_class_classifier::internal;
-using namespace svm::training::internal;
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * xTable,
                                                                                                const NumericTable * yTable,
                                                                                                const NumericTable * wTable,
-                                                                                               daal::algorithms::Model * m, SvmModel * svmModel,
+                                                                                               daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel,
                                                                                                const KernelParameter & par)
 {
     Status s;
@@ -238,7 +236,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
             }
             DAAL_ASSERT(inxSV == nSV);
         }
-        NumericTablePtr coeffOutTable = svmModel->getCoefficients();
+        NumericTablePtr coeffOutTable = svmModel->getClassificationCoefficients();
         DAAL_CHECK_STATUS(s, coeffOutTable->resize(nSV));
 
         using SvmResultTask = SaveResultTask<algorithmFPType, cpu>;

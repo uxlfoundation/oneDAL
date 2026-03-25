@@ -31,6 +31,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/services/service_utils.h"
 #include "src/services/service_data_utils.h"
+#include "src/algorithms/svm/svm_model_impl.h"
 #include "src/algorithms/svm/svm_train_cache.h"
 #include "src/algorithms/svm/svm_train_common.h"
 #include "src/services/service_profiler.h"
@@ -57,11 +58,11 @@ class SaveResultTask
 {
 public:
     SaveResultTask(const size_t nVectors, const algorithmFPType * y, algorithmFPType * alpha, const algorithmFPType * grad, const SvmType task,
-                   SVMCacheCommonIface<algorithmFPType, cpu> * cache)
-        : _nVectors(nVectors), _y(y), _alpha(alpha), _grad(grad), _task(task), _cache(cache)
+                   SVMCacheCommonIface<algorithmFPType, cpu> * cache, const size_t nIterations)
+        : _nVectors(nVectors), _y(y), _alpha(alpha), _grad(grad), _task(task), _cache(cache), _nIterations(nIterations)
     {}
 
-    services::Status compute(const NumericTablePtr & xTable, Model & model, const algorithmFPType * cw) const
+    services::Status compute(const NumericTablePtr & xTable, svm::internal::ModelImpl & model, const algorithmFPType * cw) const
     {
         DAAL_PROFILER_TASK(saveResult);
 
@@ -69,6 +70,7 @@ public:
 
         /* Calculate bias and write it into model */
         model.setBias(double(calculateBias(cw)));
+        model.setNumberOfIterations(_nIterations);
 
         if (_task == SvmType::regression || _task == SvmType::nu_regression)
         {
@@ -127,7 +129,7 @@ protected:
      * \param[in]  nSV          Number of support vectors
      * \param[out] model        Resulting model
      */
-    services::Status setSVCoefficients(size_t nSV, Model & model) const
+    services::Status setSVCoefficients(size_t nSV, svm::internal::ModelImpl & model) const
     {
         const algorithmFPType zero(0.0);
         NumericTablePtr svCoeffTable = model.getClassificationCoefficients();
@@ -155,7 +157,7 @@ protected:
      * \param[in]  nSV          Number of support vectors
      * \param[out] model        Resulting model
      */
-    services::Status setSVIndices(size_t nSV, Model & model) const
+    services::Status setSVIndices(size_t nSV, svm::internal::ModelImpl & model) const
     {
         NumericTablePtr svIndicesTable = model.getSupportIndices();
         services::Status s;
@@ -363,12 +365,13 @@ protected:
     }
 
 private:
-    const size_t _nVectors;                             //Number of observations in the input data set
-    const algorithmFPType * _y;                         //Array of labels
-    algorithmFPType * _alpha;                           //Array of coefficients
-    const algorithmFPType * _grad;                      //Array of coefficients
-    const SvmType _task;                                //Classification or regression task
-    SVMCacheCommonIface<algorithmFPType, cpu> * _cache; //Caches matrix Q (kernel(x[i], x[j])) values
+    const size_t _nVectors;                             // Number of observations in the input data set
+    const algorithmFPType * _y;                         // Array of labels
+    algorithmFPType * _alpha;                           // Array of coefficients
+    const algorithmFPType * _grad;                      // Array of coefficients
+    const SvmType _task;                                // Classification or regression task
+    SVMCacheCommonIface<algorithmFPType, cpu> * _cache; // Caches matrix Q (kernel(x[i], x[j])) values
+    const size_t _nIterations;                          // Number of iterations performed by the training algorithm
 };
 
 } // namespace internal

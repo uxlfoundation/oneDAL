@@ -107,67 +107,7 @@ namespace interface1
 class DAAL_EXPORT Model : public classifier::Model
 {
 public:
-    DECLARE_MODEL(Model, classifier::Model);
-
-    /**
-     * Constructs the SVM model
-     * \tparam modelFPType  Data type to store SVM model data, double or float
-     * \param[in] dummy     Dummy variable for the templated constructor
-     * \param[in] nColumns  Number of features in input data
-     * \param[in] layout    Data layout of the numeric table of support vectors
-     * \DAAL_DEPRECATED_USE{ Model::create }
-     */
-    template <typename modelFPType>
-    Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos)
-        : _bias(0.0)
-    {
-        using namespace data_management;
-        if (layout == NumericTableIface::csrArray)
-        {
-            modelFPType * dummyPtr = NULL;
-            _SV                    = CSRNumericTable::create(dummyPtr, NULL, NULL, nColumns);
-        }
-        else
-        {
-            _SV = HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0);
-        }
-        _SVCoeff   = HomogenNumericTable<modelFPType>::create(NULL, 1, 0);
-        _SVIndices = HomogenNumericTable<int>::create(NULL, 1, 0);
-    }
-
-    /**
-     * Constructs the SVM model
-     * \tparam modelFPType  Data type to store SVM model data, double or float
-     * \param[in] nColumns  Number of features in input data
-     * \param[in] layout    Data layout of the numeric table of support vectors
-     * \param[out] stat     Status of the model construction
-     * \return SVM model
-     */
-    template <typename modelFPType>
-    DAAL_EXPORT static services::SharedPtr<Model> create(
-        size_t nColumns, data_management::NumericTableIface::StorageLayout layout = data_management::NumericTableIface::aos,
-        services::Status * stat = NULL);
-
-    /**
-     * Empty constructor for deserialization
-     * \DAAL_DEPRECATED_USE{ Model::create }
-     */
-    Model() : _SV(), _SVCoeff(), _bias(0.0), _SVIndices() {}
-
-    /**
-     * Constructs empty SVM model for deserialization
-     * \param[out] stat     Status of the model construction
-     * \return Empty SVM model for deserialization
-     */
-    static services::SharedPtr<Model> create(services::Status * stat = NULL)
-    {
-        services::SharedPtr<Model> modelPtr(new Model());
-        if (!modelPtr)
-        {
-            if (stat) stat->add(services::ErrorMemoryAllocationFailed);
-        }
-        return modelPtr;
-    }
+    DECLARE_MODEL(Model, classifier::Model)
 
     virtual ~Model() {}
 
@@ -175,67 +115,46 @@ public:
      * Returns support vectors constructed during the training of the SVM model
      * \return Array of support vectors
      */
-    data_management::NumericTablePtr getSupportVectors() { return _SV; }
+    virtual data_management::NumericTablePtr getSupportVectors() const = 0;
 
     /**
      * Returns indices of the support vectors constructed during the training of the SVM model
      * \return Array of support vectors indices
      */
-    data_management::NumericTablePtr getSupportIndices() { return _SVIndices; }
+    virtual data_management::NumericTablePtr getSupportIndices() const = 0;
 
     /**
      * Returns classification coefficients constructed during the training of the SVM model
      * \return Array of classification coefficients
      */
-    data_management::NumericTablePtr getClassificationCoefficients() { return _SVCoeff; }
+    virtual data_management::NumericTablePtr getClassificationCoefficients() const = 0;
 
     /**
      * Returns the bias constructed during the training of the SVM model
      * \return Bias
      */
-    virtual double getBias() { return _bias; }
+    virtual double getBias() const = 0;
 
     /**
-     * Sets the bias for the SVM model
-     * \param bias  Bias of the model
+     * Returns biases constructed during the training of the two-class or multi-class SVM model
+     * \return Array of biases
      */
-    virtual void setBias(double bias) { _bias = bias; }
+    virtual data_management::NumericTablePtr getBiases() const = 0;
 
     /**
-     *  Retrieves the number of features in the dataset was used on the training stage
-     *  \return Number of features in the dataset was used on the training stage
+     * Returns the number of iterations performed during the training of the SVM model
+     * \return Number of iterations
      */
-    size_t getNumberOfFeatures() const override { return (_SV ? _SV->getNumberOfColumns() : 0); }
-
-protected:
-    data_management::NumericTablePtr _SV;        /*!< \private Support vectors */
-    data_management::NumericTablePtr _SVCoeff;   /*!< \private Classification coefficients */
-    double _bias;                                /*!< \private Bias of the distance function D(x) = w*Phi(x) + bias */
-    data_management::NumericTablePtr _SVIndices; /*!< \private Indices of the support vectors in training data set */
-
-    template <typename modelFPType>
-    DAAL_EXPORT Model(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
-
-    template <typename Archive, bool onDeserialize>
-    services::Status serialImpl(Archive * arch)
-    {
-        services::Status st = classifier::Model::serialImpl<Archive, onDeserialize>(arch);
-        if (!st) return st;
-        arch->setSharedPtrObj(_SV);
-        arch->setSharedPtrObj(_SVCoeff);
-        arch->set(_bias);
-
-        arch->setSharedPtrObj(_SVIndices);
-
-        return st;
-    }
+    virtual size_t getNumberOfIterations() const = 0;
 };
 typedef services::SharedPtr<Model> ModelPtr;
+typedef services::SharedPtr<const Model> ModelConstPtr;
 /** @} */
 } // namespace interface1
 using interface2::Parameter;
 using interface1::Model;
 using interface1::ModelPtr;
+using interface1::ModelConstPtr;
 
 } // namespace svm
 /** @} */

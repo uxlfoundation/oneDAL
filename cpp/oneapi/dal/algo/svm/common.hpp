@@ -454,6 +454,14 @@ public:
         return *this;
     }
 
+    /// The number of iterations performed by the SVM training algorithm
+    std::int64_t get_iteration_count() const;
+
+    auto &set_iteration_count(std::int64_t value) {
+        set_iteration_count_impl(value);
+        return *this;
+    }
+
     /// The first unique value in class labels.
     /// Used with :expr:`task::classification` and
     /// :expr:`task::nu_classification`.
@@ -505,6 +513,7 @@ protected:
     void set_coeffs_impl(const table &);
     void set_bias_impl(double);
     void set_biases_impl(const table &);
+    void set_iteration_count_impl(std::int64_t);
     void set_first_class_response_impl(std::int64_t);
     void set_second_class_response_impl(std::int64_t);
 

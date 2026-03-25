@@ -85,8 +85,11 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     const auto daal_decision_function =
         interop::convert_to_daal_homogen_table(arr_decision_function, row_count, model_count);
 
-    auto daal_svm_model =
-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count);
+    const auto daal_layout = daal_data->getDataLayout();
+    daal::services::Status status;
+    daal_svm::ModelPtr daal_svm_model(new daal_svm::internal::ModelImpl(
+            Float(0), class_count, column_count, daal_layout, status));
+    interop::status_to_exception(status);
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_multiclass_kernel_t>(ctx,
                                                                    daal_data.get(),

@@ -29,8 +29,7 @@
 #include "src/algorithms/svm/svm_train_common.h"
 #include "src/data_management/service_micro_table.h"
 #include "data_management/data/numeric_table.h"
-#include "algorithms/model.h"
-#include "services/daal_defines.h"
+#include "src/algorithms/svm/svm_model_impl.h"
 #include "src/algorithms/svm/svm_train_boser_cache.i"
 
 namespace daal
@@ -48,7 +47,7 @@ struct SVMTrainTask
 {
     static const size_t kernelFunctionBlockSize = 1024; /* Size of the block of kernel function elements */
 
-    SVMTrainTask(size_t nVectors) : _cache(nullptr), _nVectors(nVectors) {}
+    SVMTrainTask(size_t nVectors) : _cache(nullptr), _nVectors(nVectors), _nIterations(0) {}
 
     Status init(algorithmFPType C, const NumericTablePtr & wTable, NumericTable & yTable);
 
@@ -58,7 +57,7 @@ struct SVMTrainTask
     Status compute(const KernelParameter & svmPar);
 
     /* Write support vectors and classification coefficients into model */
-    Status setResultsToModel(const NumericTablePtr & xTable, Model & model) const;
+    Status setResultsToModel(const NumericTablePtr & xTable, svm::internal::ModelImpl & model) const;
 
     ~SVMTrainTask();
 
@@ -91,6 +90,7 @@ protected:
     TArray<algorithmFPType, cpu> _kernelDiag;            //diagonal elements of the matrix Q (kernel(x[i], x[i]))
     TArray<char, cpu> _flags;                            //array of flags I_LOW and I_UP
     SVMCacheIface<boser, algorithmFPType, cpu> * _cache; //caches matrix Q (kernel(x[i], x[j])) values
+    size_t _nIterations;
 };
 
 template <typename algorithmFPType, CpuType cpu>
