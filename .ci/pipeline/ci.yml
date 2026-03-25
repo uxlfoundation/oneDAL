@@ -612,6 +612,7 @@ jobs:
     displayName: 'tbb installation'
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
   - script: |
+      conda activate CB
       python -c "import onedal._onedal_py_dpc"
     displayName: 'Check DPC module import'
     condition: always()
@@ -774,6 +775,7 @@ jobs:
     displayName: 'TBB installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - script: |
+      conda activate CB
       python -c "import onedal._onedal_py_dpc"
     displayName: 'Check DPC module import'
     condition: always()
