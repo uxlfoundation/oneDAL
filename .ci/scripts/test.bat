@@ -119,5 +119,6 @@ if "%build_system%"=="cmake" (
 ) else (
     if "%examples%"=="daal\cpp" nmake %linking% compiler=%compiler%
     if "%examples%"=="oneapi\cpp" nmake %linking% compiler=%compiler%
+    if "%examples%"=="oneapi\dpc" nmake dll compiler=%compiler%
 )
 EXIT /B %errorcode%

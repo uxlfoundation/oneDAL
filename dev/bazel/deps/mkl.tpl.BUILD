@@ -84,6 +84,6 @@ cc_library(
         "@opencl//:opencl_binary",
     ],
     defines = [
-        # "MKL_LP64"
+        "MKL_LP64"
     ],
 )
