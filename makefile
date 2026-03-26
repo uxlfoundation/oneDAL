@@ -886,7 +886,9 @@ $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(-lsanitize.dpc)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
-$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(daaldep.math_backend.dpc_link_deps)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
+    $(daaldep.math_backend.dpc_link_deps) \
+    $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../mkl')
 
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y.dpc)
@@ -905,7 +907,10 @@ $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(-lsanitize.dpc)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(if $(OS_is_win), $(if $(libsycl),$(libsycl),$(libsycl.default)))
-$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += $(daaldep.math_backend.dpc_link_deps)
+$(WORKDIR.lib)/$(parameters_y.dpc): LOPT += \
+    $(daaldep.math_backend.dpc_link_deps) \
+    $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN:$$ORIGIN/../mkl')
+
 ifdef OS_is_win
 $(WORKDIR.lib)/$(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(parameters_y.dpc)
 endif
