@@ -77,7 +77,6 @@ $1 = $$(if $$(or $$(.sources-changed),$$(and $$(.mkfiles-changed),$$(call .trigg
 # Enhance build commands with support for dependency generation
 # (does not depend on macro from which particular command if called, only on command executable name)
 dep-gen-enhanced-common   = $(call $(SELF),$1 $(.copt-gen-deps)) && $(.keep-raw-deps) sed -n $(sed.-i) $(sed.fix-deps) $(sed.rm-abs-paths) -e '/./{ p; $(sed.mk-phony-targets)}' $(.dep-file-tmp)
-dep-gen-enhanced.icc   = $(dep-gen-enhanced-common)
 dep-gen-enhanced.icl   = $(dep-gen-enhanced-common)
 dep-gen-enhanced.icx   = $(if $(COMPILER_is_vc),,$(dep-gen-enhanced-common))
 dep-gen-enhanced.g++   = $(dep-gen-enhanced-common)
@@ -111,7 +110,7 @@ $(call .inject.dep.gen, LINK.DYNAMIC,  ,$$(call md5,$$(link.dynamic.cmd)))
 .dep-file = $@.d
 # do all dep generation work on temp file, rename it on finish (to survive build halts: DPD200288373)
 .dep-file-tmp = $@.d.tmp
-# icc/gcc compiler options to generate dependency files
+# gcc compiler options to generate dependency files
 .copt-gen-deps = $(-Q)MMD $(-Q)MT $@ $(-Q)MF $(.dep-file-tmp)
 
 # -------------------------------------------
