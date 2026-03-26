@@ -103,7 +103,7 @@ cpu_extension get_top_cpu_extension() {
     const uint32_t ids_count = registers.eax_;
     if (ids_count >= 1) {
         cpuid(0x1, registers);
-        if (registers.ecx_ & (1U << 20)) {
+        if (registers.edx_ & (1U << 26)) {
             ext = cpu_extension::sse2;
         }
     }
