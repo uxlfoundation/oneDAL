@@ -158,7 +158,7 @@ Dynamic linking |short_name| with the GPU target:
   .. code-block:: text
 
      icpx -fsycl my_first_dal_program.cpp -Wl,--start-group \
-     -L<install dir>/dal/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc \
+     -L$DALROOT/latest/lib -lonedal_core -lonedal_dpc -lonedal_parameters_dpc -lonedal_thread -lpthread -ldl -L<install dir>/tbb/latest/lib/ -ltbb -ltbbmalloc \
      -lmkl_sycl_blas -lmkl_sycl_lapack -lmkl_sycl_sparse -lmkl_sycl_rng -lmkl_intel_lp64 -lmkl_gnu_thread -lmkl_core  -Wl,--end-group
 
 * Windows* OS:
@@ -166,14 +166,13 @@ Dynamic linking |short_name| with the GPU target:
   .. code-block:: text
 
       icx -fsycl my_first_dal_program.cpp \
-      -L<install dir>/dal/latest/lib \
       onedal_core_dll.lib onedal_dpc_dll.lib onedal_parameters_dpc_dll.lib onedal_thread_dll.lib \
-      -L<install dir>/tbb/latest/lib tbb.lib tbbmalloc.lib \
-      <path_to_mkl_libs>/mkl_sycl_blas_dll.lib \
-      <path_to_mkl_libs>/mkl_sycl_lapack_dll.lib \
-      <path_to_mkl_libs>/mkl_sycl_sparse_dll.lib \
-      <path_to_mkl_libs>/mkl_sycl_rng_dll.lib \
-      <path_to_mkl_libs>/mkl_core_dll.lib \
-      <path_to_mkl_libs>/mkl_intel_lp64_dll.lib \
-      <path_to_mkl_libs>/mkl_intel_thread_dll.lib \
+      tbb.lib tbbmalloc.lib \
+      %MKLROOT%\lib\mkl_sycl_blas_dll.lib \
+      %MKLROOT%\lib\mkl_sycl_lapack_dll.lib \
+      %MKLROOT%\lib\mkl_sycl_sparse_dll.lib \
+      %MKLROOT%\lib\mkl_sycl_rng_dll.lib \
+      %MKLROOT%\lib\mkl_core_dll.lib \
+      %MKLROOT%\lib\mkl_intel_lp64_dll.lib \
+      %MKLROOT%\lib\mkl_intel_thread_dll.lib \
       libiomp5md.lib
