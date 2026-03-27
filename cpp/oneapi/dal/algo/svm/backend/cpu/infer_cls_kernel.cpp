@@ -67,13 +67,14 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     const auto daal_support_vectors =
         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
-
     const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
+    const auto daal_iterations = interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
 
     auto daal_model = daal_model_builder{}
                           .set_support_vectors(daal_support_vectors)
                           .set_coeffs(daal_coeffs)
-                          .set_biases(daal_biases);
+                          .set_biases(daal_biases)
+                          .set_iteration_counts(daal_iterations);
 
     const std::int64_t model_count = class_count * (class_count - 1) / 2;
     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;

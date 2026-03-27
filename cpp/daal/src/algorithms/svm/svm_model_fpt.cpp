@@ -36,7 +36,7 @@ namespace internal
 namespace dm  = daal::data_management;
 
 template <typename modelFPType>
-ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st) : _nIterations(0)
+ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
 {
     if (nClasses < 2)
     {
@@ -63,12 +63,39 @@ ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns
         st.add(services::ErrorBufferSizeIntegerOverflow);
         return;
     }
-    _biases = dm::HomogenNumericTable<modelFPType>::create(1, nClasses * (nClasses - 1) / 2, dm::NumericTable::doAllocate, &st);
+    const size_t nModels = nClasses * (nClasses - 1) / 2;
+    _biases = dm::HomogenNumericTable<double>::create(1, nModels, dm::NumericTable::doAllocate, &st);
+    if (!st) return;
+    _nIterations = dm::HomogenNumericTable<int>::create(1, nModels, dm::NumericTable::doAllocate, &st);
+
+    return;
+}
+
+template <typename modelFPType>
+ModelInternal::ModelInternal(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
+{
+    if (layout == dm::NumericTableIface::csrArray)
+    {
+        _SV = dm::CSRNumericTable::create<modelFPType>(NULL, NULL, NULL, nColumns, 0, dm::CSRNumericTable::oneBased, &st);
+    }
+    else
+    {
+        _SV = dm::HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0, &st);
+    }
+    if (!st) return;
+    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, 1, 0, &st);
+    if (!st) return;
+    _SVIndices = dm::HomogenNumericTable<int>::create(NULL, 1, 0, &st);
+    if (!st) return;
+    _biases = dm::HomogenNumericTable<double>::create(1, 1, dm::NumericTable::doAllocate, &st);
+    if (!st) return;
+    _nIterations = dm::HomogenNumericTable<int>::create(1, 1, dm::NumericTable::doAllocate, &st);
 
     return;
 }
 
 template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
+template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
 
 } // namespace internal
 } // namespace svm

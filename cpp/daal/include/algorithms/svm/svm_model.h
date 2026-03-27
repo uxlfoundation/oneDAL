@@ -113,39 +113,46 @@ public:
 
     /**
      * Returns support vectors constructed during the training of the SVM model
-     * \return Array of support vectors
+     * \return Array of support vectors of size MxN for two-class SVM,
+     *         where M is the number of support vectors and P is the number of features in training data
      */
     virtual data_management::NumericTablePtr getSupportVectors() const = 0;
 
     /**
      * Returns indices of the support vectors constructed during the training of the SVM model
-     * \return Array of support vectors indices
+     * \return Array of support vectors indices of size Mx1 for two-class SVM, where M is the number of support vectors
      */
     virtual data_management::NumericTablePtr getSupportIndices() const = 0;
 
     /**
      * Returns classification coefficients constructed during the training of the SVM model
-     * \return Array of classification coefficients
+     * \return Array of classification coefficients of size Mx1 for two-class SVM, where M is the number of support vectors
      */
     virtual data_management::NumericTablePtr getClassificationCoefficients() const = 0;
 
     /**
-     * Returns the bias constructed during the training of the SVM model
+     * Returns the bias constructed during the training of the two-class SVM model
      * \return Bias
      */
     virtual double getBias() const = 0;
 
     /**
+     * Sets the bias constructed during the training of the two-class SVM model
+     * \param[in] bias Bias
+     */
+    virtual void setBias(double bias) = 0;
+
+    /**
      * Returns biases constructed during the training of the two-class or multi-class SVM model
-     * \return Array of biases
+     * \return Array of biases of size 1x1 for two-class SVM
      */
     virtual data_management::NumericTablePtr getBiases() const = 0;
 
     /**
      * Returns the number of iterations performed during the training of the SVM model
-     * \return Number of iterations
+     * \return Array that stores the number of iterations performed by the algorithm, size 1x1 for two-class SVM
      */
-    virtual size_t getNumberOfIterations() const = 0;
+    virtual data_management::NumericTablePtr getNumberOfIterations() const = 0;
 };
 typedef services::SharedPtr<Model> ModelPtr;
 typedef services::SharedPtr<const Model> ModelConstPtr;

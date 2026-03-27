@@ -117,8 +117,8 @@ std::int64_t train_result<Task>::get_support_vector_count() const {
 }
 
 template <typename Task>
-std::int64_t train_result<Task>::get_iteration_count() const {
-    return impl_->trained_model.get_iteration_count();
+const table& train_result<Task>::get_iteration_counts() const {
+    return impl_->trained_model.get_iteration_counts();
 }
 
 template <typename Task>
@@ -152,8 +152,8 @@ void train_result<Task>::set_biases_impl(const table& value) {
 }
 
 template <typename Task>
-void train_result<Task>::set_iteration_count_impl(std::int64_t value) {
-    impl_->trained_model.set_iteration_count(value);
+void train_result<Task>::set_iteration_counts_impl(const table& value) {
+    impl_->trained_model.set_iteration_counts(value);
 }
 
 template class ONEDAL_EXPORT train_input<task::classification>;

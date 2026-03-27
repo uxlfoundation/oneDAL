@@ -74,7 +74,11 @@ public:
         double * const biases = mtBiases.get();
         biases[0] = calculateBias(cw);
 
-        model.setNumberOfIterations(_nIterations);
+        /* Write number of iterations into model */
+        WriteOnlyRows<int, cpu> mtIterations(model.getNumberOfIterations().get(), 0, 1);
+        DAAL_CHECK_BLOCK_STATUS(mtIterations);
+        int * const iterations = mtIterations.get();
+        iterations[0] = static_cast<int>(_nIterations);
 
         if (_task == SvmType::regression || _task == SvmType::nu_regression)
         {

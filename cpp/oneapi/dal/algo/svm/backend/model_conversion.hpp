@@ -47,7 +47,7 @@ struct daal_model_builder : public daal::algorithms::svm::internal::ModelImpl {
         return *this;
     }
 
-    auto& set_iteration_count(size_t n_iterations) {
+    auto& set_iteration_counts(daal::data_management::NumericTablePtr n_iterations) {
         setNumberOfIterations(n_iterations);
         return *this;
     }
@@ -60,15 +60,15 @@ inline auto convert_from_daal_model(daal_svm::Model& daal_model) {
     auto table_classification_coeffs =
         interop::convert_from_daal_homogen_table<Float>(daal_model.getClassificationCoefficients());
     auto table_biases =
-        interop::convert_from_daal_homogen_table<Float>(daal_model.getBiases());
-    const size_t iter_count = daal_model.getNumberOfIterations();
+        interop::convert_from_daal_homogen_table<double>(daal_model.getBiases());
+    auto table_iterations = interop::convert_from_daal_homogen_table<int>(daal_model.getNumberOfIterations());
 
     auto model =
         dal::svm::model<Task>()
             .set_support_vectors(table_support_vectors)
             .set_coeffs(table_classification_coeffs)
             .set_biases(table_biases)
-            .set_iteration_count(iter_count);
+            .set_iteration_counts(table_iterations);
 
     return model;
 }

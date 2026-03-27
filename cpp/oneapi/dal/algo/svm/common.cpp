@@ -211,8 +211,8 @@ const table& model<Task>::get_biases() const {
 }
 
 template <typename Task>
-std::int64_t model<Task>::get_iteration_count() const {
-    return impl_->iteration_count;
+const table& model<Task>::get_iteration_counts() const {
+    return impl_->iteration_counts;
 }
 
 template <typename Task>
@@ -251,8 +251,8 @@ void model<Task>::set_biases_impl(const table& value) {
 }
 
 template <typename Task>
-void model<Task>::set_iteration_count_impl(std::int64_t value) {
-    impl_->iteration_count = value;
+void model<Task>::set_iteration_counts_impl(const table& value) {
+    impl_->iteration_counts = value;
 }
 
 template <typename Task>

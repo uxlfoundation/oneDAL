@@ -39,7 +39,7 @@ class ModelInternal
 {
 public:
     /**
-     * Constructs the SVM model implemenatation
+     * Constructs multi-class SVM model implemenatation
      * \param[in] dummy    Data type dummy variable for the templated constructor.
      *                     Defines the data type of the model coefficients and support vectors.
      * \param[in] nClasses Number of classes in the training data
@@ -50,6 +50,19 @@ public:
      */
     template <typename modelFPType>
     ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
+
+    /**
+     * Constructs two-class SVM or regression SVM model implemenatation
+     * \param[in] dummy    Data type dummy variable for the templated constructor.
+     *                     Defines the data type of the model coefficients and support vectors.
+     * \param[in] nClasses Number of classes in the training data
+     * \param[in] nColumns Number of columns in the training data
+     * \param[in] layout   Storage layout of the numeric table with support vectors.
+     *                     Provide NumericTableIface::csrArray for sparse tables.
+     * \param[out] st      Status of the model construction
+     */
+    template <typename modelFPType>
+    ModelInternal(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
 
     ModelInternal();
 
@@ -85,6 +98,8 @@ public:
      */
     double getBias() const;
 
+    void setBias(double bias);
+
     data_management::NumericTablePtr getBiases() const;
 
     void setBiases(data_management::NumericTablePtr & biases);
@@ -99,17 +114,18 @@ public:
      * Returns the number of iterations performed during the training of the SVM model
      * \return Number of iterations
      */
-    size_t getNumberOfIterations() const;
+    data_management::NumericTablePtr getNumberOfIterations() const;
 
-    void setNumberOfIterations(size_t nIterations);
+    void setNumberOfIterations(data_management::NumericTablePtr & nIterations);
 
 protected:
-    data_management::NumericTablePtr _SV;        /* Support vectors */
-    data_management::NumericTablePtr _SVCoeff;   /* Classification coefficients */
-    data_management::NumericTablePtr _biases;    /* Biases of the distance function D(x) = w*Phi(x) + bias
-                                                    _biases[i] holds the bias for the i-th model in the multiclass SVM */
-    data_management::NumericTablePtr _SVIndices; /* Indices of the support vectors in training data set */
-    size_t _nIterations;                         /* Number of iterations performed during the training */
+    data_management::NumericTablePtr _SV;           /* Support vectors */
+    data_management::NumericTablePtr _SVCoeff;      /* Classification coefficients */
+    data_management::NumericTablePtr _biases;       /* Biases of the distance function D(x) = w*Phi(x) + bias
+                                                       _biases[i] holds the bias for the i-th model in the multiclass SVM */
+    data_management::NumericTablePtr _SVIndices;    /* Indices of the support vectors in training data set */
+    data_management::NumericTablePtr _nIterations;  /* Number of iterations performed during the training
+                                                       _nIterations[i] holds the number of iterations for the i-th model in the multiclass SVM */
 };
 
 /**
@@ -135,6 +151,21 @@ public:
     template <typename modelFPType>
     ModelImpl(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
         : ImplType(dummy, nClasses, nColumns, layout, st)
+    {}
+
+    /**
+     * Constructs the SVM model
+     * \param[in] dummy    Data type dummy variable for the templated constructor.
+     *                     Defines the data type of the model coefficients and support vectors.
+     *
+     * \param[in] nColumns Number of columns in the training data
+     * \param[in] layout   Storage layout of the numeric table with support vectors.
+     *                     Provide NumericTableIface::csrArray for sparse tables.
+     * \param[out] st      Status of the model construction
+     */
+    template <typename modelFPType>
+    ModelImpl(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
+        : ImplType(dummy, nColumns, layout, st)
     {}
 
     /**
@@ -181,6 +212,8 @@ public:
      */
     double getBias() const override { return ImplType::getBias(); }
 
+    void setBias(double bias) override { ImplType::setBias(bias); }
+
     /**
      * Returns biases constructed during the training of the two-class or multi-class SVM model
      * \return Array of biases
@@ -199,9 +232,9 @@ public:
      * Returns the number of iterations performed during the training of the SVM model
      * \return Number of iterations
      */
-    size_t getNumberOfIterations() const override { return ImplType::getNumberOfIterations(); }
+    data_management::NumericTablePtr getNumberOfIterations() const override { return ImplType::getNumberOfIterations(); }
 
-    void setNumberOfIterations(size_t nIterations) { ImplType::setNumberOfIterations(nIterations); }
+    void setNumberOfIterations(data_management::NumericTablePtr & nIterations) { ImplType::setNumberOfIterations(nIterations); }
 
 protected:
     template <typename Archive, bool onDeserialize>
@@ -214,7 +247,7 @@ protected:
         arch->setSharedPtrObj(_SV);
         arch->setSharedPtrObj(_SVCoeff);
         arch->setSharedPtrObj(_biases);
-        arch->set(_nIterations);
+        arch->setSharedPtrObj(_nIterations);
 
         arch->setSharedPtrObj(_SVIndices);
 

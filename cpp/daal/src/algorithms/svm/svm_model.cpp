@@ -21,6 +21,8 @@
 //--
 */
 #include "src/algorithms/svm/svm_model_impl.h"
+#include "src/data_management/service_numeric_table.h"
+#include "src/services/service_defines.h"
 
 namespace daal
 {
@@ -30,7 +32,7 @@ namespace svm
 {
 namespace internal
 {
-ModelInternal::ModelInternal() : _nIterations(0), _SV(), _SVCoeff(), _SVIndices(), _biases() {}
+ModelInternal::ModelInternal() : _nIterations(), _SV(), _SVCoeff(), _SVIndices(), _biases() {}
 
 data_management::NumericTablePtr ModelInternal::getSupportVectors() const { return _SV; }
 
@@ -49,15 +51,27 @@ double ModelInternal::getBias() const
     return _biases->getValue<double>(0, 0);
 }
 
+void ModelInternal::setBias(double bias)
+{
+    daal::internal::WriteOnlyRows<int, DAAL_BASE_CPU> mtIterations(_nIterations.get(), 0, 1);
+    if (mtIterations.get() == nullptr) return;
+    int * const iterations = mtIterations.get();
+    iterations[0] = static_cast<int>(_nIterations);
+}
+
+data_management::NumericTablePtr ModelInternal::getBiases() const { return _biases; }
+
+void ModelInternal::setBiases(data_management::NumericTablePtr & biases) { _biases = biases; }
+
 size_t ModelInternal::getNumberOfFeatures() const
 {
     if (_SV) return _SV->getNumberOfColumns();
     return 0;
 }
 
-size_t ModelInternal::getNumberOfIterations() const { return _nIterations; }
+data_management::NumericTablePtr ModelInternal::getNumberOfIterations() const { return _nIterations; }
 
-void ModelInternal::setNumberOfIterations(size_t nIterations) { _nIterations = nIterations; }
+void ModelInternal::setNumberOfIterations(data_management::NumericTablePtr & nIterations) { _nIterations = nIterations; }
 
 } // namespace internal
 namespace interface1
