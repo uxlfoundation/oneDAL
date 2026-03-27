@@ -146,9 +146,11 @@ public:
 /// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
 static constexpr DAAL_INT kBF16MinDim = 64;
 
-/// Whether AMX-BF16 is enabled for this process (evaluated once at startup).
-/// daal_get_float32_matmul_precision() already accounts for hardware availability.
+/// Whether AMX-BF16 GEMM is usable in this process.
+/// Combines hardware capability (checked once at init) with the user's precision hint.
+/// This is the only place both conditions are AND-ed; call-sites check nothing else.
 static const bool g_use_bf16_gemm =
+    daal_has_amx_bf16() &&
     (daal_get_float32_matmul_precision() == daal::Float32MatmulPrecision::high);
 
 /// Primary template: use standard BLAS for all non-float types.

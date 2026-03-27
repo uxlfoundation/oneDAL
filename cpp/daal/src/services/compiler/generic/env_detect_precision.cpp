@@ -21,10 +21,18 @@
 //
 //  Inspired by torch.set_float32_matmul_precision / jax_default_matmul_precision.
 //
-//  The *effective* precision folds in hardware availability:
-//  requesting Float32MatmulPrecision::high on hardware without AMX-BF16
-//  silently returns Float32MatmulPrecision::highest so call-sites need no
-//  hardware checks of their own.
+//  Precision levels:
+//    highest (default) -- always compute in float32. Full IEEE-754, bit-exact.
+//    high              -- allow reduced-precision kernels (e.g. AMX BF16) where
+//                         oneDAL determines the accuracy impact is acceptable.
+//                         The library, not the user, decides which operations
+//                         are eligible. Currently: float32 Euclidean GEMM,
+//                         dims >= 64, hardware with AMX-BF16.
+//
+//  Hardware availability is checked ONCE at process initialisation (g_hw_bf16).
+//  The setter stores the user's requested level as-is; BF16GemmDispatcher
+//  gates on both g_hw_bf16 and the stored precision level.
+//  This way the getter is a plain atomic load with no HW queries.
 //--
 */
 
@@ -38,8 +46,14 @@
 namespace
 {
 
-/// Read ONEDAL_FLOAT32_MATMUL_PRECISION env var once at startup.
-/// Returns Float32MatmulPrecision::highest if unset or unrecognised.
+/// Hardware capability flag — evaluated ONCE at process start.
+/// True iff AMX-BF16 is present and OS-enabled (CPUID + XCR0 check via
+/// daal_serv_cpu_feature_detect(), which is also cached internally).
+static const bool g_hw_amx_bf16 =
+    (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
+
+/// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
+/// Recognised values: "HIGH" / "high".  Everything else → highest.
 static daal::Float32MatmulPrecision parse_env_precision()
 {
     const char * val = std::getenv("ONEDAL_FLOAT32_MATMUL_PRECISION");
@@ -50,34 +64,36 @@ static daal::Float32MatmulPrecision parse_env_precision()
     return daal::Float32MatmulPrecision::highest;
 }
 
-/// Fold hardware availability into the requested precision level.
-/// If the user requested 'high' but HW doesn't support AMX-BF16, downgrade
-/// to 'highest' so call-sites never need to query hardware themselves.
-static daal::Float32MatmulPrecision compute_effective_precision(daal::Float32MatmulPrecision requested)
-{
-    if (requested == daal::Float32MatmulPrecision::highest)
-    {
-        return daal::Float32MatmulPrecision::highest;
-    }
-    // 'high' requested: check AMX-BF16 availability once.
-    const bool has_amx_bf16 = (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
-    return has_amx_bf16 ? daal::Float32MatmulPrecision::high : daal::Float32MatmulPrecision::highest;
-}
-
-/// Global effective precision. Initialised once; can be overridden at runtime
-/// via daal_set_float32_matmul_precision().
-static std::atomic<int> g_float32_matmul_precision{ static_cast<int>(
-    compute_effective_precision(parse_env_precision())) };
+/// Stored precision level (what the user requested).
+/// Default: read from env at startup; can be overridden at runtime.
+/// BF16GemmDispatcher combines this with g_hw_amx_bf16 to make the
+/// final dispatch decision.
+static std::atomic<int> g_float32_matmul_precision{
+    static_cast<int>(parse_env_precision())
+};
 
 } // anonymous namespace
 
-DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision()
+/// Return whether AMX-BF16 hardware is available in this process.
+/// Result is constant for the lifetime of the process.
+DAAL_EXPORT bool daal_has_amx_bf16()
 {
-    return static_cast<daal::Float32MatmulPrecision>(g_float32_matmul_precision.load(std::memory_order_relaxed));
+    return g_hw_amx_bf16;
 }
 
+/// Return the currently requested float32 matmul precision.
+/// This is a plain atomic load — no hardware queries.
+DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision()
+{
+    return static_cast<daal::Float32MatmulPrecision>(
+        g_float32_matmul_precision.load(std::memory_order_relaxed));
+}
+
+/// Set the float32 matmul precision hint.
+/// Stores the requested level directly; does NOT re-check hardware.
+/// If 'high' is requested but hardware lacks AMX-BF16, BF16GemmDispatcher
+/// will fall through to sgemm transparently via its own g_use_bf16_gemm gate.
 DAAL_EXPORT void daal_set_float32_matmul_precision(daal::Float32MatmulPrecision p)
 {
-    const daal::Float32MatmulPrecision effective = compute_effective_precision(p);
-    g_float32_matmul_precision.store(static_cast<int>(effective), std::memory_order_relaxed);
+    g_float32_matmul_precision.store(static_cast<int>(p), std::memory_order_relaxed);
 }
