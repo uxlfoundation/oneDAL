@@ -37,7 +37,7 @@ namespace internal
  * \brief Implements a container to dispatch batch processing algorithms to CPU-specific implementations.
  *
  * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
- * \tparam sse2Container       Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSEE2)
+ * \tparam sse2Container       Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
  * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
  * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
  * \tparam sve                  Implementation for ARM processors based on Arm Scalable Vector Extension

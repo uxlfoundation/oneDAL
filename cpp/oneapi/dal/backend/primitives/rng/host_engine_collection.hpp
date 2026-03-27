@@ -17,6 +17,7 @@
 #pragma once
 
 #include "oneapi/dal/backend/primitives/rng/host_engine.hpp"
+#include <cpp/daal/src/services/service_defines.h>
 
 #include <vector>
 
