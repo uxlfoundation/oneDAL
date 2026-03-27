@@ -90,12 +90,12 @@ def _find_tools(repo_ctx, reqs):
     cc_link_path = _create_dynamic_link_wrapper(repo_ctx, "cc", cc_path)
     dpcc_link_path = _create_dynamic_link_wrapper(repo_ctx, "dpc", dpcc_path)
     if dpcpp_found:
-        #The llvm-ar tool is used because bazel prepended directory names with + 
+        #The llvm-ar tool is used because bazel prepended directory names with +
         #which caused issues with the default gnu ar tool on REHL. Since icx is clang based we can use the llvm-ar tool.
         ar_path = cc_path[:-3] + "compiler/llvm-ar"
-    
+
     ar_merge_path = _create_ar_merge_tool(repo_ctx, ar_path)
-    
+
     return struct(
         cc = cc_path,
         dpcc = dpcc_path,
@@ -130,7 +130,7 @@ def _preapre_builtin_include_directory_paths(repo_ctx, tools):
             tools.dpcc,
             "-xc++",
             _add_gcc_toolchain_if_needed(repo_ctx, tools.dpcc),
-        ) + 
+        ) +
         get_cxx_inc_directories(
             repo_ctx,
             tools.dpcc,
@@ -306,9 +306,6 @@ def configure_cc_toolchain_lnx(repo_ctx, reqs):
                     repo_ctx,
                     tools.cc,
                     "-pass-exit-codes",
-                ) +
-                (
-                    ["-no-cilk", "-static-intel"] if reqs.compiler_id == "icc" else []
                 ) +
                 (
                     ["-static-intel"] if reqs.compiler_id in ["icx", "icpx"] else []

@@ -19,7 +19,7 @@ ifeq ($(filter mkl ref,$(BACKEND_CONFIG)),)
           Supported config for '$(PLAT)' are ['mkl', 'ref'])
 endif
 
-COMPILERs = icc icx gnu clang vc
+COMPILERs = icx gnu clang vc
 LINKERs = bfd gold lld llvm-lib
 COMPILER ?= icx
 CPUs := sse2 sse42 avx2 avx512
