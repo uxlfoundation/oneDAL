@@ -41,16 +41,24 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
  * are eligible for reduced precision. Modelled after
  * torch.set_float32_matmul_precision / jax_default_matmul_precision.
  *
- * Levels:
- *   highest (default) -- always compute in float32. IEEE-754, bit-exact.
- *   high              -- allow BF16 kernels where oneDAL determines accuracy
- *                        impact is bounded. Currently: float32 Euclidean GEMM
- *                        on AMX-BF16 hardware, dims >= 64. Output remains
- *                        float32; only internal accumulation uses BF16.
- *                        Falls back to sgemm if hardware lacks AMX-BF16.
+ * Levels (ordered by decreasing precision, matching torch.set_float32_matmul_precision):
  *
- * Future (not yet implemented):
- *   medium -- two-pass BF16 (higher accuracy than 'high', slower).
+ *   highest (default)
+ *     Always compute in float32 (24 mantissa bits, IEEE-754). Bit-exact and
+ *     reproducible across hardware. No accuracy loss.
+ *
+ *   high
+ *     Allow reduced-precision kernels where oneDAL determines the accuracy
+ *     impact is bounded. Analogous to PyTorch 'high' (TF32 / 2xBF16).
+ *     Currently: float32 Euclidean GEMM on AMX-BF16 hardware with dims >= 64
+ *     uses single-pass BF16 (7 explicitly stored mantissa bits). Output dtype
+ *     remains float32; only internal accumulation uses BF16. Falls back to
+ *     sgemm on hardware without AMX-BF16.
+ *
+ *   medium (reserved, not yet implemented)
+ *     Lower precision than 'high', higher throughput. Analogous to PyTorch
+ *     'medium' (single BF16, 7 mantissa bits for all eligible operations).
+ *     Falls back to 'high' if not available.
  *
  * Activation:
  *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=HIGH  (before loading oneDAL)
@@ -65,8 +73,11 @@ namespace internal
 {
 enum Float32MatmulPrecision
 {
-    highest = 0, /*!< Full IEEE-754 float32 (default). No accuracy loss. */
-    high    = 1, /*!< Allow BF16 kernels where oneDAL deems accuracy impact acceptable. */
+    highest = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
+    high    = 1, /*!< Reduced precision (e.g. BF16) where oneDAL deems it acceptable.
+                  *   Lower precision than 'highest', higher throughput. */
+    medium  = 2, /*!< Reserved: lower precision than 'high'. Not yet implemented;
+                  *   falls back to 'high'. */
 };
 } // namespace internal
 } // namespace daal
