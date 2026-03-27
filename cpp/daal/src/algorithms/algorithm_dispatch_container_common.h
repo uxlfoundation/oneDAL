@@ -28,9 +28,6 @@ namespace daal
 {
 namespace algorithms
 {
-/**
-* \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
-*/
 namespace internal
 {
 /**
