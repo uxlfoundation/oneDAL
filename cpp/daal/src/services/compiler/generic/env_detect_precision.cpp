@@ -22,12 +22,11 @@
 //  Inspired by torch.set_float32_matmul_precision / jax_default_matmul_precision.
 //
 //  Precision levels:
-//    highest (default) -- always compute in float32. Full IEEE-754, bit-exact.
-//    high              -- allow reduced-precision kernels (e.g. AMX BF16) where
-//                         oneDAL determines the accuracy impact is acceptable.
-//                         The library, not the user, decides which operations
-//                         are eligible. Currently: float32 Euclidean GEMM,
-//                         dims >= 64, hardware with AMX-BF16.
+//    strict (default) -- always compute in float32. Full IEEE-754, bit-exact.
+//    allow_bf16       -- allow BF16 kernels where oneDAL determines the accuracy
+//                        impact is acceptable. The library, not the user, decides
+//                        which operations are eligible. Currently: float32
+//                        Euclidean GEMM, dims >= 64, hardware with AMX-BF16.
 //
 //  Hardware availability is checked ONCE at process initialisation (g_hw_bf16).
 //  The setter stores the user's requested level as-is; BF16GemmDispatcher
@@ -53,15 +52,15 @@ static const bool g_hw_amx_bf16 =
     (daal_serv_cpu_feature_detect() & daal::amx_bf16) != 0;
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
-/// Recognised values: "HIGH" / "high".  Everything else → highest.
+/// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
 static daal::internal::Float32MatmulPrecision parse_env_precision()
 {
     const char * val = std::getenv("ONEDAL_FLOAT32_MATMUL_PRECISION");
-    if (val && (std::strcmp(val, "HIGH") == 0 || std::strcmp(val, "high") == 0))
+    if (val && (std::strcmp(val, "ALLOW_BF16") == 0 || std::strcmp(val, "allow_bf16") == 0))
     {
-        return daal::internal::Float32MatmulPrecision::high;
+        return daal::internal::Float32MatmulPrecision::allow_bf16;
     }
-    return daal::internal::Float32MatmulPrecision::highest;
+    return daal::internal::Float32MatmulPrecision::strict;
 }
 
 /// Stored precision level (what the user requested).

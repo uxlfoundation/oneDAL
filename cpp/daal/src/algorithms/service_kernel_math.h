@@ -151,7 +151,7 @@ static constexpr DAAL_INT kBF16MinDim = 64;
 /// This is the only place both conditions are AND-ed; call-sites check nothing else.
 static const bool g_use_bf16_gemm =
     daal_has_amx_bf16() &&
-    (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::high);
+    (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
 
 /// Primary template: use standard BLAS for all non-float types.
 template <typename FPType, CpuType cpu>

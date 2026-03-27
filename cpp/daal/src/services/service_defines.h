@@ -41,28 +41,22 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
  * are eligible for reduced precision. Modelled after
  * torch.set_float32_matmul_precision / jax_default_matmul_precision.
  *
- * Levels (ordered by decreasing precision, matching torch.set_float32_matmul_precision):
+ * Levels:
  *
- *   highest (default)
- *     Always compute in float32 (24 mantissa bits, IEEE-754). Bit-exact and
- *     reproducible across hardware. No accuracy loss.
+ *   strict (default)
+ *     Always compute in the input dtype (float32 → sgemm, float64 → dgemm).
+ *     Full IEEE-754, bit-exact and reproducible across hardware generations.
  *
- *   high
- *     Allow reduced-precision kernels where oneDAL determines the accuracy
- *     impact is bounded. Analogous to PyTorch 'high' (TF32 / 2xBF16).
- *     Currently: float32 Euclidean GEMM on AMX-BF16 hardware with dims >= 64
- *     uses single-pass BF16 (7 explicitly stored mantissa bits). Output dtype
- *     remains float32; only internal accumulation uses BF16. Falls back to
- *     sgemm on hardware without AMX-BF16.
- *
- *   medium (reserved, not yet implemented)
- *     Lower precision than 'high', higher throughput. Analogous to PyTorch
- *     'medium' (single BF16, 7 mantissa bits for all eligible operations).
- *     Falls back to 'high' if not available.
+ *   allow_bf16
+ *     Allow oneDAL to use BF16 kernels in operations where the library has
+ *     determined the accuracy impact is bounded and acceptable for the algorithm.
+ *     Currently: float32 Euclidean GEMM on AMX-BF16 hardware, dims >= 64.
+ *     Output dtype remains float32; only internal GEMM accumulation uses BF16.
+ *     Falls back to sgemm silently on hardware without AMX-BF16.
  *
  * Activation:
- *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=HIGH  (before loading oneDAL)
- *   programmatic:  daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::high)
+ *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=ALLOW_BF16  (before loading oneDAL)
+ *   programmatic:  daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::allow_bf16)
  *
  * NOTE: This API is internal and subject to change without notice.
  *       Do not expose in public headers until the design is finalised.
@@ -73,11 +67,9 @@ namespace internal
 {
 enum Float32MatmulPrecision
 {
-    highest = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
-    high    = 1, /*!< Reduced precision (e.g. BF16) where oneDAL deems it acceptable.
-                  *   Lower precision than 'highest', higher throughput. */
-    medium  = 2, /*!< Reserved: lower precision than 'high'. Not yet implemented;
-                  *   falls back to 'high'. */
+    strict     = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
+    allow_bf16 = 1, /*!< Allow BF16 kernels where oneDAL deems accuracy impact acceptable.
+                     *   Output dtype is unchanged; only internal compute uses BF16. */
 };
 } // namespace internal
 } // namespace daal
