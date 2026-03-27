@@ -289,7 +289,7 @@ jobs:
     displayName: 'bazel-configure'
 
   - script: |
-      bazel build :release
+      bazel build :release --release_dpc=false
     displayName: 'release'
 
   - script: |
