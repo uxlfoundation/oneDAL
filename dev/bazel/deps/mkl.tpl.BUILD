@@ -9,9 +9,6 @@ cc_library(
     includes = [
         "include",
     ],
-    defines = [
-        "MKL_ILP64"
-    ],
 )
 
 cc_library(
@@ -36,6 +33,9 @@ cc_library(
     deps = [
         ":headers",
     ],
+    defines = [
+        "MKL_ILP64"
+    ],
     alwayslink = 1,
     linkstatic = 1,
 )
@@ -55,7 +55,6 @@ cc_library(
     name = "mkl_dpc_utils",
     linkopts = [
         "-fsycl-max-parallel-link-jobs=16",
-        "-lgomp",  # Required by libmkl_gnu_thread.so
     ],
     srcs = glob([
         "lib/libmkl_core.so*",
@@ -66,6 +65,9 @@ cc_library(
         "lib/libmkl_sycl_sparse.so*",
         "lib/libmkl_sycl_rng.so*",
     ]),
+    deps = [
+        "@openmp//:openmp_binary",
+    ]
 )
 
 cc_library(
@@ -80,5 +82,8 @@ cc_library(
         ":headers",
         ":mkl_dpc_utils",
         "@opencl//:opencl_binary",
+    ],
+    defines = [
+        "MKL_LP64"
     ],
 )
