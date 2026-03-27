@@ -35,8 +35,38 @@ namespace engines
 {
 namespace mt2203
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mt2203 engine.
+ *        This class is associated with the \ref mt2203::interface1::Batch "mt2203::Batch" class
+ *        and supports the method of mt2203 engine computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float
+ * \tparam method           Computation method of the engine, mt2203::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the mt2203 engine with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the mt2203 engine in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -59,7 +89,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::Mt2203Kernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, resultTable);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mt2203
 } // namespace engines
 } // namespace algorithms

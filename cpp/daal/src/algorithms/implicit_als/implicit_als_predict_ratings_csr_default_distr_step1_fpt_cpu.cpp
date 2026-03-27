@@ -35,10 +35,11 @@ namespace prediction
 {
 namespace ratings
 {
-namespace interface1
+namespace internal
 {
 template class DistributedContainer<step1Local, DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 }
+
 } // namespace ratings
 } // namespace prediction
 } // namespace implicit_als

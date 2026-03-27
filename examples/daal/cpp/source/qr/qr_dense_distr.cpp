@@ -36,12 +36,9 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string datasetFileNames[] = { "../data/distributed/qr_1.csv",
-                                         "../data/distributed/qr_2.csv",
-                                         "../data/distributed/qr_3.csv",
-                                         "../data/distributed/qr_4.csv" };
+const std::string datasetFileName = { "data/qr.csv" };
 
-void computestep1Local(size_t block);
+void computestep1Local(size_t block, const NumericTablePtr &data);
 void computeOnMasterNode();
 void finalizeComputestep1Local(size_t block);
 
@@ -51,17 +48,22 @@ data_management::DataCollectionPtr dataFromStep2ForStep3[nBlocks];
 NumericTablePtr R;
 NumericTablePtr Qi[nBlocks];
 
-int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+int main(int argc, char *argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
+
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
 
     for (size_t i = 0; i < nBlocks; i++) {
-        computestep1Local(i);
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
+        NumericTablePtr blockTable = dataSource.getNumericTable();
+        computestep1Local(i, blockTable);
     }
 
     computeOnMasterNode();
@@ -77,19 +79,11 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-void computestep1Local(size_t block) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(datasetFileNames[block],
-                                                 DataSource::doAllocateNumericTable,
-                                                 DataSource::doDictionaryFromContext);
-
-    /* Retrieve the input data */
-    dataSource.loadDataBlock();
-
+void computestep1Local(size_t block, const NumericTablePtr &data) {
     /* Create an algorithm to compute QR decomposition on the local node */
     qr::Distributed<step1Local> algorithm;
 
-    algorithm.input.set(qr::data, dataSource.getNumericTable());
+    algorithm.input.set(qr::data, data);
 
     /* Compute QR decomposition */
     algorithm.compute();

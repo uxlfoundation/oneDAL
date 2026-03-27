@@ -25,19 +25,27 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(cholesky::BatchContainer, batch, DAAL_FPTYPE, cholesky::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(cholesky::internal::BatchContainer, batch, DAAL_FPTYPE, cholesky::defaultDense)
 
 namespace cholesky
 {
 namespace interface1
 {
+using BatchType = Batch<DAAL_FPTYPE, cholesky::defaultDense>;
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, cholesky::defaultDense>::Batch()
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, cholesky::defaultDense)(&_env);
+    _in                  = &input;
+    _result.reset(new ResultType());
+}
+
+template <>
+DAAL_EXPORT BatchType::Batch()
 {
     initialize();
 }
 
-using BatchType = Batch<DAAL_FPTYPE, cholesky::defaultDense>;
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : input(other.input)
 {

@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::DistributedContainer, distributed, step2Master, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(linear_regression::training::internal::DistributedContainer, distributed, step2Master, DAAL_FPTYPE,
                                       linear_regression::training::normEqDense)
 namespace linear_regression
 {
@@ -37,6 +37,16 @@ namespace interface1
 {
 using DistributedType = Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::normEqDense>;
 
+template <>
+void Distributed<step2Master, DAAL_FPTYPE, linear_regression::training::normEqDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step2Master, DAAL_FPTYPE,
+                                          linear_regression::training::normEqDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResultType());
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

@@ -35,8 +35,38 @@ namespace engines
 {
 namespace philox4x32x10
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the philox4x32x10 engine.
+ *        This class is associated with the \ref philox4x32x10::interface1::Batch "philox4x32x10::Batch" class
+ *        and supports the method of philox4x32x10 engine computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of philox4x32x10 engine, double or float
+ * \tparam method           Computation method of the engine, philox4x32x10::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the philox4x32x10 engine with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the philox4x32x10 engine in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -59,7 +89,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::philox4x32x10Kernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, resultTable);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms

@@ -29,8 +29,6 @@
 #include "services/daal_memory.h"
 #include "services/internal/daal_kernel_defines.h"
 
-#include "services/host_app.h"
-
 namespace daal
 {
 namespace algorithms
@@ -120,7 +118,7 @@ public:
     /**
      * Validates parameters of the compute method
      */
-    virtual services::Status checkComputeParams() override
+    services::Status checkComputeParams() override
     {
         services::Status s;
         if (this->_par) s = this->_par->check();
@@ -130,7 +128,7 @@ public:
     /**
      * Validates result parameters of the compute method
      */
-    virtual services::Status checkResult() override
+    services::Status checkResult() override
     {
         return this->_pres ? this->_pres->check(this->_in, this->_par, this->getMethod()) : services::Status(services::ErrorNullPartialResult);
     }
@@ -138,7 +136,7 @@ public:
     /**
      * Validates result parameters of the finalizeCompute method
      */
-    virtual services::Status checkPartialResult() override
+    services::Status checkPartialResult() override
     {
         return this->_pres ? this->_pres->check(this->_par, this->getMethod()) : services::Status(services::ErrorNullPartialResult);
     }
@@ -146,7 +144,7 @@ public:
     /**
      * Validates parameters of the finalizeCompute method
      */
-    virtual services::Status checkFinalizeComputeParams() override
+    services::Status checkFinalizeComputeParams() override
     {
         return this->_res ? this->_res->check(this->_pres, this->_par, this->getMethod()) : services::Status();
     }
@@ -198,17 +196,6 @@ public:
     }
 
     void enableResetOnFinalizeCompute(bool flag) { resetFinalizeFlag = flag; }
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
 
 private:
     bool wasSetup;
@@ -251,7 +238,7 @@ public:
     /**
      * Validates parameters of the compute method
      */
-    virtual services::Status checkComputeParams() override
+    services::Status checkComputeParams() override
     {
         services::Status s;
         if (_par)
@@ -266,7 +253,7 @@ public:
     /**
      * Validates result parameters of the compute method
      */
-    virtual services::Status checkResult() override
+    services::Status checkResult() override
     {
         if (_res) return _res->check(_in, _par, getMethod());
         return services::Status(services::ErrorNullResult);
@@ -295,18 +282,6 @@ public:
     }
 
     void enableResetOnCompute(bool flag) { resetFlag = flag; }
-
-    /**
-    * Returns HostAppIface used by the class
-    * \return HostAppIface used by the class
-    */
-    services::HostAppIfacePtr hostApp();
-
-    /**
-    * Sets HostAppIface to be used by the class
-    * \param pHost to be used by the class
-    */
-    void setHostApp(const services::HostAppIfacePtr & pHost);
 
 private:
     bool wasSetup;

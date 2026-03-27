@@ -22,7 +22,7 @@
 #ifndef __NORMAL_KERNEL_H__
 #define __NORMAL_KERNEL_H__
 
-#include "algorithms/distributions/normal/normal.h"
+#include "src/algorithms/distributions/normal/normal.h"
 
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"

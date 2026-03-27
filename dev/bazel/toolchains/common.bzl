@@ -66,8 +66,6 @@ def detect_compiler(repo_ctx, os_id):
         return "icx"
     elif "icpx" in compiler_path:
         return "icpx"
-    elif "icc" in compiler_path:
-        return "icc"
 
 def get_starlark_dict(dictionary):
     entries = [ "\"{}\":\"{}\"".format(k, v) for k, v in dictionary.items() ]

@@ -25,17 +25,21 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::mse::interface2::BatchContainer, batch, DAAL_FPTYPE,
-                                      optimization_solver::mse::defaultDense)
-
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(optimization_solver::mse::internal::BatchContainer, batch, DAAL_FPTYPE, optimization_solver::mse::defaultDense)
 namespace optimization_solver
 {
 namespace mse
 {
 namespace interface2
 {
-using BatchType = Batch<DAAL_FPTYPE, optimization_solver::mse::defaultDense>;
+using BatchType = Batch<DAAL_FPTYPE, defaultDense>;
 
+template <>
+void BatchType::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, defaultDense)(&_env);
+    _in                  = &input;
+}
 template <>
 DAAL_EXPORT BatchType::Batch(size_t numberOfTerms) : sum_of_functions::Batch(numberOfTerms, &input, new ParameterType(numberOfTerms))
 {

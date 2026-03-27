@@ -25,7 +25,6 @@
 
 #include "algorithms/decision_forest/decision_forest_regression_predict.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_predict_dense_default_batch.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -37,6 +36,29 @@ namespace regression
 {
 namespace prediction
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Class containing computation methods for decision forest model-based prediction
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for decision forest model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     *  Computes the result of decision forest model-based prediction
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -62,9 +84,10 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     daal::services::Environment::env & env = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), a, m, r);
+    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, r);
 }
+
+} // namespace internal
 
 } // namespace prediction
 } // namespace regression

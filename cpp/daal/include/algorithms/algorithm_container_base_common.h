@@ -74,27 +74,27 @@ public:
 
     virtual ~AlgorithmDispatchContainer() { delete _cntr; }
 
-    virtual services::Status compute() override
+    services::Status compute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         return _cntr->compute();
     }
 
-    virtual services::Status finalizeCompute() override
+    services::Status finalizeCompute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->finalizeCompute();
     }
 
-    virtual services::Status setupCompute() override
+    services::Status setupCompute() override
     {
         _cntr->setArguments(this->_in, this->_pres, this->_par, this->_hpar);
         _cntr->setResult(this->_res);
         return _cntr->setupCompute();
     }
 
-    virtual services::Status resetCompute() override { return _cntr->resetCompute(); }
+    services::Status resetCompute() override { return _cntr->resetCompute(); }
 
 protected:
     AlgorithmContainerImpl<mode> * _cntr;

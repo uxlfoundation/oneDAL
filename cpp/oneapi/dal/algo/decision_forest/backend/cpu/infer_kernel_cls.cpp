@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <daal/src/services/service_algo_utils.h>
 #include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_predict_dense_default_batch.h>
 
@@ -113,16 +112,15 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     const daal_df::classification::Model* const daal_model_ptr = daal_model.get();
     const daal_hyperparameters_t& hyperparameters = convert_parameters(params);
-    interop::status_to_exception(interop::call_daal_kernel<Float, cls_dense_predict_kernel_t>(
-        ctx,
-        daal::services::internal::hostApp(daal_input),
-        daal_data.get(),
-        daal_model_ptr,
-        daal_responses_res.get(),
-        daal_responses_prob_res.get(),
-        desc.get_class_count(),
-        daal_voting_mode,
-        &hyperparameters));
+    interop::status_to_exception(
+        interop::call_daal_kernel<Float, cls_dense_predict_kernel_t>(ctx,
+                                                                     daal_data.get(),
+                                                                     daal_model_ptr,
+                                                                     daal_responses_res.get(),
+                                                                     daal_responses_prob_res.get(),
+                                                                     desc.get_class_count(),
+                                                                     daal_voting_mode,
+                                                                     &hyperparameters));
 
     result_t res;
 

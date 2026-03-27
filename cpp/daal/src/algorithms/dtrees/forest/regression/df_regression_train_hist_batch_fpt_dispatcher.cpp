@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_forest::regression::training::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(decision_forest::regression::training::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       decision_forest::regression::training::hist)
 namespace decision_forest
 {
@@ -39,6 +39,13 @@ namespace interface2
 {
 using BatchType = Batch<DAAL_FPTYPE, decision_forest::regression::training::hist>;
 
+template <>
+void Batch<DAAL_FPTYPE, decision_forest::regression::training::hist>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, decision_forest::regression::training::hist)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT BatchType::Batch()
 {

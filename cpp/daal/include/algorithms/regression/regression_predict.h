@@ -89,7 +89,7 @@ public:
 
 protected:
     ResultPtr _result;
-    virtual Batch * cloneImpl() const override = 0;
+    Batch * cloneImpl() const override = 0;
 };
 /** @} */
 } // namespace interface1

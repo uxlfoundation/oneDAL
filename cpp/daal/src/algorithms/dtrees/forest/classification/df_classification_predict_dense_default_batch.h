@@ -30,7 +30,6 @@
 #include "src/externals/service_memory.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
-#include "src/services/service_algo_utils.h"
 
 using namespace daal::data_management;
 
@@ -57,15 +56,19 @@ public:
     PredictKernel() : _task(nullptr) {};
     ~PredictKernel();
     /**
-     *  \brief Compute decision forest prediction results.
+     * \brief Compute decision forest classification prediction results.
      *
-     *  \param a[in]    Matrix of input variables X
-     *  \param m[in]    decision forest model obtained on training stage
-     *  \param r[out]   Prediction results
-     *  \param par[in]  decision forest algorithm parameters
+     * \param a[in]                 Matrix of input variables X of size [N x P], where N is a number of observations
+     *                              and P is a number of features
+     * \param m[in]                 Decision forest model obtained on training stage
+     * \param r[out]                Prediction results stored in the numeric table of size [N x 1]
+     * \param prob[out]             Prediction probabilities stored in the numeric table of size [N x C], where C is the number of classes
+     * \param nClasses[in]          Number of classes in the model, C
+     * \param votingMethod[in]      Method of voting to compute the final prediction result
+     * \param hyperparameter[in]    Performance-related hyperparameters of the decision forest prediction algorithm
      */
-    services::Status compute(services::HostAppIface * const pHostApp, const NumericTable * a, const decision_forest::classification::Model * const m,
-                             NumericTable * const r, NumericTable * const prob, const size_t nClasses, const VotingMethod votingMethod,
+    services::Status compute(const NumericTable * a, const decision_forest::classification::Model * const m, NumericTable * const r,
+                             NumericTable * const prob, const size_t nClasses, const VotingMethod votingMethod,
                              const HyperparameterType * hyperparameter = nullptr);
     PredictClassificationTask<algorithmFpType, cpu> * _task;
 

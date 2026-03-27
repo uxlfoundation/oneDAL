@@ -37,50 +37,26 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
 const size_t nBlocks = 4;
-
-const std::string datasetFileNames[] = { "../data/distributed/covcormoments_csr_1.csv",
-                                         "../data/distributed/covcormoments_csr_2.csv",
-                                         "../data/distributed/covcormoments_csr_3.csv",
-                                         "../data/distributed/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 covariance::PartialResultPtr partialResult[nBlocks];
 covariance::ResultPtr result;
 
-void computestep1Local(size_t i);
-void computeOnMasterNode();
+void computeStep1Local(size_t block, const CSRNumericTablePtr& fullData) {
+    const size_t totalRows = fullData->getNumberOfRows();
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
-int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    const size_t rowStart = block * rowsPerBlock;
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        computestep1Local(i);
-    }
+    const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
 
-    computeOnMasterNode();
-
-    printNumericTable(result->get(covariance::correlation),
-                      "Correlation matrix (upper left square 10*10) :",
-                      10,
-                      10);
-    printNumericTable(result->get(covariance::mean), "Mean vector:", 1, 10);
-
-    return 0;
-}
-
-void computestep1Local(size_t block) {
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[block]);
+    CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
     /* Create an algorithm to compute a correlation matrix in the distributed processing mode using the default method */
     covariance::Distributed<step1Local, algorithmFPType, covariance::fastCSR> algorithm;
 
     /* Set input objects for the algorithm */
-    algorithm.input.set(covariance::data, CSRNumericTablePtr(dataTable));
+    algorithm.input.set(covariance::data, localTable);
 
     /* Compute partial estimates on local nodes */
     algorithm.compute();
@@ -109,4 +85,25 @@ void computeOnMasterNode() {
 
     /* Get the computed correlation matrix */
     result = algorithm.getResult();
+}
+
+int main(int argc, char* argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    for (size_t i = 0; i < nBlocks; i++) {
+        computeStep1Local(i, fullData);
+    }
+
+    computeOnMasterNode();
+
+    printNumericTable(result->get(covariance::correlation),
+                      "Correlation matrix (upper left 10x10):",
+                      10,
+                      10);
+
+    printNumericTable(result->get(covariance::mean), "Mean vector:", 1, 10);
+
+    return 0;
 }

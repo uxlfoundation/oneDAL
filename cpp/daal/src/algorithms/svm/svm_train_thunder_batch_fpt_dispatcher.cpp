@@ -22,33 +22,42 @@
 */
 
 #include "src/algorithms/svm/svm_train_batch_container.h"
+#include "src/algorithms/svm/svm_train_internal.h"
 
 namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::BatchContainer, batch, DAAL_FPTYPE, svm::training::thunder)
 __DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::internal::BatchContainer, batch, DAAL_FPTYPE, svm::training::thunder)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::training::internal::NuBatchContainer, batch, DAAL_FPTYPE, svm::training::thunder)
 namespace svm
 {
 namespace training
 {
 namespace interface2
 {
+using BatchType = Batch<DAAL_FPTYPE, svm::training::thunder>;
+
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch()
+void BatchType::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, svm::training::thunder)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
+template <>
+DAAL_EXPORT BatchType::Batch()
 {
     initialize();
 }
 
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch(size_t nClasses)
+DAAL_EXPORT BatchType::Batch(size_t nClasses)
 {
     parameter.nClasses = nClasses;
     initialize();
 }
-
-using BatchType = Batch<DAAL_FPTYPE, svm::training::thunder>;
 
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)
@@ -61,20 +70,20 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Ba
 // This is different from all other algorithms due to PR #1779, for a NuSVC Multiclass fix
 namespace internal
 {
+using BatchType = Batch<DAAL_FPTYPE, svm::training::thunder>;
+
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch()
+DAAL_EXPORT BatchType::Batch()
 {
     initialize();
 }
 
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, svm::training::thunder>::Batch(size_t nClasses)
+DAAL_EXPORT BatchType::Batch(size_t nClasses)
 {
     parameter.nClasses = nClasses;
     initialize();
 }
-
-using BatchType = Batch<DAAL_FPTYPE, svm::training::thunder>;
 
 template <>
 DAAL_EXPORT BatchType::Batch(const BatchType & other) : classifier::training::Batch(other), parameter(other.parameter), input(other.input)

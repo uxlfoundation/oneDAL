@@ -30,7 +30,6 @@
 #include "src/algorithms/logistic_regression/logistic_regression_train_kernel.h"
 #include "src/algorithms/logistic_regression/logistic_regression_model_impl.h"
 #include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -40,8 +39,37 @@ namespace logistic_regression
 {
 namespace training
 {
-namespace interface3
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of logistic regression model-based training.
+ *        This class is associated with daal::algorithms::logistic_regression::training::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
+ * \tparam method           logistic regression model training method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for logistic regression model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of logistic regression model-based training in the batch processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    services::Status setupCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -65,8 +93,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     const logistic_regression::training::Parameter * par = static_cast<logistic_regression::training::Parameter *>(_par);
     daal::services::Environment::env & env               = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::TrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::getHostApp(*input), x, y, *m, *result, *par);
+    __DAAL_CALL_KERNEL(env, internal::TrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, *m, *result, *par);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -94,7 +121,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     return pImpl->reset(par->interceptFlag);
 }
 
-} // namespace interface3
+} // namespace internal
 } // namespace training
 } // namespace logistic_regression
 } // namespace algorithms

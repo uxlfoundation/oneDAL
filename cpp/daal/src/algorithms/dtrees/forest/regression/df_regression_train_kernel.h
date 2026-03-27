@@ -50,9 +50,20 @@ class RegressionTrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
     typedef daal::algorithms::decision_forest::regression::training::internal::Hyperparameter HyperparameterType;
-    services::Status compute(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
-                             decision_forest::regression::Model & m, Result & res, const Parameter & par,
-                             const HyperparameterType * hyperparameter = nullptr);
+    /**
+     * \brief Trains the decision forest regression model
+     *
+     * \param x[in]                 Matrix of input variables X of size [N x P], where N is a number of observations
+     *                              and P is a number of features
+     * \param y[in]                 Matrix of dependent variables Y of size [N x 1], where N is a number of observations
+     * \param w[in]                 Optional matrix of weights of size [N x 1], where N is a number of observations
+     * \param m[out]                Decision forest regression model to be trained
+     * \param res[out]              Structure to store the training results such as model
+     * \param par[in]               Decision forest regression algorithm parameters
+     * \param hyperparameter[in]    Performance-related hyperparameters of the decision forest regression training algorithm
+     */
+    services::Status compute(const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::regression::Model & m,
+                             Result & res, const Parameter & par, const HyperparameterType * hyperparameter = nullptr);
 };
 
 } // namespace internal

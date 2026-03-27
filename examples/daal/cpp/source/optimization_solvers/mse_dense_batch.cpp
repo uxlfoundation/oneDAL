@@ -1,6 +1,6 @@
 /* file: mse_dense_batch.cpp */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-const std::string datasetFileName = "../data/batch/mse.csv";
+const std::string datasetFileName = "data/mse.csv";
 const size_t nFeatures = 3;
 
 float argumentValue[nFeatures + 1] = { -1, 0.1f, 0.15f, -0.5f };
@@ -46,10 +46,10 @@ int main(int argc, char* argv[]) {
                                                  DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for data and values for dependent variable */
-    NumericTablePtr data(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr dependentVariables(
-        new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(data, dependentVariables));
+    NumericTablePtr data = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr dependentVariables =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(data, dependentVariables);
 
     /* Retrieve the data from the input file */
     dataSource.loadDataBlock(mergedData.get());
@@ -63,9 +63,8 @@ int main(int argc, char* argv[]) {
     mseObjectiveFunction.input.set(optimization_solver::mse::data, data);
     mseObjectiveFunction.input.set(optimization_solver::mse::dependentVariables,
                                    dependentVariables);
-    mseObjectiveFunction.input.set(
-        optimization_solver::mse::argument,
-        NumericTablePtr(new HomogenNumericTable<>(argumentValue, 1, nFeatures + 1)));
+    mseObjectiveFunction.input.set(optimization_solver::mse::argument,
+                                   HomogenNumericTable<>::create(argumentValue, 1, nFeatures + 1));
     mseObjectiveFunction.parameter().resultsToCompute =
         optimization_solver::objective_function::gradient |
         optimization_solver::objective_function::value |

@@ -35,6 +35,46 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
+ *
+ */
+template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_SVDDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm on the master node
+ *
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, svdDense, cpu> : public AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes thel result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 DistributedContainer<step2Master, algorithmFPType, svdDense, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
 {
@@ -73,6 +113,8 @@ services::Status DistributedContainer<step2Master, algorithmFPType, svdDense, cp
     inputPartialResults->clear();
     return s;
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

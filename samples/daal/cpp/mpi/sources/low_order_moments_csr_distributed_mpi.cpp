@@ -35,43 +35,38 @@
 using namespace daal;
 using namespace daal::algorithms;
 
-/* Input data set parameters */
-const size_t nBlocks = 4;
-
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
 int rankId, comm_size;
 #define mpi_root 0
 
-const std::string datasetFileNames[] = { "./data/distributed/covcormoments_csr_1.csv",
-                                         "./data/distributed/covcormoments_csr_2.csv",
-                                         "./data/distributed/covcormoments_csr_3.csv",
-                                         "./data/distributed/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
 
     /* Retrieve the input data from a file */
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileNames[rankId]);
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
 
-    /* Create an algorithm to compute low order moments on local nodes */
+    const size_t totalRows = fullData->getNumberOfRows();
+
+    /* Split data according to MPI ranks */
+    const size_t rowsPerRank = (totalRows + comm_size - 1) / comm_size;
+
+    const size_t rowStart = rankId * rowsPerRank;
+    const size_t rowEnd = std::min(rowStart + rowsPerRank, totalRows);
+
+    CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
+
+    /* Create an algorithm to compute a sparse variance-covariance matrix on local nodes */
     low_order_moments::Distributed<step1Local, algorithmFPType, low_order_moments::fastCSR>
         localAlgorithm;
-
     /* Set the input data set to the algorithm */
-    localAlgorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
-
-    /* Compute low order moments */
+    localAlgorithm.input.set(low_order_moments::data, localTable);
     localAlgorithm.compute();
 
     /* Serialize partial results required by step 2 */
@@ -82,7 +77,7 @@ int main(int argc, char* argv[]) {
 
     /* Serialized data is of equal size on each node if each node called compute() equal number of times */
     if (rankId == mpi_root) {
-        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * nBlocks]);
+        serializedData = services::SharedPtr<byte>(new byte[perNodeArchLength * comm_size]);
     }
 
     byte* nodeResults = new byte[perNodeArchLength];
@@ -105,7 +100,7 @@ int main(int argc, char* argv[]) {
         low_order_moments::Distributed<step2Master, algorithmFPType, low_order_moments::fastCSR>
             masterAlgorithm;
 
-        for (size_t i = 0; i < nBlocks; i++) {
+        for (size_t i = 0; i < comm_size; i++) {
             /* Deserialize partial results from step 1 */
             OutputDataArchive dataArch(serializedData.get() + perNodeArchLength * i,
                                        perNodeArchLength);

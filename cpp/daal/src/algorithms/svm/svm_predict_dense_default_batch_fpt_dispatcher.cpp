@@ -27,13 +27,21 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::prediction::BatchContainer, batch, DAAL_FPTYPE, svm::prediction::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(svm::prediction::internal::BatchContainer, batch, DAAL_FPTYPE, svm::prediction::defaultDense)
 namespace svm
 {
 namespace prediction
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, svm::prediction::defaultDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, svm::prediction::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, svm::prediction::defaultDense>::Batch()
 {

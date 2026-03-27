@@ -47,8 +47,7 @@ template <typename algorithmFPType, Method method, CpuType cpu>
 class TrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
-    services::Status compute(const HostAppIfacePtr & pHost, const NumericTablePtr & x, const NumericTablePtr & y, elastic_net::Model & m,
-                             Result & res, const Parameter & par,
+    services::Status compute(const NumericTablePtr & x, const NumericTablePtr & y, elastic_net::Model & m, Result & res, const Parameter & par,
                              services::SharedPtr<daal::algorithms::optimization_solver::mse::Batch<algorithmFPType> > & objFunc);
 };
 

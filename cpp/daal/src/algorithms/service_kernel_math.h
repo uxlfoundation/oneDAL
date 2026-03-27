@@ -131,7 +131,7 @@ public:
         : _a(a), _b(b), _squared(squared), _isSqrtNorm(isSqrtNorm)
     {}
 
-    virtual ~EuclideanDistances() override {}
+    ~EuclideanDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::euclidean; }
 
@@ -329,7 +329,7 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    virtual ~CosineDistances() override {}
+    ~CosineDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
@@ -372,7 +372,7 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    virtual ~MinkowskiDistances() override {}
+    ~MinkowskiDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
@@ -471,7 +471,7 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    virtual ~ChebyshevDistances() override {}
+    ~ChebyshevDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
