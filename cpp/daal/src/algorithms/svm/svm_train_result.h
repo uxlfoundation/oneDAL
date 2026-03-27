@@ -69,7 +69,11 @@ public:
         services::Status s;
 
         /* Calculate bias and write it into model */
-        model.setBias(double(calculateBias(cw)));
+        WriteOnlyRows<double, cpu> mtBiases(model.getBiases().get(), 0, 1);
+        DAAL_CHECK_BLOCK_STATUS(mtBiases);
+        double * const biases = mtBiases.get();
+        biases[0] = calculateBias(cw);
+
         model.setNumberOfIterations(_nIterations);
 
         if (_task == SvmType::regression || _task == SvmType::nu_regression)

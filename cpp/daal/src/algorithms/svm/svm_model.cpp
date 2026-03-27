@@ -60,6 +60,10 @@ size_t ModelInternal::getNumberOfIterations() const { return _nIterations; }
 void ModelInternal::setNumberOfIterations(size_t nIterations) { _nIterations = nIterations; }
 
 } // namespace internal
+namespace interface1
+{
+__DAAL_REGISTER_SERIALIZATION_CLASS2(Model, svm::internal::ModelImpl, SERIALIZATION_SVM_MODEL_ID);
+}
 } // namespace svm
 } // namespace algorithms
 } // namespace daal

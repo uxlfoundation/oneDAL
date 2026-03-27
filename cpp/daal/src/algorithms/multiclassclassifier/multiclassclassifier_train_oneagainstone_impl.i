@@ -31,6 +31,7 @@
 #include "src/threading/threading.h"
 #include "src/algorithms/service_sort.h"
 #include "src/algorithms/service_error_handling.h"
+#include "src/algorithms/svm/svm_train_result.h"
 #include "src/externals/service_blas.h"
 
 namespace daal
@@ -177,7 +178,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
                 isSVData[originalIndex]    = true;
             }
             auto biasesTable = svmModel->getBiases();
-            WriteOnlyColumns<algorithmFPType, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
+            WriteOnlyColumns<double, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
             DAAL_CHECK_BLOCK_STATUS_THR(mtBiases);
             *mtBiases.get() = svmModelPtr->getBias();
         }
@@ -239,7 +240,7 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
         NumericTablePtr coeffOutTable = svmModel->getClassificationCoefficients();
         DAAL_CHECK_STATUS(s, coeffOutTable->resize(nSV));
 
-        using SvmResultTask = SaveResultTask<algorithmFPType, cpu>;
+        using SvmResultTask = svm::training::internal::SaveResultTask<algorithmFPType, cpu>;
         DAAL_CHECK_STATUS(s, SvmResultTask::setSVByIndices(xTable, supportIndicesTable, svmModel->getSupportVectors()));
         WriteOnlyRows<algorithmFPType, cpu> mtCoefficientsOut(coeffOutTable.get(), 0, coeffOutTable->getNumberOfRows());
         DAAL_CHECK_BLOCK_STATUS(mtCoefficientsOut);
