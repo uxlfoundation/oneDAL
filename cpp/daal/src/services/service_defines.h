@@ -33,12 +33,49 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
 
-/* Float32 matmul precision control (see daal::Float32MatmulPrecision).
- * Hardware capability is checked once at process init (daal_has_amx_bf16).
- * The getter/setter operate on the user's requested level only; no HW queries. */
+/* ---------------------------------------------------------------------------
+ * Float32MatmulPrecision — INTERNAL, experimental API.
+ *
+ * Precision hint for internal float32 matrix multiplications.
+ * This is a *hint*, not a hard override: the library decides which operations
+ * are eligible for reduced precision. Modelled after
+ * torch.set_float32_matmul_precision / jax_default_matmul_precision.
+ *
+ * Levels:
+ *   highest (default) -- always compute in float32. IEEE-754, bit-exact.
+ *   high              -- allow BF16 kernels where oneDAL determines accuracy
+ *                        impact is bounded. Currently: float32 Euclidean GEMM
+ *                        on AMX-BF16 hardware, dims >= 64. Output remains
+ *                        float32; only internal accumulation uses BF16.
+ *                        Falls back to sgemm if hardware lacks AMX-BF16.
+ *
+ * Future (not yet implemented):
+ *   medium -- two-pass BF16 (higher accuracy than 'high', slower).
+ *
+ * Activation:
+ *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=HIGH  (before loading oneDAL)
+ *   programmatic:  daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::high)
+ *
+ * NOTE: This API is internal and subject to change without notice.
+ *       Do not expose in public headers until the design is finalised.
+ * ----------------------------------------------------------------------- */
+namespace daal
+{
+namespace internal
+{
+enum Float32MatmulPrecision
+{
+    highest = 0, /*!< Full IEEE-754 float32 (default). No accuracy loss. */
+    high    = 1, /*!< Allow BF16 kernels where oneDAL deems accuracy impact acceptable. */
+};
+} // namespace internal
+} // namespace daal
+
+/* Hardware capability — constant for the process lifetime. */
 DAAL_EXPORT bool daal_has_amx_bf16();
-DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision();
-DAAL_EXPORT void daal_set_float32_matmul_precision(daal::Float32MatmulPrecision p);
+/* Precision getter/setter — no HW queries; operate on the stored hint only. */
+DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision();
+DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p);
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();

@@ -50,18 +50,18 @@ namespace
 /// True iff AMX-BF16 is present and OS-enabled (CPUID + XCR0 check via
 /// daal_serv_cpu_feature_detect(), which is also cached internally).
 static const bool g_hw_amx_bf16 =
-    (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
+    (daal_serv_cpu_feature_detect() & daal::amx_bf16) != 0;
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "HIGH" / "high".  Everything else → highest.
-static daal::Float32MatmulPrecision parse_env_precision()
+static daal::internal::Float32MatmulPrecision parse_env_precision()
 {
     const char * val = std::getenv("ONEDAL_FLOAT32_MATMUL_PRECISION");
     if (val && (std::strcmp(val, "HIGH") == 0 || std::strcmp(val, "high") == 0))
     {
-        return daal::Float32MatmulPrecision::high;
+        return daal::internal::Float32MatmulPrecision::high;
     }
-    return daal::Float32MatmulPrecision::highest;
+    return daal::internal::Float32MatmulPrecision::highest;
 }
 
 /// Stored precision level (what the user requested).
@@ -83,9 +83,9 @@ DAAL_EXPORT bool daal_has_amx_bf16()
 
 /// Return the currently requested float32 matmul precision.
 /// This is a plain atomic load — no hardware queries.
-DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision()
+DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision()
 {
-    return static_cast<daal::Float32MatmulPrecision>(
+    return static_cast<daal::internal::Float32MatmulPrecision>(
         g_float32_matmul_precision.load(std::memory_order_relaxed));
 }
 
@@ -93,7 +93,7 @@ DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision()
 /// Stores the requested level directly; does NOT re-check hardware.
 /// If 'high' is requested but hardware lacks AMX-BF16, BF16GemmDispatcher
 /// will fall through to sgemm transparently via its own g_use_bf16_gemm gate.
-DAAL_EXPORT void daal_set_float32_matmul_precision(daal::Float32MatmulPrecision p)
+DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p)
 {
     g_float32_matmul_precision.store(static_cast<int>(p), std::memory_order_relaxed);
 }
