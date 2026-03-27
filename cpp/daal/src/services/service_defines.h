@@ -33,6 +33,10 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
 
+/* Float32 matmul precision control (see daal::Float32MatmulPrecision). */
+DAAL_EXPORT daal::Float32MatmulPrecision daal_get_float32_matmul_precision();
+DAAL_EXPORT void daal_set_float32_matmul_precision(daal::Float32MatmulPrecision p);
+
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();
 

@@ -65,6 +65,28 @@ enum CpuFeature
     amx_bf16    = (1ULL << 5), /*!< Intel(R) Advanced Matrix Extensions bfloat16 (AMX-BF16) */
 #endif
 };
+
+/**
+ * Controls the internal arithmetic precision used for float32 matrix multiplications.
+ * Inspired by torch.set_float32_matmul_precision / jax_default_matmul_precision.
+ *
+ * - highest (default): always compute in float32. No accuracy loss.
+ * - high:              allow reduced-precision kernels (e.g. AMX BF16) where oneDAL
+ *                      determines the accuracy impact is acceptable for the algorithm.
+ *                      The library, not the user, decides which operations are eligible.
+ *
+ * Hardware availability is checked at initialisation and folded into the effective
+ * precision: requesting 'high' on hardware that lacks AMX-BF16 returns 'highest'.
+ *
+ * Set via environment variable:  ONEDAL_FLOAT32_MATMUL_PRECISION=HIGH
+ * or programmatically:           daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::high)
+ */
+enum Float32MatmulPrecision
+{
+    highest = 0, /*!< Full IEEE-754 float32 (default) */
+    high    = 1, /*!< Allow reduced-precision (e.g. BF16) where safe */
+};
+
 } // namespace internal
 } // namespace daal
 #endif
