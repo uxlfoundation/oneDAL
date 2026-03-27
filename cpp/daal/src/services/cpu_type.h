@@ -28,7 +28,7 @@ namespace internal
 enum CpuType
 {
 #if defined(TARGET_X86_64)
-    sse2         = 0, /*!< Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSEE2) */
+    sse2         = 0, /*!< Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2) */
     firstCpuType = sse2,
     sse42        = 2, /*!< Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2) */
     avx2         = 4, /*!< Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2) */
