@@ -24,6 +24,7 @@
 #ifndef __SERVICE_KERNEL_MATH_H__
 #define __SERVICE_KERNEL_MATH_H__
 
+#include <cstring>
 #include <type_traits>
 
 #include "services/daal_defines.h"
@@ -293,85 +294,84 @@ protected:
 
         return safeStat.detach();
     }
-#ifndef DAAL_REF
-    // AMX-BF16 capability check (MKL builds only; cross-platform)
-    static bool knn_has_amx_bf16()
-    {
-        static bool v = []() {
-    #if defined(_MSC_VER)
-            int info[4];
-            __cpuidex(info, 7, 0);
-            if (!((info[3] >> 22) & 1)) return false;
-            unsigned long long xcr = _xgetbv(0);
-            return ((xcr >> 17) & 3) == 3;
-    #else
-            unsigned int a = 0, b = 0, c = 0, d = 0;
-            __asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(7), "c"(0));
-            if (!((d >> 22) & 1u)) return false;
-            unsigned int lo = 0, hi = 0;
-            __asm__ volatile("xgetbv" : "=a"(lo), "=d"(hi) : "c"(0));
-            return ((lo >> 17) & 3u) == 3u;
-    #endif
-        }();
-        return v;
-    }
-#endif // !DAAL_REF
-
     // compute (A x B') -- EuclideanDistances inner GEMM
     // GEMM call: out = B * A^T  (col-major: M=nRowsB, N=nRowsA, K=nColsA)
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
+    {
+        computeABtImpl(a, b, nRowsA, nColsA, nRowsB, out);
+    }
+
+    /// Primary template: fall back to sgemm/dgemm via BlasInst.
+    template <typename T = FPType>
+    void computeABtImpl(const T * const a, const T * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, T * const out)
     {
         const char transa    = 't';
         const char transb    = 'n';
         const DAAL_INT _m    = nRowsB;
         const DAAL_INT _n    = nRowsA;
         const DAAL_INT _k    = nColsA;
-        const FPType alpha   = 1.0;
+        const T alpha        = 1.0;
         const DAAL_INT lda   = nColsA;
         const DAAL_INT ldy   = nColsA;
-        const FPType beta    = 0.0;
+        const T beta         = 0.0;
         const DAAL_INT ldaty = nRowsB;
-#ifndef DAAL_REF
-        // AMX BF16 path: float only, all dims >= 64, MKL builds only
-        if constexpr (std::is_same<FPType, float>::value)
-        {
-            if (knn_has_amx_bf16() && _m >= 64 && _n >= 64 && _k >= 64)
-            {
-                union
-                {
-                    float f;
-                    unsigned int u;
-                } cv;
-                const size_t szA = (size_t)_n * (size_t)_k;
-                const size_t szB = (size_t)_m * (size_t)_k;
-                MKL_BF16 * a16   = (MKL_BF16 *)mkl_malloc(szA * sizeof(MKL_BF16), 64);
-                MKL_BF16 * b16   = (MKL_BF16 *)mkl_malloc(szB * sizeof(MKL_BF16), 64);
-                if (a16 && b16)
-                {
-                    for (size_t i = 0; i < szA; i++)
-                    {
-                        cv.f   = a[i];
-                        a16[i] = (MKL_BF16)(cv.u >> 16);
-                    }
-                    for (size_t i = 0; i < szB; i++)
-                    {
-                        cv.f   = b[i];
-                        b16[i] = (MKL_BF16)(cv.u >> 16);
-                    }
-                    // col-major: C = B16 * A16^T  => cblas: NoTrans B, Trans A
-                    cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, (MKL_INT)_m, (MKL_INT)_n, (MKL_INT)_k, 1.0f, b16, (MKL_INT)_m,
-                                           a16, (MKL_INT)_n, 0.0f, out, (MKL_INT)_m);
-                    mkl_free(a16);
-                    mkl_free(b16);
-                    return;
-                }
-                if (a16) mkl_free(a16);
-                if (b16) mkl_free(b16);
-            }
-        }
-#endif // !DAAL_REF
-        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
+        BlasInst<T, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
     }
+
+#ifndef DAAL_REF
+    /// Specialization for float: use AMX-BF16 GEMM when hardware supports it
+    /// and all GEMM dimensions are >= 64. Falls back to sgemm otherwise.
+    /// Uses memcpy for float→BF16 conversion to avoid strict-aliasing UB.
+    template <typename T = FPType, typename = typename std::enable_if<std::is_same<T, float>::value>::type>
+    void computeABtImpl(const float * const a, const float * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, float * const out)
+    {
+        const DAAL_INT _m    = nRowsB;
+        const DAAL_INT _n    = nRowsA;
+        const DAAL_INT _k    = nColsA;
+        const DAAL_INT ldaty = nRowsB;
+
+        static const bool hasAmxBf16 = (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
+        if (hasAmxBf16 && _m >= 64 && _n >= 64 && _k >= 64)
+        {
+            const size_t szA = static_cast<size_t>(_n) * static_cast<size_t>(_k);
+            const size_t szB = static_cast<size_t>(_m) * static_cast<size_t>(_k);
+            MKL_BF16 * a16  = static_cast<MKL_BF16 *>(mkl_malloc(szA * sizeof(MKL_BF16), 64));
+            MKL_BF16 * b16  = static_cast<MKL_BF16 *>(mkl_malloc(szB * sizeof(MKL_BF16), 64));
+            if (a16 && b16)
+            {
+                // Convert float→BF16 via memcpy to avoid strict-aliasing UB.
+                // BF16 is the upper 16 bits of the IEEE-754 float32 representation.
+                for (size_t i = 0; i < szA; i++)
+                {
+                    uint32_t bits;
+                    memcpy(&bits, &a[i], sizeof(bits));
+                    a16[i] = static_cast<MKL_BF16>(bits >> 16);
+                }
+                for (size_t i = 0; i < szB; i++)
+                {
+                    uint32_t bits;
+                    memcpy(&bits, &b[i], sizeof(bits));
+                    b16[i] = static_cast<MKL_BF16>(bits >> 16);
+                }
+                // col-major: C = B16 * A16^T => cblas: NoTrans B, Trans A
+                cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, _m, _n, _k, 1.0f, b16, _m, a16, _n, 0.0f, out, ldaty);
+                mkl_free(a16);
+                mkl_free(b16);
+                return;
+            }
+            if (a16) mkl_free(a16);
+            if (b16) mkl_free(b16);
+        }
+        // Fallback to standard sgemm
+        const char transa = 't';
+        const char transb = 'n';
+        const float alpha = 1.0f;
+        const DAAL_INT lda   = nColsA;
+        const DAAL_INT ldy   = nColsA;
+        const float beta  = 0.0f;
+        BlasInst<float, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
+    }
+#endif // !DAAL_REF
 
     const NumericTable & _a;
     const NumericTable & _b;

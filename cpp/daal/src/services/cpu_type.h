@@ -62,6 +62,7 @@ enum CpuFeature
     avx512_bf16 = (1ULL << 2), /*!< AVX-512 bfloat16 */
     avx512_vnni = (1ULL << 3), /*!< AVX-512 Vector Neural Network Instructions (VNNI) */
     tb3         = (1ULL << 4), /*!< Intel(R) Turbo Boost Max 3.0 */
+    amx_bf16    = (1ULL << 5), /*!< Intel(R) Advanced Matrix Extensions bfloat16 (AMX-BF16) */
 #endif
 };
 } // namespace internal
