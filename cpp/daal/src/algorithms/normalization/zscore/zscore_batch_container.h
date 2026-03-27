@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/normalization/zscore.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/normalization/zscore/zscore_base.h"
 #include "src/algorithms/normalization/zscore/zscore_dense_default_kernel.h"
 #include "src/algorithms/normalization/zscore/zscore_dense_sum_kernel.h"

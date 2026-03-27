@@ -26,10 +26,9 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_online.h"
+#include "src/algorithms/algorithm_dispatch_container_common.h"
 #include "src/algorithms/pca/pca_dense_svd_online_kernel.h"
 #include "src/algorithms/pca/pca_dense_svd_container.h"
-
-using namespace daal::data_management;
 
 namespace daal
 {
@@ -39,6 +38,9 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__ONLINECONTAINER"></a>
  * \brief Class containing methods to compute the result of the PCA algorithm

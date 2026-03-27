@@ -39,7 +39,7 @@ using dal::backend::context_cpu;
 namespace daal_svm = daal::algorithms::svm;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_svm_kernel_t =
     daal_svm::training::internal::SVMTrainImpl<to_daal_method<Method>::value, Float, Cpu>;
 

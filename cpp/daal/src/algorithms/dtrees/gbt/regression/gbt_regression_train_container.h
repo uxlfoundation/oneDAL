@@ -27,6 +27,7 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/gradient_boosted_trees/gbt_regression_training_types.h"
 #include "algorithms/gradient_boosted_trees/gbt_regression_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_train_kernel.h"
 #include "src/algorithms/dtrees/gbt/regression/gbt_regression_model_impl.h"
 

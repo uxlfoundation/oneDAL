@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 #include "services/daal_defines.h"
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 
 DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
@@ -37,11 +37,11 @@ void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();
 
 #if defined(TARGET_X86_64)
-    #define DAAL_BASE_CPU daal::sse2
+    #define DAAL_BASE_CPU daal::internal::sse2
 #elif defined(TARGET_ARM)
-    #define DAAL_BASE_CPU daal::sve
+    #define DAAL_BASE_CPU daal::internal::sve
 #elif defined(TARGET_RISCV64)
-    #define DAAL_BASE_CPU daal::rv64
+    #define DAAL_BASE_CPU daal::internal::rv64
 #endif
 
 #define DAAL_CHECK_CPU_ENVIRONMENT (daal_check_is_intel_cpu())

@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/optimization_solver/lbfgs/lbfgs_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/optimization_solver/lbfgs/lbfgs_base.h"
 #include "src/algorithms/optimization_solver/lbfgs/lbfgs_dense_default_kernel.h"
 

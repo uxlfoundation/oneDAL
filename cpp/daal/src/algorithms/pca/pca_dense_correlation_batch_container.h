@@ -26,9 +26,8 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/pca_dense_correlation_batch_kernel.h"
-
-using namespace daal::services::internal;
 
 namespace daal
 {
@@ -38,6 +37,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm

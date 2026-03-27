@@ -32,8 +32,6 @@ static const int blockSizeDefault = 128;
 #include "src/algorithms/cosdistance/cosdistance_impl.i"
 #include "src/algorithms/cosdistance/cosdistance_full_impl.i"
 
-using namespace daal::internal;
-
 namespace daal
 {
 namespace algorithms
@@ -42,6 +40,7 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout);
 

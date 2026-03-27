@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/kernel_function/kernel_function_linear.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_polynomial.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_polynomial_dense_default_kernel.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_polynomial_csr_fast_kernel.h"
@@ -37,6 +38,7 @@ namespace linear
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 namespace poly = daal::algorithms::kernel_function::polynomial::internal;
 
 /**
