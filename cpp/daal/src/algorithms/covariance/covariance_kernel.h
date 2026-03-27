@@ -30,9 +30,6 @@
 #include "algorithms/covariance/covariance_types.h"
 #include "src/algorithms/covariance/covariance_hyperparameter_impl.h"
 
-using namespace daal::services;
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -41,6 +38,9 @@ namespace covariance
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
 template <typename algorithmFPType, Method method, CpuType cpu>
 class CovarianceDenseBatchKernel : public daal::algorithms::Kernel
 {

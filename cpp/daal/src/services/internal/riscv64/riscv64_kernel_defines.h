@@ -15,20 +15,20 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __riscv64_KERNEL_DEFINES_H__
-#define __riscv64_KERNEL_DEFINES_H__
+#ifndef __RISCV64_KERNEL_DEFINES_H__
+#define __RISCV64_KERNEL_DEFINES_H__
 
 #define DAAL_KERNEL_RV64
 
 #if defined(DAAL_KERNEL_RV64)
     #undef DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID
-    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID           daal::rv64
+    #define DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID           daal::internal::rv64
     #define DAAL_KERNEL_RV64_ONLY(something)                   , something
     #define DAAL_KERNEL_RV64_ONLY_CODE(...)                    __VA_ARGS__
-    #define DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, ...) , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, rv64, __VA_ARGS__)
+    #define DAAL_KERNEL_RV64_CONTAINER(ContainerTemplate, ...) , DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::rv64, __VA_ARGS__)
     #define DAAL_KERNEL_RV64_CONTAINER1(ContainerTemplate, ...) \
-        extern template class DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, rv64, __VA_ARGS__);
-    #define DAAL_KERNEL_RV64_CONTAINER_CASE(ContainerTemplate, ...) DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, rv64, __VA_ARGS__)
+        extern template class DAAL_KERNEL_CONTAINER_TEMPL(ContainerTemplate, daal::internal::rv64, __VA_ARGS__);
+    #define DAAL_KERNEL_RV64_CONTAINER_CASE(ContainerTemplate, ...) DAAL_KERNEL_CONTAINER_CASE(ContainerTemplate, daal::internal::rv64, __VA_ARGS__)
 #else
     #define DAAL_KERNEL_RV64_ONLY(something)
     #define DAAL_KERNEL_RV64_ONLY_CODE(...)

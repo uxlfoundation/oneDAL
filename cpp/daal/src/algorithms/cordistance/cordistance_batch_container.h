@@ -25,6 +25,7 @@
 #define __CORDISTANCE_BATCH_CONTAINER_H__
 
 #include "algorithms/distance/correlation_distance.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/cordistance/cordistance_kernel.h"
 
 namespace daal
@@ -35,6 +36,7 @@ namespace correlation_distance
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CORRELATION_DISTANCE__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the correlation distance algorithm.

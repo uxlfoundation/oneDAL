@@ -48,6 +48,7 @@ namespace training
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 using namespace daal::services;
 
 template <typename algorithmFpType, training::Method method, CpuType cpu>

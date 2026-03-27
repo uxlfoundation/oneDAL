@@ -114,7 +114,7 @@ public:
     ~IndexedFeatures();
 
     //initialize the feature indices, i.e. bins
-    template <typename algorithmFPType, CpuType cpu>
+    template <typename algorithmFPType, daal::internal::CpuType cpu>
     services::Status init(const NumericTable & nt, const FeatureTypes * featureTypes = nullptr, const BinParams * pBimPrm = nullptr);
 
     //get max number of indices for that feature

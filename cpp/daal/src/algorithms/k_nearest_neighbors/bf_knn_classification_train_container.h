@@ -20,9 +20,9 @@
 
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
-#include "services/daal_shared_ptr.h"
 #include "algorithms/classifier/classifier_model.h"
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_model_impl.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_train_kernel.h"
 
@@ -37,6 +37,7 @@ namespace training
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>

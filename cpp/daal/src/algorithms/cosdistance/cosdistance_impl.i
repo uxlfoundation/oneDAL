@@ -16,7 +16,6 @@
 *******************************************************************************/
 
 #include "src/services/service_defines.h"
-using namespace daal::internal;
 
 namespace daal
 {
@@ -26,10 +25,12 @@ namespace cosine_distance
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /// Compute the diagonal block of the cosine distance matrix
 ///
 /// \tparam algorithmFPType  Data type to use in intermediate computations for the cosine distance algorithm, double or float
-/// \tparam cpu              Type of CPU, e.g. daal::CpuType::sse2, daal::CpuType::avx2, etc.
+/// \tparam cpu              Type of CPU, e.g. CpuType::sse2, CpuType::avx2, etc.
 /// \tparam upper            If true, compute the upper triangle of the block, otherwise compute the lower triangle
 ///
 /// \param[in] blockSize     Size of the block to compute

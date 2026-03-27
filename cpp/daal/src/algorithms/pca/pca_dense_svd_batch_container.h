@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/pca_dense_svd_batch_kernel.h"
 #include "src/algorithms/pca/pca_dense_svd_container.h"
 
@@ -37,6 +38,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm */
@@ -79,7 +82,7 @@ BatchContainer<algorithmFPType, svdDense, cpu>::~BatchContainer()
 }
 
 template <typename algorithmFPType, CpuType cpu>
-Status BatchContainer<algorithmFPType, svdDense, cpu>::compute()
+services::Status BatchContainer<algorithmFPType, svdDense, cpu>::compute()
 {
     Input * input   = static_cast<Input *>(_in);
     Result * result = static_cast<Result *>(_res);

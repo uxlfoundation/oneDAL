@@ -25,6 +25,7 @@
 #define __MINMAX_BATCH_CONTAINER_H__
 
 #include "algorithms/normalization/minmax.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/normalization/minmax/minmax_moments.h"
 #include "src/algorithms/normalization/minmax/minmax_kernel.h"
 

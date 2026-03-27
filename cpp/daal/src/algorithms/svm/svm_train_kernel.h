@@ -41,6 +41,7 @@ namespace training
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 using namespace daal::services;
 
 enum class SvmType

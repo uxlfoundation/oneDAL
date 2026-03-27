@@ -41,7 +41,7 @@ namespace daal_lom = daal::algorithms::low_order_moments;
 namespace interop = dal::backend::interop;
 namespace bk = dal::backend;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_lom_online_kernel_t =
     daal_lom::internal::LowOrderMomentsOnlineKernel<Float, daal_lom::defaultDense, Cpu>;
 

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <daal/include/services/env_detect.h>
+#include <daal/src/services/cpu_type.h>
 
 #include "oneapi/dal/backend/dispatcher.hpp"
 
@@ -26,32 +27,35 @@ namespace oneapi::dal::backend::interop {
 template <typename DispatchId>
 struct to_daal_cpu_type;
 
-template <daal::CpuType cpu>
+template <daal::internal::CpuType cpu>
 struct daal_cpu_value {
-    constexpr static daal::CpuType value = cpu;
+    constexpr static daal::internal::CpuType value = cpu;
 };
 
 #if defined(TARGET_X86_64)
 template <>
-struct to_daal_cpu_type<cpu_dispatch_default> : daal_cpu_value<daal::sse2> {};
+struct to_daal_cpu_type<cpu_dispatch_default> : daal_cpu_value<daal::internal::sse2> {};
 template <>
-struct to_daal_cpu_type<cpu_dispatch_sse42> : daal_cpu_value<daal::sse42> {};
+struct to_daal_cpu_type<cpu_dispatch_sse42> : daal_cpu_value<daal::internal::sse42> {};
 template <>
-struct to_daal_cpu_type<cpu_dispatch_avx2> : daal_cpu_value<daal::avx2> {};
+struct to_daal_cpu_type<cpu_dispatch_avx2> : daal_cpu_value<daal::internal::avx2> {};
 template <>
-struct to_daal_cpu_type<cpu_dispatch_avx512> : daal_cpu_value<daal::avx512> {};
+struct to_daal_cpu_type<cpu_dispatch_avx512> : daal_cpu_value<daal::internal::avx512> {};
 
 #elif defined(TARGET_ARM)
 template <>
-struct to_daal_cpu_type<cpu_dispatch_sve> : daal_cpu_value<daal::sve> {};
+struct to_daal_cpu_type<cpu_dispatch_sve> : daal_cpu_value<daal::internal::sve> {};
 
 #elif defined(TARGET_RISCV64)
 template <>
-struct to_daal_cpu_type<cpu_dispatch_rv64> : daal_cpu_value<daal::rv64> {};
+struct to_daal_cpu_type<cpu_dispatch_rv64> : daal_cpu_value<daal::internal::rv64> {};
 
 #endif
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().compute(
@@ -59,7 +63,10 @@ inline auto call_daal_kernel(const context_cpu& ctx, Args&&... args) {
     });
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel_finalize_merge(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeMerge(
@@ -67,7 +74,10 @@ inline auto call_daal_kernel_finalize_merge(const context_cpu& ctx, Args&&... ar
     });
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel, typename... Args>
+template <typename Float,
+          template <typename, daal::internal::CpuType>
+          typename CpuKernel,
+          typename... Args>
 inline auto call_daal_kernel_finalize_compute(const context_cpu& ctx, Args&&... args) {
     return dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return CpuKernel<Float, to_daal_cpu_type<decltype(cpu)>::value>().finalizeCompute(

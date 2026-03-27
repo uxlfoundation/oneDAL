@@ -42,7 +42,7 @@ namespace internal
  *  in case floating point type of intermediate calculations
  *  and method of calculations are different
  */
-template <typename algorithmFPType, Method method, CpuType cpu>
+template <typename algorithmFPType, Method method, daal::internal::CpuType cpu>
 class CholeskyKernel : public Kernel
 {
 public:

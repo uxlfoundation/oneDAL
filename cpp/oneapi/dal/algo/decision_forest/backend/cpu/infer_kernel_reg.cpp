@@ -38,7 +38,7 @@ namespace daal_df = daal::algorithms::decision_forest;
 namespace daal_df_reg_pred = daal_df::regression::prediction;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using reg_dense_predict_kernel_t =
     daal_df_reg_pred::internal::PredictKernel<Float, daal_df_reg_pred::defaultDense, Cpu>;
 

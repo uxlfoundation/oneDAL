@@ -42,6 +42,8 @@ namespace correlation_distance
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 bool isFull(NumericTableIface::StorageLayout layout);
 

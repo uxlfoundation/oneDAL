@@ -24,6 +24,7 @@
 #ifndef __UNIFORM_BATCH_CONTAINER_H__
 #define __UNIFORM_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/distributions/uniform/uniform.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 
@@ -45,7 +46,7 @@ namespace internal
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of uniform distribution, double or float
  * \tparam method           Computation method of the distribution, uniform::Method
- * \tparam cpu              Version of the cpu-specific implementation of the distribution, daal::CpuType
+ * \tparam cpu              Version of the cpu-specific implementation of the distribution, CpuType
  *
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

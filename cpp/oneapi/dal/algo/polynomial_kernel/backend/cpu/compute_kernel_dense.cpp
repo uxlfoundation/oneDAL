@@ -35,7 +35,7 @@ namespace daal_polynomial_kernel = daal::algorithms::kernel_function::polynomial
 namespace daal_kernel_internal = daal::algorithms::kernel_function::internal;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_polynomial_kernel_t =
     daal_polynomial_kernel::KernelImplPolynomial<daal_polynomial_kernel::defaultDense, Float, Cpu>;
 
