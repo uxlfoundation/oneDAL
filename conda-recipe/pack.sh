@@ -24,7 +24,7 @@ if [ "$PKG_NAME" = "dal-devel" ]; then
     cp -r "env" "$PREFIX/"
     cp -r "lib/cmake" "$PREFIX/lib/"
     cp -r "lib/pkgconfig" "$PREFIX/lib/"
-    # Install example datasets so dal-devel test can find them via $CONDA_PREFIX/data
+    # Install example datasets under $CONDA_PREFIX/share/oneDAL/data for dal-devel tests
     if [ -d "../../examples/oneapi/data" ]; then
         mkdir -p "$PREFIX/share/oneDAL/data"
         cp -f "../../examples/oneapi/data/"*.csv "$PREFIX/share/oneDAL/data/" 2>/dev/null || true
