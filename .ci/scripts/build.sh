@@ -264,6 +264,8 @@ make_options=("${target:-onedal_c}"
     REQCPU="${optimizations}"
     BACKEND_CONFIG="${backend_config}"
     PLAT="${PLAT}"
+    OPTFLAG=O0
+    LINKER=lld
 )
 
 if [ "${cross_compile}" == "yes" ] && [ "${compiler}" == "clang" ] ; then
