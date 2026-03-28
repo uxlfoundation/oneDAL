@@ -24,10 +24,14 @@ if [ "$PKG_NAME" = "dal-devel" ]; then
     cp -r "env" "$PREFIX/"
     cp -r "lib/cmake" "$PREFIX/lib/"
     cp -r "lib/pkgconfig" "$PREFIX/lib/"
-    # Install example datasets under $CONDA_PREFIX/share/oneDAL/data for dal-devel tests
-    if [ -d "../../examples/oneapi/data" ]; then
+    # Install example datasets under $CONDA_PREFIX/share/oneDAL/data for dal-devel tests.
+    # Prefer canonical source location ($SRC_DIR/data); keep release-layout fallbacks.
+    if [ -d "$SRC_DIR/data" ]; then
         mkdir -p "$PREFIX/share/oneDAL/data"
-        cp -f "../../examples/oneapi/data/"*.csv "$PREFIX/share/oneDAL/data/" 2>/dev/null || true
+        cp -f "$SRC_DIR/data/"*.csv "$PREFIX/share/oneDAL/data/" 2>/dev/null || true
+    elif [ -d "$SRC_DIR/examples/oneapi/data" ]; then
+        mkdir -p "$PREFIX/share/oneDAL/data"
+        cp -f "$SRC_DIR/examples/oneapi/data/"*.csv "$PREFIX/share/oneDAL/data/" 2>/dev/null || true
     elif [ -d data ]; then
         mkdir -p "$PREFIX/share/oneDAL/data"
         cp -f data/*.csv "$PREFIX/share/oneDAL/data/" 2>/dev/null || true

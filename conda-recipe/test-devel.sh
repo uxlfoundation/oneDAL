@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 #===============================================================================
 # Copyright contributors to the oneDAL project
 #
@@ -19,14 +19,14 @@ set -euo pipefail
 test -f $CONDA_PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc
 test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 
-source $CONDA_PREFIX/env/vars.sh
+. "$CONDA_PREFIX/env/vars.sh"
 
 run_examples() {
-    local interface_name=$1
-    local linking_type=$2
-    local extra_cmake_args=${3:-""}
+    interface_name=$1
+    linking_type=$2
+    extra_cmake_args=${3:-""}
 
-    if [ "$linking_type" == "dynamic" ]; then
+    if [ "$linking_type" = "dynamic" ]; then
         library_postfix="so"
     else
         library_postfix="a"
@@ -52,7 +52,7 @@ run_examples() {
             # Note: MKL cmake config is required for static build only and
             # doesn't work with conda-forge distribution of tbb-devel.
             # Thus, tbb is set to "found" manually.
-            if [ "$linking_type" == "static" ]; then
+            if [ "$linking_type" = "static" ]; then
                 cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
             fi
             cmake_args="$cmake_args $extra_cmake_args"
@@ -80,8 +80,8 @@ run_examples() {
 run_dpc_examples() {
     # DPC++ examples are validated only in dynamic mode.
     # We do not produce static DPC++ artifacts in conda packaging.
-    local linking_type="dynamic"
-    local library_postfix="so"
+    linking_type="dynamic"
+    library_postfix="so"
 
     (
         cd examples/oneapi/dpc
