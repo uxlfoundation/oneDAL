@@ -66,15 +66,13 @@ public:
     typedef gbt::prediction::internal::TileDimensions<algorithmFPType> DimType;
     PredictRegressionTask(const NumericTable * x, NumericTable * y) : _data(x), _res(y) {}
 
-    services::Status run(const gbt::regression::internal::ModelImpl * m, size_t nIterations, services::HostAppIface * pHostApp,
-                         bool predShapContributions, bool predShapInteractions);
+    services::Status run(const gbt::regression::internal::ModelImpl * m, size_t nIterations, bool predShapContributions, bool predShapInteractions);
 
 protected:
     template <bool hasUnorderedFeatures, bool hasAnyMissing>
     using dispatcher_t = gbt::prediction::internal::PredictDispatcher<hasUnorderedFeatures, hasAnyMissing>;
 
-    services::Status runInternal(services::HostAppIface * pHostApp, NumericTable * result, double predictionBias, bool predShapContributions,
-                                 bool predShapInteractions);
+    services::Status runInternal(NumericTable * result, double predictionBias, bool predShapContributions, bool predShapInteractions);
     template <bool hasUnorderedFeatures, bool hasAnyMissing>
     algorithmFPType predictByTrees(size_t iFirstTree, size_t nTrees, const algorithmFPType * x,
                                    const dispatcher_t<hasUnorderedFeatures, hasAnyMissing> & dispatcher);
@@ -281,20 +279,18 @@ protected:
 // PredictKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>
-services::Status PredictKernel<algorithmFPType, method, cpu>::compute(services::HostAppIface * pHostApp, const NumericTable * x,
-                                                                      const regression::Model * m, NumericTable * r, size_t nIterations,
-                                                                      bool predShapContributions, bool predShapInteractions)
+services::Status PredictKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const regression::Model * m, NumericTable * r,
+                                                                      size_t nIterations, bool predShapContributions, bool predShapInteractions)
 {
     const daal::algorithms::gbt::regression::internal::ModelImpl * pModel =
         static_cast<const daal::algorithms::gbt::regression::internal::ModelImpl *>(m);
     PredictRegressionTask<algorithmFPType, cpu> task(x, r);
-    return task.run(pModel, nIterations, pHostApp, predShapContributions, predShapInteractions);
+    return task.run(pModel, nIterations, predShapContributions, predShapInteractions);
 }
 
 template <typename algorithmFPType, CpuType cpu>
 services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const gbt::regression::internal::ModelImpl * m, size_t nIterations,
-                                                                  services::HostAppIface * pHostApp, bool predShapContributions,
-                                                                  bool predShapInteractions)
+                                                                  bool predShapContributions, bool predShapInteractions)
 {
     DAAL_ASSERT(nIterations || nIterations <= m->size());
     DAAL_CHECK_MALLOC(_featHelper.init(*_data));
@@ -304,7 +300,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::run(const gbt::reg
 
     for (size_t i = 0ul; i < nTreesTotal; ++i) _aTree[i] = m->at(i);
 
-    return runInternal(pHostApp, this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);
+    return runInternal(this->_res, m->getPredictionBias(), predShapContributions, predShapInteractions);
 }
 
 /**
@@ -438,8 +434,7 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::predictContributio
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(services::HostAppIface * pHostApp, NumericTable * result,
-                                                                          double predictionBias, bool predShapContributions,
+services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(NumericTable * result, double predictionBias, bool predShapContributions,
                                                                           bool predShapInteractions)
 {
     // assert we're not requesting both contributions and interactions
@@ -456,12 +451,11 @@ services::Status PredictRegressionTask<algorithmFPType, cpu>::runInternal(servic
     services::internal::service_memset<algorithmFPType, cpu>(resMatrix.get(), 0, resultNRows * resultNColumns); // set nRows * nCols to 0
     SafeStatus safeStat;
     services::Status s;
-    HostAppHelper host(pHostApp, 100);
 
     const size_t predictionIndex = resultNColumns - 1;
     for (size_t iTree = 0ul; iTree < nTreesTotal; iTree += dim.nTreesInBlock)
     {
-        if (!s || host.isCancelled(s, 1)) return s;
+        if (!s) return s;
         size_t nTreesToUse = ((iTree + dim.nTreesInBlock) < nTreesTotal ? dim.nTreesInBlock : (nTreesTotal - iTree));
 
         daal::threader_for(dim.nDataBlocks, dim.nDataBlocks, [&](size_t iBlock) {

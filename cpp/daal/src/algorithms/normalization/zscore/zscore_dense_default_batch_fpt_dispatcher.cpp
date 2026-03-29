@@ -26,13 +26,18 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(normalization::zscore::interface3::BatchContainer, batch, DAAL_FPTYPE, normalization::zscore::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(normalization::zscore::internal::BatchContainer, batch, DAAL_FPTYPE, normalization::zscore::defaultDense)
 namespace normalization
 {
 namespace zscore
 {
 namespace interface3
 {
+template <>
+void Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, normalization::zscore::defaultDense)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, normalization::zscore::defaultDense>::Batch()
 {

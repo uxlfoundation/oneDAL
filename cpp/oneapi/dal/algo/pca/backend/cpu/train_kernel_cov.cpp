@@ -50,7 +50,7 @@ namespace interop = dal::backend::interop;
 namespace be = dal::backend;
 namespace pr = be::primitives;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_pca_cor_kernel_t = daal_pca::internal::PCACorrelationKernel<daal::batch, Float, Cpu>;
 
 template <typename Float>

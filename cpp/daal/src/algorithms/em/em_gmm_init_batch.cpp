@@ -180,8 +180,7 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     DAAL_CHECK(resultCovCollection, ErrorNullOutputDataCollection);
     DAAL_CHECK(resultCovCollection->size() == nComponents, ErrorIncorrectNumberOfOutputNumericTables);
 
-    int unexpectedLayoutCovariance =
-        (int)(NumericTableIface::csrArray | NumericTableIface::upperPackedTriangularMatrix | NumericTableIface::lowerPackedTriangularMatrix);
+    constexpr int unexpectedLayoutCovariance = (int)NumericTableIface::csrArray;
     for (size_t i = 0; i < nComponents; i++)
     {
         SerializationIfacePtr collectionElement = (*resultCovCollection)[i];

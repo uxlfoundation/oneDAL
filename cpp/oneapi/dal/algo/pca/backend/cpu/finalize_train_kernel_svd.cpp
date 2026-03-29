@@ -34,7 +34,7 @@ namespace interop = dal::backend::interop;
 namespace daal_pca = daal::algorithms::pca;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_svd_kernel_t = daal_pca::internal::PCASVDOnlineKernel<Float, Cpu>;
 
 template <typename Float, typename Task>

@@ -31,11 +31,11 @@ namespace kernel_function
 {
 namespace linear
 {
-namespace interface1
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-
 }
+
 } // namespace linear
 } // namespace kernel_function
 } // namespace algorithms

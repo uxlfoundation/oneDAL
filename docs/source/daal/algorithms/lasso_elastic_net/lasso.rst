@@ -70,7 +70,7 @@ penalizes the :math:`L_1` norm of vector :math:`\beta_j`
 For more details, see [Hastie2009]_.
 
 By default, :ref:`Coordinate Descent <cda_solver>` iterative solver is used to minimize the objective
-function. :ref:`SAGA <saga_solver>` solver is also applicable for minimization.
+function.
 
 Prediction Stage
 ----------------

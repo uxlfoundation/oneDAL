@@ -35,7 +35,7 @@ using namespace daal::internal;
 using namespace daal::services;
 using namespace daal::services::internal;
 
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 services::Status rocAucScoreImpl(const NumericTablePtr & truePrediction, const NumericTablePtr & testPrediction, double & score)
 {
     services::Status s;

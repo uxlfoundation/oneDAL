@@ -21,8 +21,6 @@
 //--
 */
 #include "src/services/service_defines.h"
-using namespace daal::internal;
-using namespace daal::services;
 
 namespace daal
 {
@@ -32,6 +30,9 @@ namespace correlation_distance
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, CpuType cpu>
 services::Status corDistanceFull(const NumericTable * xTable, NumericTable * rTable)
 {

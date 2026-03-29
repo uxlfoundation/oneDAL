@@ -35,10 +35,7 @@ using namespace daal::data_management;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string dataFileNames[nBlocks] = { "../data/distributed/dbscan_dense_1.csv",
-                                             "../data/distributed/dbscan_dense_2.csv",
-                                             "../data/distributed/dbscan_dense_3.csv",
-                                             "../data/distributed/dbscan_dense_4.csv" };
+const std::string datasetFileName = { "data/dbscan_dense.csv" };
 
 typedef float algorithmFPType; /* Algorithm floating-point type */
 
@@ -74,24 +71,28 @@ NumericTablePtr clusterOffset[nBlocks];
 NumericTablePtr assignments[nBlocks];
 NumericTablePtr totalNClusters;
 
-void readData(size_t block);
+void readData(size_t block, const NumericTablePtr &data);
 void geometricPartitioning();
 void clustering();
 void printResults();
 
 int computeFinishedFlag();
 
-int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &dataFileNames[0],
-                   &dataFileNames[1],
-                   &dataFileNames[2],
-                   &dataFileNames[3]);
+int main(int argc, char *argv[]) {
+    checkArguments(argc, argv, 1, &datasetFileName);
+    size_t totalRows = countRowsCSV(datasetFileName);
+    size_t blockSize = (totalRows + nBlocks - 1) / nBlocks;
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        readData(i);
+    FileDataSource<CSVFeatureManager> dataSource(datasetFileName,
+                                                 DataSource::doAllocateNumericTable,
+                                                 DataSource::doDictionaryFromContext);
+    size_t remainingRows = totalRows;
+    for (size_t block = 0; block < nBlocks && remainingRows > 0; block++) {
+        size_t rowsToRead = std::min(blockSize, remainingRows);
+        size_t nLoaded = dataSource.loadDataBlock(rowsToRead);
+        remainingRows -= nLoaded;
+        NumericTablePtr blockTable = dataSource.getNumericTable();
+        readData(block, blockTable);
     }
 
     geometricPartitioning();
@@ -453,16 +454,27 @@ int computeFinishedFlag() {
     return finishedFlagValue;
 }
 
-void readData(size_t block) {
-    /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data from a .csv file */
-    FileDataSource<CSVFeatureManager> dataSource(dataFileNames[block],
-                                                 DataSource::doAllocateNumericTable,
-                                                 DataSource::doDictionaryFromContext);
+void readData(size_t block, const NumericTablePtr &data) {
+    const size_t nRows = data->getNumberOfRows();
+    const size_t nCols = data->getNumberOfColumns();
 
-    /* Retrieve the data from the input file */
-    dataSource.loadDataBlock();
-    dataTable[block] = dataSource.getNumericTable();
+    auto blockTable =
+        HomogenNumericTable<algorithmFPType>::create(nCols, nRows, NumericTableIface::doAllocate);
+
+    BlockDescriptor<algorithmFPType> srcBlock;
+    BlockDescriptor<algorithmFPType> dstBlock;
+
+    data->getBlockOfRows(0, nRows, readOnly, srcBlock);
+    blockTable->getBlockOfRows(0, nRows, writeOnly, dstBlock);
+
+    std::copy(srcBlock.getBlockPtr(),
+              srcBlock.getBlockPtr() + nRows * nCols,
+              dstBlock.getBlockPtr());
+
+    data->releaseBlockOfRows(srcBlock);
+    blockTable->releaseBlockOfRows(dstBlock);
+
+    dataTable[block] = blockTable;
 }
 
 void printResults() {

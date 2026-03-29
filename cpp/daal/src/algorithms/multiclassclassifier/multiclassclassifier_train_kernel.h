@@ -32,8 +32,6 @@
 
 #include "src/services/service_defines.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -44,6 +42,9 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 struct KernelParameter
 {
     size_t nClasses;                                                           /*!< Number of classes */

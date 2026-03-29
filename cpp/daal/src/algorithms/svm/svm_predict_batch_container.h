@@ -21,9 +21,10 @@
 //--
 */
 
-#include "algorithms/svm/svm_predict.h"
-#include "src/algorithms/svm/svm_predict_kernel.h"
 #include "algorithms/classifier/classifier_predict_types.h"
+#include "algorithms/svm/svm_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
+#include "src/algorithms/svm/svm_predict_kernel.h"
 
 namespace daal
 {
@@ -33,11 +34,41 @@ namespace svm
 {
 namespace prediction
 {
-namespace interface2
+namespace internal
 {
+using namespace daal::internal;
+
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported architectures
 */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__SVM__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the SVM algorithm.
+ *        It is associated with the Prediction class
+ *        and supports methods to run predictions based on the SVM model
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the SVM prediction algorithm, double or float
+ * \tparam method           SVM model-based prediction method, \ref Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for SVM model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of SVM model-based prediction
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -65,7 +96,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::SVMPredictImpl, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, a, m, *r, par);
 }
-} // namespace interface2
+} // namespace internal
 } // namespace prediction
 } // namespace svm
 } // namespace algorithms

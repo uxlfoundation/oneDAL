@@ -44,6 +44,7 @@ namespace prediction
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 using namespace daal::services::internal;
 using namespace multi_class_classifier::internal;
 

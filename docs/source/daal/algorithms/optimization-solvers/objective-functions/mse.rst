@@ -110,15 +110,13 @@ For more details, see :ref:`algorithms`.
    * - ``weights``
      - Optional input.
        Pointer to the :math:`1 \times n` numeric table with weights of samples.
-       The input can be an object of any class derived from ``NumericTable``
-       except for ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
 
        By default, all weights are equal to :math:`1`.
    * - ``gramMatrix``
      - Optional input.
        Pointer to the :math:`p \times p` numeric table with pre-computed Gram matrix.
-       The input can be an object of any class derived from ``NumericTable``
-       except for ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+       The input can be an object of any class derived from ``NumericTable``.
 
        By default, the table is set to empty numeric table.
 
@@ -156,14 +154,13 @@ Some of them are required only for specific values of the computation method par
    * - ``numberOfTerms``
      - Not applicable
      - The number of terms in the objective function.
-   * - batchIndices
+   * - ``batchIndices``
      - Not applicable
      - The numeric table of size :math:`1 \times m`, where :math:`m` is the batch size, with a batch of indices to be used to compute the function results.
        If no indices are provided, the implementation uses all the terms in the computation.
 
        .. note::
-            This parameter can be an object of any class derived from ``NumericTable``
-            except for ``PackedTriangularMatrix`` and ``PackedSymmetricMatrix``.
+            This parameter can be an object of any class derived from ``NumericTable``.
    * - ``resultsToCompute``
      - ``gradient``
      - The 64-bit integer flag that specifies which characteristics of the objective function to compute.

@@ -1,6 +1,6 @@
 /* file: lbfgs_cr_entr_loss_dense_batch.cpp */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-const std::string datasetFileName = "../data/batch/logreg_train.csv";
+const std::string datasetFileName = "data/logreg_train.csv";
 const size_t nFeatures = 6; /* Number of features in training and testing data sets */
 const size_t nClasses = 5; /* Number of classes */
 const size_t nIterations = 1000;
@@ -48,10 +48,10 @@ int main(int argc, char* argv[]) {
                                                  DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for input data and dependent variables */
-    NumericTablePtr data(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr dependentVariables(
-        new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(data, dependentVariables));
+    NumericTablePtr data = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr dependentVariables =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(data, dependentVariables);
 
     /* Retrieve the data from input file */
     dataSource.loadDataBlock(mergedData.get());
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
     optimization_solver::lbfgs::Batch<> algorithm(func);
     algorithm.parameter.nIterations = nIterations;
     algorithm.parameter.stepLengthSequence =
-        NumericTablePtr(new HomogenNumericTable<>(1, 1, NumericTableIface::doAllocate, stepLength));
+        HomogenNumericTable<>::create(1, 1, NumericTableIface::doAllocate, stepLength);
 
     const size_t nParameters = nClasses * (nFeatures + 1);
     DAAL_DATA_TYPE initialPoint[nParameters];

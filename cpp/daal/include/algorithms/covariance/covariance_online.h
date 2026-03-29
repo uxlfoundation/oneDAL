@@ -71,230 +71,6 @@ public:
 };
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm.
- *        This class is associated with daal::algorithms::covariance::Online class
- *
- * \tparam method           Computation method for correlation or variance-covariance matrix, \ref daal::algorithms::covariance::Method
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_DEFAULTDENSE_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using default computation method.
- *        This class is associated with daal::algorithms::covariance::Online class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, defaultDense, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SINGLEPASSDENSE_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using single-pass computation method.
- *        This class is associated with daal::algorithms::covariance::Online class.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, singlePassDense, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SUMDENSE_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using sum computation method.
- *        This class is associated with daal::algorithms::covariance::Online class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, sumDense, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_FASTCSR_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables.
- *        This class is associated with daal::algorithms::covariance::Online class.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, fastCSR, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SINGLEPASSCSR_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables.
- *        This class is associated with daal::algorithms::covariance::Online class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, singlePassCSR, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINECONTAINER_ALGORITHMFPTYPE_SUMCSR_CPU"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables.
- *        This class is associated with daal::algorithms::covariance::Online class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class OnlineContainer<algorithmFPType, sumCSR, cpu> : public OnlineContainerIface
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~OnlineContainer();
-
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm
-     * in the online processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__ONLINEIFACE"></a>
  * \brief Abstract class that specifies interface of the algorithms
  *        for computing correlation or variance-covariance matrix in the online processing mode
@@ -386,7 +162,7 @@ protected:
         _partialResult.reset(new PartialResult());
     }
 
-    virtual OnlineImpl * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    OnlineImpl * cloneImpl() const override = 0;
 
     PartialResultPtr _partialResult;
     ResultPtr _result;
@@ -441,7 +217,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -452,9 +228,9 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(_partialResult.get(), _par, (int)method);
         _res               = _result.get();
@@ -462,26 +238,25 @@ protected:
         return services::Status();
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         services::Status s = _partialResult->initialize<algorithmFPType>(&input, _par, (int)method);
         _pres              = _partialResult.get();
         return services::Status();
     }
 
-    void initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env); }
+    void initialize();
 };
 /** @} */
 } // namespace interface1
 using interface1::OnlineContainerIface;
-using interface1::OnlineContainer;
 using interface1::OnlineImpl;
 using interface1::Online;
 

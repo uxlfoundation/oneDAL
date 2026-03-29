@@ -125,7 +125,7 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define the result as an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
    * - ``partialObjectiveFunction``
      - Pointer to the :math:`1 \times 1` numeric table that contains the value of the partial objective function
        for observations processed on the local node.
@@ -140,7 +140,7 @@ For more details, see :ref:`algorithms`.
        .. note::
            By default, this result if an object of the ``HomogenNumericTable`` class,
            but you can define this result as an object of any class derived from ``NumericTable``
-           except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, ``CSRNumericTable``.
+           except ``CSRNumericTable``.
    * - ``partialCandidatesCentroids``
      - Pointer to the :math:`\mathrm{nClusters} \times 1` numeric table that contains the observations of the ``nClusters``
        largest objective function value processed on the local node and stored in descending order of the objective function.
@@ -148,7 +148,7 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default, this result if an object of the ``HomogenNumericTable`` class,
             but you can define this result as an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, ``CSRNumericTable``.
+            except ``CSRNumericTable``.
 
 .. tabularcolumns::  |\Y{0.2}|\Y{0.8}|
 
@@ -166,7 +166,7 @@ For more details, see :ref:`algorithms`.
        .. note::
             By default, this result is an object of the ``HomogenNumericTable`` class,
             but you can define this result as an object of any class derived from ``NumericTable``
-            except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+            except ``CSRNumericTable``.
 
 .. _kmeans_computation_step_2:
 
@@ -216,7 +216,7 @@ For more details, see :ref:`algorithms`.
 
           By default, this result is an object of the ``HomogenNumericTable`` class,
           but you can define the result as an object of any class derived from ``NumericTable``
-          except ``PackedTriangularMatrix``, ``PackedSymmetricMatrix``, and ``CSRNumericTable``.
+          except ``CSRNumericTable``.
    * - ``objectiveFunction``
      - Pointer to the :math:`1 \times 1` numeric table that contains the value of the objective function.
 

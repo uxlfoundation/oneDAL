@@ -29,12 +29,12 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace interface1
+namespace internal
 {
-template DAAL_EXPORT services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
-                                                                    const int method);
+template services::Status Result::allocate<DAAL_FPTYPE>(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par,
+                                                        const int method);
 
-} // namespace interface1
+} // namespace internal
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

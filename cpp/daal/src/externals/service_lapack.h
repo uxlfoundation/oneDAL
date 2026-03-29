@@ -30,6 +30,7 @@ having 'const' qualifiers or not. */
 #define __SERVICE_LAPACK_H__
 
 #include "services/daal_defines.h"
+#include "src/services/cpu_type.h"
 #include "src/externals/service_dispatch.h"
 #include "src/externals/service_memory.h"
 

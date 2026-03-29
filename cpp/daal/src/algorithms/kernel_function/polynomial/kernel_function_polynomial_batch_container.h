@@ -15,6 +15,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_polynomial.h"
 #include "src/algorithms/kernel_function/polynomial/kernel_function_polynomial_dense_default_kernel.h"
 

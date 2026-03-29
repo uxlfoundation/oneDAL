@@ -27,9 +27,9 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/gradient_boosted_trees/gbt_classification_training_types.h"
 #include "algorithms/gradient_boosted_trees/gbt_classification_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dtrees/gbt/classification/gbt_classification_train_kernel.h"
 #include "src/algorithms/dtrees/gbt/classification/gbt_classification_model_impl.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -41,8 +41,37 @@ namespace classification
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of Gradient Boosted Trees model-based training.
+ *        This class is associated with daal::algorithms::gbt::classification::training::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
+ * \tparam method           Gradient Boosted Trees model training method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for Gradient Boosted Trees model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of Gradient Boosted Trees model-based training in the batch processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    services::Status setupCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -71,8 +100,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     daal::algorithms::engines::internal::BatchBaseImpl * engine =
         dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl *>(par->engine.get());
 
-    __DAAL_CALL_KERNEL(env, internal::ClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), x, y, *m, *result, *par, *engine);
+    __DAAL_CALL_KERNEL(env, internal::ClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, *m, *result,
+                       *par, *engine);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -85,7 +114,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     pImpl->clear();
     return services::Status();
 }
-} // namespace interface2
+} // namespace internal
 
 } // namespace training
 } // namespace classification

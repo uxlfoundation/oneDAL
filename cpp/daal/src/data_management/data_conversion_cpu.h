@@ -26,6 +26,7 @@ namespace data_management
 {
 namespace internal
 {
+using namespace daal::internal;
 /* only for AVX512 architecture with using intrinsics */
 #if defined(DAAL_INTEL_CPP_COMPILER)
 template <typename T, CpuType cpu>

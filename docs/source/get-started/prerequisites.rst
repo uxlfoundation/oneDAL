@@ -21,7 +21,7 @@ Before You Begin
 ~~~~~~~~~~~~~~~~
 
 |short_name| is located in :file:`<install_dir>/dal` directory where :file:`<install_dir>`
-is the directory in which |base_tk| was installed.
+is the directory in which oneAPI components are installed, typically ``/opt/intel/oneapi/``.
 
 The current version of |short_name| with
 SYCL is available for Linux\* and Windows\* 64-bit operating systems. The

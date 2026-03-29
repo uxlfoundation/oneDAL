@@ -1,4 +1,4 @@
-/** file data_management_utils.cpp */
+/** file data_conversion.cpp */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -21,7 +21,7 @@
 //--
 */
 
-#include "services/internal/daal_kernel_defines.h"
+#include "src/services/internal/daal_internal_kernel_defines.h"
 #include "src/externals/service_dispatch.h"
 #include "src/data_management/data_conversion_cpu.h"
 #include "data_management/data/internal/conversion.h"

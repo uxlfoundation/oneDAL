@@ -138,11 +138,11 @@ protected: //enables specific functions for UnorderedRespHelperBest
     {
         const intermSummFPType sqWeights = totalWeights * totalWeights;
         const intermSummFPType cDiv      = isZero<intermSummFPType, cpu>(sqWeights) ? 1.0 : (1.0 / sqWeights);
-        intermSummFPType var             = 1.0;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < _nClasses; ++i) var -= cDiv * imp.hist[i] * imp.hist[i];
-        imp.var = var;
+        intermSummFPType sumSq           = 0.0;
+        const auto * impHist             = imp.hist.get();
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumSq))
+        for (size_t i = 0; i < _nClasses; ++i) sumSq += impHist[i] * impHist[i];
+        imp.var = 1.0 - cDiv * sumSq;
         if (!isPositive<intermSummFPType, cpu>(imp.var)) imp.var = 0; //roundoff error
     }
 
@@ -195,16 +195,14 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
 
         if (!split.featureUnordered)
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * _nClasses + iClass];
         }
         if ((nLeft < nMinSplitPart) || leftWeights < minWeightLeaf || !leftWeights) continue;
 
         if (split.featureUnordered)
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             //one against others
             for (size_t iClass = 0; iClass < _nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[i * _nClasses + iClass];
         }
@@ -212,9 +210,8 @@ int UnorderedRespHelperBest<algorithmFPType, cpu>::findSplitByHistDefault(int nD
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
         intermSummFPType sumRight = 0;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         //proximal impurity improvement
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
         for (size_t iClass = 0; iClass < _nClasses; ++iClass)
         {
             sumLeft += histLeft[iClass] * histLeft[iClass];
@@ -552,8 +549,7 @@ public:
         : UnorderedRespHelperBest<algorithmFPType, cpu>(indexedFeatures, nClasses, hp)
     {}
 
-    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample,
-                      const NumericTable * weights) DAAL_C11_OVERRIDE;
+    virtual bool init(const NumericTable * data, const NumericTable * resp, const IndexType * aSample, const NumericTable * weights) override;
     void convertLeftImpToRight(size_t n, const ImpurityData & total, TSplitData & split)
     {
         computeRightHistogramm(total.hist, split.left.hist, split.left.hist);
@@ -633,23 +629,25 @@ public:
     void setLeafData(typename TreeType::NodeType::Leaf & node, const IndexType * idx, size_t n, ImpurityData & imp) const
     {
         DAAL_ASSERT(n > 0);
-        node.count    = n;
-        node.impurity = imp.var;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t i = 0; i < this->_nClasses; ++i)
+        node.count           = n;
+        node.impurity        = imp.var;
+        const auto nClasses  = this->_nClasses;
+        const auto * impHist = imp.hist.get();
+        auto * nodeHist      = node.hist;
+        PRAGMA_OMP_SIMD
+        for (size_t i = 0; i < nClasses; ++i)
         {
-            node.hist[i] = imp.hist[i];
+            nodeHist[i] = impHist[i];
         }
 #ifdef DEBUG_CHECK_IMPURITY
         {
-            Histogramm res(_nClasses, 0);
+            Histogramm res(nClasses, 0);
             for (size_t i = 0; i < n; ++i)
             {
                 const ClassIndexType iClass = this->_aResponse[idx[i]].val;
                 res[iClass] += 1;
             }
-            for (size_t i = 0; i < _nClasses; ++i) DAAL_ASSERT(res[i] == imp.hist[i]);
+            for (size_t i = 0; i < nClasses; ++i) DAAL_ASSERT(res[i] == imp.hist[i]);
         }
 #endif
         auto maxVal             = imp.hist[0];
@@ -681,12 +679,12 @@ protected:
 
     void computeRightHistogramm(const Histogramm & total, const Histogramm & left, Histogramm & right) const
     {
-        auto histTotal = total.get();
-        auto histRight = right.get();
-        auto histLeft  = left.get();
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histRight[iClass] = histTotal[iClass] - histLeft[iClass];
+        auto histTotal      = total.get();
+        auto histRight      = right.get();
+        auto histLeft       = left.get();
+        const auto nClasses = this->_nClasses;
+        PRAGMA_OMP_SIMD
+        for (size_t iClass = 0; iClass < nClasses; ++iClass) histRight[iClass] = histTotal[iClass] - histLeft[iClass];
     }
 };
 
@@ -1078,6 +1076,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         || ((n - nFeatIdx[minidx]) < nMinSplitPart) || ((totalWeights - featWeights[minidx]) < minWeightLeaf))
         return idxFeatureBestSplit;
 
+    const auto nClasses = this->_nClasses;
     if (split.featureUnordered)
     {
         //find random index between minidx and maxidx
@@ -1091,10 +1090,9 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         nLeft       = nFeatIdx[idx];
         leftWeights = featWeights[idx];
 
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
         //one against others
-        for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * this->_nClasses + iClass];
+        PRAGMA_OMP_SIMD
+        for (size_t iClass = 0; iClass < nClasses; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * nClasses + iClass];
     }
     else
     {
@@ -1110,9 +1108,8 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
             nLeft += nFeatIdx[i];
             leftWeights += featWeights[i];
 
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t iClass = 0; iClass < this->_nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * this->_nClasses + iClass];
+            PRAGMA_OMP_SIMD
+            for (size_t iClass = 0; iClass < nClasses; ++iClass) histLeft[iClass] += nSamplesPerClass[i * nClasses + iClass];
         }
     }
 
@@ -1123,10 +1120,10 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitByHistDefault(int 
         auto histTotal            = curImpurity.hist.get();
         intermSummFPType sumLeft  = 0;
         intermSummFPType sumRight = 0;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
+        const auto nClasses       = this->_nClasses;
         //proximal impurity improvement
-        for (size_t iClass = 0; iClass < this->_nClasses; ++iClass)
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sumLeft, sumRight))
+        for (size_t iClass = 0; iClass < nClasses; ++iClass)
         {
             sumLeft += histLeft[iClass] * histLeft[iClass];
             sumRight += (histTotal[iClass] - histLeft[iClass]) * (histTotal[iClass] - histLeft[iClass]);
@@ -1218,8 +1215,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         return idxFeatureBestSplit;
 
     //set histLeft
-    PRAGMA_IVDEP
-    PRAGMA_VECTOR_ALWAYS
+    PRAGMA_OMP_SIMD
     for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[minidx * K + iClass];
 
     //solve for the max non-zero index
@@ -1276,16 +1272,14 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
 
         if (split.featureUnordered) //only need last index
         {
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * K + iClass];
         }
         else //sum over all to idx
         {
             for (size_t i = minidx + 1; i <= idx; i++)
             {
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
             }
         }
@@ -1308,8 +1302,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
         if (split.featureUnordered) //only need last index
         {
             nLeft = nFeatIdx[idx];
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] = nSamplesPerClass[idx * K + iClass];
         }
         else //sum over all to idx
@@ -1317,8 +1310,7 @@ int UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitFewClasses(int nDi
             for (size_t i = minidx + 1; i <= idx; i++)
             {
                 nLeft += nFeatIdx[i];
-                PRAGMA_IVDEP
-                PRAGMA_VECTOR_ALWAYS
+                PRAGMA_OMP_SIMD
                 for (size_t iClass = 0; iClass < K; ++iClass) histLeft[iClass] += nSamplesPerClass[i * K + iClass];
             }
         }
@@ -1551,9 +1543,12 @@ bool UnorderedRespHelperRandom<algorithmFPType, cpu>::findSplitCategoricalFeatur
         if ((count < nMinSplitPart) || ((n - count) < nMinSplitPart) || (leftWeights < minWeightLeaf) || (rightWeights < minWeightLeaf)
             || !leftWeights || rightWeights <= 0)
             continue;
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t j = 0; j < this->_nClasses; ++j) this->_impRight.hist[j] = curImpurity.hist[j] - this->_impLeft.hist[j];
+        const auto nClasses          = this->_nClasses;
+        const auto * curImpurityHist = curImpurity.hist.get();
+        const auto * impLeftHist     = this->_impLeft.hist.get();
+        auto * impRightHist          = this->_impRight.hist.get();
+        PRAGMA_OMP_SIMD
+        for (size_t j = 0; j < nClasses; ++j) impRightHist[j] = curImpurityHist[j] - impLeftHist[j];
         this->calcGini(leftWeights, this->_impLeft);
         this->calcGini(rightWeights, this->_impRight);
         const intermSummFPType v = leftWeights * this->_impLeft.var + rightWeights * this->_impRight.var;
@@ -1621,8 +1616,7 @@ public:
             OOBClassificationData * dst       = (OOBClassificationData *)other.oobBuf;
             const OOBClassificationData * src = (const OOBClassificationData *)this->oobBuf;
             const size_t n                    = _nClasses * nSamples;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            PRAGMA_OMP_SIMD
             for (size_t i = 0; i < n; ++i)
             {
                 dst[i] += src[i];
@@ -1703,11 +1697,11 @@ class TrainBatchTask : public TrainBatchTaskBase<algorithmFPType, BinIndexType, 
 
 public:
     typedef TreeThreadCtx<algorithmFPType, cpu> ThreadCtxType;
-    TrainBatchTask(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
-                   const decision_forest::training::Parameter & par, const dtrees::internal::FeatureTypes & featTypes,
-                   const dtrees::internal::IndexedFeatures * indexedFeatures, const BinIndexType * binIndex, typename super::ThreadCtxType & ctx,
-                   size_t dummy, const HyperparameterType * hyperparameter = nullptr)
-        : super(pHostApp, x, y, w, par, featTypes, indexedFeatures, binIndex, ctx, dummy, hyperparameter)
+    TrainBatchTask(const NumericTable * x, const NumericTable * y, const NumericTable * w, const decision_forest::training::Parameter & par,
+                   const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
+                   const BinIndexType * binIndex, typename super::ThreadCtxType & ctx, size_t dummy,
+                   const HyperparameterType * hyperparameter = nullptr)
+        : super(x, y, w, par, featTypes, indexedFeatures, binIndex, ctx, dummy, hyperparameter)
     {
         if (!this->_nFeaturesPerNode)
         {
@@ -1721,7 +1715,7 @@ public:
 // ClassificationTrainBatchKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, Method method, CpuType cpu, typename helper>
-services::Status computeForSpecificHelper(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
+services::Status computeForSpecificHelper(const NumericTable * x, const NumericTable * y, const NumericTable * w,
                                           decision_forest::classification::Model & m, Result & res,
                                           const decision_forest::classification::training::Parameter & par, bool memSave,
                                           const classification::training::internal::Hyperparameter * hyperparameter)
@@ -1745,27 +1739,27 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
             if (indexedFeatures.maxNumIndices() <= 256)
                 s = computeImpl<algorithmFPType, uint8_t, cpu, daal::algorithms::decision_forest::classification::internal::ModelImpl,
                                 TrainBatchTask<algorithmFPType, uint8_t, hist, helper, HyperparameterType, cpu> >(
-                    pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par,
-                    par.nClasses, featTypes, &indexedFeatures, hyperparameter);
+                    x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
+                    featTypes, &indexedFeatures, hyperparameter);
             else if (indexedFeatures.maxNumIndices() <= 65536)
                 s = computeImpl<algorithmFPType, uint16_t, cpu, daal::algorithms::decision_forest::classification::internal::ModelImpl,
                                 TrainBatchTask<algorithmFPType, uint16_t, hist, helper, HyperparameterType, cpu> >(
-                    pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par,
-                    par.nClasses, featTypes, &indexedFeatures, hyperparameter);
+                    x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
+                    featTypes, &indexedFeatures, hyperparameter);
             else
                 s = computeImpl<
                     algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
                     daal::algorithms::decision_forest::classification::internal::ModelImpl,
                     TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
-                    pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par,
-                    par.nClasses, featTypes, &indexedFeatures, hyperparameter);
+                    x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
+                    featTypes, &indexedFeatures, hyperparameter);
         }
         else
             s = computeImpl<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
                             daal::algorithms::decision_forest::classification::internal::ModelImpl,
                             TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, hist, helper, HyperparameterType, cpu> >(
-                pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
-                featTypes, nullptr, hyperparameter);
+                x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses, featTypes,
+                nullptr, hyperparameter);
     }
     else
     {
@@ -1777,16 +1771,16 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
                 algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
                 daal::algorithms::decision_forest::classification::internal::ModelImpl,
                 TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
-                pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
-                featTypes, &indexedFeatures, hyperparameter);
+                x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses, featTypes,
+                &indexedFeatures, hyperparameter);
         }
         else
             s = computeImpl<
                 algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, cpu,
                 daal::algorithms::decision_forest::classification::internal::ModelImpl,
                 TrainBatchTask<algorithmFPType, dtrees::internal::IndexedFeatures::IndexType, defaultDense, helper, HyperparameterType, cpu> >(
-                pHostApp, x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses,
-                featTypes, nullptr, hyperparameter);
+                x, y, w, *static_cast<daal::algorithms::decision_forest::classification::internal::ModelImpl *>(&m), rd, par, par.nClasses, featTypes,
+                nullptr, hyperparameter);
     }
 
     if (s.ok()) res.impl()->setEngine(rd.updatedEngine);
@@ -1795,8 +1789,8 @@ services::Status computeForSpecificHelper(HostAppIface * pHostApp, const Numeric
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::compute(
-    HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m,
-    Result & res, const decision_forest::classification::training::Parameter & par, const HyperparameterType * hp)
+    const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m, Result & res,
+    const decision_forest::classification::training::Parameter & par, const HyperparameterType * hp)
 {
     services::Status s;
     if (hp)
@@ -1808,14 +1802,14 @@ services::Status ClassificationTrainBatchKernel<algorithmFPType, method, cpu>::c
     if (par.splitter == decision_forest::training::SplitterMode::best)
     {
         s = computeForSpecificHelper<algorithmFPType, method, cpu,
-                                     RespHelperBase<algorithmFPType, cpu, UnorderedRespHelperBest<algorithmFPType, cpu> > >(
-            pHostApp, x, y, w, m, res, par, par.memorySavingMode, hp);
+                                     RespHelperBase<algorithmFPType, cpu, UnorderedRespHelperBest<algorithmFPType, cpu> > >(x, y, w, m, res, par,
+                                                                                                                            par.memorySavingMode, hp);
     }
     else if (par.splitter == decision_forest::training::SplitterMode::random)
     {
         s = computeForSpecificHelper<algorithmFPType, method, cpu,
                                      RespHelperBase<algorithmFPType, cpu, UnorderedRespHelperRandom<algorithmFPType, cpu> > >(
-            pHostApp, x, y, w, m, res, par, par.memorySavingMode || method == defaultDense, hp);
+            x, y, w, m, res, par, par.memorySavingMode || method == defaultDense, hp);
     }
     return s;
 }

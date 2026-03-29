@@ -55,13 +55,13 @@ DataType getInf()
 // and are therefore outside of their separate
 // implementations
 
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 DataType sumWithSIMD(size_t n, const DataType * dataPtr);
 
 /*
 // Computes multi-threaded sum of a numeric table via summation using SIMD calls
 */
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 DataType computeSumSIMD(size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs)
 {
     size_t nBlocksPerPtr = nElementsPerPtr / BLOCK_SIZE;
@@ -94,7 +94,7 @@ DataType computeSumSIMD(size_t nDataPtrs, size_t nElementsPerPtr, const DataType
 /*
 // Computes multi-threaded sum of an SOA numeric table via summation using SIMD calls
 */
-template <daal::CpuType cpu>
+template <CpuType cpu>
 double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Status & st)
 {
     SafeStatus safeStat;
@@ -174,18 +174,18 @@ double computeSumSOASIMD(NumericTable & table, bool & sumIsFinite, services::Sta
 
 #if defined(DAAL_INTEL_CPP_COMPILER)
 
-template <daal::CpuType cpu>
+template <CpuType cpu>
 services::Status checkFinitenessInBlocks(const float ** dataPtrs, bool inParallel, size_t nTotalBlocks, size_t nBlocksPerPtr, size_t nPerBlock,
                                          size_t nSurplus, bool allowNaN, bool & finiteness);
 
-template <daal::CpuType cpu>
+template <CpuType cpu>
 services::Status checkFinitenessInBlocks(const double ** dataPtrs, bool inParallel, size_t nTotalBlocks, size_t nBlocksPerPtr, size_t nPerBlock,
                                          size_t nSurplus, bool allowNaN, bool & finiteness);
 
 /*
 // Computes finiteness for a numeric table in blocks using SIMD calls
 */
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 bool checkFinitenessSIMD(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs, bool allowNaN)
 {
     size_t nBlocksPerPtr = nElementsPerPtr / BLOCK_SIZE;
@@ -204,7 +204,7 @@ bool checkFinitenessSIMD(const size_t nElements, size_t nDataPtrs, size_t nEleme
 /*
 // Computes finiteness for a SOA numeric table by isinf/isnan using SIMD calls
 */
-template <daal::CpuType cpu>
+template <CpuType cpu>
 bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Status & st)
 {
     SafeStatus safeStat;
@@ -283,7 +283,7 @@ bool checkFinitenessSOASIMD(NumericTable & table, bool allowNaN, services::Statu
 // Check all values of table are finite via summation and if necessary, via isinf/isnan
 // if allowNan == True, then NaN is considered a finite value.
 */
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 services::Status allValuesAreFiniteImpl(NumericTable & table, bool allowNaN, bool * finiteness)
 {
     services::Status s;

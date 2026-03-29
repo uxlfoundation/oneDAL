@@ -30,9 +30,6 @@
 #include "algorithms/gradient_boosted_trees/gbt_classification_training_types.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -45,11 +42,26 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class ClassificationTrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
-    services::Status compute(HostAppIface * pHost, const NumericTable * x, const NumericTable * y, gbt::classification::Model & m, Result & res,
+    /**
+     *  \brief Trains gradient boosted trees classification model.
+     *
+     *  \param x[in]            Matrix of input variables X of size [N x P], where N is a number of observations
+     *                          and P is a number of features
+     *  \param y[in]            Matrix of dependent variables Y of size [N x 1], where N is a number of observations
+     *  \param m[out]           Gradient boosted trees classification model to be trained
+     *  \param res[out]         Structure to store the training results such as model
+     *  \param par[in]          Gradient boosted trees classification algorithm parameters
+     *  \param engine[in]       Engine for random number generation to be used for training
+     */
+    services::Status compute(const NumericTable * x, const NumericTable * y, gbt::classification::Model & m, Result & res,
                              const interface2::Parameter & par, engines::internal::BatchBaseImpl & engine);
 };
 

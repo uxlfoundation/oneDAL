@@ -30,9 +30,6 @@
 #include "algorithms/gradient_boosted_trees/gbt_regression_training_types.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -45,12 +42,27 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class RegressionTrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
-    services::Status compute(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, gbt::regression::Model & m, Result & res,
-                             const Parameter & par, engines::internal::BatchBaseImpl & engine);
+    /**
+     * \brief Trains the gradient boosted trees regression model
+     *
+     * \param x[in]                 Matrix of input variables X of size [N x P], where N is a number of observations
+     *                              and P is a number of features
+     * \param y[in]                 Matrix of dependent variables Y of size [N x 1], where N is a number of observations
+     * \param m[out]                Gradient boosted trees regression model to be trained
+     * \param res[out]              Structure to store the training results such as model
+     * \param par[in]               Gradient boosted trees regression algorithm parameters
+     * \param engine[in]            Random number generator engine
+     */
+    services::Status compute(const NumericTable * x, const NumericTable * y, gbt::regression::Model & m, Result & res, const Parameter & par,
+                             engines::internal::BatchBaseImpl & engine);
 };
 
 } // namespace internal

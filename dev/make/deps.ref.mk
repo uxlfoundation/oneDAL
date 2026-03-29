@@ -60,4 +60,4 @@ endif
 daaldep.math_backend.static_link_deps := $(daaldep.math_backend.thr)
 # Static OpenBLAS libraries linked into the shared oneDAL library.
 daaldep.math_backend.shared_link_deps := $(daaldep.math_backend.thr)
-daaldep.math_backend.oneapi := $(daaldep.math_backend.thr)
+daaldep.math_backend.dpc_link_deps := $(daaldep.math_backend.thr)
