@@ -72,15 +72,17 @@ services::Status SVMTrainImpl<boser, algorithmFPType, cpu>::compute(const Numeri
     if (!s) return s;
     DAAL_CHECK_STATUS(s, task.init(svmPar.C, wTable, yTable));
     DAAL_CHECK_STATUS(s, task.compute(svmPar));
-    DAAL_CHECK_STATUS(s, task.setResultsToModel(xTable, *static_cast<Model *>(r)));
+    svm::internal::ModelImpl * model = dynamic_cast<svm::internal::ModelImpl *>(r);
+    DAAL_CHECK(model, services::Status(services::ErrorIncorrectTypeOfModel));
+    DAAL_CHECK_STATUS(s, task.setResultsToModel(xTable, *model));
     return s;
 }
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status SVMTrainTask<algorithmFPType, cpu>::setResultsToModel(const NumericTablePtr & xTable, Model & model) const
+services::Status SVMTrainTask<algorithmFPType, cpu>::setResultsToModel(const NumericTablePtr & xTable, svm::internal::ModelImpl & model) const
 {
     SaveResultTask<algorithmFPType, cpu> saveResult(_nVectors, _y.get(), const_cast<algorithmFPType *>(_alpha.get()), _grad.get(),
-                                                    SvmType::classification, _cache);
+                                                    SvmType::classification, _cache, _nIterations);
     return saveResult.compute(xTable, model, _cw.get());
 }
 
@@ -103,6 +105,7 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
             if (!findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) break;
             s = update(nActiveVectors, Bi, Bj, delta);
         }
+        _nIterations = iter;
         return s;
     }
 
@@ -118,8 +121,17 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
         {
             /* Check the optimality condition for the task with excluded variables */
             if (unshrink && nActiveVectors < _nVectors) s = reconstructGradient(nActiveVectors);
-            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) return s;
-            if (curEps < eps) return s; /* Here if the optimality condition holds for the excluded variables */
+            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s))
+            {
+                _nIterations = iter;
+                return s;
+            }
+            if (curEps < eps)
+            {
+                /* Here if the optimality condition holds for the excluded variables */
+                _nIterations = iter;
+                return s;
+            }
             shrinkingIter = 0;
         }
         s = update(nActiveVectors, Bi, Bj, delta);
@@ -142,6 +154,7 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
             }
         }
     }
+    _nIterations = iter;
     if (s) return s;
     if (nActiveVectors < _nVectors) s = reconstructGradient(nActiveVectors);
     return s;

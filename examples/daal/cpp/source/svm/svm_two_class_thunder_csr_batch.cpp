@@ -128,6 +128,10 @@ void printResults() {
     /* Retrieve the data from input file */
     testLabelsDataSource.loadDataBlock();
 
+    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
+                      "Number of iterations used by the training algorithm:",
+                      1);
+
     printNumericTables<int, float>(testLabelsDataSource.getNumericTable(),
                                    predictionResult->get(classifier::prediction::prediction),
                                    "Ground truth\t",

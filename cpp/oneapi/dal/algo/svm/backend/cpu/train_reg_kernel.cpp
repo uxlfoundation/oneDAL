@@ -97,7 +97,9 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
         create_daal_parameter<Task>(desc, is_dense);
 
     const auto daal_layout = daal_data->getDataLayout();
-    auto daal_model = daal_svm::Model::create<Float>(column_count, daal_layout);
+    daal::services::Status status;
+    daal_svm::ModelPtr daal_model(new daal_svm::internal::ModelImpl(Float(0), 2, column_count, daal_layout, status));
+    interop::status_to_exception(status);
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return daal_svm_kernel_t<
                    Float,

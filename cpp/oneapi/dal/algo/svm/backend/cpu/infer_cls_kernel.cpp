@@ -64,12 +64,18 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     auto arr_response = array<Float>::empty(row_count * 1);
 
     const auto daal_data = interop::convert_to_daal_table<Float>(data);
-    const model_interop* interop_model = dal::detail::get_impl(trained_model).get_interop();
-    if (!interop_model) {
-        throw dal::internal_error(
-            dal::detail::error_messages::input_model_does_not_match_kernel_function());
-    }
-    auto daal_model = static_cast<const model_interop_cls*>(interop_model)->get_model();
+    const auto daal_support_vectors =
+        interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
+    const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
+    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
+    const auto daal_iterations = interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
+
+    auto daal_model = daal_model_builder{}
+                          .set_support_vectors(daal_support_vectors)
+                          .set_coeffs(daal_coeffs)
+                          .set_biases(daal_biases)
+                          .set_iteration_counts(daal_iterations);
+
     const std::int64_t model_count = class_count * (class_count - 1) / 2;
     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;
 
@@ -85,13 +91,16 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     const auto daal_decision_function =
         interop::convert_to_daal_homogen_table(arr_decision_function, row_count, model_count);
 
-    auto daal_svm_model =
-        daal_multiclass_internal::SvmModel::create<Float>(class_count, column_count);
+    const auto daal_layout = daal_data->getDataLayout();
+    daal::services::Status status;
+    auto daal_svm_model_ptr = new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
+    daal_svm::ModelPtr daal_svm_model(daal_svm_model_ptr);
+    interop::status_to_exception(status);
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_multiclass_kernel_t>(ctx,
                                                                    daal_data.get(),
-                                                                   daal_model.get(),
-                                                                   daal_svm_model.get(),
+                                                                   &daal_model,
+                                                                   daal_svm_model_ptr,
                                                                    daal_response.get(),
                                                                    daal_decision_function.get(),
                                                                    &daal_multiclass_parameter));
@@ -118,13 +127,12 @@ static infer_result<Task> call_binary_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
 
-    const auto biases = trained_model.get_biases();
-    const auto biases_acc = row_accessor<const Float>{ biases }.pull();
-    const double bias = biases_acc[0];
+    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
+
     auto daal_model = daal_model_builder{}
                           .set_support_vectors(daal_support_vectors)
                           .set_coeffs(daal_coeffs)
-                          .set_bias(bias);
+                          .set_biases(daal_biases);
 
     auto arr_decision_function = array<Float>::empty(row_count * 1);
     const auto daal_decision_function =

@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include <daal/include/algorithms/svm/svm_model.h>
+#include <daal/src/algorithms/svm/svm_model_impl.h>
 #include <daal/include/algorithms/multi_class_classifier/multi_class_classifier_model.h>
-#include <daal/src/algorithms/multiclassclassifier/multiclassclassifier_svm_model.h>
 
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/algo/svm/backend/model_impl.hpp"
@@ -28,24 +27,28 @@ namespace oneapi::dal::svm::backend {
 
 namespace interop = dal::backend::interop;
 namespace daal_svm = daal::algorithms::svm;
-namespace daal_multiclass_internal = daal_multiclass::internal;
 
-struct daal_model_builder : public daal::algorithms::svm::Model {
+struct daal_model_builder : public daal::algorithms::svm::internal::ModelImpl {
     daal_model_builder() = default;
     virtual ~daal_model_builder() {}
 
     auto& set_support_vectors(daal::data_management::NumericTablePtr support_vectors) {
-        _SV = support_vectors;
+        setSupportVectors(support_vectors);
         return *this;
     }
 
     auto& set_coeffs(daal::data_management::NumericTablePtr coeffs) {
-        _SVCoeff = coeffs;
+        setClassificationCoefficients(coeffs);
         return *this;
     }
 
-    auto& set_bias(double bias) {
-        _bias = bias;
+    auto& set_biases(daal::data_management::NumericTablePtr biases) {
+        setBiases(biases);
+        return *this;
+    }
+
+    auto& set_iteration_counts(daal::data_management::NumericTablePtr n_iterations) {
+        setNumberOfIterations(n_iterations);
         return *this;
     }
 };
@@ -56,16 +59,17 @@ inline auto convert_from_daal_model(daal_svm::Model& daal_model) {
         interop::convert_from_daal_table<Float>(daal_model.getSupportVectors());
     auto table_classification_coeffs =
         interop::convert_from_daal_homogen_table<Float>(daal_model.getClassificationCoefficients());
-    const double bias = daal_model.getBias();
-    auto arr_biases = array<Float>::full(1, static_cast<Float>(bias));
+    auto table_biases =
+        interop::convert_from_daal_homogen_table<double>(daal_model.getBiases());
+    auto table_iterations = interop::convert_from_daal_homogen_table<int>(daal_model.getNumberOfIterations());
 
     auto model =
         dal::svm::model<Task>()
             .set_support_vectors(table_support_vectors)
             .set_coeffs(table_classification_coeffs)
-            .set_biases(dal::detail::homogen_table_builder{}.reset(arr_biases, 1, 1).build());
+            .set_biases(table_biases)
+            .set_iteration_counts(table_iterations);
 
-    dal::detail::get_impl(model).bias = bias;
     return model;
 }
 
@@ -81,21 +85,6 @@ inline array<T> convert_from_daal_table_to_array(const daal::data_management::Nu
         nt->releaseBlockOfRows(block);
     });
     return arr;
-}
-
-template <typename Task, typename Float>
-inline auto convert_from_daal_multiclass_model(
-    const daal_multiclass_internal::SvmModelPtr& daal_model) {
-    auto table_biases = interop::convert_from_daal_homogen_table<Float>(daal_model->getBiases());
-    auto table_coeffs =
-        interop::convert_from_daal_homogen_table<Float>(daal_model->getCoefficients());
-    auto table_support_vectors =
-        interop::convert_from_daal_table<Float>(daal_model->getSupportVectors());
-
-    return dal::svm::model<Task>()
-        .set_support_vectors(table_support_vectors)
-        .set_coeffs(table_coeffs)
-        .set_biases(table_biases);
 }
 
 } // namespace oneapi::dal::svm::backend
