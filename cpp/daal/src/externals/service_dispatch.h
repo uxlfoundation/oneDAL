@@ -33,7 +33,6 @@
         switch (__DAAL_KERNEL_MIN(DAAL_KERNEL_BUILD_MAX_INSTRUCTION_SET_ID,                                                      \
                                   static_cast<daal::internal::CpuType>(daal::services::Environment::getInstance()->getCpuId()))) \
         {                                                                                                                        \
-            DAAL_KERNEL_SSE42_ONLY_CODE(case daal::internal::sse42 : func(daal::internal::sse42, __VA_ARGS__); break;)           \
             DAAL_KERNEL_AVX2_ONLY_CODE(case daal::internal::avx2 : func(daal::internal::avx2, __VA_ARGS__); break;)              \
             DAAL_KERNEL_AVX512_ONLY_CODE(case daal::internal::avx512 : func(daal::internal::avx512, __VA_ARGS__); break;)        \
             DAAL_EXPAND(default : func(daal::internal::sse2, __VA_ARGS__); break;)                                               \
