@@ -30,8 +30,6 @@
 #include "data_management/data/numeric_table.h"
 #include "src/externals/service_blas.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -42,6 +40,9 @@ namespace transform
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 template <typename algorithmFPType, transform::Method method, CpuType cpu>
 class TransformKernel : public Kernel
 {

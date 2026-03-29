@@ -19,7 +19,7 @@
 
 namespace oneapi::dal::backend::primitives {
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_cw_naive {
 public:
     kernel_reduction_rm_cw_naive(const Float* input,
@@ -43,9 +43,9 @@ public:
         const auto loc_idx = it.get_global_id(1);
         const auto range = it.get_global_range(1);
         // Exclusive for EU
-        Float acc = (override_init_ || (loc_idx != 0)) ? //
-                        binary_.init_value
-                                                       : output_[col_idx];
+        AccT acc = (override_init_ || (loc_idx != 0)) ? //
+                       binary_.init_value
+                                                      : output_[col_idx];
         for (std::int64_t i = loc_idx; i < height_; i += range) {
             const Float* const inp_row = input_ + lstride_ * i;
             acc = binary_.native(acc, unary_(inp_row[col_idx]));
@@ -67,20 +67,20 @@ private:
     const bool override_init_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::reduction_rm_cw_naive(sycl::queue& q,
-                                                                       std::int64_t wg)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_cw_naive(sycl::queue& q,
+                                                                             std::int64_t wg)
         : q_(q),
           wg_(wg) {
     ONEDAL_ASSERT(0 < wg_ && wg_ <= device_max_wg_size(q_));
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::reduction_rm_cw_naive(sycl::queue& q)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_cw_naive(sycl::queue& q)
         : reduction_rm_cw_naive(q, propose_wg_size(q)) {}
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -101,8 +101,8 @@ sycl::event reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::operator()(
     return event;
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -115,21 +115,21 @@ sycl::event reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::operator()(
     operator()(input, output, width, height, width, binary, unary, deps, override_init);
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::nd_range<2> reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::get_range(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::nd_range<2> reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::get_range(
     std::int64_t width) const {
     return make_multiple_nd_range_2d({ width, wg_ }, { 1, wg_ });
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-typename reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::kernel_t
-reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::get_kernel(const Float* input,
-                                                            Float* output,
-                                                            std::int64_t height,
-                                                            std::int64_t stride,
-                                                            const BinaryOp& binary,
-                                                            const UnaryOp& unary,
-                                                            const bool override_init) {
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+typename reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::kernel_t
+reduction_rm_cw_naive<Float, AccT, BinaryOp, UnaryOp>::get_kernel(const Float* input,
+                                                                  Float* output,
+                                                                  std::int64_t height,
+                                                                  std::int64_t stride,
+                                                                  const BinaryOp& binary,
+                                                                  const UnaryOp& unary,
+                                                                  const bool override_init) {
     return kernel_t{ input,
                      output,
                      dal::detail::integral_cast<std::int64_t>(height),
@@ -139,11 +139,15 @@ reduction_rm_cw_naive<Float, BinaryOp, UnaryOp>::get_kernel(const Float* input,
                      override_init };
 }
 
-#define INSTANTIATE(F, B, U) template class reduction_rm_cw_naive<F, B, U>;
+#define INSTANTIATE(F, A, B, U) template class reduction_rm_cw_naive<F, A, B, U>;
 
-#define INSTANTIATE_FLOAT(B, U)                \
-    INSTANTIATE(double, B<double>, U<double>); \
-    INSTANTIATE(float, B<float>, U<float>);
+#define INSTANTIATE_FLOAT(B, U)                        \
+    INSTANTIATE(double, double, B<double>, U<double>); \
+    INSTANTIATE(float, float, B<float>, U<float>);
+
+#define INSTANTIATE_BOOL(B, U)                     \
+    INSTANTIATE(double, bool, B<bool>, U<double>); \
+    INSTANTIATE(float, bool, B<bool>, U<float>);
 
 INSTANTIATE_FLOAT(min, identity)
 INSTANTIATE_FLOAT(min, abs)
@@ -157,8 +161,10 @@ INSTANTIATE_FLOAT(sum, identity)
 INSTANTIATE_FLOAT(sum, abs)
 INSTANTIATE_FLOAT(sum, square)
 
-INSTANTIATE_FLOAT(logical_or, isinfornan)
-INSTANTIATE_FLOAT(logical_or, isinf)
+INSTANTIATE_BOOL(logical_or, isinfornan)
+INSTANTIATE_BOOL(logical_or, isinf)
+
+#undef INSTANTIATE_BOOL
 
 #undef INSTANTIATE_FLOAT
 

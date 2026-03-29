@@ -28,9 +28,6 @@
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -39,6 +36,10 @@ namespace svd
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, daal::algorithms::svd::Method method, CpuType cpu>
 class SVDBatchKernel : public Kernel
 {

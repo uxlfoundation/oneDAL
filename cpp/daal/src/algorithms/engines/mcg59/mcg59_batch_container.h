@@ -25,6 +25,7 @@
 #define __MCG59_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mcg59/mcg59_kernel.h"
 
 namespace daal
@@ -35,8 +36,38 @@ namespace engines
 {
 namespace mcg59
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mcg59 engine.
+ *        This class is associated with the \ref mcg59::interface1::Batch "mcg59::Batch" class
+ *        and supports the method of mcg59 engine computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
+ * \tparam method           Computation method of the engine, mcg59::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the mcg59 engine with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the mcg59 engine in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -59,7 +90,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::Mcg59Kernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, resultTable);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mcg59
 } // namespace engines
 } // namespace algorithms

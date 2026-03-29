@@ -25,6 +25,7 @@
 #define __EM_GMM_DENSE_DEFAULT_BATCH_CONTAINER_H__
 
 #include "algorithms/em/em_gmm.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/em/em_gmm_dense_default_batch_kernel.h"
 #include "src/data_management/service_numeric_table.h"
 
@@ -34,9 +35,38 @@ namespace algorithms
 {
 namespace em_gmm
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of em kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__EM_GMM__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the EM for GMM algorithm.
+ *        This class is associated with the Batch class and supports the method of computing EM for GMM in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the EM for GMM algorithm, double or float
+ * \tparam method           EM for GMM computation method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the EM for GMM algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the EM for GMM algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -84,6 +114,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::EMKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *dataTable, *initialWeights, *initialMeans,
                        initialCovariances, *resultWeights, *resultMeans, resultCovariances, *resultNIterations, *resultGoalFunction, *emPar)
 }
+
+} // namespace internal
 
 } // namespace em_gmm
 

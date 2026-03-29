@@ -44,40 +44,6 @@ namespace interface1
  * @{
  */
 /**
- * \brief Class containing methods for ridge regression model-based training
- * in the online processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class OnlineContainer : public TrainingContainerIface<online>
-{
-public:
-    /**
-     * Constructs a container for ridge regression model-based training with a specified environment in the online processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED OnlineContainer(daal::services::Environment::env * daalEnv);
-
-    /** Default destructor */
-    ~OnlineContainer();
-
-    /**
-     * Computes a partial result of ridge regression model-based training in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-
-    /**
-     * Computes the result of ridge regression model-based training in the online processing mode
-     *
-     * \return Status of computations
-     */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__RIDGE_REGRESSION__TRAINING__ONLINE"></a>
  * \brief Provides methods for ridge regression model-based training in the online processing mode
  * <!-- \n<a href="DAAL-REF-RIDGEREGRESSION-ALGORITHM">Ridge regression algorithm description and usage models</a> -->
@@ -118,13 +84,13 @@ public:
 
     ~Online() {}
 
-    virtual regression::training::Input * getInput() DAAL_C11_OVERRIDE { return &input; }
+    regression::training::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains a partial result of ridge regression model-based training
@@ -146,37 +112,30 @@ public:
     services::SharedPtr<Online<algorithmFPType, method> > clone() const { return services::SharedPtr<Online<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Online<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Online<algorithmFPType, method>(*this); }
+    Online<algorithmFPType, method> * cloneImpl() const override { return new Online<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = getResult()->template allocate<algorithmFPType>(&input, &parameter, method);
         _res               = _result.get();
         return s;
     }
 
-    services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = getPartialResult()->template allocate<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    services::Status initializePartialResult() DAAL_C11_OVERRIDE
+    services::Status initializePartialResult() override
     {
         services::Status s = getPartialResult()->template initialize<algorithmFPType>(&input, &parameter, method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(online, OnlineContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResultType());
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Online & operator=(const Online &);
@@ -184,7 +143,6 @@ private:
 /** @} */
 } // namespace interface1
 
-using interface1::OnlineContainer;
 using interface1::Online;
 
 } // namespace training

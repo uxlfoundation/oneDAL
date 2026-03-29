@@ -27,11 +27,19 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::interface3::BatchContainer, batch, DAAL_FPTYPE, pca::correlationDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pca::internal::BatchContainer, batch, DAAL_FPTYPE, pca::correlationDense)
 namespace pca
 {
 namespace interface3
 {
+template <>
+void Batch<DAAL_FPTYPE, pca::correlationDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, pca::correlationDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, pca::correlationDense>::Batch()
 {

@@ -62,7 +62,7 @@ public:
     ModelImpl(size_t nFeatures = 0) : ImplType(nFeatures) {}
 
     void setNumberOfFeatures(size_t nFeatures) { ImplType::setNumberOfFeatures(nFeatures); }
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return ImplType::getNumberOfFeatures(); }
+    size_t getNumberOfFeatures() const override { return ImplType::getNumberOfFeatures(); }
 
 protected:
     template <typename Archive, bool onDeserialize>

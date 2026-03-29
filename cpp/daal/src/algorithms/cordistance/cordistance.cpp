@@ -101,11 +101,10 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
 {
     const Input * algInput = static_cast<const Input *>(input);
 
-    size_t nVectors       = algInput->get(data)->getNumberOfRows();
-    int unexpectedLayouts = (int)data_management::NumericTableIface::csrArray | (int)data_management::NumericTableIface::upperPackedTriangularMatrix
-                            | (int)data_management::NumericTableIface::lowerPackedTriangularMatrix;
+    size_t nVectors      = algInput->get(data)->getNumberOfRows();
+    int unexpectedLayout = (int)data_management::NumericTableIface::csrArray;
 
-    return data_management::checkNumericTable(get(correlationDistance).get(), correlationDistanceStr(), unexpectedLayouts, 0, nVectors, nVectors);
+    return data_management::checkNumericTable(get(correlationDistance).get(), correlationDistanceStr(), unexpectedLayout, 0, nVectors, nVectors);
 }
 
 } // namespace interface1

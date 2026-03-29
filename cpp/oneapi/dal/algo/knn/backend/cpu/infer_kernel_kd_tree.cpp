@@ -36,7 +36,7 @@ namespace daal_knn = daal::algorithms::kdtree_knn_classification;
 namespace daal_classifier = daal::algorithms::classifier;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_knn_kd_tree_kernel_t = daal_knn::prediction::internal::
     KNNClassificationPredictKernel<Float, daal_knn::prediction::defaultDense, Cpu>;
 

@@ -34,7 +34,7 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 namespace daal_cosine = daal::algorithms::cosine_distance;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_cosine_t = daal_cosine::internal::DistanceKernel<Float, daal_cosine::defaultDense, Cpu>;
 
 template <typename Float>

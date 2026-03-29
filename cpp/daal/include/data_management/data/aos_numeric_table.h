@@ -24,8 +24,8 @@
 #ifndef __AOS_NUMERIC_TABLE_H__
 #define __AOS_NUMERIC_TABLE_H__
 
-#include "data_management/data/data_serialize.h"
 #include "data_management/data/numeric_table.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 #include "services/daal_defines.h"
 
@@ -57,14 +57,7 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty Numeric Table with a predefined size of the structure that represents a feature vector
-     *  \param[in]  structSize  Size of the structure that represents the feature vector
-     *  \param[in]  ncol        Number of columns in the table
-     *  \param[in]  nrow        Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    AOSNumericTable(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0);
+    friend Creator<AOSNumericTable>;
 
     /**
      *  Constructs an empty Numeric Table with a predefined size of the structure that represents a feature vector
@@ -75,23 +68,6 @@ public:
      *  \return Empty numeric table with a predefined size of the structure that represents a feature vector
      */
     static services::SharedPtr<AOSNumericTable> create(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0, services::Status * stat = NULL);
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr     Pointer to a data set in the AOS format
-     *  \param[in]  ncol    Number of columns in the table
-     *  \param[in]  nrow    Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    template <typename StructDataType>
-    AOSNumericTable(const services::SharedPtr<StructDataType> & ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
-    {
-        _ptr        = services::reinterpretPointerCast<byte, StructDataType>(ptr);
-        _layout     = aos;
-        _structSize = sizeof(StructDataType);
-
-        initOffsets();
-    }
 
     /**
      *  Constructs a Numeric Table with user-allocated memory
@@ -106,23 +82,6 @@ public:
                                                        services::Status * stat = NULL)
     {
         DAAL_DEFAULT_CREATE_IMPL_EX(AOSNumericTable, ptr, ncol, nrow);
-    }
-
-    /**
-     *  Constructor for a Numeric Table with user-allocated memory
-     *  \param[in]  ptr     Pointer to a data set in the AOS format
-     *  \param[in]  ncol    Number of columns in the table
-     *  \param[in]  nrow    Number of rows in the table
-     *  \DAAL_DEPRECATED_USE{ AOSNumericTable::create }
-     */
-    template <typename StructDataType>
-    AOSNumericTable(StructDataType * ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
-    {
-        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
-        _layout     = aos;
-        _structSize = sizeof(StructDataType);
-
-        initOffsets();
     }
 
     /**
@@ -241,42 +200,42 @@ public:
         }
     }
 
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
     {
         return getTBlock<double>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) override
     {
         return getTBlock<float>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) override
     {
         return getTBlock<int>(vector_idx, vector_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTBlock<double>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTBlock<float>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTBlock<int>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) override { return releaseTBlock<double>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) override { return releaseTBlock<float>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) override { return releaseTBlock<int>(block); }
 
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<double> & block) override
     {
         return getTFeature<double>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<float> & block) override
     {
         return getTFeature<float>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<int> & block) override
     {
         return getTFeature<int>(feature_idx, vector_idx, value_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTFeature<double>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTFeature<float>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTFeature<int>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) override { return releaseTFeature<double>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) override { return releaseTFeature<float>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) override { return releaseTFeature<int>(block); }
 
 protected:
     services::SharedPtr<byte> _ptr;
@@ -296,7 +255,47 @@ protected:
         st |= initOffsets();
     }
 
-    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE
+    /**
+     *  Constructor for an empty Numeric Table with a predefined size of the structure that represents a feature vector
+     *  \param[in]  structSize  Size of the structure that represents the feature vector
+     *  \param[in]  ncol        Number of columns in the table
+     *  \param[in]  nrow        Number of rows in the table
+     */
+    AOSNumericTable(size_t structSize = 0, size_t ncol = 0, size_t nrow = 0);
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr     Pointer to a data set in the AOS format
+     *  \param[in]  ncol    Number of columns in the table
+     *  \param[in]  nrow    Number of rows in the table
+     */
+    template <typename StructDataType>
+    AOSNumericTable(StructDataType * ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
+    {
+        _ptr        = services::SharedPtr<byte>((byte *)ptr, services::EmptyDeleter());
+        _layout     = aos;
+        _structSize = sizeof(StructDataType);
+
+        initOffsets();
+    }
+
+    /**
+     *  Constructor for a Numeric Table with user-allocated memory
+     *  \param[in]  ptr     Pointer to a data set in the AOS format
+     *  \param[in]  ncol    Number of columns in the table
+     *  \param[in]  nrow    Number of rows in the table
+     */
+    template <typename StructDataType>
+    AOSNumericTable(const services::SharedPtr<StructDataType> & ptr, size_t ncol, size_t nrow = 0) : NumericTable(ncol, nrow)
+    {
+        _ptr        = services::reinterpretPointerCast<byte, StructDataType>(ptr);
+        _layout     = aos;
+        _structSize = sizeof(StructDataType);
+
+        initOffsets();
+    }
+
+    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) override
     {
         if (checkOffsets())
         {
@@ -368,7 +367,7 @@ protected:
         return services::Status();
     }
 
-    void freeDataMemoryImpl() DAAL_C11_OVERRIDE
+    void freeDataMemoryImpl() override
     {
         _ptr       = services::SharedPtr<byte>();
         _memStatus = notAllocated;

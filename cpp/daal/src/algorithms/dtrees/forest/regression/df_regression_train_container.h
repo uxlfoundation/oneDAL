@@ -27,9 +27,9 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/decision_forest/decision_forest_regression_training_types.h"
 #include "algorithms/decision_forest/decision_forest_regression_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_train_kernel.h"
 #include "src/algorithms/dtrees/forest/regression/df_regression_model_impl.h"
-#include "src/services/service_algo_utils.h"
 
 namespace daal
 {
@@ -41,8 +41,33 @@ namespace regression
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__REGRESSION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for decision forest regression
+ *        model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for decision forest model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of decision forest model-based training in the batch processing mode
+     * \return Status of computations
+     */
+    services::Status compute() override;
+    services::Status setupCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -70,8 +95,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     const decision_forest::regression::training::Parameter * par = static_cast<decision_forest::regression::training::Parameter *>(_par);
     daal::services::Environment::env & env                       = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::RegressionTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), x, y, w, *m, *result, *par);
+    __DAAL_CALL_KERNEL(env, internal::RegressionTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, x, y, w, *m, *result,
+                       *par);
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -87,7 +112,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::setupCompute()
     pImpl->clear();
     return services::Status();
 }
-} // namespace interface2
+} // namespace internal
 } // namespace training
 } // namespace regression
 } // namespace decision_forest

@@ -20,7 +20,7 @@
 {% set git_hash = environ.get('GIT_FULL_HASH', 'unknown')[:7] %}
 {% set buildnumber = 0 %}
 # TODO: automate binary version getting
-{% set major_binary_version = 3 %}
+{% set major_binary_version = 4 %}
 
 package:
   name: dal-feedstock
@@ -39,7 +39,7 @@ build:
   script_env:
     # All build targets are used by default and AVX2 only for CI.
     # Override REQCPU to reduce manual build time if needed: `REQCPU=avx512 conda build .`
-    - REQCPU={{ environ.get('REQCPU', 'sse42 avx2 avx512') }}  # [linux64 or win]
+    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64 or win]
     # Converting compiler name from "conda-forge" to "oneDAL Make" naming scheme
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
@@ -90,7 +90,6 @@ outputs:
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_core.a  # [linux]
-        - test -f $PREFIX/lib/libonedal_dpc.a  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.a  # [linux]
     about:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
@@ -112,6 +111,7 @@ outputs:
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
       source_files:
         - examples
+        - data
       script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)

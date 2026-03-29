@@ -27,7 +27,7 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::BatchContainer, batch, DAAL_FPTYPE, kmeans::init::randomDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(kmeans::init::internal::BatchContainer, batch, DAAL_FPTYPE, kmeans::init::randomDense)
 
 namespace kmeans
 {
@@ -35,6 +35,12 @@ namespace init
 {
 namespace interface2
 {
+template <>
+void Batch<DAAL_FPTYPE, kmeans::init::randomDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, kmeans::init::randomDense)(&_env);
+    _in                  = &input;
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, kmeans::init::randomDense>::Batch(size_t nClasses)
     : BatchBase(new ParameterType(nClasses)), parameter(*static_cast<ParameterType *>(_par))

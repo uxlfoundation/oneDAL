@@ -44,78 +44,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of K-Means algorithm.
- *        This class is associated with the daal::algorithms::kmeans::Distributed class
- *        and supports the method of K-Means computation in the distributed processing mode.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of K-Means, double or float
- * \tparam method           Computation method of the algorithm, \ref daal::algorithms::kmeans::Method
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer;
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for K-Means algorithm in the first step of the distributed processing mode
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of K-Means algorithm in the first step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class containing computation methods for K-Means algorithm in the second step of the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
-{
-public:
-    /**
-     * Constructs a container for K-Means algorithm with a specified environment
-     * in the second step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of K-Means algorithm in the second step of the
-     * distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of K-Means algorithm in the second step of the
-     * distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KMEANS__DISTRIBUTED"></a>
  * \brief Computes the results of K-Means algorithm in the distributed processing mode
  * <!-- \n<a href="DAAL-REF-KMEANS-ALGORITHM">K-Means algorithm description and usage models</a> -->
@@ -177,7 +105,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of K-Means algorithm
@@ -217,7 +145,7 @@ public:
     /**
      * Validates the parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status checkFinalizeComputeParams() override { return services::Status(); }
 
     /**
      * Returns a pointer to the newly allocated K-Means algorithm with a copy of input objects
@@ -242,12 +170,12 @@ public:
     const ParameterType & parameter() const { return *static_cast<const ParameterType *>(_par); }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_in, _par, (int)method);
@@ -255,7 +183,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -263,13 +191,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -325,7 +249,7 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the results of K-Means algorithm
@@ -365,7 +289,7 @@ public:
     /**
      * Validates the parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE
+    services::Status checkFinalizeComputeParams() override
     {
         services::Status s;
         if (_partialResult)
@@ -415,12 +339,12 @@ public:
     const ParameterType & parameter() const { return *static_cast<const ParameterType *>(_par); }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(_pres, _par, (int)method);
@@ -428,7 +352,7 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         _partialResult.reset(new PartialResultType());
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, _par, (int)method);
@@ -436,13 +360,9 @@ protected:
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        Analysis<distributed>::_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env);
-        _in                        = &input;
-    }
+    void initialize();
 
 public:
     InputType input; /*!< %Input data structure */
@@ -456,7 +376,6 @@ private:
 /** @} */
 } // namespace interface2
 
-using interface2::DistributedContainer;
 using interface2::Distributed;
 } // namespace kmeans
 } // namespace algorithms

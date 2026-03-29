@@ -231,8 +231,7 @@ For more details, see :ref:`algorithms`.
   If `resultsToEvaluate` does not contain `computeDecisionFunction`, the result of `decisionFunction` table is `NULL`.
 
   By default, each numeric table of this result is an object of the ``HomogenNumericTable`` class,
-  but you can define the result as an object of any class derived from ``NumericTable``
-  except for ``PackedSymmetricMatrix`` and ``PackedTriangularMatrix``.
+  but you can define the result as an object of any class derived from ``NumericTable``.
 
 
 Examples

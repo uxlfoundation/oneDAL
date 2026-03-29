@@ -34,7 +34,7 @@ using descriptor_t = detail::descriptor_base<task::dim_reduction>;
 namespace daal_pca_tr = daal::algorithms::pca::transform;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_pca_transform_kernel_t =
     daal_pca_tr::internal::TransformKernel<Float, daal_pca_tr::Method::defaultDense, Cpu>;
 

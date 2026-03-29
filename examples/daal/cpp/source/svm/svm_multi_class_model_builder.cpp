@@ -34,14 +34,12 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainedModelsFileNames[] = {
-    "../data/batch/svm_multi_class_trained_model_01.csv",
-    "../data/batch/svm_multi_class_trained_model_02.csv",
-    "../data/batch/svm_multi_class_trained_model_12.csv"
-};
+const std::string trainedModelsFileNames[] = { "data/svm_multi_class_trained_model_01.csv",
+                                               "data/svm_multi_class_trained_model_02.csv",
+                                               "data/svm_multi_class_trained_model_12.csv" };
 float biases[] = { -0.774F, -1.507F, -7.559F };
 
-const std::string testDatasetFileName = "../data/batch/multiclass_iris_train.csv";
+const std::string testDatasetFileName = "data/multiclass_iris_train.csv";
 
 const size_t nFeatures = 4;
 const size_t nClasses = 3;
@@ -56,7 +54,13 @@ multi_class_classifier::ModelPtr buildModelFromTraining();
 void testModel(multi_class_classifier::ModelPtr& inputModel);
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc, argv, 1, &testDatasetFileName);
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &testDatasetFileName,
+                   &trainedModelsFileNames[0],
+                   &trainedModelsFileNames[1],
+                   &trainedModelsFileNames[2]);
 
     multi_class_classifier::ModelPtr builtModel = buildModelFromTraining();
     prediction->parameter.kernel = kernel;
@@ -77,11 +81,11 @@ multi_class_classifier::ModelPtr buildModelFromTraining() {
 
             /* Create Numeric Tables for support vectors and classification coeffes */
             NumericTablePtr supportVectors(
-                new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
+                HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate));
             NumericTablePtr classificationCoefficients(
-                new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
+                HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate));
             NumericTablePtr mergedModel(
-                new MergedNumericTable(supportVectors, classificationCoefficients));
+                MergedNumericTable::create(supportVectors, classificationCoefficients));
 
             /* Retrieve the data from input file */
             modelSource.loadDataBlock(mergedModel.get());
@@ -125,9 +129,10 @@ void testModel(multi_class_classifier::ModelPtr& inputModel) {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and labels */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    testGroundTruth = NumericTablePtr(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    testGroundTruth = HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Retrieve the data from input file */
     testDataSource.loadDataBlock(mergedData.get());

@@ -165,7 +165,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     size_t seed;               /*!< Seed for generating random numbers in the initialization step \DAAL_DEPRECATED_USE{ engine } */
     engines::EnginePtr engine; /*!< Engine for generating random numbers in the initialization step */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 
@@ -192,7 +192,7 @@ struct DAAL_EXPORT DistributedParameter : public Parameter
             in implicit ALS initialization algorithm in the distributed computing mode;
             and partition[i] holds the offset i-th data part to be computed by the initialization algorithm */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Distributed parameter source code] */
 
@@ -233,7 +233,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -301,7 +301,7 @@ public:
      * \param[in] parameter %Parameter of the algorithm
      * \param[in] method    Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * parameter, int method) const override;
 };
 
 /**
@@ -349,7 +349,7 @@ public:
      * \param[in] parameter   %Parameter of the algorithm
      * \param[in] method      Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using daal::algorithms::PartialResult::check;
@@ -433,7 +433,7 @@ public:
      * \param[in] parameter   %Parameter of the algorithm
      * \param[in] method      Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using PartialResultBase::check;
@@ -490,7 +490,7 @@ public:
      * \param[in] parameter   %Parameter of the algorithm
      * \param[in] method      Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * parameter, int method) const override;
 
 protected:
     using PartialResultBase::check;
