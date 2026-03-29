@@ -121,7 +121,8 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
         /// the crossproduct input before DAAL converts it to a correlation matrix.
         /// This avoids a second O(N²) finalizeCompute call.
         {
-            const auto cp = row_accessor<const Float>(input.get_partial_crossproduct()).pull({ 0, -1 });
+            const auto cp =
+                row_accessor<const Float>(input.get_partial_crossproduct()).pull({ 0, -1 });
             const Float inv_nm1 = Float(1) / (row_count - 1);
             Float* vars = arr_vars.get_mutable_data();
             for (std::int64_t i = 0; i < column_count; ++i) {

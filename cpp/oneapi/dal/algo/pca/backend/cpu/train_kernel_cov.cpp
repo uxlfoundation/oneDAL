@@ -158,7 +158,9 @@ static result_t call_daal_spmd_kernel(const context_cpu& ctx,
     /// Compute partial crossproduct, sums, and nobs on each rank
     partial_train_input<task_t> partial_input({}, data);
     auto partial_result =
-        pca::backend::partial_train_kernel_cpu<Float, method::cov, task_t>{}(ctx, desc, partial_input);
+        pca::backend::partial_train_kernel_cpu<Float, method::cov, task_t>{}(ctx,
+                                                                             desc,
+                                                                             partial_input);
 
     /// Get local partial results as arrays for collective allreduce
     const auto& nobs_local = partial_result.get_partial_n_rows();
@@ -230,8 +232,8 @@ static result_t call_daal_spmd_kernel(const context_cpu& ctx,
     /// dispatch to the SPMD path — the data is already aggregated.
     const context_cpu local_ctx;
     return pca::backend::finalize_train_kernel_cpu<Float, method::cov, task_t>{}(local_ctx,
-                                                                                  desc,
-                                                                                  aggregated);
+                                                                                 desc,
+                                                                                 aggregated);
 }
 
 template <typename Float>
