@@ -39,8 +39,8 @@ run_examples() {
         if [ ! -d ../data ] && [ -d "$CONDA_PREFIX/share/oneDAL/data" ]; then
             ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
-        if [ ! -e data ] && [ -d ../data ]; then
-            ln -s ../data data
+        if [ -d ../data ]; then
+            ln -sfn ../data data
         fi
         rm -rf build_$linking_type
         mkdir -p build_$linking_type
@@ -89,8 +89,8 @@ run_dpc_examples() {
         if [ ! -d ../data ] && [ -d "$CONDA_PREFIX/share/oneDAL/data" ]; then
             ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
-        if [ ! -e data ] && [ -d ../data ]; then
-            ln -s ../data data
+        if [ -d ../data ]; then
+            ln -sfn ../data data
         fi
         rm -rf build_$linking_type
         mkdir -p build_$linking_type

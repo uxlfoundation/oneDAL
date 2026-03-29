@@ -63,6 +63,15 @@ fi
 # copy GPU/DPC++ runtime libraries
 if [ "$PKG_NAME" = "dal-gpu" ]; then
     find lib/intel64 -name "libonedal*_dpc*.so*" -exec cp -P {} "$PREFIX/lib/" \;
+
+    # Keep CMake config lookup compatible: oneDALConfig.cmake searches lib/<arch>.
+    # Create lib/intel64 links to dal-gpu runtime libs (same layout as release tree).
+    mkdir -p "$PREFIX/lib/intel64"
+    for lib in "$PREFIX"/lib/libonedal*_dpc*.so*; do
+        [ -e "$lib" ] || continue
+        libname=$(basename "$lib")
+        ln -sf "../$libname" "$PREFIX/lib/intel64/$libname"
+    done
 fi
 if [ "$PKG_NAME" = "dal-static" ]; then
     find lib/intel64 -name "libonedal*.a" -exec cp {} "$PREFIX/lib/" \;

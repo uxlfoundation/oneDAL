@@ -147,7 +147,7 @@ outputs:
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
-        - dal-gpu =={{ version }}  # [ cxx_compiler == "dpcpp" ]
+        - {{ pin_subpackage('dal-gpu', exact=True) }}  # [ cxx_compiler == "dpcpp" ]
       source_files:
         - examples
         - data
