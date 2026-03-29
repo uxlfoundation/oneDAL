@@ -28,7 +28,8 @@ namespace lr = dal::linear_regression;
 
 void run() {
     const auto train_data_file_name = get_data_path("data/linear_regression_train_data.csv");
-    const auto train_response_file_name = get_data_path("data/linear_regression_train_responses.csv");
+    const auto train_response_file_name =
+        get_data_path("data/linear_regression_train_responses.csv");
     const auto test_data_file_name = get_data_path("data/linear_regression_test_data.csv");
     const auto test_response_file_name = get_data_path("data/linear_regression_test_responses.csv");
 
