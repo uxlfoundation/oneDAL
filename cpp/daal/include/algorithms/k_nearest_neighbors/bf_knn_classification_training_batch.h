@@ -44,32 +44,6 @@ namespace interface1
  * @ingroup bf_knn_classification_training
  * @{
  */
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
- * \brief Class containing methods for BF kNN model-based training using algorithmFPType precision arithmetic
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for BF kNN model-based training with a specified environment in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-
-    /** Default destructor */
-    ~BatchContainer();
-
-    /**
-     * Computes the result of BF kNN model-based training in the batch processing mode
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCH"></a>
  * \brief Provides methods for BF kNN model-based training in the batch processing mode
@@ -133,13 +107,13 @@ public:
      * Get input objects for the BF kNN training algorithm
      * \return %Input objects for the BF kNN training algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return static_cast<InputType *>(_in); }
+    InputType * getInput() override { return static_cast<InputType *>(_in); }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of BF kNN model-based training
@@ -150,7 +124,7 @@ public:
     /**
      * Resets the results of BF kNN model training algorithm
      */
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -170,9 +144,9 @@ public:
     InputType input; /*!< %Input objects of the algorithm */
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         const ResultPtr res = getResult();
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -181,12 +155,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _result.reset(new ResultType());
-        _in = &input;
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -195,7 +164,6 @@ private:
 /** @} */
 } // namespace interface1
 
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace training

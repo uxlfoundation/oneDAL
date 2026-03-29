@@ -34,7 +34,7 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 namespace daal_correlation = daal::algorithms::correlation_distance;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_correlation_t =
     daal_correlation::internal::DistanceKernel<Float, daal_correlation::defaultDense, Cpu>;
 

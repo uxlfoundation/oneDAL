@@ -176,8 +176,7 @@ For more details, see :ref:`algorithms`.
      - A collection of numeric tables computed on local nodes in :ref:`Step 1 <implicit_als_distributed_training_step_1>`.
 
        .. note::
-            The collection may contain objects of any class derived from ``NumericTable``
-            except the ``PackedTriangularMatrix`` class with the ``lowerPackedTriangularMatrix`` layout.
+            The collection may contain objects of any class derived from ``NumericTable``.
 
 In this step, implicit ALS recommender training calculates the result described below.
 Pass the ``Result ID`` as a parameter to the methods that access the results of your algorithm.

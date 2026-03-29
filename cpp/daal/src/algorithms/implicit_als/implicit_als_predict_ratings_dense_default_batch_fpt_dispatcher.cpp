@@ -22,13 +22,13 @@
 */
 
 #include "src/algorithms/kernel.h"
-#include "algorithms/implicit_als/implicit_als_predict_ratings_batch.h"
+#include "src/algorithms/implicit_als/implicit_als_predict_ratings_dense_default_container.h"
 
 namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::BatchContainer, batch, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::internal::BatchContainer, batch, DAAL_FPTYPE,
                                       implicit_als::prediction::ratings::defaultDense)
 
 namespace implicit_als
@@ -39,6 +39,14 @@ namespace ratings
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>::Batch()
 {

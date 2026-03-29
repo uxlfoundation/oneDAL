@@ -168,7 +168,6 @@ services::Status Input::check(const daal::algorithms::Parameter * par, int metho
     DAAL_CHECK(inputCovCollection, ErrorNullInputDataCollection);
     DAAL_CHECK(inputCovCollection->size() == nComponents, ErrorIncorrectNumberOfInputNumericTables);
 
-    int unexpectedLayoutCovariance = (int)(NumericTableIface::upperPackedTriangularMatrix | NumericTableIface::lowerPackedTriangularMatrix);
     for (size_t i = 0; i < nComponents; i++)
     {
         SerializationIfacePtr collectionElement = (*inputCovCollection)[i];
@@ -176,14 +175,15 @@ services::Status Input::check(const daal::algorithms::Parameter * par, int metho
 
         NumericTablePtr nt = NumericTable::cast(collectionElement);
         DAAL_CHECK_EX(nt, ErrorIncorrectElementInCollection, ArgumentName, inputCovariancesStr());
+
         if (algParameter->covarianceStorage == full)
         {
-            s |= checkNumericTable(nt.get(), inputCovariancesStr(), unexpectedLayoutCovariance, 0, nFeatures, nFeatures);
+            s |= checkNumericTable(nt.get(), inputCovariancesStr(), 0, 0, nFeatures, nFeatures);
             if (!s) return s;
         }
         else
         {
-            s |= checkNumericTable(nt.get(), inputCovariancesStr(), unexpectedLayoutCovariance, 0, nFeatures, 1);
+            s |= checkNumericTable(nt.get(), inputCovariancesStr(), 0, 0, nFeatures, 1);
         }
     }
     return s;
@@ -278,8 +278,7 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     DAAL_CHECK(resultCovCollection, ErrorNullOutputDataCollection);
     DAAL_CHECK(resultCovCollection->size() == nComponents, ErrorIncorrectNumberOfOutputNumericTables);
 
-    int unexpectedLayoutCovariance =
-        (int)(NumericTableIface::csrArray | NumericTableIface::upperPackedTriangularMatrix | NumericTableIface::lowerPackedTriangularMatrix);
+    constexpr int unexpectedLayoutCovariance = (int)NumericTableIface::csrArray;
     for (size_t i = 0; i < nComponents; i++)
     {
         SerializationIfacePtr collectionElement = (*resultCovCollection)[i];

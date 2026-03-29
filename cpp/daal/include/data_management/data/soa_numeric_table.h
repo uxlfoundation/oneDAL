@@ -25,6 +25,7 @@
 #define __SOA_NUMERIC_TABLE_H__
 
 #include "data_management/data/numeric_table.h"
+#include "data_management/data/factory.h" // goes after numeric_table.h to avoid circular dependency
 #include "data_management/data/internal/conversion.h"
 
 namespace daal
@@ -48,14 +49,7 @@ public:
     DECLARE_SERIALIZABLE_TAG()
     DECLARE_SERIALIZABLE_IMPL()
 
-    /**
-     *  Constructor for an empty Numeric Table
-     *  \param[in]  nColumns      Number of columns in the table
-     *  \param[in]  nRows         Number of rows in the table
-     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
+    friend Creator<SOANumericTable>;
 
     /**
      *  Constructs an empty Numeric Table
@@ -68,24 +62,6 @@ public:
     static services::SharedPtr<SOANumericTable> create(size_t nColumns = 0, size_t nRows = 0,
                                                        DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual,
                                                        services::Status * stat                      = NULL);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED SOANumericTable(NumericTableDictionary * ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
-
-    /**
-     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
-     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
-     *  \param[in]  nRows                 Number of rows in the table
-     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
-     *  \DAAL_DEPRECATED_USE{ SOANumericTable::create }
-     */
-    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
 
     /**
      *  Constructs an empty Numeric Table with a predefined NumericTableDictionary
@@ -182,44 +158,44 @@ public:
      */
     void * getArray(size_t idx) { return getArraySharedPtr(idx).get(); }
 
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<double> & block) override
     {
         return getTBlock<double>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<float> & block) override
     {
         return getTBlock<float>(vector_idx, vector_num, rwflag, block);
     }
-    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+    services::Status getBlockOfRows(size_t vector_idx, size_t vector_num, ReadWriteMode rwflag, BlockDescriptor<int> & block) override
     {
         return getTBlock<int>(vector_idx, vector_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTBlock<double>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTBlock<float>(block); }
-    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTBlock<int>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<double> & block) override { return releaseTBlock<double>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<float> & block) override { return releaseTBlock<float>(block); }
+    services::Status releaseBlockOfRows(BlockDescriptor<int> & block) override { return releaseTBlock<int>(block); }
 
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<double> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<double> & block) override
     {
         return getTFeature<double>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<float> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<float> & block) override
     {
         return getTFeature<float>(feature_idx, vector_idx, value_num, rwflag, block);
     }
     services::Status getBlockOfColumnValues(size_t feature_idx, size_t vector_idx, size_t value_num, ReadWriteMode rwflag,
-                                            BlockDescriptor<int> & block) DAAL_C11_OVERRIDE
+                                            BlockDescriptor<int> & block) override
     {
         return getTFeature<int>(feature_idx, vector_idx, value_num, rwflag, block);
     }
 
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) DAAL_C11_OVERRIDE { return releaseTFeature<double>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) DAAL_C11_OVERRIDE { return releaseTFeature<float>(block); }
-    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) DAAL_C11_OVERRIDE { return releaseTFeature<int>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<double> & block) override { return releaseTFeature<double>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<float> & block) override { return releaseTFeature<float>(block); }
+    services::Status releaseBlockOfColumnValues(BlockDescriptor<int> & block) override { return releaseTFeature<int>(block); }
 
-    DAAL_DEPRECATED_VIRTUAL services::Status setDictionary(NumericTableDictionary * ddict) DAAL_C11_OVERRIDE
+    DAAL_DEPRECATED_VIRTUAL services::Status setDictionary(NumericTableDictionary * ddict) override
     {
         services::Status s;
         DAAL_CHECK_STATUS(s, NumericTable::setDictionary(ddict));
@@ -304,6 +280,22 @@ protected:
         size_t _count;
     };
 
+    /**
+     *  Constructor for an empty Numeric Table
+     *  \param[in]  nColumns      Number of columns in the table
+     *  \param[in]  nRows         Number of rows in the table
+     *  \param[in]  featuresEqual Flag that makes all features in the NumericTableDictionary equal
+     */
+    SOANumericTable(size_t nColumns = 0, size_t nRows = 0, DictionaryIface::FeaturesEqual featuresEqual = DictionaryIface::notEqual);
+
+    /**
+     *  Constructor for an empty Numeric Table with a predefined NumericTableDictionary
+     *  \param[in]  ddict                 Shared pointer to the predefined NumericTableDictionary
+     *  \param[in]  nRows                 Number of rows in the table
+     *  \param[in]  memoryAllocationFlag  Flag that controls internal memory allocation for data in the numeric table
+     */
+    SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag = notAllocate);
+
     SOANumericTable(size_t nColumns, size_t nRows, DictionaryIface::FeaturesEqual featuresEqual, services::Status & st);
 
     SOANumericTable(NumericTableDictionaryPtr ddict, size_t nRows, AllocationFlag memoryAllocationFlag, services::Status & st);
@@ -315,11 +307,11 @@ protected:
     size_t _index;
 
     bool resizePointersArray(size_t nColumns);
-    services::Status setNumberOfColumnsImpl(size_t ncol) DAAL_C11_OVERRIDE;
+    services::Status setNumberOfColumnsImpl(size_t ncol) override;
 
-    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) DAAL_C11_OVERRIDE;
+    services::Status allocateDataMemoryImpl(daal::MemType /*type*/ = daal::dram) override;
 
-    void freeDataMemoryImpl() DAAL_C11_OVERRIDE;
+    void freeDataMemoryImpl() override;
 
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
@@ -397,8 +389,9 @@ protected:
         }
         if (!computed)
         {
-            size_t di = 32;
-            T lbuf[32];
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature after up-casting
+            size_t di                     = unrollFactor;
+            T lbuf[unrollFactor];
 
             for (size_t i = 0; i < nrows; i += di)
             {
@@ -434,9 +427,10 @@ protected:
             size_t ncols = getNumberOfColumns();
             size_t nrows = block.getNumberOfRows();
             size_t idx   = block.getRowsOffset();
-            T lbuf[32];
 
-            size_t di = 32;
+            constexpr size_t unrollFactor = 32; // size of the buffer for temporary storage of values of one feature before down-casting
+            T lbuf[unrollFactor];
+            size_t di = unrollFactor;
 
             T * blockPtr = block.getBlockPtr();
 

@@ -23,7 +23,7 @@
 #ifndef __SERVICE_UTILS_H__
 #define __SERVICE_UTILS_H__
 
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 #include "src/services/service_type_traits.h"
 #include "src/services/service_defines.h"
 
@@ -33,6 +33,9 @@ namespace services
 {
 namespace internal
 {
+
+using CpuType = daal::internal::CpuType;
+
 template <CpuType cpu, typename T>
 inline typename RemoveReference<cpu, T>::type && move(T && object)
 {
@@ -287,7 +290,6 @@ size_t getMaxElementIndex(const algorithmFPType * val, size_t n)
     DAAL_ASSERT(n > 0);
     algorithmFPType maxVal = val[0];
     size_t maxIdx          = 0;
-    PRAGMA_VECTOR_ALWAYS
     for (size_t i = 1; i < n; ++i)
     {
         if (maxVal < val[i])

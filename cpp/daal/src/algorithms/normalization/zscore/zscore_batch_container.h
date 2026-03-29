@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/normalization/zscore.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/normalization/zscore/zscore_base.h"
 #include "src/algorithms/normalization/zscore/zscore_dense_default_kernel.h"
 #include "src/algorithms/normalization/zscore/zscore_dense_sum_kernel.h"
@@ -34,8 +35,38 @@ namespace normalization
 {
 namespace zscore
 {
-namespace interface3
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__NORMALIZATION__ZSCORE__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the z-score normalization algorithm.
+ *        It is associated with the daal::algorithms::normalization::zscore::Batch class
+ *        and supports methods of z-score normalization computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the z-score normalization algorithms, double or float
+ * \tparam method           Z-score normalization computation method, daal::algorithms::normalization::zscore::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the z-score normalization algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the z-score normalization algorithm in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -71,7 +102,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        *resultMeans, *resultVariances, *par);
 }
 
-} // namespace interface3
+} // namespace internal
 
 } // namespace zscore
 } // namespace normalization

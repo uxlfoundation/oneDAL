@@ -28,6 +28,7 @@
 #include "algorithms/moments/low_order_moments_batch.h"
 #include "algorithms/moments/low_order_moments_online.h"
 #include "algorithms/moments/low_order_moments_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/low_order_moments/low_order_moments_kernel.h"
 
 namespace daal
@@ -36,6 +37,115 @@ namespace algorithms
 {
 namespace low_order_moments
 {
+namespace internal
+{
+using namespace daal::internal;
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the low order moments algorithm.
+ *        This class is associated with daal::algorithms::low_order_moments::Batch class
+ *
+ * \tparam method           Computation method of the algorithm, \ref daal::algorithms::low_order_moments::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public BatchContainerIface
+{
+public:
+    /**
+     * Constructs a container for the low order moments algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the low order moments algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__ONLINECONTAINER"></a>
+ * \brief Provides methods to run implementations of the low order moments algorithm.
+ *        This class is associated with daal::algorithms::low_order_moments::Online class
+
+ *
+ * \tparam method           Computation method for the low order moments algorithm, \ref daal::algorithms::low_order_moments::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for the low order moments algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+    /**
+     * Computes a partial result of the low order moments algorithm
+     * in the online processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the low order moments algorithm
+     * in the online processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__DISTRIBUTEDCONTAINER_STEP_ALGORITHMFPTYPE_METHOD"></a>
+ * \brief Provides methods to run implementations of the low order moments algorithm in the distributed processing mode.
+ *        This class is associated with daal::algorithms::low_order_moments::Distributed class
+ *
+ * \tparam step             Step of distributed processing, \ref ComputeStep
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
+ *
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * \brief Provides methods to run implementations of the second step of the low order moments algorithm
+ *        in the distributed processing mode.
+ *        This class is associated with daal::algorithms::low_order_moments::Distributed class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the low order moments, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::low_order_moments::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the low order moments algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the low order moments algorithm
+     * in the second step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the low order moments algorithm
+     * in the second step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -186,6 +296,8 @@ services::Status DistributedContainer<step2Master, algorithmFPType, method, cpu>
 
     return s;
 }
+
+} // namespace internal
 
 } // namespace low_order_moments
 } // namespace algorithms

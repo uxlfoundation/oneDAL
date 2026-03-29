@@ -24,11 +24,10 @@
 */
 
 #include "algorithms/multi_class_classifier/multi_class_classifier_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_predict_kernel.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_predict_mccwu_kernel.h"
 #include "src/algorithms/kernel.h"
-
-using namespace daal::data_management;
 
 namespace daal
 {
@@ -38,8 +37,40 @@ namespace multi_class_classifier
 {
 namespace prediction
 {
-namespace interface2
+namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the  multi-class classifier prediction algorithm
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the multi-class classifier algorithm, double or float
+ * \tparam pmethod          Computation method for the algorithm, \ref prediction::Method
+ * \tparam tmethod          Computation method that was used to train the multi-class classifier model, \ref training::Method
+ *
+ */
+template <typename algorithmFPType, prediction::Method pmethod, training::Method tmethod, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for multi-class classifier model-based prediction with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of multi-class classifier model-based prediction in the batch processing mode
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, prediction::Method pmethod, training::Method tmethod, CpuType cpu>
 BatchContainer<algorithmFPType, pmethod, tmethod, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -82,7 +113,7 @@ services::Status BatchContainer<algorithmFPType, pmethod, tmethod, cpu>::compute
                        nullptr, r[0], r[1], par);
 }
 
-} // namespace interface2
+} // namespace internal
 } // namespace prediction
 } // namespace multi_class_classifier
 } // namespace algorithms

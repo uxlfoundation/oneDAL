@@ -106,30 +106,10 @@ write.prereqs.dump = $(call exec,printf -- "$(subst $(space),$2,$1)$(if $6,$2)" 
 EXCLUDE_LIBS = $(foreach lib,$(MATH_LIBS_TO_EXCLUDE),-Wl$(comma)--exclude-libs=$(lib))
 
 # Link static lib
-# In the current oneDAL static build, all symbols from MKL are copied
-# directly into the resulting oneDAL libraries. This ensures that
-# the oneDAL static binaries are self-contained and work regardless
-# of the MKL version present at runtime.
-#
-# The following logic handles platform-specific static linking of MKL
-# (especially mkl_core) into oneDAL.
-# - On Linux, if the input is a static library (*.a), a linker script
-#   is generated using 'ar -M'.
-# - On Windows, the 'lib' tool is used to create a static library
-#   from object files. Since the 'lib' tool does not support linker
-#   scripts, object files are passed directly for linking.
-#
-# To avoid compatibility issues between external MKL dependencies
-# (e.g., libmkl_sycl) and MKL symbols embedded inside oneDAL static
-# libraries, we also explicitly add mkl_core and mkl_intel_lp64
-# to the list of imported libraries in the CMake files.
 LINK.STATIC = $(mkdir)$(call rm,$@)$(link.static.cmd)
 link.static.cmd = $(call link.static.$(_OS),$(LOPT) $(or $1,$(^.no-mkdeps)))
 link.static.lnx = $(if $(filter %.a,$1),$(link.static.lnx.script),$(link.static.lnx.cmdline))
 link.static.lnx.cmdline = $(if $(AR_is_command_line),${AR},ar) rs $@ $(1:%_link.txt=@%_link.txt)
-# The plan is to replace addlib with one of the following:
-# 1. Collect just necessary MKL symbols from the static library.
-# 2. Use the whole MKL as external dependency.
 .addlib = $(foreach lib,$(filter %.a,$1),addlib $(lib)\n)
 .addmod = $(if $(filter %.o,$1),addmod $(filter %.o,$1))
 .addlink = $(if $(filter %_link.txt,$1),addmod $(shell tr '\n' ', ' < $(filter %_link.txt,$1)))
@@ -153,7 +133,7 @@ link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COM
 # Link dynamic DPC++ lib
 DPC.LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(dpc.link.dynamic.cmd)
 dpc.link.dynamic.cmd = $(call dpc.link.dynamic.$(_OS),$(or $1,$(^.no-mkdeps)) $(LOPT))
-dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) $(EXCLUDE_LIBS) -Wl,-soname,$(@F).$(MAJORBINARY) \
+dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) -Wl,-soname,$(@F).$(MAJORBINARY) \
                        $(secure.opts.link.lnx) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
 dpc.link.dynamic.win = $(if $(link.dynamic.win.dpcpp),$(link.dynamic.win.dpcpp),$(error link.dynamic.win.dpcpp must be defined)) \
                        -LD $(patsubst %_link.txt,@%_link.txt,$(filter %_link.txt,$1)) $(filter-out -IMPLIB:%,$(filter %.lib,$1)) -o$@ \

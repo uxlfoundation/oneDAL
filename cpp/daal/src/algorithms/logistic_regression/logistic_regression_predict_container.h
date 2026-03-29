@@ -25,7 +25,7 @@
 
 #include "algorithms/logistic_regression/logistic_regression_predict.h"
 #include "algorithms/classifier/classifier_model.h"
-#include "src/services/service_algo_utils.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/logistic_regression/logistic_regression_predict_kernel.h"
 
 namespace daal
@@ -36,8 +36,38 @@ namespace logistic_regression
 {
 namespace prediction
 {
-namespace interface2
+namespace internal
 {
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__LOGISTIC_REGRESSION__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the logistic regression algorithm.
+ *        This class is associated with daal::algorithms::logistic_regression::prediction::interface2::Batch class
+ *        and supports method to compute logistic regression prediction
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
+ * \tparam method           logistic regression computation method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for logistic regression model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of logistic regression model-based prediction
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -68,11 +98,11 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     daal::services::Environment::env & env = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute,
-                       daal::services::internal::hostApp(*input), a, m, par->nClasses, r, prob, logProb);
+    __DAAL_CALL_KERNEL(env, internal::PredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, m, par->nClasses, r, prob,
+                       logProb);
 }
 
-} // namespace interface2
+} // namespace internal
 
 } // namespace prediction
 } // namespace logistic_regression

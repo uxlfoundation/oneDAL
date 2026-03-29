@@ -20,9 +20,9 @@
 
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
-#include "services/daal_shared_ptr.h"
 #include "algorithms/classifier/classifier_model.h"
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_model_impl.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_train_kernel.h"
 
@@ -34,7 +34,33 @@ namespace bf_knn_classification
 {
 namespace training
 {
+namespace internal
+{
 using namespace daal::data_management;
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for BF kNN model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for BF kNN model-based training with a specified environment in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    /** Default destructor */
+    ~BatchContainer();
+
+    /**
+     * Computes the result of BF kNN model-based training in the batch processing mode
+     */
+    services::Status compute() override;
+};
 
 template <typename algorithmFpType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFpType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
@@ -75,6 +101,8 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationTrainKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType), compute, r->impl()->getData().get(),
                        r->impl()->getLabels().get(), r.get(), *par, *par->engine);
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace bf_knn_classification

@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/cholesky/cholesky.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/cholesky/cholesky_kernel.h"
 
 namespace daal
@@ -30,8 +31,36 @@ namespace algorithms
 {
 namespace cholesky
 {
-namespace interface1
+namespace internal
 {
+using namespace daal::internal;
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__CHOLESKY__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the Cholesky decomposition algorithm.
+ *        This class is associated with daal::algorithms::cholesky::Batch class.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the Cholesky decomposition algorithm, double or float
+ * \tparam method           Cholesky decomposition computation method, \ref daal::algorithms::cholesky::Method
+ *
+ * \DAAL_DEPRECATED
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the Cholesky decomposition algorithm with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the Cholesky decomposition algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -57,7 +86,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        result->get(choleskyFactor).get(), par);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace cholesky
 } // namespace algorithms
 } // namespace daal

@@ -30,8 +30,6 @@
 #include "data_management/data/memory_block.h"
 #include "services/daal_defines.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -42,6 +40,9 @@ namespace init
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 #define isPlusPlusMethod(method)                                                                                                     \
     ((method == kmeans::init::plusPlusDense) || (method == kmeans::init::plusPlusCSR) || (method == kmeans::init::parallelPlusDense) \
      || (method == kmeans::init::parallelPlusCSR))

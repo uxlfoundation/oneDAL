@@ -42,12 +42,10 @@ int rankId, comm_size;
 #define mpi_root 0
 
 /* Number of observations in transposed training data set blocks */
-const std::string trainDatasetFileNames[nBlocks] = {
-    "./data/distributed/implicit_als_trans_csr_1.csv",
-    "./data/distributed/implicit_als_trans_csr_2.csv",
-    "./data/distributed/implicit_als_trans_csr_3.csv",
-    "./data/distributed/implicit_als_trans_csr_4.csv"
-};
+const std::string trainDatasetFileNames[nBlocks] = { "data/implicit_als_trans_csr_1.csv",
+                                                     "data/implicit_als_trans_csr_2.csv",
+                                                     "data/implicit_als_trans_csr_3.csv",
+                                                     "data/implicit_als_trans_csr_4.csv" };
 
 static int usersPartition[1] = { nBlocks };
 
@@ -101,6 +99,13 @@ template <typename T>
 void all2all(ByteBuffer *nodeResults, KeyValueDataCollectionPtr result);
 
 int main(int argc, char *argv[]) {
+    checkArguments(argc,
+                   argv,
+                   4,
+                   &trainDatasetFileNames[0],
+                   &trainDatasetFileNames[1],
+                   &trainDatasetFileNames[2],
+                   &trainDatasetFileNames[3]);
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rankId);
@@ -131,7 +136,7 @@ int main(int argc, char *argv[]) {
 
 void readData() {
     /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    dataTable.reset(createSparseTable<float>(trainDatasetFileNames[rankId]));
+    dataTable = createSparseTable<float>(trainDatasetFileNames[rankId]);
 }
 
 KeyValueDataCollectionPtr initializeStep1Local() {
@@ -140,8 +145,8 @@ KeyValueDataCollectionPtr initializeStep1Local() {
     initAlgorithm.parameter.fullNUsers = nUsers;
     initAlgorithm.parameter.nFactors = nFactors;
     initAlgorithm.parameter.seed += rankId;
-    initAlgorithm.parameter.partition.reset(
-        new HomogenNumericTable<int>((int *)usersPartition, 1, 1));
+    initAlgorithm.parameter.partition =
+        HomogenNumericTable<int>::create((int *)usersPartition, 1, 1);
     /* Pass a training data set and dependent values to the algorithm */
     initAlgorithm.input.set(training::init::data, dataTable);
 

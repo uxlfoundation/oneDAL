@@ -35,6 +35,7 @@ namespace data_management
 {
 namespace internal
 {
+using namespace daal::internal;
 typedef daal::data_management::NumericTable::StorageLayout NTLayout;
 
 const size_t BLOCK_CONST      = 2048;
@@ -63,7 +64,7 @@ size_t genSwapIdx(size_t i, unsigned int * randomNumbers, size_t & rnIdx)
     return j;
 }
 
-template <daal::CpuType cpu>
+template <CpuType cpu>
 services::Status generateRandomNumbers(const int * rngState, unsigned int * randomNumbers, const size_t nSkip, const size_t n)
 {
     // initialize baseRNG
@@ -87,7 +88,7 @@ services::Status generateRandomNumbers(const int * rngState, unsigned int * rand
     return services::Status();
 }
 
-template <typename IdxType, daal::CpuType cpu>
+template <typename IdxType, CpuType cpu>
 services::Status generateShuffledIndicesImpl(const NumericTablePtr & idxTable, const NumericTablePtr & rngStateTable)
 {
     daal::SafeStatus s;
@@ -162,7 +163,7 @@ DAAL_EXPORT void generateShuffledIndices(const NumericTablePtr & idxTable, const
 
 template DAAL_EXPORT void generateShuffledIndices<int>(const NumericTablePtr & idxTable, const NumericTablePtr & rngStateTable);
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status assignColumnValues(const DataType * origDataPtr, const NumericTablePtr & dataTable, const IdxType * idxPtr, const size_t startRow,
                                     const size_t nRows, const size_t iCol)
 {
@@ -180,7 +181,7 @@ services::Status assignColumnValues(const DataType * origDataPtr, const NumericT
     return services::Status();
 }
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status assignColumnSubset(const DataType * origDataPtr, const NumericTablePtr & dataTable, const IdxType * idxPtr, const size_t nRows,
                                     const size_t iCol, const size_t nThreads)
 {
@@ -203,7 +204,7 @@ services::Status assignColumnSubset(const DataType * origDataPtr, const NumericT
     }
 }
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status splitColumn(const NumericTablePtr & inputTable, const NumericTablePtr & trainTable, const NumericTablePtr & testTable,
                              const IdxType * trainIdx, const IdxType * testIdx, const size_t nTrainRows, const size_t nTestRows, const size_t iCol,
                              const size_t nThreads)
@@ -219,7 +220,7 @@ services::Status splitColumn(const NumericTablePtr & inputTable, const NumericTa
     return s;
 }
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status assignRows(const DataType * origDataPtr, const NumericTablePtr & dataTable, const NumericTablePtr & idxTable, const size_t startRow,
                             const size_t nRows, const size_t nColumns)
 {
@@ -243,7 +244,7 @@ services::Status assignRows(const DataType * origDataPtr, const NumericTablePtr 
     return services::Status();
 }
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status assignRowsSubset(const DataType * origDataPtr, const NumericTablePtr & dataTable, const NumericTablePtr & idxTable,
                                   const size_t nRows, const size_t nColumns, const size_t nThreads, const size_t blockSize)
 {
@@ -266,7 +267,7 @@ services::Status assignRowsSubset(const DataType * origDataPtr, const NumericTab
     }
 }
 
-template <typename DataType, typename IdxType, daal::CpuType cpu>
+template <typename DataType, typename IdxType, CpuType cpu>
 services::Status splitRows(const NumericTablePtr & inputTable, const NumericTablePtr & trainTable, const NumericTablePtr & testTable,
                            const NumericTablePtr & trainIdxTable, const NumericTablePtr & testIdxTable, const size_t nTrainRows,
                            const size_t nTestRows, const size_t nColumns, const size_t nThreads)
@@ -283,7 +284,7 @@ services::Status splitRows(const NumericTablePtr & inputTable, const NumericTabl
     return s;
 }
 
-template <typename IdxType, daal::CpuType cpu>
+template <typename IdxType, CpuType cpu>
 services::Status trainTestSplitImpl(const NumericTablePtr & inputTable, const NumericTablePtr & trainTable, const NumericTablePtr & testTable,
                                     const NumericTablePtr & trainIdxTable, const NumericTablePtr & testIdxTable)
 {

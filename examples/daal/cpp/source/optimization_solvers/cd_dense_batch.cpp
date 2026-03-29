@@ -1,6 +1,6 @@
 /* file: cd_dense_batch.cpp */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ using namespace daal;
 using namespace daal::algorithms;
 using namespace daal::data_management;
 
-const std::string datasetFileName = "../data/batch/mse.csv";
+const std::string datasetFileName = "data/mse.csv";
 
 const size_t nIterations = 1000;
 const size_t nFeatures = 3;
@@ -50,10 +50,10 @@ int main(int argc, char* argv[]) {
                                                  DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for data and values for dependent variable */
-    NumericTablePtr data(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr dependentVariables(
-        new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(data, dependentVariables));
+    NumericTablePtr data = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr dependentVariables =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(data, dependentVariables);
 
     /* Retrieve the data from the input file */
     dataSource.loadDataBlock(mergedData.get());
@@ -67,13 +67,12 @@ int main(int argc, char* argv[]) {
                                     dependentVariables);
 
     /* Create objects to compute the Coordinate descent result using the default method */
-    optimization_solver::coordinate_descent::interface1::Batch<>* cdAlgorithm =
-        new optimization_solver::coordinate_descent::interface1::Batch<>(mseObjectiveFunction);
+    services::SharedPtr<optimization_solver::coordinate_descent::interface1::Batch<> > cdAlgorithm(
+        new optimization_solver::coordinate_descent::interface1::Batch<>(mseObjectiveFunction));
 
     /* Set input objects for the the Coordinate descent algorithm */
-    cdAlgorithm->input.set(
-        optimization_solver::iterative_solver::inputArgument,
-        NumericTablePtr(new HomogenNumericTable<>(initialPoint, 1, nFeatures + 1)));
+    cdAlgorithm->input.set(optimization_solver::iterative_solver::inputArgument,
+                           HomogenNumericTable<>::create(initialPoint, 1, nFeatures + 1));
 
     cdAlgorithm->parameter().nIterations = nIterations;
     cdAlgorithm->parameter().accuracyThreshold = accuracyThreshold;

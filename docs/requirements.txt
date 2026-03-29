@@ -1,14 +1,14 @@
 alabaster==1.0.0
 Babel==2.18.0
 beautifulsoup4==4.14.3
-certifi==2026.1.4
-chardet==5.2.0
+certifi==2026.2.25
+chardet==7.0.0
 click==8.3.1
 colorama==0.4.6
 docutils~=0.21.2
 idna==3.11
-imagesize==1.4.1
-importlib-metadata==8.7.1
+imagesize==2.0.0
+importlib-metadata==9.0.0
 importlib-resources==6.5.2
 Jinja2==3.1.6
 lxml==6.0.2
@@ -17,7 +17,7 @@ packaging==26.0
 pydata-sphinx-theme==0.16.1
 Pygments==2.19.2
 pyparsing==3.3.2
-pytz==2025.2
+pytz==2026.1.post1
 PyYAML==6.0.3
 requests==2.32.5
 six==1.17.0

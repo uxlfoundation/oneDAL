@@ -18,12 +18,15 @@
 #ifndef __SERVICE_TYPE_TRAITS_H__
 #define __SERVICE_TYPE_TRAITS_H__
 
+#include "src/services/cpu_type.h"
+
 namespace daal
 {
 namespace services
 {
 namespace internal
 {
+using CpuType = daal::internal::CpuType;
 template <CpuType cpu, typename T>
 struct RemoveReference
 {

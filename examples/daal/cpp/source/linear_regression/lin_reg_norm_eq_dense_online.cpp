@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::linear_regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/online/linear_regression_train.csv";
-const std::string testDatasetFileName = "../data/online/linear_regression_test.csv";
+const std::string trainDatasetFileName = "data/linear_regression_train.csv";
+const std::string testDatasetFileName = "data/linear_regression_test.csv";
 
 const size_t nTrainVectorsInBlock = 250;
 
@@ -68,10 +68,11 @@ void trainModel() {
                                                       DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for training data and dependent variables */
-    NumericTablePtr trainData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr trainDependentVariables(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(trainData, trainDependentVariables));
+    NumericTablePtr trainData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr trainDependentVariables =
+        HomogenNumericTable<>::create(nDependentVariables, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(trainData, trainDependentVariables);
 
     /* Create an algorithm object to train the multiple linear regression model */
     training::Online<> algorithm;
@@ -102,10 +103,11 @@ void testModel() {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(
-        new HomogenNumericTable<>(nDependentVariables, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr testGroundTruth =
+        HomogenNumericTable<>::create(nDependentVariables, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Retrieve the data from the input file */
     testDataSource.loadDataBlock(mergedData.get());

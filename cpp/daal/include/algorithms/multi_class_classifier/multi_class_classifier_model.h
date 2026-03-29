@@ -95,7 +95,7 @@ struct DAAL_EXPORT Parameter : public ParameterBase
     size_t maxIterations;     /*!< Maximum number of iterations */
     double accuracyThreshold; /*!< Convergence threshold */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 } // namespace interface2
@@ -178,7 +178,7 @@ public:
      * Retrieves the number of features in the dataset was used on the training stage
      * \return Number of features in the dataset was used on the training stage
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE { return _nFeatures; }
+    size_t getNumberOfFeatures() const override { return _nFeatures; }
 
 protected:
     size_t _nFeatures;

@@ -28,8 +28,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-const std::string trainedModelFileName = "../data/batch/logreg_trained_model.csv";
-const std::string testDatasetFileName = "../data/batch/logreg_test.csv";
+const std::string trainedModelFileName = "data/logreg_trained_model.csv";
+const std::string testDatasetFileName = "data/logreg_test.csv";
 
 const size_t nFeatures = 6; /* Number of features in training and testing data sets */
 const size_t nClasses = 5; /* Number of classes */
@@ -53,7 +53,8 @@ ModelPtr buildModel() {
                                                   DataSource::doDictionaryFromContext);
 
     /* Create Numeric Table for beta coefficients */
-    NumericTablePtr beta(new HomogenNumericTable<>(nFeatures + 1, 0, NumericTable::doNotAllocate));
+    NumericTablePtr beta =
+        HomogenNumericTable<>::create(nFeatures + 1, 0, NumericTable::doNotAllocate);
     /* Get beta from trained model */
     modelSource.loadDataBlock(beta.get());
 
@@ -87,9 +88,11 @@ void testModel(ModelPtr &inputModel) {
                                                      DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for testing data and ground truth values */
-    NumericTablePtr testData(new HomogenNumericTable<>(nFeatures, 0, NumericTable::doNotAllocate));
-    NumericTablePtr testGroundTruth(new HomogenNumericTable<>(1, 0, NumericTable::doNotAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(testData, testGroundTruth));
+    NumericTablePtr testData =
+        HomogenNumericTable<>::create(nFeatures, 0, NumericTable::doNotAllocate);
+    NumericTablePtr testGroundTruth =
+        HomogenNumericTable<>::create(1, 0, NumericTable::doNotAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(testData, testGroundTruth);
 
     /* Load the data from the data file */
     testDataSource.loadDataBlock(mergedData.get());

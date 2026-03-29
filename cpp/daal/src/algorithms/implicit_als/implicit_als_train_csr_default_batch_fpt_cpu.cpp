@@ -34,14 +34,13 @@ namespace implicit_als
 {
 namespace training
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
+
 template class ImplicitALSTrainBatchKernel<DAAL_FPTYPE, fastCSR, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace implicit_als
 } // namespace algorithms

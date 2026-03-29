@@ -122,11 +122,10 @@ inputs that are used for post-pruning:
      - Input
    * - ``dataForPruning``
      - Pointer to the :math:`m \times p` numeric table with the pruning data set. This table
-       can be an object of any class derived from NumericTable.
+       can be an object of any class derived from ``NumericTable``.
    * - ``labelsForPruning``
      - Pointer to the :math:`m \times 1` numeric table with class labels. This table can be
-       an object of any class derived from NumericTable except
-       PackedSymmetricMatrix and PackedTriangularMatrix.
+       an object of any class derived from ``NumericTable``.
 
 
 At the training stage, decision tree classifier has the following parameters:

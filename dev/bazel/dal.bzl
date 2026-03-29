@@ -226,8 +226,6 @@ def dal_test(name, hdrs=[], srcs=[], dal_deps=[], dal_test_deps=[],
             mpi_ranks = mpi_ranks,
             deps = [
                 ":" + module_name + "_dpc",
-                # TODO: Remove once all GPU algorithms are migrated to DPC++
-                "@opencl//:opencl_binary",
             ],
             data = data,
             tags = common_tags + tags + ["dpc", iface_access_tag],
@@ -345,12 +343,10 @@ def _test_deps_on_daal():
         ],
         "@config//:test_link_mode_release_static": [
             "@onedal_release//:core_static",
-            "@onedal_release//:parameters_static",
             "@onedal//cpp/daal:threading_release_static",
         ],
         "@config//:test_link_mode_release_dynamic": [
             "@onedal_release//:core_dynamic",
-            "@onedal_release//:parameters_dynamic",
             "@onedal//cpp/daal:threading_release_dynamic",
         ],
     })
@@ -394,7 +390,7 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
         "// CPU detection logic specified in dev/bazel/config.bzl file\n" +
         "\n" +
-        ("#define ONEDAL_CPU_DISPATCH_SSE42\n"      if sets.contains(cpus, "sse42")      else "") +
+        ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "")
     )
@@ -486,7 +482,7 @@ _generate_global_header_test_cpp = rule(
 )
 
 def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
-                local_defines=[], deps=[], **kwargs):
+                local_defines=[], copts=[], deps=[], **kwargs):
     cc_module(
         name = name,
         lib_tag = lib_tag,
@@ -495,11 +491,18 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         ),
         cpu_defines = {
             "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
-            "sse42":  [ "__CPU_TAG__=__CPU_TAG_SSE42__"  ],
             "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
         },
-        local_defines = local_defines + ([
+        copts = copts + select({
+            "@platforms//os:windows": [],
+            "//conditions:default": ["-fvisibility=hidden"],
+        }),
+        local_defines = local_defines + [
+            # Enable ONEDAL_EXPORT visibility annotations, matching Make's
+            # -D__ONEDAL_ENABLE_EXPORT__ flag for cpp/oneapi/dal .so objects.
+            "__ONEDAL_ENABLE_EXPORT__",
+        ] + ([
             "ONEDAL_DATA_PARALLEL"
         ] if is_dpc else []) + select({
             "@config//:test_fp64_disabled": [

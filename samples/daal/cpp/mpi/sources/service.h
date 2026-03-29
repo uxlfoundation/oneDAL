@@ -27,6 +27,11 @@
 
 using namespace daal::data_management;
 
+#ifdef _MSC_VER
+// Disable MSVC warning C4996 for getenv (marked as "unsafe" by MSVC)
+#pragma warning(disable : 4996)
+#endif
+
 #include <algorithm>
 #include <string>
 #include <iostream>
@@ -61,6 +66,48 @@ size_t readTextFile(const std::string &datasetFileName, daal::byte **data) {
     }
 
     return fileSize;
+}
+
+template <typename algorithmFPType>
+daal::data_management::CSRNumericTablePtr splitCSRBlock(
+    const daal::data_management::CSRNumericTablePtr &src,
+    size_t rowStart,
+    size_t rowEnd) {
+    using namespace daal::data_management;
+
+    const size_t nRows = rowEnd - rowStart;
+
+    const size_t nCols = src->getNumberOfColumns();
+
+    CSRBlockDescriptor<algorithmFPType> block;
+    src->getSparseBlock(rowStart, nRows, readOnly, block);
+
+    const size_t *srcRowOffsets = block.getBlockRowIndicesPtr();
+    const size_t *srcColIndices = block.getBlockColumnIndicesPtr();
+    const algorithmFPType *srcValues = block.getBlockValuesPtr();
+
+    const size_t nnz = srcRowOffsets[nRows] - srcRowOffsets[0];
+
+    size_t *localRowOffsets = new size_t[nRows + 1];
+    size_t *localColIndices = new size_t[nnz];
+    algorithmFPType *localValues = new algorithmFPType[nnz];
+
+    localRowOffsets[0] = 1;
+    for (size_t i = 1; i <= nRows; ++i) {
+        localRowOffsets[i] = srcRowOffsets[i] - srcRowOffsets[0] + 1;
+    }
+
+    std::copy_n(srcColIndices, nnz, localColIndices);
+    std::copy_n(srcValues, nnz, localValues);
+
+    src->releaseSparseBlock(block);
+
+    return CSRNumericTable::create(localValues,
+                                   localColIndices,
+                                   localRowOffsets,
+                                   nCols,
+                                   nRows,
+                                   CSRNumericTableIface::CSRIndexing::oneBased);
 }
 
 template <typename item_type>
@@ -99,7 +146,7 @@ void readRowUnknownLength(char *line, std::vector<item_type> &data) {
 }
 
 template <typename item_type>
-CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
+CSRNumericTablePtr createSparseTable(const std::string &datasetFileName) {
     std::ifstream file(datasetFileName.c_str());
 
     if (!file.is_open()) {
@@ -113,7 +160,7 @@ CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
     std::vector<size_t> rowOffsets;
     readRowUnknownLength<size_t>(&str[0], rowOffsets);
     if (!rowOffsets.size())
-        return NULL;
+        return CSRNumericTablePtr();
     const size_t nVectors = rowOffsets.size() - 1;
 
     //read cols indices
@@ -142,8 +189,11 @@ CSRNumericTable *createSparseTable(const std::string &datasetFileName) {
     size_t *resultRowOffsets = NULL;
     size_t *resultColIndices = NULL;
     item_type *resultData = NULL;
-    CSRNumericTable *numericTable =
-        new CSRNumericTable(resultData, resultColIndices, resultRowOffsets, nFeatures, nVectors);
+    CSRNumericTablePtr numericTable = CSRNumericTable::create(resultData,
+                                                              resultColIndices,
+                                                              resultRowOffsets,
+                                                              nFeatures,
+                                                              nVectors);
     numericTable->allocateDataMemory(nNonZeros);
     numericTable->getArrays<item_type>(&resultData, &resultColIndices, &resultRowOffsets);
     for (size_t i = 0; i < nNonZeros; ++i) {
@@ -281,30 +331,6 @@ void printAprioriRules(NumericTablePtr leftItemsTable,
     confidenceTable->releaseBlockOfRows(block3);
 }
 
-bool isFull(NumericTableIface::StorageLayout layout) {
-    int layoutInt = (int)layout;
-    if (packed_mask & layoutInt) {
-        return false;
-    }
-    return true;
-}
-
-bool isUpper(NumericTableIface::StorageLayout layout) {
-    if (layout == NumericTableIface::upperPackedSymmetricMatrix ||
-        layout == NumericTableIface::upperPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
-bool isLower(NumericTableIface::StorageLayout layout) {
-    if (layout == NumericTableIface::lowerPackedSymmetricMatrix ||
-        layout == NumericTableIface::lowerPackedTriangularMatrix) {
-        return true;
-    }
-    return false;
-}
-
 template <typename T>
 void printArray(T *array,
                 const size_t nPrintedCols,
@@ -387,7 +413,6 @@ void printNumericTable(NumericTable *dataTable,
                        size_t interval = 10) {
     size_t nRows = dataTable->getNumberOfRows();
     size_t nCols = dataTable->getNumberOfColumns();
-    NumericTableIface::StorageLayout layout = dataTable->getDataLayout();
 
     if (nPrintedRows != 0) {
         nPrintedRows = std::min(nRows, nPrintedRows);
@@ -404,33 +429,14 @@ void printNumericTable(NumericTable *dataTable,
     }
 
     BlockDescriptor<DAAL_DATA_TYPE> block;
-    if (isFull(layout) || layout == NumericTableIface::csrArray) {
-        dataTable->getBlockOfRows(0, nRows, readOnly, block);
-        printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                   nPrintedCols,
-                                   nPrintedRows,
-                                   nCols,
-                                   message,
-                                   interval);
-        dataTable->releaseBlockOfRows(block);
-    }
-    else {
-        PackedArrayNumericTableIface *packedTable =
-            dynamic_cast<PackedArrayNumericTableIface *>(dataTable);
-        packedTable->getPackedArray(readOnly, block);
-        if (isLower(layout)) {
-            printLowerArray<DAAL_DATA_TYPE>(block.getBlockPtr(), nPrintedRows, message, interval);
-        }
-        else if (isUpper(layout)) {
-            printUpperArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
-                                            nPrintedCols,
-                                            nPrintedRows,
-                                            nCols,
-                                            message,
-                                            interval);
-        }
-        packedTable->releasePackedArray(block);
-    }
+    dataTable->getBlockOfRows(0, nRows, readOnly, block);
+    printArray<DAAL_DATA_TYPE>(block.getBlockPtr(),
+                               nPrintedCols,
+                               nPrintedRows,
+                               nCols,
+                               message,
+                               interval);
+    dataTable->releaseBlockOfRows(block);
 }
 
 void printNumericTable(NumericTable &dataTable,
@@ -635,36 +641,73 @@ bool checkFileIsAvailable(std::string filename, bool needExit = false) {
     }
 }
 
+/* The function tries to find the file `name` in several possible directories.
+This is useful because CMake and Bazel may run the program from different working directories,
+so relative paths to data files can differ. */
+inline const std::string get_data_path(const std::string &name) {
+    const std::vector<std::string> paths = { []() {
+                                                if (const char *root = std::getenv("DALROOT")) {
+                                                    return std::string(root) + "/share/doc";
+                                                }
+                                                return std::string{};
+                                            }(),
+                                             []() {
+                                                 if (const char *root = std::getenv("DALROOT")) {
+                                                     return std::string(root);
+                                                 }
+                                                 return std::string{};
+                                             }(),
+                                             "../../..",
+                                             "../..",
+                                             ".." };
+
+    for (const auto &path : paths) {
+        if (path.empty())
+            continue;
+
+        const std::string try_path = path + "/" + name;
+
+        if (std::ifstream{ try_path }.good()) {
+            return try_path;
+        }
+    }
+
+    return name;
+}
+
 void checkArguments(int argc, char *argv[], int count, ...) {
-    std::string **filelist = new std::string *[count];
+    std::string **const filelist = new std::string *[count];
+
     va_list ap;
     va_start(ap, count);
     for (int i = 0; i < count; i++) {
         filelist[i] = va_arg(ap, std::string *);
     }
     va_end(ap);
+
     if (argc == 1) {
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
-    else if (argc == (count + 1)) {
-        bool isAllCorrect = true;
+    else if (argc == count + 1) {
+        bool all_exist = true;
         for (int i = 0; i < count; i++) {
-            if (!checkFileIsAvailable(argv[i + 1])) {
-                isAllCorrect = false;
+            if (!std::ifstream{ argv[i + 1] }.good()) {
+                all_exist = false;
                 break;
             }
         }
-        if (isAllCorrect == true) {
+
+        if (all_exist) {
             for (int i = 0; i < count; i++) {
-                (*filelist[i]) = argv[i + 1];
+                *(filelist[i]) = argv[i + 1];
             }
         }
         else {
             std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
             for (int i = 0; i < count; i++) {
-                checkFileIsAvailable(*(filelist[i]), true);
+                *(filelist[i]) = get_data_path(*(filelist[i]));
             }
         }
     }
@@ -676,10 +719,23 @@ void checkArguments(int argc, char *argv[], int count, ...) {
         std::cout << "]" << std::endl;
         std::cout << "Warning: Try to open default datasetFileNames" << std::endl;
         for (int i = 0; i < count; i++) {
-            checkFileIsAvailable(*(filelist[i]), true);
+            *(filelist[i]) = get_data_path(*(filelist[i]));
         }
     }
+
     delete[] filelist;
+}
+
+/* Helper: count rows in CSV */
+size_t countRowsCSV(const std::string &file) {
+    std::ifstream f(file);
+    size_t rows = 0;
+    std::string line;
+    while (std::getline(f, line)) {
+        if (!line.empty())
+            rows++;
+    }
+    return rows;
 }
 
 void copyBytes(daal::byte *dst, daal::byte *src, size_t size) {

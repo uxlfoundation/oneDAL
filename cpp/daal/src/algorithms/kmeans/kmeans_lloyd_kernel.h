@@ -38,6 +38,7 @@ namespace kmeans
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 template <Method method, typename algorithmFPType, CpuType cpu>
 class KMeansBatchKernel : public Kernel
