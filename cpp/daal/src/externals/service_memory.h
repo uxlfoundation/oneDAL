@@ -44,7 +44,7 @@ using namespace daal::internal;
 /// Initializes block of memory of length `num` with value.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param ptr      Pointer to the block of memory.
 /// @param value    Value to initialize the block with.
@@ -80,7 +80,7 @@ void service_memset_seq(T * const ptr, const T value, const size_t num)
 
 /// Structure that groups memory initialization methods for various data types together
 ///
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 template <CpuType cpu>
 struct ServiceInitializer
 {
@@ -116,7 +116,7 @@ struct ServiceInitializer
 /// returned by the default constructor if possible, or with zeros.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param size         Number of elements in the block.
 /// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
@@ -149,7 +149,7 @@ T * service_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT
 /// This saclable variant allocates memory in a way that scales with the number of processors.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param size         Number of elements in the block.
 /// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
@@ -179,7 +179,7 @@ T * service_scalable_calloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
 /// Allocates an aligned memory block for the `size` objects of type `T`.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param size         Number of elements in the block.
 /// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
@@ -194,7 +194,7 @@ T * service_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_ALIGNMENT
 /// Frees the memory allocated with `service_malloc` or `service_calloc`.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param ptr  Pointer to the memory block.
 template <typename T, CpuType cpu>
@@ -207,7 +207,7 @@ void service_free(T * ptr)
 /// This saclable variant allocates memory in a way that scales with the number of processors.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param size         Number of elements in the block.
 /// @param alignment    The address of the allocates memory should be a multiple of this `alignment`.
@@ -222,7 +222,7 @@ T * service_scalable_malloc(size_t size, size_t alignment = DAAL_MALLOC_DEFAULT_
 /// Frees the memory allocated with `service_scalable_malloc` or `service_scalable_calloc`.
 ///
 /// @tparam T   Data type of the elements in the block.
-/// @tparam cpu Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 ///
 /// @param ptr  Pointer to the memory block.
 template <typename T, CpuType cpu>

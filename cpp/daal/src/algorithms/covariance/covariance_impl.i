@@ -87,7 +87,7 @@ services::Status prepareCrossProduct(size_t nFeatures, algorithmFPType * crossPr
 /// Implements daal::Reducer interface for the dense Covariance algorithm computations.
 ///
 /// @tparam algorithmFPType     Data type to store partial results: double or float.
-/// @tparam cpu                 Variant of the CPU instruction set: SSE2, SSE4.2, AVX2, AVX512, ARM SVE, etc.
+/// @tparam cpu                 Variant of the CPU instruction set: SSE2, AVX2, AVX512, ARM SVE, etc.
 template <typename algorithmFPType, CpuType cpu>
 class CovarianceReducer : public daal::Reducer
 {

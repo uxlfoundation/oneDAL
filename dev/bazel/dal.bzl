@@ -390,7 +390,7 @@ def _dal_generate_cpu_dispatcher_impl(ctx):
         "// DO NOT PUT THIS FILE TO SVC: file is auto-generated on build time\n" +
         "// CPU detection logic specified in dev/bazel/config.bzl file\n" +
         "\n" +
-        ("#define ONEDAL_CPU_DISPATCH_SSE42\n"      if sets.contains(cpus, "sse42")      else "") +
+        ("#define ONEDAL_CPU_DISPATCH_SSE2\n"       if sets.contains(cpus, "sse2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX2\n"       if sets.contains(cpus, "avx2")       else "") +
         ("#define ONEDAL_CPU_DISPATCH_AVX512\n"     if sets.contains(cpus, "avx512")     else "")
     )
@@ -491,7 +491,6 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         ),
         cpu_defines = {
             "sse2":   [ "__CPU_TAG__=__CPU_TAG_SSE2__"   ],
-            "sse42":  [ "__CPU_TAG__=__CPU_TAG_SSE42__"  ],
             "avx2":   [ "__CPU_TAG__=__CPU_TAG_AVX2__"   ],
             "avx512": [ "__CPU_TAG__=__CPU_TAG_AVX512__" ],
         },

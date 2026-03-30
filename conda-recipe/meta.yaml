@@ -39,7 +39,7 @@ build:
   script_env:
     # All build targets are used by default and AVX2 only for CI.
     # Override REQCPU to reduce manual build time if needed: `REQCPU=avx512 conda build .`
-    - REQCPU={{ environ.get('REQCPU', 'sse42 avx2 avx512') }}  # [linux64 or win]
+    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64 or win]
     # Converting compiler name from "conda-forge" to "oneDAL Make" naming scheme
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]

@@ -106,9 +106,6 @@ cpu_extension get_top_cpu_extension() {
         if (registers.edx_ & (1U << 26)) {
             ext = cpu_extension::sse2;
         }
-        if (registers.ecx_ & (1U << 20)) {
-            ext = cpu_extension::sse42;
-        }
     }
     if (ids_count >= 7) {
         cpuid(0x7, registers);
