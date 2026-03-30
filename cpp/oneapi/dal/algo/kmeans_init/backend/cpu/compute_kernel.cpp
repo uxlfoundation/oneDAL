@@ -34,7 +34,7 @@ using descriptor_t = detail::descriptor_base<task::init>;
 namespace daal_kmeans_init = daal::algorithms::kmeans::init;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_kmeans_init_kernel_t =
     daal_kmeans_init::internal::KMeansInitKernel<to_daal_method<Method>::value, Float, Cpu>;
 

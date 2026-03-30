@@ -36,6 +36,8 @@ namespace mcg59
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class BatchImpl : public algorithms::engines::mcg59::interface1::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
 {

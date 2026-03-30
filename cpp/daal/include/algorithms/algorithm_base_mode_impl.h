@@ -27,7 +27,6 @@
 #include "services/daal_defines.h"
 #include "algorithms/algorithm_base_common.h"
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 
 namespace daal
 {

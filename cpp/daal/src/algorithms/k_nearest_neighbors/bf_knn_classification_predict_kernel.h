@@ -35,6 +35,7 @@ namespace prediction
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 using namespace algorithms::internal;
 
 struct KernelParameter : bf_knn_classification::Parameter

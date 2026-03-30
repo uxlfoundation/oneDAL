@@ -38,6 +38,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 class PCASVDStep2MasterKernel : public PCASVDKernelBase<algorithmFPType, cpu>
 {

@@ -24,6 +24,7 @@
 */
 
 #include "algorithms/gradient_boosted_trees/gbt_classification_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/dtrees/gbt/classification/gbt_classification_predict_kernel.h"
 
 namespace daal

@@ -41,6 +41,8 @@ namespace dbscan
 {
 namespace internal
 {
+using namespace daal::internal;
+
 #define __DBSCAN_PREFETCHED_NEIGHBORHOODS_COUNT 64
 
 template <typename algorithmFPType, Method method, CpuType cpu>

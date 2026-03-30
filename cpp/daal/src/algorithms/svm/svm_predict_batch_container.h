@@ -21,9 +21,10 @@
 //--
 */
 
-#include "algorithms/svm/svm_predict.h"
-#include "src/algorithms/svm/svm_predict_kernel.h"
 #include "algorithms/classifier/classifier_predict_types.h"
+#include "algorithms/svm/svm_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
+#include "src/algorithms/svm/svm_predict_kernel.h"
 
 namespace daal
 {
@@ -35,6 +36,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
 *  \brief Initialize list of SVM kernels with implementations for supported architectures
 */

@@ -33,8 +33,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
 
-using namespace daal::services::internal;
-
 namespace daal
 {
 namespace algorithms
@@ -45,6 +43,9 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 struct ImplicitALSTrainTaskBase;
 

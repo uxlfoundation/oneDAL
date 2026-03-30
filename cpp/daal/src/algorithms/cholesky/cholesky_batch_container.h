@@ -22,6 +22,7 @@
 */
 
 #include "algorithms/cholesky/cholesky.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/cholesky/cholesky_kernel.h"
 
 namespace daal
@@ -32,6 +33,7 @@ namespace cholesky
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__CHOLESKY__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the Cholesky decomposition algorithm.

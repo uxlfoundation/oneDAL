@@ -25,6 +25,7 @@
 #define __MRG32K3A_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_kernel.h"
 
 namespace daal
@@ -45,7 +46,7 @@ namespace internal
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
  * \tparam method           Computation method of the engine, mrg32k3a::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, CpuType
  *
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

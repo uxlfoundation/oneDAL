@@ -73,22 +73,18 @@ def get_default_flags(arch_id, os_id, compiler_id, category = "common"):
 
 def get_cpu_flags(arch_id, os_id, compiler_id):
     sse2 = []
-    sse42 = []
     avx2 = []
     avx512 = []
     if compiler_id == "gcc":
         sse2 = ["-march=nocona"]
-        sse42 = ["-march=corei7"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=haswell"]
     elif compiler_id in ["icx", "icpx"]:
         sse2 = ["-march=nocona"]
-        sse42 = ["-march=nehalem"]
         avx2 = ["-march=haswell"]
         avx512 = ["-march=skx"]
     return {
         "sse2": sse2,
-        "sse42": sse42,
         "avx2": avx2,
         "avx512": avx512,
     }

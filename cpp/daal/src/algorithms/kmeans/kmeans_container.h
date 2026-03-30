@@ -28,6 +28,7 @@
 #include "algorithms/kmeans/kmeans_types.h"
 #include "algorithms/kmeans/kmeans_batch.h"
 #include "algorithms/kmeans/kmeans_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/kmeans/kmeans_lloyd_kernel.h"
 
 #include "src/data_management/service_numeric_table.h"

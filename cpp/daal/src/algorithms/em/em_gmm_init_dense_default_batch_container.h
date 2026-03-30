@@ -24,6 +24,7 @@
 #ifndef __EM_GMM_INIT_DENSE_DEFAULT_BATCH_CONTAINER_H__
 #define __EM_GMM_INIT_DENSE_DEFAULT_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/em/em_gmm_init_dense_default_batch_kernel.h"
 
 namespace daal

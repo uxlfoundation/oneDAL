@@ -28,6 +28,7 @@
 #include "algorithms/ridge_regression/ridge_regression_training_batch.h"
 #include "algorithms/ridge_regression/ridge_regression_training_online.h"
 #include "algorithms/ridge_regression/ridge_regression_training_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/ridge_regression/ridge_regression_train_kernel.h"
 #include "algorithms/ridge_regression/ridge_regression_ne_model.h"
 #include "src/data_management/service_numeric_table.h"

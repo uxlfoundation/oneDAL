@@ -28,6 +28,7 @@
 #include "algorithms/moments/low_order_moments_batch.h"
 #include "algorithms/moments/low_order_moments_online.h"
 #include "algorithms/moments/low_order_moments_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/low_order_moments/low_order_moments_kernel.h"
 
 namespace daal
@@ -38,6 +39,7 @@ namespace low_order_moments
 {
 namespace internal
 {
+using namespace daal::internal;
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LOW_ORDER_MOMENTS__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the low order moments algorithm.

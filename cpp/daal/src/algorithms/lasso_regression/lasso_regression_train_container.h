@@ -27,6 +27,7 @@
 #include "src/algorithms/kernel.h"
 #include "algorithms/lasso_regression/lasso_regression_training_types.h"
 #include "algorithms/lasso_regression/lasso_regression_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/lasso_regression/lasso_regression_train_kernel.h"
 #include "src/algorithms/lasso_regression/lasso_regression_model_impl.h"
 

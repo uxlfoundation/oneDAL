@@ -27,6 +27,7 @@
 #define __LINEAR_MODEL_PREDICT_CONTAINER_H__
 
 #include "algorithms/linear_model/linear_model_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/linear_model/linear_model_predict_kernel.h"
 
 namespace daal
@@ -39,6 +40,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__LINEAR_MODEL__PREDICTION__BATCHCONTAINER"></a>
  *  \brief Class containing computation methods for the regression model-based prediction

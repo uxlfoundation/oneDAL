@@ -29,7 +29,7 @@ using namespace daal::internal;
 /*
 // Computes sum of the elements of input array
 */
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, daal::internal::CpuType cpu>
 DataType computeSum(size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs)
 {
     DataType sum = 0;
@@ -42,7 +42,7 @@ DataType computeSum(size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** 
 /*
 // Computes sum of the elements of an input SOA array
 */
-template <daal::CpuType cpu>
+template <daal::internal::CpuType cpu>
 double computeSumSOA(NumericTable & table, bool & sumIsFinite, services::Status & st)
 {
     double sum                                  = 0;
@@ -81,7 +81,7 @@ double computeSumSOA(NumericTable & table, bool & sumIsFinite, services::Status 
 /*
 // Check finiteness per element using bitwise isnan isinf for a DAAL table
 */
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, daal::internal::CpuType cpu>
 bool checkFiniteness(const size_t nElements, size_t nDataPtrs, size_t nElementsPerPtr, const DataType ** dataPtrs, bool allowNaN)
 {
     bool notFinite = false;
@@ -94,7 +94,7 @@ bool checkFiniteness(const size_t nElements, size_t nDataPtrs, size_t nElementsP
 /*
 // Check finiteness per element using bitwise isnan isinf for an DAAL SOA table
 */
-template <daal::CpuType cpu>
+template <daal::internal::CpuType cpu>
 bool checkFinitenessSOA(NumericTable & table, bool allowNaN, services::Status & st)
 {
     bool valuesAreFinite                        = true;
