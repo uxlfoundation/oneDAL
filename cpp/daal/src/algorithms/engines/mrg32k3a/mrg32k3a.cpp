@@ -20,7 +20,7 @@
 //  with two components of order 3, optimized for batch processing.
 //--
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_batch_impl.h"
 #include "src/externals/service_dispatch.h"
 

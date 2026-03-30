@@ -470,7 +470,7 @@ services::Status computeImpl(const NumericTable * x, const NumericTable * y, con
     DAAL_CHECK_STATUS_VAR(s);
     DAAL_CHECK_MALLOC(md.size() == par.nTrees);
 
-    res.updatedEngine = enginesCollection.getUpdatedEngine(par.engine, engines, numElems);
+    res.updatedEngine = services::dynamicPointerCast<engines::BatchBase>(enginesCollection.getUpdatedEngine(par.engine, engines, numElems));
 
     //finalize results computation
     //variable importance

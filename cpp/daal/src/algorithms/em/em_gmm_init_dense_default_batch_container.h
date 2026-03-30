@@ -93,7 +93,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     daal::services::Environment::env & env = *_env;
 
     __DAAL_CALL_KERNEL(env, internal::EMInitKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *inputData, *inputWeights, *inputMeans,
-                       inputCovariances, *emPar, *emPar->engine);
+                       inputCovariances, *emPar, *services::dynamicPointerCast<engines::BatchBase>(emPar->engine));
 }
 
 } // namespace internal

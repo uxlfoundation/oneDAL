@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"

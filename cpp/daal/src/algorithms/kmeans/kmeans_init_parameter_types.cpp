@@ -45,7 +45,7 @@ Parameter::Parameter(size_t _nClusters, size_t _offset, size_t _seed)
       seed(_seed),
       oversamplingFactor(0.5),
       nRounds(5),
-      engine(engines::mt19937::Batch<>::create(_seed))
+      engine(engines::createEngine(engines::mt19937Engine, _seed))
 {}
 
 /**

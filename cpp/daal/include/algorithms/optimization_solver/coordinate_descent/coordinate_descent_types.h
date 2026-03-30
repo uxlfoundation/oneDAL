@@ -28,7 +28,7 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "services/daal_defines.h"
 #include "algorithms/optimization_solver/iterative_solver/iterative_solver_types.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "algorithms/engines/engine.h"
 #include "algorithms/optimization_solver/objective_function/logistic_loss_batch.h"
 
 namespace daal
@@ -99,9 +99,9 @@ struct DAAL_EXPORT Parameter : public optimization_solver::iterative_solver::Par
      */
     services::Status check() const override;
 
-    size_t seed;               /*!< Seed for random generation of 32 bit integer indices of terms
+    size_t seed;                    /*!< Seed for random generation of 32 bit integer indices of terms
                                                       in the objective function. \DAAL_DEPRECATED_USE{ engine } */
-    engines::EnginePtr engine; /*!< Engine for random generation of 32 bit integer indices of terms
+    engines::EngineIfacePtr engine; /*!< Engine for random generation of 32 bit integer indices of terms
                                                                    in the objective function. */
     SelectionStrategy selection;
     bool positive;

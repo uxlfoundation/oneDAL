@@ -1,6 +1,6 @@
-/* file: mt19937.h */
+/* file: philox4x32x10.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,15 +17,16 @@
 
 /*
 //++
-//  Implementation of the Mersenne Twister engine in the batch processing mode
+//  Implementation of the Philox4x32-10 engine: a counter-based pseudorandom number generator (PRNG)
+//  that uses 4x32-bit keys and performs 10 rounds of mixing to produce high-quality randomness.
 //--
 */
 
-#ifndef __MT19937_H__
-#define __MT19937_H__
+#ifndef __PHILOX4X32X10_H__
+#define __PHILOX4X32X10_H__
 
-#include "algorithms/engines/mt19937/mt19937_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -33,24 +34,24 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt19937
+namespace philox4x32x10
 {
 /**
- * @defgroup engines_mt19937_batch Batch
- * @ingroup engines_mt19937
+ * @defgroup engines_philox4x32x10_batch Batch
+ * @ingroup engines_philox4x32x10
  * @{
  */
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
- * \brief Provides methods for mt19937 engine computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCH"></a>
+ * \brief Provides methods for philox4x32x10 engine computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float
- * \tparam method           Computation method of the engine, mt19937::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of philox4x32x10 engine, double or float
+ * \tparam method           Computation method of the engine, philox4x32x10::Method
  *
  * \par Enumerations
- *      - mt19937::Method          Computation methods for the mt19937 engine
+ *      - philox4x32x10::Method          Computation methods for the philox4x32x10 engine
  *
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
@@ -68,10 +69,10 @@ public:
     typedef typename super::ResultType ResultType;
 
     /**
-     * Creates mt19937 engine
-     * \param[in] seed  Initial condition for mt19937 engine
+     * Creates philox4x32x10 engine
+     * \param[in] seed  Initial condition for philox4x32x10 engine
      *
-     * \return Pointer to mt19937 engine
+     * \return Pointer to philox4x32x10 engine
      */
     DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
@@ -82,14 +83,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of mt19937 engine
-     * \return Structure that contains results of mt19937 engine
+     * Returns the structure that contains results of philox4x32x10 engine
+     * \return Structure that contains results of philox4x32x10 engine
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of mt19937 engine
-     * \param[in] result  Structure to store results of mt19937 engine
+     * Registers user-allocated memory to store results of philox4x32x10 engine
+     * \param[in] result  Structure to store results of philox4x32x10 engine
      *
      * \return Status of computations
      */
@@ -102,14 +103,12 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mt19937 engine
-     * with a copy of input objects and parameters of this mt19937 engine
+     * Returns a pointer to the newly allocated philox4x32x10 engine
+     * with a copy of input objects and parameters of this philox4x32x10 engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
     /**
-     * Allocates memory to store the result of the mt19937 engine
+     * Allocates memory to store the result of the philox4x32x10 engine
      *
      * \return Status of computations
      */
@@ -119,6 +118,8 @@ public:
         this->_res         = this->_result.get();
         return s;
     }
+
+    ~Batch();
 
 protected:
     Batch(size_t seed = 777);
@@ -134,15 +135,15 @@ private:
 
     Batch & operator=(const Batch &);
 };
-typedef services::SharedPtr<Batch<> > mt19937Ptr;
-typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
+typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
+typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
 } // namespace interface1
 using interface1::Batch;
-using interface1::mt19937Ptr;
-using interface1::mt19937ConstPtr;
+using interface1::philox4x32x10Ptr;
+using interface1::philox4x32x10ConstPtr;
 /** @} */
-} // namespace mt19937
+} // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

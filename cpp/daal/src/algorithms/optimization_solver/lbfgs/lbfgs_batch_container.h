@@ -101,7 +101,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::LBFGSKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, correctionPairsInput,
                        correctionIndicesInput, inputArgument, averageArgLIterInput, optionalArgumentInput, correctionPairsResult,
-                       correctionIndicesResult, minimum, nIterations, averageArgLIterResult, optionalArgumentResult, parameter, *parameter->engine);
+                       correctionIndicesResult, minimum, nIterations, averageArgLIterResult, optionalArgumentResult, parameter,
+                       *services::dynamicPointerCast<engines::BatchBase>(parameter->engine));
 }
 
 } // namespace internal

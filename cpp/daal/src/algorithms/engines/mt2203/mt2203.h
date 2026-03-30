@@ -24,8 +24,8 @@
 #ifndef __MT2203_H__
 #define __MT2203_H__
 
-#include "algorithms/engines/mt2203/mt2203_types.h"
-#include "algorithms/engines/engine_family.h"
+#include "src/algorithms/engines/mt2203/mt2203_types.h"
+#include "src/algorithms/engines/engine_family.h"
 
 namespace daal
 {
@@ -107,8 +107,6 @@ public:
      * with a copy of input objects and parameters of this mt2203 engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
     /**
      * Allocates memory to store the result of the mt2203 engine
      *

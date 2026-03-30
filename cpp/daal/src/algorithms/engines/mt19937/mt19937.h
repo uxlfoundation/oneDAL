@@ -1,4 +1,4 @@
-/* file: mcg59.h */
+/* file: mt19937.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -21,11 +21,11 @@
 //--
 */
 
-#ifndef __MCG59_H__
-#define __MCG59_H__
+#ifndef __MT19937_H__
+#define __MT19937_H__
 
-#include "algorithms/engines/mcg59/mcg59_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/mt19937/mt19937_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -33,24 +33,24 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mcg59
+namespace mt19937
 {
 /**
- * @defgroup engines_mcg59_batch Batch
- * @ingroup engines_mcg59
+ * @defgroup engines_mt19937_batch Batch
+ * @ingroup engines_mt19937
  * @{
  */
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCH"></a>
- * \brief Provides methods for mcg59 engine computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
+ * \brief Provides methods for mt19937 engine computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
- * \tparam method           Computation method of the engine, mcg59::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float
+ * \tparam method           Computation method of the engine, mt19937::Method
  *
  * \par Enumerations
- *      - mcg59::Method          Computation methods for the mcg59 engine
+ *      - mt19937::Method          Computation methods for the mt19937 engine
  *
  * \par References
  *      - \ref engines::interface1::Input  "engines::Input" class
@@ -68,10 +68,10 @@ public:
     typedef typename super::ResultType ResultType;
 
     /**
-     * Creates mcg59 engine
-     * \param[in] seed  Initial condition for mcg59 engine
+     * Creates mt19937 engine
+     * \param[in] seed  Initial condition for mt19937 engine
      *
-     * \return Pointer to mcg59 engine
+     * \return Pointer to mt19937 engine
      */
     DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
@@ -82,14 +82,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of mcg59 engine
-     * \return Structure that contains results of mcg59 engine
+     * Returns the structure that contains results of mt19937 engine
+     * \return Structure that contains results of mt19937 engine
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of mcg59 engine
-     * \param[in] result  Structure to store results of mcg59 engine
+     * Registers user-allocated memory to store results of mt19937 engine
+     * \param[in] result  Structure to store results of mt19937 engine
      *
      * \return Status of computations
      */
@@ -102,14 +102,7 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mcg59 engine
-     * with a copy of input objects and parameters of this mcg59 engine
-     * \return Pointer to the newly allocated engine
-     */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
-    /**
-     * Allocates memory to store the result of the mcg59 engine
+     * Allocates memory to store the result of the mt19937 engine
      *
      * \return Status of computations
      */
@@ -134,15 +127,15 @@ private:
 
     Batch & operator=(const Batch &);
 };
-typedef services::SharedPtr<Batch<> > mcg59Ptr;
-typedef services::SharedPtr<const Batch<> > mcg59ConstPtr;
+typedef services::SharedPtr<Batch<> > mt19937Ptr;
+typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
 
 } // namespace interface1
 using interface1::Batch;
-using interface1::mcg59Ptr;
-using interface1::mcg59ConstPtr;
+using interface1::mt19937Ptr;
+using interface1::mt19937ConstPtr;
 /** @} */
-} // namespace mcg59
+} // namespace mt19937
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

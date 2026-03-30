@@ -1,4 +1,4 @@
-/* file: mt19937.cpp */
+/* file: engine_factory.cpp */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -15,13 +15,18 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
 //++
-//  Implementation of mt19937 engine
+//  Implementation of engine factory function.
 //--
+*/
 
+#include "algorithms/engines/engine.h"
 #include "src/algorithms/engines/mt19937/mt19937.h"
-#include "src/externals/service_dispatch.h"
-#include "src/algorithms/engines/mt19937/mt19937_batch_impl.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 
 namespace daal
 {
@@ -29,31 +34,22 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mt19937
-{
 namespace interface1
 {
-using namespace daal::services;
-using namespace mt19937::internal;
-
-template <typename algorithmFPType, Method method>
-SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::create(size_t seed)
+DAAL_EXPORT EngineIfacePtr createEngine(EngineType type, size_t seed)
 {
-    SharedPtr<Batch<algorithmFPType, method> > engPtr;
-
-#define DAAL_CREATE_ENGINE_CPU(cpuId, ...) engPtr.reset(new BatchImpl<cpuId, algorithmFPType, method>(__VA_ARGS__));
-
-    DAAL_DISPATCH_FUNCTION_BY_CPU(DAAL_CREATE_ENGINE_CPU, seed);
-
-#undef DAAL_CREATE_ENGINE_CPU
-    return engPtr;
+    switch (type)
+    {
+    case mt19937Engine: return mt19937::Batch<>::create(seed);
+    case mt2203Engine: return mt2203::Batch<>::create(seed);
+    case mcg59Engine: return mcg59::Batch<>::create(seed);
+    case mrg32k3aEngine: return mrg32k3a::Batch<>::create(seed);
+    case philox4x32x10Engine: return philox4x32x10::Batch<>::create(seed);
+    default: return EngineIfacePtr();
+    }
 }
 
-template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
-template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
-
 } // namespace interface1
-} // namespace mt19937
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

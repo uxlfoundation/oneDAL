@@ -25,7 +25,7 @@
 #define __BF_KNN_CLASSIFICATION_MODEL_H__
 
 #include "algorithms/classifier/classifier_model.h"
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -102,7 +102,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
           dataUseInModel(dataUse),
           resultsToCompute(resToCompute),
           voteWeights(vote),
-          engine(engines::mcg59::Batch<>::create())
+          engine(engines::createEngine(engines::mcg59Engine))
     {
         this->resultsToEvaluate = resToEvaluate;
     }
@@ -147,11 +147,11 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::classifier::Parameter
      */
     services::Status check() const override;
 
-    size_t k;                      /*!< Number of neighbors */
-    DataUseInModel dataUseInModel; /*!< The option to enable/disable an usage of the input dataset in kNN model */
-    DAAL_UINT64 resultsToCompute;  /*!< 64 bit integer flag that indicates the results to compute */
-    VoteWeights voteWeights;       /*!< Weight function used in prediction */
-    engines::EnginePtr engine;     /*!< Engine for random choosing elements from training dataset */
+    size_t k;                       /*!< Number of neighbors */
+    DataUseInModel dataUseInModel;  /*!< The option to enable/disable an usage of the input dataset in kNN model */
+    DAAL_UINT64 resultsToCompute;   /*!< 64 bit integer flag that indicates the results to compute */
+    VoteWeights voteWeights;        /*!< Weight function used in prediction */
+    engines::EngineIfacePtr engine; /*!< Engine for random choosing elements from training dataset */
 };
 /* [Parameter source code] */
 

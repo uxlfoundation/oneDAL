@@ -22,6 +22,8 @@
 */
 
 #include "algorithms/decision_forest/decision_forest_regression_training_types.h"
+#include "src/algorithms/engines/engine_impl.h"
+#include "algorithms/engines/engine.h"
 
 using namespace daal::data_management;
 using namespace daal::services;
@@ -44,13 +46,13 @@ public:
     ResultImpl() {}
     ResultImpl(const ResultImpl & other)
     {
-        if (other._engine) _engine = other._engine->clone();
+        if (other._engine) _engine = services::dynamicPointerCast<engines::BatchBase>(other._engine->clone());
     }
 
     void setEngine(engines::EnginePtr engine) { _engine = engine; }
     engines::EnginePtr getEngine()
     {
-        if (!_engine) _engine = engines::mt2203::Batch<>::create();
+        if (!_engine) _engine = services::dynamicPointerCast<engines::BatchBase>(engines::createEngine(engines::mt2203Engine));
         return _engine;
     }
 

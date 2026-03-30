@@ -24,7 +24,7 @@
 #ifndef __MCG59_BATCH_CONTAINER_H__
 #define __MCG59_BATCH_CONTAINER_H__
 
-#include "algorithms/engines/mcg59/mcg59.h"
+#include "src/algorithms/engines/mcg59/mcg59.h"
 #include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mcg59/mcg59_kernel.h"
 

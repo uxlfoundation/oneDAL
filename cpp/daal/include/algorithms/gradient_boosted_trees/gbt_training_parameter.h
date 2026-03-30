@@ -113,7 +113,7 @@ public:
                                                  Default is 0 (use all features) */
     size_t minObservationsInLeafNode;   /*!< Minimal number of observations in a leaf node. Default is 5. */
     bool memorySavingMode;              /*!< If true then use memory saving (but slower) mode. Default is false */
-    engines::EnginePtr engine;          /*!< Engine for the random numbers generator used by the algorithms */
+    engines::EngineIfacePtr engine;     /*!< Engine for the random numbers generator used by the algorithms */
     size_t maxBins;                     /*!< Used with 'inexact' split finding method only.
                                                  Maximal number of discrete bins to bucket continuous features.
                                                  Default is 256. Increasing the number results in higher computation costs */

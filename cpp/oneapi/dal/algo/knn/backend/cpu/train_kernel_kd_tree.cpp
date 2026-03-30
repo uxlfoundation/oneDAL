@@ -85,7 +85,8 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
         knn_model->impl()->getData().get(),
         knn_model->impl()->getLabels().get(),
         knn_model,
-        *daal_parameter.engine.get()));
+        *daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+            daal_parameter.engine)));
 
     const auto model_impl =
         std::make_shared<kd_tree_model_impl<Task>>(new daal_model_interop_t(model_ptr));

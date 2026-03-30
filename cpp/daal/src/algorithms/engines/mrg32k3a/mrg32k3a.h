@@ -25,8 +25,8 @@
 #ifndef __MRG32K3A_H__
 #define __MRG32K3A_H__
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -107,8 +107,6 @@ public:
      * with a copy of input objects and parameters of this mrg32k3a engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
     /**
      * Allocates memory to store the result of the mrg32k3a engine
      *

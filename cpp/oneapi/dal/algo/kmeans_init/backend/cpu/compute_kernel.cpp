@@ -74,7 +74,13 @@ static compute_result<Task> call_daal_kernel(const context_cpu& ctx,
                    Float,
                    oneapi::dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value,
                    Method>()
-            .compute(len_input, input, len_output, output, &par, *(par.engine));
+            .compute(len_input,
+                     input,
+                     len_output,
+                     output,
+                     &par,
+                     *daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                         par.engine));
     }));
 
     return compute_result<Task>().set_centroids(

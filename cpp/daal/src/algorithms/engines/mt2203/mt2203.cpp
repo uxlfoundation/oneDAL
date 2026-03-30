@@ -19,7 +19,7 @@
 //  Implementation of mt2203 engine
 //--
 
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 #include "src/externals/service_dispatch.h"
 #include "src/algorithms/engines/mt2203/mt2203_batch_impl.h"
 

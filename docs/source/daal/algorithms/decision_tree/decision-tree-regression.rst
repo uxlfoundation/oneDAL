@@ -122,7 +122,7 @@ parameters:
        Can be any number in the interval (0, 1). If pruning is not used, all
        observations are used to build the decision tree regardless of this parameter value.
    * - ``engine``
-     - `SharedPtr<engines::mt19937::Batch<> >()`
+     - ``engines::createEngine(engines::mt19937Engine)``
      - Pointer to the random number engine to be used for random sampling for reduced error post-pruning.
 
 Prediction

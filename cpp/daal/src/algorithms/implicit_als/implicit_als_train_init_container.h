@@ -161,7 +161,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     daal::services::Environment::env & env = *_env;
 
     __DAAL_CALL_KERNEL(env, internal::ImplicitALSInitKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, a, items, users, par,
-                       *par->engine);
+                       *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 /**
@@ -220,7 +220,8 @@ services::Status DistributedContainer<step1Local, algorithmFPType, method, cpu>:
     daal::services::Environment::env & env = *_env;
 
     __DAAL_CALL_KERNEL(env, internal::ImplicitALSInitDistrKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, dataTable,
-                       partitionTable, dataPartsPtr.get(), blocksToLocalPtr.get(), userOffsetsPtr.get(), result, par, *par->engine);
+                       partitionTable, dataPartsPtr.get(), blocksToLocalPtr.get(), userOffsetsPtr.get(), result, par,
+                       *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 /**
