@@ -49,13 +49,13 @@ public:
      * \param[out] st      Status of the model construction
      */
     template <typename modelFPType>
-    ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st);
+    ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
+                  services::Status & st);
 
     /**
      * Constructs two-class SVM or regression SVM model implemenatation
      * \param[in] dummy    Data type dummy variable for the templated constructor.
      *                     Defines the data type of the model coefficients and support vectors.
-     * \param[in] nClasses Number of classes in the training data
      * \param[in] nColumns Number of columns in the training data
      * \param[in] layout   Storage layout of the numeric table with support vectors.
      *                     Provide NumericTableIface::csrArray for sparse tables.
@@ -119,20 +119,19 @@ public:
     void setNumberOfIterations(data_management::NumericTablePtr & nIterations);
 
 protected:
-    data_management::NumericTablePtr _SV;           /* Support vectors */
-    data_management::NumericTablePtr _SVCoeff;      /* Classification coefficients */
-    data_management::NumericTablePtr _biases;       /* Biases of the distance function D(x) = w*Phi(x) + bias
+    data_management::NumericTablePtr _SV;          /* Support vectors */
+    data_management::NumericTablePtr _SVCoeff;     /* Classification coefficients */
+    data_management::NumericTablePtr _biases;      /* Biases of the distance function D(x) = w*Phi(x) + bias
                                                        _biases[i] holds the bias for the i-th model in the multiclass SVM */
-    data_management::NumericTablePtr _SVIndices;    /* Indices of the support vectors in training data set */
-    data_management::NumericTablePtr _nIterations;  /* Number of iterations performed during the training
+    data_management::NumericTablePtr _SVIndices;   /* Indices of the support vectors in training data set */
+    data_management::NumericTablePtr _nIterations; /* Number of iterations performed during the training
                                                        _nIterations[i] holds the number of iterations for the i-th model in the multiclass SVM */
 };
 
 /**
  * \brief Class that connects the interface svm::Model and implementation ModelInternal
  */
-class ModelImpl : public svm::Model,
-                  protected svm::internal::ModelInternal
+class ModelImpl : public svm::Model, protected svm::internal::ModelInternal
 {
 public:
     typedef svm::internal::ModelInternal ImplType;
@@ -154,7 +153,7 @@ public:
     {}
 
     /**
-     * Constructs the SVM model
+     * Constructs the two-class or regression SVM model
      * \param[in] dummy    Data type dummy variable for the templated constructor.
      *                     Defines the data type of the model coefficients and support vectors.
      *
@@ -179,10 +178,7 @@ public:
      */
     data_management::NumericTablePtr getSupportVectors() const override { return ImplType::getSupportVectors(); }
 
-    void setSupportVectors(data_management::NumericTablePtr & supportVectors)
-    {
-        ImplType::setSupportVectors(supportVectors);
-    }
+    void setSupportVectors(data_management::NumericTablePtr & supportVectors) { ImplType::setSupportVectors(supportVectors); }
 
     /**
      * Returns indices of the support vectors constructed during the training of the SVM model
@@ -190,10 +186,7 @@ public:
      */
     data_management::NumericTablePtr getSupportIndices() const override { return ImplType::getSupportIndices(); }
 
-    void setSupportIndices(data_management::NumericTablePtr & supportIndices)
-    {
-        ImplType::setSupportIndices(supportIndices);
-    }
+    void setSupportIndices(data_management::NumericTablePtr & supportIndices) { ImplType::setSupportIndices(supportIndices); }
 
     /**
      * Returns classification coefficients constructed during the training of the SVM model

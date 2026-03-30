@@ -33,10 +33,11 @@ namespace svm
 {
 namespace internal
 {
-namespace dm  = daal::data_management;
+namespace dm = daal::data_management;
 
 template <typename modelFPType>
-ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
+ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns, data_management::NumericTableIface::StorageLayout layout,
+                             services::Status & st)
 {
     if (nClasses < 2)
     {
@@ -64,7 +65,7 @@ ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns
         return;
     }
     const size_t nModels = nClasses * (nClasses - 1) / 2;
-    _biases = dm::HomogenNumericTable<double>::create(1, nModels, dm::NumericTable::doAllocate, &st);
+    _biases              = dm::HomogenNumericTable<double>::create(1, nModels, dm::NumericTable::doAllocate, &st);
     if (!st) return;
     _nIterations = dm::HomogenNumericTable<int>::create(1, nModels, dm::NumericTable::doAllocate, &st);
 
@@ -73,26 +74,8 @@ ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns
 
 template <typename modelFPType>
 ModelInternal::ModelInternal(modelFPType dummy, size_t nColumns, data_management::NumericTableIface::StorageLayout layout, services::Status & st)
-{
-    if (layout == dm::NumericTableIface::csrArray)
-    {
-        _SV = dm::CSRNumericTable::create<modelFPType>(NULL, NULL, NULL, nColumns, 0, dm::CSRNumericTable::oneBased, &st);
-    }
-    else
-    {
-        _SV = dm::HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0, &st);
-    }
-    if (!st) return;
-    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, 1, 0, &st);
-    if (!st) return;
-    _SVIndices = dm::HomogenNumericTable<int>::create(NULL, 1, 0, &st);
-    if (!st) return;
-    _biases = dm::HomogenNumericTable<double>::create(1, 1, dm::NumericTable::doAllocate, &st);
-    if (!st) return;
-    _nIterations = dm::HomogenNumericTable<int>::create(1, 1, dm::NumericTable::doAllocate, &st);
-
-    return;
-}
+    : ModelInternal(dummy, 2, nColumns, layout, st)
+{}
 
 template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, size_t, dm::NumericTableIface::StorageLayout, services::Status &);
 template DAAL_EXPORT ModelInternal::ModelInternal(DAAL_FPTYPE, size_t, dm::NumericTableIface::StorageLayout, services::Status &);

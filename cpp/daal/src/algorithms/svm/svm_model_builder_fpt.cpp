@@ -27,9 +27,10 @@ namespace svm
 namespace interface1
 {
 template <typename modelFPType>
-ModelBuilder<modelFPType>::ModelBuilder(size_t nFeatures, size_t nSupportVectors)
-        : _modelPtr(new svm::internal::ModelImpl(modelFPType(0), 2, nFeatures, data_management::NumericTable::soa, _s)), _nFeatures(nFeatures), _nSupportVectors(nSupportVectors)
+ModelBuilder<modelFPType>::ModelBuilder(size_t nFeatures, size_t nSupportVectors) : _s(), _nFeatures(nFeatures), _nSupportVectors(nSupportVectors)
 {
+    _modelPtr.reset(new svm::internal::ModelImpl(modelFPType(0), 2, nFeatures, data_management::NumericTable::soa, _s));
+    if (!_s || !_modelPtr) return;
     _supportV  = _modelPtr->getSupportVectors();
     _supportI  = _modelPtr->getSupportIndices();
     _supportCC = _modelPtr->getClassificationCoefficients();
@@ -45,6 +46,7 @@ void ModelBuilder<modelFPType>::setBias(modelFPType bias)
 }
 
 template DAAL_EXPORT ModelBuilder<DAAL_FPTYPE>::ModelBuilder(size_t, size_t);
+template DAAL_EXPORT void ModelBuilder<DAAL_FPTYPE>::setBias(DAAL_FPTYPE);
 
 } // namespace interface1
 } // namespace svm
