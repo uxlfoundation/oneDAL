@@ -97,11 +97,11 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --sycl-split off --optflag O0 --target onedal_c
     displayName: 'make onedal_c'
   - script: |
       source /opt/intel/oneapi/setvars.sh
@@ -150,11 +150,11 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
     displayName: 'make onedal_dpc'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -234,7 +234,7 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --optflag O0 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_c'
   - script: |
@@ -315,7 +315,7 @@ jobs:
       path: $(OPENBLAS_CACHE_DIR)
       cacheHitVar: OPENBLAS_RESTORED
   - script: |
-      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --optflag O0 --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
     displayName: 'Build OpenBLAS'
     condition: ne(variables.OPENBLAS_RESTORED, 'true')
   - task: Cache@2
@@ -329,10 +329,10 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations  rv64 --optflag O0 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --optflag O0 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make onedal_c'
   - task: PublishPipelineArtifact@1
     inputs:

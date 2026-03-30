@@ -27,7 +27,14 @@ CORE.SERV.COMPILER.dpcpp = generic
 
 OPTFLAGS_SUPPORTED := O0 O1 O2 O3 Ofast Os Oz Og
 
+SYCLSPLIT_SUPPORTED := off per_device per_kernel
+
 LINKERS_SUPPORTED := bfd gold lld llvm-lib
+
+ifneq (,$(filter $(SYCLSPLIT),$(SYCLSPLIT_SUPPORTED)))
+else
+    $(error Invalid SYCLSPLIT '$(SYCLSPLIT)'. Supported: $(SYCLSPLIT_SUPPORTED))
+endif
 
 ifneq (,$(filter $(OPTFLAG),$(OPTFLAGS_SUPPORTED)))
 else
@@ -74,17 +81,17 @@ endif
 -asanshared.dpcpp = -shared-libasan
 
 COMPILER.lnx.dpcpp = icpx -fsycl -m64 -stdlib=libstdc++ -fgnu-runtime -fwrapv \
-                     -Werror -Wreturn-type -fsycl-device-code-split=off
+                     -Werror -Wreturn-type -fsycl-device-code-split=$(SYCLSPLIT)
 COMPILER.win.dpcpp = icx -fsycl $(if $(MSVC_RT_is_release),-MD, -MDd /debug:none) -nologo -WX \
-                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=off
+                     -Wno-deprecated-declarations -Wno-ignored-attributes -fsycl-device-code-split=$(SYCLSPLIT)
 linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.dpcpp = icpx $(linker.ld.flag) -fsycl -m64 -lgomp \
-                     -fsycl-device-code-split=off -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=$(SYCLSPLIT) -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 link.dynamic.lnx.dpcpp += $(if $(filter yes,$(GCOV_ENABLED)),-Xscoverage,)
 
 link.dynamic.win.dpcpp = icx $(linker.ld.flag) -fsycl -m64 \
-                     -fsycl-device-code-split=off -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
+                     -fsycl-device-code-split=$(SYCLSPLIT) -fsycl-max-parallel-link-jobs=$(SYCL_LINK_PRL)
 
 pedantic.opts.lnx.dpcpp = -pedantic \
                           -Wall \
