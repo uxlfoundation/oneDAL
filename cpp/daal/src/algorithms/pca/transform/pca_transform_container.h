@@ -26,6 +26,7 @@
 #ifndef __PCA_TRANSFORM_CONTAINER_H__
 #define __PCA_TRANSFORM_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/transform/pca_transform_kernel.h"
 
 namespace daal
@@ -38,6 +39,8 @@ namespace transform
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__TRANSFORM__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the PCA transformation algorithm in the batch processing mode

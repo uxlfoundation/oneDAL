@@ -28,12 +28,12 @@
 #include "data_management/data/csr_numeric_table.h"
 #include "src/services/service_defines.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace internal
 {
+using namespace daal::data_management;
+
 class MicroTable
 {
 public:

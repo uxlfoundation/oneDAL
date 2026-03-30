@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_common.h"
 #include "src/algorithms/pca/pca_dense_correlation_distr_step2_kernel.h"
 
 namespace daal
@@ -36,6 +37,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
  * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode

@@ -42,6 +42,8 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 struct SVMTrainTask
 {

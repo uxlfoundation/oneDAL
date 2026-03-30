@@ -42,11 +42,11 @@ namespace daal_multiclass = daal::algorithms::multi_class_classifier;
 
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu, typename Method>
+template <typename Float, daal::internal::CpuType Cpu, typename Method>
 using daal_svm_kernel_t =
     daal_svm::training::internal::SVMTrainImpl<to_daal_method<Method>::value, Float, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_multiclass_kernel_t = daal_multiclass::training::internal::
     MultiClassClassifierTrainKernel<daal_multiclass::training::oneAgainstOne, Float, Cpu>;
 

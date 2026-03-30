@@ -35,6 +35,7 @@ namespace cholesky
 {
 namespace internal
 {
+using namespace daal::internal;
 
 /**
  *  \brief Kernel for Cholesky calculation

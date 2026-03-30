@@ -19,10 +19,10 @@
 #define __SVM_TRAIN_INTERNAL_H__
 
 #include "algorithms/algorithm.h"
-
-#include "algorithms/svm/svm_train_types.h"
-#include "src/algorithms/svm/svm_train_kernel.h"
 #include "algorithms/classifier/classifier_training_batch.h"
+#include "algorithms/svm/svm_train_types.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
+#include "src/algorithms/svm/svm_train_kernel.h"
 #include "src/algorithms/svm/svm_train_batch_container.h"
 
 namespace daal

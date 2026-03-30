@@ -47,6 +47,8 @@ namespace algorithms
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename DataType, CpuType cpu>
 class TlsMax : public daal::TlsMem<DataType, cpu, services::internal::ScalableCalloc<DataType, cpu> >
 {
@@ -79,7 +81,7 @@ struct xyType
     DataType y;
 };
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 struct MemoryCtxType
 {
     typedef xyType<DataType> xyDataType;
@@ -185,7 +187,7 @@ struct TreeCtxType
     xyType * cent                        = nullptr;
 };
 
-template <typename IdxType, daal::CpuType cpu>
+template <typename IdxType, CpuType cpu>
 services::Status maxRowElementsImpl(const size_t * row, const IdxType N, IdxType & nElements, const IdxType & blockOfRows)
 {
     TlsMax<IdxType, cpu> maxTlsData(1);
@@ -211,7 +213,7 @@ services::Status maxRowElementsImpl(const size_t * row, const IdxType N, IdxType
     return services::Status();
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status boundingBoxKernelImpl(xyType<DataType> * pos, const IdxType N, DataType & radius, DataType & centerx, DataType & centery)
 {
     DAAL_CHECK_MALLOC(pos);
@@ -277,7 +279,7 @@ services::Status boundingBoxKernelImpl(xyType<DataType> * pos, const IdxType N, 
     return services::Status();
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 inline void buildSubtree5(TreeCtxType<IdxType, xyType<DataType> > & qTree, int level, IdxType * zOrder, IdxType * tOrder, uint64_t * mc, int * hist)
 {
     const int sh   = 54 - (level << 1);
@@ -372,7 +374,7 @@ inline void buildSubtree5(TreeCtxType<IdxType, xyType<DataType> > & qTree, int l
     for (int i = 0; i < 6; i++) qTree.layerSize[i] = qTree.layerOffs[i + 1] - qTree.layerOffs[i];
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> & mem, TreeCtxType<IdxType, xyType<DataType> > & qTree,
                                          const DataType & radius, const DataType & centerx, const DataType & centery)
 {
@@ -598,7 +600,7 @@ services::Status qTreeBuildingKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
     return services::Status();
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status summarizationKernelImpl(MemoryCtxType<IdxType, DataType, cpu> & mem, TreeCtxType<IdxType, xyType<DataType> > & qTree)
 {
     IdxType nThreads = threader_get_threads_number();
@@ -659,7 +661,7 @@ services::Status summarizationKernelImpl(MemoryCtxType<IdxType, DataType, cpu> &
     return services::Status();
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status repulsionKernelImpl(MemoryCtxType<IdxType, DataType, cpu> & mem, TreeCtxType<IdxType, xyType<DataType> > & qTree,
                                      const DataType theta, const DataType eps, DataType & zNorm, const DataType & radius)
 {
@@ -786,7 +788,7 @@ services::Status repulsionKernelImpl(MemoryCtxType<IdxType, DataType, cpu> & mem
 }
 
 /* Generic template implementation of attractive kernel for all data types and various instruction set architectures */
-template <bool DivComp, typename IdxType, typename DataType, daal::CpuType cpu>
+template <bool DivComp, typename IdxType, typename DataType, CpuType cpu>
 struct AttractiveKernel
 {
     static services::Status impl(const DataType * val, const IdxType * col, const size_t * row, MemoryCtxType<IdxType, DataType, cpu> & mem,
@@ -884,7 +886,7 @@ struct AttractiveKernel
     }
 };
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status integrationKernelImpl(const DataType eta, const DataType momentum, const DataType exaggeration,
                                        MemoryCtxType<IdxType, DataType, cpu> & mem, DataType & gradNorm, const DataType & zNorm, const IdxType N,
                                        const IdxType & blockOfRows)
@@ -933,7 +935,7 @@ services::Status integrationKernelImpl(const DataType eta, const DataType moment
     return services::Status();
 }
 
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+template <typename IdxType, typename DataType, CpuType cpu>
 services::Status tsneGradientDescentImpl(const NumericTablePtr initTable, const CSRNumericTablePtr pTable, const NumericTablePtr sizeIterTable,
                                          const NumericTablePtr paramTable, const NumericTablePtr resultTable)
 {

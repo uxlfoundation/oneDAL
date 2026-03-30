@@ -26,8 +26,8 @@
 #include "algorithms/svd/svd_batch.h"
 #include "algorithms/svd/svd_online.h"
 #include "algorithms/svd/svd_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/svd/svd_dense_default_kernel.h"
-#include "src/algorithms/kernel.h"
 #include "src/data_management/service_numeric_table.h"
 
 namespace daal
@@ -38,6 +38,8 @@ namespace svd
 {
 namespace internal
 {
+using namespace daal::internal;
+
 /**
  *  \brief Initialize list of cholesky kernels with implementations for supported architectures
  */

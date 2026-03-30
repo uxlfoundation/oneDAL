@@ -67,7 +67,7 @@ std::vector<int> vec(5);
 ```cpp
 // Compile-time CPU optimization selection
 #if defined(TARGET_X86_64)
-    enum CpuType { sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6 };
+    enum CpuType { sse2 = 0, avx2 = 4, avx512 = 6 };
 #elif defined(TARGET_ARM)
     enum CpuType { sve = 0 };  // ARM SVE
 #elif defined(TARGET_RISCV64)

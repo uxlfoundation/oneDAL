@@ -32,11 +32,11 @@ using input_t = compute_input<task::clustering>;
 namespace daal_dbscan = daal::algorithms::dbscan;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_dbscan_default_dense_t =
     daal_dbscan::internal::DBSCANBatchKernel<Float, daal_dbscan::defaultDense, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 class dbscan_compute_wrapper {
 public:
     template <typename... Args>

@@ -133,7 +133,7 @@ link.dynamic.mac = $(if $(link.dynamic.mac.$(COMPILER)),$(link.dynamic.mac.$(COM
 # Link dynamic DPC++ lib
 DPC.LINK.DYNAMIC = $(mkdir)$(call rm,$@)$(dpc.link.dynamic.cmd)
 dpc.link.dynamic.cmd = $(call dpc.link.dynamic.$(_OS),$(or $1,$(^.no-mkdeps)) $(LOPT))
-dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) $(EXCLUDE_LIBS) -Wl,-soname,$(@F).$(MAJORBINARY) \
+dpc.link.dynamic.lnx = $(if $(link.dynamic.lnx.dpcpp),$(link.dynamic.lnx.dpcpp),$(error link.dynamic.lnx.dpcpp must be defined)) -Wl,-soname,$(@F).$(MAJORBINARY) \
                        $(secure.opts.link.lnx) -shared $(-sGRP) $(patsubst %_link.txt,@%_link.txt,$(patsubst %_link.def,@%_link.def,$1)) $(-eGRP) -o $@
 dpc.link.dynamic.win = $(if $(link.dynamic.win.dpcpp),$(link.dynamic.win.dpcpp),$(error link.dynamic.win.dpcpp must be defined)) \
                        -LD $(patsubst %_link.txt,@%_link.txt,$(filter %_link.txt,$1)) $(filter-out -IMPLIB:%,$(filter %.lib,$1)) -o$@ \

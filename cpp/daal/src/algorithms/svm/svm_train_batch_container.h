@@ -41,6 +41,7 @@ namespace training
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__SVM__TRAINING__BATCHCONTAINER"></a>

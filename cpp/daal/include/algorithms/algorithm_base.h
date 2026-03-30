@@ -25,7 +25,7 @@
 #define __ALGORITHM_BASE_H__
 
 #include "services/env_detect.h"
-#include "algorithms/algorithm_container_base_common.h"
+#include "algorithms/algorithm_container_base.h"
 #include "algorithms/algorithm_container_base_batch.h"
 #include "algorithms/algorithm_base_common.h"
 #include "algorithms/algorithm_base_mode.h"

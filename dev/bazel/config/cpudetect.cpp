@@ -158,16 +158,6 @@ int check_avx2_features() {
     return 1;
 }
 
-int check_sse42_features() {
-    /* CPUID.(EAX=01H, ECX=0H):ECX.SSE4.2[bit 20]==1 */
-    uint32_t sse42_mask = 0x100000;
-
-    if (!check_cpuid(1, 0, 2, sse42_mask)) {
-        return 0;
-    }
-    return 1;
-}
-
 std::string detect_cpu() {
 
     #if defined(TARGET_X86_64)
@@ -178,9 +168,6 @@ std::string detect_cpu() {
         }
         else if (check_avx2_features()) {
             return "avx2";
-        }
-        else if (check_sse42_features()) {
-            return "sse42";
         }
         else {
             return "sse2";

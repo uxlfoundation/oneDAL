@@ -34,6 +34,8 @@ namespace dtrees
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <CpuType cpu>
 class DefaultAllocator
 {

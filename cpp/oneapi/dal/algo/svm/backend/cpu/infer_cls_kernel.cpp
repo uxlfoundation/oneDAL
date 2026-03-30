@@ -40,11 +40,11 @@ namespace daal_multiclass = daal::algorithms::multi_class_classifier;
 
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_svm_predict_kernel_t =
     daal_svm::prediction::internal::SVMPredictImpl<daal_svm::prediction::defaultDense, Float, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_multiclass_kernel_t =
     daal_multiclass::prediction::internal::MultiClassClassifierPredictKernel<
         daal_multiclass::prediction::voteBased,

@@ -19,7 +19,7 @@ module(name = "onedal")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_cc", version = "0.2.17")
-bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "rules_shell", version = "0.7.1")
 bazel_dep(name = "fmt", version = "12.1.0")
 
 declare_onedal_config = use_repo_rule("@onedal//dev/bazel/config:config.bzl", "declare_onedal_config")
@@ -46,6 +46,22 @@ http_archive(
 
 opencl_repo = use_repo_rule("@onedal//dev/bazel/deps:opencl.bzl", "opencl_repo")
 opencl_repo(name = "opencl")
+
+# GNU OpenMP (libgomp) - required by MKL gnu_thread
+openmp_repo = use_repo_rule("@onedal//dev/bazel/deps:openmp.bzl", "openmp_repo")
+openmp_repo(
+    name = "openmp",
+    root_env_var = "GOMPROOT",
+    urls = [
+        "https://anaconda.org/conda-forge/libgomp/14.2.0/download/linux-64/libgomp-14.2.0-h77fa898_1.conda",
+    ],
+    sha256s = [
+        "1911c29975ec99b6b906904040c855772ccb265a1c79d5d75c8ceec4ed89cd63",
+    ],
+    strip_prefixes = [
+        "",  # libgomp .conda extracts directly
+    ],
+)
 
 openblas_repo = use_repo_rule("@onedal//dev/bazel/deps:openblas.bzl", "openblas_repo")
 openblas_repo(name = "openblas", root_env_var = "OPENBLASROOT",)

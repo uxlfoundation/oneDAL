@@ -30,9 +30,6 @@
 #include "algorithms/moments/low_order_moments_types.h"
 #include "src/services/service_profiler.h"
 
-using namespace daal::services;
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -41,6 +38,10 @@ namespace low_order_moments
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, low_order_moments::Method method, CpuType cpu>
 class LowOrderMomentsBatchKernel : public daal::algorithms::Kernel
 {

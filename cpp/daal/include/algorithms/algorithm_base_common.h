@@ -25,7 +25,6 @@
 #define __ALGORITHM_BASE_COMMON_H__
 
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 #include "services/error_handling.h"
 #include "services/env_detect.h"
 #include "algorithms/algorithm_types.h"

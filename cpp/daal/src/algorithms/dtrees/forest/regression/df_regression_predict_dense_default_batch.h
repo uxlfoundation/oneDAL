@@ -30,8 +30,6 @@
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -44,6 +42,9 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 template <typename algorithmFpType, decision_forest::regression::prediction::Method method, CpuType cpu>
 class PredictKernel : public daal::algorithms::Kernel
 {

@@ -25,6 +25,7 @@
 #define __MT2203_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mt2203/mt2203_kernel.h"
 
 namespace daal
@@ -45,7 +46,7 @@ namespace internal
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float
  * \tparam method           Computation method of the engine, mt2203::Method
- * \tparam cpu              Version of the cpu-specific implementation of the engine, daal::CpuType
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, CpuType
  *
  */
 template <typename algorithmFPType, Method method, CpuType cpu>

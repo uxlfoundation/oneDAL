@@ -40,7 +40,6 @@ std::string ONEDAL_EXPORT to_string(cpu_extension extension) {
         case cpu_extension::none: extension_str = std::string("none"); break;
 #if defined(TARGET_X86_64)
         case cpu_extension::sse2: extension_str = std::string("sse2"); break;
-        case cpu_extension::sse42: extension_str = std::string("sse42"); break;
         case cpu_extension::avx2: extension_str = std::string("avx2"); break;
         case cpu_extension::avx512: extension_str = std::string("avx512"); break;
 #elif defined(TARGET_ARM)

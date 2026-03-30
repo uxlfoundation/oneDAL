@@ -35,9 +35,9 @@ daaldep.math_backend_oneapi.incdir := $(MKLDIR.include) $(MKLGPUDIR.include)
 daaldep.lnx32e.mkl.thr := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$a
 daaldep.lnx32e.mkl.core := $(MKLDIR.libia)/$(plib)mkl_core.$a 
 daaldep.lnx32e.mkl.interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$a
+daaldep.lnx32e.mkl.sycl_thr := $(MKLDIR.libia)/$(plib)mkl_gnu_thread.$(so)
 daaldep.lnx32e.mkl.sycl_core := $(MKLDIR.libia)/$(plib)mkl_core.$(so)
-daaldep.lnx32e.mkl.sycl_interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_ilp64.$(so)
-daaldep.lnx32e.mkl.sycl_thr := $(MKLDIR.libia)/$(plib)mkl_tbb_thread.$(so)
+daaldep.lnx32e.mkl.sycl_interfaces := $(MKLDIR.libia)/$(plib)mkl_intel_lp64.$(so)
 daaldep.lnx32e.mkl.sycl_rng := $(MKLDIR.libia)/$(plib)mkl_sycl_rng.$(so)
 daaldep.lnx32e.mkl.sycl_blas := $(MKLDIR.libia)/$(plib)mkl_sycl_blas.$(so)
 daaldep.lnx32e.mkl.sycl_lapack := $(MKLDIR.libia)/$(plib)mkl_sycl_lapack.$(so)
@@ -49,11 +49,11 @@ daaldep.lnx32e.mkl.sycl_sparse := $(MKLDIR.libia)/$(plib)mkl_sycl_sparse.$(so)
 MATH_LIBS_TO_EXCLUDE := $(plib)mkl_tbb_thread.$a $(plib)mkl_core.$a $(plib)mkl_intel_ilp64.$a
 
 daaldep.win32e.mkl.thr := $(MKLDIR.libia)/mkl_tbb_thread$d.$a
-daaldep.win32e.mkl.interfaces := $(MKLDIR.libia)/mkl_intel_ilp64.$a
 daaldep.win32e.mkl.core := $(MKLDIR.libia)/mkl_core.$a
+daaldep.win32e.mkl.interfaces := $(MKLDIR.libia)/mkl_intel_ilp64.$a
+daaldep.win32e.mkl.sycl_thr := $(MKLDIR.libia)/mkl_intel_thread_dll.$a
 daaldep.win32e.mkl.sycl_core := $(MKLDIR.libia)/mkl_core_dll.$a
-daaldep.win32e.mkl.sycl_interfaces := $(MKLDIR.libia)/mkl_intel_ilp64_dll.$a
-daaldep.win32e.mkl.sycl_thr := $(MKLDIR.libia)/mkl_tbb_thread_dll.$a
+daaldep.win32e.mkl.sycl_interfaces := $(MKLDIR.libia)/mkl_intel_lp64_dll.$a
 daaldep.win32e.mkl.sycl_rng := $(MKLDIR.libia)/mkl_sycl_rng_dll.$a
 daaldep.win32e.mkl.sycl_blas := $(MKLDIR.libia)/mkl_sycl_blas_dll.$a
 daaldep.win32e.mkl.sycl_lapack := $(MKLDIR.libia)/mkl_sycl_lapack_dll.$a
@@ -92,12 +92,12 @@ mkl_libs.lnx32e := -L$(MKLROOT)/lib \
     $(daaldep.lnx32e.mkl.sycl_blas) $(daaldep.lnx32e.mkl.sycl_lapack) $(daaldep.lnx32e.mkl.sycl_sparse) \
     $(daaldep.lnx32e.mkl.sycl_rng) \
     $(daaldep.lnx32e.mkl.sycl_core) $(daaldep.lnx32e.mkl.sycl_interfaces) $(daaldep.lnx32e.mkl.sycl_thr) \
-    -lsycl -lpthread -lm -ldl
+    -lsycl -lm -ldl
 
 
 mkl_libs.win32e :=  $(daaldep.win32e.mkl.sycl_blas) $(daaldep.win32e.mkl.sycl_lapack) $(daaldep.win32e.mkl.sycl_sparse) \
     $(daaldep.win32e.mkl.sycl_rng) \
-    $(daaldep.win32e.mkl.sycl_core) $(daaldep.win32e.mkl.sycl_interfaces) $(daaldep.win32e.mkl.sycl_thr)
+    $(daaldep.win32e.mkl.sycl_core) $(daaldep.win32e.mkl.sycl_interfaces) $(daaldep.win32e.mkl.sycl_thr) libiomp5md.lib
 
 mkl_libs.mac32e :=
 mkl_libs.lnxarm :=

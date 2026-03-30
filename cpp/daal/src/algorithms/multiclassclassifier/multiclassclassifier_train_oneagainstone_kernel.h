@@ -33,10 +33,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h"
 
-using namespace daal::internal;
-using namespace daal::services::internal;
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -47,6 +43,10 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
+using namespace daal::data_management;
+
 //Base class for binary classification subtask
 template <typename algorithmFPType, CpuType cpu>
 class SubTask

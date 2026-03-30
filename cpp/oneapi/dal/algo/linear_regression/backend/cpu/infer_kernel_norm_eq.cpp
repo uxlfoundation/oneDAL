@@ -39,7 +39,7 @@ namespace interop = dal::backend::interop;
 
 constexpr auto daal_method = daal_lm::prediction::Method::defaultDense;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_lm_kernel_t = daal_lm::prediction::internal::PredictKernel<Float, daal_method, Cpu>;
 
 template <typename Float, typename Task>
@@ -67,7 +67,7 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
     auto infer_daal_table = interop::convert_to_daal_table<Float>(infer);
 
     const auto status = dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        using cpu_t = daal::CpuType;
+        using cpu_t = daal::internal::CpuType;
         constexpr cpu_t cpu_type = interop::to_daal_cpu_type<decltype(cpu)>::value;
         return daal_lm_kernel_t<Float, cpu_t(cpu_type)>().compute_impl(infer_daal_table.get(),
                                                                        betas_daal_table.get(),
