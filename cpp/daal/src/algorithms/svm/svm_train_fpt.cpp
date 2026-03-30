@@ -46,7 +46,9 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
     const classifier::training::Input * algInput = static_cast<const classifier::training::Input *>(input);
 
     services::Status st;
-    set(classifier::training::model, daal::algorithms::svm::ModelPtr(new svm::internal::ModelImpl(algorithmFPType(0), 2 /* number of classes */, algInput->get(classifier::training::data)->getNumberOfColumns(),
+    set(classifier::training::model,
+        daal::algorithms::svm::ModelPtr(new svm::internal::ModelImpl(algorithmFPType(0), 2 /* number of classes */,
+                                                                     algInput->get(classifier::training::data)->getNumberOfColumns(),
                                                                      algInput->get(classifier::training::data)->getDataLayout(), st)));
     return st;
 }

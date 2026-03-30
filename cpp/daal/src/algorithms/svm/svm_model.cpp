@@ -34,17 +34,35 @@ namespace internal
 {
 ModelInternal::ModelInternal() : _nIterations(), _SV(), _SVCoeff(), _SVIndices(), _biases() {}
 
-data_management::NumericTablePtr ModelInternal::getSupportVectors() const { return _SV; }
+data_management::NumericTablePtr ModelInternal::getSupportVectors() const
+{
+    return _SV;
+}
 
-void ModelInternal::setSupportVectors(data_management::NumericTablePtr & supportVectors) { _SV = supportVectors; }
+void ModelInternal::setSupportVectors(data_management::NumericTablePtr & supportVectors)
+{
+    _SV = supportVectors;
+}
 
-data_management::NumericTablePtr ModelInternal::getSupportIndices() const { return _SVIndices; }
+data_management::NumericTablePtr ModelInternal::getSupportIndices() const
+{
+    return _SVIndices;
+}
 
-void ModelInternal::setSupportIndices(data_management::NumericTablePtr & supportIndices) { _SVIndices = supportIndices; }
+void ModelInternal::setSupportIndices(data_management::NumericTablePtr & supportIndices)
+{
+    _SVIndices = supportIndices;
+}
 
-data_management::NumericTablePtr ModelInternal::getClassificationCoefficients() const { return _SVCoeff; }
+data_management::NumericTablePtr ModelInternal::getClassificationCoefficients() const
+{
+    return _SVCoeff;
+}
 
-void ModelInternal::setClassificationCoefficients(data_management::NumericTablePtr & classificationCoefficients) { _SVCoeff = classificationCoefficients; }
+void ModelInternal::setClassificationCoefficients(data_management::NumericTablePtr & classificationCoefficients)
+{
+    _SVCoeff = classificationCoefficients;
+}
 
 double ModelInternal::getBias() const
 {
@@ -56,12 +74,18 @@ void ModelInternal::setBias(double bias)
     daal::internal::WriteOnlyRows<int, DAAL_BASE_CPU> mtIterations(_nIterations.get(), 0, 1);
     if (mtIterations.get() == nullptr) return;
     int * const iterations = mtIterations.get();
-    iterations[0] = static_cast<int>(_nIterations);
+    iterations[0]          = static_cast<int>(_nIterations);
 }
 
-data_management::NumericTablePtr ModelInternal::getBiases() const { return _biases; }
+data_management::NumericTablePtr ModelInternal::getBiases() const
+{
+    return _biases;
+}
 
-void ModelInternal::setBiases(data_management::NumericTablePtr & biases) { _biases = biases; }
+void ModelInternal::setBiases(data_management::NumericTablePtr & biases)
+{
+    _biases = biases;
+}
 
 size_t ModelInternal::getNumberOfFeatures() const
 {
@@ -69,9 +93,15 @@ size_t ModelInternal::getNumberOfFeatures() const
     return 0;
 }
 
-data_management::NumericTablePtr ModelInternal::getNumberOfIterations() const { return _nIterations; }
+data_management::NumericTablePtr ModelInternal::getNumberOfIterations() const
+{
+    return _nIterations;
+}
 
-void ModelInternal::setNumberOfIterations(data_management::NumericTablePtr & nIterations) { _nIterations = nIterations; }
+void ModelInternal::setNumberOfIterations(data_management::NumericTablePtr & nIterations)
+{
+    _nIterations = nIterations;
+}
 
 } // namespace internal
 namespace interface1

@@ -68,7 +68,8 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
     const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
-    const auto daal_iterations = interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
+    const auto daal_iterations =
+        interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
 
     auto daal_model = daal_model_builder{}
                           .set_support_vectors(daal_support_vectors)
@@ -93,7 +94,8 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
 
     const auto daal_layout = daal_data->getDataLayout();
     daal::services::Status status;
-    auto daal_svm_model_ptr = new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
+    auto daal_svm_model_ptr =
+        new daal_svm::internal::ModelImpl(Float(0), class_count, column_count, daal_layout, status);
     daal_svm::ModelPtr daal_svm_model(daal_svm_model_ptr);
     interop::status_to_exception(status);
     interop::status_to_exception(

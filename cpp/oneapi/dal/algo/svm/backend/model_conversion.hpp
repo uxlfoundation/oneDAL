@@ -59,16 +59,15 @@ inline auto convert_from_daal_model(daal_svm::Model& daal_model) {
         interop::convert_from_daal_table<Float>(daal_model.getSupportVectors());
     auto table_classification_coeffs =
         interop::convert_from_daal_homogen_table<Float>(daal_model.getClassificationCoefficients());
-    auto table_biases =
-        interop::convert_from_daal_homogen_table<double>(daal_model.getBiases());
-    auto table_iterations = interop::convert_from_daal_homogen_table<int>(daal_model.getNumberOfIterations());
+    auto table_biases = interop::convert_from_daal_homogen_table<double>(daal_model.getBiases());
+    auto table_iterations =
+        interop::convert_from_daal_homogen_table<int>(daal_model.getNumberOfIterations());
 
-    auto model =
-        dal::svm::model<Task>()
-            .set_support_vectors(table_support_vectors)
-            .set_coeffs(table_classification_coeffs)
-            .set_biases(table_biases)
-            .set_iteration_counts(table_iterations);
+    auto model = dal::svm::model<Task>()
+                     .set_support_vectors(table_support_vectors)
+                     .set_coeffs(table_classification_coeffs)
+                     .set_biases(table_biases)
+                     .set_iteration_counts(table_iterations);
 
     return model;
 }

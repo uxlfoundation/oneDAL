@@ -72,13 +72,13 @@ public:
         WriteOnlyRows<double, cpu> mtBiases(model.getBiases().get(), 0, 1);
         DAAL_CHECK_BLOCK_STATUS(mtBiases);
         double * const biases = mtBiases.get();
-        biases[0] = calculateBias(cw);
+        biases[0]             = calculateBias(cw);
 
         /* Write number of iterations into model */
         WriteOnlyRows<int, cpu> mtIterations(model.getNumberOfIterations().get(), 0, 1);
         DAAL_CHECK_BLOCK_STATUS(mtIterations);
         int * const iterations = mtIterations.get();
-        iterations[0] = static_cast<int>(_nIterations);
+        iterations[0]          = static_cast<int>(_nIterations);
 
         if (_task == SvmType::regression || _task == SvmType::nu_regression)
         {

@@ -50,7 +50,8 @@ static infer_result<Task> call_daal_kernel(const context_cpu& ctx,
         interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
     const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
     const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
-    const auto daal_iterations = interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
+    const auto daal_iterations =
+        interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
 
     auto daal_model = daal_model_builder{}
                           .set_support_vectors(daal_support_vectors)

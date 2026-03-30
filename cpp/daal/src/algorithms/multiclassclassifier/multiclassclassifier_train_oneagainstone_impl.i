@@ -50,11 +50,9 @@ using namespace daal::data_management;
 using namespace daal::services;
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * xTable,
-                                                                                               const NumericTable * yTable,
-                                                                                               const NumericTable * wTable,
-                                                                                               daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel,
-                                                                                               const KernelParameter & par)
+services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu>::compute(
+    const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
+    svm::internal::ModelImpl * svmModel, const KernelParameter & par)
 {
     Status s;
 

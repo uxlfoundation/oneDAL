@@ -50,8 +50,8 @@ using namespace daal::services::internal;
 template <prediction::Method pmethod, training::Method tmethod, typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel : public Kernel
 {
-    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred, NumericTable * df,
-                             const daal::algorithms::Parameter * par);
+    services::Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
+                             NumericTable * df, const daal::algorithms::Parameter * par);
 };
 
 template <typename algorithmFPType, CpuType cpu>
