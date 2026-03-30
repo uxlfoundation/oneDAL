@@ -217,7 +217,7 @@ jobs:
       conda create -y -n $(CONDA_ENV)
       conda activate $(CONDA_ENV)
       conda install -y -c conda-forge \
-          make \
+          make lld \
           dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
           tbb tbb-devel \
           onedpl-devel \
@@ -782,7 +782,6 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import'
-    workingDirectory: \tmp
     condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
