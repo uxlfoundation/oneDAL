@@ -97,24 +97,12 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target daal
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --target onedal_c
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --sycl-split off --optflag O0 --target onedal_c
     displayName: 'make onedal_c'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) build'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Upload build artifacts'
-    continueOnError: true
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: 'oneDAL environment'
-      targetPath: '$(Build.Repository.LocalPath)/.ci/env'
-    displayName: 'Upload environment artifacts'
-    continueOnError: true
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler gnu --interface daal/cpp --build-system cmake
@@ -130,18 +118,6 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
-  - script: |
-      deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
-      tree -h -I include __nuget/inteldal*/
-      ls -lh __nuget/inteldal*.nupkg
-    displayName: 'nuget pkg'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) fail'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Uploading on fail'
-    condition: failed()
-    continueOnError: true
 
 - job: 'LinuxMakeIntel_MKL'
   timeoutInMinutes: 0
@@ -174,12 +150,24 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target daal
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --target onedal_dpc
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
     displayName: 'make onedal_dpc'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL environment'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/env'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
   - script: |
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind examples --build-dir $(release.dir) --compiler icx --interface daal/cpp --build-system cmake
@@ -199,6 +187,18 @@ jobs:
       source /opt/intel/oneapi/setvars.sh
       .ci/scripts/test.sh --test-kind samples --build-dir $(release.dir) --compiler gnu --interface daal/cpp/mpi --conda-env ci-env --build-system cmake
     displayName: 'daal/cpp/mpi samples'
+  - script: |
+      deploy/nuget/prepare_dal_nuget.sh --release-dir $(release.dir) --build-nupkg yes
+      tree -h -I include __nuget/inteldal*/
+      ls -lh __nuget/inteldal*.nupkg
+    displayName: 'nuget pkg'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
 - job: 'LinuxMakeGNU_MKL_Conda'
   timeoutInMinutes: 300
@@ -217,7 +217,7 @@ jobs:
       conda create -y -n $(CONDA_ENV)
       conda activate $(CONDA_ENV)
       conda install -y -c conda-forge \
-          make \
+          make lld \
           dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
           tbb tbb-devel \
           onedpl-devel \
@@ -234,7 +234,7 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       export TBBROOT="${CONDA_PREFIX}"
-      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
+      .ci/scripts/build.sh --compiler gnu --optimizations avx2 --optflag O0 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
     displayName: 'make onedal_c'
   - script: |
@@ -315,7 +315,7 @@ jobs:
       path: $(OPENBLAS_CACHE_DIR)
       cacheHitVar: OPENBLAS_RESTORED
   - script: |
-      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
+      .ci/env/openblas.sh --target RISCV64_ZVL128B --host-compiler gcc --compiler clang --optflag O0 --target-arch riscv64 --cross-compile --prefix $(OPENBLAS_CACHE_DIR) --sysroot $(SYSROOT_CACHE_DIR) --version $(OPENBLAS_VERSION)
     displayName: 'Build OpenBLAS'
     condition: ne(variables.OPENBLAS_RESTORED, 'true')
   - task: Cache@2
@@ -329,10 +329,10 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations  rv64 --optflag O0 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations rv64 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --optflag O0 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make onedal_c'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -571,23 +571,31 @@ jobs:
     displayName: 'bazel-cache-limit'
 
 - job: LinuxSklearnex
-  dependsOn: LinuxMakeGNU_MKL
+  dependsOn: LinuxMakeIntel_MKL
   timeoutInMinutes: 0
   variables:
-    release.dir: '__release_lnx_gnu'
+    release.dir: '__release_lnx'
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
     TBBROOT: '/opt/intel/oneapi/tbb/latest'
-    NO_DPC: 1
     NO_DIST: 1
   pool:
     vmImage: '$(VM_IMAGE)'
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python314_Sklearn18:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
+      Python313_Sklearn18:
+        PYTHON_VERSION: '3.13'
+        SKLEARN_VERSION: '1.8'
+      Python312_Sklearn18:
+        PYTHON_VERSION: '3.12'
+        SKLEARN_VERSION: '1.8'
+      Python311_Sklearn18:
+        PYTHON_VERSION: '3.11'
+        SKLEARN_VERSION: '1.8'
   steps:
   - checkout: none
   - script: |
@@ -605,7 +613,20 @@ jobs:
       chmod -R 755 .ci/env
       .ci/env/apt.sh tbb
     displayName: 'tbb installation'
+  - script: |
+      .ci/env/apt.sh mkl
+    displayName: 'mkl installation'
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
+  - script: |
+      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
+    displayName: 'Check DPC module import no set MKL'
+    workingDirectory: /tmp
+  - script: |
+      source /opt/intel/oneapi/mkl/latest/env/vars.sh
+      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
+    displayName: 'Check DPC module import'
+    workingDirectory: /tmp
+    condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) sklearnex build'
@@ -638,18 +659,6 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\build.bat onedal_c vc avx2
     displayName: 'make onedal_c'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) build'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Upload build artifacts'
-    continueOnError: true
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: 'oneDAL scripts'
-      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
-    displayName: 'Upload environment artifacts'
-    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib msvs cmake
@@ -701,6 +710,18 @@ jobs:
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\build.bat onedal_dpc icx avx2
     displayName: 'make onedal_dpc'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) build'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Upload build artifacts'
+    continueOnError: true
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: 'oneDAL scripts'
+      targetPath: '$(Build.Repository.LocalPath)/.ci/scripts'
+    displayName: 'Upload environment artifacts'
+    continueOnError: true
   - script: |
       call %TEMP%\oneapi\setvars.bat --force
       .\.ci\scripts\test.bat daal\cpp lib icx cmake
@@ -717,13 +738,20 @@ jobs:
       tree -h -I include __nuget/inteldal*/
       ls -lh __nuget/inteldal*.nupkg
     displayName: 'nuget pkg'
+  - task: PublishPipelineArtifact@1
+    inputs:
+      artifactName: '$(platform.type) fail'
+      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
+    displayName: 'Uploading on fail'
+    condition: failed()
+    continueOnError: true
 
 
 - job: WindowsSklearnex
-  dependsOn: WindowsMakeVC
+  dependsOn: WindowsMakeIntel
   timeoutInMinutes: 0
   variables:
-    release.dir: '__release_win_vc'
+    release.dir: '__release_win'
     platform.type: 'win32e'
     DALROOT: '$(Pipeline.Workspace)\daal\latest'
     TBBROOT: '%TEMP%\oneapi\tbb\latest'
@@ -732,9 +760,18 @@ jobs:
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python314_Sklearn18:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
+      Python313_Sklearn18:
+        PYTHON_VERSION: '3.13'
+        SKLEARN_VERSION: '1.8'
+      Python312_Sklearn18:
+        PYTHON_VERSION: '3.12'
+        SKLEARN_VERSION: '1.8'
+      Python311_Sklearn18:
+        PYTHON_VERSION: '3.11'
+        SKLEARN_VERSION: '1.8'
   steps:
   - checkout: none
   - script: |
@@ -749,8 +786,14 @@ jobs:
       artifact: '$(platform.type) build'
       path: $(Pipeline.Workspace)
   - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
-    displayName: 'TBB installation'
+    displayName: 'Toolkit installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
+  - script: |
+      call "%TEMP%\oneapi\setvars.bat" --force
+      conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
+    displayName: 'Check DPC module import'
+    workingDirectory: $(Agent.TempDirectory)
+    condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) sklearnex build'

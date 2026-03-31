@@ -27,6 +27,7 @@ show_help() {
     column -t -s":" <<< '--help:Show this help message
 --compiler:The compiler toolchain to use. This is a value that is recognised by the oneDAL top level Makefile, and must be one of [gnu, clang, icx]
 --optimizations:The microarchitecture to optimize the build for. This is a value that is recognised by the oneDAL top level Makefile
+--sycl-split:The SYCL device code split mode to use. This is a value that is recognised by the oneDAL top level Makefile and must be one of [off, per_device, per_kernel]
 --target:The oneDAL target to build. This is passed directly to the oneDAL top level Makefile. Multiple targets can be passed by supplying a space-separated string as an argument
 --backend-config:The optimised backend CPU library to use. Must be one of [mkl, ref]
 --conda-env:The name of the conda environment to load
@@ -51,6 +52,15 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --optimizations)
         optimizations="$2"
+        shift;;
+        --optflag)
+        optflag="$2"
+        shift;;
+        --linker)
+        linker="$2"
+        shift;;
+        --sycl-split)
+        sycl_split="$2"
         shift;;
         --target)
         target="$2"
@@ -105,6 +115,8 @@ OS=${PLAT::3}
 ARCH=${PLAT:3}
 
 backend_config=${backend_config:-mkl}
+sycl_split=${sycl_split:-off}
+optflag=${optflag:-O2}
 
 if [ "${OS}" == "lnx" ]; then
     if [ "${conda_env}" != "" ]; then
@@ -264,6 +276,9 @@ make_options=("${target:-onedal_c}"
     REQCPU="${optimizations}"
     BACKEND_CONFIG="${backend_config}"
     PLAT="${PLAT}"
+    OPTFLAG="${optflag}"
+    SYCLSPLIT="${sycl_split}"
+    LINKER="${linker}"
 )
 
 if [ "${cross_compile}" == "yes" ] && [ "${compiler}" == "clang" ] ; then
