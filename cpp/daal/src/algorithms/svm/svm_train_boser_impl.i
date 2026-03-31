@@ -115,21 +115,17 @@ services::Status SVMTrainTask<algorithmFPType, cpu>::compute(const KernelParamet
     {
         int Bi, Bj;
         algorithmFPType delta, ma, Ma;
+        _nIterations = iter;
         if (!findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) return s;
 
         if (curEps < eps)
         {
             /* Check the optimality condition for the task with excluded variables */
             if (unshrink && nActiveVectors < _nVectors) s = reconstructGradient(nActiveVectors);
-            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s))
-            {
-                _nIterations = iter;
-                return s;
-            }
+            if (!s || !findMaximumViolatingPair(nActiveVectors, tau, Bi, Bj, delta, ma, Ma, curEps, s)) return s;
             if (curEps < eps)
             {
                 /* Here if the optimality condition holds for the excluded variables */
-                _nIterations = iter;
                 return s;
             }
             shrinkingIter = 0;
