@@ -24,9 +24,9 @@
 #ifndef __ENGINE_IMPL_H__
 #define __ENGINE_IMPL_H__
 
-#include "algorithms/algorithm.h"
 #include "services/daal_defines.h"
 #include "algorithms/engines/engine.h"
+#include "algorithms/algorithm.h"
 #include "src/algorithms/engines/engine_types.h"
 
 namespace daal
@@ -35,19 +35,23 @@ namespace algorithms
 {
 namespace engines
 {
-namespace internal
+namespace interface1
 {
+
+// Bring batch enum into scope to avoid ambiguity with Batch class names
+using ::daal::batch;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
  *  \brief Class representing an engine (internal implementation)
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public daal::algorithms::engines::EngineIface, public daal::algorithms::Analysis<batch>
+class BatchBase : public EngineIface, public daal::algorithms::Analysis<batch>
 {
 public:
-    typedef algorithms::engines::internal::Input InputType;
-    typedef algorithms::engines::internal::Result ResultType;
+    typedef algorithms::engines::Input InputType;
+    typedef algorithms::engines::Result ResultType;
 
     InputType input; /*!< Input of the engine */
 
@@ -110,9 +114,9 @@ protected:
 };
 typedef services::SharedPtr<BatchBase> EnginePtr;
 
-} // namespace internal
-using internal::BatchBase;
-using internal::EnginePtr;
+} // namespace interface1
+using interface1::BatchBase;
+using interface1::EnginePtr;
 } // namespace engines
 } // namespace algorithms
 } // namespace daal
