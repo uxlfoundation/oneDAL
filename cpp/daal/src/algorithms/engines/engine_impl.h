@@ -105,7 +105,7 @@ protected:
     virtual services::Status loadStateImpl(const byte * /*src*/) { return services::Status(); }
     virtual services::Status leapfrogImpl(size_t /*threadNum*/, size_t /*nThreads*/) { return services::Status(services::ErrorMethodNotSupported); }
     virtual services::Status skipAheadImpl(size_t /*nSkip*/) { return services::Status(); }
-    virtual BatchBase * cloneImpl() const override = 0;
+    virtual BatchBase * cloneImpl() const = 0;
 };
 typedef services::SharedPtr<BatchBase> EnginePtr;
 
