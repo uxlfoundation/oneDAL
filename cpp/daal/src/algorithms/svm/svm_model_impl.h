@@ -35,7 +35,7 @@ using namespace data_management;
 /**
  * \brief Class that implements the methods for models trained with the SVM algorithm
  */
-class ModelInternal
+class DAAL_EXPORT ModelInternal
 {
 public:
     /**
