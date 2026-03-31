@@ -24,8 +24,9 @@
 #ifndef __ENGINE_IMPL_H__
 #define __ENGINE_IMPL_H__
 
-#include "algorithms/engines/engine.h"
 #include "algorithms/algorithm.h"
+#include "services/daal_defines.h"
+#include "algorithms/engines/engine.h"
 #include "src/algorithms/engines/engine_types.h"
 
 namespace daal
@@ -42,7 +43,7 @@ namespace internal
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public daal::algorithms::engines::EngineIface, public daal::algorithms::Analysis<daal::batch>
+class BatchBase : public daal::algorithms::engines::EngineIface, public daal::algorithms::Analysis<batch>
 {
 public:
     typedef algorithms::engines::internal::Input InputType;
