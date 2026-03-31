@@ -42,7 +42,7 @@ namespace interface1
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public EngineIface, public daal::algorithms::Analysis<batch>
+class BatchBase : public EngineIface, public daal::algorithms::Analysis<daal::algorithms::batch>
 {
 public:
     typedef algorithms::engines::Input InputType;
