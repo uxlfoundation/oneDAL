@@ -618,6 +618,10 @@ jobs:
     displayName: 'mkl installation'
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
   - script: |
+      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
+    displayName: 'Check DPC module import no set MKL'
+    workingDirectory: /tmp
+  - script: |
       source /opt/intel/oneapi/mkl/latest/env/vars.sh
       conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import'
@@ -785,9 +789,10 @@ jobs:
     displayName: 'Toolkit installation'
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - script: |
-      call %TEMP%\oneapi\setvars.bat --force
-      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
+      call "%TEMP%\oneapi\setvars.bat" --force
+      conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import'
+    workingDirectory: $(Agent.TempDirectory)
     condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
