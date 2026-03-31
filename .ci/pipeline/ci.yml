@@ -584,14 +584,17 @@ jobs:
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python314_Sklearn18:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
-      Python314_Sklearn18:
-        PYTHON_VERSION: '3.14'
+      Python313_Sklearn18:
+        PYTHON_VERSION: '3.13'
         SKLEARN_VERSION: '1.8'
-      Python310_Sklearn18:
-        PYTHON_VERSION: '3.10'
+      Python312_Sklearn18:
+        PYTHON_VERSION: '3.12'
+        SKLEARN_VERSION: '1.8'
+      Python311_Sklearn18:
+        PYTHON_VERSION: '3.11'
         SKLEARN_VERSION: '1.8'
   steps:
   - checkout: none
@@ -753,14 +756,17 @@ jobs:
     maxParallel: 2
   strategy:
     matrix:
-      Python311:
+      Python314_Sklearn18:
         PYTHON_VERSION: '$(PY_VERSION)'
         SKLEARN_VERSION: '$(SKL_VERSION)'
-      Python314_Sklearn18:
-        PYTHON_VERSION: '3.14'
+      Python313_Sklearn18:
+        PYTHON_VERSION: '3.13'
         SKLEARN_VERSION: '1.8'
-      Python310_Sklearn18:
-        PYTHON_VERSION: '3.10'
+      Python312_Sklearn18:
+        PYTHON_VERSION: '3.12'
+        SKLEARN_VERSION: '1.8'
+      Python311_Sklearn18:
+        PYTHON_VERSION: '3.11'
         SKLEARN_VERSION: '1.8'
   steps:
   - checkout: none
