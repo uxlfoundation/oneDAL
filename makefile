@@ -793,7 +793,7 @@ $(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP)
                               @$(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
 
 ifndef  OS_is_win
-$(ONEAPI.objs_a.dpc): COPT += $(-DEBC_DPCPP)
+$(ONEAPI.objs_y.dpc): COPT += $(-DEBC_DPCPP)
 endif
 
 $(eval $(call update_copt_from_dispatcher_tag,$(ONEAPI.objs_y.dpc),.dpcpp))
