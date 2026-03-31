@@ -140,7 +140,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # Debug flags are defined per compiler in dev/make/compiler_definitions/ under -DEBC,
 # they are always enabled when the REQDBG flag is set.
 -DEBC          := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.$(COMPILER)),$(-DEBC.$(COMPILER)) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)) -DTBB_SUPPRESS_DEPRECATED_MESSAGES -D__TBB_LEGACY_MODE
--DEBC_DPCPP    := $(if $(REQDBG),$(if $(filter symbols,$(REQDBG)),$(-DEBC.dpcpp),$(-DEBC.dpcpp) -DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT))
+-DEBC_DPCPP    := $(if $(OS_is_lnx),$(if $(REQDBG),-DEBC.dpcpp $(if $(filter symbols,$(REQDBG)),,-DDEBUG_ASSERT -DONEDAL_ENABLE_ASSERT)))
 -DEBL          := $(if $(REQDBG),$(if $(OS_is_win),-debug,))
 -DGCOV_BUILD   := $(if $(filter yes,$(GCOV_ENABLED)),-DGCOV_BUILD)
 # NOTE: only some compilers support other sanitizers, failure is expected by design in order to not
@@ -148,7 +148,7 @@ y              := $(notdir $(filter $(_OS)/%,lnx/so win/dll mac/dylib))
 # explicitly specified. ASan can be statically linked with special value "static", normal use of ASan set with REQSAN=address.
 -sanitize      := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address,$(REQSAN)) -fno-omit-frame-pointer)
 -lsanitize     := $(if $(REQSAN),-fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.$(COMPILER)),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.$(COMPILER)))))
--lsanitize.dpc := $(if $(REQSAN),-Xarch_host -fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.dpcpp),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.dpcpp))))
+-lsanitize.dpc := $(if $(OS_is_lnx),$(if $(REQSAN),-Xarch_host -fsanitize=$(if $(filter static,$(word 1,$(REQSAN))),address $(-asanstatic.dpcpp),$(REQSAN)$(if $(filter address,$(word 1,$(REQSAN))), $(-asanshared.dpcpp)))),),)
 -EHsc          := $(if $(OS_is_win),-EHsc,)
 -isystem       := $(if $(OS_is_win),-I,-isystem)
 -sGRP          := $(if $(OS_is_lnx),-Wl$(comma)--start-group,)
