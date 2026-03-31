@@ -74,7 +74,7 @@ void ModelInternal::setBias(double bias)
     daal::internal::WriteOnlyRows<double, DAAL_BASE_CPU> mtBiases(_biases.get(), 0, 1);
     if (mtBiases.get() == nullptr) return;
     double * const biases = mtBiases.get();
-    biases[0]             = static_cast<double>(bias);
+    biases[0]             = bias;
 }
 
 data_management::NumericTablePtr ModelInternal::getBiases() const
