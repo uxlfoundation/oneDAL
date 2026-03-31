@@ -53,7 +53,7 @@ ModelInternal::ModelInternal(modelFPType dummy, size_t nClasses, size_t nColumns
         _SV = dm::HomogenNumericTable<modelFPType>::create(NULL, nColumns, 0, &st);
     }
     if (!st) return;
-    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, 1, 0, &st);
+    _SVCoeff = dm::HomogenNumericTable<modelFPType>::create(NULL, nClasses - 1, 0, &st);
     if (!st) return;
     _SVIndices = dm::HomogenNumericTable<int>::create(NULL, 1, 0, &st);
     if (!st) return;
