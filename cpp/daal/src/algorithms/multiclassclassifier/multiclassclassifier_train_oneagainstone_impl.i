@@ -179,6 +179,11 @@ services::Status MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType,
             WriteOnlyColumns<double, cpu> mtBiases(biasesTable.get(), 0, imodel, 1);
             DAAL_CHECK_BLOCK_STATUS_THR(mtBiases);
             *mtBiases.get() = svmModelPtr->getBias();
+
+            auto iterationsTable = svmModel->getNumberOfIterations();
+            WriteOnlyColumns<int, cpu> mtIterations(iterationsTable.get(), 0, imodel, 1);
+            DAAL_CHECK_BLOCK_STATUS_THR(mtIterations);
+            *mtIterations.get() = svmModelPtr->getNumberOfIterations()->getValue<int>(0, 0);
         }
     });
     lsTask.reduce([=, &safeStat](TSubTask * local) { delete local; });
