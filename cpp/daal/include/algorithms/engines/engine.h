@@ -75,10 +75,12 @@ typedef services::SharedPtr<EngineIface> EngineIfacePtr;
 
 /**
  * Creates a random number engine of specified type
+ * \tparam algorithmFPType  Data type for the engine (float or double)
  * \param[in] type  Type of the engine to create
  * \param[in] seed  Initial seed for the engine
  * \return Pointer to the newly created engine
  */
+template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE>
 DAAL_EXPORT EngineIfacePtr createEngine(EngineType type, size_t seed = 777);
 
 } // namespace interface1

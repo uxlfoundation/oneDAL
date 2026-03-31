@@ -36,7 +36,7 @@ namespace engines
  * @ingroup engines
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__FAMILYBATCHBASE"></a>
@@ -44,7 +44,7 @@ namespace interface1
  *
  * \DAAL_DEPRECATED
  */
-class DAAL_EXPORT FamilyBatchBase : public engines::BatchBase
+class FamilyBatchBase : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -98,9 +98,9 @@ private:
 };
 typedef services::SharedPtr<FamilyBatchBase> FamilyEnginePtr;
 
-} // namespace interface1
-using interface1::FamilyBatchBase;
-using interface1::FamilyEnginePtr;
+} // namespace internal
+using internal::FamilyBatchBase;
+using internal::FamilyEnginePtr;
 /** @} */
 } // namespace engines
 } // namespace algorithms

@@ -34,7 +34,7 @@ namespace algorithms
 {
 namespace engines
 {
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
@@ -109,9 +109,9 @@ protected:
 };
 typedef services::SharedPtr<BatchBase> EnginePtr;
 
-} // namespace interface1
-using interface1::BatchBase;
-using interface1::EnginePtr;
+} // namespace internal
+using internal::BatchBase;
+using internal::EnginePtr;
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

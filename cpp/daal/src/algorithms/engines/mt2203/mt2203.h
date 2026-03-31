@@ -40,7 +40,7 @@ namespace mt2203
  * @ingroup engines_mt2203
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCH"></a>
@@ -53,13 +53,13 @@ namespace interface1
  *      - mt2203::Method          Computation methods for the mt2203 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::FamilyBatchBase
+class Batch : public engines::FamilyBatchBase
 {
 public:
     typedef engines::FamilyBatchBase super;
@@ -136,10 +136,10 @@ private:
 typedef services::SharedPtr<Batch<> > mt2203Ptr;
 typedef services::SharedPtr<const Batch<> > mt2203ConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::mt2203Ptr;
-using interface1::mt2203ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mt2203Ptr;
+using internal::mt2203ConstPtr;
 /** @} */
 } // namespace mt2203
 } // namespace engines

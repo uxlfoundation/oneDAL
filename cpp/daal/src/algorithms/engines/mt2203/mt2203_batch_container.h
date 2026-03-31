@@ -41,7 +41,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT2203__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the mt2203 engine.
- *        This class is associated with the \ref mt2203::interface1::Batch "mt2203::Batch" class
+ *        This class is associated with the \ref mt2203::internal::Batch "mt2203::Batch" class
  *        and supports the method of mt2203 engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mt2203 engine, double or float

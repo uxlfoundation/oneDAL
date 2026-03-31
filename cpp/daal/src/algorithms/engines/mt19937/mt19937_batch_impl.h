@@ -39,10 +39,10 @@ namespace internal
 using namespace daal::internal;
 
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class BatchImpl : public algorithms::engines::mt19937::interface1::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
+class BatchImpl : public algorithms::engines::mt19937::internal::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
 {
 public:
-    typedef algorithms::engines::mt19937::interface1::Batch<algorithmFPType, method> super1;
+    typedef algorithms::engines::mt19937::internal::Batch<algorithmFPType, method> super1;
     typedef algorithms::engines::internal::BatchBaseImpl super2;
     BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_MT19937), super2(seed) {}
 

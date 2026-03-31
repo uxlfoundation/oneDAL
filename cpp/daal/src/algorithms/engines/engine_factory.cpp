@@ -36,18 +36,23 @@ namespace engines
 {
 namespace interface1
 {
+template <typename algorithmFPType>
 DAAL_EXPORT EngineIfacePtr createEngine(EngineType type, size_t seed)
 {
     switch (type)
     {
-    case mt19937Engine: return mt19937::Batch<>::create(seed);
-    case mt2203Engine: return mt2203::Batch<>::create(seed);
-    case mcg59Engine: return mcg59::Batch<>::create(seed);
-    case mrg32k3aEngine: return mrg32k3a::Batch<>::create(seed);
-    case philox4x32x10Engine: return philox4x32x10::Batch<>::create(seed);
+    case mt19937Engine: return mt19937::internal::Batch<algorithmFPType>::create(seed);
+    case mt2203Engine: return mt2203::internal::Batch<algorithmFPType>::create(seed);
+    case mcg59Engine: return mcg59::internal::Batch<algorithmFPType>::create(seed);
+    case mrg32k3aEngine: return mrg32k3a::internal::Batch<algorithmFPType>::create(seed);
+    case philox4x32x10Engine: return philox4x32x10::internal::Batch<algorithmFPType>::create(seed);
     default: return EngineIfacePtr();
     }
 }
+
+// Explicit instantiations
+template DAAL_EXPORT EngineIfacePtr createEngine<float>(EngineType type, size_t seed);
+template DAAL_EXPORT EngineIfacePtr createEngine<double>(EngineType type, size_t seed);
 
 } // namespace interface1
 } // namespace engines

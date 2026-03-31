@@ -41,7 +41,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the mrg32k3a engine.
- *        This class is associated with the \ref mrg32k3a::interface1::Batch "mrg32k3a::Batch" class
+ *        This class is associated with the \ref mrg32k3a::internal::Batch "mrg32k3a::Batch" class
  *        and supports the method of mrg32k3a engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
