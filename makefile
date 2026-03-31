@@ -759,7 +759,7 @@ $(ONEAPI.objs_a.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) \
                               -DTBB_USE_ASSERT=0 \
                               @$(ONEAPI.tmpdir_a.dpc)/inc_a_folders.txt
 
-ifdef OS_is_win
+ifndef OS_is_win
 $(ONEAPI.objs_a.dpc): COPT += $(-DEBC_DPCPP)
 endif
 
@@ -792,7 +792,7 @@ $(ONEAPI.objs_y.dpc): COPT += $(-fPIC) $(-cxx17) $(-optlevel.dpcpp) $(-Zl_DPCPP)
                               -DTBB_USE_ASSERT=0 \
                               @$(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt
 
-ifdef OS_is_win
+ifndef  OS_is_win
 $(ONEAPI.objs_a.dpc): COPT += $(-DEBC_DPCPP)
 endif
 
