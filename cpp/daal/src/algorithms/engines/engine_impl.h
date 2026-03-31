@@ -42,11 +42,11 @@ namespace internal
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public EngineIface, public daal::algorithms::Analysis<batch>
+class BatchBase : public daal::algorithms::engines::EngineIface, public daal::algorithms::Analysis<daal::batch>
 {
 public:
-    typedef algorithms::engines::Input InputType;
-    typedef algorithms::engines::Result ResultType;
+    typedef algorithms::engines::internal::Input InputType;
+    typedef algorithms::engines::internal::Result ResultType;
 
     InputType input; /*!< Input of the engine */
 
