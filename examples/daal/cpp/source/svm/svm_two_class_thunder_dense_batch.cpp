@@ -18,7 +18,7 @@
 /*
 !  Content:
 !    C++ example of two-class support vector machine (SVM) classification using
-!    the Thunder method
+!    the Thunder method with different kernel functions (Linear and RBF)
 !
 !******************************************************************************/
 
@@ -40,16 +40,13 @@ const std::string trainDatasetLabelFileName = "data/svm_two_class_train_dense_la
 const std::string testDatasetFileName = "data/svm_two_class_test_dense_data.csv";
 const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_label.csv";
 
-/* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
-
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;
 classifier::prediction::ResultPtr predictionResult;
 
-void trainModel();
-void testModel();
-void printResults();
+void trainModel(const kernel_function::KernelIfacePtr & kernel);
+void testModel(const kernel_function::KernelIfacePtr & kernel);
+void printResults(const std::string & header);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,
@@ -60,15 +57,26 @@ int main(int argc, char* argv[]) {
                    &testDatasetFileName,
                    &testDatasetLabelFileName);
 
-    trainModel();
-    testModel();
-    printResults();
+    /* Create kernel functions using the factory */
+    kernel_function::KernelIfacePtr linearKernel =
+        kernel_function::createKernelFunction(kernel_function::linearKernel);
+    kernel_function::KernelIfacePtr rbfKernel =
+        kernel_function::createKernelFunction(kernel_function::rbfKernel);
+
+    /* Train and test with Linear kernel */
+    trainModel(linearKernel);
+    testModel(linearKernel);
+    printResults("Linear kernel");
+
+    /* Train and test with RBF kernel */
+    trainModel(rbfKernel);
+    testModel(rbfKernel);
+    printResults("RBF kernel");
 
     return 0;
 }
 
-void trainModel() {
-    /* Create Numeric Tables for training data and dependent variables */
+void trainModel(const kernel_function::KernelIfacePtr & kernel) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
      * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
@@ -97,7 +105,7 @@ void trainModel() {
     trainingResult = algorithm.getResult();
 }
 
-void testModel() {
+void testModel(const kernel_function::KernelIfacePtr & kernel) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
      * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
@@ -123,16 +131,19 @@ void testModel() {
     predictionResult = algorithm.getResult();
 }
 
-void printResults() {
+void printResults(const std::string & header) {
     FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
     testLabelSource.loadDataBlock();
 
+    const std::string message =
+        "SVM classification with " + header + " (first 20 observations):";
+
     printNumericTables<int, float>(testLabelSource.getNumericTable(),
                                    predictionResult->get(classifier::prediction::prediction),
                                    "Ground truth\t",
                                    "Classification results",
-                                   "SVM classification results (first 20 observations):",
+                                   message,
                                    20);
 }

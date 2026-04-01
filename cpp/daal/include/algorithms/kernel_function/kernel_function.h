@@ -17,7 +17,7 @@
 
 /*
 //++
-//  Implementation of the kernel function interface.
+//  Public interface for kernel functions.
 //--
 */
 
@@ -34,12 +34,24 @@ namespace algorithms
 {
 namespace kernel_function
 {
-namespace interface1
-{
 /**
  * @addtogroup kernel_function
  * @{
  */
+
+/**
+ * <a name="DAAL-ENUM-ALGORITHMS__KERNEL_FUNCTION__KERNELFUNCTIONTYPE"></a>
+ * \brief Available kernel function types
+ */
+enum KernelFunctionType
+{
+    linearKernel     = 0, /*!< Linear kernel function: k(X,Y) + b */
+    rbfKernel        = 1, /*!< Radial Basis Function (RBF) kernel */
+    polynomialKernel = 2  /*!< Polynomial kernel function */
+};
+
+namespace interface1
+{
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__KERNELIFACE"></a>
  * \brief Abstract class that specifies the interface of the algorithms
@@ -110,11 +122,21 @@ private:
     KernelIface & operator=(const KernelIface &);
 };
 typedef services::SharedPtr<KernelIface> KernelIfacePtr;
-/** @} */
+
+/**
+ * Creates a kernel function of specified type
+ * \tparam algorithmFPType  Data type for the kernel function (float or double)
+ * \param[in] type  Type of the kernel function to create
+ * \return Pointer to the newly created kernel function
+ */
+template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE>
+DAAL_EXPORT KernelIfacePtr createKernelFunction(KernelFunctionType type);
+
 } // namespace interface1
 using interface1::KernelIface;
 using interface1::KernelIfacePtr;
-
+using interface1::createKernelFunction;
+/** @} */
 } // namespace kernel_function
 } // namespace algorithms
 } // namespace daal

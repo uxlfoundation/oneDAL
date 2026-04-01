@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_linear.h"
 #include "src/algorithms/kernel_function/kernel_function_linear_batch_container.h"
 
 namespace daal
@@ -33,7 +33,7 @@ namespace kernel_function
 {
 namespace linear
 {
-namespace interface1
+namespace internal
 {
 template <>
 void Batch<DAAL_FPTYPE, kernel_function::linear::defaultDense>::initialize()
@@ -55,7 +55,7 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), para
 {
     initialize();
 }
-} // namespace interface1
+} // namespace internal
 } // namespace linear
 } // namespace kernel_function
 } // namespace algorithms

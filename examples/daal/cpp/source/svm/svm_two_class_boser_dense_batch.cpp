@@ -41,7 +41,8 @@ const std::string testDatasetFileName = "data/svm_two_class_test_dense_data.csv"
 const std::string testDatasetLabelFileName = "data/svm_two_class_test_dense_label.csv";
 
 /* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
+kernel_function::KernelIfacePtr kernel(
+    kernel_function::createKernelFunction(kernel_function::linearKernel));
 
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;
