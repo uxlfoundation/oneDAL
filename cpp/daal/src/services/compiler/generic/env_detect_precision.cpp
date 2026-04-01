@@ -48,7 +48,13 @@ namespace
 /// Hardware capability flag — evaluated ONCE at process start.
 /// True iff AMX-BF16 is present and OS-enabled (CPUID + XCR0 check via
 /// daal_serv_cpu_feature_detect(), which is also cached internally).
-static const bool g_hw_amx_bf16 = (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
+/// AMX-BF16 is an x86-only feature; always false on other architectures.
+#if defined(TARGET_X86_64)
+static const bool g_hw_amx_bf16 =
+    (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
+#else
+static const bool g_hw_amx_bf16 = false;
+#endif
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
