@@ -38,16 +38,13 @@ namespace engines
 namespace interface1
 {
 
-// Bring batch enum into scope to avoid ambiguity with Batch class names
-using ::daal::batch;
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
  *  \brief Class representing an engine (internal implementation)
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public EngineIface, public daal::algorithms::Analysis<batch>
+class BatchBase : public EngineIface, public daal::algorithms::Analysis<::daal::batch>
 {
 public:
     typedef algorithms::engines::Input InputType;
