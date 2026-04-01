@@ -35,12 +35,12 @@
 //--
 */
 
-#include "services/cpu_type.h"
+#include "src/services/cpu_type.h"
 #include "src/services/service_defines.h"
 
 #include <atomic>
-#include <cstdlib>  /* std::getenv */
-#include <cstring>  /* std::strcmp */
+#include <cstdlib> /* std::getenv */
+#include <cstring> /* std::strcmp */
 
 namespace
 {
@@ -48,8 +48,7 @@ namespace
 /// Hardware capability flag — evaluated ONCE at process start.
 /// True iff AMX-BF16 is present and OS-enabled (CPUID + XCR0 check via
 /// daal_serv_cpu_feature_detect(), which is also cached internally).
-static const bool g_hw_amx_bf16 =
-    (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
+static const bool g_hw_amx_bf16 = (daal_serv_cpu_feature_detect() & daal::CpuFeature::amx_bf16) != 0;
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
@@ -67,9 +66,7 @@ static daal::internal::Float32MatmulPrecision parse_env_precision()
 /// Default: read from env at startup; can be overridden at runtime.
 /// BF16GemmDispatcher combines this with g_hw_amx_bf16 to make the
 /// final dispatch decision.
-static std::atomic<int> g_float32_matmul_precision{
-    static_cast<int>(parse_env_precision())
-};
+static std::atomic<int> g_float32_matmul_precision { static_cast<int>(parse_env_precision()) };
 
 } // anonymous namespace
 
@@ -84,8 +81,7 @@ DAAL_EXPORT bool daal_has_amx_bf16()
 /// This is a plain atomic load — no hardware queries.
 DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision()
 {
-    return static_cast<daal::internal::Float32MatmulPrecision>(
-        g_float32_matmul_precision.load(std::memory_order_relaxed));
+    return static_cast<daal::internal::Float32MatmulPrecision>(g_float32_matmul_precision.load(std::memory_order_relaxed));
 }
 
 /// Set the float32 matmul precision hint.

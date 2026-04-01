@@ -150,21 +150,18 @@ static constexpr DAAL_INT kBF16MinDim = 64;
 /// Combines hardware capability (checked once at init) with the user's precision hint.
 /// This is the only place both conditions are AND-ed; call-sites check nothing else.
 static const bool g_use_bf16_gemm =
-    daal_has_amx_bf16() &&
-    (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+    daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
 
 /// Primary template: use standard BLAS for all non-float types.
 template <typename FPType, CpuType cpu>
 struct BF16GemmDispatcher
 {
     /// Computes out = B * A^T  (col-major, M=nRowsB, N=nRowsA, K=nColsA).
-    static void compute(const FPType * a, const FPType * b,
-                        DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out)
+    static void compute(const FPType * a, const FPType * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out)
     {
         const char transa = 't', transb = 'n';
         const FPType alpha = FPType(1), beta = FPType(0);
-        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha,
-                                      b, &k, a, &k, &beta, out, &m);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
     }
 };
 
@@ -174,31 +171,31 @@ struct BF16GemmDispatcher
 template <CpuType cpu>
 struct BF16GemmDispatcher<float, cpu>
 {
-    static void compute(const float * a, const float * b,
-                        DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
+    static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
     {
         if (g_use_bf16_gemm && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
         {
             const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
             const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
-            MKL_BF16 * a16  = static_cast<MKL_BF16 *>(mkl_malloc(szA * sizeof(MKL_BF16), 64));
-            MKL_BF16 * b16  = static_cast<MKL_BF16 *>(mkl_malloc(szB * sizeof(MKL_BF16), 64));
+            MKL_BF16 * a16   = static_cast<MKL_BF16 *>(mkl_malloc(szA * sizeof(MKL_BF16), 64));
+            MKL_BF16 * b16   = static_cast<MKL_BF16 *>(mkl_malloc(szB * sizeof(MKL_BF16), 64));
             if (a16 && b16)
             {
                 // BF16 = upper 16 bits of IEEE-754 float32; use memcpy to read bits safely.
                 for (size_t i = 0; i < szA; ++i)
                 {
-                    uint32_t bits; memcpy(&bits, &a[i], sizeof(bits));
+                    uint32_t bits;
+                    memcpy(&bits, &a[i], sizeof(bits));
                     a16[i] = static_cast<MKL_BF16>(bits >> 16);
                 }
                 for (size_t i = 0; i < szB; ++i)
                 {
-                    uint32_t bits; memcpy(&bits, &b[i], sizeof(bits));
+                    uint32_t bits;
+                    memcpy(&bits, &b[i], sizeof(bits));
                     b16[i] = static_cast<MKL_BF16>(bits >> 16);
                 }
                 // col-major: C = B16 * A16^T  =>  cblas NoTrans B, Trans A
-                cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans,
-                                       m, n, k, 1.0f, b16, m, a16, n, 0.0f, out, m);
+                cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16, m, a16, n, 0.0f, out, m);
                 mkl_free(a16);
                 mkl_free(b16);
                 return;
@@ -209,8 +206,7 @@ struct BF16GemmDispatcher<float, cpu>
         // Fallback: standard sgemm
         const char transa = 't', transb = 'n';
         const float alpha = 1.0f, beta = 0.0f;
-        BlasInst<float, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha,
-                                     b, &k, a, &k, &beta, out, &m);
+        BlasInst<float, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
     }
 };
 
@@ -389,21 +385,16 @@ protected:
     // compute (A x B') -- EuclideanDistances inner GEMM
     // GEMM call: out = B * A^T  (col-major: M=nRowsB, N=nRowsA, K=nColsA)
     // Dispatch to AMX-BF16 or standard BLAS is handled by BF16GemmDispatcher.
-    void computeABt(const FPType * const a, const FPType * const b,
-                    const size_t nRowsA, const size_t nColsA, const size_t nRowsB,
-                    FPType * const out)
+    void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
 #ifndef DAAL_REF
-        BF16GemmDispatcher<FPType, cpu>::compute(a, b,
-            static_cast<DAAL_INT>(nRowsB),
-            static_cast<DAAL_INT>(nRowsA),
-            static_cast<DAAL_INT>(nColsA), out);
+        BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
+                                                 out);
 #else
         const char transa = 't', transb = 'n';
         const DAAL_INT m = nRowsB, n = nRowsA, k = nColsA;
         const FPType alpha = FPType(1), beta = FPType(0);
-        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha,
-                                      b, &k, a, &k, &beta, out, &m);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
 #endif
     }
 
