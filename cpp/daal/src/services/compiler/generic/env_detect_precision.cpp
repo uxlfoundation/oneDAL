@@ -46,15 +46,20 @@ namespace
 {
 
 /// Hardware capability flag — evaluated ONCE at process start.
-/// True iff AMX-BF16 is present and OS-enabled (CPUID + XCR0 check via
-/// daal_serv_cpu_feature_detect(), which is also cached internally).
-/// AMX-BF16 is an x86-only feature; always false on other architectures.
+/// True iff AMX-BF16 is present and OS-enabled.
+/// AMX-BF16 is x86-only; always false on ARM/RISCV64.
+/// daal_serv_cpu_feature_detect() returns a DAAL_UINT64 bitmask;
+/// amx_bf16 corresponds to bit 5 (see daal::internal::CpuFeature::amx_bf16).
+static bool detect_hw_amx_bf16()
+{
 #if defined(TARGET_X86_64)
-static const bool g_hw_amx_bf16 =
-    (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
+    // CpuFeature::amx_bf16 == (1ULL << 5), defined only for x86 in cpu_type.h
+    return (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
 #else
-static const bool g_hw_amx_bf16 = false;
+    return false;
 #endif
+}
+static const bool g_hw_amx_bf16 = detect_hw_amx_bf16();
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
