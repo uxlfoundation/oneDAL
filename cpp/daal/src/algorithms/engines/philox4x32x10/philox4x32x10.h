@@ -126,7 +126,7 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    daal::algorithms::Algorithm<batch> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    BatchBase * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize();
 
