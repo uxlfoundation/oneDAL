@@ -137,9 +137,19 @@ static train_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     }
     auto table_support_indices =
         interop::convert_from_daal_homogen_table<Float>(daal_svm_model->getSupportIndices());
-    const auto trained_model = convert_from_daal_model<Task, Float>(*daal_svm_model);
+    const auto trained_model = std::make_shared<ModelImpl>(new model_interop_cls{ daal_model });
+    trained_model->class_count = class_count;
 
-    return train_result<Task>().set_model(trained_model).set_support_indices(table_support_indices);
+    auto trained_model_svm = convert_from_daal_model<Task, Float>(*daal_svm_model.get());
+
+    trained_model->support_vectors = trained_model_svm.get_support_vectors();
+    trained_model->biases = trained_model_svm.get_biases();
+    trained_model->coeffs = trained_model_svm.get_coeffs();
+    trained_model->iteration_counts = trained_model_svm.get_iteration_counts();
+
+    auto m = dal::detail::make_private<model<Task>>(trained_model);
+
+    return train_result<Task>().set_model(m).set_support_indices(table_support_indices);
 }
 
 template <typename Float, typename Method, typename Task>

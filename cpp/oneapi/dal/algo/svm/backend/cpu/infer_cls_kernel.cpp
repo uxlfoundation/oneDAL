@@ -64,18 +64,12 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     auto arr_response = array<Float>::empty(row_count * 1);
 
     const auto daal_data = interop::convert_to_daal_table<Float>(data);
-    const auto daal_support_vectors =
-        interop::convert_to_daal_table<Float>(trained_model.get_support_vectors());
-    const auto daal_coeffs = interop::convert_to_daal_table<Float>(trained_model.get_coeffs());
-    const auto daal_biases = interop::convert_to_daal_table<double>(trained_model.get_biases());
-    const auto daal_iterations =
-        interop::convert_to_daal_table<int>(trained_model.get_iteration_counts());
-
-    auto daal_model = daal_model_builder{}
-                          .set_support_vectors(daal_support_vectors)
-                          .set_coeffs(daal_coeffs)
-                          .set_biases(daal_biases)
-                          .set_iteration_counts(daal_iterations);
+    const model_interop* interop_model = dal::detail::get_impl(trained_model).get_interop();
+    if (!interop_model) {
+        throw dal::internal_error(
+            dal::detail::error_messages::input_model_does_not_match_kernel_function());
+    }
+    auto daal_model = static_cast<const model_interop_cls*>(interop_model)->get_model();
 
     const std::int64_t model_count = class_count * (class_count - 1) / 2;
     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;
@@ -101,7 +95,7 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
     interop::status_to_exception(
         interop::call_daal_kernel<Float, daal_multiclass_kernel_t>(ctx,
                                                                    daal_data.get(),
-                                                                   &daal_model,
+                                                                   daal_model.get(),
                                                                    daal_svm_model_ptr,
                                                                    daal_response.get(),
                                                                    daal_decision_function.get(),
