@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_rbf.h"
+#include "src/algorithms/kernel_function/kernel_function_rbf.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_batch_container.h"
 #include "src/algorithms/kernel_function/kernel_function_rbf_csr_fast_kernel.h"
 
@@ -34,7 +34,7 @@ namespace kernel_function
 {
 namespace rbf
 {
-namespace interface1
+namespace internal
 {
 template <>
 void Batch<DAAL_FPTYPE, kernel_function::rbf::fastCSR>::initialize()
@@ -56,7 +56,7 @@ DAAL_EXPORT BatchType::Batch(const BatchType & other) : KernelIface(other), para
 {
     initialize();
 }
-} // namespace interface1
+} // namespace internal
 } // namespace rbf
 } // namespace kernel_function
 } // namespace algorithms

@@ -48,7 +48,8 @@ services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::B
 
 multi_class_classifier::training::ResultPtr trainingResult;
 multi_class_classifier::prediction::ResultPtr predictionResult;
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
+kernel_function::KernelIfacePtr kernel(
+    kernel_function::createKernelFunction(kernel_function::linearKernel));
 
 void trainModel();
 void testModel();

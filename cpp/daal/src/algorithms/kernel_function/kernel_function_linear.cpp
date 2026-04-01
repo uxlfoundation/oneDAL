@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/kernel_function/kernel_function_types_linear.h"
+#include "src/algorithms/kernel_function/kernel_function_types_linear.h"
 #include "src/services/service_defines.h"
 
 using namespace daal::data_management;
@@ -35,7 +35,7 @@ namespace kernel_function
 {
 namespace linear
 {
-namespace interface1
+namespace internal
 {
 Parameter::Parameter(double k, double b) : ParameterBase(), k(k), b(b) {}
 
@@ -60,7 +60,7 @@ Status Input::check(const daal::algorithms::Parameter * par, int method) const
     return services::Status();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace linear
 } // namespace kernel_function
 } // namespace algorithms

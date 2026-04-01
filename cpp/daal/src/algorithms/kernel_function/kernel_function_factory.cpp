@@ -1,4 +1,4 @@
-/* file: kernel_function_types.cpp */
+/* file: kernel_function_factory.cpp */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
 *
@@ -17,12 +17,13 @@
 
 /*
 //++
-//  Implementation of kernel function Result.
+//  Implementation of kernel function factory.
 //--
 */
 
+#include "algorithms/kernel_function/kernel_function.h"
 #include "src/algorithms/kernel_function/kernel_function_linear.h"
-#include "src/algorithms/kernel_function/kernel_function_linear_batch_container.h"
+#include "src/algorithms/kernel_function/kernel_function_rbf.h"
 
 namespace daal
 {
@@ -30,8 +31,24 @@ namespace algorithms
 {
 namespace kernel_function
 {
-Result::Result() : daal::algorithms::Result(lastResultId + 1) {}
+namespace interface1
+{
+template <typename algorithmFPType>
+DAAL_EXPORT KernelIfacePtr createKernelFunction(KernelFunctionType type)
+{
+    switch (type)
+    {
+    case linearKernel: return KernelIfacePtr(new linear::internal::Batch<algorithmFPType>());
+    case rbfKernel: return KernelIfacePtr(new rbf::internal::Batch<algorithmFPType>());
+    default: return KernelIfacePtr();
+    }
+}
 
+// Explicit instantiations
+template DAAL_EXPORT KernelIfacePtr createKernelFunction<float>(KernelFunctionType type);
+template DAAL_EXPORT KernelIfacePtr createKernelFunction<double>(KernelFunctionType type);
+
+} // namespace interface1
 } // namespace kernel_function
 } // namespace algorithms
 } // namespace daal

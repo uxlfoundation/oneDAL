@@ -43,7 +43,7 @@ const std::string testLabelsFileName = "data/svm_two_class_test_sparse_labels.cs
 
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(
-    new kernel_function::linear::Batch<float, kernel_function::linear::fastCSR>());
+    kernel_function::createKernelFunction<float>(kernel_function::linearKernel));
 
 /* Model object for the SVM algorithm */
 svm::training::ResultPtr trainingResult;

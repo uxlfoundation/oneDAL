@@ -43,7 +43,8 @@ const size_t nFeatures = 20;
 const float bias = -0.562F;
 
 /* Parameters for the SVM kernel function */
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
+kernel_function::KernelIfacePtr kernel(
+    kernel_function::createKernelFunction(kernel_function::linearKernel));
 
 void testModel(svm::ModelPtr &);
 svm::ModelPtr buildModelFromTraining();

@@ -18,7 +18,7 @@
 /*
 !  Content:
 !    C++ example of multi-class support vector machine (SVM) classification using
-!    the Thunder method
+!    the Thunder method with different kernel functions (Linear and RBF)
 !
 !******************************************************************************/
 
@@ -42,17 +42,12 @@ const std::string testDatasetLabelFileName = "data/svm_multi_class_test_dense_la
 
 const size_t nClasses = 5;
 
-services::SharedPtr<svm::training::Batch<float, svm::training::thunder> > training(
-    new svm::training::Batch<float, svm::training::thunder>());
-services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::Batch<>());
-
 multi_class_classifier::training::ResultPtr trainingResult;
 multi_class_classifier::prediction::ResultPtr predictionResult;
-kernel_function::KernelIfacePtr kernel(new kernel_function::linear::Batch<>());
 
-void trainModel();
-void testModel();
-void printResults();
+void trainModel(const kernel_function::KernelIfacePtr & kernel);
+void testModel(const kernel_function::KernelIfacePtr & kernel);
+void printResults(const std::string & header);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,
@@ -63,18 +58,26 @@ int main(int argc, char* argv[]) {
                    &testDatasetFileName,
                    &testDatasetLabelFileName);
 
-    training->parameter.kernel = kernel;
-    prediction->parameter.kernel = kernel;
+    /* Create kernel functions using the factory */
+    kernel_function::KernelIfacePtr linearKernel =
+        kernel_function::createKernelFunction(kernel_function::linearKernel);
+    kernel_function::KernelIfacePtr rbfKernel =
+        kernel_function::createKernelFunction(kernel_function::rbfKernel);
 
-    trainModel();
-    testModel();
-    printResults();
+    /* Train and test with Linear kernel */
+    trainModel(linearKernel);
+    testModel(linearKernel);
+    printResults("Linear kernel");
+
+    /* Train and test with RBF kernel */
+    trainModel(rbfKernel);
+    testModel(rbfKernel);
+    printResults("RBF kernel");
 
     return 0;
 }
 
-void trainModel() {
-    /* Create Numeric Tables for training data and dependent variables */
+void trainModel(const kernel_function::KernelIfacePtr & kernel) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
      * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
@@ -86,6 +89,13 @@ void trainModel() {
     /* Retrieve the data from the input file */
     trainDataSource.loadDataBlock();
     trainLabelSource.loadDataBlock();
+
+    services::SharedPtr<svm::training::Batch<float, svm::training::thunder> > training(
+        new svm::training::Batch<float, svm::training::thunder>());
+    services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::Batch<>());
+
+    training->parameter.kernel = kernel;
+    prediction->parameter.kernel = kernel;
 
     /* Create an algorithm object to train the multi-class SVM model */
     multi_class_classifier::training::Batch<> algorithm(nClasses);
@@ -104,7 +114,7 @@ void trainModel() {
     trainingResult = algorithm.getResult();
 }
 
-void testModel() {
+void testModel(const kernel_function::KernelIfacePtr & kernel) {
     /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
      * a .csv file */
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
@@ -112,6 +122,13 @@ void testModel() {
                                                      DataSource::doDictionaryFromContext);
 
     testDataSource.loadDataBlock();
+
+    services::SharedPtr<svm::training::Batch<float, svm::training::thunder> > training(
+        new svm::training::Batch<float, svm::training::thunder>());
+    services::SharedPtr<svm::prediction::Batch<> > prediction(new svm::prediction::Batch<>());
+
+    training->parameter.kernel = kernel;
+    prediction->parameter.kernel = kernel;
 
     /* Create an algorithm object to predict multi-class SVM values */
     multi_class_classifier::prediction::Batch<> algorithm(nClasses);
@@ -131,17 +148,20 @@ void testModel() {
     predictionResult = algorithm.getResult();
 }
 
-void printResults() {
+void printResults(const std::string & header) {
     FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
     testLabelSource.loadDataBlock();
+
+    const std::string message =
+        "Multi-class SVM classification with " + header + " (first 20 observations):";
 
     printNumericTables<int, int>(
         testLabelSource.getNumericTable(),
         predictionResult->get(multi_class_classifier::prediction::prediction),
         "Ground truth",
         "Classification results",
-        "Multi-class SVM classification sample program results (first 20 observations):",
+        message,
         20);
 }
