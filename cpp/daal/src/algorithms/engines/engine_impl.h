@@ -38,9 +38,6 @@ namespace engines
 namespace interface1
 {
 
-// Bring batch enum into scope to avoid ambiguity with Batch class names
-using ::daal::batch;
-
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
  *  \brief Class representing an engine (internal implementation)
@@ -55,7 +52,6 @@ public:
 
     InputType input; /*!< Input of the engine */
 
-    BatchBase() {}
     virtual ~BatchBase() {}
 
     /**
@@ -96,21 +92,24 @@ public:
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<EngineIface> clone() const override { return services::SharedPtr<BatchBase>(cloneImpl()); }
+    services::SharedPtr<EngineIface> clone() const override { return cloneBatch(); }
 
     /**
      * Returns a pointer to the newly allocated engine (BatchBase type)
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<BatchBase> cloneBatch() const { return services::SharedPtr<BatchBase>(cloneImpl()); }
+    services::SharedPtr<BatchBase> cloneBatch() const
+    {
+        daal::algorithms::Algorithm<batch> * alg = this->Analysis<batch>::cloneImpl();
+        return services::SharedPtr<BatchBase>(static_cast<BatchBase*>(alg));
+    }
 
 protected:
     virtual services::Status saveStateImpl(byte * /*dest*/) const { return services::Status(); }
     virtual services::Status loadStateImpl(const byte * /*src*/) { return services::Status(); }
     virtual services::Status leapfrogImpl(size_t /*threadNum*/, size_t /*nThreads*/) { return services::Status(services::ErrorMethodNotSupported); }
     virtual services::Status skipAheadImpl(size_t /*nSkip*/) { return services::Status(); }
-    BatchBase * cloneImpl() const override = 0;
 };
 typedef services::SharedPtr<BatchBase> EnginePtr;
 
