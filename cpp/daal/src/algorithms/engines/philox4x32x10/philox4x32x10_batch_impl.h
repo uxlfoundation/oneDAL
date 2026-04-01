@@ -85,7 +85,7 @@ public:
         return s;
     }
 
-    BatchBase * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     bool hasSupport(engines::internal::ParallelizationTechnique technique) const override
     {

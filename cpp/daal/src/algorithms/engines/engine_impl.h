@@ -38,13 +38,18 @@ namespace engines
 namespace interface1
 {
 
+// Non-covariant return type for cloneImpl() overrides.
+// Using the exact base class return type avoids MSVC C1075 error caused by
+// covariant return thunk generation with multiple inheritance (EngineIface + Analysis<batch>).
+using EngineCloneReturnType = daal::algorithms::Algorithm<batch>;
+
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
  *  \brief Class representing an engine (internal implementation)
  *
  * \DAAL_DEPRECATED Internal use only
  */
-class BatchBase : public EngineIface, public daal::algorithms::Analysis<::daal::batch>
+class BatchBase : public EngineIface, public daal::algorithms::Analysis<batch>
 {
 public:
     typedef algorithms::engines::Input InputType;
@@ -93,25 +98,33 @@ public:
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<EngineIface> clone() const override { return services::SharedPtr<BatchBase>(cloneImpl()); }
+    services::SharedPtr<EngineIface> clone() const override
+    {
+        return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl()));
+    }
 
     /**
      * Returns a pointer to the newly allocated engine (BatchBase type)
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<BatchBase> cloneBatch() const { return services::SharedPtr<BatchBase>(cloneImpl()); }
+    services::SharedPtr<BatchBase> cloneBatch() const
+    {
+        return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl()));
+    }
 
 protected:
     virtual services::Status saveStateImpl(byte * /*dest*/) const { return services::Status(); }
     virtual services::Status loadStateImpl(const byte * /*src*/) { return services::Status(); }
     virtual services::Status leapfrogImpl(size_t /*threadNum*/, size_t /*nThreads*/) { return services::Status(services::ErrorMethodNotSupported); }
     virtual services::Status skipAheadImpl(size_t /*nSkip*/) { return services::Status(); }
-    BatchBase * cloneImpl() const override = 0;
+    // cloneImpl() inherited from Algorithm<batch> — not redeclared here to avoid
+    // covariant return, which triggers MSVC C1075 with multiple inheritance
 };
 typedef services::SharedPtr<BatchBase> EnginePtr;
 
 } // namespace interface1
+using interface1::EngineCloneReturnType;
 using interface1::BatchBase;
 using interface1::EnginePtr;
 } // namespace engines

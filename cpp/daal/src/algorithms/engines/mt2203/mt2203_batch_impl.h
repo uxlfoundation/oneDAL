@@ -147,7 +147,7 @@ public:
         return s;
     }
 
-    BatchBase * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     size_t getNumberOfStreamsImpl() const override { return _streams.size(); }
 

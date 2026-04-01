@@ -124,7 +124,7 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    BatchBase * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize();
 
