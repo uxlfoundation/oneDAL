@@ -24,6 +24,7 @@
 #ifndef __SERVICE_KERNEL_MATH_H__
 #define __SERVICE_KERNEL_MATH_H__
 
+#include <cstring>
 #include <type_traits>
 
 #include "services/daal_defines.h"
@@ -46,6 +47,7 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_profiler.h"
 
+#include <mutex>
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include "immintrin.h"
 #endif
@@ -122,6 +124,94 @@ public:
     virtual services::Status finalize(const size_t n, FPType * a) = 0;
 };
 
+// ---------------------------------------------------------------------------
+// BF16GemmDispatcher
+//
+// Encapsulates the decision of whether to use AMX-BF16 for a float32 GEMM,
+// and performs the conversion + dispatch when eligible.
+//
+// Design principles:
+//  - Hardware availability is already folded into daal_get_float32_matmul_precision()
+//    at initialisation time (see env_detect_precision.cpp). Call-sites only
+//    query the effective precision; no hardware checks here.
+//  - The effective precision is cached as a translation-unit-level static bool
+//    so the hot path is a single branch on a compile-time-constant-like value.
+//  - Matrix-size threshold (kMinDim) is owned by the dispatcher, not the caller.
+//  - Primary template handles all non-float types with zero overhead.
+// ---------------------------------------------------------------------------
+
+#ifndef DAAL_REF
+
+/// Minimum GEMM dimension for which AMX-BF16 is profitable.
+/// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
+static constexpr DAAL_INT kBF16MinDim = 64;
+
+/// Whether AMX-BF16 GEMM is usable in this process.
+/// Combines hardware capability (checked once at init) with the user's precision hint.
+/// This is the only place both conditions are AND-ed; call-sites check nothing else.
+static const bool g_use_bf16_gemm =
+    daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+
+/// Primary template: use standard BLAS for all non-float types.
+template <typename FPType, CpuType cpu>
+struct BF16GemmDispatcher
+{
+    /// Computes out = B * A^T  (col-major, M=nRowsB, N=nRowsA, K=nColsA).
+    static void compute(const FPType * a, const FPType * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out)
+    {
+        const char transa = 't', transb = 'n';
+        const FPType alpha = FPType(1), beta = FPType(0);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+    }
+};
+
+/// float specialization: use AMX-BF16 GEMM when precision hint allows it
+/// and all dimensions are >= kBF16MinDim; fall back to sgemm otherwise.
+/// BF16 conversion uses memcpy to avoid strict-aliasing UB (C++17 [basic.lval]).
+template <CpuType cpu>
+struct BF16GemmDispatcher<float, cpu>
+{
+    static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
+    {
+        if (g_use_bf16_gemm && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
+        {
+            const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
+            const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
+            MKL_BF16 * a16   = static_cast<MKL_BF16 *>(mkl_malloc(szA * sizeof(MKL_BF16), 64));
+            MKL_BF16 * b16   = static_cast<MKL_BF16 *>(mkl_malloc(szB * sizeof(MKL_BF16), 64));
+            if (a16 && b16)
+            {
+                // BF16 = upper 16 bits of IEEE-754 float32; use memcpy to read bits safely.
+                for (size_t i = 0; i < szA; ++i)
+                {
+                    uint32_t bits;
+                    memcpy(&bits, &a[i], sizeof(bits));
+                    a16[i] = static_cast<MKL_BF16>(bits >> 16);
+                }
+                for (size_t i = 0; i < szB; ++i)
+                {
+                    uint32_t bits;
+                    memcpy(&bits, &b[i], sizeof(bits));
+                    b16[i] = static_cast<MKL_BF16>(bits >> 16);
+                }
+                // col-major: C = B16 * A16^T  =>  cblas NoTrans B, Trans A
+                cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16, m, a16, n, 0.0f, out, m);
+                mkl_free(a16);
+                mkl_free(b16);
+                return;
+            }
+            if (a16) mkl_free(a16);
+            if (b16) mkl_free(b16);
+        }
+        // Fallback: standard sgemm
+        const char transa = 't', transb = 'n';
+        const float alpha = 1.0f, beta = 0.0f;
+        BlasInst<float, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+    }
+};
+
+#endif // !DAAL_REF
+
 // compute: sum(A^2, 2) + sum(B^2, 2) -2*A*B'
 template <typename FPType, CpuType cpu>
 class EuclideanDistances : public PairwiseDistances<FPType, cpu>
@@ -131,7 +221,7 @@ public:
         : _a(a), _b(b), _squared(squared), _isSqrtNorm(isSqrtNorm)
     {}
 
-    ~EuclideanDistances() override {}
+    virtual ~EuclideanDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::euclidean; }
 
@@ -292,22 +382,20 @@ protected:
 
         return safeStat.detach();
     }
-
-    // compute (A x B')
+    // compute (A x B') -- EuclideanDistances inner GEMM
+    // GEMM call: out = B * A^T  (col-major: M=nRowsB, N=nRowsA, K=nColsA)
+    // Dispatch to AMX-BF16 or standard BLAS is handled by BF16GemmDispatcher.
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
-        const char transa    = 't';
-        const char transb    = 'n';
-        const DAAL_INT _m    = nRowsB;
-        const DAAL_INT _n    = nRowsA;
-        const DAAL_INT _k    = nColsA;
-        const FPType alpha   = 1.0;
-        const DAAL_INT lda   = nColsA;
-        const DAAL_INT ldy   = nColsA;
-        const FPType beta    = 0.0;
-        const DAAL_INT ldaty = nRowsB;
-
-        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
+#ifndef DAAL_REF
+        BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
+                                                 out);
+#else
+        const char transa = 't', transb = 'n';
+        const DAAL_INT m = nRowsB, n = nRowsA, k = nColsA;
+        const FPType alpha = FPType(1), beta = FPType(0);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+#endif
     }
 
     const NumericTable & _a;
@@ -329,7 +417,7 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    ~CosineDistances() override {}
+    virtual ~CosineDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
@@ -372,7 +460,7 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    ~MinkowskiDistances() override {}
+    virtual ~MinkowskiDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
@@ -471,7 +559,7 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    ~ChebyshevDistances() override {}
+    virtual ~ChebyshevDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
