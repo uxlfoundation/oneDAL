@@ -52,9 +52,12 @@ namespace
 /// amx_bf16 corresponds to bit 5 (see daal::internal::CpuFeature::amx_bf16).
 static bool detect_hw_amx_bf16()
 {
-#if defined(TARGET_X86_64)
-    // CpuFeature::amx_bf16 == (1ULL << 5), defined only for x86 in cpu_type.h
-    return (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
+#if defined(TARGET_X86_64) || defined(__x86_64__) || defined(_M_X64)
+    // AMX-BF16 bit = (1ULL << 5) in daal::internal::CpuFeature (cpu_type.h).
+    // Use the numeric value directly to avoid dependency on TARGET_X86_64 guard
+    // in cpu_type.h when the macro is not set by the build system.
+    static const DAAL_UINT64 amx_bf16_mask = (1ULL << 5);
+    return (daal_serv_cpu_feature_detect() & amx_bf16_mask) != 0;
 #else
     return false;
 #endif
