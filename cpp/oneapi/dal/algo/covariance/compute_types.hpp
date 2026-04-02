@@ -118,6 +118,11 @@ public:
     /// property value
     compute_input(const table& data);
 
+    /// Do not remove the destructor
+    /// it is needed to properly handle the visibility of the class in the shared library
+    /// while compiling with -fvisibility=hidden
+    ~compute_input() override;
+
     /// An $n \\times p$ table with the training data, where each row stores one
     /// feature vector.
     /// @remark default = table{}
@@ -248,6 +253,11 @@ public:
     partial_compute_input(const table& data);
 
     partial_compute_input(const partial_compute_result<Task>& prev, const table& data);
+
+    /// Do not remove the destructor
+    /// it is needed to properly handle the visibility of the class in the shared library
+    /// while compiling with -fvisibility=hidden
+    ~partial_compute_input() override;
 
     const table& get_data() const {
         return compute_input<Task>::get_data();
