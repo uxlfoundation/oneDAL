@@ -113,7 +113,7 @@ public:
 
     /**
      * Returns support vectors constructed during the training of the SVM model
-     * \return Array of support vectors of size MxN for two-class SVM,
+     * \return Array of support vectors of size MxP for two-class SVM,
      *         where M is the number of support vectors and P is the number of features in training data
      */
     virtual data_management::NumericTablePtr getSupportVectors() const = 0;
