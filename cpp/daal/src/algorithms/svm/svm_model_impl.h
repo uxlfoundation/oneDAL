@@ -135,7 +135,6 @@ class ModelImpl : public svm::Model, protected svm::internal::ModelInternal
 {
 public:
     typedef svm::internal::ModelInternal ImplType;
-    typedef algorithms::classifier::internal::ModelImpl ClassifierImplType;
 
     /**
      * Constructs the SVM model
@@ -233,9 +232,7 @@ protected:
     template <typename Archive, bool onDeserialize>
     services::Status serialImpl(Archive * arch)
     {
-        ClassifierImplType * classifierImpl = dynamic_cast<ClassifierImplType *>(this);
-        if (!classifierImpl) return services::Status(services::ErrorIncorrectTypeOfModel);
-        services::Status st = classifierImpl->serialImpl<Archive, onDeserialize>(arch);
+        services::Status st = classifier::Model::serialImpl<Archive, onDeserialize>(arch);
         if (!st) return st;
         arch->setSharedPtrObj(_SV);
         arch->setSharedPtrObj(_SVCoeff);
@@ -245,6 +242,16 @@ protected:
         arch->setSharedPtrObj(_SVIndices);
 
         return st;
+    }
+
+    services::Status serializeImpl(data_management::InputDataArchive * arch) override
+    {
+        return serialImpl<data_management::InputDataArchive, false>(arch);
+    }
+
+    services::Status deserializeImpl(const data_management::OutputDataArchive * arch) override
+    {
+        return serialImpl<const data_management::OutputDataArchive, true>(arch);
     }
 };
 
