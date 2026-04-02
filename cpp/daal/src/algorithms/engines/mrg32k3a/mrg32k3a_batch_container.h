@@ -24,7 +24,7 @@
 #ifndef __MRG32K3A_BATCH_CONTAINER_H__
 #define __MRG32K3A_BATCH_CONTAINER_H__
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_kernel.h"
 
@@ -41,7 +41,7 @@ namespace internal
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCHCONTAINER"></a>
  * \brief Provides methods to run implementations of the mrg32k3a engine.
- *        This class is associated with the \ref mrg32k3a::interface1::Batch "mrg32k3a::Batch" class
+ *        This class is associated with the \ref mrg32k3a::internal::Batch "mrg32k3a::Batch" class
  *        and supports the method of mrg32k3a engine computation in the batch processing mode
  *
  * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float

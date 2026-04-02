@@ -25,8 +25,8 @@
 #ifndef __PHILOX4X32X10_H__
 #define __PHILOX4X32X10_H__
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -41,7 +41,7 @@ namespace philox4x32x10
  * @ingroup engines_philox4x32x10
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__philox4x32x10__BATCH"></a>
@@ -54,13 +54,13 @@ namespace interface1
  *      - philox4x32x10::Method          Computation methods for the philox4x32x10 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -107,8 +107,6 @@ public:
      * with a copy of input objects and parameters of this philox4x32x10 engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
     /**
      * Allocates memory to store the result of the philox4x32x10 engine
      *
@@ -128,7 +126,7 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize();
 
@@ -140,10 +138,10 @@ private:
 typedef services::SharedPtr<Batch<> > philox4x32x10Ptr;
 typedef services::SharedPtr<const Batch<> > philox4x32x10ConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::philox4x32x10Ptr;
-using interface1::philox4x32x10ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::philox4x32x10Ptr;
+using internal::philox4x32x10ConstPtr;
 /** @} */
 } // namespace philox4x32x10
 } // namespace engines

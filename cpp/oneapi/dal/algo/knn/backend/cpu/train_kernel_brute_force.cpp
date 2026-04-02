@@ -69,13 +69,14 @@ static train_result<Task> call_daal_kernel(const context_cpu& ctx,
         model_ptr->impl()->setLabels<Float>(daal_responses, false);
     }
 
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, daal_knn_bf_kernel_t>(ctx,
-                                                               daal_data.get(),
-                                                               daal_responses.get(),
-                                                               model_ptr.get(),
-                                                               daal_parameter,
-                                                               *daal_parameter.engine));
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_knn_bf_kernel_t>(
+        ctx,
+        daal_data.get(),
+        daal_responses.get(),
+        model_ptr.get(),
+        daal_parameter,
+        *daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+            daal_parameter.engine)));
 
     const auto model_impl = std::make_shared<brute_force_model_impl<Task>>(data, responses);
     return train_result<Task>().set_model(dal::detail::make_private<model_t>(model_impl));

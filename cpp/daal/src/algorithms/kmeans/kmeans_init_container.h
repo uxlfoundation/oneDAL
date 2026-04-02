@@ -139,7 +139,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     daal::services::Environment::env & env = *_env;
 
-    __DAAL_CALL_KERNEL(env, internal::KMeansInitKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, na, a, nr, r, par, *par->engine);
+    __DAAL_CALL_KERNEL(env, internal::KMeansInitKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, na, a, nr, r, par,
+                       *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 /**
@@ -303,8 +304,9 @@ services::Status DistributedContainer<step1Local, algorithmFPType, method, cpu>:
     NumericTable * pNumPartialClusters     = pRes->get(partialClustersNumber).get();
     Parameter * par                        = static_cast<Parameter *>(_par);
     daal::services::Environment::env & env = *_env;
-    services::Status s = __DAAL_CALL_KERNEL_STATUS(env, internal::KMeansInitStep1LocalKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType),
-                                                   compute, pData, par, pNumPartialClusters, pPartialClusters, *par->engine);
+    services::Status s =
+        __DAAL_CALL_KERNEL_STATUS(env, internal::KMeansInitStep1LocalKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, pData, par,
+                                  pNumPartialClusters, pPartialClusters, *services::dynamicPointerCast<engines::BatchBase>(par->engine));
     static_cast<PartialResult *>(_pres)->set(partialClusters, pPartialClusters); //can be null
     return s;
 }
@@ -427,7 +429,8 @@ services::Status DistributedContainer<step3Master, algorithmFPType, method, cpu>
     DAAL_CHECK(pRngState, services::ErrorNullPtr);
     const Parameter * par = (const Parameter *)(_par);
     __DAAL_CALL_KERNEL(env, internal::KMeansInitStep3MasterKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), compute, par,
-                       input->get(inputOfStep3FromStep2).get(), pRngState, pr->get(outputOfStep3ForStep4).get(), *par->engine);
+                       input->get(inputOfStep3FromStep2).get(), pRngState, pr->get(outputOfStep3ForStep4).get(),
+                       *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 template <typename algorithmFPType, Method method, CpuType cpu>
@@ -507,7 +510,8 @@ services::Status DistributedContainer<step5Master, algorithmFPType, method, cpu>
     Result * pRes                                          = static_cast<Result *>(_res);
     DAAL_CHECK(pRngState, services::ErrorNullPtr);
     __DAAL_CALL_KERNEL(env, internal::KMeansInitStep5MasterKernel, __DAAL_KERNEL_ARGUMENTS(method, algorithmFPType), finalizeCompute, par,
-                       ntCandidates, ntWeights, pRngState, pRes->get(centroids).get(), *par->engine);
+                       ntCandidates, ntWeights, pRngState, pRes->get(centroids).get(),
+                       *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 } // namespace internal

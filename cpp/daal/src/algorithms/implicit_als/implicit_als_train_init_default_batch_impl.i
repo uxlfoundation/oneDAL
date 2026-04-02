@@ -52,7 +52,7 @@ services::Status ImplicitALSInitKernelBase<algorithmFPType, cpu>::randFactors(si
     TArray<services::SharedPtr<engines::BatchBase>, cpu> engines(nBlocks - 1);
     for (size_t i = 0; i < nBlocks - 1; i++)
     {
-        engines[i] = engine.clone();
+        engines[i] = services::dynamicPointerCast<engines::BatchBase>(engine.clone());
     }
 
     daal::SafeStatus safeStatus;

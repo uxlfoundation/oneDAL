@@ -23,6 +23,7 @@
 #define __LBFGS_DENSE_DEFAULT_KERNEL_H__
 
 #include "src/algorithms/optimization_solver/lbfgs/lbfgs_base.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 using namespace daal::data_management;
 

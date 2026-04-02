@@ -19,7 +19,7 @@
 #include <limits>
 
 #include <daal/src/externals/service_rng.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
+#include "src/algorithms/engines/mcg59/mcg59.h"
 #include <daal/src/algorithms/engines/engine_batch_impl.h>
 
 #include "oneapi/dal/array.hpp"
@@ -50,7 +50,8 @@ public:
 
 private:
     void generate(sycl::queue& queue, Float a, Float b) {
-        auto engine = daal::algorithms::engines::mcg59::Batch<>::create();
+        auto engine = daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+            daal::algorithms::engines::createEngine(daal::algorithms::engines::mcg59Engine));
         auto engine_impl =
             dynamic_cast<daal::algorithms::engines::internal::BatchBaseImpl*>(&(*engine));
         ONEDAL_ASSERT(engine_impl != nullptr);

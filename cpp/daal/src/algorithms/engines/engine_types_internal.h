@@ -23,7 +23,7 @@
 #define __ENGINE_TYPES_INTERNAL_H__
 
 #include "src/algorithms/engines/engine_batch_impl.h"
-#include "algorithms/engines/engine_family.h"
+#include "src/algorithms/engines/engine_family.h"
 #include "src/services/service_arrays.h"
 
 namespace daal
@@ -53,15 +53,19 @@ private:
     size_t _numberOfStreams;
 
 public:
-    EnginesCollection(engines::EnginePtr engine, ParallelizationTechnique technique, Params<cpu> & params,
+    EnginesCollection(engines::EngineIfacePtr engineIface, ParallelizationTechnique technique, Params<cpu> & params,
                       services::internal::TArray<engines::EnginePtr, cpu> & engines, services::Status * st)
     {
-        *st = initEngines(engine, technique, params, engines);
+        // Cast EngineIfacePtr to EnginePtr for internal usage
+        engines::EnginePtr engine = services::dynamicPointerCast<engines::BatchBase>(engineIface);
+        *st                       = initEngines(engine, technique, params, engines);
     }
 
-    engines::EnginePtr getUpdatedEngine(engines::EnginePtr engine, services::internal::TArray<engines::EnginePtr, cpu> & engines,
-                                        services::internal::TArray<size_t, cpu> & numElems)
+    engines::EngineIfacePtr getUpdatedEngine(engines::EngineIfacePtr engineIface, services::internal::TArray<engines::EnginePtr, cpu> & engines,
+                                             services::internal::TArray<size_t, cpu> & numElems)
     {
+        // Cast to EnginePtr for internal operations
+        engines::EnginePtr engine = services::dynamicPointerCast<engines::BatchBase>(engineIface);
         switch (_technique)
         {
         case skipahead:
@@ -78,13 +82,13 @@ public:
                     nSkip = numElems[i];
                 }
             }
-            auto updatedEngine = engine->clone();
+            auto updatedEngine = engine->cloneBatch();
             updatedEngine->skipAhead(nSkip);
             return updatedEngine;
         }
         case family: return _clonedEngine;
         }
-        return engines::EnginePtr();
+        return engines::EngineIfacePtr();
     }
 
     services::Status initEngines(engines::EnginePtr engine, ParallelizationTechnique technique, Params<cpu> & params,
@@ -102,7 +106,7 @@ public:
         {
             for (size_t i = 0; i < _numberOfStreams; i++)
             {
-                auto engineLocal = engine->clone();
+                auto engineLocal = services::dynamicPointerCast<engines::BatchBase>(engine->clone());
                 DAAL_CHECK_STATUS_VAR(engineLocal->skipAhead(params.nSkip[i]));
                 engines[i] = engineLocal;
             }
@@ -112,7 +116,7 @@ public:
         {
             for (size_t i = 0; i < _numberOfStreams; i++)
             {
-                auto engineLocal = engine->clone();
+                auto engineLocal = services::dynamicPointerCast<engines::BatchBase>(engine->clone());
                 DAAL_CHECK_STATUS_VAR(engineLocal->leapfrog(i, params.numberOfStreams));
                 engines[i] = engineLocal;
             }

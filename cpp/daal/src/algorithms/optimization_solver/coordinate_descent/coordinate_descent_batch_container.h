@@ -99,7 +99,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
         optimization_solver::objective_function::ResultPtr(new optimization_solver::objective_function::Result());
 
     __DAAL_CALL_KERNEL(env, internal::CoordinateDescentKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, inputArgument, minimum,
-                       nIterations, parameter, *parameter->engine, hesGrResultPtr, proxResultPtr);
+                       nIterations, parameter, *services::dynamicPointerCast<engines::BatchBase>(parameter->engine), hesGrResultPtr, proxResultPtr);
 }
 
 } // namespace internal

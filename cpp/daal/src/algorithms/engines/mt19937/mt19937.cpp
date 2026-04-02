@@ -19,7 +19,7 @@
 //  Implementation of mt19937 engine
 //--
 
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/engines/mt19937/mt19937.h"
 #include "src/externals/service_dispatch.h"
 #include "src/algorithms/engines/mt19937/mt19937_batch_impl.h"
 
@@ -31,7 +31,7 @@ namespace engines
 {
 namespace mt19937
 {
-namespace interface1
+namespace internal
 {
 using namespace daal::services;
 using namespace mt19937::internal;
@@ -49,10 +49,10 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
     return engPtr;
 }
 
-template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
-template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<double, defaultDense> > Batch<double, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<float, defaultDense> > Batch<float, defaultDense>::create(size_t seed);
 
-} // namespace interface1
+} // namespace internal
 } // namespace mt19937
 } // namespace engines
 } // namespace algorithms

@@ -31,7 +31,7 @@ namespace distributions
 {
 namespace internal
 {
-ParameterBase::ParameterBase() : engine(engines::mt19937::Batch<>::create()) {}
+ParameterBase::ParameterBase() : engine(services::dynamicPointerCast<engines::BatchBase>(engines::createEngine(engines::mt19937Engine))) {}
 ParameterBase::~ParameterBase() {}
 
 Input::Input() : daal::algorithms::Input(1) {}

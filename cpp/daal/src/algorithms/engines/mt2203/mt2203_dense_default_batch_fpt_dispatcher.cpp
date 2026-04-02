@@ -30,7 +30,7 @@ namespace engines
 {
 namespace mt2203
 {
-namespace interface1
+namespace internal
 {
 template <>
 void Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::initialize()
@@ -40,7 +40,7 @@ void Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::initialize()
     _result.reset(new ResultType());
 }
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::Batch(size_t seed)
+Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::Batch(size_t seed)
 {
     initialize();
 }
@@ -48,12 +48,12 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>::Batch(size_t seed
 using BatchType = Batch<DAAL_FPTYPE, engines::mt2203::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+BatchType::Batch(const BatchType & other) : super(other)
 {
     initialize();
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mt2203
 } // namespace engines
 } // namespace algorithms

@@ -29,7 +29,7 @@
 #include "data_management/data/homogen_numeric_table.h"
 #include "data_management/data/data_collection.h"
 #include "services/daal_defines.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -296,7 +296,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
                                                    L = nClusters* oversamplingFactor points are sampled in a round. */
     size_t nRounds;            /*!< Kmeans|| only. Number of rounds for k-means||. (oversamplingFactor*nRounds) > 1 is a requirement.*/
 
-    engines::EnginePtr engine; /*!< Engine to be used for generating random numbers for the initialization */
+    engines::EngineIfacePtr engine; /*!< Engine to be used for generating random numbers for the initialization */
 
     services::Status check() const override;
 };

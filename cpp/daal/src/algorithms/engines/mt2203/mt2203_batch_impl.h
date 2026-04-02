@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/engines/mt2203/mt2203.h"
+#include "src/algorithms/engines/mt2203/mt2203.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
@@ -40,7 +40,7 @@ namespace internal
 using namespace daal::internal;
 
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class BatchImpl : public algorithms::engines::mt2203::interface1::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
+class BatchImpl : public algorithms::engines::mt2203::internal::Batch<algorithmFPType, method>, public algorithms::engines::internal::BatchBaseImpl
 {
 private:
     using BaseRNGsPtr = SharedPtr<daal::internal::BaseRNGsInst<cpu> >;
@@ -49,7 +49,7 @@ private:
     const int32_t header = 0x4441414C;
 
 public:
-    typedef algorithms::engines::mt2203::interface1::Batch<algorithmFPType, method> super1;
+    typedef algorithms::engines::mt2203::internal::Batch<algorithmFPType, method> super1;
     typedef algorithms::engines::internal::BatchBaseImpl super2;
 
     BatchImpl(size_t seed = 777, services::Status * st = nullptr) : super1(seed), super2(seed)
@@ -147,7 +147,7 @@ public:
         return s;
     }
 
-    BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     size_t getNumberOfStreamsImpl() const override { return _streams.size(); }
 
