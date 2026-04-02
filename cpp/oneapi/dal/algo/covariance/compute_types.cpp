@@ -141,6 +141,9 @@ template <typename Task>
 compute_input<Task>::compute_input(const table& data) : impl_(new compute_input_impl<Task>(data)) {}
 
 template <typename Task>
+compute_input<Task>::~compute_input() {}
+
+template <typename Task>
 const table& compute_input<Task>::get_data() const {
     return impl_->data;
 }
@@ -221,6 +224,9 @@ partial_compute_input<Task>::partial_compute_input(const partial_compute_result<
         : compute_input<Task>(data) {
     this->prev_ = prev;
 }
+
+template <typename Task>
+partial_compute_input<Task>::~partial_compute_input() {}
 
 template <typename Task>
 const result_option_id& compute_result<Task>::get_result_options() const {
