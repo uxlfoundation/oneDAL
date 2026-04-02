@@ -32,7 +32,7 @@ namespace svm
 {
 namespace internal
 {
-ModelInternal::ModelInternal() : _nIterations(), _SV(), _SVCoeff(), _SVIndices(), _biases() {}
+ModelInternal::ModelInternal() : _SV(), _SVIndices(), _SVCoeff(), _biases(), _nIterations() {}
 
 data_management::NumericTablePtr ModelInternal::getSupportVectors() const
 {
