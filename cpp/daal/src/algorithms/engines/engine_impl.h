@@ -98,20 +98,14 @@ public:
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<EngineIface> clone() const override
-    {
-        return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl()));
-    }
+    services::SharedPtr<EngineIface> clone() const override { return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl())); }
 
     /**
      * Returns a pointer to the newly allocated engine (BatchBase type)
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<BatchBase> cloneBatch() const
-    {
-        return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl()));
-    }
+    services::SharedPtr<BatchBase> cloneBatch() const { return services::SharedPtr<BatchBase>(static_cast<BatchBase *>(cloneImpl())); }
 
 protected:
     virtual services::Status saveStateImpl(byte * /*dest*/) const { return services::Status(); }
