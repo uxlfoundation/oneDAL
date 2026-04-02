@@ -70,7 +70,6 @@ static infer_result<Task> call_multiclass_daal_kernel(const context_cpu& ctx,
             dal::detail::error_messages::input_model_does_not_match_kernel_function());
     }
     auto daal_model = static_cast<const model_interop_cls*>(interop_model)->get_model();
-
     const std::int64_t model_count = class_count * (class_count - 1) / 2;
     using svm_batch_t = typename daal_svm::prediction::Batch<Float>;
 
