@@ -39,7 +39,7 @@ class DAAL_EXPORT ModelInternal
 {
 public:
     /**
-     * Constructs multi-class SVM model implemenatation
+     * Constructs multi-class SVM model implementation
      * \param[in] dummy    Data type dummy variable for the templated constructor.
      *                     Defines the data type of the model coefficients and support vectors.
      * \param[in] nClasses Number of classes in the training data
@@ -53,7 +53,7 @@ public:
                   services::Status & st);
 
     /**
-     * Constructs two-class SVM or regression SVM model implemenatation
+     * Constructs two-class SVM or regression SVM model implementation
      * \param[in] dummy    Data type dummy variable for the templated constructor.
      *                     Defines the data type of the model coefficients and support vectors.
      * \param[in] nColumns Number of columns in the training data
