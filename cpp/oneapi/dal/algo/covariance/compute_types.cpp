@@ -288,8 +288,9 @@ partial_compute_input<Task>& partial_compute_input<Task>::operator=(
 }
 
 template <typename Task>
-void swap(partial_compute_input<Task>& a, partial_compute_input<Task>& b) noexcept {
-    std::swap(a.impl_, b.impl_);
+void partial_compute_input<Task>::swap(partial_compute_input<Task>& a,
+                                       partial_compute_input<Task>& b) noexcept {
+    compute_input<Task>::swap(a, b);
     std::swap(a.prev_, b.prev_);
 }
 
