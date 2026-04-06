@@ -118,10 +118,16 @@ public:
     /// property value
     compute_input(const table& data);
 
-    /// Do not remove the destructor
-    /// it is needed to properly handle the visibility of the class in the shared library
+    /// Do not remove the destructor.
+    /// It is needed to properly handle the visibility of the class in the shared library
     /// while compiling with -fvisibility=hidden
     ~compute_input() override;
+
+    /// Rule of five methods defined here due to the difinition of the destructor.
+    compute_input(const compute_input&);
+    compute_input(compute_input&&) noexcept;
+    compute_input& operator=(const compute_input&);
+    compute_input& operator=(compute_input&&) noexcept;
 
     /// An $n \\times p$ table with the training data, where each row stores one
     /// feature vector.
@@ -137,6 +143,7 @@ protected:
     void set_data_impl(const table& value);
 
 private:
+    static void swap(compute_input<Task>& a, compute_input<Task>& b) noexcept;
     dal::detail::pimpl<detail::compute_input_impl<Task>> impl_;
 };
 
@@ -259,6 +266,12 @@ public:
     /// while compiling with -fvisibility=hidden
     ~partial_compute_input() override;
 
+    /// Rule of five methods defined here due to the difinition of the destructor.
+    partial_compute_input(const partial_compute_input&);
+    partial_compute_input(partial_compute_input&&) noexcept;
+    partial_compute_input& operator=(const partial_compute_input&);
+    partial_compute_input& operator=(partial_compute_input&&) noexcept;
+
     const table& get_data() const {
         return compute_input<Task>::get_data();
     }
@@ -278,6 +291,7 @@ public:
     }
 
 private:
+    static void swap(partial_compute_input<Task>& a, partial_compute_input<Task>& b) noexcept;
     partial_compute_result<Task> prev_;
 };
 
