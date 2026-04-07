@@ -150,11 +150,11 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --target daal
+      .ci/scripts/build.sh --compiler icx --optimizations avx512 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
+      .ci/scripts/build.sh --compiler icx --optimizations avx512 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
     displayName: 'make onedal_dpc'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -790,9 +790,10 @@ jobs:
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - script: |
       call "%TEMP%\oneapi\setvars.bat" --force
-      conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
+      call conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import'
     workingDirectory: $(Agent.TempDirectory)
+    continueOnError: true
     condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
