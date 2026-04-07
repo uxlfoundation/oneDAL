@@ -53,8 +53,8 @@ const double minImpurityDecreaseInSplitNode = 0.0; /* It must be greater than or
 
 const size_t nClasses = 5; /* Number of classes */
 
-training::ResultPtr trainModel();
-void testModel(const training::ResultPtr& res);
+training::ResultPtr trainModel(const engines::EngineIfacePtr& engine, const std::string& engineName);
+void testModel(const training::ResultPtr& res, const std::string& engineName);
 
 int main(int argc, char* argv[]) {
     checkArguments(argc,
@@ -65,23 +65,34 @@ int main(int argc, char* argv[]) {
                    &testDatasetFileName,
                    &testDatasetLabelFileName);
 
-    training::ResultPtr trainingResult = trainModel();
-    testModel(trainingResult);
+    /* Train and test with different engines */
+    const engines::EngineIfacePtr mt19937 = engines::createEngine(engines::mt19937Engine, 777);
+    training::ResultPtr result1 = trainModel(mt19937, "mt19937");
+    testModel(result1, "mt19937");
+
+    const engines::EngineIfacePtr mt2203 = engines::createEngine(engines::mt2203Engine, 777);
+    training::ResultPtr result2 = trainModel(mt2203, "mt2203");
+    testModel(result2, "mt2203");
+
+    const engines::EngineIfacePtr mcg59 = engines::createEngine(engines::mcg59Engine, 777);
+    training::ResultPtr result3 = trainModel(mcg59, "mcg59");
+    testModel(result3, "mcg59");
+
+    const engines::EngineIfacePtr philox = engines::createEngine(engines::philox4x32x10Engine, 777);
+    training::ResultPtr result4 = trainModel(philox, "philox4x32x10");
+    testModel(result4, "philox4x32x10");
 
     return 0;
 }
 
-training::ResultPtr trainModel() {
+training::ResultPtr trainModel(const engines::EngineIfacePtr& engine, const std::string& engineName) {
     /* Create Numeric Tables for training data and dependent variables */
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the input data
-     * from a .csv file */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
     FileDataSource<CSVFeatureManager> trainLabelSource(trainDatasetLabelFileName,
                                                        DataSource::doAllocateNumericTable,
                                                        DataSource::doDictionaryFromContext);
-    /* Retrieve the data from the input file */
     trainDataSource.loadDataBlock();
     trainLabelSource.loadDataBlock();
 
@@ -101,26 +112,27 @@ training::ResultPtr trainModel() {
     algorithm.parameter().varImportance = algorithms::decision_forest::training::MDI;
     algorithm.parameter().resultsToCompute =
         algorithms::decision_forest::training::computeOutOfBagError;
+    algorithm.parameter().engine = engine->clone();
 
     /* Build the decision forest classification model */
     algorithm.compute();
 
     /* Retrieve the algorithm results */
     training::ResultPtr trainingResult = algorithm.getResult();
+
+    std::cout << "== Decision forest classification with " << engineName << " engine ==" << std::endl;
     printNumericTable(trainingResult->get(training::variableImportance),
                       "Variable importance results: ");
     printNumericTable(trainingResult->get(training::outOfBagError), "OOB error: ");
     return trainingResult;
 }
 
-void testModel(const training::ResultPtr& trainingResult) {
-    /* Initialize FileDataSource<CSVFeatureManager> to retrieve the test data from
-     * a .csv file */
+void testModel(const training::ResultPtr& trainingResult, const std::string& engineName) {
     FileDataSource<CSVFeatureManager> testDataSource(testDatasetFileName,
                                                      DataSource::doAllocateNumericTable,
                                                      DataSource::doDictionaryFromContext);
-
     testDataSource.loadDataBlock();
+
     FileDataSource<CSVFeatureManager> testLabelSource(testDatasetLabelFileName,
                                                       DataSource::doAllocateNumericTable,
                                                       DataSource::doDictionaryFromContext);
@@ -129,17 +141,17 @@ void testModel(const training::ResultPtr& trainingResult) {
     /* Create an algorithm object to predict values of decision forest classification */
     prediction::Batch<> algorithm(nClasses);
 
-    /* Pass a testing data set and the trained model to the algorithm */
     algorithm.input.set(classifier::prediction::data, testDataSource.getNumericTable());
     algorithm.input.set(classifier::prediction::model,
                         trainingResult->get(classifier::training::model));
     algorithm.parameter().votingMethod = prediction::weighted;
     algorithm.parameter().resultsToEvaluate |= classifier::computeClassProbabilities;
-    /* Predict values of decision forest classification */
+
     algorithm.compute();
 
-    /* Retrieve the algorithm results */
     classifier::prediction::ResultPtr predictionResult = algorithm.getResult();
+
+    std::cout << "== Prediction with " << engineName << " engine ==" << std::endl;
     printNumericTable(predictionResult->get(classifier::prediction::prediction),
                       "Decision forest prediction results (first 10 rows):",
                       10);
