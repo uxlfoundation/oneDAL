@@ -118,25 +118,17 @@ public:
     /// property value
     compute_input(const table& data);
 
-    /// Do not remove the destructor.
-    /// It is needed to properly handle the visibility of the class in the shared library
+    /// Do not remove the destructor
+    /// it is needed to properly handle the visibility of the class in the shared library
     /// while compiling with -fvisibility=hidden
 
-    /// Destructor
     ~compute_input() override;
 
     /// Rule of five methods defined here due to the difinition of the destructor.
 
-    /// Creates a new :literal:`compute_input` instance that copies the input data from another instance.
     compute_input(const compute_input&);
-
-    /// Moves the input data from another instance into a new :literal:`compute_input` instance.
     compute_input(compute_input&&) noexcept;
-
-    /// Copies the input data from another :literal:`compute_input` instance.
     compute_input& operator=(const compute_input&);
-
-    /// Moves the input data from another instance into another instance.
     compute_input& operator=(compute_input&&) noexcept;
 
     /// An $n \\times p$ table with the training data, where each row stores one
@@ -275,23 +267,16 @@ public:
     /// it is needed to properly handle the visibility of the class in the shared library
     /// while compiling with -fvisibility=hidden
 
-    /// Destructor
     ~partial_compute_input() override;
 
     /// Rule of five methods defined here due to the difinition of the destructor.
 
-    /// Creates a new :literal:`partial_compute_input` instance that copies the input data and previous result from another instance.
     partial_compute_input(const partial_compute_input&);
-
-    /// Moves the input data and previous result from another instance into a new :literal:`partial_compute_input` instance.
     partial_compute_input(partial_compute_input&&) noexcept;
-
-    /// Copies the input data and previous result from another :literal:`partial_compute_input` instance.
     partial_compute_input& operator=(const partial_compute_input&);
-
-    /// Moves the input data and previous result from another instance into another :literal:`partial_compute_input` instance.
     partial_compute_input& operator=(partial_compute_input&&) noexcept;
 
+    /// A $n \\times p$ table with the portion of the training data, where each row stores one feature vector.
     const table& get_data() const {
         return compute_input<Task>::get_data();
     }
@@ -301,6 +286,7 @@ public:
         return *this;
     }
 
+    /// Partial result from the previous step of the online covariance computation.
     const partial_compute_result<Task>& get_prev() const {
         return prev_;
     }
