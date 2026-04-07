@@ -124,7 +124,7 @@ public:
 
     ~train_input() override;
 
-    /// Rule of five methods defined here due to the difinition of the destructor.
+    /// Rule of five methods defined here due to the definition of the destructor.
 
     train_input(const train_input&);
     train_input(train_input&&) noexcept;
@@ -322,7 +322,7 @@ public:
 
     ~partial_train_input() override;
 
-    /// Rule of five methods defined here due to the difinition of the destructor.
+    /// Rule of five methods defined here due to the definition of the destructor.
 
     partial_train_input(const partial_train_input&);
     partial_train_input(partial_train_input&&) noexcept;

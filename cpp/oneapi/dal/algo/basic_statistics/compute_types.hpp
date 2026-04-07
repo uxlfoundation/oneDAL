@@ -60,7 +60,7 @@ public:
 
     ~compute_input() override;
 
-    /// Rule of five methods defined here due to the difinition of the destructor.
+    /// Rule of five methods defined here due to the definition of the destructor.
 
     compute_input(const compute_input&);
     compute_input(compute_input&&) noexcept;
@@ -327,7 +327,7 @@ public:
 
     ~partial_compute_input() override;
 
-    /// Rule of five methods defined here due to the difinition of the destructor.
+    /// Rule of five methods defined here due to the definition of the destructor.
 
     partial_compute_input(const partial_compute_input&);
     partial_compute_input(partial_compute_input&&) noexcept;
