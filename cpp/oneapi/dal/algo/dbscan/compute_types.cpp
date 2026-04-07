@@ -55,8 +55,7 @@ template <typename Task>
 compute_input<Task>::~compute_input() {}
 
 template <typename Task>
-compute_input<Task>::compute_input(const compute_input& other)
-        : impl_(new compute_input_impl<Task>(*other.impl_)) {}
+compute_input<Task>::compute_input(const compute_input& other) : impl_(other.impl_) {}
 
 template <typename Task>
 compute_input<Task>::compute_input(compute_input&& other) noexcept

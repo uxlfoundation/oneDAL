@@ -77,8 +77,7 @@ template <typename Task>
 compute_input<Task>::~compute_input() {}
 
 template <typename Task>
-compute_input<Task>::compute_input(const compute_input& other)
-        : impl_(new compute_input_impl<Task>(*other.impl_)) {}
+compute_input<Task>::compute_input(const compute_input& other) : impl_(other.impl_) {}
 
 template <typename Task>
 compute_input<Task>::compute_input(compute_input&& other) noexcept
@@ -326,45 +325,6 @@ partial_compute_input<Task>::partial_compute_input(const partial_compute_result<
 }
 
 template <typename Task>
-partial_compute_input<Task>::~partial_compute_input() {}
-
-template <typename Task>
-partial_compute_input<Task>::partial_compute_input(const partial_compute_input& other)
-        : compute_input<Task>(other),
-          prev_(other.prev_) {}
-
-template <typename Task>
-partial_compute_input<Task>::partial_compute_input(partial_compute_input&& other) noexcept
-        : compute_input<Task>(std::move(other)),
-          prev_(std::move(other.prev_)) {}
-
-template <typename Task>
-partial_compute_input<Task>& partial_compute_input<Task>::operator=(
-    const partial_compute_input& other) {
-    if (this != &other) {
-        partial_compute_input<Task> tmp(other);
-        swap(*this, tmp);
-    }
-    return *this;
-}
-
-template <typename Task>
-partial_compute_input<Task>& partial_compute_input<Task>::operator=(
-    partial_compute_input&& other) noexcept {
-    if (this != &other) {
-        swap(*this, other);
-    }
-    return *this;
-}
-
-template <typename Task>
-void partial_compute_input<Task>::swap(partial_compute_input<Task>& a,
-                                       partial_compute_input<Task>& b) noexcept {
-    compute_input<Task>::swap(a, b);
-    std::swap(a.prev_, b.prev_);
-}
-
-template <typename Task>
 const table& partial_compute_result<Task>::get_partial_n_rows() const {
     return impl_->nobs;
 }
@@ -425,6 +385,46 @@ template <typename Task>
 const table& partial_compute_result<Task>::get_partial_sum_squares_centered() const {
     return impl_->partial_sum_squares_centered;
 }
+
+template <typename Task>
+partial_compute_input<Task>::~partial_compute_input() {}
+
+template <typename Task>
+partial_compute_input<Task>::partial_compute_input(const partial_compute_input& other)
+        : compute_input<Task>(other),
+          prev_(other.prev_) {}
+
+template <typename Task>
+partial_compute_input<Task>::partial_compute_input(partial_compute_input&& other) noexcept
+        : compute_input<Task>(std::move(other)),
+          prev_(std::move(other.prev_)) {}
+
+template <typename Task>
+partial_compute_input<Task>& partial_compute_input<Task>::operator=(
+    const partial_compute_input& other) {
+    if (this != &other) {
+        partial_compute_input<Task> tmp(other);
+        swap(*this, tmp);
+    }
+    return *this;
+}
+
+template <typename Task>
+partial_compute_input<Task>& partial_compute_input<Task>::operator=(
+    partial_compute_input&& other) noexcept {
+    if (this != &other) {
+        swap(*this, other);
+    }
+    return *this;
+}
+
+template <typename Task>
+void partial_compute_input<Task>::swap(partial_compute_input<Task>& a,
+                                       partial_compute_input<Task>& b) noexcept {
+    compute_input<Task>::swap(a, b);
+    std::swap(a.prev_, b.prev_);
+}
+
 template class ONEDAL_EXPORT compute_input<task::compute>;
 template class ONEDAL_EXPORT compute_result<task::compute>;
 template class ONEDAL_EXPORT partial_compute_result<task::compute>;

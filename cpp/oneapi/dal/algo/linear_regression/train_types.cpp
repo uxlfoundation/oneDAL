@@ -139,8 +139,7 @@ template <typename Task>
 train_input<Task>::~train_input() {}
 
 template <typename Task>
-train_input<Task>::train_input(const train_input& other)
-        : impl_(new train_input_impl<Task>(*other.impl_)) {}
+train_input<Task>::train_input(const train_input& other) : impl_(other.impl_) {}
 
 template <typename Task>
 train_input<Task>::train_input(train_input&& other) noexcept : impl_(std::move(other.impl_)) {}
