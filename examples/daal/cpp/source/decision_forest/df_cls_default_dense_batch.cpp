@@ -53,7 +53,8 @@ const double minImpurityDecreaseInSplitNode = 0.0; /* It must be greater than or
 
 const size_t nClasses = 5; /* Number of classes */
 
-training::ResultPtr trainModel(const engines::EngineIfacePtr& engine, const std::string& engineName);
+training::ResultPtr trainModel(const engines::EngineIfacePtr& engine,
+                               const std::string& engineName);
 void testModel(const training::ResultPtr& res, const std::string& engineName);
 
 int main(int argc, char* argv[]) {
@@ -85,7 +86,8 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-training::ResultPtr trainModel(const engines::EngineIfacePtr& engine, const std::string& engineName) {
+training::ResultPtr trainModel(const engines::EngineIfacePtr& engine,
+                               const std::string& engineName) {
     /* Create Numeric Tables for training data and dependent variables */
     FileDataSource<CSVFeatureManager> trainDataSource(trainDatasetFileName,
                                                       DataSource::doAllocateNumericTable,
@@ -120,7 +122,8 @@ training::ResultPtr trainModel(const engines::EngineIfacePtr& engine, const std:
     /* Retrieve the algorithm results */
     training::ResultPtr trainingResult = algorithm.getResult();
 
-    std::cout << "== Decision forest classification with " << engineName << " engine ==" << std::endl;
+    std::cout << "== Decision forest classification with " << engineName
+              << " engine ==" << std::endl;
     printNumericTable(trainingResult->get(training::variableImportance),
                       "Variable importance results: ");
     printNumericTable(trainingResult->get(training::outOfBagError), "OOB error: ");
