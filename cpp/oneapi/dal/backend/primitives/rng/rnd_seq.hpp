@@ -19,7 +19,7 @@
 #include <limits>
 
 #include <daal/src/externals/service_rng.h>
-#include "src/algorithms/engines/mcg59/mcg59.h"
+#include <daal/src/algorithms/engines/mcg59/mcg59.h>
 #include <daal/src/algorithms/engines/engine_batch_impl.h>
 
 #include "oneapi/dal/array.hpp"
