@@ -49,6 +49,19 @@ public:
     /// :literal:`weights`
     compute_input(const table& data = {}, const table& weights = {});
 
+    /// Do not remove the destructor
+    /// it is needed to properly handle the visibility of the class in the shared library
+    /// while compiling with -fvisibility=hidden
+
+    ~compute_input() override;
+
+    /// Rule of five methods defined here due to the difinition of the destructor.
+
+    compute_input(const compute_input&);
+    compute_input(compute_input&&) noexcept;
+    compute_input& operator=(const compute_input&);
+    compute_input& operator=(compute_input&&) noexcept;
+
     /// An $n \\times p$ table with the data to be clustered, where each row
     /// stores one feature vector.
     const table& get_data() const;
@@ -70,6 +83,7 @@ public:
 protected:
     void set_data_impl(const table& data);
     void set_weights_impl(const table& weights);
+    static void swap(compute_input<Task>& a, compute_input<Task>& b) noexcept;
 
 private:
     dal::detail::pimpl<detail::compute_input_impl<Task>> impl_;

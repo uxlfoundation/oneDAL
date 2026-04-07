@@ -132,6 +132,33 @@ template <typename Task>
 train_input<Task>::train_input(const table& data) : impl_(new train_input_impl<Task>(data)) {}
 
 template <typename Task>
+train_input<Task>::~train_input() {}
+
+template <typename Task>
+train_input<Task>::train_input(const train_input& other)
+        : impl_(new train_input_impl<Task>(*other.impl_)) {}
+
+template <typename Task>
+train_input<Task>::train_input(train_input&& other) noexcept : impl_(std::move(other.impl_)) {}
+
+template <typename Task>
+train_input<Task>& train_input<Task>::operator=(const train_input& other) {
+    if (this != &other) {
+        train_input<Task> tmp(other);
+        swap(*this, tmp);
+    }
+    return *this;
+}
+
+template <typename Task>
+train_input<Task>& train_input<Task>::operator=(train_input&& other) noexcept {
+    if (this != &other) {
+        swap(*this, other);
+    }
+    return *this;
+}
+
+template <typename Task>
 const table& train_input<Task>::get_data() const {
     return impl_->data;
 }
@@ -139,6 +166,11 @@ const table& train_input<Task>::get_data() const {
 template <typename Task>
 void train_input<Task>::set_data_impl(const table& value) {
     impl_->data = value;
+}
+
+template <typename Task>
+void train_input<Task>::swap(train_input<Task>& a, train_input<Task>& b) noexcept {
+    std::swap(a.impl_, b.impl_);
 }
 
 using msg = dal::detail::error_messages;
@@ -323,6 +355,44 @@ const table& partial_train_result<Task>::get_auxiliary_table(std::int64_t num) c
 template <typename Task>
 void partial_train_result<Task>::set_auxiliary_table_impl(const table& value) {
     impl_->auxiliary_tables.push_back(value);
+}
+
+template <typename Task>
+partial_train_input<Task>::~partial_train_input() {}
+
+template <typename Task>
+partial_train_input<Task>::partial_train_input(const partial_train_input& other)
+        : train_input<Task>(other),
+          prev_(other.prev_) {}
+
+template <typename Task>
+partial_train_input<Task>::partial_train_input(partial_train_input&& other) noexcept
+        : train_input<Task>(std::move(other)),
+          prev_(std::move(other.prev_)) {}
+
+template <typename Task>
+partial_train_input<Task>& partial_train_input<Task>::operator=(const partial_train_input& other) {
+    if (this != &other) {
+        partial_train_input<Task> tmp(other);
+        swap(*this, tmp);
+    }
+    return *this;
+}
+
+template <typename Task>
+partial_train_input<Task>& partial_train_input<Task>::operator=(
+    partial_train_input&& other) noexcept {
+    if (this != &other) {
+        swap(*this, other);
+    }
+    return *this;
+}
+
+template <typename Task>
+void partial_train_input<Task>::swap(partial_train_input<Task>& a,
+                                     partial_train_input<Task>& b) noexcept {
+    train_input<Task>::swap(a, b);
+    std::swap(a.prev_, b.prev_);
 }
 
 template class ONEDAL_EXPORT train_input<task::dim_reduction>;
