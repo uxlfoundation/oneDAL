@@ -715,6 +715,7 @@ protected:
                         services::Status & st)
         : NumericTable(nColumns, nRows, featuresEqual, st)
     {
+        if (!st) return; // failed to construct base class
         _layout = aos;
         st |= setArray(ptr, nRows);
 
@@ -727,6 +728,7 @@ protected:
                         const DataType & constValue, services::Status & st)
         : NumericTable(nColumns, nRows, featuresEqual, st)
     {
+        if (!st) return; // failed to construct base class
         _layout = aos;
         st |= setArray(ptr, nRows);
 
@@ -740,6 +742,7 @@ protected:
                         services::Status & st)
         : NumericTable(nColumns, nRows, featuresEqual, st)
     {
+        if (!st) return; // failed to construct base class
         _layout = aos;
 
         NumericTableFeature df;
