@@ -36,3 +36,9 @@ std::vector<sycl::device> list_devices() {
     try_add_device(devices, &sycl::gpu_selector_v);
     return devices;
 }
+
+std::vector<sycl::device> list_devices_gpu_only() {
+    std::vector<sycl::device> devices;
+    try_add_device(devices, &sycl::gpu_selector_v);
+    return devices;
+}
