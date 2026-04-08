@@ -92,7 +92,7 @@ protected:
     TArray<algorithmFPType, cpu> _kernelDiag;            //diagonal elements of the matrix Q (kernel(x[i], x[i]))
     TArray<char, cpu> _flags;                            //array of flags I_LOW and I_UP
     SVMCacheIface<boser, algorithmFPType, cpu> * _cache; //caches matrix Q (kernel(x[i], x[j])) values
-    size_t _nIterations; //number of iterations performed by the training algorithm
+    size_t _nIterations;                                 //number of iterations performed by the training algorithm
 };
 
 template <typename algorithmFPType, CpuType cpu>
