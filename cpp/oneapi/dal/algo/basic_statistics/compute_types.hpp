@@ -54,14 +54,12 @@ public:
     compute_input(const table& data);
     compute_input(const table& data, const table& weights);
 
-    /// Do not remove the destructor
-    /// it is needed to properly handle the visibility of the class in the shared library
-    /// while compiling with -fvisibility=hidden
-
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
     ~compute_input() override;
 
-    /// Rule of five methods defined here due to the definition of the destructor.
-
+    // Rule of five methods defined here due to the definition of the destructor.
     compute_input(const compute_input&);
     compute_input(compute_input&&) noexcept;
     compute_input& operator=(const compute_input&);
@@ -321,14 +319,12 @@ public:
                           const table& data,
                           const table& weights);
 
-    /// Do not remove the destructor
-    /// it is needed to properly handle the visibility of the class in the shared library
-    /// while compiling with -fvisibility=hidden
-
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
     ~partial_compute_input() override;
 
-    /// Rule of five methods defined here due to the definition of the destructor.
-
+    // Rule of five methods defined here due to the definition of the destructor.
     partial_compute_input(const partial_compute_input&);
     partial_compute_input(partial_compute_input&&) noexcept;
     partial_compute_input& operator=(const partial_compute_input&);

@@ -119,14 +119,12 @@ public:
 
     train_input(const table& data);
 
-    /// Do not remove the destructor
-    /// it is needed to properly handle the visibility of the class in the shared library
-    /// while compiling with -fvisibility=hidden
-
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
     ~train_input() override;
 
-    /// Rule of five methods defined here due to the definition of the destructor.
-
+    // Rule of five methods defined here due to the definition of the destructor.
     train_input(const train_input&);
     train_input(train_input&&) noexcept;
     train_input& operator=(const train_input&);
@@ -280,14 +278,12 @@ public:
     partial_train_input(const partial_train_result<Task>& prev,
                         const partial_train_input<Task>& input);
 
-    /// Do not remove the destructor
-    /// it is needed to properly handle the visibility of the class in the shared library
-    /// while compiling with -fvisibility=hidden
-
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
     ~partial_train_input() override;
 
-    /// Rule of five methods defined here due to the definition of the destructor.
-
+    // Rule of five methods defined here due to the definition of the destructor.
     partial_train_input(const partial_train_input&);
     partial_train_input(partial_train_input&&) noexcept;
     partial_train_input& operator=(const partial_train_input&);
