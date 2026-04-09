@@ -170,8 +170,10 @@ services::Status SVMTrainImpl<thunder, algorithmFPType, cpu>::compute(const Nume
     }
 
     cachePtr->clear();
-    SaveResultTask<algorithmFPType, cpu> saveResult(nVectors, y, alpha, grad, svmType, cachePtr.get());
-    DAAL_CHECK_STATUS(status, saveResult.compute(xTable, *static_cast<Model *>(r), cw));
+    SaveResultTask<algorithmFPType, cpu> saveResult(nVectors, y, alpha, grad, svmType, cachePtr.get(), iter);
+    svm::internal::ModelImpl * model = dynamic_cast<svm::internal::ModelImpl *>(r);
+    DAAL_CHECK(model, services::Status(services::ErrorIncorrectTypeOfModel));
+    DAAL_CHECK_STATUS(status, saveResult.compute(xTable, *model, cw));
 
     return status;
 }
