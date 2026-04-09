@@ -26,17 +26,17 @@ ONEDAL_EXPORT int _onedal_threader_get_current_thread_index() {
 }
 
 ONEDAL_EXPORT void _onedal_threader_for(std::int64_t n,
-                                        std::int64_t reserved,
+                                        std::int64_t grain_size,
                                         const void *a,
                                         oneapi::dal::preview::functype func) {
-    _daal_threader_for(n, reserved, a, static_cast<daal::functype>(func));
+    _daal_threader_for(n, grain_size, a, static_cast<daal::functype>(func));
 }
 
 ONEDAL_EXPORT void _onedal_threader_for_simple(std::int64_t n,
-                                               std::int64_t reserved,
+                                               std::int64_t grain_size,
                                                const void *a,
                                                oneapi::dal::preview::functype func) {
-    _daal_threader_for_simple(n, reserved, a, static_cast<daal::functype>(func));
+    _daal_threader_for_simple(n, grain_size, a, static_cast<daal::functype>(func));
 }
 
 ONEDAL_EXPORT void _onedal_threader_for_int64ptr(const std::int64_t *begin,

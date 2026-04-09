@@ -169,6 +169,49 @@ DAAL_EXPORT void _daal_threader_for_simple(int64_t n, int64_t grain_size, const 
     }
 }
 
+DAAL_EXPORT void _daal_threader_for_int32(int n, int grain_size, const void * a, daal::functype_int32 func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        tbb::parallel_for(tbb::blocked_range<int>(0, n, grain_size), [&](tbb::blocked_range<int> r) {
+            for (int i = r.begin(); i < r.end(); i++)
+            {
+                func(i, a);
+            }
+        });
+    }
+    else
+    {
+        for (int i = 0; i < n; i++)
+        {
+            func(i, a);
+        }
+    }
+}
+
+DAAL_EXPORT void _daal_threader_for_simple_int32(int n, int grain_size, const void * a, daal::functype_int32 func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        tbb::parallel_for(
+            tbb::blocked_range<int>(0, n, grain_size),
+            [&](tbb::blocked_range<int> r) {
+                for (int i = r.begin(); i < r.end(); i++)
+                {
+                    func(i, a);
+                }
+            },
+            tbb::simple_partitioner {});
+    }
+    else
+    {
+        for (int i = 0; i < n; i++)
+        {
+            func(i, a);
+        }
+    }
+}
+
 DAAL_EXPORT void _daal_threader_for_int64ptr(const int64_t * begin, const int64_t * end, const void * a, daal::functype_int64ptr func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
@@ -314,6 +357,18 @@ DAAL_EXPORT void _daal_threader_for_blocked(int64_t n, int64_t grain_size, const
     }
 }
 
+DAAL_EXPORT void _daal_threader_for_blocked_int32(int n, int grain_size, const void * a, daal::functype2_int32 func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        tbb::parallel_for(tbb::blocked_range<int>(0, n, 1), [&](tbb::blocked_range<int> r) { func(r.begin(), r.end() - r.begin(), a); });
+    }
+    else
+    {
+        func(0, n, a);
+    }
+}
+
 DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t grain_size, const void * a, daal::functype func)
 {
     if (daal::threader_env()->getNumberOfThreads() > 1)
@@ -334,6 +389,28 @@ DAAL_EXPORT void _daal_threader_for_optional(int64_t n, int64_t grain_size, cons
     else
     {
         _daal_threader_for(n, grain_size, a, func);
+    }
+}
+
+DAAL_EXPORT void _daal_threader_for_optional_int32(int n, int grain_size, const void * a, daal::functype_int32 func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        if (_daal_is_in_parallel())
+        {
+            for (int i = 0; i < n; i++)
+            {
+                func(i, a);
+            }
+        }
+        else
+        {
+            _daal_threader_for_int32(n, grain_size, a, func);
+        }
+    }
+    else
+    {
+        _daal_threader_for_int32(n, grain_size, a, func);
     }
 }
 
@@ -359,6 +436,34 @@ DAAL_EXPORT void _daal_threader_for_break(int64_t n, int64_t grain_size, const v
     {
         int64_t i;
         for (i = 0; i < n; ++i)
+        {
+            bool needBreak = false;
+            func(i, needBreak, a);
+            if (needBreak) break;
+        }
+    }
+}
+
+DAAL_EXPORT void _daal_threader_for_break_int32(int n, int grain_size, const void * a, daal::functype_break_int32 func)
+{
+    if (daal::threader_env()->getNumberOfThreads() > 1)
+    {
+        tbb::task_group_context context;
+        tbb::parallel_for(
+            tbb::blocked_range<int>(0, n, 1),
+            [&](tbb::blocked_range<int> r) {
+                for (int i = r.begin(); i < r.end(); ++i)
+                {
+                    bool needBreak = false;
+                    func(i, needBreak, a);
+                    if (needBreak) context.cancel_group_execution();
+                }
+            },
+            context);
+    }
+    else
+    {
+        for (int i = 0; i < n; ++i)
         {
             bool needBreak = false;
             func(i, needBreak, a);

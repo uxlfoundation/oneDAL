@@ -55,12 +55,12 @@ ONEDAL_EXPORT int _onedal_threader_get_max_threads();
 ONEDAL_EXPORT int _onedal_threader_get_current_thread_index();
 
 ONEDAL_EXPORT void _onedal_threader_for(std::int64_t n,
-                                        std::int64_t reserved,
+                                        std::int64_t grain_size,
                                         const void *a,
                                         oneapi::dal::preview::functype func);
 
 ONEDAL_EXPORT void _onedal_threader_for_simple(std::int64_t n,
-                                               std::int64_t reserved,
+                                               std::int64_t grain_size,
                                                const void *a,
                                                oneapi::dal::preview::functype func);
 
@@ -124,12 +124,6 @@ inline int threader_get_current_thread_index() {
     return _onedal_threader_get_current_thread_index();
 }
 
-// template <typename F>
-// inline void threader_func(std::int32_t i, const void *a) {
-//     const F &lambda = *static_cast<const F *>(a);
-//     lambda(i);
-// }
-
 template <typename F>
 inline void threader_func(std::int64_t i, const void *a) {
     const F &lambda = *static_cast<const F *>(a);
@@ -149,19 +143,19 @@ inline void threader_func_blocked(std::int64_t f, std::int64_t l, const void *a)
 }
 
 template <typename F>
-inline ONEDAL_EXPORT void threader_for(std::int64_t n, std::int64_t reserved, const F &lambda) {
+inline ONEDAL_EXPORT void threader_for(std::int64_t n, std::int64_t grain_size, const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for(n, reserved, a, threader_func<F>);
+    _onedal_threader_for(n, grain_size, a, threader_func<F>);
 }
 
 template <typename F>
 inline ONEDAL_EXPORT void threader_for_simple(std::int64_t n,
-                                              std::int64_t reserved,
+                                              std::int64_t grain_size,
                                               const F &lambda) {
     const void *a = static_cast<const void *>(&lambda);
 
-    _onedal_threader_for_simple(n, reserved, a, threader_func<F>);
+    _onedal_threader_for_simple(n, grain_size, a, threader_func<F>);
 }
 
 template <typename F>
