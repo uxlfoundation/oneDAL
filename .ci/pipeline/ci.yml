@@ -218,9 +218,7 @@ jobs:
       conda activate $(CONDA_ENV)
       conda install -y -c conda-forge \
           make \
-          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
           tbb tbb-devel \
-          onedpl-devel \
           mkl mkl-devel mkl-static \
           cmake \
           impi-devel impi_rt
@@ -246,7 +244,9 @@ jobs:
       source $(conda info --base)/etc/profile.d/conda.sh
       conda activate $(CONDA_ENV)
       conda install -y -c conda-forge \
-          mkl-dpcpp mkl-devel-dpcpp
+          mkl-dpcpp mkl-devel-dpcpp \
+          dpcpp-cpp-rt dpcpp_linux-64 intel-sycl-rt \
+          onedpl-devel
       export TBBROOT="${CONDA_PREFIX}"
       .ci/scripts/build.sh --compiler gnu --optimizations avx2 --backend-config mkl --target onedal_dpc
       mv __release_lnx_gnu __release_lnx_gnu_conda
