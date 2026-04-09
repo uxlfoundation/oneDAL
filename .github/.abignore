@@ -92,3 +92,19 @@ drop = yes
 [suppress_function]
 symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
 drop = yes
+
+; deselect oneapi::dal newly added symbols
+[suppress_type]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-type
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-variable
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-function
+drop = yes
