@@ -51,6 +51,17 @@ public:
     /// :literal:`initial_centroids`
     train_input(const table& data, const table& initial_centroids);
 
+    // Do not remove the destructor.
+    // It is needed to properly handle the visibility of the class in the shared library
+    // while compiling with -fvisibility=hidden
+    ~train_input() override;
+
+    // Rule of five methods defined here due to the definition of the destructor.
+    train_input(const train_input&);
+    train_input(train_input&&) noexcept;
+    train_input& operator=(const train_input&);
+    train_input& operator=(train_input&&) noexcept;
+
     /// An $n \\times p$ table with the data to be clustered, where each row
     /// stores one feature vector.
     const table& get_data() const;
@@ -72,6 +83,7 @@ public:
 protected:
     void set_data_impl(const table& data);
     void set_initial_centroids_impl(const table& data);
+    static void swap(train_input<Task>& a, train_input<Task>& b) noexcept;
 
 private:
     dal::detail::pimpl<detail::train_input_impl<Task>> impl_;
