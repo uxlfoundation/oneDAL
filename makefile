@@ -771,7 +771,7 @@ ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(
 # DPC++ static library is only built on Windows
 PARAMETERS.objs_a.dpc.filtered :=
 ONEAPI.objs_a.dpc.filtered :=
-endif
+
 PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
 ONEAPI.objs_y.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
 
