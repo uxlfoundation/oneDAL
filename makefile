@@ -356,11 +356,9 @@ core_a       := $(plib)onedal_core$d.$a
 core_y       := $(plib)onedal_core$d$(if $(OS_is_win),.$(MAJORBINARY),).$y
 oneapi_a     := $(plib)onedal$d.$a
 oneapi_y     := $(plib)onedal$d$(if $(OS_is_win),.$(MAJORBINARY),).$y
-oneapi_a.dpc := $(plib)onedal_dpc$d.$a
 oneapi_y.dpc := $(plib)onedal_dpc$d$(if $(OS_is_win),.$(MAJORBINARY),).$y
 parameters_a     := $(plib)onedal_parameters$d.$a
 parameters_y     := $(plib)onedal_parameters$d$(if $(OS_is_win),.$(MAJORBINARY),).$y
-parameters_a.dpc := $(plib)onedal_parameters_dpc$d.$a
 parameters_y.dpc := $(plib)onedal_parameters_dpc$d$(if $(OS_is_win),.$(MAJORBINARY),).$y
 
 thr_tbb_a := $(plib)onedal_thread$d.$a
@@ -376,22 +374,12 @@ release.ONEAPI.LIBS_A := $(oneapi_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(oneapi_a),$(ilib:%.lib=%_dll.lib)),)
 release.ONEAPI.LIBS_Y := $(oneapi_y)
 
-# DPC++ static library is only built on Windows
-
-release.ONEAPI.LIBS_A.dpc :=
-
 release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
 
 release.PARAMETERS.LIBS_A := $(parameters_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(parameters_a),$(ilib:%.lib=%_dll.lib)),)
 release.PARAMETERS.LIBS_Y := $(parameters_y)
 
-ifdef OS_is_win
-release.PARAMETERS.LIBS_A.dpc := $(parameters_a.dpc) \
-                             $(if $(OS_is_win),$(foreach ilib,$(parameters_a.dpc),$(ilib:%.lib=%_dll.lib)),)
-else
-release.PARAMETERS.LIBS_A.dpc :=
-endif
 release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 
 
@@ -602,9 +590,7 @@ ONEAPI.tmpdir_a := $(WORKDIR)/oneapi_static
 ONEAPI.tmpdir_y := $(WORKDIR)/oneapi_dynamic
 PARAMETERS.tmpdir_a := $(WORKDIR)/parameters_static
 PARAMETERS.tmpdir_y := $(WORKDIR)/parameters_dynamic
-ONEAPI.tmpdir_a.dpc := $(WORKDIR)/oneapi_dpc_static
 ONEAPI.tmpdir_y.dpc := $(WORKDIR)/oneapi_dpc_dynamic
-PARAMETERS.tmpdir_a.dpc := $(WORKDIR)/parameters_dpc_static
 PARAMETERS.tmpdir_y.dpc := $(WORKDIR)/parameters_dpc_dynamic
 
 ONEAPI.incdirs.common := $(CPPDIR)
@@ -647,13 +633,8 @@ ONEAPI.srcs.mangled.dpc := $(subst /,-,$(ONEAPI.srcs.dpc))
 
 ONEAPI.objs_a     := $(ONEAPI.srcs.mangled:%.cpp=$(ONEAPI.tmpdir_a)/%.$o)
 ONEAPI.objs_y     := $(ONEAPI.srcs.mangled:%.cpp=$(ONEAPI.tmpdir_y)/%.$o)
-# DPC++ static library is only built on Windows
-
-ONEAPI.objs_a.dpc :=
 
 ONEAPI.objs_y.dpc := $(ONEAPI.srcs.mangled.dpc:%.cpp=$(ONEAPI.tmpdir_y.dpc)/%.$o)
-ONEAPI.objs_a.all := $(ONEAPI.objs_a) $(ONEAPI.objs_a.dpc)
-ONEAPI.objs_y.all := $(ONEAPI.objs_y) $(ONEAPI.objs_y.dpc)
 
 # Populate _cpu files -> _cpu_%cpu_name%, where %cpu_name% is $(USECPUS.files)
 # $1 Output variable name
@@ -768,9 +749,6 @@ PARAMETERS.objs_a.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(
 ONEAPI.objs_a.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_a))
 PARAMETERS.objs_y.filtered := $(filter %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
 ONEAPI.objs_y.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o),$(ONEAPI.objs_y))
-# DPC++ static library is only built on Windows
-PARAMETERS.objs_a.dpc.filtered :=
-ONEAPI.objs_a.dpc.filtered :=
 
 PARAMETERS.objs_y.dpc.filtered := $(filter %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
 ONEAPI.objs_y.dpc.filtered := $(filter-out %parameters.$(o) %parameters_impl.$(o) %parameters_dpc.$(o),$(ONEAPI.objs_y.dpc))
@@ -791,7 +769,6 @@ $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.obj
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(PARAMETERS.objs_a.filtered)))
 else
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a)))
-$(if $(OS_is_win),$(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a.dpc),$(ONEAPI.objs_a.dpc))))
 endif
 
 ONEAPI.objs_y.lib := $(ONEAPI.objs_y.filtered)
@@ -977,7 +954,7 @@ _oneapi_c: info.building.oneapi.C++.part
 _oneapi_c: $(WORKDIR.lib)/$(oneapi_a) $(WORKDIR.lib)/$(oneapi_y)
 
 _oneapi_dpc: info.building.oneapi.DPC++.part
-_oneapi_dpc: $(if $(OS_is_win),$(WORKDIR.lib)/$(oneapi_a.dpc),) $(WORKDIR.lib)/$(oneapi_y.dpc)
+_oneapi_dpc: $(WORKDIR.lib)/$(oneapi_y.dpc)
 
 _release_oneapi_c: _release_oneapi_c_h
 _release_oneapi_dpc: _release_oneapi_c
@@ -1036,13 +1013,11 @@ $(foreach x,$(release.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia
 $(foreach x,$(release.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_c)))
 $(foreach x,$(release.ONEAPI.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_oneapi_c)))
 $(foreach x,$(release.ONEAPI.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_oneapi_c)))
-$(foreach x,$(release.ONEAPI.LIBS_A.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_oneapi_dpc)))
 $(foreach x,$(release.ONEAPI.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_oneapi_dpc)))
 
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(foreach x,$(release.PARAMETERS.LIBS_A),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_parameters_c)))
 $(foreach x,$(release.PARAMETERS.LIBS_Y),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_parameters_c)))
-$(foreach x,$(release.PARAMETERS.LIBS_A.dpc),$(eval $(call .release.a_win,$x,$(RELEASEDIR.libia),_release_parameters_dpc)))
 $(foreach x,$(release.PARAMETERS.LIBS_Y.dpc),$(eval $(call .release.y_win,$x,$(RELEASEDIR.soia),_release_parameters_dpc)))
 endif
 endif
