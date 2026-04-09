@@ -14,8 +14,9 @@
 # limitations under the License.
 #===============================================================================
 
+# find latest version at https://www.intel.com/content/www/us/en/developer/articles/technical/intel-cpu-runtime-for-opencl-applications-with-sycl-support.html
 echo "Download intel opencl runtime"
-(new-object System.Net.WebClient).DownloadFile("https://registrationcenter-download.intel.com/akdlm/IRC_NAS/b6dccdb7-b503-41ea-bd4b-a78e9c2d8dd6/w_opencl_runtime_p_2025.1.0.972.exe", "opencl_installer.exe")
+(new-object System.Net.WebClient).DownloadFile("https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ad824c04-01c8-4ae5-b5e8-164a04f67609/w_opencl_runtime_p_2025.3.1.762.exe", "opencl_installer.exe")
 echo "Unpacking opencl runtime installer"
 Start-Process ".\opencl_installer.exe" -ArgumentList "--s --x --f ocl" -Wait
-Move-Item -Path ".\ocl\w_opencl_runtime_p_2025.1.0.972.msi" -Destination ".\opencl_rt.msi"
+Move-Item -Path ".\ocl\w_opencl_runtime_p_2025.3.1.762.msi" -Destination ".\opencl_rt.msi"

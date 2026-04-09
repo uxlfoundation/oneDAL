@@ -16,7 +16,6 @@
 
 #include <daal/include/services/error_handling.h>
 #include <daal/src/algorithms/dtrees/forest/classification/df_classification_model_impl.h>
-#include <daal/src/services/service_algo_utils.h>
 #include <daal/src/algorithms/dtrees/forest/df_hyperparameter_impl.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_batch.h>
 #include <daal/include/algorithms/decision_forest/decision_forest_classification_training_types.h>
@@ -46,11 +45,11 @@ namespace interop = dal::backend::interop;
 
 using daal_hyperparameters_t = daal_df_cls_train::internal::Hyperparameter;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using cls_dense_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::defaultDense, Cpu>;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using cls_hist_kernel_t = daal_df_cls_train::internal::
     ClassificationTrainBatchKernel<Float, daal_df_cls_train::hist, Cpu>;
 
@@ -73,7 +72,7 @@ static daal_hyperparameters_t convert_parameters(const param_t& params) {
     return daal_hyperparameter;
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
+template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel>
 static result_t call_daal_kernel(const context_cpu& ctx,
                                  const descriptor_t& desc,
                                  const param_t& params,
@@ -195,16 +194,14 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 
     const daal_hyperparameters_t& hyperparameters = convert_parameters(params);
 
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, CpuKernel>(ctx,
-                                                    daal::services::internal::hostApp(daal_input),
-                                                    daal_data.get(),
-                                                    daal_responses.get(),
-                                                    daal_weights.get(),
-                                                    *mptr,
-                                                    daal_result,
-                                                    daal_parameter,
-                                                    &hyperparameters));
+    interop::status_to_exception(interop::call_daal_kernel<Float, CpuKernel>(ctx,
+                                                                             daal_data.get(),
+                                                                             daal_responses.get(),
+                                                                             daal_weights.get(),
+                                                                             *mptr,
+                                                                             daal_result,
+                                                                             daal_parameter,
+                                                                             &hyperparameters));
 
     /* extract results from daal objects */
     if (check_mask_flag(desc.get_error_metric_mode(), error_metric_mode::out_of_bag_error)) {
@@ -247,7 +244,7 @@ static result_t call_daal_kernel(const context_cpu& ctx,
     return res.set_model(dal::detail::make_private<model_t>(model_impl));
 }
 
-template <typename Float, template <typename, daal::CpuType> typename CpuKernel>
+template <typename Float, template <typename, daal::internal::CpuType> typename CpuKernel>
 static result_t train(const context_cpu& ctx,
                       const descriptor_t& desc,
                       const param_t& params,

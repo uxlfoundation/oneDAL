@@ -28,8 +28,6 @@
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -38,6 +36,9 @@ namespace qr
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 template <typename algorithmFPType, daal::algorithms::qr::Method method, CpuType cpu>
 class QRBatchKernel : public Kernel
 {

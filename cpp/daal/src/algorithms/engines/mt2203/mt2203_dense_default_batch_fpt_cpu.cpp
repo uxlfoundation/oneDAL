@@ -31,13 +31,11 @@ namespace engines
 {
 namespace mt2203
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-} // namespace interface1
 
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
+
 template class Mt2203Kernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 } // namespace internal
 

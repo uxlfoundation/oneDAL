@@ -46,47 +46,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER"></a>
- * \brief Class that contains methods to run implicit ALS model-based prediction in the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
- * \brief Class that contains methods to run implicit ALS model-based prediction in the first step of
- *        the distributed processing mode
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public DistributedPredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
-     * in the first step of the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    ~DistributedContainer();
-
-    /**
-     * Computes a partial result of implicit ALS model-based prediction
-     * in the first step of the distributed processing mode
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of implicit ALS model-based prediction
-     * in the first step of the distributed processing mode
-     */
-    services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTED"></a>
  * \brief Runs implicit ALS model-based prediction in the distributed processing mode
  * <!-- \n<a href="DAAL-REF-IMPLICIT_ALS-ALGORITHM">Implicit ALS algorithm description and usage models</a> -->
@@ -191,7 +150,7 @@ public:
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated ALS ratings prediction algorithm with a copy of input objects
@@ -206,36 +165,29 @@ public:
 protected:
     PartialResultPtr _partialResult;
 
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status allocateResult() override { return services::Status(); }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = _partialResult->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _pres              = _partialResult.get();
         return s;
     }
 
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step1Local, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-        _partialResult.reset(new PartialResultType());
-    }
+    void initialize();
 
 private:
     Distributed & operator=(const Distributed &);
 };
 /** @} */
 } // namespace interface1
-using interface1::DistributedContainer;
 using interface1::Distributed;
 
 } // namespace ratings

@@ -30,7 +30,7 @@ oneDAL provides **two distinct C++ interfaces**:
 // DAAL - Multi-dimensional specialization for CPU optimization
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 // oneAPI - Type-safe dispatching with perfect forwarding
@@ -67,7 +67,7 @@ std::vector<int> vec(5);
 ```cpp
 // Compile-time CPU optimization selection
 #if defined(TARGET_X86_64)
-    enum CpuType { sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6 };
+    enum CpuType { sse2 = 0, avx2 = 4, avx512 = 6 };
 #elif defined(TARGET_ARM)
     enum CpuType { sve = 0 };  // ARM SVE
 #elif defined(TARGET_RISCV64)

@@ -23,11 +23,10 @@
 */
 
 #include "algorithms/multi_class_classifier/multi_class_classifier_train.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_oneagainstone_kernel.h"
 #include "src/algorithms/kernel.h"
-
-using namespace daal::data_management;
 
 namespace daal
 {
@@ -37,8 +36,38 @@ namespace multi_class_classifier
 {
 namespace training
 {
-namespace interface2
+namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods to compute the results of multi-class classifier model-based training
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the multi-class classifier, double or float
+ * \tparam method           Computation method of the algprithm, \ref daal::algorithms::multi_class_classifier::training::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for multi-class classifier model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of multi-class classifier model-based training in the batch processing mode
+     *
+     * \return Status of computation
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -78,7 +107,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
                        nullptr, kernelPar);
 }
 
-} // namespace interface2
+} // namespace internal
 } // namespace training
 } // namespace multi_class_classifier
 } // namespace algorithms

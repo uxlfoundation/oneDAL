@@ -25,16 +25,15 @@
 #ifndef __ALGORITHM_CONTAINER_BASE_BATCH_H__
 #define __ALGORITHM_CONTAINER_BASE_BATCH_H__
 
-#include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
+#include "algorithms/algorithm_container_base.h"
 
 namespace daal
 {
 namespace algorithms
 {
 /**
- * \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
- */
+* \brief Contains version 1.0 of oneAPI Data Analytics Library interface.
+*/
 namespace interface1
 {
 /**
@@ -63,7 +62,7 @@ public:
      */
     AlgorithmContainer(daal::services::Environment::env * daalEnv) : AlgorithmContainerIfaceImpl(daalEnv) {}
 
-    virtual ~AlgorithmContainer() DAAL_C11_OVERRIDE {}
+    ~AlgorithmContainer() override {}
 
     /**
      * Computes final results of the algorithm.
@@ -127,9 +126,9 @@ public:
      */
     Result * getResult() { return _res; }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status setupCompute() override { return services::Status(); }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status resetCompute() override { return services::Status(); }
 
 protected:
     const Hyperparameter * _hpar;
@@ -138,71 +137,8 @@ protected:
     Result * _res;
 };
 
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__ALGORITHMDISPATCHCONTAINER"></a>
- * \brief Implements a container to dispatch batch processing algorithms to CPU-specific implementations.
- *
- *
- * \tparam mode                 Computation mode of the algorithm, \ref ComputeMode
- * \tparam sse2Container        Implementation for Intel(R) Streaming SIMD Extensions 2 (Intel(R) SSE2)
- * \tparam sse42Container       Implementation for Intel(R) Streaming SIMD Extensions 4.2 (Intel(R) SSE4.2)
- * \tparam avx2Container        Implementation for Intel(R) Advanced Vector Extensions 2 (Intel(R) AVX2)
- * \tparam avx512Container      Implementation for Intel(R) Xeon(R) processors based on Intel AVX-512
- * \tparam sve                  Implementation for ARM processors based on Arm Scalable Vector Extension
- */
-
-#if defined(TARGET_X86_64)
-template <typename sse2Container DAAL_KERNEL_SSE42_ONLY(typename sse42Container) DAAL_KERNEL_AVX2_ONLY(typename avx2Container)
-              DAAL_KERNEL_AVX512_ONLY(typename avx512Container)>
-class AlgorithmDispatchContainer<batch, sse2Container DAAL_KERNEL_SSE42_ONLY(sse42Container) DAAL_KERNEL_AVX2_ONLY(avx2Container)
-                                            DAAL_KERNEL_AVX512_ONLY(avx512Container)> : public AlgorithmContainerImpl<batch>
-#elif defined(TARGET_ARM)
-template <typename SVEContainer DAAL_KERNEL_SVE_ONLY(typename sveContainer)>
-class AlgorithmDispatchContainer<batch, SVEContainer DAAL_KERNEL_SVE_ONLY(sveContainer)> : public AlgorithmContainerImpl<batch>
-#elif defined(TARGET_RISCV64)
-template <typename RV64Container DAAL_KERNEL_RV64_ONLY(typename rv64Container)>
-class AlgorithmDispatchContainer<batch, RV64Container DAAL_KERNEL_RV64_ONLY(rv64Container)> : public AlgorithmContainerImpl<batch>
-#endif
-{
-public:
-    /**
-     * Default constructor
-     * \param[in] daalEnv   Pointer to the structure that contains information about the environment
-     */
-    AlgorithmDispatchContainer(daal::services::Environment::env * daalEnv);
-
-    virtual ~AlgorithmDispatchContainer()
-    {
-        delete _cntr;
-        _cntr = 0;
-    }
-
-    virtual services::Status compute() DAAL_C11_OVERRIDE
-    {
-        _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
-        return _cntr->compute();
-    }
-
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE
-    {
-        _cntr->setArguments(this->_in, this->_res, this->_par, this->_hpar);
-        return _cntr->setupCompute();
-    }
-
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return _cntr->resetCompute(); }
-
-protected:
-    AlgorithmContainerImpl<batch> * _cntr;
-
-private:
-    AlgorithmDispatchContainer(const AlgorithmDispatchContainer &);
-    AlgorithmDispatchContainer & operator=(const AlgorithmDispatchContainer &);
-};
-
 /** @} */
 } // namespace interface1
-
 } // namespace algorithms
 } // namespace daal
-
 #endif

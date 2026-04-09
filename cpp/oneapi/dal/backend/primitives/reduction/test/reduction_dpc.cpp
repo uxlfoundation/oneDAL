@@ -37,8 +37,8 @@ using reduction_types = std::tuple<std::tuple<float, sum<float>, square<float>>,
 
 using finiteness_types = std::tuple<std::tuple<float, sum<float>, identity<float>>,
                                     std::tuple<double, sum<double>, identity<double>>,
-                                    std::tuple<float, logical_or<float>, isinfornan<float>>,
-                                    std::tuple<double, logical_or<double>, isinfornan<double>>>;
+                                    std::tuple<float, logical_or<bool>, isinfornan<float>>,
+                                    std::tuple<double, logical_or<bool>, isinfornan<double>>>;
 
 template <typename Param>
 class reduction_test_random : public te::float_algo_fixture<std::tuple_element_t<0, Param>> {

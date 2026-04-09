@@ -62,36 +62,6 @@ enum Method
 namespace interface3
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the decision_forest algorithm.
- *        This class is associated with daal::algorithms::decision_forest::prediction::interface3::Batch class
- *        and supports method to compute decision_forest prediction
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the decision_forest, double or float
- * \tparam method           decision_forest computation method, \ref Method
- * \tparam cpu              Type of CPU
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for decision_forest model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     * \DAAL_DEPRECATED
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of decision_forest model-based prediction
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__DECISION_FOREST__CLASSIFICATION__PREDICTION__BATCH"></a>
  * \brief Predicts decision_forest classification results
  * <!-- \n<a href="DAAL-REF-decision_forest-ALGORITHM">decision_forest algorithm description and usage models</a> -->
@@ -143,7 +113,7 @@ public:
      * Get input objects for the Decision forest prediction algorithm
      * \return %Input objects for the Decision forest prediction algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Gets parameter objects for the Decision forest model prediction algorithm
@@ -161,7 +131,7 @@ public:
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated Decision forest prediction algorithm with a copy of input objects
@@ -171,21 +141,16 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, _par, 0);
         _res               = _result.get();
         return s;
     }
 
-    void initialize()
-    {
-        _in = &input;
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
@@ -193,7 +158,6 @@ private:
 /** @} */
 } // namespace interface3
 
-using interface3::BatchContainer;
 using interface3::Batch;
 
 } // namespace prediction

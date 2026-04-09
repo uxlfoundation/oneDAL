@@ -33,14 +33,13 @@ namespace linear_regression
 {
 namespace training
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, qrDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, qrDense, DAAL_CPU>;
+
 template class BatchKernel<DAAL_FPTYPE, qrDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace training
 } // namespace linear_regression
 } // namespace algorithms

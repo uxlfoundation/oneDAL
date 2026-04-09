@@ -48,7 +48,6 @@ There are several options available for installing oneDAL:
 
 - **Binary Distribution**: pre-built binary packages are available from the following sources:
     - Intel® oneAPI:
-        - Download as Part of the [Intel® oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html)
         - Download as the Stand-Alone [oneAPI Data Analytics Library](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal-download.html)
     - Conda:
         | Channel | Version |
@@ -74,7 +73,6 @@ Python Examples:
 <details><summary>Other Examples</summary>
 
 - [MPI](https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/mpi)
-- [MySQL](https://github.com/uxlfoundation/oneDAL/tree/main/samples/daal/cpp/mysql)
 
 </details>
 

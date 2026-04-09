@@ -30,8 +30,6 @@
 #include "algorithms/implicit_als/implicit_als_model.h"
 #include "src/algorithms/kernel.h"
 
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -44,6 +42,9 @@ namespace ratings
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 class ImplicitALSPredictKernel : public daal::algorithms::Kernel
 {

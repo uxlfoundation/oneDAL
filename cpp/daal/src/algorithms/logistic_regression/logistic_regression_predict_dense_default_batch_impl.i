@@ -35,7 +35,6 @@
 #include "src/externals/service_memory.h"
 #include "src/externals/service_math.h"
 #include "src/services/service_data_utils.h"
-#include "src/services/service_algo_utils.h"
 #include "src/services/service_environment.h"
 #include "src/externals/service_blas.h"
 #include "src/algorithms/objective_function/cross_entropy_loss/cross_entropy_loss_dense_default_batch_kernel.h"
@@ -66,7 +65,7 @@ public:
     PredictBinaryClassificationTask(const NumericTable * x, NumericTable * y, NumericTable * prob, NumericTable * logProb)
         : _data(x), _res(y), _prob(prob), _logProb(logProb)
     {}
-    services::Status run(const NumericTable & beta, services::HostAppIface * pHostApp)
+    services::Status run(const NumericTable & beta)
     {
         const size_t nCols        = _data->getNumberOfColumns();
         const size_t nRowsTotal   = _data->getNumberOfRows();
@@ -82,17 +81,11 @@ public:
         DAAL_CHECK_BLOCK_STATUS(betaBD);
 
         SafeStatus safeStat;
-        HostAppHelper host(pHostApp, 1000);
 
         StaticTlsMem<algorithmFPType, cpu> bufferTls(nRowsInBlock);
 
         daal::static_threader_for(nDataBlocks, [&](size_t iBlock, size_t tid) {
             services::Status s;
-            if (host.isCancelled(s, 1))
-            {
-                safeStat.add(s);
-                return;
-            }
             const size_t iStartRow      = iBlock * nRowsInBlock;
             const size_t nRowsToProcess = (iBlock == nDataBlocks - 1) ? nRowsTotal - iBlock * nRowsInBlock : nRowsInBlock;
             algorithmFPType * buff      = bufferTls.local(tid);
@@ -237,7 +230,7 @@ public:
     PredictMulticlassTask(const NumericTable * x, NumericTable * y, NumericTable * prob, NumericTable * logProb)
         : _data(x), _res(y), _prob(prob), _logProb(logProb)
     {}
-    services::Status run(const NumericTable & beta, services::HostAppIface * pHostApp);
+    services::Status run(const NumericTable & beta);
 
 protected:
     void predictRaw(const algorithmFPType * x, const algorithmFPType * beta, algorithmFPType * rawRes, size_t nRows, size_t nClasses, size_t nCols);
@@ -269,7 +262,7 @@ struct TlsData
 };
 
 template <typename algorithmFPType, CpuType cpu>
-services::Status PredictMulticlassTask<algorithmFPType, cpu>::run(const NumericTable & beta, services::HostAppIface * pHostApp)
+services::Status PredictMulticlassTask<algorithmFPType, cpu>::run(const NumericTable & beta)
 {
     const size_t nRowsTotal = _data->getNumberOfRows();
     const size_t nCols      = _data->getNumberOfColumns();
@@ -303,15 +296,8 @@ services::Status PredictMulticlassTask<algorithmFPType, cpu>::run(const NumericT
     daal::tls<TlsDataCpu *> tlsData([=]() -> TlsDataCpu * { return new TlsDataCpu(nRowsInBlock * nClasses, _data); });
 
     SafeStatus safeStat;
-    HostAppHelper host(pHostApp, 1000);
 
     daal::threader_for(nDataBlocks, nDataBlocks, [&](size_t iBlock) {
-        services::Status s;
-        if (host.isCancelled(s, 1))
-        {
-            safeStat.add(s);
-            return;
-        }
         const size_t iStartRow      = iBlock * nRowsInBlock;
         const size_t nRowsToProcess = (iBlock == nDataBlocks - 1) ? nRowsTotal - iBlock * nRowsInBlock : nRowsInBlock;
 
@@ -375,19 +361,18 @@ void PredictMulticlassTask<algorithmFPType, cpu>::predictRaw(const algorithmFPTy
 // PredictKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, prediction::Method method, CpuType cpu>
-services::Status PredictKernel<algorithmFPType, method, cpu>::compute(services::HostAppIface * pHostApp, const NumericTable * x,
-                                                                      const logistic_regression::Model * m, size_t nClasses, NumericTable * pRes,
-                                                                      NumericTable * pProbab, NumericTable * pLogProbab)
+services::Status PredictKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const logistic_regression::Model * m, size_t nClasses,
+                                                                      NumericTable * pRes, NumericTable * pProbab, NumericTable * pLogProbab)
 {
     const daal::algorithms::logistic_regression::internal::ModelImpl * pModel =
         static_cast<const daal::algorithms::logistic_regression::internal::ModelImpl *>(m);
     if (nClasses == 2)
     {
         PredictBinaryClassificationTask<algorithmFPType, cpu> task(x, pRes, pProbab, pLogProbab);
-        return task.run(*pModel->getBeta(), pHostApp);
+        return task.run(*pModel->getBeta());
     }
     PredictMulticlassTask<algorithmFPType, cpu> task(x, pRes, pProbab, pLogProbab);
-    return task.run(*pModel->getBeta(), pHostApp);
+    return task.run(*pModel->getBeta());
 }
 
 } /* namespace internal */

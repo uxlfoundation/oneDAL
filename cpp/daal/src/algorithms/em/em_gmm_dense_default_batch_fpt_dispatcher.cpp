@@ -27,12 +27,20 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(em_gmm::BatchContainer, batch, DAAL_FPTYPE, em_gmm::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(em_gmm::internal::BatchContainer, batch, DAAL_FPTYPE, em_gmm::defaultDense)
 namespace em_gmm
 {
 namespace interface1
 {
 
+template <>
+void Batch<DAAL_FPTYPE, em_gmm::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, em_gmm::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, em_gmm::defaultDense>::Batch(const size_t nComponents)
     : parameter(nComponents, services::SharedPtr<covariance::Batch<DAAL_FPTYPE, covariance::defaultDense> >(

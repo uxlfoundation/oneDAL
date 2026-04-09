@@ -31,14 +31,13 @@ namespace algorithms
 {
 namespace svd
 {
-namespace interface1
-{
-template class BatchContainer<DAAL_FPTYPE, daal::algorithms::svd::defaultDense, DAAL_CPU>;
-}
+
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, daal::algorithms::svd::defaultDense, DAAL_CPU>;
+
 template class SVDBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace svd
 } // namespace algorithms
 } // namespace daal

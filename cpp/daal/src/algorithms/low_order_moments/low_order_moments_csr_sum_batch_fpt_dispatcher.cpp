@@ -27,11 +27,16 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::BatchContainer, batch, DAAL_FPTYPE, low_order_moments::sumCSR)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(low_order_moments::internal::BatchContainer, batch, DAAL_FPTYPE, low_order_moments::sumCSR)
 namespace low_order_moments
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, low_order_moments::sumCSR>::initialize()
+{
+    this->_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, low_order_moments::sumCSR)(&_env);
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, low_order_moments::sumCSR>::Batch()
 {

@@ -178,6 +178,11 @@ else
 fi
 
 interface=${interface:-daal/cpp}
+if [[ "${interface}" == "oneapi/dpc" ]]; then
+    echo "Interface oneapi/dpc detected — forcing dynamic linking only"
+    link_modes=(dynamic)
+fi
+
 pushd "${BUILD_DIR}/daal/latest/${TEST_KIND}/${interface}" || exit 1
 
 for link_mode in "${link_modes[@]}"; do

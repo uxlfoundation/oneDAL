@@ -38,6 +38,7 @@ namespace algorithms
 {
 namespace internal
 {
+using namespace daal::internal;
 using namespace services::internal;
 
 typedef int (*CompareFunction)(const void *, const void *);

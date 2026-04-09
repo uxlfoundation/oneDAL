@@ -25,6 +25,7 @@
 #define __MT19937_BATCH_CONTAINER_H__
 
 #include "algorithms/engines/mt19937/mt19937.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/engines/mt19937/mt19937_kernel.h"
 
 namespace daal
@@ -35,8 +36,38 @@ namespace engines
 {
 namespace mt19937
 {
-namespace interface1
+namespace internal
 {
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the mt19937 engine.
+ *        This class is associated with the \ref mt19937::interface1::Batch "mt19937::Batch" class
+ *        and supports the method of mt19937 engine computation in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mt19937 engine, double or float
+ * \tparam method           Computation method of the engine, mt19937::Method
+ * \tparam cpu              Version of the cpu-specific implementation of the engine, CpuType
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the mt19937 engine with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes the result of the mt19937 engine in the batch processing mode
+     *
+     * \return Status of computations
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : AnalysisContainerIface<batch>(daalEnv)
 {
@@ -59,7 +90,7 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::Mt19937Kernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, resultTable);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace mt19937
 } // namespace engines
 } // namespace algorithms

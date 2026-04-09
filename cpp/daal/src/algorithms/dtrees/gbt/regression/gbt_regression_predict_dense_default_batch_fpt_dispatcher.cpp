@@ -29,7 +29,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::regression::prediction::BatchContainer, batch, DAAL_FPTYPE, gbt::regression::prediction::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(gbt::regression::prediction::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      gbt::regression::prediction::defaultDense)
 namespace gbt
 {
 namespace regression
@@ -38,6 +39,13 @@ namespace prediction
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, gbt::regression::prediction::defaultDense>::initialize()
+{
+    _ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, gbt::regression::prediction::defaultDense)(&_env);
+    _in = &input;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, gbt::regression::prediction::defaultDense>::Batch()
 {

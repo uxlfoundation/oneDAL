@@ -30,9 +30,6 @@
 #include "algorithms/decision_forest/decision_forest_training_parameter.h"
 #include "src/algorithms/dtrees/forest/df_hyperparameter_impl.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -45,14 +42,30 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class ClassificationTrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
     typedef daal::algorithms::decision_forest::classification::training::internal::Hyperparameter HyperparameterType;
-    services::Status compute(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const NumericTable * w,
-                             decision_forest::classification::Model & m, Result & res,
-                             const decision_forest::classification::training::Parameter & par, const HyperparameterType * hyperparameter = nullptr);
+    /**
+     * \brief Trains the decision forest classification model
+     *
+     * \param x[in]                 Matrix of input variables X of size [N x P], where N is a number of observations
+     *                              and P is a number of features
+     * \param y[in]                 Matrix of dependent variables Y of size [N x 1], where N is a number of observations
+     * \param w[in]                 Optional matrix of weights of size [N x 1], where N is a number of observations
+     * \param m[out]                Decision forest model to be trained
+     * \param res[out]              Training results
+     * \param par[in]               Training parameters
+     * \param hyperparameter[in]    Performance-related hyperparameters of the decision forest training algorithm
+     */
+    services::Status compute(const NumericTable * x, const NumericTable * y, const NumericTable * w, decision_forest::classification::Model & m,
+                             Result & res, const decision_forest::classification::training::Parameter & par,
+                             const HyperparameterType * hyperparameter = nullptr);
 };
 
 } // namespace internal

@@ -37,8 +37,8 @@ using namespace daal::data_management;
 using namespace daal::algorithms::logistic_regression;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/binary_cls_train.csv";
-const std::string testDatasetFileName = "../data/batch/binary_cls_test.csv";
+const std::string trainDatasetFileName = "data/binary_cls_train.csv";
+const std::string testDatasetFileName = "data/binary_cls_test.csv";
 const size_t nFeatures = 20; /* Number of features in training and testing data sets */
 
 /* Logistic regression training parameters */
@@ -119,9 +119,9 @@ void loadData(const std::string& fileName, NumericTablePtr& pData, NumericTableP
                                                       DataSource::doDictionaryFromContext);
 
     /* Create Numeric Tables for training data and dependent variables */
-    pData.reset(new HomogenNumericTable<>(nFeatures, 0, NumericTable::notAllocate));
-    pDependentVar.reset(new HomogenNumericTable<>(1, 0, NumericTable::notAllocate));
-    NumericTablePtr mergedData(new MergedNumericTable(pData, pDependentVar));
+    pData = HomogenNumericTable<>::create(nFeatures, 0, NumericTable::notAllocate);
+    pDependentVar = HomogenNumericTable<>::create(1, 0, NumericTable::notAllocate);
+    NumericTablePtr mergedData = MergedNumericTable::create(pData, pDependentVar);
 
     /* Retrieve the data from input file */
     trainDataSource.loadDataBlock(mergedData.get());

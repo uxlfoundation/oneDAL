@@ -43,6 +43,7 @@ public:
     double first_class_response;
     double second_class_response;
     std::int64_t class_count = 2;
+    table iteration_counts;
 
     model_impl() = default;
     model_impl(const model_impl&) = delete;
@@ -58,7 +59,7 @@ public:
     }
 
     void serialize(dal::detail::output_archive& ar) const override {
-        ar(support_vectors, coeffs, bias, biases);
+        ar(support_vectors, coeffs, bias, biases, iteration_counts);
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {
@@ -69,7 +70,7 @@ public:
     }
 
     void deserialize(dal::detail::input_archive& ar) override {
-        ar(support_vectors, coeffs, bias, biases);
+        ar(support_vectors, coeffs, bias, biases, iteration_counts);
 
         if constexpr (std::is_same_v<Task, task::classification> ||
                       std::is_same_v<Task, task::nu_classification>) {

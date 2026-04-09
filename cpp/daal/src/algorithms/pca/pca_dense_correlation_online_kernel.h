@@ -37,6 +37,8 @@ namespace pca
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 class PCACorrelationKernel<online, algorithmFPType, cpu> : public PCACorrelationBase<algorithmFPType, cpu>
 {

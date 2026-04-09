@@ -38,19 +38,15 @@ typedef float algorithmFPType; /* Algorithm floating-point type */
 
 /* Input data set parameters */
 const size_t nBlocks = 4;
-const std::string datasetFileNames[] = { "../data/online/covcormoments_csr_1.csv",
-                                         "../data/online/covcormoments_csr_2.csv",
-                                         "../data/online/covcormoments_csr_3.csv",
-                                         "../data/online/covcormoments_csr_4.csv" };
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 int main(int argc, char* argv[]) {
-    checkArguments(argc,
-                   argv,
-                   4,
-                   &datasetFileNames[0],
-                   &datasetFileNames[1],
-                   &datasetFileNames[2],
-                   &datasetFileNames[3]);
+    checkArguments(argc, argv, 1, &datasetFileName);
+
+    CSRNumericTablePtr fullData(createSparseTable<algorithmFPType>(datasetFileName));
+
+    const size_t totalRows = fullData->getNumberOfRows();
+    const size_t rowsPerBlock = (totalRows + nBlocks - 1) / nBlocks;
 
     /* Create an algorithm for principal component analysis using the correlation method */
     pca::Online<> algorithm;
@@ -60,12 +56,15 @@ int main(int argc, char* argv[]) {
         services::SharedPtr<covariance::Online<algorithmFPType, covariance::fastCSR> >(
             new covariance::Online<algorithmFPType, covariance::fastCSR>());
 
-    for (size_t i = 0; i < nBlocks; i++) {
-        /* Read data from a file and create a numeric table to store input data */
-        CSRNumericTablePtr dataTable(createSparseTable<float>(datasetFileNames[i]));
+    for (size_t block = 0; block < nBlocks; ++block) {
+        const size_t rowStart = block * rowsPerBlock;
+        const size_t rowEnd = std::min(rowStart + rowsPerBlock, totalRows);
+
+        /* Split CSR exactly like in distributed */
+        CSRNumericTablePtr localTable = splitCSRBlock<algorithmFPType>(fullData, rowStart, rowEnd);
 
         /* Set input objects for the algorithm */
-        algorithm.input.set(pca::data, CSRNumericTablePtr(dataTable));
+        algorithm.input.set(pca::data, localTable);
 
         /* Update PCA decomposition */
         algorithm.compute();

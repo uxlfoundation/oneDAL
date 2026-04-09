@@ -30,11 +30,10 @@ namespace normalization
 {
 namespace zscore
 {
-namespace interface3
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, sumDense, DAAL_CPU>;
-} // namespace interface3
-
+} // namespace internal
 } // namespace zscore
 } // namespace normalization
 } // namespace algorithms

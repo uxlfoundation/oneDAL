@@ -1,6 +1,7 @@
 /* file: algorithm_container_base.h */
 /*******************************************************************************
 * Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,7 +26,6 @@
 #define __ALGORITHM_CONTAINER_BASE_H__
 
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 #include "algorithms/algorithm_types.h"
 #include "algorithms/algorithm_kernel.h"
 
@@ -75,7 +75,7 @@ public:
      */
     AlgorithmContainerIfaceImpl(daal::services::Environment::env * daalEnv) : _env(daalEnv), _kernel(NULL) {}
 
-    virtual ~AlgorithmContainerIfaceImpl() DAAL_C11_OVERRIDE {}
+    ~AlgorithmContainerIfaceImpl() override {}
 
     /**
      * Sets the information about the environment
@@ -206,13 +206,13 @@ public:
      */
     Result * getResult() const { return _res; }
 
-    virtual services::Status setupCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status setupCompute() override { return services::Status(); }
 
-    virtual services::Status resetCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status resetCompute() override { return services::Status(); }
 
-    virtual services::Status setupFinalizeCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status setupFinalizeCompute() override { return services::Status(); }
 
-    virtual services::Status resetFinalizeCompute() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status resetFinalizeCompute() override { return services::Status(); }
 
 protected:
     Input * _in;

@@ -53,7 +53,7 @@ namespace interface1
 class DataArchiveIface : public Base
 {
 public:
-    ~DataArchiveIface() DAAL_C11_OVERRIDE {}
+    ~DataArchiveIface() override {}
 
     /**
      *  Copies data into an archive
@@ -150,19 +150,19 @@ class DataArchiveImpl : public DataArchiveIface
 public:
     DataArchiveImpl() : _majorVersion(0), _minorVersion(0), _updateVersion(0) {}
 
-    ~DataArchiveImpl() DAAL_C11_OVERRIDE {}
+    ~DataArchiveImpl() override {}
 
-    void setMajorVersion(int majorVersion) DAAL_C11_OVERRIDE { _majorVersion = majorVersion; }
+    void setMajorVersion(int majorVersion) override { _majorVersion = majorVersion; }
 
-    void setMinorVersion(int minorVersion) DAAL_C11_OVERRIDE { _minorVersion = minorVersion; }
+    void setMinorVersion(int minorVersion) override { _minorVersion = minorVersion; }
 
-    void setUpdateVersion(int updateVersion) DAAL_C11_OVERRIDE { _updateVersion = updateVersion; }
+    void setUpdateVersion(int updateVersion) override { _updateVersion = updateVersion; }
 
-    int getMajorVersion() DAAL_C11_OVERRIDE { return _majorVersion; }
+    int getMajorVersion() override { return _majorVersion; }
 
-    int getMinorVersion() DAAL_C11_OVERRIDE { return _minorVersion; }
+    int getMinorVersion() override { return _minorVersion; }
 
-    int getUpdateVersion() DAAL_C11_OVERRIDE { return _updateVersion; }
+    int getUpdateVersion() override { return _updateVersion; }
 
     virtual services::SharedPtr<services::ErrorCollection> getErrors() = 0;
 
@@ -250,7 +250,7 @@ public:
         blockOffset[currentWriteBlock] += size;
     }
 
-    ~DataArchive() DAAL_C11_OVERRIDE
+    ~DataArchive() override
     {
         for (int i = 0; i <= currentWriteBlock; i++)
         {
@@ -271,7 +271,7 @@ public:
         serializedBuffer   = NULL;
     }
 
-    void write(byte * ptr, size_t size) DAAL_C11_OVERRIDE
+    void write(byte * ptr, size_t size) override
     {
         size_t alignedSize = alignValueUp(size);
         if (blockAllocatedSize[currentWriteBlock] < blockOffset[currentWriteBlock] + alignedSize)
@@ -295,7 +295,7 @@ public:
         blockOffset[currentWriteBlock] += alignedSize;
     }
 
-    void read(byte * ptr, size_t size) DAAL_C11_OVERRIDE
+    void read(byte * ptr, size_t size) override
     {
         size_t alignedSize = alignValueUp(size);
         if (blockOffset[currentReadBlock] < currentReadBlockOffset + alignedSize)
@@ -319,7 +319,7 @@ public:
         }
     }
 
-    size_t getSizeOfArchive() const DAAL_C11_OVERRIDE
+    size_t getSizeOfArchive() const override
     {
         size_t size = 0;
         for (int i = 0; i <= currentWriteBlock; i++)
@@ -329,7 +329,7 @@ public:
         return size;
     }
 
-    services::SharedPtr<byte> getArchiveAsArraySharedPtr() const DAAL_C11_OVERRIDE
+    services::SharedPtr<byte> getArchiveAsArraySharedPtr() const override
     {
         size_t length = getSizeOfArchive();
 
@@ -349,7 +349,7 @@ public:
         return serializedBufferPtr;
     }
 
-    byte * getArchiveAsArray() DAAL_C11_OVERRIDE
+    byte * getArchiveAsArray() override
     {
         if (serializedBuffer)
         {
@@ -374,7 +374,7 @@ public:
         return serializedBuffer;
     }
 
-    std::string getArchiveAsString() DAAL_C11_OVERRIDE
+    std::string getArchiveAsString() override
     {
         size_t length = getSizeOfArchive();
         char * buffer = (char *)getArchiveAsArray();
@@ -382,7 +382,7 @@ public:
         return std::string(buffer, length);
     }
 
-    size_t copyArchiveToArray(byte * ptr, size_t maxLength) const DAAL_C11_OVERRIDE
+    size_t copyArchiveToArray(byte * ptr, size_t maxLength) const override
     {
         size_t length = getSizeOfArchive();
 
@@ -414,7 +414,7 @@ public:
      * Returns errors during the computation
      * \return Errors during the computation
      */
-    services::SharedPtr<services::ErrorCollection> getErrors() DAAL_C11_OVERRIDE { return _errors; }
+    services::SharedPtr<services::ErrorCollection> getErrors() override { return _errors; }
 
 protected:
     void addBlock(size_t minNewSize)
@@ -524,7 +524,7 @@ public:
         archiveHeader();
     }
 
-    ~InputDataArchive() DAAL_C11_OVERRIDE { delete _arch; }
+    ~InputDataArchive() override { delete _arch; }
 
     /**
      *  Generates a header for a data archive
@@ -798,7 +798,7 @@ public:
         archiveHeader();
     }
 
-    ~OutputDataArchive() DAAL_C11_OVERRIDE { delete _arch; }
+    ~OutputDataArchive() override { delete _arch; }
 
     /**
      *  Reads the header from a data archive

@@ -24,6 +24,7 @@
 #ifndef __SERVICE_DATA_UTILS_H__
 #define __SERVICE_DATA_UTILS_H__
 
+#include "src/services/cpu_type.h"
 #include "src/services/service_defines.h"
 
 namespace daal
@@ -32,6 +33,7 @@ namespace services
 {
 namespace internal
 {
+using CpuType = daal::internal::CpuType;
 template <typename T>
 struct MaxVal
 {

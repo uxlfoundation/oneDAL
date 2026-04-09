@@ -27,11 +27,18 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pivoted_qr::BatchContainer, batch, DAAL_FPTYPE, pivoted_qr::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(pivoted_qr::internal::BatchContainer, batch, DAAL_FPTYPE, pivoted_qr::defaultDense)
 namespace pivoted_qr
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, pivoted_qr::defaultDense>::initialize()
+{
+    Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, pivoted_qr::defaultDense)(&_env);
+    _in                  = &input;
+    _par                 = &parameter;
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, pivoted_qr::defaultDense>::Batch()
 {

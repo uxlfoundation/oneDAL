@@ -7,7 +7,7 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 ## Build System Priority
 
 1. **Make** - Primary production builds, core library
-2. **CMake** - End-user integration, examples  
+2. **CMake** - End-user integration, examples
 3. **Bazel** - Development, testing, new features
 
 ## 🚀 Essential Commands
@@ -22,14 +22,14 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 `make PLAT=win32e COMPILER=vc`
 
 # CPU targets
-`make REQCPU="sse42 avx2 avx512"`
+`make REQCPU="sse2 avx2 avx512"`
 
 # Backend selection
 `make BACKEND_CONFIG=mkl`  # Intel MKL (default)
 `make BACKEND_CONFIG=ref`  # Reference/OpenBLAS
 ```
 
-### Bazel (Development) 
+### Bazel (Development)
 ```bash
 # Build targets
 `bazel build //cpp/oneapi/dal:core`
@@ -49,8 +49,8 @@ applyTo: ["**/makefile", "**/Makefile", "**/BUILD", "**/BUILD.bazel", "**/*.baze
 
 ## 🏗️ CPU Architecture Support
 
-- **x86-64**: sse2, sse42, avx2, avx512 (Intel/AMD)
-- **ARM64**: sve (ARM Scalable Vector Extension)  
+- **x86-64**: sse2, avx2, avx512 (Intel/AMD)
+- **ARM64**: sve (ARM Scalable Vector Extension)
 - **RISC-V**: rv64 (RISC-V 64-bit)
 
 ### CPU Dispatch Pattern
@@ -72,7 +72,7 @@ COMPILER := gnu     # GCC
 COMPILER := clang   # Clang
 ```
 
-### Windows (win32e)  
+### Windows (win32e)
 ```makefile
 PLAT := win32e
 COMPILER := vc      # Microsoft Visual C++
@@ -107,7 +107,7 @@ daal_module(
     },
 )
 
-# oneAPI module  
+# oneAPI module
 dal_module(
     name = "kmeans",
     compile_as = ["c++", "dpc++"],  # CPU and GPU
