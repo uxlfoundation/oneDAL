@@ -28,6 +28,14 @@ set build_system=%4
 
 set errorcode=0
 
+if "%compiler%"=="icx" (
+    set release_dir=__release_win
+) else if "%compiler%"=="msvs" (
+    set release_dir=__release_win_vc
+) else (
+    set release_dir=__release_win_%compiler%
+)
+
 for /f "tokens=*" %%i in ('python -c "from multiprocessing import cpu_count; print(cpu_count())"') do set CPUCOUNT=%%i
 echo CPUCOUNT=%CPUCOUNT%
 
@@ -49,24 +57,24 @@ IF "%VS_VER%"=="2017_build_tools" (
     )
 )
 
-echo call __release_win_vc\daal\latest\env\vars.bat
-call __release_win_vc\daal\latest\env\vars.bat || set errorcode=1
+echo call %release_dir%\daal\latest\env\vars.bat
+call %release_dir%\daal\latest\env\vars.bat || set errorcode=1
 
-echo set LIB=%~dp0..\..\__release_win_vc\tbb\latest\lib\intel64\vc_mt;%LIB%
-set LIB=%~dp0..\..\__release_win_vc\tbb\latest\lib\intel64\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\__release_win_vc\tbb\latest\lib\intel64\vc_mt;%PATH%
-set PATH=%~dp0..\..\__release_win_vc\tbb\latest\lib\intel64\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\tbb\latest\lib\intel64\vc_mt;%PATH%
 
-echo set LIB=%~dp0..\..\__release_win_vc\tbb\latest\redist\intel64\vc_mt;%LIB%
-set LIB=%~dp0..\..\__release_win_vc\tbb\latest\redist\intel64\vc_mt;%LIB%
-echo set PATH=%~dp0..\..\__release_win_vc\tbb\latest\redist\intel64\vc_mt;%PATH%
-set PATH=%~dp0..\..\__release_win_vc\tbb\latest\redist\intel64\vc_mt;%PATH%
+echo set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
+set LIB=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%LIB%
+echo set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
+set PATH=%~dp0..\..\%release_dir%\tbb\latest\redist\intel64\vc_mt;%PATH%
 
 echo set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
 set TBB_DIR=%~dp0..\..\__deps\tbb\win\tbb\lib\cmake\tbb
 
-echo __release_win_vc\daal\latest\examples\%examples%
-cd __release_win_vc\daal\latest\examples\%examples%
+echo %release_dir%\daal\latest\examples\%examples%
+cd %release_dir%\daal\latest\examples\%examples%
 
 set cmake_link_mode_short=so
 set cmake_link_mode=dynamic

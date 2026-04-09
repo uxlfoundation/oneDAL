@@ -53,7 +53,7 @@ class SquaredLoss : public LossFunction<algorithmFPType, cpu>
 {
 public:
     virtual void getGradients(size_t n, size_t nRows, const algorithmFPType * y, const algorithmFPType * f, const IndexType * sampleInd,
-                              algorithmFPType * gh) DAAL_C11_OVERRIDE
+                              algorithmFPType * gh) override
     {
         const size_t nThreads  = daal::threader_get_threads_number();
         const size_t nBlocks   = getNBlocksForOpt<cpu>(nThreads, n);
@@ -98,16 +98,16 @@ class TrainBatchTask : public TrainBatchTaskBaseXBoost<algorithmFPType, BinIndex
     typedef TrainBatchTaskBaseXBoost<algorithmFPType, BinIndexType, cpu> super;
 
 public:
-    TrainBatchTask(HostAppIface * pHostApp, const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
+    TrainBatchTask(const NumericTable * x, const NumericTable * y, const gbt::training::Parameter & par,
                    const dtrees::internal::FeatureTypes & featTypes, const dtrees::internal::IndexedFeatures * indexedFeatures,
                    engines::internal::BatchBaseImpl & engine, size_t dummy)
-        : super(pHostApp, x, y, par, featTypes, indexedFeatures, engine, 1), _builder(nullptr)
+        : super(x, y, par, featTypes, indexedFeatures, engine, 1), _builder(nullptr)
     {
         _builder = TreeBuilder<algorithmFPType, int, BinIndexType, cpu>::create(*this); // TODO: replace int
     }
     ~TrainBatchTask() { delete _builder; }
     bool done() { return false; }
-    virtual services::Status init() DAAL_C11_OVERRIDE
+    virtual services::Status init() override
     {
         auto s = super::init();
         if (s) s = _builder->init();
@@ -115,7 +115,7 @@ public:
     }
 
 protected:
-    virtual void initLossFunc() DAAL_C11_OVERRIDE
+    virtual void initLossFunc() override
     {
         switch (static_cast<const gbt::regression::training::Parameter &>(this->_par).loss)
         {
@@ -124,7 +124,7 @@ protected:
         }
     }
 
-    virtual bool getInitialF(algorithmFPType & val) DAAL_C11_OVERRIDE
+    virtual bool getInitialF(algorithmFPType & val) override
     {
         const auto py             = this->_dataHelper.y();
         const size_t n            = this->_dataHelper.data()->getNumberOfRows();
@@ -149,9 +149,9 @@ protected:
         return true;
     }
 
-    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, HomogenNumericTable<double> ** aTblImp,
-                                        HomogenNumericTable<int> ** aTblSmplCnt,
-                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) DAAL_C11_OVERRIDE
+    virtual services::Status buildTrees(gbt::internal::GbtDecisionTree ** aTbl, services::SharedPtr<HomogenNumericTable<double> > * aTblImp,
+                                        services::SharedPtr<HomogenNumericTable<int> > * aTblSmplCnt,
+                                        GlobalStorages<algorithmFPType, BinIndexType, cpu> & GH_SUMS_BUF) override
     {
         this->_nParallelNodes.inc();
         services::Status s = _builder->run(aTbl[0], aTblImp[0], aTblSmplCnt[0], 0, GH_SUMS_BUF);
@@ -167,9 +167,9 @@ protected:
 // RegressionTrainBatchKernel
 //////////////////////////////////////////////////////////////////////////////////////////
 template <typename algorithmFPType, gbt::regression::training::Method method, CpuType cpu>
-services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compute(HostAppIface * pHostApp, const NumericTable * x,
-                                                                                   const NumericTable * y, gbt::regression::Model & m, Result & res,
-                                                                                   const Parameter & par, engines::internal::BatchBaseImpl & engine)
+services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * x, const NumericTable * y,
+                                                                                   gbt::regression::Model & m, Result & res, const Parameter & par,
+                                                                                   engines::internal::BatchBaseImpl & engine)
 {
     const size_t nFeaturesPerNode = par.featuresPerNode ? par.featuresPerNode : x->getNumberOfColumns();
     const bool inexactWithHistMethod =
@@ -220,22 +220,22 @@ services::Status RegressionTrainBatchKernel<algorithmFPType, method, cpu>::compu
     {
         if (indexedFeatures.maxNumIndices() <= 256)
             return computeImpl<algorithmFPType, cpu, uint8_t, TrainBatchTask<algorithmFPType, uint8_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else if (indexedFeatures.maxNumIndices() <= 65536)
             return computeImpl<algorithmFPType, cpu, uint16_t, TrainBatchTask<algorithmFPType, uint16_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
         else
             return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-                pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures,
-                featTypes, &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+                x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+                ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
     else
     {
         return computeImpl<algorithmFPType, cpu, uint32_t, TrainBatchTask<algorithmFPType, uint32_t, method, cpu>, Result>(
-            pHostApp, x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes,
-            &res, ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
+            x, y, *static_cast<daal::algorithms::gbt::regression::internal::ModelImpl *>(&m), par, engine, 1, indexedFeatures, featTypes, &res,
+            ptrWeight, ptrCover, ptrTotalCover, ptrGain, ptrTotalGain);
     }
 }
 

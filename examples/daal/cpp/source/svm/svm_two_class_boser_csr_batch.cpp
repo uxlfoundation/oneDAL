@@ -35,11 +35,11 @@ using namespace daal::algorithms;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string trainDatasetFileName = "../data/batch/svm_two_class_train_csr.csv";
-const std::string trainLabelsFileName = "../data/batch/svm_two_class_train_labels.csv";
+const std::string trainDatasetFileName = "data/svm_two_class_train_csr.csv";
+const std::string trainLabelsFileName = "data/svm_two_class_train_sparse_labels.csv";
 
-const std::string testDatasetFileName = "../data/batch/svm_two_class_test_csr.csv";
-const std::string testLabelsFileName = "../data/batch/svm_two_class_test_labels.csv";
+const std::string testDatasetFileName = "data/svm_two_class_test_csr.csv";
+const std::string testLabelsFileName = "data/svm_two_class_test_sparse_labels.csv";
 
 /* Parameters for the SVM kernel function */
 kernel_function::KernelIfacePtr kernel(
@@ -127,6 +127,10 @@ void printResults() {
     /* Retrieve the data from input file */
     testLabelsDataSource.loadDataBlock();
     NumericTablePtr testGroundTruth = testLabelsDataSource.getNumericTable();
+
+    printNumericTable(trainingResult->get(classifier::training::model)->getNumberOfIterations(),
+                      "Number of iterations used by the training algorithm:",
+                      1);
 
     printNumericTables<int, float>(testGroundTruth,
                                    predictionResult->get(classifier::prediction::prediction),

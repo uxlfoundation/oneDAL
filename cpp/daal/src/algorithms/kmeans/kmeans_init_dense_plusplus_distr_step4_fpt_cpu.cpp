@@ -33,12 +33,9 @@ namespace kmeans
 {
 namespace init
 {
-namespace interface2
-{
-template class DistributedContainer<step4Local, DAAL_FPTYPE, plusPlusDense, DAAL_CPU>;
-}
 namespace internal
 {
+template class DistributedContainer<step4Local, DAAL_FPTYPE, plusPlusDense, DAAL_CPU>;
 template class KMeansInitStep4LocalKernel<plusPlusDense, DAAL_FPTYPE, DAAL_CPU>;
 } // namespace internal
 } // namespace init

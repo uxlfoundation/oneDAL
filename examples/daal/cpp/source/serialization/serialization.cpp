@@ -33,7 +33,7 @@ using namespace daal;
 using namespace daal::data_management;
 
 /* Input data set parameters */
-const std::string datasetFileName = "../data/batch/serialization.csv";
+const std::string datasetFileName = "data/serialization.csv";
 
 void serializeNumericTable(NumericTablePtr dataTable, byte** buffer, size_t* length);
 NumericTablePtr deserializeNumericTable(byte* buffer, size_t size);
@@ -90,7 +90,7 @@ NumericTablePtr deserializeNumericTable(byte* buffer, size_t length) {
     OutputDataArchive dataArch(buffer, length);
 
     /* Create a numeric table object */
-    NumericTablePtr dataTable = NumericTablePtr(new HomogenNumericTable<>());
+    NumericTablePtr dataTable = HomogenNumericTable<>::create();
 
     /* Deserialize the numeric table from the data archive */
     dataTable->deserialize(dataArch);

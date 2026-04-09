@@ -45,35 +45,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RBF__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the RBF kernel algorithm.
- *        This class is associated with the Batch class
- *        and supports the method for computing RBF kernel functions in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of kernel functions, double or float
- * \tparam method           Computation method of the algorithm, \ref Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for the RBF kernel algorithm with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of the RBF kernel algorithm in the batch processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__KERNEL_FUNCTION__RBF__BATCH"></a>
  * \brief Computes the RBF kernel function in the batch processing mode.
  * <!-- \n<a href="DAAL-REF-KERNEL_FUNCTION_RBF-ALGORITHM">Kernel function algorithm description and usage models</a> -->
@@ -119,19 +90,19 @@ public:
     * Returns the method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Get input objects for the kernel function algorithm
      * \return %Input objects for the kernel function algorithm
      */
-    virtual InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Get parameters of the kernel function algorithm
      * \return Parameters of the kernel function algorithm
      */
-    virtual ParameterBase * getParameter() DAAL_C11_OVERRIDE { return &parameter; }
+    ParameterBase * getParameter() override { return &parameter; }
 
     /**
      * Returns a pointer to the newly allocated RBF kernel function algorithm with a copy of input objects
@@ -141,15 +112,10 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    void initialize()
-    {
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in  = &input;
-        _par = &parameter;
-    }
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    void initialize();
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, (int)method);
         _res               = _result.get();
@@ -161,7 +127,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace rbf

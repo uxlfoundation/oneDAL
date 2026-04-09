@@ -84,214 +84,6 @@ public:
 };
 
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix  algorithm in the distributed processing mode.
- *        This class is associated with daal::algorithms::covariance::Distributed class
- *
- * \tparam step             Step of distributed processing, \ref ComputeStep
- * \tparam algorithmFPType  Data type to use in intermediate computations of the correlation or variance-covariance matrix, double or float
- * \tparam method           Computation method, \ref daal::algorithms::covariance::Method
- *
- * \DAAL_DEPRECATED
- */
-template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
-class DistributedContainer
-{};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using default computation method in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, defaultDense, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using single-pass computation method in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, singlePassDense, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm using sum computation method in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, sumDense, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using fast computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, fastCSR, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using single-pass computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, singlePassCSR, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
- * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDCONTAINER"></a>
- * \brief Provides methods to run implementations of the correlation or variance-covariance matrix algorithm
- *        using precomputed sum computation method that works with Compressed Sparse Rows (CSR) numeric tables in the distributed processing mode on master node.
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of correlation or variance-covariance matrix, double or float
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, CpuType cpu>
-class DistributedContainer<step2Master, algorithmFPType, sumCSR, cpu> : public DistributedContainerIface<step2Master>
-{
-public:
-    /**
-     * Constructs a container for the correlation or variance-covariance matrix algorithm with a specified environment
-     * in the distributed processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED DistributedContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~DistributedContainer();
-    /**
-     * Computes a partial result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
-    /**
-     * Computes the result of the correlation or variance-covariance matrix algorithm in the second step
-     * of the distributed processing mode
-     */
-    virtual services::Status finalizeCompute() DAAL_C11_OVERRIDE;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__COVARIANCE__DISTRIBUTEDIFACE"></a>
  * \brief Interface for the correlation or variance-covariance matrix algorithm in the distributed processing mode
  * <!-- \n<a href="DAAL-REF-COVARIANCE-ALGORITHM">Correlation and variance-covariance matrices  algorithm description and usage models</a> -->
@@ -369,7 +161,7 @@ public:
     services::SharedPtr<DistributedIface<step1Local> > clone() const { return services::SharedPtr<DistributedIface<step1Local> >(cloneImpl()); }
 
 protected:
-    virtual DistributedIface<step1Local> * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    DistributedIface<step1Local> * cloneImpl() const override = 0;
 };
 
 /**
@@ -465,7 +257,7 @@ public:
     /**
      * Validates parameters of the finalizeCompute() method
      */
-    services::Status checkFinalizeComputeParams() DAAL_C11_OVERRIDE
+    services::Status checkFinalizeComputeParams() override
     {
         services::Status s;
         if (this->_partialResult)
@@ -502,7 +294,7 @@ public:
     ParameterType parameter;             /*!< Parameters of the algorithm */
 
 protected:
-    virtual services::Status initializePartialResult() DAAL_C11_OVERRIDE { return services::Status(); }
+    services::Status initializePartialResult() override { return services::Status(); }
 
     void initialize()
     {
@@ -512,7 +304,7 @@ protected:
         _partialResult.reset(new PartialResultType());
     }
 
-    virtual DistributedIface<step2Master> * cloneImpl() const DAAL_C11_OVERRIDE = 0;
+    DistributedIface<step2Master> * cloneImpl() const override = 0;
 
     PartialResultPtr _partialResult;
     ResultPtr _result;
@@ -598,7 +390,7 @@ public:
     }
 
 protected:
-    virtual Distributed<step1Local, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    Distributed<step1Local, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step1Local, algorithmFPType, method>(*this);
     }
@@ -654,7 +446,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns a pointer to the newly allocated algorithm for correlation or variance-covariance matrix computation
@@ -668,12 +460,12 @@ public:
     }
 
 protected:
-    virtual Distributed<step2Master, algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE
+    Distributed<step2Master, algorithmFPType, method> * cloneImpl() const override
     {
         return new Distributed<step2Master, algorithmFPType, method>(*this);
     }
 
-    virtual services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         ResultPtr result   = this->getResult();
         services::Status s = result->template allocate<algorithmFPType>(this->_partialResult.get(), this->_par, (int)method);
@@ -682,19 +474,18 @@ protected:
         return s;
     }
 
-    virtual services::Status allocatePartialResult() DAAL_C11_OVERRIDE
+    services::Status allocatePartialResult() override
     {
         services::Status s = this->_partialResult->template allocate<algorithmFPType>(&(this->input), this->_par, (int)method);
         this->_pres        = this->_partialResult.get();
         return s;
     }
 
-    void initialize() { this->_ac = new __DAAL_ALGORITHM_CONTAINER(distributed, DistributedContainer, step2Master, algorithmFPType, method)(&_env); }
+    void initialize();
 };
 /** @} */
 } // namespace interface1
 using interface1::DistributedContainerIface;
-using interface1::DistributedContainer;
 using interface1::DistributedIface;
 using interface1::Distributed;
 

@@ -30,7 +30,7 @@ namespace algorithms
 {
 namespace pca
 {
-namespace interface3
+namespace internal
 {
 template class BatchContainer<DAAL_FPTYPE, correlationDense, DAAL_CPU>;
 }

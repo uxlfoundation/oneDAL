@@ -42,6 +42,7 @@ namespace init
 namespace internal
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
 template <typename algorithmFPType, CpuType cpu>
 class ImplicitALSInitKernelBase : public daal::algorithms::Kernel

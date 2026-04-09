@@ -33,8 +33,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_memory.h"
 
-using namespace daal::services::internal;
-
 namespace daal
 {
 namespace algorithms
@@ -45,6 +43,9 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
+
 template <typename algorithmFPType, CpuType cpu>
 struct ImplicitALSTrainTaskBase;
 
@@ -95,11 +96,11 @@ class ImplicitALSTrainKernel<algorithmFPType, fastCSR, cpu> : public ImplicitALS
 protected:
     virtual void formSystem(size_t i, size_t nCols, const algorithmFPType * data, const size_t * colIndices, const size_t * rowOffsets,
                             size_t nFactors, algorithmFPType * colFactors, algorithmFPType alpha, algorithmFPType * lhs, algorithmFPType * rhs,
-                            algorithmFPType lambda) DAAL_C11_OVERRIDE;
+                            algorithmFPType lambda) override;
 
     virtual void computeCostFunction(size_t nUsers, size_t nItems, size_t nFactors, algorithmFPType * data, size_t * colIndices, size_t * rowOffsets,
                                      algorithmFPType * itemsFactors, algorithmFPType * usersFactors, algorithmFPType alpha, algorithmFPType lambda,
-                                     algorithmFPType * costFunctionPtr) DAAL_C11_OVERRIDE;
+                                     algorithmFPType * costFunctionPtr) override;
 };
 
 template <typename algorithmFPType, CpuType cpu>
@@ -108,11 +109,11 @@ class ImplicitALSTrainKernel<algorithmFPType, defaultDense, cpu> : public Implic
 protected:
     virtual void formSystem(size_t i, size_t nCols, const algorithmFPType * data, const size_t * colIndices, const size_t * rowOffsets,
                             size_t nFactors, algorithmFPType * colFactors, algorithmFPType alpha, algorithmFPType * lhs, algorithmFPType * rhs,
-                            algorithmFPType lambda) DAAL_C11_OVERRIDE;
+                            algorithmFPType lambda) override;
 
     virtual void computeCostFunction(size_t nUsers, size_t nItems, size_t nFactors, algorithmFPType * data, size_t * colIndices, size_t * rowOffsets,
                                      algorithmFPType * itemsFactors, algorithmFPType * usersFactors, algorithmFPType alpha, algorithmFPType lambda,
-                                     algorithmFPType * costFunctionPtr) DAAL_C11_OVERRIDE;
+                                     algorithmFPType * costFunctionPtr) override;
 };
 
 template <typename algorithmFPType, Method method, CpuType cpu>

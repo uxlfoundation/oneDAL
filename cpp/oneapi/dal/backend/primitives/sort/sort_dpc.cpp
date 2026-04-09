@@ -23,6 +23,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
+#pragma clang diagnostic ignored "-Wsign-compare"
 
 #include <oneapi/dpl/experimental/kernel_templates>
 

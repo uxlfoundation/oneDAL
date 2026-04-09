@@ -39,7 +39,7 @@ using namespace daal::data_management;
  * Input data set parameters
  * Input matrix is stored in the CSR format with one-based indexing
  */
-const std::string datasetFileName = "../data/batch/covcormoments_csr.csv";
+const std::string datasetFileName = "data/covcormoments_csr.csv";
 
 void printResults(const low_order_moments::ResultPtr& res);
 
@@ -47,13 +47,13 @@ int main(int argc, char* argv[]) {
     checkArguments(argc, argv, 1, &datasetFileName);
 
     /* Read datasetFileName from a file and create numeric tables to store the input data */
-    CSRNumericTable* dataTable = createSparseTable<float>(datasetFileName);
+    CSRNumericTablePtr dataTable = createSparseTable<float>(datasetFileName);
 
     /* Create an algorithm to compute low order moments in the batch processing mode using the default method */
     low_order_moments::Batch<float, low_order_moments::fastCSR> algorithm;
 
     /* Set input objects for the algorithm */
-    algorithm.input.set(low_order_moments::data, CSRNumericTablePtr(dataTable));
+    algorithm.input.set(low_order_moments::data, dataTable);
 
     /* Compute low order moments */
     algorithm.compute();

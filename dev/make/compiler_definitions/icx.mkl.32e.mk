@@ -80,7 +80,6 @@ linker.ld.flag := $(if $(LINKER),-fuse-ld=$(LINKER),)
 
 link.dynamic.lnx.icx = icx $(linker.ld.flag) -m64 -no-intel-lib ${LDFLAGS}
 link.dynamic.lnx.icx += $(if $(filter yes,$(GCOV_ENABLED)),-coverage,)
-link.dynamic.win.icc = icx $(linker.ld.flag) ${LDFLAGS}
 
 pedantic.opts.lnx.icx = -pedantic \
                         -Wall \

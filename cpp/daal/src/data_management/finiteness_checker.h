@@ -42,7 +42,7 @@ bool valuesAreNotFinite(const float * dataPtr, size_t n, bool allowNaN);
 
 bool valuesAreNotFinite(const double * dataPtr, size_t n, bool allowNaN);
 
-template <typename DataType, daal::CpuType cpu>
+template <typename DataType, CpuType cpu>
 services::Status allValuesAreFiniteImpl(NumericTable & table, bool allowNaN, bool * finiteness);
 
 } // namespace internal

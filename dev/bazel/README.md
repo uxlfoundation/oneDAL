@@ -166,7 +166,6 @@ The most used Bazel commands are `build`, `test` and `run`.
   - `all` Compiles for all instruction sets listed below.
   - Any comma-separated combination of the following values:
     - `sse2`
-    - `sse42`
     - `avx2`
     - `avx512`
 

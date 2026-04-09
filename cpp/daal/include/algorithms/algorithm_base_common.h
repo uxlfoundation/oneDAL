@@ -25,7 +25,6 @@
 #define __ALGORITHM_BASE_COMMON_H__
 
 #include "services/daal_memory.h"
-#include "services/internal/daal_kernel_defines.h"
 #include "services/error_handling.h"
 #include "services/env_detect.h"
 #include "algorithms/algorithm_types.h"
@@ -108,7 +107,7 @@ public:
      * \return Error collection of the algorithm
      * \DAAL_DEPRECATED
      */
-    services::SharedPtr<services::ErrorCollection> getErrors() DAAL_C11_OVERRIDE { return _status.getCollection(); }
+    services::SharedPtr<services::ErrorCollection> getErrors() override { return _status.getCollection(); }
 
 private:
     bool _enableChecks;

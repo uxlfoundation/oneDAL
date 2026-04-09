@@ -26,6 +26,7 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_common.h"
 #include "src/algorithms/pca/pca_dense_correlation_distr_step2_kernel.h"
 
 namespace daal
@@ -34,6 +35,48 @@ namespace algorithms
 {
 namespace pca
 {
+namespace internal
+{
+using namespace daal::internal;
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm in the distributed processing mode
+ *
+ */
+template <ComputeStep computeStep, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm on the master node
+ *
+ */
+template <typename algorithmFPType, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+
+    /**
+     * Computes a partial result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the PCA algorithm in the second step
+     * of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 DistributedContainer<step2Master, algorithmFPType, correlationDense, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
 {
@@ -78,6 +121,8 @@ services::Status DistributedContainer<step2Master, algorithmFPType, correlationD
     __DAAL_CALL_KERNEL(env, internal::PCACorrelationKernel, __DAAL_KERNEL_ARGUMENTS(distributed, algorithmFPType), finalize, partialResult, parameter,
                        *eigenvectors, *eigenvalues);
 }
+
+} // namespace internal
 
 } // namespace pca
 } // namespace algorithms

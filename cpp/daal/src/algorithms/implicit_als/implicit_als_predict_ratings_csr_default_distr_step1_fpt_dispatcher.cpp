@@ -22,13 +22,13 @@
 */
 
 #include "src/algorithms/kernel.h"
-#include "algorithms/implicit_als/implicit_als_predict_ratings_distributed.h"
+#include "src/algorithms/implicit_als/implicit_als_predict_ratings_dense_default_container.h"
 
 namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::DistributedContainer, distributed, step1Local, DAAL_FPTYPE,
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::prediction::ratings::internal::DistributedContainer, distributed, step1Local, DAAL_FPTYPE,
                                       implicit_als::prediction::ratings::defaultDense)
 namespace implicit_als
 {
@@ -41,6 +41,15 @@ namespace interface1
 
 using DistributedType = Distributed<step1Local, DAAL_FPTYPE, implicit_als::prediction::ratings::defaultDense>;
 
+template <>
+void DistributedType::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(distributed, internal::DistributedContainer, step1Local, DAAL_FPTYPE,
+                                          implicit_als::prediction::ratings::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _partialResult.reset(new PartialResultType());
+}
 template <>
 DAAL_EXPORT DistributedType::Distributed()
 {

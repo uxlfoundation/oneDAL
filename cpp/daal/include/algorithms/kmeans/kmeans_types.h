@@ -168,14 +168,14 @@ public:
      * Returns the number of features in the input object
      * \return Number of features in the input object
      */
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
      * Checks input objects for K-Means algorithm
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method of the algorithm
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 /**
@@ -226,14 +226,14 @@ public:
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks partial results of K-Means algorithm
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -296,7 +296,7 @@ public:
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Input * input, const daal::algorithms::Parameter * par, int method) const override;
 
     /**
      * Checks the results of K-Means algorithm
@@ -304,7 +304,7 @@ public:
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::PartialResult * pres, const daal::algorithms::Parameter * par, int method) const override;
 
 protected:
     /** \private */
@@ -354,14 +354,14 @@ public:
      * \return Number of features in the Input data table
      */
 
-    size_t getNumberOfFeatures() const DAAL_C11_OVERRIDE;
+    size_t getNumberOfFeatures() const override;
 
     /**
      * Checks an input object for K-Means algorithm in the second step of the distributed processing mode
      * \param[in] par     Algorithm parameter
      * \param[in] method  Computation method
      */
-    services::Status check(const daal::algorithms::Parameter * par, int method) const DAAL_C11_OVERRIDE;
+    services::Status check(const daal::algorithms::Parameter * par, int method) const override;
 };
 
 } // namespace interface1
@@ -403,7 +403,7 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
     DAAL_UINT64 resultsToEvaluate;   /*!< 64 bit integer flag that indicates the results to compute */
     DAAL_DEPRECATED bool assignFlag; /*!< Do data points assignment \DAAL_DEPRECATED */
 
-    services::Status check() const DAAL_C11_OVERRIDE;
+    services::Status check() const override;
 };
 /* [Parameter source code] */
 

@@ -47,8 +47,8 @@ using namespace daal::services::internal;
 template <typename algorithmFPType, CpuType cpu>
 struct MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu> : public Kernel
 {
-    Status compute(const NumericTable * a, const daal::algorithms::Model * m, SvmModel * svmModel, NumericTable * pred, NumericTable * df,
-                   const daal::algorithms::Parameter * par);
+    Status compute(const NumericTable * a, const daal::algorithms::Model * m, svm::internal::ModelImpl * svmModel, NumericTable * pred,
+                   NumericTable * df, const daal::algorithms::Parameter * par);
 };
 
 /** Base class for threading subtask */
@@ -232,7 +232,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         _xRows.set(const_cast<NumericTable *>(a), startRow, nRows);
         DAAL_CHECK_BLOCK_STATUS(_xRows);
@@ -277,7 +277,7 @@ public:
     }
 
 protected:
-    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) DAAL_C11_OVERRIDE
+    Status getDataBlock(size_t startRow, size_t nRows, const NumericTable * a, NumericTablePtr & xTable) override
     {
         const bool toOneBaseRowIndices = true;
         _xRows.set(dynamic_cast<CSRNumericTableIface *>(const_cast<NumericTable *>(a)), startRow, nRows, toOneBaseRowIndices);
@@ -303,8 +303,8 @@ private:
 template <typename algorithmFPType, CpuType cpu>
 Status MultiClassClassifierPredictKernel<voteBased, training::oneAgainstOne, algorithmFPType, cpu>::compute(const NumericTable * a,
                                                                                                             const daal::algorithms::Model * m,
-                                                                                                            SvmModel * svmModel, NumericTable * pred,
-                                                                                                            NumericTable * df,
+                                                                                                            svm::internal::ModelImpl * svmModel,
+                                                                                                            NumericTable * pred, NumericTable * df,
                                                                                                             const daal::algorithms::Parameter * par)
 {
     Model * model                              = static_cast<Model *>(const_cast<daal::algorithms::Model *>(m));

@@ -25,7 +25,7 @@ namespace dal = oneapi::dal;
 using namespace dal::preview::triangle_counting;
 
 int main(int argc, char** argv) {
-    const auto filename = get_data_path("graph.csv");
+    const auto filename = get_data_path("data/graph.csv");
 
     // read the graph
     using graph_t = dal::preview::undirected_adjacency_vector_graph<>;

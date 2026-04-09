@@ -25,6 +25,7 @@
 #define __IMPLICIT_ALS_PREDICT_RATINGS_DENSE_DEFAULT_CONTAINER_H__
 
 #include "algorithms/implicit_als/implicit_als_predict_ratings_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/implicit_als/implicit_als_predict_ratings_dense_default_kernel.h"
 
 namespace daal
@@ -37,10 +38,39 @@ namespace prediction
 {
 namespace ratings
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of implicit ALS prediction algorithm
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the implicit ALS ratings prediction algorithm in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for implicit ALS model-based prediction, double or float
+ * \tparam method           Implicit ALS prediction method, \ref Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of implicit ALS model-based ratings prediction
+     * in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, prediction::ratings::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -73,9 +103,42 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 }
 
 /**
- *  \brief Initialize list of implicit ALS prediction algorithm
- *  kernels with implementations for supported architectures
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class that contains methods to run implicit ALS model-based prediction in the distributed processing mode
  */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__PREDICTION__RATINGS__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class that contains methods to run implicit ALS model-based prediction in the first step of
+ *        the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public DistributedPredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based ratings prediction with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based prediction
+     * in the first step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based prediction
+     * in the first step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
 template <typename algorithmFPType, prediction::ratings::Method method, CpuType cpu>
 DistributedContainer<step1Local, algorithmFPType, method, cpu>::DistributedContainer(daal::services::Environment::env * daalEnv)
     : DistributedPredictionContainerIface()
@@ -117,6 +180,7 @@ services::Status DistributedContainer<step1Local, algorithmFPType, method, cpu>:
     return services::Status();
 }
 
+} // namespace internal
 } // namespace ratings
 } // namespace prediction
 } // namespace implicit_als

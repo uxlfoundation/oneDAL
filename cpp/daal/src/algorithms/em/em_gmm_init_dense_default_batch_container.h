@@ -24,6 +24,7 @@
 #ifndef __EM_GMM_INIT_DENSE_DEFAULT_BATCH_CONTAINER_H__
 #define __EM_GMM_INIT_DENSE_DEFAULT_BATCH_CONTAINER_H__
 
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/em/em_gmm_init_dense_default_batch_kernel.h"
 
 namespace daal
@@ -34,9 +35,36 @@ namespace em_gmm
 {
 namespace init
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of em default init kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__EM_GMM__INIT__BATCHCONTAINER"></a>
+ * \brief Provides methods to compute initial values for the EM for GMM algorithm.
+ *        The class is associated with the daal::algorithms::em_gmm::init::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of initial values for the EM for GMM algorithm, double or float
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the EM for GMM initialization algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    ~BatchContainer();
+    /**
+     * Computes initial values for the EM for GMM algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -67,6 +95,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::EMInitKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, *inputData, *inputWeights, *inputMeans,
                        inputCovariances, *emPar, *emPar->engine);
 }
+
+} // namespace internal
 
 } // namespace init
 

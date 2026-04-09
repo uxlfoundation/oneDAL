@@ -36,7 +36,7 @@ using dal::backend::context_cpu;
 namespace daal_knn = daal::algorithms::bf_knn_classification;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_knn_bf_kernel_t = daal_knn::training::internal::KNNClassificationTrainKernel<Float, Cpu>;
 
 template <typename Float, typename Task>

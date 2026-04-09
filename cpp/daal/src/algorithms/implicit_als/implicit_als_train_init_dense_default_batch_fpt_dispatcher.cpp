@@ -27,7 +27,8 @@ namespace daal
 {
 namespace algorithms
 {
-__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::init::BatchContainer, batch, DAAL_FPTYPE, implicit_als::training::init::defaultDense)
+__DAAL_INSTANTIATE_DISPATCH_CONTAINER(implicit_als::training::init::internal::BatchContainer, batch, DAAL_FPTYPE,
+                                      implicit_als::training::init::defaultDense)
 namespace implicit_als
 {
 namespace training
@@ -36,6 +37,14 @@ namespace init
 {
 namespace interface1
 {
+template <>
+void Batch<DAAL_FPTYPE, implicit_als::training::init::defaultDense>::initialize()
+{
+    _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, internal::BatchContainer, DAAL_FPTYPE, implicit_als::training::init::defaultDense)(&_env);
+    _in  = &input;
+    _par = &parameter;
+    _result.reset(new ResultType());
+}
 template <>
 DAAL_EXPORT Batch<DAAL_FPTYPE, implicit_als::training::init::defaultDense>::Batch()
 {

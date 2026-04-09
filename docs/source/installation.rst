@@ -15,8 +15,6 @@
 Installation
 ============
 
-.. |base_tk_link| replace:: |base_tk|
-.. _base_tk_link: https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
 .. |standalone_link| replace:: |full_name|
 .. _standalone_link: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onedal-download.html
 
@@ -26,7 +24,6 @@ There are several options available for installing |short_name|:
 
   - Intel® oneAPI:
 
-    - Download as Part of the |base_tk_link|_
     - Download as the Stand-Alone |standalone_link|_
   - Conda: ::
 

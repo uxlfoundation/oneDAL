@@ -34,12 +34,6 @@ namespace algorithms
 {
 namespace svm
 {
-namespace interface1
-{
-__DAAL_REGISTER_SERIALIZATION_CLASS(Model, SERIALIZATION_SVM_MODEL_ID);
-
-}
-
 namespace interface2
 {
 services::Status Parameter::check() const

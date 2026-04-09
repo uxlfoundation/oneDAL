@@ -32,20 +32,12 @@ namespace optimization_solver
 {
 namespace mse
 {
-namespace interface2
-{
-template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
-
 namespace internal
 {
+template class BatchContainer<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class MSEKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
-
+} // namespace internal
 } // namespace mse
-
 } // namespace optimization_solver
-
 } // namespace algorithms
-
 } // namespace daal

@@ -19,7 +19,7 @@
 
 namespace oneapi::dal::backend::primitives {
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
 class kernel_reduction_rm_cw_naive_local {
     using acc_t = sycl::local_accessor<Float, 1>;
 
@@ -47,22 +47,17 @@ public:
         const auto loc_idx = it.get_local_id(1);
         const auto range = it.get_local_range(1);
         const auto lm = cache_.size();
-#if __SYCL_COMPILER_VERSION >= 20230828
         sycl::local_ptr<const Float> local(
             (const Float*)cache_.template get_multi_ptr<sycl::access::decorated::yes>().get_raw());
-#else
-        sycl::local_ptr<const Float> local((const Float*)cache_.get_pointer().get());
-#endif
-        Float acc = (override_init_ || (loc_idx != 0)) ? //
-                        binary_.init_value
-                                                       : output_[col_idx];
+        AccT acc = (override_init_ || (loc_idx != 0)) ? //
+                       binary_.init_value
+                                                      : output_[col_idx];
         // Loop fot the whole WG
         for (std::int64_t j = 0; j < height_; j += lm) {
             const Float* from = input_ + col_idx + lstride_ * j;
             sycl::global_ptr<const Float> global(from);
             const auto count =
                 sycl::min(static_cast<std::int32_t>(lm), static_cast<std::int32_t>(height_ - j));
-#if __SYCL_COMPILER_VERSION >= 20230828
             it.async_work_group_copy(
                   cache_.template get_multi_ptr<sycl::access::decorated::yes>(),
                   sycl::address_space_cast<sycl::access::address_space::global_space,
@@ -70,9 +65,6 @@ public:
                   count,
                   lstride_)
                 .wait();
-#else
-            it.async_work_group_copy<const Float>(local, global, count, lstride_).wait();
-#endif
             // Exclusive for EU
             for (std::int32_t i = loc_idx; i < count; i += range) {
                 acc = binary_.native(acc, unary_(cache_[i]));
@@ -94,10 +86,11 @@ private:
     const bool override_init_;
 };
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::reduction_rm_cw_naive_local(sycl::queue& q,
-                                                                                   std::int64_t wg,
-                                                                                   std::int64_t lm)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_cw_naive_local(
+    sycl::queue& q,
+    std::int64_t wg,
+    std::int64_t lm)
         : q_(q),
           wg_(wg),
           lm_(lm) {
@@ -106,14 +99,15 @@ reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::reduction_rm_cw_naive_loc
                   device_local_mem_size(q_));
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::reduction_rm_cw_naive_local(sycl::queue& q)
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::reduction_rm_cw_naive_local(
+    sycl::queue& q)
         : reduction_rm_cw_naive_local(q,
                                       propose_wg_size(q),
                                       device_local_mem_size(q) / sizeof(Float) / 2) {}
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -136,8 +130,8 @@ sycl::event reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::operator()(
     return event;
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::event reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::operator()(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::event reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::operator()(
     const Float* input,
     Float* output,
     std::int64_t width,
@@ -150,23 +144,23 @@ sycl::event reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::operator()(
     operator()(input, output, width, height, width, binary, unary, deps, override_init);
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-sycl::nd_range<2> reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::get_range(
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+sycl::nd_range<2> reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::get_range(
     std::int64_t width) const {
     return make_multiple_nd_range_2d({ width, wg_ }, { 1, wg_ });
 }
 
-template <typename Float, typename BinaryOp, typename UnaryOp>
-typename reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::kernel_t
-reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::get_kernel(sycl::handler& h,
-                                                                  const Float* input,
-                                                                  Float* output,
-                                                                  std::int64_t lm,
-                                                                  std::int64_t height,
-                                                                  std::int64_t stride,
-                                                                  const BinaryOp& binary,
-                                                                  const UnaryOp& unary,
-                                                                  const bool override_init) {
+template <typename Float, typename AccT, typename BinaryOp, typename UnaryOp>
+typename reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::kernel_t
+reduction_rm_cw_naive_local<Float, AccT, BinaryOp, UnaryOp>::get_kernel(sycl::handler& h,
+                                                                        const Float* input,
+                                                                        Float* output,
+                                                                        std::int64_t lm,
+                                                                        std::int64_t height,
+                                                                        std::int64_t stride,
+                                                                        const BinaryOp& binary,
+                                                                        const UnaryOp& unary,
+                                                                        const bool override_init) {
     sycl::local_accessor<Float, 1> local_acc{ sycl::range<1>(lm), h };
     return kernel_t{ local_acc,
                      input,
@@ -178,11 +172,15 @@ reduction_rm_cw_naive_local<Float, BinaryOp, UnaryOp>::get_kernel(sycl::handler&
                      override_init };
 }
 
-#define INSTANTIATE(F, B, U) template class reduction_rm_cw_naive_local<F, B, U>;
+#define INSTANTIATE(F, A, B, U) template class reduction_rm_cw_naive_local<F, A, B, U>;
 
-#define INSTANTIATE_FLOAT(B, U)                \
-    INSTANTIATE(double, B<double>, U<double>); \
-    INSTANTIATE(float, B<float>, U<float>);
+#define INSTANTIATE_FLOAT(B, U)                        \
+    INSTANTIATE(double, double, B<double>, U<double>); \
+    INSTANTIATE(float, float, B<float>, U<float>);
+
+#define INSTANTIATE_BOOL(B, U)                     \
+    INSTANTIATE(double, bool, B<bool>, U<double>); \
+    INSTANTIATE(float, bool, B<bool>, U<float>);
 
 INSTANTIATE_FLOAT(min, identity)
 INSTANTIATE_FLOAT(min, abs)
@@ -196,8 +194,10 @@ INSTANTIATE_FLOAT(sum, identity)
 INSTANTIATE_FLOAT(sum, abs)
 INSTANTIATE_FLOAT(sum, square)
 
-INSTANTIATE_FLOAT(logical_or, isinfornan)
-INSTANTIATE_FLOAT(logical_or, isinf)
+INSTANTIATE_BOOL(logical_or, isinfornan)
+INSTANTIATE_BOOL(logical_or, isinf)
+
+#undef INSTANTIATE_BOOL
 
 #undef INSTANTIATE_FLOAT
 

@@ -26,6 +26,7 @@
 
 #include "algorithms/implicit_als/implicit_als_training_batch.h"
 #include "algorithms/implicit_als/implicit_als_training_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/implicit_als/implicit_als_train_kernel.h"
 
 namespace daal
@@ -36,10 +37,160 @@ namespace implicit_als
 {
 namespace training
 {
+namespace internal
+{
 /**
  *  \brief Initialize list of implicit ALS training algorithm
  *  kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of implicit ALS model-based training
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of implicit ALS model-based training in the batch processing mode
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER"></a>
+ * \brief Class containing methods to compute the result of implicit ALS model-based training
+ * in the distributed processing mode
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER_STEP1LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods to train the implicit ALS model in the first step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step1Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the first step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based training
+     * in the first step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based training
+     * in the first step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER_STEP2MASTER_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods to train the implicit ALS model in the second step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based training
+     * in the second step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based training
+     * in the second step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER_STEP3LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods to train the implicit ALS model in the third step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the third step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based training
+     * in the third step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based training
+     * in the third step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__IMPLICIT_ALS__TRAINING__DISTRIBUTEDCONTAINER_STEP4LOCAL_ALGORITHMFPTYPE_METHOD_CPU"></a>
+ * \brief Class containing methods to train the implicit ALS model in the fourth step of the distributed processing mode
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step4Local, algorithmFPType, method, cpu> : public TrainingContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for implicit ALS model-based training with a specified environment
+     * in the fourth step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~DistributedContainer();
+
+    /**
+     * Computes a partial result of implicit ALS model-based training
+     * in the fourth step of the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of implicit ALS model-based training
+     * in the fourth step of the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : TrainingContainerIface<batch>()
 {
@@ -243,6 +394,8 @@ services::Status DistributedContainer<step4Local, algorithmFPType, method, cpu>:
 {
     return services::Status();
 }
+
+} // namespace internal
 
 } // namespace training
 } // namespace implicit_als

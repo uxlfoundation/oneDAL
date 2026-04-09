@@ -20,7 +20,7 @@
 `make daal_c PLAT=lnx32e COMPILER=icx`
 
 # CPU target selection
-`make daal_c REQCPU="sse42 avx2 avx512"`
+`make daal_c REQCPU="sse2 avx2 avx512"`
 ```
 
 ## 🛠️ Core Patterns
@@ -89,13 +89,13 @@ services::Status compute() {
 template <typename algorithmFPType, Method method, CpuType cpu>
 class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch> {
 public:
-    virtual services::Status compute() DAAL_C11_OVERRIDE;
+    virtual services::Status compute() override;
 };
 
 // CPU type enumeration
 enum CpuType {
 #if defined(TARGET_X86_64)
-    sse2 = 0, sse42 = 2, avx2 = 4, avx512 = 6
+    sse2 = 0, avx2 = 4, avx512 = 6
 #elif defined(TARGET_ARM)
     sve = 0     // ARM Scalable Vector Extension
 #elif defined(TARGET_RISCV64)

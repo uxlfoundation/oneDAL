@@ -40,35 +40,6 @@ namespace training
 namespace interface2
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of Gradient Boosted Trees model-based training.
- *        This class is associated with daal::algorithms::gbt::classification::training::Batch class
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations, double or float
- * \tparam method           Gradient Boosted Trees model training method, \ref Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public TrainingContainerIface<batch>
-{
-public:
-    /**
-     * Constructs a container for Gradient Boosted Trees model-based training with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of Gradient Boosted Trees model-based training in the batch processing mode
-     * \return Status of computations
-     */
-    services::Status compute() DAAL_C11_OVERRIDE;
-    services::Status setupCompute() DAAL_C11_OVERRIDE;
-};
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__GBT__CLASSIFICATION__TRAINING__BATCH"></a>
  * \brief Trains model of the Gradient Boosted Trees algorithms in the batch processing mode
  * <!-- \n<a href="DAAL-REF-GBT__CLASSIFICATION-ALGORITHM">Gradient Boosted Trees algorithm description and usage models</a> -->
@@ -130,13 +101,13 @@ public:
      * Get input objects for the Gradient Boosted Trees training algorithm
      * \return %Input objects for the Gradient Boosted Trees training algorithm
      */
-    InputType * getInput() DAAL_C11_OVERRIDE { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const DAAL_C11_OVERRIDE { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains results of Gradient Boosted Trees training
@@ -147,7 +118,7 @@ public:
     /**
      * Resets the training results of the classification algorithm
      */
-    services::Status resetResult() DAAL_C11_OVERRIDE
+    services::Status resetResult() override
     {
         _result.reset(new ResultType());
         DAAL_CHECK(_result, services::ErrorNullResult);
@@ -162,12 +133,12 @@ public:
      */
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
-    virtual services::Status checkComputeParams() DAAL_C11_OVERRIDE;
+    services::Status checkComputeParams() override;
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const DAAL_C11_OVERRIDE { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    services::Status allocateResult() DAAL_C11_OVERRIDE
+    services::Status allocateResult() override
     {
         ResultPtr res = getResult();
         DAAL_CHECK(res, services::ErrorNullResult);
@@ -176,19 +147,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace training

@@ -25,6 +25,7 @@
 #define __CORDISTANCE_BATCH_CONTAINER_H__
 
 #include "algorithms/distance/correlation_distance.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/cordistance/cordistance_kernel.h"
 
 namespace daal
@@ -33,6 +34,39 @@ namespace algorithms
 {
 namespace correlation_distance
 {
+namespace internal
+{
+using namespace daal::internal;
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__CORRELATION_DISTANCE__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the correlation distance algorithm.
+ *        This class is associated with daal::algorithms::correlation_distance::Batch class
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the correlation distance algorithm, double or float
+ * \tparam method           Correlation distance computation method, \ref Method
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the correlation distance algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**  Delete copy-constructor and copy-assignment constructor to follow the rule of three */
+    BatchContainer(const BatchContainer &)             = delete;
+    BatchContainer & operator=(const BatchContainer &) = delete;
+
+    /**
+     * Computes the result of the correlation distance algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 /**
  *  \brief Initialize list of correlation distance, double precission
  *  kernels with implementations for supported architectures
@@ -67,6 +101,8 @@ services::Status BatchContainer<algorithmFPType, method, cpu>::compute()
 
     __DAAL_CALL_KERNEL(env, internal::DistanceKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFPType, method), compute, na, a, nr, r, par);
 }
+
+} // namespace internal
 
 } // namespace correlation_distance
 

@@ -38,12 +38,10 @@ using namespace daal::algorithms::implicit_als;
 /* Input data set parameters */
 const size_t nBlocks = 4;
 
-const std::string trainDatasetFileNames[nBlocks] = {
-    "../data/distributed/implicit_als_trans_csr_1.csv",
-    "../data/distributed/implicit_als_trans_csr_2.csv",
-    "../data/distributed/implicit_als_trans_csr_3.csv",
-    "../data/distributed/implicit_als_trans_csr_4.csv"
-};
+const std::string trainDatasetFileNames[nBlocks] = { "data/implicit_als_trans_csr_1.csv",
+                                                     "data/implicit_als_trans_csr_2.csv",
+                                                     "data/implicit_als_trans_csr_3.csv",
+                                                     "data/implicit_als_trans_csr_4.csv" };
 
 static int usersPartition[] = { nBlocks };
 
@@ -106,8 +104,8 @@ KeyValueDataCollectionPtr initializeStep1Local(size_t block) {
     initAlgorithm.parameter.fullNUsers = nUsers;
     initAlgorithm.parameter.nFactors = nFactors;
     initAlgorithm.parameter.seed += block;
-    initAlgorithm.parameter.partition.reset(
-        new HomogenNumericTable<int>((int *)usersPartition, 1, 1));
+    initAlgorithm.parameter.partition =
+        HomogenNumericTable<int>::create((int *)usersPartition, 1, 1);
 
     /* Pass a training data set to the algorithm */
     initAlgorithm.input.set(training::init::data, dataTable[block]);

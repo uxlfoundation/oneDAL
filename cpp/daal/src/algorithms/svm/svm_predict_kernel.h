@@ -40,6 +40,8 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <Method method, typename algorithmFPType, CpuType cpu>
 struct SVMPredictImpl : public Kernel
 {

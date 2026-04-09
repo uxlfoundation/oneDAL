@@ -14,6 +14,8 @@
 # limitations under the License.
 #===============================================================================
 
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+
 load("@onedal//dev/bazel:utils.bzl",
     "utils",
     "paths",
@@ -26,13 +28,11 @@ load("@onedal//dev/bazel/cc:common.bzl",
 # TODO: Replace file sufix to ISA
 _CPU_SUFFIX_TO_ISA_MAP = {
     "_nrh": "sse2",
-    "_neh": "sse42",
     "_hsw": "avx2",
     "_skx": "avx512",
 }
 _CPU_SUFFIX_TO_ISA_BACK_MAP = {
     "sse2":       "_nrh",
-    "sse42":      "_neh",
     "avx2":       "_hsw",
     "avx512":     "_skx",
 }
