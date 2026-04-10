@@ -652,13 +652,12 @@ endef
 
 $(eval $(call .populate_cpus,ONEAPI.objs_a,$(ONEAPI.objs_a)))
 $(eval $(call .populate_cpus,ONEAPI.objs_y,$(ONEAPI.objs_y)))
-# DPC++ static library is only built on Windows
+
 
 $(eval $(call .populate_cpus,ONEAPI.objs_y.dpc,$(ONEAPI.objs_y.dpc)))
 
 -include $(ONEAPI.tmpdir_a)/*.d
 -include $(ONEAPI.tmpdir_y)/*.d
-# DPC++ static library is only built on Windows
 -include $(ONEAPI.tmpdir_y.dpc)/*.d
 
 # Declares target for object file compilation
@@ -694,8 +693,6 @@ $(ONEAPI.tmpdir_a)/inc_a_folders.txt: | $(ONEAPI.tmpdir_a)/.
 
 $(ONEAPI.tmpdir_y)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y)/.
 	$(call WRITE.PREREQS,$(ONEAPI.include_options),$(space))
-
-# DPC++ static library is only built on Windows
 
 
 $(ONEAPI.tmpdir_y.dpc)/inc_y_folders.txt: | $(ONEAPI.tmpdir_y.dpc)/.
@@ -755,14 +752,12 @@ $(foreach x,$(ONEAPI.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.
 $(foreach x,$(ONEAPI.objs_y.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y),C)))
 $(foreach x,$(PARAMETERS.objs_a.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_a),C)))
 $(foreach x,$(PARAMETERS.objs_y.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y),C)))
-# DPC++ static library is only built on Windows
 $(foreach x,$(ONEAPI.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y.dpc),DPC)))
 $(foreach x,$(PARAMETERS.objs_y.dpc.filtered),$(eval $(call .ONEAPI.compile,$x,$(ONEAPI.tmpdir_y.dpc),DPC)))
 
 # Create Host and DPC++ oneapi libraries
 ifeq ($(BUILD_PARAMETERS_LIB),yes)
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a.filtered)))
-# DPC++ static library is only built on Windows
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(parameters_a),$(PARAMETERS.objs_a.filtered)))
 else
 $(eval $(call .ONEAPI.declare_static_lib,$(WORKDIR.lib)/$(oneapi_a),$(ONEAPI.objs_a)))
@@ -773,7 +768,6 @@ ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.lib += $(PARAMETERS.objs_y.filtered)
 endif
 
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(ONEAPI.tmpdir_y)/$(oneapi_y:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y)/dll.res,) | $(ONEAPI.tmpdir_y)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y): \
@@ -809,7 +803,6 @@ ifeq ($(BUILD_PARAMETERS_LIB),no)
   ONEAPI.objs_y.dpc.lib += $(PARAMETERS.objs_y.dpc.filtered)
 endif
 
-# TODO: replace MKL usage with one of the suggested apporach in 'common.mk'.
 $(ONEAPI.tmpdir_y.dpc)/$(oneapi_y.dpc:%.$y=%_link.txt): \
     $(ONEAPI.objs_y.dpc.lib) $(if $(OS_is_win),$(ONEAPI.tmpdir_y.dpc)/dll.res,) | $(ONEAPI.tmpdir_y.dpc)/. ; $(WRITE.PREREQS)
 $(WORKDIR.lib)/$(oneapi_y.dpc): \
@@ -937,7 +930,6 @@ _parameters_c: info.building.parameters.C++.part
 _parameters_c: $(WORKDIR.lib)/$(parameters_a) $(WORKDIR.lib)/$(parameters_y)
 
 _parameters_dpc: info.building.parameters.DPC++.part
-# DPC++ static library is only built on Windows
 _parameters_dpc: $(WORKDIR.lib)/$(parameters_y.dpc)
 
 _release_parameters_c: _parameters_c
