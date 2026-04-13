@@ -374,24 +374,19 @@ release.ONEAPI.LIBS_A := $(oneapi_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(oneapi_a),$(ilib:%.lib=%_dll.lib)),)
 release.ONEAPI.LIBS_Y := $(oneapi_y)
 
-release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
-# DPC DLL import library only (static DPC lib removed)
 ifdef OS_is_win
-release.ONEAPI.LIBS_A.dpc := $(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
-else
-release.ONEAPI.LIBS_A.dpc :=
+release.ONEAPI.LIBS_Y.import.dpc := $(oneapi_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
 endif
+release.ONEAPI.LIBS_Y.dpc := $(oneapi_y.dpc)
 
 release.PARAMETERS.LIBS_A := $(parameters_a) \
                          $(if $(OS_is_win),$(foreach ilib,$(parameters_a),$(ilib:%.lib=%_dll.lib)),)
 release.PARAMETERS.LIBS_Y := $(parameters_y)
 
-release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 ifdef OS_is_win
-release.PARAMETERS.LIBS_A.dpc := $(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
-else
-release.PARAMETERS.LIBS_A.dpc :=
+release.PARAMETERS.LIBS_Y.import.dpc := $(parameters_y.dpc:%.$(MAJORBINARY).dll=%_dll.lib)
 endif
+release.PARAMETERS.LIBS_Y.dpc := $(parameters_y.dpc)
 
 
 $(eval $(call set_daal_rt_deps))
