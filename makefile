@@ -542,6 +542,7 @@ $(WORKDIR.lib)/$(core_y): LOPT += $(-fPIC)
 $(WORKDIR.lib)/$(core_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(core_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
+$(WORKDIR.lib)/$(core_y): LOPT += $(if $(OS_is_lnx),-Wl$(comma)--version-script=dev/version_scripts/onedal_core.def,)
 ifdef OS_is_win
 $(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(core_y)
 endif
@@ -859,6 +860,7 @@ $(WORKDIR.lib)/$(oneapi_y): LOPT += $(daaldep.rt.seq)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(-lsanitize)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
+$(WORKDIR.lib)/$(oneapi_y): LOPT += $(if $(OS_is_lnx),-Wl$(comma)--version-script=dev/version_scripts/onedal.def,)
 ifdef OS_is_win
 $(WORKDIR.lib)/$(oneapi_y:%.$(MAJORBINARY).dll=%_dll.lib): $(WORKDIR.lib)/$(oneapi_y)
 endif
@@ -898,6 +900,7 @@ endif
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),-IMPLIB:$(@:%.$(MAJORBINARY).dll=%_dll.lib),)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),$(WORKDIR.lib)/$(core_y:%.$(MAJORBINARY).dll=%_dll.lib))
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_win),sycl$d.lib)
+$(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += $(if $(OS_is_lnx),-Wl$(comma)--version-script=dev/version_scripts/onedal_dpc.def,)
 $(WORKDIR.lib)/$(oneapi_y.dpc): LOPT += \
     $(daaldep.math_backend.dpc_link_deps) \
     $(if $(OS_is_win),, -Wl,-rpath,'$$ORIGIN/../../..:$$ORIGIN/../../../')
