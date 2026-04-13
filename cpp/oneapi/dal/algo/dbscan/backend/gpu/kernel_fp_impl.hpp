@@ -100,9 +100,9 @@ struct get_core_wide_kernel {
                 sycl::range<2>(SG, row_count),
                 sycl::range<2>(SG, 1));
 
-            cgh.parallel_for<get_core_wide_kernel_evolved_name<Float, use_weights>>(
+            cgh.parallel_for<get_core_wide_kernel<Float, use_weights>>(
                 nd,
-                [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(SG)]] {
+                [=](sycl::nd_item<2> item) [[sycl::reqd_sub_group_size(SG)]] {
                     sycl::sub_group sg = item.get_sub_group();
 
                     // Only first subgroup in each workgroup participates
