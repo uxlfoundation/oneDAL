@@ -54,6 +54,32 @@ train_input<Task>::train_input(const table& data, const table& initial_centroids
         : impl_(new train_input_impl<Task>(data, initial_centroids)) {}
 
 template <typename Task>
+train_input<Task>::~train_input() {}
+
+template <typename Task>
+train_input<Task>::train_input(const train_input& other) : impl_(other.impl_) {}
+
+template <typename Task>
+train_input<Task>::train_input(train_input&& other) noexcept : impl_(std::move(other.impl_)) {}
+
+template <typename Task>
+train_input<Task>& train_input<Task>::operator=(const train_input& other) {
+    if (this != &other) {
+        train_input<Task> tmp(other);
+        swap(*this, tmp);
+    }
+    return *this;
+}
+
+template <typename Task>
+train_input<Task>& train_input<Task>::operator=(train_input&& other) noexcept {
+    if (this != &other) {
+        swap(*this, other);
+    }
+    return *this;
+}
+
+template <typename Task>
 const table& train_input<Task>::get_data() const {
     return impl_->data;
 }
@@ -71,6 +97,11 @@ void train_input<Task>::set_data_impl(const table& value) {
 template <typename Task>
 void train_input<Task>::set_initial_centroids_impl(const table& value) {
     impl_->initial_centroids = value;
+}
+
+template <typename Task>
+void train_input<Task>::swap(train_input<Task>& a, train_input<Task>& b) noexcept {
+    std::swap(a.impl_, b.impl_);
 }
 
 template <typename Task>
