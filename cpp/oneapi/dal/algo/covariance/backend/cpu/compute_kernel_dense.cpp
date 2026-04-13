@@ -71,10 +71,10 @@ static compute_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
     // Simple allreduce of centered crossproducts is incorrect because each
     // rank uses its local mean. Un-center before allreduce, then re-center
     // with global statistics after.
-    if (!desc.get_assume_centered()) {
+    const Float local_nobs = *nobs_ary.get_data();
+    if (!desc.get_assume_centered() && local_nobs >= 1.0) {
         Float* cp_ptr = crossproduct_ary.get_mutable_data();
         const Float* sums_ptr = sums_ary.get_data();
-        const Float local_nobs = *nobs_ary.get_data();
         const Float inv_nobs = Float(1) / local_nobs;
         for (std::int64_t i = 0; i < component_count; ++i) {
             for (std::int64_t j = 0; j < component_count; ++j) {
@@ -89,10 +89,10 @@ static compute_result<Task> call_daal_spmd_kernel(const context_cpu& ctx,
     comm.allreduce(crossproduct_ary).wait();
 
     // Re-center with global statistics
-    if (!desc.get_assume_centered()) {
+    const Float global_nobs = *nobs_ary.get_data();
+    if (!desc.get_assume_centered() && global_nobs >= 1.0) {
         Float* cp_ptr = crossproduct_ary.get_mutable_data();
         const Float* sums_ptr = sums_ary.get_data();
-        const Float global_nobs = *nobs_ary.get_data();
         const Float inv_nobs = Float(1) / global_nobs;
         for (std::int64_t i = 0; i < component_count; ++i) {
             for (std::int64_t j = 0; j < component_count; ++j) {
