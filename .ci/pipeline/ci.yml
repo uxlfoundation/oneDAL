@@ -43,8 +43,6 @@ variables:
   VM_IMAGE : 'ubuntu-24.04'
   WIN_VM_IMAGE : 'windows-2022'
   SYSROOT_OS: 'noble'
-  PY_VERSION: '3.14'
-  SKL_VERSION: '1.8'
   # Link to latest version can be taken from basekit download page:
   # https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html
   # Check section 'Install through a Command Line':
@@ -150,11 +148,11 @@ jobs:
     displayName: 'System info'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx512 --sycl-split off --optflag O0 --target daal
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --target daal
     displayName: 'make daal'
   - script: |
       source /opt/intel/oneapi/setvars.sh
-      .ci/scripts/build.sh --compiler icx --optimizations avx512 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
+      .ci/scripts/build.sh --compiler icx --optimizations avx2 --sycl-split off --optflag O0 --linker lld --target onedal_dpc
     displayName: 'make onedal_dpc'
   - task: PublishPipelineArtifact@1
     inputs:
@@ -329,7 +327,7 @@ jobs:
     displayName: 'Build oneTBB'
     condition: ne(variables.TBB_RESTORED, 'true')
   - script: |
-      .ci/scripts/build.sh --compiler clang --optimizations  rv64 --optflag O0 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
+      .ci/scripts/build.sh --compiler clang --optimizations rv64 --optflag O0 --target daal --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
     displayName: 'make daal'
   - script: |
       .ci/scripts/build.sh --compiler clang --optimizations rv64 --optflag O0 --target onedal_c --backend-config ref --cross-compile --plat lnxriscv64 --sysroot $(SYSROOT_CACHE_DIR) --blas-dir $(OPENBLAS_CACHE_DIR) --tbb-dir $(TBB_CACHE_DIR)
@@ -585,8 +583,8 @@ jobs:
   strategy:
     matrix:
       Python314_Sklearn18:
-        PYTHON_VERSION: '$(PY_VERSION)'
-        SKLEARN_VERSION: '$(SKL_VERSION)'
+        PYTHON_VERSION: '3.14'
+        SKLEARN_VERSION: '1.8'
       Python313_Sklearn18:
         PYTHON_VERSION: '3.13'
         SKLEARN_VERSION: '1.8'
@@ -761,8 +759,8 @@ jobs:
   strategy:
     matrix:
       Python314_Sklearn18:
-        PYTHON_VERSION: '$(PY_VERSION)'
-        SKLEARN_VERSION: '$(SKL_VERSION)'
+        PYTHON_VERSION: '3.14'
+        SKLEARN_VERSION: '1.8'
       Python313_Sklearn18:
         PYTHON_VERSION: '3.13'
         SKLEARN_VERSION: '1.8'
