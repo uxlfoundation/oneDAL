@@ -28,16 +28,14 @@ namespace pr = dal::backend::primitives;
 
 template <typename Float>
 struct kernels_fp {
-    /// Compute core distances: for each point, the distance to its k-th nearest neighbor
-    /// where k = min_samples
+    /// Compute core distances on host. Distances computed on-the-fly (no O(n^2) matrix).
     static sycl::event compute_core_distances(sycl::queue& queue,
                                               const pr::ndview<Float, 2>& data,
                                               pr::ndview<Float, 1>& core_distances,
                                               std::int64_t min_samples,
                                               const bk::event_vector& deps = {});
 
-    /// Build the minimum spanning tree using Prim's algorithm with mutual reachability distances
-    /// Returns MST edges as (from, to, weight) stored in three arrays
+    /// Build MST using Prim's algorithm on host. Distances computed on-the-fly.
     static sycl::event build_mst(sycl::queue& queue,
                                  const pr::ndview<Float, 2>& data,
                                  const pr::ndview<Float, 1>& core_distances,
@@ -46,7 +44,7 @@ struct kernels_fp {
                                  pr::ndview<Float, 1>& mst_weights,
                                  const bk::event_vector& deps = {});
 
-    /// Sort MST edges by weight (ascending) for hierarchy construction
+    /// Sort MST edges by weight (ascending) on host.
     static sycl::event sort_mst_by_weight(sycl::queue& queue,
                                           pr::ndview<std::int32_t, 1>& mst_from,
                                           pr::ndview<std::int32_t, 1>& mst_to,
@@ -54,8 +52,7 @@ struct kernels_fp {
                                           std::int64_t edge_count,
                                           const bk::event_vector& deps = {});
 
-    /// Extract flat clusters from the condensed tree using EOM (Excess of Mass) method
-    /// Assigns cluster labels to each point (-1 for noise)
+    /// Extract flat clusters using EOM. Labels: -1 = noise.
     static sycl::event extract_clusters(sycl::queue& queue,
                                         const pr::ndview<std::int32_t, 1>& mst_from,
                                         const pr::ndview<std::int32_t, 1>& mst_to,

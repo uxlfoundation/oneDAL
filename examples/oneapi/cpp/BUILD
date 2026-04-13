@@ -84,7 +84,6 @@ dal_algo_example_suite(
         "cosine_distance",
         "covariance",
         "dbscan",
-        "hdbscan",
         "decision_forest",
         "kmeans",
         "knn",

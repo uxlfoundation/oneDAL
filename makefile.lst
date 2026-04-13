@@ -187,6 +187,7 @@ ONEAPI.ALGOS :=          \
     decision_forest      \
     decision_tree        \
     finiteness_checker   \
+    hdbscan              \
     kmeans               \
     kmeans_init          \
     knn                  \

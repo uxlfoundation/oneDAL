@@ -1,0 +1,10 @@
+rows=52500
+cols=2
+true_clusters=19
+min_cluster_size=15
+min_samples=10
+sklearn_clusters=19
+sklearn_noise=1699
+sklearn_time_ms=36905.8
+ari=0.425764
+ami=0.735234
