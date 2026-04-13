@@ -91,24 +91,25 @@ struct get_core_wide_kernel {
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
 
-            const std::int64_t wg_size64 = get_recommended_wg_size(queue, col_count64);
-            const std::int64_t block_split_size64 =
-                get_recommended_check_block_size(queue, col_count64, wg_size64);
+            // Use a fixed subgroup size for best Xe performance
+            constexpr std::uint32_t SG = 16;
+            const std::uint32_t row_count = static_cast<std::uint32_t>(row_count64);
+            const std::uint32_t col_count = static_cast<std::uint32_t>(col_count64);
 
-            cgh.parallel_for<get_core_wide_kernel<Float, use_weights>>(
-                bk::make_multiple_nd_range_2d({ wg_size64, row_count64 }, { wg_size64, 1 }),
-                [=](sycl::nd_item<2> item) {
+            sycl::nd_range<2> nd(
+                sycl::range<2>(SG, row_count),
+                sycl::range<2>(SG, 1));
+
+            cgh.parallel_for<get_core_wide_kernel_evolved_name<Float, use_weights>>(
+                nd,
+                [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(SG)]] {
                     sycl::sub_group sg = item.get_sub_group();
 
-                    // Match reference: only first sub-group of each work-group participates
+                    // Only first subgroup in each workgroup participates
                     if (sg.get_group_id()[0] != 0)
                         return;
 
-                    const std::uint32_t row_count = static_cast<std::uint32_t>(row_count64);
-                    const std::uint32_t col_count = static_cast<std::uint32_t>(col_count64);
-
-                    const std::uint32_t row_i =
-                        static_cast<std::uint32_t>(item.get_global_id(1));
+                    const std::uint32_t row_i = item.get_global_id(1);
                     if (row_i >= row_count)
                         return;
 
@@ -117,67 +118,109 @@ struct get_core_wide_kernel {
 
                     const Float min_obs_f = static_cast<Float>(min_observations);
 
-                    // Make block_split at least 1
-                    std::uint32_t block_split = static_cast<std::uint32_t>(block_split_size64);
-                    block_split = block_split ? block_split : 1u;
+                    const Float* const xi = data_ptr + (row_i * col_count);
 
-                    // Base pointers for row_i
-                    const std::uint32_t base_i = row_i * col_count;
-                    const Float* const xi = data_ptr + base_i;
-
-                    // Keep neighbor count local; write back once (plus early-exit path)
                     Float count = neighbours_ptr[row_i];
 
-                    // Iterate over all candidate points j
+                    constexpr bool is_f32 = std::is_same<Float, float>::value;
+
                     for (std::uint32_t j = 0; j < row_count; ++j) {
                         const Float* const xj = data_ptr + (j * col_count);
 
                         Float sum = Float(0);
-
-                        // Periodic early pruning state
                         bool pruned = false;
-                        std::uint32_t ticks = block_split;
-                        std::uint32_t iter = 0;
 
-                        // Feature loop distributed across subgroup lanes
-                        for (std::uint32_t k = lane; k < col_count; k += sg_size) {
-                            ++iter;
+                        if constexpr (is_f32) {
+                            // Try vec4 path if both pointers are 16B aligned
+                            const bool aligned =
+                                ((reinterpret_cast<std::uintptr_t>(xi) & 0xF) == 0) &&
+                                ((reinterpret_cast<std::uintptr_t>(xj) & 0xF) == 0);
 
-                            const Float v = xi[k] - xj[k];
-                            sum = sycl::fma(v, v, sum);
+                            if (aligned) {
+                                const std::uint32_t vec_cols = col_count & ~std::uint32_t(3);
+                                const std::uint32_t vecN = vec_cols >> 2;
 
-                            // Early check every block_split iterations (reference cadence)
-                            if (--ticks == 0) {
-                                ticks = block_split;
+                                const sycl::vec<float, 4>* const vxi =
+                                    reinterpret_cast<const sycl::vec<float, 4>*>(xi);
+                                const sycl::vec<float, 4>* const vxj =
+                                    reinterpret_cast<const sycl::vec<float, 4>*>(xj);
 
-                                // Reference guard: local_size * count_iter <= column_count
-                                if (sg_size * iter <= col_count) {
-                                    const Float partial =
-                                        sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
-                                    if (partial > epsilon) {
+                                for (std::uint32_t vk = lane; vk < vecN; vk += sg_size) {
+                                    const sycl::vec<float, 4> a = vxi[vk];
+                                    const sycl::vec<float, 4> b = vxj[vk];
+                                    const sycl::vec<float, 4> d = a - b;
+                                    float s = 0.0f;
+                                    s = sycl::fma(d[0], d[0], s);
+                                    s = sycl::fma(d[1], d[1], s);
+                                    s = sycl::fma(d[2], d[2], s);
+                                    s = sycl::fma(d[3], d[3], s);
+                                    sum = static_cast<Float>(sum + s);
+
+                                    // Early prune: if any lane exceeds epsilon, skip
+                                    if (sycl::any_of_group(sg, sum > epsilon)) {
                                         pruned = true;
                                         break;
                                     }
                                 }
+                                // Scalar tail for remaining columns
+                                if (!pruned) {
+                                    for (std::uint32_t k = vec_cols + lane; k < col_count; k += sg_size) {
+                                        const Float v = xi[k] - xj[k];
+                                        sum = sycl::fma(v, v, sum);
+                                        if (sycl::any_of_group(sg, sum > epsilon)) {
+                                            pruned = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (pruned) continue;
+
+                                const Float dist =
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+
+                                if (dist <= epsilon) {
+                                    count += use_weights ? weights_ptr[j] : Float(1);
+
+                                    // Update neighbors inside loop
+                                    if (lane == 0) {
+                                        neighbours_ptr[row_i] = count;
+                                    }
+
+                                    // Early stop for unweighted case
+                                    if (!use_weights && count >= min_obs_f) {
+                                        if (lane == 0) {
+                                            cores_ptr[row_i] = std::int32_t(1);
+                                        }
+                                        break;
+                                    }
+                                }
+                                continue; // next j
                             }
                         }
 
-                        // If pruned, do NOT perform the final reduction (saves cost)
-                        if (pruned) {
-                            continue;
+                        // Scalar path for non-float or unaligned
+                        for (std::uint32_t k = lane; k < col_count; k += sg_size) {
+                            const Float v = xi[k] - xj[k];
+                            sum = sycl::fma(v, v, sum);
+                            if (sycl::any_of_group(sg, sum > epsilon)) {
+                                pruned = true;
+                                break;
+                            }
                         }
+                        if (pruned) continue;
 
                         const Float dist =
                             sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                         if (dist <= epsilon) {
-                            // Only load weights if actually a neighbor
                             count += use_weights ? weights_ptr[j] : Float(1);
 
-                            // Reference early exit only in the unweighted case
+                            if (lane == 0) {
+                                neighbours_ptr[row_i] = count;
+                            }
+
                             if (!use_weights && count >= min_obs_f) {
                                 if (lane == 0) {
-                                    neighbours_ptr[row_i] = count;
                                     cores_ptr[row_i] = std::int32_t(1);
                                 }
                                 break;
@@ -185,17 +228,16 @@ struct get_core_wide_kernel {
                         }
                     }
 
-                    // Single global writeback of neighbours (unless early exit already wrote it)
+                    // Final writeback (match reference marking rule)
                     if (lane == 0) {
                         neighbours_ptr[row_i] = count;
-
-                        // Reference final marking uses neighbours_ptr value
                         if (count >= min_obs_f) {
                             cores_ptr[row_i] = std::int32_t(1);
                         }
                     }
                 });
         });
+
         return event;
     }
 };
