@@ -116,6 +116,7 @@ build_dir=${build_dir:-${ONEDAL_DIR}/__work/tbb-$target_arch}
 tbb_prefix=${tbb_prefix:-${ONEDAL_DIR}/__deps/tbb-$target_arch}
 
 sudo apt-get update
+sudo apt --fix-broken install -y
 sudo apt-get install build-essential gcc gfortran cmake -y
 tbb_src=${tbb_src:-${ONEDAL_DIR}/__work/onetbb-src}
 if [[ ! -d "${tbb_src}" ]] ; then
