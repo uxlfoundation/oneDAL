@@ -182,6 +182,14 @@ public:
         return *this;
     }
 
+    /// The number of iterations performed by the SVM training algorithm
+    const table &get_iteration_counts() const;
+
+    auto &set_iteration_counts(const table &value) {
+        set_iteration_counts_impl(value);
+        return *this;
+    }
+
 protected:
     void set_model_impl(const model<Task> &);
     void set_support_vectors_impl(const table &);
@@ -189,6 +197,7 @@ protected:
     void set_coeffs_impl(const table &);
     void set_bias_impl(double);
     void set_biases_impl(const table &);
+    void set_iteration_counts_impl(const table &);
 
 private:
     dal::detail::pimpl<detail::train_result_impl<Task>> impl_;
