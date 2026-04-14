@@ -75,6 +75,11 @@ if [ ! -d "${DST}/${OS}/bin" ]; then
   else
     echo tar -xvf "${DST}/${TBB_PACKAGE}" -C "${DST}"
     tar -C "${DST}/${OS}" --strip-components=1 -xvf "${DST}/${TBB_PACKAGE}"
+    # Flatten old TBB layout (lib/intel64/gcc4.8/) to new layout (lib/)
+    if [ -d "${DST}/${OS}/lib/intel64/gcc4.8" ]; then
+      mv "${DST}/${OS}/lib/intel64/gcc4.8"/* "${DST}/${OS}/lib/"
+      rm -rf "${DST}/${OS}/lib/intel64"
+    fi
   fi
   ls -al "${DST}/${OS}/"
   echo "Downloaded and unpacked oneTBB to ${DST}/${OS}"
