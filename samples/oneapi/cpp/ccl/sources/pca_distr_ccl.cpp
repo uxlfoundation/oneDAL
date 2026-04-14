@@ -39,7 +39,7 @@ void run() {
 
     const auto pca_desc = pca::descriptor<float>{};
 
-    const auto result = dal::preview::train(comm, pca_desc, input_vec[rank_id]);
+    const auto result = dal::preview::train(comm, pca_desc, input_vec.at(rank_id));
 
     if (comm.get_rank() == 0) {
         std::cout << "Eigenvectors:\n" << result.get_eigenvectors() << std::endl;
