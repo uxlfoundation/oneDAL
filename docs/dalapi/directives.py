@@ -75,7 +75,7 @@ class DoxyDirective(MacroDirective):
             x.add_doc(desc_str, level=level)
 
     def add_function_base(self, func, x: RstBuilder, is_free=True, level=0):
-        if func.doc and func.doc.description:
+        if func.doc and func.doc.description and func.doc.description.runs:
             namespace = func.parent_fully_qualified_name if is_free else None
             x.add_function(func.declaration, namespace, level=level)
             self.add_description(func.doc.description, x, level=level + 1)
