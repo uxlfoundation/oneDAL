@@ -100,7 +100,10 @@ result_t train_kernel_svd_impl<Float>::operator()(const descriptor_t& desc, cons
 
     const std::int64_t column_count = data.get_column_count();
     ONEDAL_ASSERT(column_count > 0);
-    const std::int64_t component_count = get_component_count(desc, data);
+    // SVD produces at most min(row_count, column_count) singular values,
+    // so component_count must not exceed the effective rank.
+    const std::int64_t effective_rank = std::min(row_count, column_count);
+    const std::int64_t component_count = std::min(get_component_count(desc, data), effective_rank);
     ONEDAL_ASSERT(component_count > 0);
     dal::detail::check_mul_overflow(column_count, component_count);
 

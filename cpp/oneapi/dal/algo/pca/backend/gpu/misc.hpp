@@ -304,35 +304,43 @@ auto sign_flip(sycl::queue& queue,
     return flip_event;
 }
 
-///  A wrapper that computes 1d array of explained variances ratio from the eigenvalues
+///  Computes noise variance as the average of the discarded eigenvalues.
+///
+///  This matches the CPU DAAL formula:
+///    noise_variance = (totalVariance - explainedVariance) / (nFeatures - nComponents)
+///  where totalVariance = sum(variances) and explainedVariance = sum(top eigenvalues).
 ///
 /// @tparam Float Floating-point type used to perform computations
 ///
-/// @param[in]  queue The SYCL queue
-/// @param[in]  eigenvalues  The input eigenvalues of size `component_count`
-/// @param[in]  vars  The input variances of size `component_count`
-/// @param[in]  deps  Events indicating availability of the `eigenvalues` for reading or writing
+/// @param[in]  queue        The SYCL queue
+/// @param[in]  eigenvalues  All eigenvalues from SYEVD in ascending order (size `column_count`)
+/// @param[in]  column_count Total number of features
+/// @param[in]  component_count Number of selected principal components
+/// @param[in]  deps         Events indicating availability of the data for reading
 ///
-/// @return A tuple of two elements, where the first element is the resulting 1d array of explained variances ratio
-/// of size `column_count` and the second element is a SYCL event indicating the availability
-/// of the explained variances ratio array for reading and writing
+/// @return The noise variance (scalar)
 template <typename Float>
 double compute_noise_variance(sycl::queue& queue,
                               pr::ndarray<Float, 1> eigenvalues,
-                              std::int64_t range,
+                              std::int64_t column_count,
+                              std::int64_t component_count,
                               const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(compute_noise_variance);
     ONEDAL_ASSERT(eigenvalues.has_data());
+    ONEDAL_ASSERT(column_count > component_count);
 
-    auto eigvals_host = eigenvalues.to_host(queue);
+    auto eigvals_host = eigenvalues.to_host(queue, deps);
     auto eigvals_ptr = eigvals_host.get_data();
 
+    // Eigenvalues are in ascending order from SYEVD.
+    // The first (column_count - component_count) are the "noise" eigenvalues.
+    const std::int64_t noise_count = column_count - component_count;
     Float sum = 0;
-    for (std::int64_t i = 0; i < range; ++i) {
+    for (std::int64_t i = 0; i < noise_count; ++i) {
         sum += eigvals_ptr[i];
     }
 
-    return sum / range;
+    return static_cast<double>(sum) / static_cast<double>(noise_count);
 }
 
 ///  A wrapper that computes 1d array of explained variances ratio from the eigenvalues
@@ -377,6 +385,7 @@ auto compute_explained_variances(sycl::queue& queue,
             acc += vars_ptr[i];
         });
     });
+    reduce_event.wait_and_throw();
     ONEDAL_ASSERT(sum_ptr[0] > 0);
     const Float inverse_sum = Float(1) / sum_ptr[0];
     auto compute_event = queue.submit([&](sycl::handler& h) {
@@ -580,6 +589,9 @@ auto compute_eigenvalues(sycl::queue& queue,
     const Float* src = singular_values.get_data();
     Float* dst = eigenvalues.get_mutable_data();
 
+    // Eigenvalues of the unbiased sample covariance are lambda = s^2 / (n - 1),
+    // where s are the singular values of the (mean-centered) data matrix.
+    // So: eigenvalue = singular_value^2 / (row_count - 1).
     const Float factor = static_cast<Float>(row_count - 1);
 
     auto event = queue.submit([&](sycl::handler& h) {
@@ -612,7 +624,7 @@ auto compute_singular_values(sycl::queue& queue,
                              std::int64_t row_count,
                              const dal::backend::event_vector& deps = {}) {
     ONEDAL_PROFILER_TASK(compute_singular_values);
-    ONEDAL_ASSERT(eigenvalues.has_mutable_data());
+    ONEDAL_ASSERT(eigenvalues.has_data());
 
     const std::int64_t component_count = eigenvalues.get_dimension(0);
     auto singular_values = pr::ndarray<Float, 1>::empty(queue, { component_count }, alloc::device);
@@ -620,6 +632,9 @@ auto compute_singular_values(sycl::queue& queue,
     auto eigvals_ptr = eigenvalues.get_data();
     auto singular_values_ptr = singular_values.get_mutable_data();
 
+    // Recover singular values from eigenvalues of the unbiased sample covariance:
+    // singular_value = sqrt((row_count - 1) * eigenvalue).
+    // The (row_count - 1) factor is the inverse of the unbiased normalization.
     const Float factor = row_count - 1;
 
     auto compute_event = queue.submit([&](sycl::handler& h) {

@@ -120,9 +120,8 @@ result_t finalize_train_kernel_cov_impl<Float>::operator()(const descriptor_t& d
     // doesn't benefit much from parallelization on the device (GPU/accelerator).
     // This avoids unnecessary overhead from device-side execution.
     if (desc.get_result_options().test(result_options::noise_variance)) {
-        std::int64_t rows_count_ = rows_count_global;
-        auto range = std::min(rows_count_, column_count) - component_count;
-        auto noise_variance = compute_noise_variance(q, eigvals, range, { syevd_event });
+        auto noise_variance =
+            compute_noise_variance(q, eigvals, column_count, component_count, { syevd_event });
         result.set_noise_variance(noise_variance);
     }
 

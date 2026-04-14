@@ -194,7 +194,11 @@ services::Status PCACorrelationBase<algorithmFPType, cpu>::computeCorrelationEig
     // inside the 'computeEigenvectorsInplaceSyevr' function
     // TODO: The 0.25 threshold is a temporary heuristic.
     // It should be replaced with a tunable parameter exposed through
-    // the parameters
+    // the parameters.
+    // TODO: nComponents should also be limited by min(nRows, nFeatures)
+    // (the effective rank of the data) to avoid requesting more components
+    // than the data can support. This requires passing nRows into this
+    // function, which currently only receives the correlation matrix.
     if (nComponents < 0.25 * nFeatures)
     {
         services::Status s = computeEigenvectorsInplaceSyevr(nFeatures, nComponents, matrixArray, fullEigenvaluesArray);
