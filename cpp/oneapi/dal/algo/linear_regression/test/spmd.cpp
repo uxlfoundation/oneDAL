@@ -19,7 +19,9 @@
 namespace oneapi::dal::linear_regression::test {
 
 TEMPLATE_LIST_TEST_M(lr_spmd_test, "LR common flow", "[lr][spmd]", lr_types) {
+#ifdef ONEDAL_DATA_PARALLEL
     SKIP_IF(this->not_float64_friendly());
+#endif
 
     this->generate(777);
     this->set_rank_count(GENERATE(2, 3));
