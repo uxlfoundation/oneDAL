@@ -30,14 +30,11 @@ namespace algorithms
 {
 namespace covariance
 {
-namespace interface1
-{
-template class DistributedContainer<step2Master, DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
 namespace internal
 {
+template class DistributedContainer<step2Master, DAAL_FPTYPE, defaultDense, DAAL_CPU>;
 template class CovarianceDistributedKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-}
+} // namespace internal
 } // namespace covariance
 } // namespace algorithms
 } // namespace daal

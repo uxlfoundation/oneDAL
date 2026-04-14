@@ -20,15 +20,15 @@
 ; deselect daal::internal namespaces
 
 [suppress_type]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_variable]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 [suppress_function]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*8internal[[:digit:]].*
+symbol_name_regexp = _Z+.*4daal[[:digit:]].*8internal[[:digit:]].*
 drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -36,20 +36,20 @@ drop = yes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; deselect the removed daal symbols
 
-[suppress_type]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*
-change_kind = deleted-type
-drop = yes
+;[suppress_type]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-type
+;drop = yes
 
-[suppress_variable]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*
-change_kind = deleted-variable
-drop = yes
+;[suppress_variable]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-variable
+;drop = yes
 
-[suppress_function]
-symbol_name_regexp = _Z+N4daal[[:digit:]].*
-change_kind = deleted-function
-drop = yes
+;[suppress_function]
+;symbol_name_regexp = _Z+N4daal[[:digit:]].*
+;change_kind = deleted-function
+;drop = yes
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; oneDAL DESELECTIONS ;;;;
@@ -91,4 +91,20 @@ drop = yes
 
 [suppress_function]
 symbol_name_regexp = _Z+N6oneapi3dal[[:digit:]].*7preview[[:digit:]].*
+drop = yes
+
+; deselect oneapi::dal newly added symbols
+[suppress_type]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-type
+drop = yes
+
+[suppress_variable]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-variable
+drop = yes
+
+[suppress_function]
+symbol_name_regexp = _Z[ZT]?[ISV]?N6oneapi3dal[[:digit:]].*
+change_kind = added-function
 drop = yes

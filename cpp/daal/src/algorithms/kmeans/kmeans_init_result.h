@@ -65,8 +65,8 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::Input * in
 
     services::Status status;
 
-    Argument::set(centroids, data_management::SerializationIfacePtr(new data_management::HomogenNumericTable<algorithmFPType>(
-                                 nFeatures, kmPar->nClusters, data_management::NumericTable::doAllocate)));
+    Argument::set(centroids, data_management::HomogenNumericTable<algorithmFPType>::create(nFeatures, kmPar->nClusters,
+                                                                                           data_management::NumericTable::doAllocate));
     return status;
 }
 
@@ -92,8 +92,8 @@ DAAL_EXPORT services::Status Result::allocate(const daal::algorithms::PartialRes
         const data_management::NumericTable * pPartialClusters = static_cast<const PartialResult *>(partialResult)->get(partialClusters).get();
         if (pPartialClusters) nFeatures = pPartialClusters->getNumberOfColumns();
     }
-    Argument::set(centroids, data_management::SerializationIfacePtr(new data_management::HomogenNumericTable<algorithmFPType>(
-                                 nFeatures, nClusters, data_management::NumericTable::doAllocate)));
+    Argument::set(centroids,
+                  data_management::HomogenNumericTable<algorithmFPType>::create(nFeatures, nClusters, data_management::NumericTable::doAllocate));
     return services::Status();
 }
 

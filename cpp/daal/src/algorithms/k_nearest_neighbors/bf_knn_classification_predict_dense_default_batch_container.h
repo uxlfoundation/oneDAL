@@ -16,6 +16,7 @@
 *******************************************************************************/
 
 #include "algorithms/k_nearest_neighbors/bf_knn_classification_predict.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/k_nearest_neighbors/bf_knn_classification_predict_kernel.h"
 #include "services/error_indexes.h"
 
@@ -27,6 +28,30 @@ namespace bf_knn_classification
 {
 namespace prediction
 {
+namespace internal
+{
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__BF_KNN_CLASSIFICATION__PREDICTION__BATCHCONTAINER"></a>
+ * \brief Class containing computation methods for BF kNN model-based prediction
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public PredictionContainerIface
+{
+public:
+    /**
+     * Constructs a container for BF kNN model-based prediction with a specified environment
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    ~BatchContainer();
+
+    /**
+     *  Computes the result of BF kNN model-based prediction
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFpType, Method method, CpuType cpu>
 BatchContainer<algorithmFpType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv) : PredictionContainerIface()
 {
@@ -64,6 +89,8 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationPredictKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType), compute, a.get(), m.get(),
                        label.get(), indices.get(), distances.get(), &kernelPar);
 }
+
+} // namespace internal
 
 } // namespace prediction
 } // namespace bf_knn_classification

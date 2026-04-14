@@ -176,7 +176,7 @@ public:
      */
     Model(size_t nFeatures = 0);
 
-    virtual ~Model() override;
+    ~Model() override;
 
     class ModelImpl;
 

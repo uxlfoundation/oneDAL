@@ -26,7 +26,7 @@
 // enable this branch for preprocessor.
 
 #if defined(TARGET_X86_64)
-#define ONEDAL_CPU_DISPATCH_SSE42
+#define ONEDAL_CPU_DISPATCH_SSE2
 #define ONEDAL_CPU_DISPATCH_AVX2
 #define ONEDAL_CPU_DISPATCH_AVX512
 #elif defined(TARGET_ARM)
@@ -39,10 +39,10 @@
 #include "oneapi/dal/_dal_cpu_dispatcher_gen.hpp"
 #endif
 
-#ifdef ONEDAL_CPU_DISPATCH_SSE42
-#define ONEDAL_IF_CPU_DISPATCH_SSE42(x) x
+#ifdef ONEDAL_CPU_DISPATCH_SSE2
+#define ONEDAL_IF_CPU_DISPATCH_SSE2(x) x
 #else
-#define ONEDAL_IF_CPU_DISPATCH_SSE42(x)
+#define ONEDAL_IF_CPU_DISPATCH_SSE2(x)
 #endif
 
 #ifdef ONEDAL_CPU_DISPATCH_AVX2

@@ -26,8 +26,8 @@
 
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
-#include "services/daal_shared_ptr.h"
 #include "algorithms/k_nearest_neighbors/kdtree_knn_classification_training_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_classification_train_kernel.h"
 #include "src/algorithms/k_nearest_neighbors/kdtree_knn_classification_model_impl.h"
 
@@ -40,12 +40,36 @@ namespace kdtree_knn_classification
 namespace training
 {
 using namespace daal::data_management;
+using namespace daal::internal;
 
-namespace interface3
+namespace internal
 {
 /**
  *  \brief Initialize list of K-Nearest Neighbors kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__KDTREE_KNN_CLASSIFICATION__TRAINING__BATCHCONTAINER"></a>
+ * \brief Class containing methods for KD-tree based kNN model-based training using algorithmFPType precision arithmetic
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public TrainingContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for KD-tree based kNN model-based training with a specified environment in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+
+    /** Default destructor */
+    ~BatchContainer();
+
+    /**
+     * Computes the result of KD-tree based kNN model-based training in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFpType, training::Method method, CpuType cpu>
 BatchContainer<algorithmFpType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -89,7 +113,7 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationTrainBatchKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType, method), compute,
                        r->impl()->getData().get(), labelsPtr, r.get(), *par->engine);
 }
-} // namespace interface3
+} // namespace internal
 } // namespace training
 } // namespace kdtree_knn_classification
 } // namespace algorithms

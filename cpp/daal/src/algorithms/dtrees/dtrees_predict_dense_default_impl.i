@@ -40,6 +40,7 @@ namespace prediction
 {
 namespace internal
 {
+using namespace daal::internal;
 using namespace dtrees::internal;
 //////////////////////////////////////////////////////////////////////////////////////////
 // Common service function. Finds node corresponding to the given observation

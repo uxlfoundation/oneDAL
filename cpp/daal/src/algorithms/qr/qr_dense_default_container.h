@@ -26,6 +26,7 @@
 #include "algorithms/qr/qr_batch.h"
 #include "algorithms/qr/qr_online.h"
 #include "algorithms/qr/qr_distributed.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/qr/qr_dense_default_kernel.h"
 #include "src/data_management/service_numeric_table.h"
 
@@ -35,9 +36,142 @@ namespace algorithms
 {
 namespace qr
 {
+namespace internal
+{
+using namespace daal::internal;
+
 /**
  *  \brief Initialize list of cholesky kernels with implementations for supported architectures
  */
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__QR__BATCHCONTAINER"></a>
+ * \brief Provides methods to run implementations of the QR decomposition algorithm in the batch processing mode
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the QR decomposition algorithm, double or float
+ * \tparam method           Computation method of the QR decomposition algorithm, \ref daal::algorithms::qr::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the QR decomposition algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~BatchContainer();
+    /**
+     * Computes the result of the QR decomposition algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__QR__ONLINECONTAINER"></a>
+ * \brief Provides methods to run implementations of the QR decomposition algorithm in the online processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::qr::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class OnlineContainer : public daal::algorithms::AnalysisContainerIface<online>
+{
+public:
+    /**
+     * Constructs a container for the QR decomposition algorithm with a specified environment
+     * in the online processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    OnlineContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~OnlineContainer();
+    /**
+     * Computes a partial result of the QR decomposition algorithm in the online processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the QR decomposition algorithm in the online processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the QR decomposition algorithm.
+ *
+ * \tparam step            Step of the QR decomposition algorithm in the distributed processing mode, \ref ComputeStep
+ * \tparam algorithmFPType  Data type to use in intermediate computations of the QR decomposition algorithm, double or float
+ * \tparam method           Computation method of the algorithm, \ref daal::algorithms::qr::Method
+ *
+ */
+template <ComputeStep step, typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer
+{};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of QR decomposition algorithm on the first step in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::qr::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step2Master, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the QR decomposition algorithm with a specified environment
+     * in the second step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the QR decomposition algorithm in the second step of
+     * the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the QR decomposition algorithm in the second step of
+     * the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__QR__DISTRIBUTEDCONTAINER"></a>
+ * \brief Provides methods to run implementations of the QR decomposition algorithm on the third step in the distributed processing mode.
+ *
+ * \tparam algorithmFPType  Data type to use in intermediate computations for the QR decomposition algorithm, double or float
+ * \tparam method           Computation method, \ref daal::algorithms::qr::Method
+ *
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class DistributedContainer<step3Local, algorithmFPType, method, cpu> : public daal::algorithms::AnalysisContainerIface<distributed>
+{
+public:
+    /**
+     * Constructs a container for the QR decomposition algorithm with a specified environment
+     * in the third step of the distributed processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    DistributedContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    virtual ~DistributedContainer();
+    /**
+     * Computes a partial result of the QR decomposition algorithm in the third step of
+     * the distributed processing mode
+     */
+    services::Status compute() override;
+    /**
+     * Computes the result of the QR decomposition algorithm in the third step of
+     * the distributed processing mode
+     */
+    services::Status finalizeCompute() override;
+};
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 BatchContainer<algorithmFPType, method, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -271,6 +405,8 @@ services::Status DistributedContainer<step3Local, algorithmFPType, method, cpu>:
 {
     return services::Status();
 }
+
+} // namespace internal
 
 } // namespace qr
 } // namespace algorithms

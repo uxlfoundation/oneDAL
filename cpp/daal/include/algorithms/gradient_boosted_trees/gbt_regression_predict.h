@@ -46,29 +46,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__GBT__PREDICTION__BATCHCONTAINER"></a>
- *  \brief Class containing computation methods for model-based prediction
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for model-based prediction with a specified environment
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    ~BatchContainer();
-    /**
-     *  Computes the result of model-based prediction
-     * \return Status of computations
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__GBT__PREDICTION__BATCH"></a>
  * \brief Provides methods to run implementations of the model-based prediction
  * <!-- \n<a href="DAAL-REF-GBT-ALGORITHM">gradient boosted trees algorithm description and usage models</a> -->
@@ -124,13 +101,13 @@ public:
     * Get input objects for the algorithm
     * \return input objects of the algorithm
     */
-    virtual algorithms::regression::prediction::Input * getInput() override { return &input; }
+    algorithms::regression::prediction::Input * getInput() override { return &input; }
 
     /**
      * Returns the method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
      * Returns the structure that contains the result of model-based prediction
@@ -146,7 +123,7 @@ public:
     services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     services::Status allocateResult() override
     {
@@ -155,19 +132,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in = &input;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace prediction

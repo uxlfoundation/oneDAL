@@ -42,7 +42,7 @@ using descriptor_t = detail::descriptor_base<task::compute>;
 namespace daal_covariance = daal::algorithms::covariance;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_covariance_kernel_t = daal_covariance::internal::
     CovarianceDenseOnlineKernel<Float, daal_covariance::Method::defaultDense, Cpu>;
 

@@ -33,8 +33,10 @@ template <typename modelFPType>
 DAAL_EXPORT Model::Model(size_t nUsers, size_t nItems, const Parameter & parameter, modelFPType dummy)
 {
     const size_t nFactors = parameter.nFactors;
-    _usersFactors.reset(new data_management::HomogenNumericTable<modelFPType>(nFactors, nUsers, data_management::NumericTableIface::doAllocate, 0));
-    _itemsFactors.reset(new data_management::HomogenNumericTable<modelFPType>(nFactors, nItems, data_management::NumericTableIface::doAllocate, 0));
+    _usersFactors =
+        data_management::HomogenNumericTable<modelFPType>::create(nFactors, nUsers, data_management::NumericTableIface::doAllocate, modelFPType(0));
+    _itemsFactors =
+        data_management::HomogenNumericTable<modelFPType>::create(nFactors, nItems, data_management::NumericTableIface::doAllocate, modelFPType(0));
 }
 
 template <typename modelFPType>
@@ -43,13 +45,13 @@ DAAL_EXPORT Model::Model(size_t nUsers, size_t nItems, const Parameter & paramet
     using namespace daal::data_management;
     const size_t nFactors = parameter.nFactors;
 
-    _usersFactors = HomogenNumericTable<modelFPType>::create(nFactors, nUsers, NumericTableIface::doAllocate, 0, &st);
+    _usersFactors = HomogenNumericTable<modelFPType>::create(nFactors, nUsers, NumericTableIface::doAllocate, modelFPType(0), &st);
     if (!st)
     {
         return;
     }
 
-    _itemsFactors = HomogenNumericTable<modelFPType>::create(nFactors, nItems, NumericTableIface::doAllocate, 0, &st);
+    _itemsFactors = HomogenNumericTable<modelFPType>::create(nFactors, nItems, NumericTableIface::doAllocate, modelFPType(0), &st);
     if (!st)
     {
         return;

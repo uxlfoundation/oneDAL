@@ -28,7 +28,6 @@
 #include "services/base.h"
 #include "services/daal_defines.h"
 #include "services/error_handling.h"
-#include "services/cpu_type.h"
 
 namespace daal
 {

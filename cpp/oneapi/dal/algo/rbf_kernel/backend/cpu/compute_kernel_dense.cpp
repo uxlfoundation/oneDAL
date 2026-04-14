@@ -36,7 +36,7 @@ namespace daal_rbf_kernel = daal::algorithms::kernel_function::rbf;
 namespace daal_kernel_internal = daal::algorithms::kernel_function::internal;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_rbf_kernel_t =
     daal_rbf_kernel::internal::KernelImplRBF<daal_rbf_kernel::defaultDense, Float, Cpu>;
 

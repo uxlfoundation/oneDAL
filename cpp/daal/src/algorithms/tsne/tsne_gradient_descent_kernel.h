@@ -42,7 +42,8 @@ namespace algorithms
 {
 namespace internal
 {
-template <typename IdxType, typename DataType, daal::CpuType cpu>
+
+template <typename IdxType, typename DataType, daal::internal::CpuType cpu>
 services::Status tsneGradientDescentImpl(const NumericTablePtr initTable, const CSRNumericTablePtr pTable, const NumericTablePtr sizeIterTable,
                                          const NumericTablePtr paramTable, const NumericTablePtr resultTable);
 

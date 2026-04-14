@@ -91,7 +91,7 @@ protected:
     void * _impl;
 };
 
-template <typename T, CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
+template <typename T, internal::CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
 class TlsMem : public daal::tls<T *>
 {
 public:
@@ -105,7 +105,7 @@ public:
     }
 };
 
-template <typename T, CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
+template <typename T, internal::CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
 class StaticTlsMem : public daal::static_tls<T *>
 {
 public:
@@ -119,7 +119,7 @@ public:
     }
 };
 
-template <typename T, CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
+template <typename T, internal::CpuType cpu, typename Allocator = services::internal::ScalableMalloc<T, cpu> >
 class LsMem : public daal::ls<T *>
 {
 public:
@@ -133,7 +133,7 @@ public:
     }
 };
 
-template <typename algorithmFPType, CpuType cpu>
+template <typename algorithmFPType, internal::CpuType cpu>
 class TlsSum : public daal::TlsMem<algorithmFPType, cpu, services::internal::ScalableCalloc<algorithmFPType, cpu> >
 {
 public:
@@ -157,7 +157,7 @@ public:
     }
 };
 
-template <typename algorithmFPType, CpuType cpu>
+template <typename algorithmFPType, internal::CpuType cpu>
 class StaticTlsSum : public daal::StaticTlsMem<algorithmFPType, cpu, services::internal::ScalableCalloc<algorithmFPType, cpu> >
 {
 public:

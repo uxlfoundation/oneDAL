@@ -54,36 +54,6 @@ namespace interface2
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__PREDICTION__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the  multi-class classifier prediction algorithm
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations for the multi-class classifier algorithm, double or float
- * \tparam pmethod          Computation method for the algorithm, \ref prediction::Method
- * \tparam tmethod          Computation method that was used to train the multi-class classifier model, \ref training::Method
- *
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, prediction::Method pmethod, training::Method tmethod, CpuType cpu>
-class BatchContainer : public PredictionContainerIface
-{
-public:
-    /**
-     * Constructs a container for multi-class classifier model-based prediction with a specified environment
-     * in the batch processing mode
-     * \param[in] daalEnv   Environment object
-     */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    ~BatchContainer();
-    /**
-     * Computes the result of multi-class classifier model-based prediction in the batch processing mode
-     *
-     * \return Status of computation
-     */
-    services::Status compute() override;
-};
-
-/**
  * <a name="DAAL-CLASS-ALGORITHMS__MULTI_CLASS_CLASSIFIER__PREDICTION__BATCH"></a>
  *  \brief Provides methods to run implementations of the multi-class classifier prediction algorithm
  *  <!-- \n<a href="DAAL-REF-MULTICLASSCLASSIFIER-ALGORITHM">Multi-class classifier algorithm description and usage models</a> -->
@@ -144,13 +114,13 @@ public:
      * Get input objects for the multi-class classifier prediction algorithm
      * \return %Input objects for the multi-class classifier prediction algorithm
      */
-    virtual InputType * getInput() override { return &input; }
+    InputType * getInput() override { return &input; }
 
     /**
      * Returns method of the algorithm
      * \return Method of the algorithm
      */
-    virtual int getMethod() const override { return (int)pmethod; }
+    int getMethod() const override { return (int)pmethod; }
 
     /**
      * Returns the structure that contains computed prediction results
@@ -185,9 +155,9 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const override { return new Batch<algorithmFPType, pmethod, tmethod>(*this); }
+    Batch<algorithmFPType, pmethod, tmethod> * cloneImpl() const override { return new Batch<algorithmFPType, pmethod, tmethod>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         services::Status s = static_cast<ResultType *>(_result.get())
                                  ->allocate<algorithmFPType>(&input, &parameter, static_cast<int>(pmethod), static_cast<int>(tmethod));
@@ -195,20 +165,13 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        _in  = &input;
-        _ac  = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, pmethod, tmethod)(&_env);
-        _par = &parameter;
-        _result.reset(new ResultType());
-    }
+    void initialize();
 
 private:
     Batch & operator=(const Batch &);
 };
 /** @} */
 } // namespace interface2
-using interface2::BatchContainer;
 using interface2::Batch;
 
 } // namespace prediction

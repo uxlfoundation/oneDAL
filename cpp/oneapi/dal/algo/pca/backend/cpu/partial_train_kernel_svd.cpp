@@ -33,7 +33,7 @@ using descriptor_t = detail::descriptor_base<task_t>;
 namespace daal_pca = daal::algorithms::pca;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_svd_kernel_t = daal_pca::internal::PCASVDOnlineKernel<Float, Cpu>;
 
 auto update_tables(const partial_train_input<task::dim_reduction>& input) {

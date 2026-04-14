@@ -33,10 +33,6 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/algorithms/multiclassclassifier/multiclassclassifier_train_kernel.h"
 
-using namespace daal::internal;
-using namespace daal::services::internal;
-using namespace daal::data_management;
-
 namespace daal
 {
 namespace algorithms
@@ -47,6 +43,10 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
+using namespace daal::data_management;
+
 //Base class for binary classification subtask
 template <typename algorithmFPType, CpuType cpu>
 class SubTask
@@ -129,7 +129,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskCSR : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskCSR() override {}
+    ~SubTaskCSR() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskCSR * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable, const algorithmFPType * weights,
@@ -173,7 +173,7 @@ template <typename algorithmFPType, CpuType cpu>
 class SubTaskDense : public SubTask<algorithmFPType, cpu>
 {
 public:
-    virtual ~SubTaskDense() override {}
+    ~SubTaskDense() override {}
 
     typedef SubTask<algorithmFPType, cpu> super;
     static SubTaskDense * create(size_t nFeatures, size_t nSubsetVectors, size_t dataSize, const NumericTable * xTable,
@@ -211,7 +211,7 @@ class MultiClassClassifierTrainKernel<oneAgainstOne, algorithmFPType, cpu> : pub
 {
 public:
     services::Status compute(const NumericTable * xTable, const NumericTable * yTable, const NumericTable * wTable, daal::algorithms::Model * m,
-                             multi_class_classifier::internal::SvmModel * svmModel, const KernelParameter & par);
+                             svm::internal::ModelImpl * svmModel, const KernelParameter & par);
 
 protected:
     services::Status computeDataSize(size_t nVectors, size_t nFeatures, size_t nClasses, const NumericTable * xTable, const algorithmFPType * y,

@@ -40,6 +40,8 @@ int main(int argc, char const *argv[]) {
 
     const auto result_train = dal::train(svm_desc, x_train_csr, y_train);
 
+    std::cout << "Number of training iterations:\n"
+              << result_train.get_iteration_counts() << std::endl;
     std::cout << "Biases:\n" << result_train.get_biases() << std::endl;
     std::cout << "Coeffs indices:\n" << result_train.get_coeffs() << std::endl;
 

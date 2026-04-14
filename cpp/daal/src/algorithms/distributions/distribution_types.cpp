@@ -19,7 +19,7 @@
 //  Implementation of distribution types.
 //--
 
-#include "algorithms/distributions/distribution_types.h"
+#include "src/algorithms/distributions/distribution_types.h"
 #include "src/services/daal_strings.h"
 #include "src/algorithms/engines/mt19937/mt19937_batch_impl.h"
 
@@ -29,7 +29,7 @@ namespace algorithms
 {
 namespace distributions
 {
-namespace interface1
+namespace internal
 {
 ParameterBase::ParameterBase() : engine(engines::mt19937::Batch<>::create()) {}
 ParameterBase::~ParameterBase() {}
@@ -81,7 +81,7 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     return data_management::checkNumericTable(get(randomNumbers).get(), randomNumbersStr(), 0, expectedLayouts);
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace distributions
 } // namespace algorithms
 } // namespace daal

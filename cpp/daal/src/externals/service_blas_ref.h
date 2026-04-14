@@ -26,6 +26,7 @@
 
 #include "service_blas_declar_ref.h"
 #include "service_thread_declar_ref.h"
+#include "src/services/cpu_type.h"
 
 namespace daal
 {
@@ -33,6 +34,8 @@ namespace internal
 {
 namespace ref
 {
+using namespace daal::internal;
+
 template <typename fpType, CpuType cpu>
 struct OpenBlas
 {};

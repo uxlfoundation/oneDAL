@@ -74,7 +74,7 @@ CpuInfo = provider(
     ],
 )
 
-_ISA_EXTENSIONS = ["sse2", "sse42", "avx2", "avx512"]
+_ISA_EXTENSIONS = ["sse2", "avx2", "avx512"]
 _ISA_EXTENSIONS_MODERN = ["sse2", "avx2", "avx512"]
 _ISA_EXTENSION_AUTO_DEFAULT = "avx2"
 
@@ -210,7 +210,7 @@ def _declare_onedal_config_impl(repo_ctx):
         substitutions = {
             "%{auto_cpu}":         auto_cpu,
             "%{version_major}":    "2026",
-            "%{version_minor}":    "0",
+            "%{version_minor}":    "1",
             "%{version_update}":   "0",
             "%{version_build}":    utils.datestamp(repo_ctx),
             "%{version_buildrev}": "work",

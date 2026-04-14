@@ -30,9 +30,6 @@
 #include "algorithms/optimization_solver/objective_function/mse_batch.h"
 #include "algorithms/elastic_net/elastic_net_training_types.h"
 
-using namespace daal::data_management;
-using namespace daal::services;
-
 namespace daal
 {
 namespace algorithms
@@ -43,12 +40,15 @@ namespace training
 {
 namespace internal
 {
+using namespace daal::data_management;
+using namespace daal::internal;
+using namespace daal::services;
+
 template <typename algorithmFPType, Method method, CpuType cpu>
 class TrainBatchKernel : public daal::algorithms::Kernel
 {
 public:
-    services::Status compute(const HostAppIfacePtr & pHost, const NumericTablePtr & x, const NumericTablePtr & y, elastic_net::Model & m,
-                             Result & res, const Parameter & par,
+    services::Status compute(const NumericTablePtr & x, const NumericTablePtr & y, elastic_net::Model & m, Result & res, const Parameter & par,
                              services::SharedPtr<daal::algorithms::optimization_solver::mse::Batch<algorithmFPType> > & objFunc);
 };
 

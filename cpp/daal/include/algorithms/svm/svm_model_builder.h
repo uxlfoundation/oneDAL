@@ -68,16 +68,7 @@ public:
      * \param[in] nFeatures        Number of features in training data
      * \param[in] nSupportVectors  Number of support vectors in model
      */
-    ModelBuilder(size_t nFeatures, size_t nSupportVectors)
-        : _modelPtr(Model::create<modelFPType>(nFeatures)), _nFeatures(nFeatures), _nSupportVectors(nSupportVectors)
-    {
-        _supportV  = _modelPtr->getSupportVectors();
-        _supportI  = _modelPtr->getSupportIndices();
-        _supportCC = _modelPtr->getClassificationCoefficients();
-        _supportV->resize(nSupportVectors);
-        _supportI->resize(nSupportVectors);
-        _supportCC->resize(nSupportVectors);
-    }
+    ModelBuilder(size_t nFeatures, size_t nSupportVectors);
 
     /**
      *  Method to set support vectors to model via random access iterator
@@ -131,7 +122,7 @@ public:
      *  Method to set bias term to model
      *  \param[in] bias The value to be set
      */
-    void setBias(modelFPType bias) { _modelPtr->setBias(bias); }
+    void setBias(modelFPType bias);
 
     /**
      *  Get built model

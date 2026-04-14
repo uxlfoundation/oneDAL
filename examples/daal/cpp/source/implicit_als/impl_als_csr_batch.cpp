@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 
 void initializeModel() {
     /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    dataTable = NumericTablePtr(createSparseTable<float>(trainDatasetFileName));
+    dataTable = createSparseTable<float>(trainDatasetFileName);
 
     /* Create an algorithm object to initialize the implicit ALS model with the default method */
     training::init::Batch<algorithmFPType, training::init::fastCSR> initAlgorithm;

@@ -26,9 +26,8 @@
 
 #include "src/algorithms/kernel.h"
 #include "algorithms/pca/pca_batch.h"
+#include "src/algorithms/algorithm_dispatch_container_batch.h"
 #include "src/algorithms/pca/pca_dense_correlation_batch_kernel.h"
-
-using namespace daal::services::internal;
 
 namespace daal
 {
@@ -36,8 +35,40 @@ namespace algorithms
 {
 namespace pca
 {
-namespace interface3
+namespace internal
 {
+using namespace daal::internal;
+using namespace daal::services::internal;
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ */
+template <typename algorithmFPType, Method method, CpuType cpu>
+class BatchContainer : public AnalysisContainerIface<batch>
+{};
+
+/**
+ * <a name="DAAL-CLASS-ALGORITHMS__PCA__BATCHCONTAINER_ALGORITHMFPTYPE_CORRELATIONDENSE_CPU"></a>
+ * \brief Class containing methods to compute the results of the PCA algorithm
+ */
+template <typename algorithmFPType, CpuType cpu>
+class BatchContainer<algorithmFPType, correlationDense, cpu> : public AnalysisContainerIface<batch>
+{
+public:
+    /**
+     * Constructs a container for the PCA algorithm with a specified environment
+     * in the batch processing mode
+     * \param[in] daalEnv   Environment object
+     */
+    BatchContainer(daal::services::Environment::env * daalEnv);
+    /** Default destructor */
+    ~BatchContainer();
+    /**
+     * Computes the result of the PCA algorithm in the batch processing mode
+     */
+    services::Status compute() override;
+};
+
 template <typename algorithmFPType, CpuType cpu>
 BatchContainer<algorithmFPType, correlationDense, cpu>::BatchContainer(daal::services::Environment::env * daalEnv)
 {
@@ -78,7 +109,7 @@ services::Status BatchContainer<algorithmFPType, correlationDense, cpu>::compute
                        *variances);
 }
 
-} // namespace interface3
+} // namespace internal
 } // namespace pca
 } // namespace algorithms
 } // namespace daal

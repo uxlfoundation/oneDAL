@@ -45,33 +45,6 @@ namespace interface1
  * @{
  */
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__PCA__TRANSFORM__BATCHCONTAINER"></a>
- * \brief Provides methods to run implementations of the PCA transformation algorithm in the batch processing mode
- *
- * \tparam algorithmFPType  Data type to use in intermediate computations of the PCA transformation algorithm, double or float
- * \tparam method           Computation method of the PCA transformation algorithm, \ref daal::algorithms::pca::transform::Method
- * \DAAL_DEPRECATED
- */
-template <typename algorithmFPType, Method method, CpuType cpu>
-class BatchContainer : public daal::algorithms::AnalysisContainerIface<batch>
-{
-public:
-    /**
-    * Constructs a container for the PCA transformation algorithm with a specified environment
-    * in the batch processing mode
-    * \param[in] daalEnv   Environment object
-    * \DAAL_DEPRECATED
-    */
-    DAAL_DEPRECATED BatchContainer(daal::services::Environment::env * daalEnv);
-    /** Default destructor */
-    virtual ~BatchContainer();
-    /**
-    * Computes the result of the PCA transformation algorithm in the batch processing mode
-    */
-    virtual services::Status compute() override;
-};
-
-/**
 * <a name="DAAL-CLASS-ALGORITHMS__PCA__TRANSFORM__BATCH"></a>
 * \brief Computes the results of the PCA transformation algorithm in the batch processing mode.
 * <!-- \n<a href="DAAL-REF-PCA-ALGORITHM">PCA transformation algorithm description and usage models</a> -->
@@ -111,7 +84,7 @@ public:
     * Returns method of the algorithm
     * \return Method of the algorithm
     */
-    virtual int getMethod() const override { return (int)method; }
+    int getMethod() const override { return (int)method; }
 
     /**
     * Returns the structure that contains the results of the PCA transformation algorithm
@@ -142,9 +115,9 @@ public:
     }
 
 protected:
-    virtual Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
-    virtual services::Status allocateResult() override
+    services::Status allocateResult() override
     {
         _result.reset(new ResultType());
         services::Status s = _result->allocate<algorithmFPType>(&input, &parameter, 0);
@@ -152,12 +125,7 @@ protected:
         return s;
     }
 
-    void initialize()
-    {
-        Analysis<batch>::_ac = new __DAAL_ALGORITHM_CONTAINER(batch, BatchContainer, algorithmFPType, method)(&_env);
-        _in                  = &input;
-        _par                 = &parameter;
-    }
+    void initialize();
 
 private:
     ResultPtr _result;
@@ -166,7 +134,6 @@ private:
 };
 /** @} */
 } // namespace interface1
-using interface1::BatchContainer;
 using interface1::Batch;
 
 } // namespace transform

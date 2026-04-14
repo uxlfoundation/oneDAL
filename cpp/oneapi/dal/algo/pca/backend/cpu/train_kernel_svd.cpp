@@ -38,7 +38,7 @@ namespace daal_pca = daal::algorithms::pca;
 namespace daal_zscore = daal::algorithms::normalization::zscore;
 namespace interop = dal::backend::interop;
 
-template <typename Float, daal::CpuType Cpu>
+template <typename Float, daal::internal::CpuType Cpu>
 using daal_pca_svd_kernel_t = daal_pca::internal::
     PCASVDBatchKernel<Float, daal_pca::BatchParameter<Float, daal_pca::svdDense>, Cpu>;
 

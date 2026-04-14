@@ -36,6 +36,8 @@ namespace mrg32k3a
 {
 namespace internal
 {
+using namespace daal::internal;
+
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
 class BatchImpl : public algorithms::engines::mrg32k3a::interface1::Batch<algorithmFPType, method>,
                   public algorithms::engines::internal::BatchBaseImpl
@@ -83,7 +85,7 @@ public:
         return s;
     }
 
-    virtual BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     bool hasSupport(engines::internal::ParallelizationTechnique technique) const override
     {

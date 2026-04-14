@@ -52,9 +52,7 @@ header:
     - '.editorconfig'
     # Samples READMEs and licenses:
     - 'samples/daal/cpp/mpi/README.md'
-    - 'samples/daal/cpp/mysql/README.md'
     - 'samples/daal/cpp/mpi/license.txt'
-    - 'samples/daal/cpp/mysql/license.txt'
     # All .csv files
     - '**/*.csv'
     # All Doxygen files and something from docs/

@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 
 void readData() {
     /* Read trainDatasetFileName from a file and create a numeric table to store the input data */
-    dataTable.reset(createSparseTable<float>(trainDatasetFileNames[rankId]));
+    dataTable = createSparseTable<float>(trainDatasetFileNames[rankId]);
 }
 
 KeyValueDataCollectionPtr initializeStep1Local() {
@@ -145,8 +145,8 @@ KeyValueDataCollectionPtr initializeStep1Local() {
     initAlgorithm.parameter.fullNUsers = nUsers;
     initAlgorithm.parameter.nFactors = nFactors;
     initAlgorithm.parameter.seed += rankId;
-    initAlgorithm.parameter.partition.reset(
-        new HomogenNumericTable<int>((int *)usersPartition, 1, 1));
+    initAlgorithm.parameter.partition =
+        HomogenNumericTable<int>::create((int *)usersPartition, 1, 1);
     /* Pass a training data set and dependent values to the algorithm */
     initAlgorithm.input.set(training::init::data, dataTable);
 

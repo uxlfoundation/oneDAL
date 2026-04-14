@@ -150,7 +150,7 @@ NumericTablePtr initStep4(const NumericTablePtr data[nBlocks],
     if (aRes.size() == 1)
         return aRes[0];
     /* For parallelPlus algorithm */
-    RowMergedNumericTablePtr pMerged(new RowMergedNumericTable());
+    RowMergedNumericTablePtr pMerged = RowMergedNumericTable::create();
     for (size_t i = 0; i < aRes.size(); ++i)
         pMerged->addNumericTable(aRes[i]);
     return NumericTable::cast(pMerged);
@@ -161,7 +161,7 @@ NumericTablePtr initCentroids<kmeans::init::plusPlusDense>(const NumericTablePtr
     /* Internal data to be stored on the local nodes */
     DataCollectionPtr localNodeData[nBlocks];
     /* Numeric table to collect the results */
-    RowMergedNumericTablePtr pCentroids(new RowMergedNumericTable());
+    RowMergedNumericTablePtr pCentroids = RowMergedNumericTable::create();
     /* First step on the local nodes */
     NumericTablePtr pNewCentroids = initStep1<kmeans::init::plusPlusDense>(data);
     pCentroids->addNumericTable(pNewCentroids);

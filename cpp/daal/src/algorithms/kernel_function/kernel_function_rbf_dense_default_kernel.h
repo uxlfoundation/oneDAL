@@ -37,7 +37,9 @@ namespace rbf
 {
 namespace internal
 {
-template <typename algorithmFPType, CpuType cpu>
+using namespace daal::data_management;
+
+template <typename algorithmFPType, daal::internal::CpuType cpu>
 struct KernelImplRBF<defaultDense, algorithmFPType, cpu> : public daal::algorithms::kernel_function::internal::KernelImplBase<algorithmFPType, cpu>
 {
     virtual services::Status computeInternalVectorVector(const NumericTable * a1, const NumericTable * a2, NumericTable * r,

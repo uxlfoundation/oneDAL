@@ -147,24 +147,43 @@ elseif (@VERSIONS_SET@ STREQUAL "FALSE")
     string(REGEX REPLACE ".*#define __INTEL_DAAL_MINOR_BINARY__ ([0-9]+).*" "\\1" _dal_ver_minor_bin "${DAL_VERSION_INFO}")
 endif()
 
-
 if(MKL_DEPENDENCY STREQUAL "yes")
-    set(MKL_THREADING tbb_thread)
-    set(MKL_INTERFACE ilp64)
-
     if(ONEDAL_LINK STREQUAL "static")
         set(MKL_LINK static)
+        set(MKL_THREADING tbb_thread)
+        set(MKL_INTERFACE ilp64)
     else()
         set(MKL_LINK dynamic)
+        if(WIN32)
+            set(MKL_THREADING intel_thread)
+        else()
+            set(MKL_THREADING gnu_thread)
+        endif()
         set(MKL_SYCL_LINK dynamic)
-        set(MKL_SYCL_INTERFACE ilp64)
+        set(MKL_INTERFACE lp64)
+        set(MKL_SYCL_INTERFACE lp64)
+    endif()
+    find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+
+    if(ONEDAL_LINK STREQUAL "static")
+        list(APPEND oneDAL_IMPORTED_TARGETS
+            MKL::mkl_core
+            MKL::mkl_intel_ilp64
+            MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
+    else()
+        if(WIN32)
+            list(APPEND oneDAL_IMPORTED_TARGETS
+                MKL::mkl_core
+                MKL::mkl_intel_lp64
+                MKL::mkl_intel_thread${DAL_DEBUG_SUFFIX})
+        else()
+            list(APPEND oneDAL_IMPORTED_TARGETS
+                MKL::mkl_core
+                MKL::mkl_intel_lp64
+                MKL::mkl_gnu_thread${DAL_DEBUG_SUFFIX})
+        endif()
     endif()
 
-    find_package(MKL REQUIRED)
-    list(APPEND oneDAL_IMPORTED_TARGETS
-         MKL::mkl_core
-         MKL::mkl_intel_ilp64
-         MKL::mkl_tbb_thread${DAL_DEBUG_SUFFIX})
 endif()
 
 if(ONEDAL_USE_DPCPP STREQUAL "yes" AND MKL_DEPENDENCY STREQUAL "yes")
