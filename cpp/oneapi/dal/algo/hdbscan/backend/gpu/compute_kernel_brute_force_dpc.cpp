@@ -14,11 +14,9 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <limits>
-#include <vector>
-
 #include "oneapi/dal/algo/hdbscan/backend/gpu/compute_kernel.hpp"
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/gpu/results.hpp"
 
 #include "oneapi/dal/detail/profiler.hpp"
 
@@ -41,6 +39,8 @@ template <typename Float>
 static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                           const descriptor_t& desc,
                                           const table& local_data) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute, ctx.get_queue());
+
     auto& queue = ctx.get_queue();
 
     const std::int64_t row_count = local_data.get_row_count();
@@ -50,7 +50,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
-    // Step 1: Compute core distances (host, on-the-fly distances)
+    // Step 1: Compute core distances on GPU using distance + kselect primitives
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
@@ -60,7 +60,17 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                                 min_samples,
                                                                 { core_dist_event });
 
-    // Step 2: Build MST (host, on-the-fly distances)
+    // Step 2: Compute mutual reachability distance matrix on GPU
+    auto [mrd_matrix, mrd_event] =
+        pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
+
+    auto mrd_compute_event = kernels_fp<Float>::compute_mrd_matrix(queue,
+                                                                   data_nd,
+                                                                   core_distances,
+                                                                   mrd_matrix,
+                                                                   { core_event, mrd_event });
+
+    // Step 3: Build MST using Prim's algorithm on GPU with precomputed MRD matrix
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
@@ -70,14 +80,14 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     auto mst_event = kernels_fp<Float>::build_mst(
         queue,
-        data_nd,
-        core_distances,
+        mrd_matrix,
         mst_from,
         mst_to,
         mst_weights,
-        { core_event, mst_from_event, mst_to_event, mst_weights_event });
+        row_count,
+        { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
 
-    // Step 3: Sort MST edges by weight
+    // Step 4: Sort MST edges by weight using radix sort primitive
     auto sort_event = kernels_fp<Float>::sort_mst_by_weight(queue,
                                                             mst_from,
                                                             mst_to,
@@ -85,7 +95,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                             edge_count,
                                                             { mst_event });
 
-    // Step 4: Extract flat clusters
+    // Step 5: Extract flat clusters using EOM on device
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
 
@@ -99,7 +109,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                              { sort_event, responses_event });
     cluster_event.wait_and_throw();
 
-    // Count clusters
+    // Count clusters from responses on device
     auto responses_host = arr_responses.to_host(queue);
     const auto* resp_ptr = responses_host.get_data();
 
@@ -108,16 +118,9 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         if (resp_ptr[i] > max_label)
             max_label = resp_ptr[i];
     }
-    std::int64_t cluster_count = (max_label >= 0) ? (max_label + 1) : 0;
+    const std::int64_t cluster_count = (max_label >= 0) ? (max_label + 1) : 0;
 
-    auto results =
-        result_t().set_cluster_count(cluster_count).set_result_options(desc.get_result_options());
-
-    if (desc.get_result_options().test(result_options::responses)) {
-        results.set_responses(dal::homogen_table::wrap(arr_responses.flatten(queue), row_count, 1));
-    }
-
-    return results;
+    return make_results<Float>(queue, desc, arr_responses, cluster_count);
 }
 
 template <typename Float>

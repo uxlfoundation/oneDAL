@@ -10,6 +10,10 @@ dal_module(
     dal_deps = [
         "@onedal//cpp/oneapi/dal:core",
         "@onedal//cpp/oneapi/dal/backend/primitives:common",
+        "@onedal//cpp/oneapi/dal/backend/primitives:distance",
+        "@onedal//cpp/oneapi/dal/backend/primitives:reduction",
+        "@onedal//cpp/oneapi/dal/backend/primitives:selection",
+        "@onedal//cpp/oneapi/dal/backend/primitives:sort",
     ],
 )
 

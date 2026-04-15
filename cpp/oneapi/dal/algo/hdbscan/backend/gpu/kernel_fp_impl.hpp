@@ -16,15 +16,15 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cmath>
-#include <functional>
-#include <limits>
-#include <numeric>
-#include <vector>
-
 #include "oneapi/dal/algo/hdbscan/backend/gpu/kernels_fp.hpp"
+#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
 #include "oneapi/dal/detail/profiler.hpp"
+
+#include "oneapi/dal/backend/primitives/distance/distance.hpp"
+#include "oneapi/dal/backend/primitives/distance/squared_l2_distance_misc.hpp"
+#include "oneapi/dal/backend/primitives/selection/kselect_by_rows.hpp"
+#include "oneapi/dal/backend/primitives/sort/sort.hpp"
+#include "oneapi/dal/backend/primitives/reduction/reduction.hpp"
 
 namespace oneapi::dal::hdbscan::backend {
 
@@ -33,145 +33,185 @@ namespace oneapi::dal::hdbscan::backend {
 namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
-// Helper: Euclidean distance between two rows of a host matrix
-template <typename Float>
-static inline Float euclidean_dist(const Float* data,
-                                   std::int64_t i,
-                                   std::int64_t j,
-                                   std::int64_t cols) {
-    Float sum = Float(0);
-    const Float* ri = data + i * cols;
-    const Float* rj = data + j * cols;
-    for (std::int64_t d = 0; d < cols; d++) {
-        Float v = ri[d] - rj[d];
-        sum += v * v;
-    }
-    return static_cast<Float>(std::sqrt(static_cast<double>(sum)));
-}
-
-/// Compute core distances on host. No O(n^2) distance matrix needed.
-/// Core distance of point i = distance to (min_samples-1)-th nearest OTHER point.
 template <typename Float>
 sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
                                                       const pr::ndview<Float, 2>& data,
                                                       pr::ndview<Float, 1>& core_distances,
                                                       std::int64_t min_samples,
                                                       const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(compute_core_distances, queue);
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
 
     const std::int64_t n = data.get_dimension(0);
-    const std::int64_t cols = data.get_dimension(1);
 
     ONEDAL_ASSERT(n > 0);
-    ONEDAL_ASSERT(cols > 0);
     ONEDAL_ASSERT(core_distances.get_dimension(0) == n);
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    auto data_host = data.to_host(queue, deps);
-    const Float* dp = data_host.get_data();
+    // Step 1: Compute full pairwise squared L2 distance matrix [n x n] on GPU
+    auto [sq_dist, sq_dist_event] =
+        pr::ndarray<Float, 2>::zeros(queue, { n, n }, sycl::usm::alloc::device);
 
-    auto core_host = pr::ndarray<Float, 1>::empty(n);
-    Float* cp = core_host.get_mutable_data();
+    pr::squared_l2_distance<Float> dist_op(queue);
+    auto dist_event = dist_op(data, data, sq_dist, deps);
 
-    const std::int64_t k = min_samples - 1;
-    std::vector<Float> dists(n);
+    // Step 2: Select k-th nearest squared distance per row using kselect
+    // Core distance index: min_samples - 1 (includes self at distance 0)
+    // We select min_samples smallest values per row, then take the last one
+    const std::int64_t k = min_samples;
 
-    for (std::int64_t i = 0; i < n; i++) {
-        for (std::int64_t j = 0; j < n; j++) {
-            dists[j] = (j == i) ? Float(0) : euclidean_dist(dp, i, j, cols);
-        }
-        std::int64_t target = k + 1; // +1 to skip self-distance at position 0
-        if (target >= n)
-            target = n - 1;
-        std::nth_element(dists.begin(), dists.begin() + target, dists.end());
-        cp[i] = dists[target];
-    }
+    auto [ksel_vals, ksel_vals_event] =
+        pr::ndarray<Float, 2>::zeros(queue, { n, k }, sycl::usm::alloc::device);
 
-    queue.memcpy(core_distances.get_mutable_data(), cp, n * sizeof(Float)).wait_and_throw();
-    return sycl::event{};
+    pr::kselect_by_rows<Float> ksel(queue, { n, n }, k);
+    auto ksel_event =
+        ksel(queue, sq_dist, k, ksel_vals, { dist_event, sq_dist_event, ksel_vals_event });
+
+    // Step 3: Extract the k-th value (last column) from kselect result and take sqrt
+    // ksel_vals is [n x k], we need column index k-1 from each row
+    const Float* ksel_ptr = ksel_vals.get_data();
+    Float* core_ptr = core_distances.get_mutable_data();
+    const std::int64_t kk = k;
+
+    auto sqrt_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ ksel_event });
+        h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const Float sq_val = ksel_ptr[i * kk + (kk - 1)];
+            core_ptr[i] = sycl::sqrt(sycl::fmax(sq_val, Float(0)));
+        });
+    });
+
+    return sqrt_event;
 }
 
-/// Build MST using Prim's algorithm on host. Distances computed on-the-fly.
+template <typename Float>
+sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
+                                                  const pr::ndview<Float, 2>& data,
+                                                  const pr::ndview<Float, 1>& core_distances,
+                                                  pr::ndview<Float, 2>& mrd_matrix,
+                                                  const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
+
+    const std::int64_t n = data.get_dimension(0);
+
+    ONEDAL_ASSERT(n > 0);
+    ONEDAL_ASSERT(core_distances.get_dimension(0) == n);
+    ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
+    ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
+
+    // First compute squared L2 distances, then apply MRD formula
+    pr::squared_l2_distance<Float> dist_op(queue);
+    auto dist_event = dist_op(data, data, mrd_matrix, deps);
+
+    // Transform: mrd[i][j] = max(core_dist[i], core_dist[j], sqrt(sq_dist[i][j]))
+    const Float* core_ptr = core_distances.get_data();
+    Float* mrd_ptr = mrd_matrix.get_mutable_data();
+
+    auto mrd_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ dist_event });
+        h.parallel_for(sycl::range<2>(n, n), [=](sycl::id<2> idx) {
+            const std::int64_t i = idx[0];
+            const std::int64_t j = idx[1];
+            const Float eucl = sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)));
+            const Float cd_i = core_ptr[i];
+            const Float cd_j = core_ptr[j];
+            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), eucl);
+        });
+    });
+
+    return mrd_event;
+}
+
 template <typename Float>
 sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
-                                         const pr::ndview<Float, 2>& data,
-                                         const pr::ndview<Float, 1>& core_distances,
+                                         const pr::ndview<Float, 2>& mrd_matrix,
                                          pr::ndview<std::int32_t, 1>& mst_from,
                                          pr::ndview<std::int32_t, 1>& mst_to,
                                          pr::ndview<Float, 1>& mst_weights,
+                                         std::int64_t row_count,
                                          const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(build_mst, queue);
+    ONEDAL_PROFILER_TASK(hdbscan.build_mst, queue);
 
-    const std::int64_t n = data.get_dimension(0);
-    const std::int64_t cols = data.get_dimension(1);
+    const std::int64_t n = row_count;
     const std::int64_t edge_count = n - 1;
 
     ONEDAL_ASSERT(n > 1);
+    ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
+    ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
     ONEDAL_ASSERT(mst_from.get_dimension(0) == edge_count);
     ONEDAL_ASSERT(mst_to.get_dimension(0) == edge_count);
     ONEDAL_ASSERT(mst_weights.get_dimension(0) == edge_count);
 
-    auto data_host = data.to_host(queue, deps);
-    auto cd_host = core_distances.to_host(queue, deps);
-    const Float* dp = data_host.get_data();
-    const Float* cd = cd_host.get_data();
+    // Prim's algorithm on the host using MRD data copied from device.
+    // This avoids both the race condition in parallel atomic min-reduction
+    // and the massive kernel launch overhead of per-iteration submission.
+    // The MRD matrix is already computed on GPU; we copy it to host for
+    // the inherently sequential MST construction, then copy results back.
 
-    auto mf = pr::ndarray<std::int32_t, 1>::empty(edge_count);
-    auto mt = pr::ndarray<std::int32_t, 1>::empty(edge_count);
-    auto mw = pr::ndarray<Float, 1>::empty(edge_count);
-    auto* fp = mf.get_mutable_data();
-    auto* tp = mt.get_mutable_data();
-    auto* wp = mw.get_mutable_data();
+    // Wait for MRD matrix and MST allocation to be ready
+    sycl::event::wait(deps);
 
-    std::vector<Float> min_edge(n, std::numeric_limits<Float>::max());
-    std::vector<std::int32_t> min_from(n, 0);
-    std::vector<bool> in_mst(n, false);
+    // Copy MRD matrix to host
+    auto mrd_host = mrd_matrix.to_host(queue);
+    const Float* mrd_ptr = mrd_host.get_data();
 
-    in_mst[0] = true;
+    // Host-side Prim's algorithm (identical to cluster_utils.hpp::build_mst_on_host
+    // but operates on the precomputed MRD matrix instead of raw data + core distances)
+    std::vector<Float> min_edge_vec(n, std::numeric_limits<Float>::max());
+    std::vector<std::int32_t> min_from_vec(n, 0);
+    std::vector<bool> in_mst_vec(n, false);
+
+    std::vector<std::int32_t> from_vec(edge_count);
+    std::vector<std::int32_t> to_vec(edge_count);
+    std::vector<Float> weight_vec(edge_count);
+
+    in_mst_vec[0] = true;
     for (std::int64_t j = 1; j < n; j++) {
-        Float dist = euclidean_dist(dp, 0, j, cols);
-        Float mrd = std::max({ cd[0], cd[j], dist });
-        min_edge[j] = mrd;
+        min_edge_vec[j] = mrd_ptr[j]; // row 0, column j
     }
 
     for (std::int64_t e = 0; e < edge_count; e++) {
+        // Find minimum-weight edge to a non-MST node
         std::int32_t best = -1;
         Float best_w = std::numeric_limits<Float>::max();
         for (std::int64_t j = 0; j < n; j++) {
-            if (!in_mst[j] && min_edge[j] < best_w) {
-                best_w = min_edge[j];
+            if (!in_mst_vec[j] && min_edge_vec[j] < best_w) {
+                best_w = min_edge_vec[j];
                 best = static_cast<std::int32_t>(j);
             }
         }
-        ONEDAL_ASSERT(best >= 0);
 
-        fp[e] = min_from[best];
-        tp[e] = best;
-        wp[e] = best_w;
-        in_mst[best] = true;
+        from_vec[e] = min_from_vec[best];
+        to_vec[e] = best;
+        weight_vec[e] = best_w;
+        in_mst_vec[best] = true;
 
         for (std::int64_t j = 0; j < n; j++) {
-            if (in_mst[j])
+            if (in_mst_vec[j])
                 continue;
-            Float dist = euclidean_dist(dp, best, j, cols);
-            Float mrd = std::max({ cd[best], cd[j], dist });
-            if (mrd < min_edge[j]) {
-                min_edge[j] = mrd;
-                min_from[j] = best;
+            const Float mrd = mrd_ptr[best * n + j];
+            if (mrd < min_edge_vec[j]) {
+                min_edge_vec[j] = mrd;
+                min_from_vec[j] = best;
             }
         }
     }
 
-    queue.memcpy(mst_from.get_mutable_data(), fp, edge_count * sizeof(std::int32_t))
-        .wait_and_throw();
-    queue.memcpy(mst_to.get_mutable_data(), tp, edge_count * sizeof(std::int32_t)).wait_and_throw();
-    queue.memcpy(mst_weights.get_mutable_data(), wp, edge_count * sizeof(Float)).wait_and_throw();
+    // Copy MST results back to device
+    std::int32_t* from_ptr = mst_from.get_mutable_data();
+    std::int32_t* to_ptr = mst_to.get_mutable_data();
+    Float* weight_ptr = mst_weights.get_mutable_data();
 
-    return sycl::event{};
+    auto from_event = queue.memcpy(from_ptr, from_vec.data(), edge_count * sizeof(std::int32_t));
+    auto to_event = queue.memcpy(to_ptr, to_vec.data(), edge_count * sizeof(std::int32_t));
+    auto weight_event = queue.memcpy(weight_ptr, weight_vec.data(), edge_count * sizeof(Float));
+
+    sycl::event::wait({ from_event, to_event, weight_event });
+
+    return weight_event;
 }
 
-/// Sort MST edges by weight ascending on host.
 template <typename Float>
 sycl::event kernels_fp<Float>::sort_mst_by_weight(sycl::queue& queue,
                                                   pr::ndview<std::int32_t, 1>& mst_from,
@@ -179,42 +219,69 @@ sycl::event kernels_fp<Float>::sort_mst_by_weight(sycl::queue& queue,
                                                   pr::ndview<Float, 1>& mst_weights,
                                                   std::int64_t edge_count,
                                                   const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(sort_mst_by_weight, queue);
+    ONEDAL_PROFILER_TASK(hdbscan.sort_mst_by_weight, queue);
 
-    auto fh = mst_from.to_host(queue, deps);
-    auto th = mst_to.to_host(queue, deps);
-    auto wh = mst_weights.to_host(queue, deps);
+    ONEDAL_ASSERT(edge_count > 0);
 
-    auto* fp = fh.get_mutable_data();
-    auto* tp = th.get_mutable_data();
-    auto* wp = wh.get_mutable_data();
+    // Create index array [0, 1, 2, ..., edge_count-1]
+    using Index = std::uint32_t;
+    auto [indices, indices_event] =
+        pr::ndarray<Index, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
-    std::vector<std::int64_t> order(edge_count);
-    std::iota(order.begin(), order.end(), 0);
-    std::sort(order.begin(), order.end(), [&](std::int64_t a, std::int64_t b) {
-        return wp[a] < wp[b];
+    Index* ind_ptr = indices.get_mutable_data();
+    sycl::event ind_alloc_event = indices_event;
+    auto iota_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(deps);
+        h.depends_on({ ind_alloc_event });
+        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
+            ind_ptr[idx[0]] = static_cast<Index>(idx[0]);
+        });
     });
 
-    auto fs = pr::ndarray<std::int32_t, 1>::empty(edge_count);
-    auto ts = pr::ndarray<std::int32_t, 1>::empty(edge_count);
-    auto ws = pr::ndarray<Float, 1>::empty(edge_count);
-    for (std::int64_t i = 0; i < edge_count; i++) {
-        fs.get_mutable_data()[i] = fp[order[i]];
-        ts.get_mutable_data()[i] = tp[order[i]];
-        ws.get_mutable_data()[i] = wp[order[i]];
-    }
+    // Sort weights with corresponding indices using radix sort
+    pr::radix_sort_indices_inplace<Float, Index> sorter(queue);
+    auto sort_event = sorter(mst_weights, indices, { iota_event });
 
-    queue.memcpy(mst_from.get_mutable_data(), fs.get_data(), edge_count * sizeof(std::int32_t))
-        .wait_and_throw();
-    queue.memcpy(mst_to.get_mutable_data(), ts.get_data(), edge_count * sizeof(std::int32_t))
-        .wait_and_throw();
-    queue.memcpy(mst_weights.get_mutable_data(), ws.get_data(), edge_count * sizeof(Float))
-        .wait_and_throw();
+    // Permute mst_from and mst_to according to sorted indices
+    auto [sorted_from, sf_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    auto [sorted_to, st_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
-    return sycl::event{};
+    const std::int32_t* from_ptr = mst_from.get_data();
+    const std::int32_t* to_ptr = mst_to.get_data();
+    std::int32_t* sf_ptr = sorted_from.get_mutable_data();
+    std::int32_t* st_ptr = sorted_to.get_mutable_data();
+    const Index* sorted_ind_ptr = indices.get_data();
+
+    sycl::event sf_alloc_event = sf_event;
+    sycl::event st_alloc_event = st_event;
+    auto permute_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ sort_event, sf_alloc_event, st_alloc_event });
+        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const Index orig = sorted_ind_ptr[i];
+            sf_ptr[i] = from_ptr[orig];
+            st_ptr[i] = to_ptr[orig];
+        });
+    });
+
+    // Copy permuted results back into mst_from and mst_to
+    std::int32_t* mst_from_ptr = mst_from.get_mutable_data();
+    std::int32_t* mst_to_ptr = mst_to.get_mutable_data();
+
+    auto copy_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ permute_event });
+        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            mst_from_ptr[i] = sf_ptr[i];
+            mst_to_ptr[i] = st_ptr[i];
+        });
+    });
+
+    return copy_event;
 }
 
-/// Extract flat clusters from the sorted MST.
 template <typename Float>
 sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                                                 const pr::ndview<std::int32_t, 1>& mst_from,
@@ -224,310 +291,472 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                                                 std::int64_t row_count,
                                                 std::int64_t min_cluster_size,
                                                 const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(extract_clusters, queue);
+    ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
+
+    ONEDAL_ASSERT(row_count > 0);
+    ONEDAL_ASSERT(min_cluster_size >= 2);
+
+    // The condensed tree / EOM algorithm is inherently sequential graph processing.
+    // We execute it as a single_task kernel on the device to avoid host-device transfers.
+    // The MST data is already on device, and results stay on device.
 
     const std::int64_t edge_count = row_count - 1;
-    const std::int64_t n_dendro_nodes = row_count - 1;
-
-    auto fh = mst_from.to_host(queue, deps);
-    auto th = mst_to.to_host(queue, deps);
-    auto wh = mst_weights.to_host(queue, deps);
-
-    const auto* from_ptr = fh.get_data();
-    const auto* to_ptr = th.get_data();
-    const auto* weights_ptr = wh.get_data();
-
-    // Step 1: Kruskal dendrogram
-    std::vector<std::int32_t> uf_parent(row_count);
-    std::vector<std::int32_t> comp_size(row_count, 1);
-    std::iota(uf_parent.begin(), uf_parent.end(), 0);
-
-    auto uf_find = [&](std::int32_t x) -> std::int32_t {
-        while (uf_parent[x] != x) {
-            uf_parent[x] = uf_parent[uf_parent[x]];
-            x = uf_parent[x];
-        }
-        return x;
-    };
-
-    struct DendroNode {
-        std::int32_t left;
-        std::int32_t right;
-        Float weight;
-        std::int32_t size;
-    };
-    std::vector<DendroNode> dendro(n_dendro_nodes);
-
-    std::vector<std::int32_t> comp_to_node(row_count);
-    std::iota(comp_to_node.begin(), comp_to_node.end(), 0);
-
-    for (std::int64_t e = 0; e < edge_count; e++) {
-        std::int32_t ru = uf_find(from_ptr[e]);
-        std::int32_t rv = uf_find(to_ptr[e]);
-        if (ru == rv)
-            continue;
-
-        std::int32_t node_id = static_cast<std::int32_t>(row_count + e);
-        std::int32_t left_node = comp_to_node[ru];
-        std::int32_t right_node = comp_to_node[rv];
-        std::int32_t new_size = comp_size[ru] + comp_size[rv];
-
-        dendro[e] = { left_node, right_node, weights_ptr[e], new_size };
-
-        if (comp_size[ru] < comp_size[rv]) {
-            uf_parent[ru] = rv;
-            comp_size[rv] = new_size;
-            comp_to_node[rv] = node_id;
-        }
-        else {
-            uf_parent[rv] = ru;
-            comp_size[ru] = new_size;
-            comp_to_node[ru] = node_id;
-        }
-    }
-
-    // Step 2: Condensed tree
     const std::int64_t total_nodes = 2 * row_count - 1;
 
-    std::vector<std::int32_t> node_size(total_nodes, 0);
-    for (std::int64_t i = 0; i < row_count; i++)
-        node_size[i] = 1;
-    for (std::int64_t e = 0; e < n_dendro_nodes; e++)
-        node_size[row_count + e] = dendro[e].size;
+    // Allocate working memory on device for the graph algorithm
+    // Union-find arrays
+    auto [uf_parent, uf_parent_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
+    auto [comp_size, comp_size_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
+    auto [comp_to_node, comp_to_node_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
-    std::vector<std::int32_t> left_child(total_nodes, -1);
-    std::vector<std::int32_t> right_child(total_nodes, -1);
-    std::vector<Float> node_weight(total_nodes, Float(0));
-    for (std::int64_t e = 0; e < n_dendro_nodes; e++) {
-        std::int64_t nid = row_count + e;
-        left_child[nid] = dendro[e].left;
-        right_child[nid] = dendro[e].right;
-        node_weight[nid] = dendro[e].weight;
-    }
+    // Dendrogram arrays
+    auto [dendro_left, dl_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    auto [dendro_right, dr_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    auto [dendro_weight, dw_event] =
+        pr::ndarray<Float, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
+    auto [dendro_size, ds_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
 
-    struct CondensedEdge {
-        std::int32_t parent;
-        std::int32_t child;
-        Float lambda_val;
-        std::int32_t child_size;
-    };
-    std::vector<CondensedEdge> condensed;
-    condensed.reserve(2 * row_count);
+    // Condensed tree - worst case 2*row_count edges
+    const std::int64_t max_condensed = 2 * row_count;
+    auto [cond_parent, cp_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
+    auto [cond_child, cc_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
+    auto [cond_lambda, cl_event] =
+        pr::ndarray<Float, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
+    auto [cond_size, cs_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_condensed, sycl::usm::alloc::device);
+    auto [cond_count_arr, cca_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
 
-    std::int32_t root = -1;
-    for (std::int64_t e = n_dendro_nodes - 1; e >= 0; e--) {
-        if (dendro[e].size > 0) {
-            root = static_cast<std::int32_t>(row_count + e);
-            break;
-        }
-    }
-    if (root < 0) {
-        auto rh = pr::ndarray<std::int32_t, 1>::empty(row_count);
-        for (std::int64_t i = 0; i < row_count; i++)
-            rh.get_mutable_data()[i] = -1;
-        queue.memcpy(responses.get_mutable_data(), rh.get_data(), row_count * sizeof(std::int32_t))
-            .wait_and_throw();
-        return sycl::event{};
-    }
+    // Node-level arrays for condensed tree processing
+    auto [node_size, ns_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
+    auto [left_child, lc_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
+    auto [right_child, rc_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
+    auto [node_weight, nw_event] =
+        pr::ndarray<Float, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
+    auto [dendro_to_cluster, dtc_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
 
-    std::int32_t next_cid = static_cast<std::int32_t>(row_count);
-    std::vector<std::int32_t> dendro_to_cluster(total_nodes, -1);
-    dendro_to_cluster[root] = next_cid++;
+    // EOM arrays (sized by max possible cluster count = edge_count + row_count)
+    const std::int64_t max_clusters = total_nodes;
+    auto [stability, stab_event] =
+        pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
+    auto [lambda_birth, lb_event] =
+        pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
+    auto [is_leaf_cluster, ilc_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
+    auto [is_selected, is_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
+    auto [cluster_label, clab_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
+    auto [cluster_size_arr, csz_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
+    auto [cluster_parent, cprt_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
 
-    std::function<void(std::int32_t, std::vector<std::int32_t>&)> collect_leaves;
-    collect_leaves = [&](std::int32_t nid, std::vector<std::int32_t>& out) {
-        if (nid < row_count) {
-            out.push_back(nid);
-            return;
-        }
-        collect_leaves(left_child[nid], out);
-        collect_leaves(right_child[nid], out);
-    };
+    // Child cluster lists - use flat arrays with max 2 children per cluster
+    auto [child_clusters_0, cc0_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
+    auto [child_clusters_1, cc1_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, max_clusters, -1, sycl::usm::alloc::device);
 
-    struct StackItem {
-        std::int32_t node;
-        std::int32_t cluster;
-    };
-    std::vector<StackItem> stack;
-    stack.push_back({ root, dendro_to_cluster[root] });
+    // Point labeling arrays
+    auto [point_fell_from, pff_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
+    auto [dendro_parent, dp_event] =
+        pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
 
-    while (!stack.empty()) {
-        auto [nid, parent_cid] = stack.back();
-        stack.pop_back();
+    // Stack for condensed tree building (node + cluster id)
+    auto [stack_arr, stk_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
+    auto [stack_cid, stk_cid_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
 
-        if (nid < row_count)
-            continue;
+    // Separate stack for leaf-collection DFS within collect_and_add_leaves.
+    // Must not alias the condensed-tree stack (stack_arr/stack_cid) because
+    // collect_and_add_leaves is called while the condensed-tree traversal is active.
+    auto [leaf_stack_arr, leaf_stk_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
 
-        std::int32_t lc = left_child[nid];
-        std::int32_t rc = right_child[nid];
-        if (lc < 0 || rc < 0)
-            continue;
+    // Collect all events
+    bk::event_vector all_deps = deps;
+    all_deps.insert(
+        all_deps.end(),
+        { uf_parent_event, comp_size_event, comp_to_node_event, dl_event,   dr_event,
+          dw_event,        ds_event,        cp_event,           cc_event,   cl_event,
+          cs_event,        cca_event,       ns_event,           lc_event,   rc_event,
+          nw_event,        dtc_event,       stab_event,         lb_event,   ilc_event,
+          is_event,        clab_event,      csz_event,          cprt_event, cc0_event,
+          cc1_event,       pff_event,       dp_event,           stk_event,  stk_cid_event,
+          leaf_stk_event });
 
-        std::int32_t ls = node_size[lc];
-        std::int32_t rs = node_size[rc];
-        Float lambda = (node_weight[nid] > Float(0)) ? Float(1) / node_weight[nid]
-                                                     : std::numeric_limits<Float>::max();
+    // Capture all pointers for the single_task kernel
+    const std::int32_t* mst_from_ptr = mst_from.get_data();
+    const std::int32_t* mst_to_ptr = mst_to.get_data();
+    const Float* mst_weights_ptr = mst_weights.get_data();
+    std::int32_t* resp_ptr = responses.get_mutable_data();
 
-        bool l_big = ls >= min_cluster_size;
-        bool r_big = rs >= min_cluster_size;
+    std::int32_t* uf_parent_ptr = uf_parent.get_mutable_data();
+    std::int32_t* comp_size_ptr = comp_size.get_mutable_data();
+    std::int32_t* comp_to_node_ptr = comp_to_node.get_mutable_data();
 
-        if (l_big && r_big) {
-            std::int32_t lcid = next_cid++;
-            std::int32_t rcid = next_cid++;
-            dendro_to_cluster[lc] = lcid;
-            dendro_to_cluster[rc] = rcid;
-            condensed.push_back({ parent_cid, lcid, lambda, ls });
-            condensed.push_back({ parent_cid, rcid, lambda, rs });
-            stack.push_back({ lc, lcid });
-            stack.push_back({ rc, rcid });
-        }
-        else if (l_big) {
-            dendro_to_cluster[lc] = parent_cid;
-            std::vector<std::int32_t> fallen;
-            collect_leaves(rc, fallen);
-            for (auto pt : fallen)
-                condensed.push_back({ parent_cid, pt, lambda, 1 });
-            stack.push_back({ lc, parent_cid });
-        }
-        else if (r_big) {
-            dendro_to_cluster[rc] = parent_cid;
-            std::vector<std::int32_t> fallen;
-            collect_leaves(lc, fallen);
-            for (auto pt : fallen)
-                condensed.push_back({ parent_cid, pt, lambda, 1 });
-            stack.push_back({ rc, parent_cid });
-        }
-        else {
-            std::vector<std::int32_t> fallen;
-            collect_leaves(lc, fallen);
-            collect_leaves(rc, fallen);
-            for (auto pt : fallen)
-                condensed.push_back({ parent_cid, pt, lambda, 1 });
-        }
-    }
+    std::int32_t* dl_ptr = dendro_left.get_mutable_data();
+    std::int32_t* dr_ptr = dendro_right.get_mutable_data();
+    Float* dw_ptr = dendro_weight.get_mutable_data();
+    std::int32_t* dsz_ptr = dendro_size.get_mutable_data();
 
-    // Step 3: Stability & EOM
-    const std::int32_t n_clusters = next_cid;
+    std::int32_t* cond_p_ptr = cond_parent.get_mutable_data();
+    std::int32_t* cond_c_ptr = cond_child.get_mutable_data();
+    Float* cond_l_ptr = cond_lambda.get_mutable_data();
+    std::int32_t* cond_s_ptr = cond_size.get_mutable_data();
+    std::int32_t* cond_cnt_ptr = cond_count_arr.get_mutable_data();
 
-    std::vector<Float> stability(n_clusters, Float(0));
-    std::vector<Float> lambda_birth(n_clusters, Float(0));
-    std::vector<bool> is_leaf_cluster(n_clusters, true);
-    std::vector<std::vector<std::int32_t>> child_clusters(n_clusters);
+    std::int32_t* ns_ptr = node_size.get_mutable_data();
+    std::int32_t* lc_ptr = left_child.get_mutable_data();
+    std::int32_t* rc_ptr = right_child.get_mutable_data();
+    Float* nw_ptr = node_weight.get_mutable_data();
+    std::int32_t* dtc_ptr = dendro_to_cluster.get_mutable_data();
 
-    for (const auto& e : condensed) {
-        if (e.child >= row_count) {
-            lambda_birth[e.child] = e.lambda_val;
-            is_leaf_cluster[e.parent] = false;
-            child_clusters[e.parent].push_back(e.child);
-        }
-    }
+    Float* stab_ptr = stability.get_mutable_data();
+    Float* lb_ptr = lambda_birth.get_mutable_data();
+    std::int32_t* ilc_ptr = is_leaf_cluster.get_mutable_data();
+    std::int32_t* is_ptr = is_selected.get_mutable_data();
+    std::int32_t* clab_ptr = cluster_label.get_mutable_data();
+    std::int32_t* csz_ptr = cluster_size_arr.get_mutable_data();
+    std::int32_t* cprt_ptr = cluster_parent.get_mutable_data();
+    std::int32_t* cc0_ptr = child_clusters_0.get_mutable_data();
+    std::int32_t* cc1_ptr = child_clusters_1.get_mutable_data();
 
-    for (const auto& e : condensed) {
-        Float birth = lambda_birth[e.parent];
-        Float contrib = (e.lambda_val - birth) * static_cast<Float>(e.child_size);
-        if (contrib > Float(0)) {
-            stability[e.parent] += contrib;
-        }
-    }
+    std::int32_t* pff_ptr = point_fell_from.get_mutable_data();
+    std::int32_t* dp_ptr = dendro_parent.get_mutable_data();
 
-    std::vector<bool> is_selected(n_clusters, true);
+    std::int32_t* stk_ptr = stack_arr.get_mutable_data();
+    std::int32_t* stk_cid_ptr = stack_cid.get_mutable_data();
+    std::int32_t* leaf_stk_ptr = leaf_stack_arr.get_mutable_data();
 
-    for (std::int32_t c = n_clusters - 1; c >= static_cast<std::int32_t>(row_count); c--) {
-        if (is_leaf_cluster[c])
-            continue;
+    const std::int64_t rc = row_count;
+    const std::int64_t ec = edge_count;
+    const std::int64_t mcs = min_cluster_size;
+    const std::int64_t tn = total_nodes;
 
-        Float child_sum = Float(0);
-        for (auto cc : child_clusters[c])
-            child_sum += stability[cc];
-
-        if (child_sum > stability[c]) {
-            is_selected[c] = false;
-            stability[c] = child_sum;
-        }
-        else {
-            std::vector<std::int32_t> desc_stack;
-            for (auto cc : child_clusters[c])
-                desc_stack.push_back(cc);
-            while (!desc_stack.empty()) {
-                auto d = desc_stack.back();
-                desc_stack.pop_back();
-                is_selected[d] = false;
-                for (auto dd : child_clusters[d])
-                    desc_stack.push_back(dd);
+    auto kernel_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(all_deps);
+        h.single_task([=]() {
+            // --- Phase 1: Build dendrogram via union-find (Kruskal) ---
+            for (std::int64_t i = 0; i < rc; i++) {
+                uf_parent_ptr[i] = static_cast<std::int32_t>(i);
+                comp_size_ptr[i] = 1;
+                comp_to_node_ptr[i] = static_cast<std::int32_t>(i);
             }
-        }
-    }
 
-    // Step 4: Label points
-    std::int32_t label_counter = 0;
-    std::vector<std::int32_t> cluster_label(n_clusters, -1);
-    for (std::int32_t c = static_cast<std::int32_t>(row_count); c < n_clusters; c++) {
-        if (is_selected[c])
-            cluster_label[c] = label_counter++;
-    }
+            // Lambda for union-find with path compression
+            auto uf_find = [&](std::int32_t x) -> std::int32_t {
+                while (uf_parent_ptr[x] != x) {
+                    uf_parent_ptr[x] = uf_parent_ptr[uf_parent_ptr[x]];
+                    x = uf_parent_ptr[x];
+                }
+                return x;
+            };
 
-    std::vector<std::int32_t> cluster_parent(n_clusters, -1);
-    for (const auto& e : condensed) {
-        if (e.child >= row_count)
-            cluster_parent[e.child] = e.parent;
-    }
+            for (std::int64_t e = 0; e < ec; e++) {
+                const std::int32_t ru = uf_find(mst_from_ptr[e]);
+                const std::int32_t rv = uf_find(mst_to_ptr[e]);
+                if (ru == rv)
+                    continue;
 
-    std::vector<std::int32_t> point_fell_from(row_count, -1);
-    for (const auto& e : condensed) {
-        if (e.child < row_count)
-            point_fell_from[e.child] = e.parent;
-    }
+                const std::int32_t left_node = comp_to_node_ptr[ru];
+                const std::int32_t right_node = comp_to_node_ptr[rv];
+                const std::int32_t new_size = comp_size_ptr[ru] + comp_size_ptr[rv];
 
-    auto rh = pr::ndarray<std::int32_t, 1>::empty(row_count);
-    auto* rp = rh.get_mutable_data();
+                dl_ptr[e] = left_node;
+                dr_ptr[e] = right_node;
+                dw_ptr[e] = mst_weights_ptr[e];
+                dsz_ptr[e] = new_size;
 
-    for (std::int64_t i = 0; i < row_count; i++) {
-        rp[i] = -1;
-        std::int32_t c = point_fell_from[i];
-        while (c >= static_cast<std::int32_t>(row_count) && c < n_clusters) {
-            if (is_selected[c]) {
-                rp[i] = cluster_label[c];
-                break;
+                if (comp_size_ptr[ru] < comp_size_ptr[rv]) {
+                    uf_parent_ptr[ru] = rv;
+                    comp_size_ptr[rv] = new_size;
+                    comp_to_node_ptr[rv] = static_cast<std::int32_t>(rc + e);
+                }
+                else {
+                    uf_parent_ptr[rv] = ru;
+                    comp_size_ptr[ru] = new_size;
+                    comp_to_node_ptr[ru] = static_cast<std::int32_t>(rc + e);
+                }
             }
-            c = cluster_parent[c];
-        }
-    }
 
-    // Points never ejected
-    std::vector<std::int32_t> dendro_parent(total_nodes, -1);
-    for (std::int64_t e = 0; e < n_dendro_nodes; e++) {
-        std::int64_t nid = row_count + e;
-        if (dendro[e].size > 0) {
-            dendro_parent[dendro[e].left] = static_cast<std::int32_t>(nid);
-            dendro_parent[dendro[e].right] = static_cast<std::int32_t>(nid);
-        }
-    }
+            // --- Phase 2: Build condensed tree ---
+            for (std::int64_t i = 0; i < rc; i++)
+                ns_ptr[i] = 1;
+            for (std::int64_t e = 0; e < ec; e++) {
+                const std::int64_t nid = rc + e;
+                ns_ptr[nid] = dsz_ptr[e];
+                lc_ptr[nid] = dl_ptr[e];
+                rc_ptr[nid] = dr_ptr[e];
+                nw_ptr[nid] = dw_ptr[e];
+            }
 
-    for (std::int64_t i = 0; i < row_count; i++) {
-        if (point_fell_from[i] >= 0)
-            continue;
+            // Find root
+            std::int32_t root = -1;
+            for (std::int64_t e = ec - 1; e >= 0; e--) {
+                if (dsz_ptr[e] > 0) {
+                    root = static_cast<std::int32_t>(rc + e);
+                    break;
+                }
+            }
 
-        std::int32_t nid = static_cast<std::int32_t>(i);
-        while (nid >= 0 && nid < static_cast<std::int32_t>(total_nodes)) {
-            std::int32_t cid = dendro_to_cluster[nid];
-            if (cid >= static_cast<std::int32_t>(row_count)) {
-                std::int32_t c = cid;
-                while (c >= static_cast<std::int32_t>(row_count) && c < n_clusters) {
-                    if (is_selected[c]) {
-                        rp[i] = cluster_label[c];
+            if (root < 0) {
+                for (std::int64_t i = 0; i < rc; i++)
+                    resp_ptr[i] = -1;
+                return;
+            }
+
+            std::int32_t next_cid = static_cast<std::int32_t>(rc);
+            dtc_ptr[root] = next_cid++;
+
+            cond_cnt_ptr[0] = 0;
+
+            // Helper: collect leaves under a subtree using iterative DFS
+            auto add_condensed_edge =
+                [&](std::int32_t parent, std::int32_t child, Float lambda, std::int32_t child_sz) {
+                    const std::int32_t idx = cond_cnt_ptr[0]++;
+                    cond_p_ptr[idx] = parent;
+                    cond_c_ptr[idx] = child;
+                    cond_l_ptr[idx] = lambda;
+                    cond_s_ptr[idx] = child_sz;
+                };
+
+            // Iterative collect_leaves using a separate stack (leaf_stk_ptr)
+            // to avoid corrupting the condensed-tree traversal stack.
+            auto collect_and_add_leaves =
+                [&](std::int32_t subtree_root, std::int32_t parent_cid, Float lambda) {
+                    std::int32_t sp = 0;
+                    leaf_stk_ptr[sp++] = subtree_root;
+                    while (sp > 0) {
+                        const std::int32_t nd = leaf_stk_ptr[--sp];
+                        if (nd < rc) {
+                            add_condensed_edge(parent_cid, nd, lambda, 1);
+                        }
+                        else {
+                            if (lc_ptr[nd] >= 0)
+                                leaf_stk_ptr[sp++] = lc_ptr[nd];
+                            if (rc_ptr[nd] >= 0)
+                                leaf_stk_ptr[sp++] = rc_ptr[nd];
+                        }
+                    }
+                };
+
+            // Build condensed tree using explicit stack
+            std::int32_t ct_sp = 0;
+            stk_ptr[ct_sp] = root;
+            stk_cid_ptr[ct_sp] = dtc_ptr[root];
+            ct_sp++;
+
+            while (ct_sp > 0) {
+                ct_sp--;
+                const std::int32_t nid = stk_ptr[ct_sp];
+                const std::int32_t parent_cid = stk_cid_ptr[ct_sp];
+
+                if (nid < rc)
+                    continue;
+
+                const std::int32_t lc_node = lc_ptr[nid];
+                const std::int32_t rc_node = rc_ptr[nid];
+                if (lc_node < 0 || rc_node < 0)
+                    continue;
+
+                const std::int32_t ls = ns_ptr[lc_node];
+                const std::int32_t rs = ns_ptr[rc_node];
+                const Float w = nw_ptr[nid];
+                const Float lambda =
+                    (w > Float(0)) ? Float(1) / w : Float(1e30); // large but finite for device
+
+                const bool l_big = ls >= mcs;
+                const bool r_big = rs >= mcs;
+
+                if (l_big && r_big) {
+                    const std::int32_t lcid = next_cid++;
+                    const std::int32_t rcid = next_cid++;
+                    dtc_ptr[lc_node] = lcid;
+                    dtc_ptr[rc_node] = rcid;
+                    add_condensed_edge(parent_cid, lcid, lambda, ls);
+                    add_condensed_edge(parent_cid, rcid, lambda, rs);
+                    stk_ptr[ct_sp] = lc_node;
+                    stk_cid_ptr[ct_sp] = lcid;
+                    ct_sp++;
+                    stk_ptr[ct_sp] = rc_node;
+                    stk_cid_ptr[ct_sp] = rcid;
+                    ct_sp++;
+                }
+                else if (l_big) {
+                    dtc_ptr[lc_node] = parent_cid;
+                    collect_and_add_leaves(rc_node, parent_cid, lambda);
+                    stk_ptr[ct_sp] = lc_node;
+                    stk_cid_ptr[ct_sp] = parent_cid;
+                    ct_sp++;
+                }
+                else if (r_big) {
+                    dtc_ptr[rc_node] = parent_cid;
+                    collect_and_add_leaves(lc_node, parent_cid, lambda);
+                    stk_ptr[ct_sp] = rc_node;
+                    stk_cid_ptr[ct_sp] = parent_cid;
+                    ct_sp++;
+                }
+                else {
+                    collect_and_add_leaves(lc_node, parent_cid, lambda);
+                    collect_and_add_leaves(rc_node, parent_cid, lambda);
+                }
+            }
+
+            // --- Phase 3: Compute stability and select clusters via EOM ---
+            const std::int32_t n_clusters = next_cid;
+            const std::int32_t root_cid = static_cast<std::int32_t>(rc);
+            const std::int32_t cond_count = cond_cnt_ptr[0];
+
+            // Initialize
+            for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                ilc_ptr[c] = 1; // is_leaf
+                is_ptr[c] = 1; // is_selected
+            }
+            csz_ptr[root_cid] = static_cast<std::int32_t>(rc);
+
+            for (std::int32_t i = 0; i < cond_count; i++) {
+                if (cond_c_ptr[i] >= rc) {
+                    lb_ptr[cond_c_ptr[i]] = cond_l_ptr[i];
+                    ilc_ptr[cond_p_ptr[i]] = 0; // not a leaf
+                    // Store children (max 2 per cluster in binary tree)
+                    if (cc0_ptr[cond_p_ptr[i]] < 0)
+                        cc0_ptr[cond_p_ptr[i]] = cond_c_ptr[i];
+                    else
+                        cc1_ptr[cond_p_ptr[i]] = cond_c_ptr[i];
+                    csz_ptr[cond_c_ptr[i]] = cond_s_ptr[i];
+                }
+            }
+
+            // Compute stability
+            for (std::int32_t i = 0; i < cond_count; i++) {
+                const Float birth = lb_ptr[cond_p_ptr[i]];
+                const Float contrib = (cond_l_ptr[i] - birth) * static_cast<Float>(cond_s_ptr[i]);
+                if (contrib > Float(0))
+                    stab_ptr[cond_p_ptr[i]] += contrib;
+            }
+
+            // Clusters too small cannot be selected
+            for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                if (csz_ptr[c] < mcs)
+                    is_ptr[c] = 0;
+            }
+
+            // Bottom-up EOM
+            for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
+                if (ilc_ptr[c])
+                    continue;
+
+                Float child_sum = Float(0);
+                if (cc0_ptr[c] >= 0)
+                    child_sum += stab_ptr[cc0_ptr[c]];
+                if (cc1_ptr[c] >= 0)
+                    child_sum += stab_ptr[cc1_ptr[c]];
+
+                if (child_sum > stab_ptr[c]) {
+                    is_ptr[c] = 0;
+                    stab_ptr[c] = child_sum;
+                }
+                else {
+                    // Deselect all descendants
+                    std::int32_t dsp = 0;
+                    if (cc0_ptr[c] >= 0)
+                        stk_ptr[dsp++] = cc0_ptr[c];
+                    if (cc1_ptr[c] >= 0)
+                        stk_ptr[dsp++] = cc1_ptr[c];
+                    while (dsp > 0) {
+                        const std::int32_t d = stk_ptr[--dsp];
+                        is_ptr[d] = 0;
+                        if (cc0_ptr[d] >= 0)
+                            stk_ptr[dsp++] = cc0_ptr[d];
+                        if (cc1_ptr[d] >= 0)
+                            stk_ptr[dsp++] = cc1_ptr[d];
+                    }
+                }
+            }
+
+            // --- Phase 4: Label points ---
+            std::int32_t label_counter = 0;
+            for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                if (is_ptr[c])
+                    clab_ptr[c] = label_counter++;
+            }
+
+            // Build cluster_parent mapping
+            for (std::int32_t i = 0; i < cond_count; i++) {
+                if (cond_c_ptr[i] >= rc)
+                    cprt_ptr[cond_c_ptr[i]] = cond_p_ptr[i];
+            }
+
+            // Track which cluster each point fell out of
+            for (std::int32_t i = 0; i < cond_count; i++) {
+                if (cond_c_ptr[i] < rc)
+                    pff_ptr[cond_c_ptr[i]] = cond_p_ptr[i];
+            }
+
+            // Label points that fell out: walk up cluster tree
+            for (std::int64_t i = 0; i < rc; i++) {
+                resp_ptr[i] = -1;
+                std::int32_t c = pff_ptr[i];
+                while (c >= root_cid && c < n_clusters) {
+                    if (is_ptr[c]) {
+                        resp_ptr[i] = clab_ptr[c];
                         break;
                     }
-                    c = cluster_parent[c];
+                    c = cprt_ptr[c];
                 }
-                break;
             }
-            nid = dendro_parent[nid];
-        }
-    }
 
-    queue.memcpy(responses.get_mutable_data(), rp, row_count * sizeof(std::int32_t))
-        .wait_and_throw();
-    return sycl::event{};
+            // Build dendro_parent for never-ejected points
+            for (std::int64_t e = 0; e < ec; e++) {
+                const std::int64_t nid = rc + e;
+                if (dsz_ptr[e] > 0) {
+                    dp_ptr[dl_ptr[e]] = static_cast<std::int32_t>(nid);
+                    dp_ptr[dr_ptr[e]] = static_cast<std::int32_t>(nid);
+                }
+            }
+
+            // Label never-ejected points: walk up dendrogram
+            for (std::int64_t i = 0; i < rc; i++) {
+                if (pff_ptr[i] >= 0)
+                    continue;
+
+                std::int32_t nid = static_cast<std::int32_t>(i);
+                while (nid >= 0 && nid < static_cast<std::int32_t>(tn)) {
+                    const std::int32_t cid = dtc_ptr[nid];
+                    if (cid >= root_cid) {
+                        std::int32_t c = cid;
+                        while (c >= root_cid && c < n_clusters) {
+                            if (is_ptr[c]) {
+                                resp_ptr[i] = clab_ptr[c];
+                                break;
+                            }
+                            c = cprt_ptr[c];
+                        }
+                        break;
+                    }
+                    nid = dp_ptr[nid];
+                }
+            }
+        });
+    });
+
+    return kernel_event;
 }
 
 #endif
