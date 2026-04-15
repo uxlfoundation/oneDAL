@@ -1,0 +1,117 @@
+/*
+ * Copyright contributors to the oneDAL project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Version script for libonedal_core.so (DAAL Legacy Interface)
+ *
+ * This file explicitly defines which symbols are exported from libonedal_core.so
+ */
+
+ONEDAL_2026.0 {
+global:
+    extern "C++" {
+        # ================================ Public DAAL interface ===============================
+
+        # ===================================== Algorithms =====================================
+
+        # Common interfaces
+
+        daal::algorithms::interface1::Argument::*;
+        "daal::algorithms::interface1::AlgorithmImpl<*>::*";
+
+        # Cholesky
+
+        daal::algorithms::cholesky::interface1::*;
+        "daal::algorithms::cholesky::interface1::Result::allocate<*>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "!daal::algorithms::cholesky::internal::*";
+
+        # =================================== Data Management ==================================
+
+        daal::data_management::interface1::*;
+        daal::data_management::ModifierIface::*;
+
+        "daal::data_management::internal::getVectorDownCast(int, int)";
+        "daal::data_management::internal::getVectorUpCast(int, int)";
+        "daal::data_management::internal::getVectorStrideDownCast(int, int)";
+        "daal::data_management::internal::getVectorStrideUpCast(int, int)";
+
+        "void daal::data_management::internal::vectorAssignValueToArray<float>(float*, unsigned long, float)";
+
+        # ======================================= Services =====================================
+
+        # Memory management
+
+        "daal::services::daal_calloc(unsigned long, unsigned long)";
+        "daal::services::daal_malloc(unsigned long, unsigned long)";
+        "daal::services::daal_free(void*)";
+        "daal::services::daal_memcpy_s(void*, unsigned long, void const*, unsigned long)";
+        "daal::services::daal_memmove_s(void*, unsigned long, void const*, unsigned long)";
+
+        "daal::services::internal::daal_memcpy_s(void*, unsigned long, void const*, unsigned long)";
+
+        # Error handling
+
+        daal::services::interface1::Exception::*;
+        daal::services::interface1::Error::*;
+
+        daal::services::interface1::KernelErrorCollection::*;
+
+        "daal::services::interface1::ObjectDeleter<*>::*";
+        "daal::services::interface1::RefCounterImp<*>::*";
+
+        daal::services::interface1::Status::*;
+        daal::services::interface1::String::*;
+
+        # Exclude any potential internal namespaces (defensive)
+
+        "!daal::internal::*";
+        "!daal::*::internal::*";
+    };
+
+
+    # ===================================== Algorithms =====================================
+
+    # AlgorithmImpl::computeNoThrow() instantiations for all compute modes (Batch, Online, Distributed)
+    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE1EE14computeNoThrowEv;
+    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE2EE14computeNoThrowEv;
+    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE4EE14computeNoThrowEv;
+
+    # CsvDataSource template methods
+    "_ZN4daal15data_management10interface113CsvDataSource*";
+
+    # =================================== Data Management ==================================
+
+    # NumericTable
+
+    # typeinfo for daal::data_management::interface1::NumericTable
+    _ZTIN4daal15data_management10interface112NumericTableE;
+
+    # vtable for daal::data_management::interface1::NumericTable
+    _ZTVN4daal15data_management10interface112NumericTableE;
+
+    # non-virtual thunk to daal::data_management::interface1::NumericTable::allocateBasicStatistics()
+    _ZThn8_N4daal15data_management10interface112NumericTable23allocateBasicStatisticsEv;
+
+    # ======================================= Services =====================================
+
+    # vtable for KernelErrorCollection
+    _ZTVN4daal8services10interface121KernelErrorCollectionE;
+
+local:
+    # Hide everything else by default
+    *;
+};

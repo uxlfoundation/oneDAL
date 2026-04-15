@@ -15,23 +15,17 @@
  */
 
 /*
- * Version script for libonedal_dpc.so (oneAPI DPC++ Interface)
+ * Version script for libonedal_parameters_dpc.so (oneDAL performance-related parameters interface)
  *
- * This file explicitly defines which symbols are exported from libonedal_dpc.so
+ * This file explicitly defines which symbols are exported from libonedal_parameters_dpc.so
  */
 
 ONEDAL_2026.0 {
 global:
     extern "C++" {
-        # Public oneAPI interface - export all algorithm namespaces
+        # ================================ Public oneDAL interface ===============================
+
+        "daal::*";
         "oneapi::dal::*";
-
-        # Explicitly exclude backend implementation (GPU kernels, primitives)
-        "!oneapi::dal::backend::*";
-        "!oneapi::dal::*::backend::*";
     };
-
-local:
-    # Hide everything else by default
-    *;
 };

@@ -15,24 +15,23 @@
  */
 
 /*
- * Version script for libonedal_core.so (DAAL Legacy Interface)
+ * Version script for libonedal.so (oneAPI C++ Interface)
  *
- * This file explicitly defines which symbols are exported from libonedal_core.so
+ * This file explicitly defines which symbols are exported from libonedal.so
  */
-
 
 ONEDAL_2026.0 {
 global:
     extern "C++" {
-        # Public DAAL interface - export all daal:: namespace symbols
-        "daal::*";
+        # Public oneAPI interface - export all algorithm namespaces
+        "oneapi::dal::*";
 
-        # Exclude any potential internal namespaces (defensive)
-        "!daal::internal::*";
-        "!daal::*::internal::*";
+        # Explicitly exclude backend implementation
+        "!oneapi::dal::backend::*";
+        "!oneapi::dal::*::backend::*";
     };
 
-local:
+# local:
     # Hide everything else by default
-    *;
+    # *;
 };
