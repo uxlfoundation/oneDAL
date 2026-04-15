@@ -40,12 +40,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type not specified, defaulting to Release" FORCE)
 endif()
 
-if(WIN32)
-    message(STATUS "Optimization library is not enabled on Windows")
-    set(ONEDAL_USE_PARAMETERS_LIBRARY no)
-else()
-    set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
-endif()
+set(ONEDAL_USE_PARAMETERS_LIBRARY yes)
 
 #Backward compatibility section to be removed with next major version
 if(NOT DEFINED ONEDAL_LINK AND DEFINED TARGET_LINK)
