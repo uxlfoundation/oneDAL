@@ -40,7 +40,7 @@ run_examples() {
             ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
         if [ -d ../data ]; then
-            ln -sfn ../data data
+            rm -rf data && ln -s ../data data
         fi
         rm -rf build_$linking_type
         mkdir -p build_$linking_type
@@ -57,6 +57,7 @@ run_examples() {
             fi
             cmake_args="$cmake_args $extra_cmake_args"
 
+            # shellcheck disable=SC2086
             cmake .. $cmake_args
             make -j$(nproc)
         )
@@ -90,7 +91,7 @@ run_dpc_examples() {
             ln -sf "$CONDA_PREFIX/share/oneDAL/data" ../data
         fi
         if [ -d ../data ]; then
-            ln -sfn ../data data
+            rm -rf data && ln -s ../data data
         fi
         rm -rf build_$linking_type
         mkdir -p build_$linking_type
@@ -104,6 +105,7 @@ run_dpc_examples() {
             # (same approach as for the static CPU build above).
             cmake_args="$cmake_args -DTBB_tbb_FOUND=YES"
 
+            # shellcheck disable=SC2086
             cmake .. $cmake_args
             make -j$(nproc)
         )
