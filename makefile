@@ -429,7 +429,7 @@ release.ONEAPI.EXAMPLES.DPC  := $(filter $(expat),$(shell find examples/oneapi/d
 release.DATA  := $(filter $(expat),$(shell find data -type f))
 
 # List env files to populate release.
-release.ENV = deploy/local/vars_$(_OS).$(scr)
+release.ENV = deploy/local/vars_$(_OS).$(scr) deploy/local/sycl_cache.$(scr)
 
 # List modulefiles to populate release.
 release.MODULEFILES = deploy/local/dal
