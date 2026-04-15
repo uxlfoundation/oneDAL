@@ -92,21 +92,56 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
     const auto daal_nobs = interop::convert_to_daal_table<Float>(input.get_partial_n_rows());
 
     daal_cov::Parameter daal_parameter;
-    daal_parameter.outputMatrixType = daal_cov::correlationMatrix;
 
     if (desc.get_normalization_mode() == normalization::mean_center) {
+        /// mean_center: compute covariance matrix; variances are on the diagonal.
         daal_parameter.outputMatrixType = daal_cov::covarianceMatrix;
+        interop::status_to_exception(
+            interop::call_daal_kernel_finalize_compute<Float, daal_cov_kernel_t>(
+                ctx,
+                daal_nobs.get(),
+                daal_crossproduct.get(),
+                daal_sums.get(),
+                daal_cor_matrix.get(),
+                daal_means.get(),
+                &daal_parameter,
+                &hp));
+
+        /// Extract variances from the covariance diagonal.
+        /// copyVarianceFromCovarianceTable is protected in PCACorrelationBase,
+        /// so we read the diagonal directly from the raw array.
+        const Float* cov = arr_cor_matrix.get_data();
+        Float* vars = arr_vars.get_mutable_data();
+        for (std::int64_t i = 0; i < column_count; ++i) {
+            vars[i] = cov[i * column_count + i];
+        }
     }
-    interop::status_to_exception(
-        interop::call_daal_kernel_finalize_compute<Float, daal_cov_kernel_t>(
-            ctx,
-            daal_nobs.get(),
-            daal_crossproduct.get(),
-            daal_sums.get(),
-            daal_cor_matrix.get(),
-            daal_means.get(),
-            &daal_parameter,
-            &hp));
+    else {
+        /// zscore: variances are cp[i,i] / (nobs - 1) — readable directly from
+        /// the crossproduct input before DAAL converts it to a correlation matrix.
+        /// This avoids a second O(N²) finalizeCompute call.
+        {
+            const auto cp =
+                row_accessor<const Float>(input.get_partial_crossproduct()).pull({ 0, -1 });
+            const Float inv_nm1 = Float(1) / (row_count - 1);
+            Float* vars = arr_vars.get_mutable_data();
+            for (std::int64_t i = 0; i < column_count; ++i) {
+                vars[i] = cp[i * column_count + i] * inv_nm1;
+            }
+        }
+
+        daal_parameter.outputMatrixType = daal_cov::correlationMatrix;
+        interop::status_to_exception(
+            interop::call_daal_kernel_finalize_compute<Float, daal_cov_kernel_t>(
+                ctx,
+                daal_nobs.get(),
+                daal_crossproduct.get(),
+                daal_sums.get(),
+                daal_cor_matrix.get(),
+                daal_means.get(),
+                &daal_parameter,
+                &hp));
+    }
 
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
         return daal_pca_cor_kernel_t<
@@ -129,13 +164,6 @@ static train_result<Task> call_daal_kernel_finalize_train(const context_cpu& ctx
                    Float,
                    dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
             .computeSingularValues(*daal_eigenvalues, *daal_singular_values, row_count);
-    }));
-
-    interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {
-        return daal_pca_cor_kernel_t<
-                   Float,
-                   dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value>()
-            .computeVariancesFromCov(*daal_cor_matrix, *daal_variances);
     }));
 
     interop::status_to_exception(dal::backend::dispatch_by_cpu(ctx, [&](auto cpu) {

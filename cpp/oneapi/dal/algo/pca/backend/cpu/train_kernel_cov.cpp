@@ -25,10 +25,14 @@
 #include "oneapi/dal/algo/pca/backend/common.hpp"
 #include "oneapi/dal/algo/pca/backend/cpu/train_kernel.hpp"
 #include "oneapi/dal/algo/pca/backend/cpu/train_kernel_common.hpp"
+#include "oneapi/dal/algo/pca/backend/cpu/partial_train_kernel.hpp"
+#include "oneapi/dal/algo/pca/backend/cpu/finalize_train_kernel.hpp"
 
 #include "oneapi/dal/backend/interop/common.hpp"
 #include "oneapi/dal/backend/interop/error_converter.hpp"
 #include "oneapi/dal/backend/interop/table_conversion.hpp"
+#include "oneapi/dal/backend/primitives/ndarray.hpp"
+#include "oneapi/dal/backend/primitives/utils.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
 
 namespace oneapi::dal::pca::backend {
@@ -43,6 +47,8 @@ using descriptor_t = detail::descriptor_base<task_t>;
 namespace daal_pca = daal::algorithms::pca;
 namespace daal_cov = daal::algorithms::covariance;
 namespace interop = dal::backend::interop;
+namespace be = dal::backend;
+namespace pr = be::primitives;
 
 template <typename Float, daal::internal::CpuType Cpu>
 using daal_pca_cor_kernel_t = daal_pca::internal::PCACorrelationKernel<daal::batch, Float, Cpu>;
@@ -143,10 +149,101 @@ static result_t call_daal_kernel(const context_cpu& ctx,
 }
 
 template <typename Float>
+static result_t call_daal_spmd_kernel(const context_cpu& ctx,
+                                      const descriptor_t& desc,
+                                      const detail::train_parameters<task_t>& params,
+                                      const table& data) {
+    auto& comm = ctx.get_communicator();
+
+    /// Compute partial crossproduct, sums, and nobs on each rank
+    partial_train_input<task_t> partial_input({}, data);
+    auto partial_result =
+        pca::backend::partial_train_kernel_cpu<Float, method::cov, task_t>{}(ctx,
+                                                                             desc,
+                                                                             partial_input);
+
+    /// Get local partial results as arrays for collective allreduce
+    const auto& nobs_local = partial_result.get_partial_n_rows();
+    const auto& crossproduct_local = partial_result.get_partial_crossproduct();
+    const auto& sums_local = partial_result.get_partial_sum();
+
+    auto nobs_nd = pr::table2ndarray<Float>(nobs_local);
+    auto crossproduct_nd = pr::table2ndarray<Float>(crossproduct_local);
+    auto sums_nd = pr::table2ndarray<Float>(sums_local);
+
+    auto nobs_ary = dal::array<Float>::wrap(nobs_nd.get_mutable_data(), nobs_nd.get_count());
+    auto crossproduct_ary =
+        dal::array<Float>::wrap(crossproduct_nd.get_mutable_data(), crossproduct_nd.get_count());
+    auto sums_ary = dal::array<Float>::wrap(sums_nd.get_mutable_data(), sums_nd.get_count());
+
+    const std::int64_t column_count = crossproduct_local.get_column_count();
+
+    /// The DAAL covariance online kernel stores a CENTRED crossproduct:
+    ///   cp = Σ(x - mean_local)^T (x - mean_local)
+    /// Simply allreducing centred crossproducts from different ranks does
+    /// NOT produce the globally-centred crossproduct.  Convert each rank's
+    /// centred cp to the raw second-moment matrix before reduction:
+    ///   raw = cp_local + S_local * S_local^T / n_local
+    {
+        auto* cp_data = crossproduct_ary.get_mutable_data();
+        const auto* s_data = sums_ary.get_data();
+        const Float n_local = nobs_ary.get_data()[0];
+        if (n_local > Float(0)) {
+            const Float inv_n = Float(1) / n_local;
+            for (std::int64_t i = 0; i < column_count; ++i) {
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    cp_data[i * column_count + j] += s_data[i] * s_data[j] * inv_n;
+                }
+            }
+        }
+    }
+
+    /// Collectively reduce the raw second-moment matrices
+    comm.allreduce(nobs_ary).wait();
+    comm.allreduce(crossproduct_ary).wait();
+    comm.allreduce(sums_ary).wait();
+
+    /// Re-centre using the global sums and nobs
+    {
+        auto* cp_data = crossproduct_ary.get_mutable_data();
+        const auto* s_data = sums_ary.get_data();
+        const Float n_total = nobs_ary.get_data()[0];
+        if (n_total > Float(0)) {
+            const Float inv_n = Float(1) / n_total;
+            for (std::int64_t i = 0; i < column_count; ++i) {
+                for (std::int64_t j = 0; j < column_count; ++j) {
+                    cp_data[i * column_count + j] -= s_data[i] * s_data[j] * inv_n;
+                }
+            }
+        }
+    }
+
+    auto nobs_table = homogen_table::wrap(nobs_ary, 1, 1);
+    auto crossproduct_table = homogen_table::wrap(crossproduct_ary, column_count, column_count);
+    auto sums_table = homogen_table::wrap(sums_ary, 1, column_count);
+
+    /// Build aggregated partial result and finalize
+    partial_train_result<task_t> aggregated;
+    aggregated.set_partial_n_rows(nobs_table);
+    aggregated.set_partial_crossproduct(crossproduct_table);
+    aggregated.set_partial_sum(sums_table);
+
+    /// Use a local (non-SPMD) context so the finalize kernel does NOT
+    /// dispatch to the SPMD path — the data is already aggregated.
+    const context_cpu local_ctx;
+    return pca::backend::finalize_train_kernel_cpu<Float, method::cov, task_t>{}(local_ctx,
+                                                                                 desc,
+                                                                                 aggregated);
+}
+
+template <typename Float>
 static result_t train(const context_cpu& ctx,
                       const descriptor_t& desc,
                       const detail::train_parameters<task_t>& params,
                       const input_t& input) {
+    if (ctx.get_communicator().get_rank_count() > 1) {
+        return call_daal_spmd_kernel<Float>(ctx, desc, params, input.get_data());
+    }
     return call_daal_kernel<Float>(ctx, desc, params, input.get_data());
 }
 
