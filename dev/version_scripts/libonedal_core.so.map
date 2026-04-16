@@ -40,9 +40,14 @@ global:
 
         # =================================== Data Management ==================================
 
-        daal::data_management::interface1::*;
-
+        daal::data_management::interface1::DataCollection::*;
         daal::data_management::interface1::NumericTable::*;
+        "daal::data_management::interface1::HomogenNumericTable<*>::*";
+        "daal::data_management::interface1::HomogenNumericTable<float>::getSerializationTag() const";
+        "daal::data_management::interface1::HomogenNumericTable<double>::getSerializationTag() const";
+
+        daal::data_management::interface1::Factory::*;
+        daal::data_management::interface1::SerializationIface::*;
 
         daal::data_management::ModifierIface::*;
 
@@ -52,6 +57,7 @@ global:
         "daal::data_management::internal::getVectorStrideUpCast(int, int)";
 
         "void daal::data_management::internal::vectorAssignValueToArray<float>(float*, unsigned long, float)";
+        "void daal::data_management::internal::vectorAssignValueToArray<double>(double*, unsigned long, double)";
 
         # ======================================= Services =====================================
 
@@ -65,6 +71,9 @@ global:
 
         "daal::services::internal::daal_memcpy_s(void*, unsigned long, void const*, unsigned long)";
 
+        "daal::services::interface1::ObjectDeleter<*>::*";
+        "daal::services::interface1::RefCounterImp<*>::*";
+
         # String operations
 
         "daal::services::daal_string_to_float(char const*, char**)";
@@ -75,9 +84,6 @@ global:
         daal::services::interface1::Error::*;
 
         daal::services::interface1::KernelErrorCollection::*;
-
-        "daal::services::interface1::ObjectDeleter<*>::*";
-        "daal::services::interface1::RefCounterImp<*>::*";
 
         daal::services::interface1::Status::*;
         daal::services::interface1::String::*;
