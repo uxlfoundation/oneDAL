@@ -309,7 +309,7 @@ jobs:
       .ci/env/apt.sh llvm-version 18
     displayName: 'llvm 18 installation'
   - script: |
-      .ci/env/apt.sh qemu-deb
+      .ci/env/apt.sh qemu-apt
     displayName: 'qemu-emulation installation'
   - task: Cache@2
     inputs:

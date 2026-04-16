@@ -37,6 +37,7 @@ function install_dpcpp {
 
 function install_tbb {
     # TBB version monitored by Renovate and sets exact value available via apt
+    sudo apt-get install -f -y
     sudo apt-get install -y intel-oneapi-tbb-devel=2022.3.1-400
 }
 
@@ -69,7 +70,8 @@ function install_gnu-cross-compilers {
 }
 
 function install_qemu_emulation_apt {
-    sudo apt-get install -y qemu-user-static
+    sudo apt-get install -f -y
+    sudo apt-get install -y qemu-user-static qemu-user binfmt-support
 }
 
 function install_opencl_apt {
@@ -77,11 +79,9 @@ function install_opencl_apt {
 }
 
 function install_qemu_emulation_deb {
-    # get last version of qemu listed on debian, changes may need to occur to this with version 10 of qemu
-    found_version=$(wget -q http://ftp.debian.org/debian/pool/main/q/qemu/ -O - | grep -oP "(?<=\")$1_.*_amd64.deb(?=\")" | tail -1)
-    wget http://ftp.debian.org/debian/pool/main/q/qemu/${found_version}
-    sudo dpkg -i ${found_version}
-    sudo systemctl restart systemd-binfmt.service
+    sudo apt-get install -f -y
+    sudo apt-get install -y qemu-user qemu-user-binfmt qemu-user-static
+    sudo systemctl restart systemd-binfmt.service || true
 }
 
 function install_llvm_version {
@@ -163,9 +163,7 @@ elif [ "${component}" == "qemu-apt" ]; then
     install_qemu_emulation_apt
 elif [ "${component}" == "qemu-deb" ]; then
     update
-    install_qemu_emulation_deb qemu-user
-    install_qemu_emulation_deb qemu-user-binfmt
-    install_qemu_emulation_deb qemu-user-static
+    install_qemu_emulation_deb
 elif [ "${component}" == "llvm-version" ] ; then
     update
     install_llvm_version "$2"
