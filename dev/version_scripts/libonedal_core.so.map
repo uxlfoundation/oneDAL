@@ -32,9 +32,18 @@ global:
         daal::algorithms::interface1::Argument::*;
         "daal::algorithms::interface1::AlgorithmImpl<*>::*";
 
+        # AlgorithmImpl::computeNoThrow() instantiations
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)1>::computeNoThrow()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::computeNoThrow()";
+        "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)4>::computeNoThrow()";
+
         # Cholesky
 
         daal::algorithms::cholesky::interface1::*;
+
+        # Explicit template instantiations
+        "daal::services::interface1::Status daal::algorithms::cholesky::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::cholesky::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         "!daal::algorithms::cholesky::internal::*";
 
@@ -45,6 +54,11 @@ global:
         daal::algorithms::decision_forest::classification::training::interface1::*;
         daal::algorithms::decision_forest::classification::training::interface3::*;
 
+        # Explicit template instantiations and RTTI
+        "typeinfo for daal::algorithms::decision_forest::classification::training::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::decision_forest::classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::decision_forest::classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
         "!daal::algorithms::decision_forest::internal::*";
         "!daal::algorithms::decision_forest::*::internal::*";
 
@@ -52,6 +66,12 @@ global:
 
         daal::algorithms::classifier::prediction::interface2::*;
         daal::algorithms::classifier::training::interface1::*;
+
+        # Explicit template instantiations and RTTI
+        "typeinfo for daal::algorithms::classifier::training::interface1::Result";
+        "typeinfo name for daal::algorithms::classifier::training::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::classifier::prediction::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::classifier::prediction::interface2::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         "!daal::algorithms::classifier::internal::*";
         "!daal::algorithms::classifier::*::internal::*";
@@ -63,6 +83,11 @@ global:
         "daal::data_management::interface1::HomogenNumericTable<*>::*";
         "daal::data_management::interface1::HomogenNumericTable<float>::getSerializationTag() const";
         "daal::data_management::interface1::HomogenNumericTable<double>::getSerializationTag() const";
+
+        # NumericTable RTTI and vtable
+        "typeinfo for daal::data_management::interface1::NumericTable";
+        "vtable for daal::data_management::interface1::NumericTable";
+        "non-virtual thunk to daal::data_management::interface1::NumericTable::allocateBasicStatistics()";
 
         daal::data_management::interface1::Factory::*;
         daal::data_management::interface1::SerializationIface::*;
@@ -103,6 +128,9 @@ global:
 
         daal::services::interface1::KernelErrorCollection::*;
 
+        # KernelErrorCollection vtable
+        "vtable for daal::services::interface1::KernelErrorCollection";
+
         daal::services::interface1::Status::*;
         daal::services::interface1::String::*;
 
@@ -112,59 +140,8 @@ global:
         "!daal::*::internal::*";
     };
 
-
-    # ===================================== Algorithms =====================================
-
-    # AlgorithmImpl::computeNoThrow() instantiations for all compute modes (Batch, Online, Distributed)
-    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE1EE14computeNoThrowEv;
-    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE2EE14computeNoThrowEv;
-    _ZN4daal10algorithms10interface113AlgorithmImplILNS_11ComputeModeE4EE14computeNoThrowEv;
-
-    # CsvDataSource template methods
+    # CsvDataSource template methods (wildcard pattern for all instantiations)
     "_ZN4daal15data_management10interface113CsvDataSource*";
-
-    # Cholesky
-
-    # Result::allocate<*>(...) instantiations for float and double
-    _ZN4daal10algorithms8cholesky10interface16Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS8_9ParameterEi;
-    _ZN4daal10algorithms8cholesky10interface16Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS8_9ParameterEi;
-
-    # Decision Forest
-
-    # typeinfo for daal::algorithms::decision_forest::classification::training::interface1::Result
-    _ZTIN4daal10algorithms15decision_forest14classification8training10interface16ResultE;
-
-    # prediction::interface1::Result::allocate<*>(...) instantiations for float and double
-    _ZN4daal10algorithms15decision_forest14classification8training10interface16Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNSA_9ParameterEi;
-    _ZN4daal10algorithms15decision_forest14classification8training10interface16Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNSA_9ParameterEi;
-
-    # Classifier
-
-    # typeinfo for daal::algorithms::classifier::training::interface1::Result
-    _ZTIN4daal10algorithms10classifier8training10interface16ResultE;
-    _ZTSN4daal10algorithms10classifier8training10interface16ResultE;
-
-    # prediction::interface2::Result::allocate<*>(...) instantiations for float and double
-    _ZN4daal10algorithms10classifier10prediction10interface26Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS9_9ParameterEi;
-    _ZN4daal10algorithms10classifier10prediction10interface26Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS9_9ParameterEi;
-
-    # =================================== Data Management ==================================
-
-    # NumericTable
-
-    # typeinfo for daal::data_management::interface1::NumericTable
-    _ZTIN4daal15data_management10interface112NumericTableE;
-
-    # vtable for daal::data_management::interface1::NumericTable
-    _ZTVN4daal15data_management10interface112NumericTableE;
-
-    # non-virtual thunk to daal::data_management::interface1::NumericTable::allocateBasicStatistics()
-    _ZThn8_N4daal15data_management10interface112NumericTable23allocateBasicStatisticsEv;
-
-    # ======================================= Services =====================================
-
-    # vtable for KernelErrorCollection
-    _ZTVN4daal8services10interface121KernelErrorCollectionE;
 
 local:
     # Hide everything else by default
