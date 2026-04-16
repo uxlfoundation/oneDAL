@@ -1180,7 +1180,7 @@ _release_cmake_configs:
 
 #----- nuspecs generation
 _release_common: _release_nuspec
-_release_nuspec: update_headers_version _release_cmake_configs
+_release_nuspec: _release_c_h _release_cmake_configs
 	mkdir -p $(RELEASEDIR.nuspec)
 	bash ./deploy/nuget/prepare_dal_nuget.sh --release-dir $(RELEASEDIR)
 
