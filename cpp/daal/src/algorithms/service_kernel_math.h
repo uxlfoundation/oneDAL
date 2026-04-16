@@ -24,7 +24,6 @@
 #ifndef __SERVICE_KERNEL_MATH_H__
 #define __SERVICE_KERNEL_MATH_H__
 
-#include <cstring>
 #include <type_traits>
 
 #include "services/daal_defines.h"
