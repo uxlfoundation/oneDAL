@@ -38,6 +38,24 @@ global:
 
         "!daal::algorithms::cholesky::internal::*";
 
+        # Decision Forest
+
+        daal::algorithms::decision_forest::classification::prediction::interface1::*;
+        daal::algorithms::decision_forest::classification::prediction::interface3::*;
+        daal::algorithms::decision_forest::classification::training::interface1::*;
+        daal::algorithms::decision_forest::classification::training::interface3::*;
+
+        "!daal::algorithms::decision_forest::internal::*";
+        "!daal::algorithms::decision_forest::*::internal::*";
+
+        # Classifier
+
+        daal::algorithms::classifier::prediction::interface2::*;
+        daal::algorithms::classifier::training::interface1::*;
+
+        "!daal::algorithms::classifier::internal::*";
+        "!daal::algorithms::classifier::*::internal::*";
+
         # =================================== Data Management ==================================
 
         daal::data_management::interface1::DataCollection::*;
@@ -107,9 +125,28 @@ global:
 
     # Cholesky
 
-    # Result::allocate() instantiations for float and double
+    # Result::allocate<*>(...) instantiations for float and double
     _ZN4daal10algorithms8cholesky10interface16Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS8_9ParameterEi;
     _ZN4daal10algorithms8cholesky10interface16Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS8_9ParameterEi;
+
+    # Decision Forest
+
+    # typeinfo for daal::algorithms::decision_forest::classification::training::interface1::Result
+    _ZTIN4daal10algorithms15decision_forest14classification8training10interface16ResultE;
+
+    # prediction::interface1::Result::allocate<*>(...) instantiations for float and double
+    _ZN4daal10algorithms15decision_forest14classification8training10interface16Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNSA_9ParameterEi;
+    _ZN4daal10algorithms15decision_forest14classification8training10interface16Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNSA_9ParameterEi;
+
+    # Classifier
+
+    # typeinfo for daal::algorithms::classifier::training::interface1::Result
+    _ZTIN4daal10algorithms10classifier8training10interface16ResultE;
+    _ZTSN4daal10algorithms10classifier8training10interface16ResultE;
+
+    # prediction::interface2::Result::allocate<*>(...) instantiations for float and double
+    _ZN4daal10algorithms10classifier10prediction10interface26Result8allocateIfEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS9_9ParameterEi;
+    _ZN4daal10algorithms10classifier10prediction10interface26Result8allocateIdEENS_8services10interface16StatusEPKNS0_10interface15InputEPKNS9_9ParameterEi;
 
     # =================================== Data Management ==================================
 
