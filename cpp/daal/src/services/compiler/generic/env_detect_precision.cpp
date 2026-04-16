@@ -23,15 +23,16 @@
 //
 //  Precision levels:
 //    strict (default) -- always compute in float32. Full IEEE-754, bit-exact.
-//    allow_bf16       -- allow BF16 kernels where oneDAL determines the accuracy
-//                        impact is acceptable. The library, not the user, decides
-//                        which operations are eligible. Currently: float32
-//                        Euclidean GEMM, dims >= 64, hardware with AMX-BF16.
+//    allow_bf16       -- allow BF16 operand conversion for internal GEMM paths
+//                        where oneDAL determines the accuracy impact is acceptable.
+//                        Accumulation and output remain float32. The library,
+//                        not the user, decides which operations are eligible.
+//                        Currently: float32 Euclidean GEMM, dims >= 64, on
+//                        hardware with AMX-BF16.
 //
-//  Hardware availability is checked ONCE at process initialisation (g_hw_bf16).
-//  The setter stores the user's requested level as-is; BF16GemmDispatcher
-//  gates on both g_hw_bf16 and the stored precision level.
-//  This way the getter is a plain atomic load with no HW queries.
+//  Hardware availability is queried independently from the stored precision hint.
+//  The getter/setter operate only on the requested precision value. Dispatchers
+//  combine the hint with runtime hardware capability checks.
 //--
 */
 
@@ -44,25 +45,6 @@
 
 namespace
 {
-
-/// Hardware capability flag — evaluated ONCE at process start.
-/// True iff AMX-BF16 is present and OS-enabled.
-/// AMX-BF16 is x86-only; always false on ARM/RISCV64.
-/// daal_serv_cpu_feature_detect() returns a DAAL_UINT64 bitmask;
-/// amx_bf16 corresponds to bit 5 (see daal::internal::CpuFeature::amx_bf16).
-static bool detect_hw_amx_bf16()
-{
-#if defined(TARGET_X86_64) || defined(__x86_64__) || defined(_M_X64)
-    // AMX-BF16 bit = (1ULL << 5) in daal::internal::CpuFeature (cpu_type.h).
-    // Use the numeric value directly to avoid dependency on TARGET_X86_64 guard
-    // in cpu_type.h when the macro is not set by the build system.
-    static const DAAL_UINT64 amx_bf16_mask = (1ULL << 5);
-    return (daal_serv_cpu_feature_detect() & amx_bf16_mask) != 0;
-#else
-    return false;
-#endif
-}
-static const bool g_hw_amx_bf16 = detect_hw_amx_bf16();
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
 /// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
@@ -78,18 +60,9 @@ static daal::internal::Float32MatmulPrecision parse_env_precision()
 
 /// Stored precision level (what the user requested).
 /// Default: read from env at startup; can be overridden at runtime.
-/// BF16GemmDispatcher combines this with g_hw_amx_bf16 to make the
-/// final dispatch decision.
 static std::atomic<int> g_float32_matmul_precision { static_cast<int>(parse_env_precision()) };
 
 } // anonymous namespace
-
-/// Return whether AMX-BF16 hardware is available in this process.
-/// Result is constant for the lifetime of the process.
-DAAL_EXPORT bool daal_has_amx_bf16()
-{
-    return g_hw_amx_bf16;
-}
 
 /// Return the currently requested float32 matmul precision.
 /// This is a plain atomic load — no hardware queries.
@@ -99,9 +72,8 @@ DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_preci
 }
 
 /// Set the float32 matmul precision hint.
-/// Stores the requested level directly; does NOT re-check hardware.
-/// If 'high' is requested but hardware lacks AMX-BF16, BF16GemmDispatcher
-/// will fall through to sgemm transparently via its own g_use_bf16_gemm gate.
+/// Stores the requested level directly; dispatchers combine it with runtime
+/// hardware capability checks.
 DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p)
 {
     g_float32_matmul_precision.store(static_cast<int>(p), std::memory_order_relaxed);

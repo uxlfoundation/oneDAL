@@ -47,7 +47,6 @@
 #include "src/externals/service_math.h"
 #include "src/services/service_profiler.h"
 
-#include <mutex>
 #if defined(DAAL_INTEL_CPP_COMPILER)
     #include "immintrin.h"
 #endif
@@ -131,11 +130,8 @@ public:
 // and performs the conversion + dispatch when eligible.
 //
 // Design principles:
-//  - Hardware availability is already folded into daal_get_float32_matmul_precision()
-//    at initialisation time (see env_detect_precision.cpp). Call-sites only
-//    query the effective precision; no hardware checks here.
-//  - The effective precision is cached as a translation-unit-level static bool
-//    so the hot path is a single branch on a compile-time-constant-like value.
+//  - Hardware capability and the stored precision hint are checked at runtime,
+//    so daal_set_float32_matmul_precision() affects subsequent GEMM calls.
 //  - Matrix-size threshold (kMinDim) is owned by the dispatcher, not the caller.
 //  - Primary template handles all non-float types with zero overhead.
 // ---------------------------------------------------------------------------
@@ -145,19 +141,66 @@ public:
 /// Minimum GEMM dimension for which AMX-BF16 is profitable.
 /// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
 static constexpr DAAL_INT kBF16MinDim = 64;
+static constexpr size_t kBF16Alignment = 64;
 
-/// Whether AMX-BF16 GEMM is usable in this process.
-/// Combines hardware capability (checked once at init) with the user's precision hint.
-/// This is the only place both conditions are AND-ed; call-sites check nothing else.
-static const bool g_use_bf16_gemm =
-    daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+template <typename T>
+class AlignedBuffer
+{
+public:
+    AlignedBuffer() : _ptr(nullptr) {}
+    explicit AlignedBuffer(size_t size) : _ptr(daal::services::internal::service_malloc<T, DAAL_BASE_CPU>(size, kBF16Alignment)) {}
+    ~AlignedBuffer() { daal::services::daal_free(_ptr); }
+
+    T * get() const { return _ptr; }
+    operator bool() const { return _ptr != nullptr; }
+
+    AlignedBuffer(AlignedBuffer && other) : _ptr(other._ptr) { other._ptr = nullptr; }
+    AlignedBuffer & operator=(AlignedBuffer && other)
+    {
+        if (this != &other)
+        {
+            daal::services::daal_free(_ptr);
+            _ptr       = other._ptr;
+            other._ptr = nullptr;
+        }
+        return *this;
+    }
+
+    AlignedBuffer(const AlignedBuffer &)             = delete;
+    AlignedBuffer & operator=(const AlignedBuffer &) = delete;
+
+private:
+    T * _ptr;
+};
+
+inline bool allow_bf16_gemm()
+{
+    return daal_allow_amx_bf16_matmul();
+}
+
+inline MKL_BF16 convert_f32_to_bf16_rne(float value)
+{
+    uint32_t bits = 0;
+    services::internal::daal_memcpy_s(&bits, sizeof(bits), &value, sizeof(value));
+    const uint32_t lsb          = (bits >> 16) & 1U;
+    const uint32_t roundingBias = 0x7FFFU + lsb;
+    return static_cast<MKL_BF16>((bits + roundingBias) >> 16);
+}
+
+inline void convert_f32_buffer_to_bf16_rne(const float * src, size_t count, MKL_BF16 * dst)
+{
+    PRAGMA_OMP_SIMD
+    for (size_t i = 0; i < count; ++i)
+    {
+        dst[i] = convert_f32_to_bf16_rne(src[i]);
+    }
+}
 
 /// Primary template: use standard BLAS for all non-float types.
 template <typename FPType, CpuType cpu>
 struct BF16GemmDispatcher
 {
-    /// Computes out = B * A^T  (col-major, M=nRowsB, N=nRowsA, K=nColsA).
-    static void compute(const FPType * a, const FPType * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out)
+    static void compute(const FPType * a, const FPType * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out, void * = nullptr)
     {
         const char transa = 't', transb = 'n';
         const FPType alpha = FPType(1), beta = FPType(0);
@@ -165,45 +208,50 @@ struct BF16GemmDispatcher
     }
 };
 
-/// float specialization: use AMX-BF16 GEMM when precision hint allows it
-/// and all dimensions are >= kBF16MinDim; fall back to sgemm otherwise.
-/// BF16 conversion uses memcpy to avoid strict-aliasing UB (C++17 [basic.lval]).
 template <CpuType cpu>
 struct BF16GemmDispatcher<float, cpu>
 {
-    static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
+    static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out, MKL_BF16 * b16 = nullptr)
     {
-        if (g_use_bf16_gemm && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
+        if (allow_bf16_gemm() && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
         {
             const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
             const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
-            MKL_BF16 * a16   = static_cast<MKL_BF16 *>(mkl_malloc(szA * sizeof(MKL_BF16), 64));
-            MKL_BF16 * b16   = static_cast<MKL_BF16 *>(mkl_malloc(szB * sizeof(MKL_BF16), 64));
-            if (a16 && b16)
+
+            AlignedBuffer<MKL_BF16> a16(szA);
+            if (!a16)
             {
-                // BF16 = upper 16 bits of IEEE-754 float32; use memcpy to read bits safely.
-                for (size_t i = 0; i < szA; ++i)
-                {
-                    uint32_t bits;
-                    memcpy(&bits, &a[i], sizeof(bits));
-                    a16[i] = static_cast<MKL_BF16>(bits >> 16);
-                }
-                for (size_t i = 0; i < szB; ++i)
-                {
-                    uint32_t bits;
-                    memcpy(&bits, &b[i], sizeof(bits));
-                    b16[i] = static_cast<MKL_BF16>(bits >> 16);
-                }
-                // col-major: C = B16 * A16^T  =>  cblas NoTrans B, Trans A
-                cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16, m, a16, n, 0.0f, out, m);
-                mkl_free(a16);
-                mkl_free(b16);
+                computeFallback(a, b, m, n, k, out);
                 return;
             }
-            if (a16) mkl_free(a16);
-            if (b16) mkl_free(b16);
+            convert_f32_buffer_to_bf16_rne(a, szA, a16.get());
+
+            AlignedBuffer<MKL_BF16> localB16;
+            MKL_BF16 * b16Buffer = b16;
+            if (!b16Buffer)
+            {
+                localB16 = AlignedBuffer<MKL_BF16>(szB);
+                if (!localB16)
+                {
+                    computeFallback(a, b, m, n, k, out);
+                    return;
+                }
+                b16Buffer = localB16.get();
+                convert_f32_buffer_to_bf16_rne(b, szB, b16Buffer);
+            }
+
+            // Column-major call computing C = B * A^T.
+            // B is stored as m x k with ld=m, A as n x k with ld=n.
+            cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16Buffer, m, a16.get(), n, 0.0f, out, m);
+            return;
         }
-        // Fallback: standard sgemm
+
+        computeFallback(a, b, m, n, k, out);
+    }
+
+private:
+    static void computeFallback(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
+    {
         const char transa = 't', transb = 'n';
         const float alpha = 1.0f, beta = 0.0f;
         BlasInst<float, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
@@ -221,7 +269,7 @@ public:
         : _a(a), _b(b), _squared(squared), _isSqrtNorm(isSqrtNorm)
     {}
 
-    virtual ~EuclideanDistances() override {}
+    ~EuclideanDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::euclidean; }
 
@@ -243,7 +291,6 @@ public:
         return s;
     }
 
-    // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
     {
@@ -295,7 +342,6 @@ public:
             const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, n);
             const size_t count = end - begin;
 
-            // max(0, d) to remove negative distances before Sqrt
             for (size_t i = begin; i < end; ++i)
             {
                 a[i] = services::internal::max<cpu, FPType>(FPType(0), a[i]);
@@ -305,8 +351,7 @@ public:
         return services::Status();
     }
 
-    // output:  Row-major matrix of size { aSize x bSize }
-    virtual services::Status computeBatch(size_t aOffset, size_t aSize, size_t bOffset, size_t bSize, FPType * const res)
+    services::Status computeBatch(size_t aOffset, size_t aSize, size_t bOffset, size_t bSize, FPType * const res)
     {
         ReadRows<FPType, cpu> aDataRows(const_cast<NumericTable *>(&_a), aOffset, aSize);
         DAAL_CHECK_BLOCK_STATUS(aDataRows);
@@ -319,12 +364,12 @@ public:
         return computeBatch(aData, bData, aOffset, aSize, bOffset, bSize, res);
     }
 
-    // output:  Row-major matrix of size { nrows(A) x nrows(B) }
-    virtual services::Status computeFull(FPType * const res)
+    services::Status computeFull(FPType * const res)
     {
         SafeStatus safeStat;
 
         const size_t nRowsA    = _a.getNumberOfRows();
+        const size_t nRowsB    = _b.getNumberOfRows();
         const size_t blockSize = 256;
         const size_t nBlocks   = nRowsA / blockSize + (nRowsA % blockSize > 0);
 
@@ -333,8 +378,6 @@ public:
             const size_t i2    = (iBlock + 1 == nBlocks ? nRowsA : i1 + blockSize);
             const size_t iSize = i2 - i1;
 
-            const size_t nRowsB = _b.getNumberOfRows();
-
             DAAL_CHECK_STATUS_THR(computeBatch(i1, iSize, 0, nRowsB, res + i1 * nRowsB));
         });
 
@@ -342,7 +385,6 @@ public:
     }
 
 protected:
-    // compute (sum(A^2, 2))
     services::Status computeNorm(const NumericTable & ntData, FPType * const res)
     {
         const size_t nRows = ntData.getNumberOfRows();
@@ -382,13 +424,15 @@ protected:
 
         return safeStat.detach();
     }
-    // compute (A x B') -- EuclideanDistances inner GEMM
-    // GEMM call: out = B * A^T  (col-major: M=nRowsB, N=nRowsA, K=nColsA)
-    // Dispatch to AMX-BF16 or standard BLAS is handled by BF16GemmDispatcher.
+
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
 #ifndef DAAL_REF
-        BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
+        BF16GemmDispatcher<FPType, cpu>::compute(a,
+                                                 b,
+                                                 static_cast<DAAL_INT>(nRowsB),
+                                                 static_cast<DAAL_INT>(nRowsA),
+                                                 static_cast<DAAL_INT>(nColsA),
                                                  out);
 #else
         const char transa = 't', transb = 'n';

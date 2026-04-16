@@ -48,10 +48,10 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
  *     Full IEEE-754, bit-exact and reproducible across hardware generations.
  *
  *   allow_bf16
- *     Allow oneDAL to use BF16 kernels in operations where the library has
+ *     Allow oneDAL to use BF16 operands in operations where the library has
  *     determined the accuracy impact is bounded and acceptable for the algorithm.
  *     Currently: float32 Euclidean GEMM on AMX-BF16 hardware, dims >= 64.
- *     Output dtype remains float32; only internal GEMM accumulation uses BF16.
+ *     Accumulation and output remain float32.
  *     Falls back to sgemm silently on hardware without AMX-BF16.
  *
  * Activation:
@@ -68,8 +68,8 @@ namespace internal
 enum Float32MatmulPrecision
 {
     strict     = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
-    allow_bf16 = 1, /*!< Allow BF16 kernels where oneDAL deems accuracy impact acceptable.
-                     *   Output dtype is unchanged; only internal compute uses BF16. */
+    allow_bf16 = 1, /*!< Allow BF16 operands where oneDAL deems accuracy impact acceptable.
+                     *   Accumulation and output remain float32. */
 };
 } // namespace internal
 } // namespace daal
@@ -79,6 +79,10 @@ DAAL_EXPORT bool daal_has_amx_bf16();
 /* Precision getter/setter — no HW queries; operate on the stored hint only. */
 DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision();
 DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p);
+inline bool daal_allow_amx_bf16_matmul()
+{
+    return daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+}
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();

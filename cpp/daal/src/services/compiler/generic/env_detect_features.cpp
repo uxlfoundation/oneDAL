@@ -345,6 +345,11 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return result;
 }
 
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return (daal_serv_cpu_feature_detect() & daal::internal::CpuFeature::amx_bf16) != 0;
+}
+
 #elif defined(TARGET_ARM)
 static bool check_sve_features()
 {
@@ -388,6 +393,11 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
     return daal::internal::CpuFeature::unknown;
 }
 
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return false;
+}
+
 #elif defined(TARGET_RISCV64)
 DAAL_EXPORT int __daal_serv_cpu_detect(int enable)
 {
@@ -412,5 +422,10 @@ bool daal_check_is_intel_cpu()
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect()
 {
     return daal::internal::CpuFeature::unknown;
+}
+
+DAAL_EXPORT bool daal_has_amx_bf16()
+{
+    return false;
 }
 #endif
