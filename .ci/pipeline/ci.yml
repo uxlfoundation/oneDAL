@@ -297,7 +297,7 @@ jobs:
     TBB_CACHE_DIR : $(Pipeline.Workspace)/tbb-riscv64-clang
     SYSROOT_CACHE_DIR: $(Pipeline.Workspace)/sysroot-riscv64
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-24.04'
   steps:
   - script: |
       .ci/env/apt.sh dev-base
