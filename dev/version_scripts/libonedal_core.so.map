@@ -216,6 +216,7 @@ global:
         daal::algorithms::gbt::regression::prediction::interface1::*;
 
         daal::algorithms::gbt::classification::interface1::ModelBuilder::*;
+        daal::algorithms::gbt::regression::interface1::ModelBuilder::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::gbt::classification::prediction::interface2::Result";
@@ -226,14 +227,50 @@ global:
         "daal::services::interface1::Status daal::algorithms::gbt::classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::gbt::classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
+        "typeinfo for daal::algorithms::gbt::regression::prediction::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::gbt::regression::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::gbt::regression::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "typeinfo for daal::algorithms::gbt::regression::training::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::gbt::regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::gbt::regression::training::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::gbt::regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::gbt::regression::training::interface1::Parameter const*, int)";
+
         "!daal::algorithms::gbt::internal::*";
         "!daal::algorithms::gbt::*::internal::*";
 
         # Implicit ALS
 
-        daal::algorithms::implicit_als::training::interface1::*;
-        daal::algorithms::implicit_als::training::init::interface1::*;
         daal::algorithms::implicit_als::prediction::ratings::interface1::*;
+        daal::algorithms::implicit_als::training::interface1::*;
+
+        # Explicit template instantiations and RTTI
+        "daal::services::interface1::Status daal::algorithms::implicit_als::prediction::ratings::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::prediction::ratings::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "daal::services::interface1::Status daal::algorithms::implicit_als::prediction::ratings::interface1::PartialResult::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::prediction::ratings::interface1::PartialResult::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep1::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep2::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep3::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep4::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep1::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep2::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep3::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep4::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        daal::algorithms::implicit_als::training::init::interface1::*;
+
+        "vtable for daal::algorithms::implicit_als::training::init::interface1::Parameter";
+        "vtable for daal::algorithms::implicit_als::training::init::interface1::DistributedParameter";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::init::interface1::PartialResult::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::init::interface1::PartialResult::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "daal::services::interface1::Status daal::algorithms::implicit_als::training::init::interface1::DistributedPartialResultStep2::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
 
         "!daal::algorithms::implicit_als::internal::*";
         "!daal::algorithms::implicit_als::*::internal::*";
@@ -458,6 +495,11 @@ global:
         daal::data_management::interface1::Factory::*;
         daal::data_management::interface1::SerializationIface::*;
 
+        "daal::data_management::interface1::KeyValueCollection<*>::*";
+        "daal::data_management::interface1::KeyValueCollection<daal::data_management::interface1::SerializationIface>::operator[](unsigned long)";
+
+        "daal::data_management::interface1::SerializableKeyValueCollection<daal::data_management::interface1::SerializationIface>::getSerializationTag() const";
+
         daal::data_management::ModifierIface::*;
 
         "daal::data_management::internal::getVectorDownCast(int, int)";
@@ -467,6 +509,7 @@ global:
 
         "void daal::data_management::internal::vectorAssignValueToArray<float>(float*, unsigned long, float)";
         "void daal::data_management::internal::vectorAssignValueToArray<double>(double*, unsigned long, double)";
+        "void daal::data_management::internal::vectorAssignValueToArray<int>(int*, unsigned long, int)";
 
         # ======================================= Services =====================================
 
