@@ -304,53 +304,76 @@ struct get_core_send_recv_replace_wide_kernel {
             cgh.parallel_for(
                 bk::make_multiple_nd_range_2d({ wg_size, local_row_count }, { wg_size, 1 }),
                 [=](sycl::nd_item<2> item) {
-                    auto sg = item.get_sub_group();
-                    const std::uint32_t sg_id = sg.get_group_id()[0];
-                    if (sg_id > 0)
+                    sycl::sub_group sg = item.get_sub_group();
+                    if (sg.get_group_id()[0] != 0)
                         return;
-                    const std::uint32_t wg_id = item.get_global_id(1);
+
+                    const std::int64_t wg_id = item.get_global_id(1);
                     if (wg_id >= local_row_count)
                         return;
-                    const std::uint32_t local_id = sg.get_local_id();
+
+                    const std::uint32_t local_id = sg.get_local_id()[0];
                     const std::uint32_t local_size = sg.get_local_range()[0];
 
+                    const Float min_obs_f = static_cast<Float>(min_observations);
+                    const std::int64_t block_split =
+                        block_split_size > 0 ? block_split_size : 1;
+
+                    const Float* const xi = data_ptr + wg_id * column_count;
+
                     Float count = neighbours_ptr[wg_id];
-                    for (std::int64_t j = 0; j < row_count_replace; j++) {
+
+                    for (std::int64_t j = 0; j < row_count_replace; ++j) {
+                        const Float* const xj = data_replace_ptr + j * column_count;
+
                         Float sum = Float(0);
+                        bool pruned = false;
                         std::int64_t count_iter = 0;
+
                         for (std::int64_t i = local_id; i < column_count; i += local_size) {
                             count_iter++;
-                            Float val = data_ptr[wg_id * column_count + i] -
-                                        data_replace_ptr[j * column_count + i];
-                            sum += val * val;
-                            if (count_iter % block_split_size == 0 &&
+
+                            const Float v = xi[i] - xj[i];
+                            sum = sycl::fma(v, v, sum);
+
+                            // Guard ensures all lanes still have valid data for the reduction
+                            if (count_iter % block_split == 0 &&
                                 local_size * count_iter <= column_count) {
-                                Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::ext::oneapi::plus<Float>());
-                                if (distance_check > epsilon) {
+                                const Float partial =
+                                    sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                                if (partial > epsilon) {
+                                    pruned = true;
                                     break;
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
-                        if (distance <= epsilon) {
+
+                        if (pruned) {
+                            continue;
+                        }
+
+                        const Float dist =
+                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+
+                        if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
-                            if (local_id == 0) {
-                                neighbours_ptr[wg_id] = count;
-                            }
-                            if (count >= min_observations && !use_weights) {
+
+                            if (!use_weights && count >= min_obs_f) {
                                 if (local_id == 0) {
-                                    cores_ptr[wg_id] = Float(1);
+                                    neighbours_ptr[wg_id] = count;
+                                    cores_ptr[wg_id] = std::int32_t(1);
                                 }
                                 break;
                             }
                         }
                     }
-                    if (neighbours_ptr[wg_id] >= min_observations) {
-                        cores_ptr[wg_id] = Float(1);
+
+                    if (local_id == 0) {
+                        neighbours_ptr[wg_id] = count;
+
+                        if (count >= min_obs_f) {
+                            cores_ptr[wg_id] = std::int32_t(1);
+                        }
                     }
                 });
         });
