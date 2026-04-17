@@ -799,7 +799,7 @@ jobs:
       path: $(Pipeline.Workspace)
   - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Toolkit installation'
-  - template: .ci/pipeline/build-and-test-win.yml@sklearnex
+  - template: .ci/pipeline/build-and-test-win.yml
   - script: |
       call "%TEMP%\oneapi\setvars.bat" --force
       call conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
