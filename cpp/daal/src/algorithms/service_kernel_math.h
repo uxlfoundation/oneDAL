@@ -139,7 +139,7 @@ public:
 
 /// Minimum GEMM dimension for which AMX-BF16 is profitable.
 /// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
-static constexpr DAAL_INT kBF16MinDim = 64;
+static constexpr DAAL_INT kBF16MinDim  = 64;
 static constexpr size_t kBF16Alignment = 64;
 
 template <typename T>
@@ -427,11 +427,7 @@ protected:
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
 #ifndef DAAL_REF
-        BF16GemmDispatcher<FPType, cpu>::compute(a,
-                                                 b,
-                                                 static_cast<DAAL_INT>(nRowsB),
-                                                 static_cast<DAAL_INT>(nRowsA),
-                                                 static_cast<DAAL_INT>(nColsA),
+        BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
                                                  out);
 #else
         const char transa = 't', transb = 'n';
