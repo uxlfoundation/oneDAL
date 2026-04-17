@@ -15,8 +15,34 @@
 # limitations under the License.
 #===============================================================================
 
-export TBBROOT=$PREFIX
 export DPL_ROOT=$PREFIX
+
+# Use isolated TBBROOT staging so we don't create files under $PREFIX that may
+# accidentally end up in output packages.
+# conda-forge tbb-devel may expose only versioned SONAMEs (libtbb.so.<N>,
+# libtbbmalloc.so.<N>, etc.) while oneDAL Make expects unversioned names in
+# TBBROOT/lib prerequisites.  Mirror the full libtbb* tree into a staging dir,
+# adding unversioned symlinks where missing.
+export TBBROOT="$SRC_DIR/__tbbroot"
+mkdir -p "$TBBROOT/lib"
+
+# Symlink TBB headers (TBBROOT/include -> $PREFIX/include)
+# Remove stale dir/symlink first so link target is exactly $TBBROOT/include.
+rm -rf "$TBBROOT/include"
+ln -s "$PREFIX/include" "$TBBROOT/include"
+
+# Mirror all libtbb* shared objects and create unversioned symlinks if absent
+for versioned in "$PREFIX/lib"/libtbb*.so.*; do
+    [ -e "$versioned" ] || continue
+    libname=$(basename "$versioned")
+    # Link versioned file into staging dir
+    ln -sfn "$versioned" "$TBBROOT/lib/$libname"
+    # Derive unversioned name: libtbbmalloc.so.2.6 -> libtbbmalloc.so
+    unversioned="${libname%%\.so\.*}.so"
+    if [ ! -e "$TBBROOT/lib/$unversioned" ]; then
+        ln -sfn "$versioned" "$TBBROOT/lib/$unversioned"
+    fi
+done
 
 # default flags set by conda-build create problems with oneDAL build system
 unset CFLAGS LDFLAGS CXXFLAGS
