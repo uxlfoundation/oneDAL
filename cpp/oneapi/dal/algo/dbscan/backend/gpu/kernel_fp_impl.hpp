@@ -98,7 +98,7 @@ struct get_core_wide_kernel {
             cgh.parallel_for<get_core_wide_kernel<Float, use_weights>>(
                 bk::make_multiple_nd_range_2d({ wg_size, local_row_count }, { wg_size, 1 }),
                 [=](sycl::nd_item<2> item) {
-                    sycl::sub_group sg = item.get_sub_group();
+                    auto sg = item.get_sub_group();
                     if (sg.get_group_id()[0] != 0)
                         return;
 
@@ -304,7 +304,7 @@ struct get_core_send_recv_replace_wide_kernel {
             cgh.parallel_for(
                 bk::make_multiple_nd_range_2d({ wg_size, local_row_count }, { wg_size, 1 }),
                 [=](sycl::nd_item<2> item) {
-                    sycl::sub_group sg = item.get_sub_group();
+                    auto sg = item.get_sub_group();
                     if (sg.get_group_id()[0] != 0)
                         return;
 
