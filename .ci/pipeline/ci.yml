@@ -802,7 +802,7 @@ jobs:
   - template: .ci/pipeline/build-and-test-win.yml
   - script: |
       call "%TEMP%\oneapi\setvars.bat" --force
-      call conda activate CB && python -c "import onedal._onedal_py_dpc; print('OK')"
+      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
     displayName: 'Check DPC module import'
     workingDirectory: $(Agent.TempDirectory)
     continueOnError: true
