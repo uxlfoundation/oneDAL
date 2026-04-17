@@ -68,16 +68,19 @@ daal_example_suite(
     extra_deps = _TEST_DEPS
 )
 
-daal_example_suite(
-    name = "distributions",
-    compile_as = [ "c++" ],
-    srcs = glob(["source/distributions/*.cpp"]),
-    dal_deps = [
-        "@onedal//cpp/daal/src/algorithms/distributions:kernel",
-    ],
-    data = _DATA_DEPS,
-    extra_deps = _TEST_DEPS
-)
+# No Bazel example sources currently exist under source/distributions/.
+# Keep this suite disabled until the example set is restored or the target is
+# pointed at the actual source location.
+# daal_example_suite(
+#     name = "distributions",
+#     compile_as = [ "c++" ],
+#     srcs = glob(["source/distributions/*.cpp"]),
+#     dal_deps = [
+#         "@onedal//cpp/daal/src/algorithms/distributions:kernel",
+#     ],
+#     data = _DATA_DEPS,
+#     extra_deps = _TEST_DEPS
+# )
 
 daal_example_suite(
     name = "elastic_net",
