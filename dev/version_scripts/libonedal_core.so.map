@@ -49,10 +49,12 @@ global:
 
         # Classifier
 
+        daal::algorithms::classifier::prediction::interface1::*;
         daal::algorithms::classifier::prediction::interface2::*;
         daal::algorithms::classifier::training::interface1::*;
 
         # Explicit template instantiations and RTTI
+        "typeinfo for daal::algorithms::classifier::prediction::interface2::Result";
         "typeinfo for daal::algorithms::classifier::training::interface1::Result";
         "typeinfo name for daal::algorithms::classifier::training::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::classifier::prediction::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -152,6 +154,10 @@ global:
         daal::algorithms::decision_forest::regression::training::interface2::*;
 
         # Explicit template instantiations and RTTI
+        "typeinfo for daal::algorithms::decision_forest::regression::prediction::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
         "typeinfo for daal::algorithms::decision_forest::classification::training::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::decision_forest::classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::decision_forest::classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -160,23 +166,20 @@ global:
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "typeinfo for daal::algorithms::decision_forest::regression::prediction::interface1::Result";
-        "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
-        "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
-
         "!daal::algorithms::decision_forest::internal::*";
         "!daal::algorithms::decision_forest::*::internal::*";
 
         # Elastic Net
 
-        daal::algorithms::elastic_net::training::interface1::*;
         daal::algorithms::elastic_net::prediction::interface1::*;
+        daal::algorithms::elastic_net::training::interface1::*;
 
         # Explicit template instantiations and RTTI
         "typeinfo for daal::algorithms::elastic_net::prediction::interface1::Result";
+
         "typeinfo for daal::algorithms::elastic_net::training::interface1::Result";
-        "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
-        "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::elastic_net::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::elastic_net::training::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::elastic_net::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::elastic_net::training::interface1::Parameter const*, int)";
 
         "!daal::algorithms::elastic_net::internal::*";
         "!daal::algorithms::elastic_net::*::internal::*";
@@ -184,6 +187,15 @@ global:
         # EM (Expectation-Maximization)
 
         daal::algorithms::em_gmm::interface1::*;
+        daal::algorithms::em_gmm::init::interface1::*;
+
+        # Explicit template instantiations and RTTI
+        "vtable for daal::algorithms::em_gmm::interface1::Parameter";
+        "vtable for daal::algorithms::em_gmm::init::interface1::Parameter";
+        "daal::services::interface1::Status daal::algorithms::em_gmm::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::em_gmm::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::em_gmm::init::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::em_gmm::init::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         "!daal::algorithms::em_gmm::internal::*";
 
@@ -202,6 +214,17 @@ global:
         daal::algorithms::gbt::regression::training::interface1::*;
         daal::algorithms::gbt::regression::training::interface2::*;
         daal::algorithms::gbt::regression::prediction::interface1::*;
+
+        daal::algorithms::gbt::classification::interface1::ModelBuilder::*;
+
+        # Explicit template instantiations and RTTI
+        "typeinfo for daal::algorithms::gbt::classification::prediction::interface2::Result";
+        "daal::services::interface1::Status daal::algorithms::gbt::classification::prediction::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::gbt::classification::prediction::interface2::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+
+        "typeinfo for daal::algorithms::gbt::classification::training::interface1::Result";
+        "daal::services::interface1::Status daal::algorithms::gbt::classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::gbt::classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         "!daal::algorithms::gbt::internal::*";
         "!daal::algorithms::gbt::*::internal::*";
@@ -256,6 +279,10 @@ global:
         # Linear Model
 
         daal::algorithms::linear_model::prediction::interface1::*;
+
+        # Explicit template instantiations and RTTI
+        "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         "!daal::algorithms::linear_model::internal::*";
         "!daal::algorithms::linear_model::*::internal::*";
@@ -389,8 +416,8 @@ global:
         "daal::data_management::interface1::HomogenNumericTable<double>::getSerializationTag() const";
         "daal::data_management::interface1::HomogenNumericTable<int>::getSerializationTag() const";
 
-        "daal::data_management::interface1::HomogenNumericTable<float>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, int const&, daal::services::interface1::Status&)";
-        "daal::data_management::interface1::HomogenNumericTable<double>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, int const&, daal::services::interface1::Status&)";
+        "daal::data_management::interface1::HomogenNumericTable<float>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, float const&, daal::services::interface1::Status&)";
+        "daal::data_management::interface1::HomogenNumericTable<double>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, double const&, daal::services::interface1::Status&)";
         "daal::data_management::interface1::HomogenNumericTable<int>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, int const&, daal::services::interface1::Status&)";
 
         # CSRNumericTable (Compressed Sparse Row)
