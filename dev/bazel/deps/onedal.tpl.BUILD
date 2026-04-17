@@ -102,7 +102,9 @@ cc_library(
     name = "onedal_dynamic_dpc",
     srcs = glob([
         "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
-        "lib/intel64/libonedal_parameters_dpc.so*",
+        # Use the exact fully-versioned filename to avoid duplicate link inputs
+        # from the .so/.so.<major> symlink chain in the release tree.
+        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
     ], allow_empty=True),
     deps = [
         ":headers",
