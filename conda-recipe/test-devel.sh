@@ -19,6 +19,7 @@ set -eu
 test -f $CONDA_PREFIX/lib/pkgconfig/dal-dynamic-threading-host.pc
 test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 
+# Load oneDAL environment helpers required by pkg-config/CMake example builds.
 . "$CONDA_PREFIX/env/vars.sh"
 
 run_examples() {

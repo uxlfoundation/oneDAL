@@ -55,7 +55,8 @@ requirements:
     - make  # [linux]
     - cmake  # [linux64 or win]
     - {{ compiler('cxx') }}
-    - dpcpp_impl_linux-64  # [linux64 or win]
+    - dpcpp_impl_linux-64  # [linux64]
+    - dpcpp_impl_win-64  # [win]
     - onedpl-devel  # [linux64 or win]
     - mkl-devel  # [linux64 or win]
     - mkl-static  # [linux64 or win]
@@ -70,7 +71,8 @@ outputs:
       # Suppress dpcpp_impl run_exports for the CPU-only package:
       # dal must not pull GPU/SYCL runtime (intel-sycl-rt).
       ignore_run_exports_from:
-        - dpcpp_impl_linux-64  # [linux64 or win]
+        - dpcpp_impl_linux-64  # [linux64]
+        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -106,7 +108,8 @@ outputs:
   - name: dal-include
     build:
       ignore_run_exports_from:
-        - dpcpp_impl_linux-64  # [linux64 or win]
+        - dpcpp_impl_linux-64  # [linux64]
+        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     test:
       commands:
@@ -117,7 +120,8 @@ outputs:
   - name: dal-static
     build:
       ignore_run_exports_from:
-        - dpcpp_impl_linux-64  # [linux64 or win]
+        - dpcpp_impl_linux-64  # [linux64]
+        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -132,7 +136,8 @@ outputs:
   - name: dal-devel
     build:
       ignore_run_exports_from:
-        - dpcpp_impl_linux-64  # [linux64 or win]
+        - dpcpp_impl_linux-64  # [linux64]
+        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -143,7 +148,7 @@ outputs:
       requires:
         - cmake  # [linux64 or win]
         - {{ compiler('cxx') }}
-        - dal-static =={{ version }}
+        - {{ pin_subpackage('dal-static', exact=True) }}
         - mkl-devel
         - mkl-static
         - mkl-devel-dpcpp  # [cxx_compiler == "dpcpp" and linux64]
