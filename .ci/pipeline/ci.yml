@@ -632,7 +632,7 @@ jobs:
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
   - task: PublishPipelineArtifact@1
     inputs:
-      artifactName: '$(platform.type) sklearnex build'
+      artifactName: '$(platform.type) sklearnex Python$(PYTHON_VERSION) build'
       targetPath: '$(Build.Repository.LocalPath)/build'
 
 - job: 'WindowsMakeVC'
@@ -678,13 +678,6 @@ jobs:
       tree -h -I include __nuget/inteldal*/
       ls -lh __nuget/inteldal*.nupkg
     displayName: 'nuget pkg'
-  - task: PublishPipelineArtifact@1
-    inputs:
-      artifactName: '$(platform.type) fail'
-      targetPath: '$(Build.Repository.LocalPath)/$(release.dir)'
-    displayName: 'Uploading on fail'
-    condition: failed()
-    continueOnError: true
 
 - job: 'WindowsMakeIntel'
   timeoutInMinutes: 0
@@ -793,5 +786,5 @@ jobs:
   - template: .ci/pipeline/build-and-test-win.yml@sklearnex
   - task: PublishPipelineArtifact@1
     inputs:
-      artifactName: '$(platform.type) sklearnex build'
+      artifactName: '$(platform.type) sklearnex Python$(PYTHON_VERSION) build'
       targetPath: '$(Build.Repository.LocalPath)/build'
