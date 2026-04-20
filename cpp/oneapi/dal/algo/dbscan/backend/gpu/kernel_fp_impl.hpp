@@ -88,6 +88,9 @@ struct get_core_wide_kernel {
         std::int32_t* cores_ptr = cores.get_mutable_data();
         Float* neighbours_ptr = neighbours.get_mutable_data();
 
+        ONEDAL_ASSERT(local_row_count <= std::numeric_limits<std::uint32_t>::max());
+        ONEDAL_ASSERT(column_count <= std::numeric_limits<std::uint32_t>::max());
+
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
 
