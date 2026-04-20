@@ -110,8 +110,7 @@ struct get_core_wide_kernel {
                     const std::uint32_t local_size = sg.get_local_range()[0];
 
                     const Float min_obs_f = static_cast<Float>(min_observations);
-                    const std::int64_t block_split =
-                        block_split_size > 0 ? block_split_size : 1;
+                    const std::int64_t block_split = block_split_size > 0 ? block_split_size : 1;
 
                     const Float* const xi = data_ptr + wg_id * column_count;
 
@@ -146,8 +145,7 @@ struct get_core_wide_kernel {
                             continue;
                         }
 
-                        const Float dist =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                         if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
@@ -316,8 +314,7 @@ struct get_core_send_recv_replace_wide_kernel {
                     const std::uint32_t local_size = sg.get_local_range()[0];
 
                     const Float min_obs_f = static_cast<Float>(min_observations);
-                    const std::int64_t block_split =
-                        block_split_size > 0 ? block_split_size : 1;
+                    const std::int64_t block_split = block_split_size > 0 ? block_split_size : 1;
 
                     const Float* const xi = data_ptr + wg_id * column_count;
 
@@ -352,8 +349,7 @@ struct get_core_send_recv_replace_wide_kernel {
                             continue;
                         }
 
-                        const Float dist =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                         if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
