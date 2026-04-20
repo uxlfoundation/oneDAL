@@ -109,8 +109,7 @@ struct get_core_wide_kernel {
                     const std::uint32_t row_count = static_cast<std::uint32_t>(local_row_count);
                     const std::uint32_t col_count = static_cast<std::uint32_t>(column_count);
 
-                    const std::uint32_t row_i =
-                        static_cast<std::uint32_t>(item.get_global_id(1));
+                    const std::uint32_t row_i = static_cast<std::uint32_t>(item.get_global_id(1));
                     if (row_i >= row_count)
                         return;
 
@@ -160,8 +159,7 @@ struct get_core_wide_kernel {
                             continue;
                         }
 
-                        const Float dist =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                         if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
@@ -323,12 +321,13 @@ struct get_core_send_recv_replace_wide_kernel {
                     if (sg.get_group_id()[0] != 0)
                         return;
 
-                    const std::uint32_t row_count_local = static_cast<std::uint32_t>(local_row_count);
-                    const std::uint32_t row_count_repl = static_cast<std::uint32_t>(row_count_replace);
+                    const std::uint32_t row_count_local =
+                        static_cast<std::uint32_t>(local_row_count);
+                    const std::uint32_t row_count_repl =
+                        static_cast<std::uint32_t>(row_count_replace);
                     const std::uint32_t col_count = static_cast<std::uint32_t>(column_count);
 
-                    const std::uint32_t row_i =
-                        static_cast<std::uint32_t>(item.get_global_id(1));
+                    const std::uint32_t row_i = static_cast<std::uint32_t>(item.get_global_id(1));
                     if (row_i >= row_count_local)
                         return;
 
@@ -378,8 +377,7 @@ struct get_core_send_recv_replace_wide_kernel {
                             continue;
                         }
 
-                        const Float dist =
-                            sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
 
                         if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
