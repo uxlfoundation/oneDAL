@@ -590,6 +590,7 @@ jobs:
     platform.type: 'lnx32e'
     DALROOT: '$(Pipeline.Workspace)/daal/latest'
     TBBROOT: '/opt/intel/oneapi/tbb/latest'
+    NO_DPC: 1
     NO_DIST: 1
   pool:
     vmImage: '$(VM_IMAGE)'
@@ -629,16 +630,6 @@ jobs:
       .ci/env/apt.sh mkl
     displayName: 'mkl installation'
   - template: .ci/pipeline/build-and-test-lnx.yml@sklearnex
-  - script: |
-      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
-    displayName: 'Check DPC module import no set MKL'
-    workingDirectory: /tmp
-  - script: |
-      source /opt/intel/oneapi/mkl/latest/env/vars.sh
-      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
-    displayName: 'Check DPC module import'
-    workingDirectory: /tmp
-    condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) sklearnex build'
@@ -800,13 +791,6 @@ jobs:
   - script: .ci\env\install_basekit.bat $(WINDOWS_BASEKIT_URL) $(WINDOWS_DPCPP_COMPONENTS)
     displayName: 'Toolkit installation'
   - template: .ci/pipeline/build-and-test-win.yml
-  - script: |
-      call "%TEMP%\oneapi\setvars.bat" --force
-      conda run -n CB python -c "import onedal._onedal_py_dpc; print('OK')"
-    displayName: 'Check DPC module import'
-    workingDirectory: $(Agent.TempDirectory)
-    continueOnError: true
-    condition: always()
   - task: PublishPipelineArtifact@1
     inputs:
       artifactName: '$(platform.type) sklearnex build'
