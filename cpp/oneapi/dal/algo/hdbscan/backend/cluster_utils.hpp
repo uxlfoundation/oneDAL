@@ -18,15 +18,255 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <numeric>
 #include <vector>
 
 #include "oneapi/dal/detail/common.hpp"
+#include "oneapi/dal/detail/threading.hpp"
+#include "oneapi/dal/backend/common.hpp"
+
+extern "C" {
+void dgemm_(const char*,
+            const char*,
+            const std::int64_t*,
+            const std::int64_t*,
+            const std::int64_t*,
+            const double*,
+            const double*,
+            const std::int64_t*,
+            const double*,
+            const std::int64_t*,
+            const double*,
+            double*,
+            const std::int64_t*);
+void sgemm_(const char*,
+            const char*,
+            const std::int64_t*,
+            const std::int64_t*,
+            const std::int64_t*,
+            const float*,
+            const float*,
+            const std::int64_t*,
+            const float*,
+            const std::int64_t*,
+            const float*,
+            float*,
+            const std::int64_t*);
+}
 
 namespace oneapi::dal::hdbscan::backend {
 
+namespace de = oneapi::dal::detail;
+namespace bk = oneapi::dal::backend;
+
+namespace {
+
+inline void gemm_call(const char* ta,
+                      const char* tb,
+                      const std::int64_t* m,
+                      const std::int64_t* n,
+                      const std::int64_t* k,
+                      const float* alpha,
+                      const float* a,
+                      const std::int64_t* lda,
+                      const float* b,
+                      const std::int64_t* ldb,
+                      const float* beta,
+                      float* c,
+                      const std::int64_t* ldc) {
+    sgemm_(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+}
+
+inline void gemm_call(const char* ta,
+                      const char* tb,
+                      const std::int64_t* m,
+                      const std::int64_t* n,
+                      const std::int64_t* k,
+                      const double* alpha,
+                      const double* a,
+                      const std::int64_t* lda,
+                      const double* b,
+                      const std::int64_t* ldb,
+                      const double* beta,
+                      double* c,
+                      const std::int64_t* ldc) {
+    dgemm_(ta, tb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+}
+
+} // anonymous namespace
+
+/// Compute squared Euclidean distance matrix using GEMM.
+/// Formula: dist²[i,j] = ||a_i||² + ||a_j||² - 2 * (A * A^T)[i,j]
+/// Output: row-major n x n matrix of Euclidean distances (not squared).
+template <typename Float>
+static void compute_distance_matrix(const Float* data,
+                                    Float* dist_matrix,
+                                    std::int64_t row_count,
+                                    std::int64_t col_count) {
+    ONEDAL_ASSERT(row_count > 0);
+    ONEDAL_ASSERT(col_count > 0);
+
+    // Step 1: Compute row norms: norm[i] = sum(data[i,:]^2)
+    std::vector<Float> norms(row_count);
+
+    de::threader_for_int64(row_count, [&](std::int64_t i) {
+        Float sum = Float(0);
+        const Float* row = data + i * col_count;
+        PRAGMA_OMP_SIMD_ARGS(reduction(+ : sum))
+        for (std::int64_t d = 0; d < col_count; d++) {
+            sum += row[d] * row[d];
+        }
+        norms[i] = sum;
+    });
+
+    // Step 2: Compute A * A^T via GEMM
+    // Data is row-major: A[row_count x col_count]
+    // Fortran GEMM sees column-major: A_f[col_count x row_count]
+    // We want C_rm[row_count x row_count] = A_rm * A_rm^T
+    // In Fortran terms: C_f = A_f^T * A_f  =>  transa='t', transb='n'
+    {
+        const char transa = 't';
+        const char transb = 'n';
+        const std::int64_t m = row_count;
+        const std::int64_t n = row_count;
+        const std::int64_t k = col_count;
+        const Float alpha = Float(1);
+        const Float beta = Float(0);
+        const std::int64_t lda = col_count;
+        const std::int64_t ldb = col_count;
+        const std::int64_t ldc = row_count;
+
+        gemm_call(&transa,
+                  &transb,
+                  &m,
+                  &n,
+                  &k,
+                  &alpha,
+                  data,
+                  &lda,
+                  data,
+                  &ldb,
+                  &beta,
+                  dist_matrix,
+                  &ldc);
+    }
+
+    // Step 3: dist²[i,j] = norm[i] + norm[j] - 2 * dot(i,j), then sqrt
+    // Parallelized over row blocks
+    const std::int64_t block_size = 256;
+    const bk::uniform_blocking blocking(row_count, block_size);
+    const std::int64_t block_count = blocking.get_block_count();
+
+    de::threader_for_int64(block_count, [&](std::int64_t b) {
+        const std::int64_t i_begin = blocking.get_block_start_index(b);
+        const std::int64_t i_end = blocking.get_block_end_index(b);
+
+        for (std::int64_t i = i_begin; i < i_end; i++) {
+            Float* row = dist_matrix + i * row_count;
+            const Float ni = norms[i];
+            PRAGMA_IVDEP
+            PRAGMA_VECTOR_ALWAYS
+            for (std::int64_t j = 0; j < row_count; j++) {
+                Float d2 = ni + norms[j] - Float(2) * row[j];
+                // Clamp to zero (numerical noise can make it slightly negative)
+                if (d2 < Float(0))
+                    d2 = Float(0);
+                row[j] = static_cast<Float>(std::sqrt(static_cast<double>(d2)));
+            }
+            row[i] = Float(0); // Self-distance is exactly zero
+        }
+    });
+}
+
+/// Compute core distances from a precomputed distance matrix.
+/// core_distance[i] = distance to the (min_samples)-th nearest neighbor (including self).
+/// Uses nth_element for O(n) partial sort per row.
+template <typename Float>
+static void compute_core_distances_on_host(const Float* dist_matrix,
+                                           Float* core_distances,
+                                           std::int64_t row_count,
+                                           std::int64_t min_samples) {
+    ONEDAL_ASSERT(row_count > 0);
+    ONEDAL_ASSERT(min_samples >= 1);
+    ONEDAL_ASSERT(min_samples <= row_count);
+
+    const std::int64_t target = min_samples - 1;
+
+    de::threader_for_int64(row_count, [&](std::int64_t i) {
+        // Copy row from distance matrix (avoid mutating the original)
+        std::vector<Float> dists(row_count);
+        const Float* row = dist_matrix + i * row_count;
+        std::memcpy(dists.data(), row, row_count * sizeof(Float));
+
+        std::int64_t t = (target >= row_count) ? row_count - 1 : target;
+        std::nth_element(dists.begin(), dists.begin() + t, dists.end());
+        core_distances[i] = dists[t];
+    });
+}
+
+/// Build MST using Prim's algorithm with precomputed distance matrix.
+/// Uses Mutual Reachability Distance: MRD(i,j) = max(core[i], core[j], dist[i,j])
+template <typename Float>
+static void build_mst_on_host(const Float* dist_matrix,
+                              const Float* core_distances,
+                              std::int32_t* mst_from,
+                              std::int32_t* mst_to,
+                              Float* mst_weights,
+                              std::int64_t row_count) {
+    ONEDAL_ASSERT(row_count > 1);
+
+    const std::int64_t edge_count = row_count - 1;
+
+    std::vector<Float> min_edge(row_count, std::numeric_limits<Float>::max());
+    std::vector<std::int32_t> min_from(row_count, 0);
+    std::vector<bool> in_mst(row_count, false);
+
+    // Initialize from node 0
+    in_mst[0] = true;
+    const Float* row0 = dist_matrix;
+    const Float core0 = core_distances[0];
+    for (std::int64_t j = 1; j < row_count; j++) {
+        const Float dist = row0[j];
+        min_edge[j] = std::max({ core0, core_distances[j], dist });
+    }
+
+    for (std::int64_t e = 0; e < edge_count; e++) {
+        // Find minimum edge to non-MST node
+        std::int32_t best = -1;
+        Float best_w = std::numeric_limits<Float>::max();
+        for (std::int64_t j = 0; j < row_count; j++) {
+            if (!in_mst[j] && min_edge[j] < best_w) {
+                best_w = min_edge[j];
+                best = static_cast<std::int32_t>(j);
+            }
+        }
+        ONEDAL_ASSERT(best >= 0);
+
+        mst_from[e] = min_from[best];
+        mst_to[e] = best;
+        mst_weights[e] = best_w;
+        in_mst[best] = true;
+
+        // Update min_edge for remaining nodes using precomputed distances
+        const Float* best_row = dist_matrix + static_cast<std::int64_t>(best) * row_count;
+        const Float core_best = core_distances[best];
+        for (std::int64_t j = 0; j < row_count; j++) {
+            if (in_mst[j])
+                continue;
+            const Float dist = best_row[j];
+            const Float mrd = std::max({ core_best, core_distances[j], dist });
+            if (mrd < min_edge[j]) {
+                min_edge[j] = mrd;
+                min_from[j] = best;
+            }
+        }
+    }
+}
+
+/// Legacy interface for GPU backend compatibility (computes distances on-the-fly)
 template <typename Float>
 static inline Float euclidean_dist(const Float* data,
                                    std::int64_t i,
@@ -42,34 +282,7 @@ static inline Float euclidean_dist(const Float* data,
     return static_cast<Float>(std::sqrt(static_cast<double>(sum)));
 }
 
-template <typename Float>
-static void compute_core_distances_on_host(const Float* data,
-                                           Float* core_distances,
-                                           std::int64_t row_count,
-                                           std::int64_t col_count,
-                                           std::int64_t min_samples) {
-    ONEDAL_ASSERT(row_count > 0);
-    ONEDAL_ASSERT(col_count > 0);
-    ONEDAL_ASSERT(min_samples >= 1);
-    ONEDAL_ASSERT(min_samples <= row_count);
-
-    std::vector<Float> dists(row_count);
-
-    for (std::int64_t i = 0; i < row_count; i++) {
-        for (std::int64_t j = 0; j < row_count; j++) {
-            dists[j] = (j == i) ? Float(0) : euclidean_dist(data, i, j, col_count);
-        }
-        // Core distance = distance to the (min_samples)-th nearest neighbor
-        // including self. Self is at sorted position 0, so the target index
-        // is min_samples - 1.
-        std::int64_t target = min_samples - 1;
-        if (target >= row_count)
-            target = row_count - 1;
-        std::nth_element(dists.begin(), dists.begin() + target, dists.end());
-        core_distances[i] = dists[target];
-    }
-}
-
+/// Legacy build_mst interface (for GPU backend that computes MRD matrix separately)
 template <typename Float>
 static void build_mst_on_host(const Float* data,
                               const Float* core_distances,

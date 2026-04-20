@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2024 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,66 +15,82 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/backend/cpu/compute_kernel.hpp"
-#include "oneapi/dal/algo/hdbscan/backend/cluster_utils.hpp"
 #include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/table/row_accessor.hpp"
+#include "oneapi/dal/backend/interop/common.hpp"
+#include "oneapi/dal/backend/interop/table_conversion.hpp"
+
+#include <daal/src/algorithms/hdbscan/hdbscan_kernel.h>
 
 namespace oneapi::dal::hdbscan::backend {
 
 using dal::backend::context_cpu;
+using dal::backend::interop::convert_to_daal_table;
 
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
+
+namespace daal_hdbscan = daal::algorithms::hdbscan::internal;
+namespace interop = dal::backend::interop;
 
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_cpu& ctx,
                                           const descriptor_t& desc,
                                           const table& data) {
     const std::int64_t row_count = data.get_row_count();
-    const std::int64_t col_count = data.get_column_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
     const std::int64_t min_samples = desc.get_min_samples();
-    const std::int64_t edge_count = row_count - 1;
 
-    row_accessor<const Float> accessor(data);
-    const auto data_array = accessor.pull({ 0, -1 });
-    const Float* data_ptr = data_array.get_data();
+    // Convert oneDAL table to DAAL NumericTable
+    const auto daal_data = convert_to_daal_table<Float>(data);
 
-    // Step 1: Compute core distances
-    std::vector<Float> core_dists(row_count);
-    compute_core_distances_on_host(data_ptr, core_dists.data(), row_count, col_count, min_samples);
+    // Create output DAAL tables
+    auto daal_assignments = daal::data_management::HomogenNumericTable<int>::create(
+        1,
+        row_count,
+        daal::data_management::NumericTable::doAllocate);
+    auto daal_nclusters = daal::data_management::HomogenNumericTable<int>::create(
+        1,
+        1,
+        daal::data_management::NumericTable::doAllocate);
 
-    // Step 2: Build MST using Prim's algorithm
-    std::vector<std::int32_t> mst_from(edge_count);
-    std::vector<std::int32_t> mst_to(edge_count);
-    std::vector<Float> mst_weights(edge_count);
-    build_mst_on_host(data_ptr,
-                      core_dists.data(),
-                      mst_from.data(),
-                      mst_to.data(),
-                      mst_weights.data(),
-                      row_count,
-                      col_count);
+    // Call DAAL kernel via CPU dispatch
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan::HDBSCANBatchKernel>(
+        ctx,
+        daal_data.get(),
+        daal_assignments.get(),
+        daal_nclusters.get(),
+        static_cast<size_t>(min_cluster_size),
+        static_cast<size_t>(min_samples)));
 
-    // Step 3: Sort MST edges by weight
-    sort_mst_by_weight_on_host(mst_from.data(), mst_to.data(), mst_weights.data(), edge_count);
+    // Read cluster count
+    daal::data_management::BlockDescriptor<int> nc_block;
+    daal_nclusters->getBlockOfRows(0, 1, daal::data_management::readOnly, nc_block);
+    const std::int64_t cluster_count = nc_block.getBlockPtr()[0];
+    daal_nclusters->releaseBlockOfRows(nc_block);
 
-    // Step 4: Extract flat clusters
-    auto arr_responses = array<std::int32_t>::empty(row_count);
-    std::int32_t* resp_ptr = arr_responses.get_mutable_data();
-
-    const std::int64_t cluster_count = extract_clusters_from_mst(mst_from.data(),
-                                                                 mst_to.data(),
-                                                                 mst_weights.data(),
-                                                                 resp_ptr,
-                                                                 row_count,
-                                                                 min_cluster_size);
-
+    // Build result
     auto results =
         result_t().set_cluster_count(cluster_count).set_result_options(desc.get_result_options());
 
     if (desc.get_result_options().test(result_options::responses)) {
+        // Convert DAAL assignments to oneDAL table
+        // Read int assignments and convert to int32
+        auto arr_responses = array<std::int32_t>::empty(row_count);
+        std::int32_t* resp_ptr = arr_responses.get_mutable_data();
+
+        daal::data_management::BlockDescriptor<int> assign_block;
+        daal_assignments->getBlockOfRows(0,
+                                         row_count,
+                                         daal::data_management::readOnly,
+                                         assign_block);
+        const int* assign_ptr = assign_block.getBlockPtr();
+        for (std::int64_t i = 0; i < row_count; i++) {
+            resp_ptr[i] = static_cast<std::int32_t>(assign_ptr[i]);
+        }
+        daal_assignments->releaseBlockOfRows(assign_block);
+
         results.set_responses(dal::homogen_table::wrap(arr_responses, row_count, 1));
     }
 

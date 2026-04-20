@@ -16,6 +16,7 @@
 
 #include <sycl/sycl.hpp>
 #include <chrono>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 
@@ -31,15 +32,23 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue& q) {
-    const auto data_file_name = get_data_path("data/hdbscan_dense.csv");
+    // Allow overriding data path and parameters via environment variables
+    const char* data_env = std::getenv("HDBSCAN_DATA_PATH");
+    const std::string data_file_name =
+        data_env ? std::string(data_env) : get_data_path("data/hdbscan_dense.csv");
+
+    const char* mcs_env = std::getenv("HDBSCAN_MIN_CLUSTER_SIZE");
+    const std::int64_t min_cluster_size = mcs_env ? std::atol(mcs_env) : 15;
+
+    const char* ms_env = std::getenv("HDBSCAN_MIN_SAMPLES");
+    const std::int64_t min_samples = ms_env ? std::atol(ms_env) : 10;
 
     const auto x_data = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
 
     std::cout << "Data dimensions: " << x_data.get_row_count() << " x " << x_data.get_column_count()
               << std::endl;
-
-    constexpr std::int64_t min_cluster_size = 15;
-    constexpr std::int64_t min_samples = 10;
+    std::cout << "Parameters: min_cluster_size=" << min_cluster_size
+              << ", min_samples=" << min_samples << std::endl;
 
     auto hdbscan_desc = dal::hdbscan::descriptor<float>(min_cluster_size, min_samples);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
@@ -55,7 +64,19 @@ void run(sycl::queue& q) {
 
     std::cout << "Cluster count: " << result.get_cluster_count() << std::endl;
     std::cout << "Time: " << std::fixed << std::setprecision(1) << ms << " ms" << std::endl;
-    std::cout << "Responses:\n" << result.get_responses() << std::endl;
+
+    // Output labels in machine-readable format
+    const auto responses = result.get_responses();
+    const auto acc = dal::row_accessor<const float>(responses);
+    const auto labels = acc.pull({ 0, -1 });
+    const float* lbl_ptr = labels.get_data();
+    const std::int64_t n = responses.get_row_count();
+
+    std::cout << "Labels:";
+    for (std::int64_t i = 0; i < n; i++) {
+        std::cout << " " << static_cast<int>(lbl_ptr[i]);
+    }
+    std::cout << std::endl;
 }
 
 int main(int argc, char const* argv[]) {
