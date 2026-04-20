@@ -496,7 +496,7 @@ def _dal_module(name, lib_tag="dal", is_dpc=False, features=[],
         },
         copts = copts + select({
             "@platforms//os:windows": [],
-            "//conditions:default": ["-fvisibility=hidden"],
+            "//conditions:default": ["-fvisibility=hidden", "-fvisibility-inlines-hidden"],
         }),
         local_defines = local_defines + [
             # Enable ONEDAL_EXPORT visibility annotations, matching Make's
