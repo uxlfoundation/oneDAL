@@ -32,6 +32,9 @@ global:
         daal::algorithms::interface1::Argument::*;
         "daal::algorithms::interface1::AlgorithmImpl<*>::*";
 
+        "vtable for daal::algorithms::interface1::Hyperparameter";
+        "typeinfo for daal::algorithms::interface1::Hyperparameter";
+
         # AlgorithmImpl::computeNoThrow() instantiations
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)1>::computeNoThrow()";
         "daal::algorithms::interface1::AlgorithmImpl<(daal::ComputeMode)2>::computeNoThrow()";
@@ -73,7 +76,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::correlation_distance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::correlation_distance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::correlation_distance::internal::*";
+        # internal exports via mangled patterns below
 
         # Cosine Distance
 
@@ -83,7 +86,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::cosine_distance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::cosine_distance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::cosine_distance::internal::*";
+        # internal exports via mangled patterns below
 
         # Covariance
 
@@ -97,7 +100,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::covariance::internal::*";
+        # internal exports via mangled patterns below
 
         # DBSCAN
 
@@ -140,7 +143,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::dbscan::interface1::DistributedResultStep9::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::dbscan::interface1::DistributedResultStep13::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::dbscan::internal::*";
+        # internal exports via mangled patterns below
 
         # Decision Forest
 
@@ -156,6 +159,10 @@ global:
         daal::algorithms::decision_forest::regression::training::interface2::*;
 
         # Explicit template instantiations and RTTI
+        "vtable for daal::algorithms::decision_forest::classification::interface1::Model";
+        "vtable for daal::algorithms::decision_forest::classification::prediction::interface1::Parameter";
+        "vtable for daal::algorithms::decision_forest::classification::training::interface3::Parameter";
+
         "typeinfo for daal::algorithms::decision_forest::regression::prediction::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -168,8 +175,11 @@ global:
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::decision_forest::internal::*";
-        "!daal::algorithms::decision_forest::*::internal::*";
+        # RTTI for decision forest internal models (needed by oneAPI interface)
+        "vtable for daal::algorithms::decision_forest::classification::internal::ModelImpl";
+        "typeinfo for daal::algorithms::decision_forest::classification::internal::ModelImpl";
+        "vtable for daal::algorithms::decision_forest::regression::internal::ModelImpl";
+        "typeinfo for daal::algorithms::decision_forest::regression::internal::ModelImpl";
 
         # Elastic Net
 
@@ -287,8 +297,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::kernel_function::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::kernel_function::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::kernel_function::internal::*";
-        "!daal::algorithms::kernel_function::*::internal::*";
+        # internal exports via mangled patterns below
 
         # K-Means
 
@@ -322,10 +331,10 @@ global:
         "daal::services::interface1::Status daal::algorithms::kmeans::init::interface1::DistributedStep5MasterPlusPlusPartialResult::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
         # RTTI
+        "vtable for daal::algorithms::kmeans::init::interface1::Parameter";
         "vtable for daal::algorithms::kmeans::init::interface1::DistributedStep2MasterInput";
 
-        "!daal::algorithms::kmeans::internal::*";
-        "!daal::algorithms::kmeans::*::internal::*";
+        # internal exports via mangled patterns below
 
         # K-Nearest Neighbors (Brute Force)
 
@@ -333,6 +342,9 @@ global:
         daal::algorithms::bf_knn_classification::prediction::interface1::*;
 
         # Explicit template instantiations and RTTI
+        "vtable for daal::algorithms::bf_knn_classification::interface1::Parameter";
+        "typeinfo for daal::algorithms::bf_knn_classification::interface1::Parameter";
+
         "typeinfo for daal::algorithms::bf_knn_classification::prediction::interface1::Result";
         "typeinfo for daal::algorithms::bf_knn_classification::training::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::bf_knn_classification::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -340,8 +352,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::bf_knn_classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::bf_knn_classification::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::bf_knn_classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::bf_knn_classification::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::bf_knn_classification::internal::*";
-        "!daal::algorithms::bf_knn_classification::*::internal::*";
+        # internal exports via mangled patterns below
 
         # K-Nearest Neighbors (KD-Tree)
 
@@ -359,8 +370,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::kdtree_knn_classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::kdtree_knn_classification::interface3::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::kdtree_knn_classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::kdtree_knn_classification::interface3::Parameter const*, int)";
 
-        "!daal::algorithms::kdtree_knn_classification::internal::*";
-        "!daal::algorithms::kdtree_knn_classification::*::internal::*";
+        # internal exports via mangled patterns below
 
         # Lasso Regression
 
@@ -385,8 +395,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::linear_model::internal::*";
-        "!daal::algorithms::linear_model::*::internal::*";
+        # internal exports via mangled patterns below
 
         # Linear Regression
 
@@ -411,8 +420,7 @@ global:
         # ModelBuilder
         daal::algorithms::linear_regression::interface1::ModelBuilder*;
 
-        "!daal::algorithms::linear_regression::internal::*";
-        "!daal::algorithms::linear_regression::*::internal::*";
+        # internal exports via mangled patterns below
 
         # Logistic Regression
 
@@ -438,7 +446,9 @@ global:
 
         daal::algorithms::low_order_moments::interface1::*;
 
-        # Explicit template instantiations
+        # Explicit template instantiations and RTTI
+        "vtable for daal::algorithms::low_order_moments::interface1::PartialResult";
+
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::PartialResult::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::PartialResult::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::PartialResult::initialize<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -448,7 +458,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
 
-        "!daal::algorithms::low_order_moments::internal::*";
+        # internal exports via mangled patterns below
 
         # Multi-class Classifier
 
@@ -469,8 +479,10 @@ global:
         # Model
         daal::algorithms::multi_class_classifier::interface1::Model*;
 
-        "!daal::algorithms::multi_class_classifier::internal::*";
-        "!daal::algorithms::multi_class_classifier::*::internal::*";
+        "vtable for daal::algorithms::multi_class_classifier::interface2::Parameter";
+        "typeinfo for daal::algorithms::multi_class_classifier::interface2::Parameter";
+
+        # internal exports via mangled patterns below
 
         # Normalization
 
@@ -520,13 +532,14 @@ global:
 
         # Explicit template instantiations and RTTI
         "vtable for daal::algorithms::optimization_solver::iterative_solver::interface2::Parameter";
+        "vtable for daal::algorithms::optimization_solver::sum_of_functions::interface2::Parameter";
         "vtable for daal::algorithms::optimization_solver::lbfgs::interface2::Parameter";
         "vtable for daal::algorithms::optimization_solver::lbfgs::interface2::Result";
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::optimization_solver::internal::*";
-        "!daal::algorithms::optimization_solver::*::internal::*";
+        # internal exports via mangled patterns below
+        # (objective_function::internal exclusion kept above)
 
         # PCA
 
@@ -554,8 +567,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::pca::transform::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::pca::transform::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::pca::internal::*";
-        "!daal::algorithms::pca::*::internal::*";
+        # internal exports via mangled patterns below
 
         # Pivoted QR
 
@@ -623,8 +635,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
 
-        "!daal::algorithms::ridge_regression::internal::*";
-        "!daal::algorithms::ridge_regression::*::internal::*";
+        # internal exports via mangled patterns below
 
         # SVD
 
@@ -658,8 +669,11 @@ global:
         daal::algorithms::svm::prediction::interface2::*;
 
         # Explicit template instantiations and RTTI
+        "vtable for daal::algorithms::svm::interface1::Model";
+        "typeinfo for daal::algorithms::svm::interface1::Model";
         "typeinfo for daal::algorithms::svm::training::interface1::Result";
         "vtable for daal::algorithms::svm::interface2::Parameter";
+        "typeinfo for daal::algorithms::svm::interface2::Parameter";
 
         "daal::services::interface1::Status daal::algorithms::svm::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::svm::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -667,8 +681,7 @@ global:
         # ModelBuilder
         daal::algorithms::svm::interface1::ModelBuilder*;
 
-        "!daal::algorithms::svm::internal::*";
-        "!daal::algorithms::svm::*::internal::*";
+        # internal exports via mangled patterns below
 
         # t-SNE
 
@@ -684,6 +697,8 @@ global:
         "daal::data_management::interface1::HomogenNumericTable<float>::getSerializationTag() const";
         "daal::data_management::interface1::HomogenNumericTable<double>::getSerializationTag() const";
         "daal::data_management::interface1::HomogenNumericTable<int>::getSerializationTag() const";
+        "daal::data_management::interface1::HomogenNumericTable<long>::getSerializationTag() const";
+        "daal::data_management::interface1::HomogenNumericTable<unsigned long>::getSerializationTag() const";
 
         "daal::data_management::interface1::HomogenNumericTable<float>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, float const&, daal::services::interface1::Status&)";
         "daal::data_management::interface1::HomogenNumericTable<double>::HomogenNumericTable(daal::data_management::interface1::DictionaryIface::FeaturesEqual, unsigned long, unsigned long, daal::data_management::interface1::NumericTableIface::AllocationFlag, double const&, daal::services::interface1::Status&)";
@@ -714,6 +729,9 @@ global:
         # SOANumericTable (Structure of Arrays)
         daal::data_management::interface1::SOANumericTable::*;
 
+        # SOANumericTable RTTI and vtable
+        "typeinfo for daal::data_management::interface1::SOANumericTable";
+        "vtable for daal::data_management::interface1::SOANumericTable";
 
         # NumericTable RTTI and vtable
         "typeinfo for daal::data_management::interface1::NumericTable";
@@ -783,12 +801,221 @@ global:
 
         # Exclude any potential internal namespaces (defensive)
 
-        "!daal::internal::*";
-        "!daal::*::internal::*";
+        # catch-all internal exclusions removed - specific mangled patterns used below
+
+        # Additional non-internal symbols needed by oneAPI interface
+        daal::algorithms::bf_knn_classification::interface1::*;
+        daal::algorithms::decision_forest::classification::interface1::*;
+        daal::algorithms::decision_forest::regression::interface1::*;
+        daal::algorithms::decision_forest::training::interface2::*;
+        daal::algorithms::engines::mcg59::interface1::*;
+        daal::algorithms::engines::mrg32k3a::interface1::*;
+        daal::algorithms::engines::mt19937::interface1::*;
+        daal::algorithms::engines::mt2203::interface1::*;
+        daal::algorithms::engines::philox4x32x10::interface1::*;
+        daal::algorithms::kdtree_knn_classification::interface1::*;
+        daal::algorithms::svm::interface1::*;
+        "daal::algorithms::svm::interface2::Parameter::check() const";
+        "daal::data_management::interface1::CSRNumericTable::getSerializationTag() const";
+        "daal::services::internal::get_error_id(daal::services::interface1::Status const&)";
     };
 
     # CsvDataSource template methods (wildcard pattern for all instantiations)
     "_ZN4daal15data_management10interface113CsvDataSource*";
+
+    # ========================= Internal kernel symbols (mangled) ==========================
+    # These are specific internal classes needed by libonedal.so (oneAPI interface).
+    # Mangled patterns are used because GNU ld extern "C++" wildcards don't match
+    # parentheses in template arguments of demangled names.
+
+    # ===================================== Algorithms =====================================
+
+    # Common classes
+
+    # Correlation Distance
+
+    # correlation_distance::internal::DistanceKernel
+    _ZN4daal10algorithms20correlation_distance8internal14DistanceKernel*;
+    _ZNK4daal10algorithms20correlation_distance8internal14DistanceKernel*;
+
+    # Cosine Distance
+
+    # cosine_distance::internal::DistanceKernel
+    _ZN4daal10algorithms15cosine_distance8internal14DistanceKernel*;
+    _ZNK4daal10algorithms15cosine_distance8internal14DistanceKernel*;
+
+    # Covariance
+
+    # covariance::internal::CovarianceDenseBatchKernel
+    _ZN4daal10algorithms10covariance8internal26CovarianceDenseBatchKernel*;
+    _ZNK4daal10algorithms10covariance8internal26CovarianceDenseBatchKernel*;
+    # covariance::internal::CovarianceDenseOnlineKernel
+    _ZN4daal10algorithms10covariance8internal27CovarianceDenseOnlineKernel*;
+    _ZNK4daal10algorithms10covariance8internal27CovarianceDenseOnlineKernel*;
+    # covariance::internal::Hyperparameter
+    _ZN4daal10algorithms10covariance8internal14Hyperparameter*;
+
+    # DBSCAN
+
+    # dbscan::internal::DBSCANBatchKernel
+    _ZN4daal10algorithms6dbscan8internal17DBSCANBatchKernel*;
+    _ZNK4daal10algorithms6dbscan8internal17DBSCANBatchKernel*;
+
+    # Decision Forest
+
+    # decision_forest::classification::prediction::internal::PredictKernel
+    _ZN4daal10algorithms15decision_forest14classification10prediction8internal13PredictKernel*;
+    _ZNK4daal10algorithms15decision_forest14classification10prediction8internal13PredictKernel*;
+    # decision_forest::classification::training::internal::ClassificationTrainBatchKernel
+    _ZN4daal10algorithms15decision_forest14classification8training8internal30ClassificationTrainBatchKernel*;
+    _ZNK4daal10algorithms15decision_forest14classification8training8internal30ClassificationTrainBatchKernel*;
+    # decision_forest::classification::training::internal::Hyperparameter
+    _ZN4daal10algorithms15decision_forest14classification8training8internal14Hyperparameter*;
+    # decision_forest::prediction::internal::Hyperparameter
+    _ZN4daal10algorithms15decision_forest10prediction8internal14Hyperparameter*;
+    # decision_forest::regression::prediction::internal::PredictKernel
+    _ZN4daal10algorithms15decision_forest10regression10prediction8internal13PredictKernel*;
+    _ZNK4daal10algorithms15decision_forest10regression10prediction8internal13PredictKernel*;
+    # decision_forest::regression::training::internal::RegressionTrainBatchKernel
+    _ZN4daal10algorithms15decision_forest10regression8training8internal26RegressionTrainBatchKernel*;
+    _ZNK4daal10algorithms15decision_forest10regression8training8internal26RegressionTrainBatchKernel*;
+    # dtrees::internal::ModelImpl
+    _ZN4daal10algorithms6dtrees8internal9ModelImpl*;
+    _ZNK4daal10algorithms6dtrees8internal9ModelImpl*;
+
+
+    # Kernel Functions
+
+    # kernel_function::polynomial::internal::Batch
+    _ZN4daal10algorithms15kernel_function10polynomial8internal5Batch*;
+    # kernel_function::polynomial::internal::KernelImplPolynomial
+    _ZN4daal10algorithms15kernel_function10polynomial8internal20KernelImplPolynomial*;
+    _ZNK4daal10algorithms15kernel_function10polynomial8internal20KernelImplPolynomial*;
+    # kernel_function::rbf::internal::KernelImplRBF
+    _ZN4daal10algorithms15kernel_function3rbf8internal13KernelImplRBF*;
+    _ZNK4daal10algorithms15kernel_function3rbf8internal13KernelImplRBF*;
+
+    # K-means
+
+    # kmeans::internal::KMeansBatchKernel
+    _ZN4daal10algorithms6kmeans8internal17KMeansBatchKernel*;
+    _ZNK4daal10algorithms6kmeans8internal17KMeansBatchKernel*;
+    # kmeans::init::internal::KMeansInitKernel
+    _ZN4daal10algorithms6kmeans4init8internal16KMeansInitKernel*;
+    _ZNK4daal10algorithms6kmeans4init8internal16KMeansInitKernel*;
+
+    # KNN Classification
+
+    # bf_knn_classification::prediction::internal::KNNClassificationPredictKernel
+    _ZN4daal10algorithms21bf_knn_classification10prediction8internal30KNNClassificationPredictKernel*;
+    _ZNK4daal10algorithms21bf_knn_classification10prediction8internal30KNNClassificationPredictKernel*;
+    # bf_knn_classification::training::internal::KNNClassificationTrainKernel
+    _ZN4daal10algorithms21bf_knn_classification8training8internal28KNNClassificationTrainKernel*;
+    _ZNK4daal10algorithms21bf_knn_classification8training8internal28KNNClassificationTrainKernel*;
+    # kdtree_knn_classification::prediction::internal::KNNClassificationPredictKernel
+    _ZN4daal10algorithms25kdtree_knn_classification10prediction8internal30KNNClassificationPredictKernel*;
+    _ZNK4daal10algorithms25kdtree_knn_classification10prediction8internal30KNNClassificationPredictKernel*;
+    # kdtree_knn_classification::training::internal::KNNClassificationTrainBatchKernel
+    _ZN4daal10algorithms25kdtree_knn_classification8training8internal33KNNClassificationTrainBatchKernel*;
+    _ZNK4daal10algorithms25kdtree_knn_classification8training8internal33KNNClassificationTrainBatchKernel*;
+
+    # Linear Model
+
+    # linear_model::prediction::internal::PredictKernel
+    _ZN4daal10algorithms12linear_model10prediction8internal13PredictKernel*;
+    _ZNK4daal10algorithms12linear_model10prediction8internal13PredictKernel*;
+
+    # Linear Regression
+
+    # linear_regression::internal::Hyperparameter
+    _ZN4daal10algorithms17linear_regression8internal14Hyperparameter*;
+    # linear_regression::training::internal::BatchKernel
+    _ZN4daal10algorithms17linear_regression8training8internal11BatchKernel*;
+    _ZNK4daal10algorithms17linear_regression8training8internal11BatchKernel*;
+    # linear_regression::training::internal::OnlineKernel
+    _ZN4daal10algorithms17linear_regression8training8internal12OnlineKernel*;
+    _ZNK4daal10algorithms17linear_regression8training8internal12OnlineKernel*;
+
+    # Low Order Moments
+
+    # low_order_moments::internal::LowOrderMomentsBatchKernel
+    _ZN4daal10algorithms17low_order_moments8internal26LowOrderMomentsBatchKernel*;
+    _ZNK4daal10algorithms17low_order_moments8internal26LowOrderMomentsBatchKernel*;
+    # low_order_moments::internal::LowOrderMomentsOnlineKernel
+    _ZN4daal10algorithms17low_order_moments8internal27LowOrderMomentsOnlineKernel*;
+    _ZNK4daal10algorithms17low_order_moments8internal27LowOrderMomentsOnlineKernel*;
+
+    # Multi-class Classifier
+
+    # multi_class_classifier::prediction::internal::MultiClassClassifierPredictKernel
+    _ZN4daal10algorithms22multi_class_classifier10prediction8internal33MultiClassClassifierPredictKernel*;
+    _ZNK4daal10algorithms22multi_class_classifier10prediction8internal33MultiClassClassifierPredictKernel*;
+    # multi_class_classifier::training::internal::MultiClassClassifierTrainKernel
+    _ZN4daal10algorithms22multi_class_classifier8training8internal31MultiClassClassifierTrainKernel*;
+    _ZNK4daal10algorithms22multi_class_classifier8training8internal31MultiClassClassifierTrainKernel*;
+
+    # Optimization Solver
+
+    # optimization_solver::logistic_loss::internal::LogLossKernel
+    _ZN4daal10algorithms19optimization_solver13logistic_loss8internal13LogLossKernel*;
+    _ZNK4daal10algorithms19optimization_solver13logistic_loss8internal13LogLossKernel*;
+
+    # PCA
+
+    # pca::internal::PCACorrelationBase
+    _ZN4daal10algorithms3pca8internal18PCACorrelationBase*;
+    _ZNK4daal10algorithms3pca8internal18PCACorrelationBase*;
+    # pca::internal::PCACorrelationKernel
+    _ZN4daal10algorithms3pca8internal20PCACorrelationKernel*;
+    _ZNK4daal10algorithms3pca8internal20PCACorrelationKernel*;
+    # pca::internal::PCADenseBase
+    _ZN4daal10algorithms3pca8internal12PCADenseBase*;
+    _ZNK4daal10algorithms3pca8internal12PCADenseBase*;
+    # pca::internal::PCASVDBatchKernel
+    _ZN4daal10algorithms3pca8internal17PCASVDBatchKernel*;
+    _ZNK4daal10algorithms3pca8internal17PCASVDBatchKernel*;
+    # pca::internal::PCASVDOnlineKernel
+    _ZN4daal10algorithms3pca8internal18PCASVDOnlineKernel*;
+    _ZNK4daal10algorithms3pca8internal18PCASVDOnlineKernel*;
+    # pca::transform::internal::TransformKernel
+    _ZN4daal10algorithms3pca9transform8internal15TransformKernel*;
+    _ZNK4daal10algorithms3pca9transform8internal15TransformKernel*;
+
+    # Ridge Regression
+
+    # ridge_regression::training::internal::BatchKernel
+    _ZN4daal10algorithms16ridge_regression8training8internal11BatchKernel*;
+    _ZNK4daal10algorithms16ridge_regression8training8internal11BatchKernel*;
+    # ridge_regression::training::internal::OnlineKernel
+    _ZN4daal10algorithms16ridge_regression8training8internal12OnlineKernel*;
+    _ZNK4daal10algorithms16ridge_regression8training8internal12OnlineKernel*;
+
+    # SVM
+
+    # svm::prediction::internal::SVMPredictImpl
+    _ZN4daal10algorithms3svm10prediction8internal14SVMPredictImpl*;
+    _ZNK4daal10algorithms3svm10prediction8internal14SVMPredictImpl*;
+    # svm::training::internal::Batch
+    _ZN4daal10algorithms3svm8training8internal5Batch*;
+    # svm::training::internal::SVMTrainImpl
+    _ZN4daal10algorithms3svm8training8internal12SVMTrainImpl*;
+    _ZNK4daal10algorithms3svm8training8internal12SVMTrainImpl*;
+    # svm::internal::ModelInternal
+    _ZN4daal10algorithms3svm8internal13ModelInternal*;
+    _ZNK4daal10algorithms3svm8internal13ModelInternal*;
+
+    # =================================== Data Management ==================================
+
+    # data_management::internal templates (return type in demangled name)
+    _ZN4daal15data_management8internal18allValuesAreFinite*;
+    _ZN4daal15data_management8internal9getVector*;
+    _ZN4daal15data_management8internal24vectorAssignValueToArray*;
+
+    # C++ functions with no namespace prefix in demangled form
+    _Z22__daal_serv_cpu_detect*;
+    _Z23daal_check_is_intel_cpu*;
+    _Z23daal_enabled_cpu_detect*;
+    _Z28daal_serv_cpu_feature_detect*;
 
 local:
     # Hide everything else by default
