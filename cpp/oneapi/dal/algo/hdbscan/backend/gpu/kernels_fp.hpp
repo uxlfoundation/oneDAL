@@ -28,18 +28,25 @@ namespace pr = dal::backend::primitives;
 
 template <typename Float>
 struct kernels_fp {
-    /// Compute core distances using squared_l2_distance + kselect_by_rows primitives.
+    /// Compute full pairwise squared L2 distance matrix using GEMM.
+    /// dist²[i,j] = ||x_i||² + ||x_j||² - 2 * x_i · x_j
+    static sycl::event compute_squared_distances(sycl::queue& queue,
+                                                 const pr::ndview<Float, 2>& data,
+                                                 pr::ndview<Float, 2>& sq_dist,
+                                                 const bk::event_vector& deps = {});
+
+    /// Compute core distances from pre-computed squared distance matrix via kselect.
     /// Core distance = sqrt of k-th nearest squared L2 distance, where k = min_samples.
     static sycl::event compute_core_distances(sycl::queue& queue,
-                                              const pr::ndview<Float, 2>& data,
+                                              const pr::ndview<Float, 2>& sq_dist,
                                               pr::ndview<Float, 1>& core_distances,
                                               std::int64_t min_samples,
+                                              std::int64_t row_count,
                                               const bk::event_vector& deps = {});
 
-    /// Compute mutual reachability distance matrix on GPU.
-    /// mrd(i,j) = max(core_dist[i], core_dist[j], euclidean_dist(i,j))
+    /// Transform pre-computed squared distance matrix into mutual reachability distances.
+    /// mrd(i,j) = max(core_dist[i], core_dist[j], sqrt(sq_dist[i,j]))
     static sycl::event compute_mrd_matrix(sycl::queue& queue,
-                                          const pr::ndview<Float, 2>& data,
                                           const pr::ndview<Float, 1>& core_distances,
                                           pr::ndview<Float, 2>& mrd_matrix,
                                           const bk::event_vector& deps = {});

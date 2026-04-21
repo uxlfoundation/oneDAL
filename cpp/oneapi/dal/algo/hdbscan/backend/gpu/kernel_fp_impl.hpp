@@ -34,28 +34,43 @@ namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
 template <typename Float>
-sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
-                                                      const pr::ndview<Float, 2>& data,
-                                                      pr::ndview<Float, 1>& core_distances,
-                                                      std::int64_t min_samples,
-                                                      const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
+sycl::event kernels_fp<Float>::compute_squared_distances(sycl::queue& queue,
+                                                         const pr::ndview<Float, 2>& data,
+                                                         pr::ndview<Float, 2>& sq_dist,
+                                                         const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_squared_distances, queue);
 
     const std::int64_t n = data.get_dimension(0);
 
     ONEDAL_ASSERT(n > 0);
+    ONEDAL_ASSERT(sq_dist.get_dimension(0) == n);
+    ONEDAL_ASSERT(sq_dist.get_dimension(1) == n);
+
+    // Compute full pairwise squared L2 distance matrix using GEMM:
+    // dist²[i,j] = ||x_i||² + ||x_j||² - 2 * x_i · x_j
+    pr::squared_l2_distance<Float> dist_op(queue);
+    return dist_op(data, data, sq_dist, deps);
+}
+
+template <typename Float>
+sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
+                                                      const pr::ndview<Float, 2>& sq_dist,
+                                                      pr::ndview<Float, 1>& core_distances,
+                                                      std::int64_t min_samples,
+                                                      std::int64_t row_count,
+                                                      const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
+
+    const std::int64_t n = row_count;
+
+    ONEDAL_ASSERT(n > 0);
+    ONEDAL_ASSERT(sq_dist.get_dimension(0) == n);
+    ONEDAL_ASSERT(sq_dist.get_dimension(1) == n);
     ONEDAL_ASSERT(core_distances.get_dimension(0) == n);
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    // Step 1: Compute full pairwise squared L2 distance matrix [n x n] on GPU
-    auto [sq_dist, sq_dist_event] =
-        pr::ndarray<Float, 2>::zeros(queue, { n, n }, sycl::usm::alloc::device);
-
-    pr::squared_l2_distance<Float> dist_op(queue);
-    auto dist_event = dist_op(data, data, sq_dist, deps);
-
-    // Step 2: Select k-th nearest squared distance per row using kselect
+    // Select k-th nearest squared distance per row using kselect
     // Core distance index: min_samples - 1 (includes self at distance 0)
     // We select min_samples smallest values per row, then take the last one
     const std::int64_t k = min_samples;
@@ -64,10 +79,11 @@ sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
         pr::ndarray<Float, 2>::zeros(queue, { n, k }, sycl::usm::alloc::device);
 
     pr::kselect_by_rows<Float> ksel(queue, { n, n }, k);
-    auto ksel_event =
-        ksel(queue, sq_dist, k, ksel_vals, { dist_event, sq_dist_event, ksel_vals_event });
+    bk::event_vector ksel_deps = deps;
+    ksel_deps.push_back(ksel_vals_event);
+    auto ksel_event = ksel(queue, sq_dist, k, ksel_vals, ksel_deps);
 
-    // Step 3: Extract the k-th value (last column) from kselect result and take sqrt
+    // Extract the k-th value (last column) from kselect result and take sqrt
     // ksel_vals is [n x k], we need column index k-1 from each row
     const Float* ksel_ptr = ksel_vals.get_data();
     Float* core_ptr = core_distances.get_mutable_data();
@@ -87,29 +103,24 @@ sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
 
 template <typename Float>
 sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
-                                                  const pr::ndview<Float, 2>& data,
                                                   const pr::ndview<Float, 1>& core_distances,
                                                   pr::ndview<Float, 2>& mrd_matrix,
                                                   const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
 
-    const std::int64_t n = data.get_dimension(0);
+    const std::int64_t n = core_distances.get_dimension(0);
 
     ONEDAL_ASSERT(n > 0);
-    ONEDAL_ASSERT(core_distances.get_dimension(0) == n);
     ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
     ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
 
-    // First compute squared L2 distances, then apply MRD formula
-    pr::squared_l2_distance<Float> dist_op(queue);
-    auto dist_event = dist_op(data, data, mrd_matrix, deps);
-
-    // Transform: mrd[i][j] = max(core_dist[i], core_dist[j], sqrt(sq_dist[i][j]))
+    // mrd_matrix already contains squared L2 distances from compute_squared_distances.
+    // Transform in-place: mrd[i][j] = max(core_dist[i], core_dist[j], sqrt(sq_dist[i][j]))
     const Float* core_ptr = core_distances.get_data();
     Float* mrd_ptr = mrd_matrix.get_mutable_data();
 
     auto mrd_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ dist_event });
+        h.depends_on(deps);
         h.parallel_for(sycl::range<2>(n, n), [=](sycl::id<2> idx) {
             const std::int64_t i = idx[0];
             const std::int64_t j = idx[1];

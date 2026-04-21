@@ -50,27 +50,36 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
-    // Step 1: Compute core distances on GPU using distance + kselect primitives
+    // Step 1: Compute pairwise squared L2 distance matrix once via GEMM
+    auto [sq_dist, sq_dist_event] =
+        pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
+
+    auto dist_event = kernels_fp<Float>::compute_squared_distances(queue,
+                                                                   data_nd,
+                                                                   sq_dist,
+                                                                   { sq_dist_event });
+
+    // Step 2: Compute core distances from the squared distance matrix
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
 
     auto core_event = kernels_fp<Float>::compute_core_distances(queue,
-                                                                data_nd,
+                                                                sq_dist,
                                                                 core_distances,
                                                                 min_samples,
-                                                                { core_dist_event });
+                                                                row_count,
+                                                                { dist_event, core_dist_event });
 
-    // Step 2: Compute mutual reachability distance matrix on GPU
-    auto [mrd_matrix, mrd_event] =
-        pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
+    // Step 3: Transform squared distances into MRD matrix in-place
+    // Reuse sq_dist as mrd_matrix — avoids a second N×N allocation + GEMM
+    auto& mrd_matrix = sq_dist;
 
     auto mrd_compute_event = kernels_fp<Float>::compute_mrd_matrix(queue,
-                                                                   data_nd,
                                                                    core_distances,
                                                                    mrd_matrix,
-                                                                   { core_event, mrd_event });
+                                                                   { core_event });
 
-    // Step 3: Build MST using Prim's algorithm on GPU with precomputed MRD matrix
+    // Step 4: Build MST using Prim's algorithm on GPU with precomputed MRD matrix
     auto [mst_from, mst_from_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, edge_count, sycl::usm::alloc::device);
     auto [mst_to, mst_to_event] =
@@ -87,7 +96,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
         row_count,
         { mrd_compute_event, mst_from_event, mst_to_event, mst_weights_event });
 
-    // Step 4: Sort MST edges by weight using radix sort primitive
+    // Step 5: Sort MST edges by weight using radix sort primitive
     auto sort_event = kernels_fp<Float>::sort_mst_by_weight(queue,
                                                             mst_from,
                                                             mst_to,
@@ -95,7 +104,7 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
                                                             edge_count,
                                                             { mst_event });
 
-    // Step 5: Extract flat clusters using EOM on device
+    // Step 6: Extract flat clusters using EOM on device
     auto [arr_responses, responses_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, row_count, -1, sycl::usm::alloc::device);
 
