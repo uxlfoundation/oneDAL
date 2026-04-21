@@ -33,6 +33,57 @@ DAAL_EXPORT int __daal_serv_cpu_detect(int);
 DAAL_EXPORT int daal_enabled_cpu_detect();
 DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
 
+/* ---------------------------------------------------------------------------
+ * Float32MatmulPrecision — INTERNAL, experimental API.
+ *
+ * Precision hint for internal float32 matrix multiplications.
+ * This is a *hint*, not a hard override: the library decides which operations
+ * are eligible for reduced precision. Modelled after
+ * torch.set_float32_matmul_precision / jax_default_matmul_precision.
+ *
+ * Levels:
+ *
+ *   strict (default)
+ *     Always compute in the input dtype (float32 → sgemm, float64 → dgemm).
+ *     Full IEEE-754, bit-exact and reproducible across hardware generations.
+ *
+ *   allow_bf16
+ *     Allow oneDAL to use BF16 operands in operations where the library has
+ *     determined the accuracy impact is bounded and acceptable for the algorithm.
+ *     Currently: float32 Euclidean GEMM on AMX-BF16 hardware, dims >= 64.
+ *     Accumulation and output remain float32.
+ *     Falls back to sgemm silently on hardware without AMX-BF16.
+ *
+ * Activation:
+ *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=ALLOW_BF16  (before loading oneDAL)
+ *   programmatic:  daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::allow_bf16)
+ *
+ * NOTE: This API is internal and subject to change without notice.
+ *       Do not expose in public headers until the design is finalised.
+ * ----------------------------------------------------------------------- */
+namespace daal
+{
+namespace internal
+{
+enum Float32MatmulPrecision
+{
+    strict     = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
+    allow_bf16 = 1, /*!< Allow BF16 operands where oneDAL deems accuracy impact acceptable.
+                     *   Accumulation and output remain float32. */
+};
+} // namespace internal
+} // namespace daal
+
+/* Hardware capability — constant for the process lifetime. */
+DAAL_EXPORT bool daal_has_amx_bf16();
+/* Precision getter/setter — no HW queries; operate on the stored hint only. */
+DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_precision();
+DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p);
+inline bool daal_allow_amx_bf16_matmul()
+{
+    return daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+}
+
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);
 DAAL_EXPORT bool daal_check_is_intel_cpu();
 

@@ -122,6 +122,143 @@ public:
     virtual services::Status finalize(const size_t n, FPType * a) = 0;
 };
 
+// ---------------------------------------------------------------------------
+// BF16GemmDispatcher
+//
+// Encapsulates the decision of whether to use AMX-BF16 for a float32 GEMM,
+// and performs the conversion + dispatch when eligible.
+//
+// Design principles:
+//  - Hardware capability and the stored precision hint are checked at runtime,
+//    so daal_set_float32_matmul_precision() affects subsequent GEMM calls.
+//  - Matrix-size threshold (kMinDim) is owned by the dispatcher, not the caller.
+//  - Primary template handles all non-float types with zero overhead.
+// ---------------------------------------------------------------------------
+
+#ifndef DAAL_REF
+
+/// Minimum GEMM dimension for which AMX-BF16 is profitable.
+/// BF16 conversion overhead outweighs the GEMM benefit for small tiles.
+static constexpr DAAL_INT kBF16MinDim  = 64;
+static constexpr size_t kBF16Alignment = 64;
+
+template <typename T>
+class AlignedBuffer
+{
+public:
+    AlignedBuffer() : _ptr(nullptr) {}
+    explicit AlignedBuffer(size_t size) : _ptr(daal::services::internal::service_malloc<T, DAAL_BASE_CPU>(size, kBF16Alignment)) {}
+    ~AlignedBuffer() { daal::services::daal_free(_ptr); }
+
+    T * get() const { return _ptr; }
+    operator bool() const { return _ptr != nullptr; }
+
+    AlignedBuffer(AlignedBuffer && other) : _ptr(other._ptr) { other._ptr = nullptr; }
+    AlignedBuffer & operator=(AlignedBuffer && other)
+    {
+        if (this != &other)
+        {
+            daal::services::daal_free(_ptr);
+            _ptr       = other._ptr;
+            other._ptr = nullptr;
+        }
+        return *this;
+    }
+
+    AlignedBuffer(const AlignedBuffer &)             = delete;
+    AlignedBuffer & operator=(const AlignedBuffer &) = delete;
+
+private:
+    T * _ptr;
+};
+
+inline bool allow_bf16_gemm()
+{
+    return daal_allow_amx_bf16_matmul();
+}
+
+inline MKL_BF16 convert_f32_to_bf16_rne(float value)
+{
+    uint32_t bits = 0;
+    services::internal::daal_memcpy_s(&bits, sizeof(bits), &value, sizeof(value));
+    const uint32_t lsb          = (bits >> 16) & 1U;
+    const uint32_t roundingBias = 0x7FFFU + lsb;
+    return static_cast<MKL_BF16>((bits + roundingBias) >> 16);
+}
+
+inline void convert_f32_buffer_to_bf16_rne(const float * src, size_t count, MKL_BF16 * dst)
+{
+    PRAGMA_OMP_SIMD
+    for (size_t i = 0; i < count; ++i)
+    {
+        dst[i] = convert_f32_to_bf16_rne(src[i]);
+    }
+}
+
+/// Primary template: use standard BLAS for all non-float types.
+template <typename FPType, CpuType cpu>
+struct BF16GemmDispatcher
+{
+    static void compute(const FPType * a, const FPType * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, FPType * out, void * = nullptr)
+    {
+        const char transa = 't', transb = 'n';
+        const FPType alpha = FPType(1), beta = FPType(0);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+    }
+};
+
+template <CpuType cpu>
+struct BF16GemmDispatcher<float, cpu>
+{
+    static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out, MKL_BF16 * b16 = nullptr)
+    {
+        if (allow_bf16_gemm() && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
+        {
+            const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
+            const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
+
+            AlignedBuffer<MKL_BF16> a16(szA);
+            if (!a16)
+            {
+                computeFallback(a, b, m, n, k, out);
+                return;
+            }
+            convert_f32_buffer_to_bf16_rne(a, szA, a16.get());
+
+            AlignedBuffer<MKL_BF16> localB16;
+            MKL_BF16 * b16Buffer = b16;
+            if (!b16Buffer)
+            {
+                localB16 = AlignedBuffer<MKL_BF16>(szB);
+                if (!localB16)
+                {
+                    computeFallback(a, b, m, n, k, out);
+                    return;
+                }
+                b16Buffer = localB16.get();
+                convert_f32_buffer_to_bf16_rne(b, szB, b16Buffer);
+            }
+
+            // Column-major call computing C = B * A^T.
+            // B is stored as m x k with ld=m, A as n x k with ld=n.
+            cblas_gemm_bf16bf16f32(CblasColMajor, CblasNoTrans, CblasTrans, m, n, k, 1.0f, b16Buffer, m, a16.get(), n, 0.0f, out, m);
+            return;
+        }
+
+        computeFallback(a, b, m, n, k, out);
+    }
+
+private:
+    static void computeFallback(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out)
+    {
+        const char transa = 't', transb = 'n';
+        const float alpha = 1.0f, beta = 0.0f;
+        BlasInst<float, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+    }
+};
+
+#endif // !DAAL_REF
+
 // compute: sum(A^2, 2) + sum(B^2, 2) -2*A*B'
 template <typename FPType, CpuType cpu>
 class EuclideanDistances : public PairwiseDistances<FPType, cpu>
@@ -153,7 +290,6 @@ public:
         return s;
     }
 
-    // output:  Row-major matrix of size { aSize x bSize }
     services::Status computeBatch(const FPType * const a, const FPType * const b, size_t aOffset, size_t aSize, size_t bOffset, size_t bSize,
                                   FPType * const res) override
     {
@@ -205,7 +341,6 @@ public:
             const size_t end   = services::internal::min<cpu, size_t>(begin + blockSize, n);
             const size_t count = end - begin;
 
-            // max(0, d) to remove negative distances before Sqrt
             for (size_t i = begin; i < end; ++i)
             {
                 a[i] = services::internal::max<cpu, FPType>(FPType(0), a[i]);
@@ -215,8 +350,7 @@ public:
         return services::Status();
     }
 
-    // output:  Row-major matrix of size { aSize x bSize }
-    virtual services::Status computeBatch(size_t aOffset, size_t aSize, size_t bOffset, size_t bSize, FPType * const res)
+    services::Status computeBatch(size_t aOffset, size_t aSize, size_t bOffset, size_t bSize, FPType * const res)
     {
         ReadRows<FPType, cpu> aDataRows(const_cast<NumericTable *>(&_a), aOffset, aSize);
         DAAL_CHECK_BLOCK_STATUS(aDataRows);
@@ -229,12 +363,12 @@ public:
         return computeBatch(aData, bData, aOffset, aSize, bOffset, bSize, res);
     }
 
-    // output:  Row-major matrix of size { nrows(A) x nrows(B) }
-    virtual services::Status computeFull(FPType * const res)
+    services::Status computeFull(FPType * const res)
     {
         SafeStatus safeStat;
 
         const size_t nRowsA    = _a.getNumberOfRows();
+        const size_t nRowsB    = _b.getNumberOfRows();
         const size_t blockSize = 256;
         const size_t nBlocks   = nRowsA / blockSize + (nRowsA % blockSize > 0);
 
@@ -243,8 +377,6 @@ public:
             const size_t i2    = (iBlock + 1 == nBlocks ? nRowsA : i1 + blockSize);
             const size_t iSize = i2 - i1;
 
-            const size_t nRowsB = _b.getNumberOfRows();
-
             DAAL_CHECK_STATUS_THR(computeBatch(i1, iSize, 0, nRowsB, res + i1 * nRowsB));
         });
 
@@ -252,7 +384,6 @@ public:
     }
 
 protected:
-    // compute (sum(A^2, 2))
     services::Status computeNorm(const NumericTable & ntData, FPType * const res)
     {
         const size_t nRows = ntData.getNumberOfRows();
@@ -293,21 +424,17 @@ protected:
         return safeStat.detach();
     }
 
-    // compute (A x B')
     void computeABt(const FPType * const a, const FPType * const b, const size_t nRowsA, const size_t nColsA, const size_t nRowsB, FPType * const out)
     {
-        const char transa    = 't';
-        const char transb    = 'n';
-        const DAAL_INT _m    = nRowsB;
-        const DAAL_INT _n    = nRowsA;
-        const DAAL_INT _k    = nColsA;
-        const FPType alpha   = 1.0;
-        const DAAL_INT lda   = nColsA;
-        const DAAL_INT ldy   = nColsA;
-        const FPType beta    = 0.0;
-        const DAAL_INT ldaty = nRowsB;
-
-        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &_m, &_n, &_k, &alpha, b, &lda, a, &ldy, &beta, out, &ldaty);
+#ifndef DAAL_REF
+        BF16GemmDispatcher<FPType, cpu>::compute(a, b, static_cast<DAAL_INT>(nRowsB), static_cast<DAAL_INT>(nRowsA), static_cast<DAAL_INT>(nColsA),
+                                                 out);
+#else
+        const char transa = 't', transb = 'n';
+        const DAAL_INT m = nRowsB, n = nRowsA, k = nColsA;
+        const FPType alpha = FPType(1), beta = FPType(0);
+        BlasInst<FPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, b, &k, a, &k, &beta, out, &m);
+#endif
     }
 
     const NumericTable & _a;
@@ -329,7 +456,7 @@ private:
 public:
     CosineDistances(const NumericTable & a, const NumericTable & b) : super(a, b, true, true) {}
 
-    ~CosineDistances() override {}
+    virtual ~CosineDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::cosine; }
 
@@ -372,7 +499,7 @@ public:
         : _a(a), _b(b), _powered(powered), _p(p)
     {}
 
-    ~MinkowskiDistances() override {}
+    virtual ~MinkowskiDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::minkowski; }
 
@@ -471,7 +598,7 @@ class ChebyshevDistances : public PairwiseDistances<FPType, cpu>
 public:
     ChebyshevDistances(const NumericTable & a, const NumericTable & b) : _a(a), _b(b) {}
 
-    ~ChebyshevDistances() override {}
+    virtual ~ChebyshevDistances() override {}
 
     PairwiseDistanceType getType() override { return PairwiseDistanceType::chebyshev; }
 
