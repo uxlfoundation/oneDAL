@@ -76,7 +76,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::correlation_distance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::correlation_distance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Cosine Distance
 
@@ -86,7 +86,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::cosine_distance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::cosine_distance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Covariance
 
@@ -100,7 +100,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # DBSCAN
 
@@ -143,10 +143,11 @@ global:
         "daal::services::interface1::Status daal::algorithms::dbscan::interface1::DistributedResultStep9::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::dbscan::interface1::DistributedResultStep13::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Decision Forest
 
+        daal::algorithms::decision_forest::classification::interface1::*;
         daal::algorithms::decision_forest::classification::prediction::interface1::*;
         daal::algorithms::decision_forest::classification::prediction::interface3::*;
         daal::algorithms::decision_forest::classification::training::interface1::*;
@@ -154,9 +155,11 @@ global:
 
         daal::algorithms::decision_forest::classification::interface2::ModelBuilder::*;
 
+        daal::algorithms::decision_forest::regression::interface1::*;
         daal::algorithms::decision_forest::regression::prediction::interface1::*;
         daal::algorithms::decision_forest::regression::training::interface1::*;
         daal::algorithms::decision_forest::regression::training::interface2::*;
+        daal::algorithms::decision_forest::training::interface2::*;
 
         # Explicit template instantiations and RTTI
         "vtable for daal::algorithms::decision_forest::classification::interface1::Model";
@@ -214,6 +217,11 @@ global:
         # Engines (Random Number Generators)
 
         daal::algorithms::engines::interface1::*;
+        daal::algorithms::engines::mcg59::interface1::*;
+        daal::algorithms::engines::mrg32k3a::interface1::*;
+        daal::algorithms::engines::mt19937::interface1::*;
+        daal::algorithms::engines::mt2203::interface1::*;
+        daal::algorithms::engines::philox4x32x10::interface1::*;
 
         "!daal::algorithms::engines::internal::*";
 
@@ -297,7 +305,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::kernel_function::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::kernel_function::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # K-Means
 
@@ -334,10 +342,11 @@ global:
         "vtable for daal::algorithms::kmeans::init::interface1::Parameter";
         "vtable for daal::algorithms::kmeans::init::interface1::DistributedStep2MasterInput";
 
-        # internal exports via mangled patterns below
+
 
         # K-Nearest Neighbors (Brute Force)
 
+        daal::algorithms::bf_knn_classification::interface1::*;
         daal::algorithms::bf_knn_classification::training::interface1::*;
         daal::algorithms::bf_knn_classification::prediction::interface1::*;
 
@@ -352,10 +361,11 @@ global:
         "daal::services::interface1::Status daal::algorithms::bf_knn_classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::bf_knn_classification::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::bf_knn_classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::bf_knn_classification::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # K-Nearest Neighbors (KD-Tree)
 
+        daal::algorithms::kdtree_knn_classification::interface1::*;
         daal::algorithms::kdtree_knn_classification::training::interface1::*;
         daal::algorithms::kdtree_knn_classification::training::interface3::*;
         daal::algorithms::kdtree_knn_classification::prediction::interface1::*;
@@ -370,7 +380,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::kdtree_knn_classification::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::kdtree_knn_classification::interface3::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::kdtree_knn_classification::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::kdtree_knn_classification::interface3::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Lasso Regression
 
@@ -395,7 +405,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::linear_model::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Linear Regression
 
@@ -420,7 +430,7 @@ global:
         # ModelBuilder
         daal::algorithms::linear_regression::interface1::ModelBuilder*;
 
-        # internal exports via mangled patterns below
+
 
         # Logistic Regression
 
@@ -458,7 +468,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
         "daal::services::interface1::Status daal::algorithms::low_order_moments::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Multi-class Classifier
 
@@ -482,7 +492,7 @@ global:
         "vtable for daal::algorithms::multi_class_classifier::interface2::Parameter";
         "typeinfo for daal::algorithms::multi_class_classifier::interface2::Parameter";
 
-        # internal exports via mangled patterns below
+
 
         # Normalization
 
@@ -538,8 +548,8 @@ global:
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
-        # (objective_function::internal exclusion kept above)
+
+
 
         # PCA
 
@@ -567,7 +577,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::pca::transform::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::pca::transform::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # Pivoted QR
 
@@ -635,7 +645,7 @@ global:
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::ridge_regression::training::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::ridge_regression::interface1::Parameter const*, int)";
 
-        # internal exports via mangled patterns below
+
 
         # SVD
 
@@ -663,25 +673,22 @@ global:
 
         # SVM
 
+        daal::algorithms::svm::interface1::*;
         daal::algorithms::svm::training::interface1::*;
         daal::algorithms::svm::training::interface2::*;
         daal::algorithms::svm::prediction::interface1::*;
         daal::algorithms::svm::prediction::interface2::*;
 
         # Explicit template instantiations and RTTI
-        "vtable for daal::algorithms::svm::interface1::Model";
-        "typeinfo for daal::algorithms::svm::interface1::Model";
         "typeinfo for daal::algorithms::svm::training::interface1::Result";
         "vtable for daal::algorithms::svm::interface2::Parameter";
         "typeinfo for daal::algorithms::svm::interface2::Parameter";
+        "daal::algorithms::svm::interface2::Parameter::check() const";
 
         "daal::services::interface1::Status daal::algorithms::svm::training::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::svm::training::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
-        # ModelBuilder
-        daal::algorithms::svm::interface1::ModelBuilder*;
 
-        # internal exports via mangled patterns below
 
         # t-SNE
 
@@ -772,6 +779,7 @@ global:
         "daal::services::daal_memmove_s(void*, unsigned long, void const*, unsigned long)";
 
         "daal::services::internal::daal_memcpy_s(void*, unsigned long, void const*, unsigned long)";
+        "daal::services::internal::get_error_id(daal::services::interface1::Status const&)";
 
         "daal::services::interface1::ObjectDeleter<*>::*";
         "daal::services::interface1::RefCounterImp<*>::*";
@@ -799,25 +807,6 @@ global:
         # Environment
         daal::services::interface1::Environment::*;
 
-        # Exclude any potential internal namespaces (defensive)
-
-        # catch-all internal exclusions removed - specific mangled patterns used below
-
-        # Additional non-internal symbols needed by oneAPI interface
-        daal::algorithms::bf_knn_classification::interface1::*;
-        daal::algorithms::decision_forest::classification::interface1::*;
-        daal::algorithms::decision_forest::regression::interface1::*;
-        daal::algorithms::decision_forest::training::interface2::*;
-        daal::algorithms::engines::mcg59::interface1::*;
-        daal::algorithms::engines::mrg32k3a::interface1::*;
-        daal::algorithms::engines::mt19937::interface1::*;
-        daal::algorithms::engines::mt2203::interface1::*;
-        daal::algorithms::engines::philox4x32x10::interface1::*;
-        daal::algorithms::kdtree_knn_classification::interface1::*;
-        daal::algorithms::svm::interface1::*;
-        "daal::algorithms::svm::interface2::Parameter::check() const";
-        "daal::data_management::interface1::CSRNumericTable::getSerializationTag() const";
-        "daal::services::internal::get_error_id(daal::services::interface1::Status const&)";
     };
 
     # CsvDataSource template methods (wildcard pattern for all instantiations)
