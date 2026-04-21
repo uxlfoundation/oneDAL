@@ -31,8 +31,13 @@ using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
 
-namespace daal_hdbscan = daal::algorithms::hdbscan::internal;
+namespace daal_hdbscan = daal::algorithms::hdbscan;
+namespace daal_hdbscan_internal = daal::algorithms::hdbscan::internal;
 namespace interop = dal::backend::interop;
+
+template <typename Float, daal::internal::CpuType Cpu>
+using daal_hdbscan_default_dense_t =
+    daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::defaultDense, Cpu>;
 
 template <typename Float>
 static result_t compute_kernel_dense_impl(const context_cpu& ctx,
@@ -55,8 +60,9 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         1,
         daal::data_management::NumericTable::doAllocate);
 
-    // Call DAAL kernel via CPU dispatch
-    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan::HDBSCANBatchKernel>(
+    // Call DAAL kernel via CPU dispatch using type alias that binds Method
+    interop::status_to_exception(
+        interop::call_daal_kernel<Float, daal_hdbscan_default_dense_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),

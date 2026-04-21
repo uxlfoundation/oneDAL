@@ -18,6 +18,7 @@
 #ifndef __HDBSCAN_KERNEL_H__
 #define __HDBSCAN_KERNEL_H__
 
+#include "algorithms/hdbscan/hdbscan_types.h"
 #include "src/algorithms/kernel.h"
 #include "src/services/cpu_type.h"
 #include "data_management/data/numeric_table.h"
@@ -34,7 +35,7 @@ namespace hdbscan
 namespace internal
 {
 
-template <typename algorithmFPType, CpuType cpu>
+template <typename algorithmFPType, Method method, CpuType cpu>
 class HDBSCANBatchKernel : public Kernel
 {
 public:

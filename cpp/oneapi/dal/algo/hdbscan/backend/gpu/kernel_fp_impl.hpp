@@ -296,9 +296,13 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     ONEDAL_ASSERT(row_count > 0);
     ONEDAL_ASSERT(min_cluster_size >= 2);
 
-    // The condensed tree / EOM algorithm is inherently sequential graph processing.
-    // We execute it as a single_task kernel on the device to avoid host-device transfers.
-    // The MST data is already on device, and results stay on device.
+    // The extract_clusters pipeline has both sequential and parallel phases.
+    // We split them into separate kernels to maximize GPU utilization:
+    //   Kernel 1 (single_task): Build Kruskal dendrogram via union-find
+    //   Kernel 2 (parallel_for): Init dendrogram node arrays
+    //   Kernel 3 (single_task): Build condensed tree + EOM stability selection
+    //   Kernel 4 (parallel_for): Build dendro_parent array from dendrogram edges
+    //   Kernel 5 (parallel_for): Label each point independently
 
     const std::int64_t edge_count = row_count - 1;
     const std::int64_t total_nodes = 2 * row_count - 1;
@@ -347,7 +351,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     auto [dendro_to_cluster, dtc_event] =
         pr::ndarray<std::int32_t, 1>::full(queue, total_nodes, -1, sycl::usm::alloc::device);
 
-    // EOM arrays (sized by max possible cluster count = edge_count + row_count)
+    // EOM arrays (sized by max possible cluster count = total_nodes)
     const std::int64_t max_clusters = total_nodes;
     auto [stability, stab_event] =
         pr::ndarray<Float, 1>::zeros(queue, max_clusters, sycl::usm::alloc::device);
@@ -388,19 +392,46 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     auto [leaf_stack_arr, leaf_stk_event] =
         pr::ndarray<std::int32_t, 1>::zeros(queue, total_nodes, sycl::usm::alloc::device);
 
-    // Collect all events
-    bk::event_vector all_deps = deps;
-    all_deps.insert(
-        all_deps.end(),
-        { uf_parent_event, comp_size_event, comp_to_node_event, dl_event,   dr_event,
-          dw_event,        ds_event,        cp_event,           cc_event,   cl_event,
-          cs_event,        cca_event,       ns_event,           lc_event,   rc_event,
-          nw_event,        dtc_event,       stab_event,         lb_event,   ilc_event,
-          is_event,        clab_event,      csz_event,          cprt_event, cc0_event,
-          cc1_event,       pff_event,       dp_event,           stk_event,  stk_cid_event,
-          leaf_stk_event });
+    // n_clusters_arr: single-element device array to pass n_clusters from kernel 3 -> kernel 5
+    auto [n_clusters_arr, nca_event] =
+        pr::ndarray<std::int32_t, 1>::zeros(queue, 1, sycl::usm::alloc::device);
 
-    // Capture all pointers for the single_task kernel
+    // C++17: structured bindings cannot be captured in SYCL lambdas.
+    // Copy all allocation events to regular variables for lambda capture.
+    sycl::event ev_uf_parent = uf_parent_event;
+    sycl::event ev_comp_size = comp_size_event;
+    sycl::event ev_comp_to_node = comp_to_node_event;
+    sycl::event ev_dl = dl_event;
+    sycl::event ev_dr = dr_event;
+    sycl::event ev_dw = dw_event;
+    sycl::event ev_ds = ds_event;
+    sycl::event ev_ns = ns_event;
+    sycl::event ev_lc = lc_event;
+    sycl::event ev_rc = rc_event;
+    sycl::event ev_nw = nw_event;
+    sycl::event ev_dtc = dtc_event;
+    sycl::event ev_cp = cp_event;
+    sycl::event ev_cc = cc_event;
+    sycl::event ev_cl = cl_event;
+    sycl::event ev_cs = cs_event;
+    sycl::event ev_cca = cca_event;
+    sycl::event ev_stab = stab_event;
+    sycl::event ev_lb = lb_event;
+    sycl::event ev_ilc = ilc_event;
+    sycl::event ev_is = is_event;
+    sycl::event ev_clab = clab_event;
+    sycl::event ev_csz = csz_event;
+    sycl::event ev_cprt = cprt_event;
+    sycl::event ev_cc0 = cc0_event;
+    sycl::event ev_cc1 = cc1_event;
+    sycl::event ev_pff = pff_event;
+    sycl::event ev_dp = dp_event;
+    sycl::event ev_stk = stk_event;
+    sycl::event ev_stk_cid = stk_cid_event;
+    sycl::event ev_leaf_stk = leaf_stk_event;
+    sycl::event ev_nca = nca_event;
+
+    // Capture all pointers for kernels
     const std::int32_t* mst_from_ptr = mst_from.get_data();
     const std::int32_t* mst_to_ptr = mst_to.get_data();
     const Float* mst_weights_ptr = mst_weights.get_data();
@@ -444,22 +475,31 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     std::int32_t* stk_cid_ptr = stack_cid.get_mutable_data();
     std::int32_t* leaf_stk_ptr = leaf_stack_arr.get_mutable_data();
 
+    std::int32_t* nc_ptr = n_clusters_arr.get_mutable_data();
+
     const std::int64_t rc = row_count;
     const std::int64_t ec = edge_count;
     const std::int64_t mcs = min_cluster_size;
     const std::int64_t tn = total_nodes;
 
-    auto kernel_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on(all_deps);
+    // =========================================================================
+    // Kernel 1 (single_task): Build Kruskal dendrogram via union-find
+    // Sequential — edges must be processed in sorted order
+    // =========================================================================
+    bk::event_vector k1_deps = deps;
+    k1_deps.insert(k1_deps.end(),
+                   { ev_uf_parent, ev_comp_size, ev_comp_to_node,
+                     ev_dl, ev_dr, ev_dw, ev_ds });
+
+    auto k1_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(k1_deps);
         h.single_task([=]() {
-            // --- Phase 1: Build dendrogram via union-find (Kruskal) ---
             for (std::int64_t i = 0; i < rc; i++) {
                 uf_parent_ptr[i] = static_cast<std::int32_t>(i);
                 comp_size_ptr[i] = 1;
                 comp_to_node_ptr[i] = static_cast<std::int32_t>(i);
             }
 
-            // Lambda for union-find with path compression
             auto uf_find = [&](std::int32_t x) -> std::int32_t {
                 while (uf_parent_ptr[x] != x) {
                     uf_parent_ptr[x] = uf_parent_ptr[uf_parent_ptr[x]];
@@ -494,18 +534,45 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                     comp_to_node_ptr[ru] = static_cast<std::int32_t>(rc + e);
                 }
             }
+        });
+    });
 
-            // --- Phase 2: Build condensed tree ---
-            for (std::int64_t i = 0; i < rc; i++)
-                ns_ptr[i] = 1;
-            for (std::int64_t e = 0; e < ec; e++) {
-                const std::int64_t nid = rc + e;
+    // =========================================================================
+    // Kernel 2 (parallel_for): Initialize node arrays from dendrogram
+    // Each work-item handles one dendrogram node or one leaf node
+    // =========================================================================
+    auto k2_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ k1_event, ev_ns, ev_lc, ev_rc, ev_nw });
+        h.parallel_for(sycl::range<1>(total_nodes), [=](sycl::id<1> idx) {
+            const std::int64_t nid = idx[0];
+            if (nid < rc) {
+                // Leaf node
+                ns_ptr[nid] = 1;
+            }
+            else {
+                // Internal dendrogram node
+                const std::int64_t e = nid - rc;
                 ns_ptr[nid] = dsz_ptr[e];
                 lc_ptr[nid] = dl_ptr[e];
                 rc_ptr[nid] = dr_ptr[e];
                 nw_ptr[nid] = dw_ptr[e];
             }
+        });
+    });
 
+    // =========================================================================
+    // Kernel 3 (single_task): Build condensed tree + EOM selection + mappings
+    // Sequential — graph traversal, stability computation, cluster selection
+    // =========================================================================
+    bk::event_vector k3_deps = { k2_event, ev_dtc, ev_cp, ev_cc, ev_cl,
+                                 ev_cs, ev_cca, ev_stab, ev_lb, ev_ilc,
+                                 ev_is, ev_clab, ev_csz, ev_cprt, ev_cc0,
+                                 ev_cc1, ev_pff, ev_stk, ev_stk_cid,
+                                 ev_leaf_stk, ev_nca };
+
+    auto k3_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on(k3_deps);
+        h.single_task([=]() {
             // Find root
             std::int32_t root = -1;
             for (std::int64_t e = ec - 1; e >= 0; e--) {
@@ -518,6 +585,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
             if (root < 0) {
                 for (std::int64_t i = 0; i < rc; i++)
                     resp_ptr[i] = -1;
+                nc_ptr[0] = 0;
                 return;
             }
 
@@ -526,7 +594,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
 
             cond_cnt_ptr[0] = 0;
 
-            // Helper: collect leaves under a subtree using iterative DFS
             auto add_condensed_edge =
                 [&](std::int32_t parent, std::int32_t child, Float lambda, std::int32_t child_sz) {
                     const std::int32_t idx = cond_cnt_ptr[0]++;
@@ -579,7 +646,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 const std::int32_t rs = ns_ptr[rc_node];
                 const Float w = nw_ptr[nid];
                 const Float lambda =
-                    (w > Float(0)) ? Float(1) / w : Float(1e30); // large but finite for device
+                    (w > Float(0)) ? Float(1) / w : Float(1e30);
 
                 const bool l_big = ls >= mcs;
                 const bool r_big = rs >= mcs;
@@ -618,23 +685,21 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 }
             }
 
-            // --- Phase 3: Compute stability and select clusters via EOM ---
+            // --- EOM: Compute stability and select clusters ---
             const std::int32_t n_clusters = next_cid;
             const std::int32_t root_cid = static_cast<std::int32_t>(rc);
             const std::int32_t cond_count = cond_cnt_ptr[0];
 
-            // Initialize
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
-                ilc_ptr[c] = 1; // is_leaf
-                is_ptr[c] = 1; // is_selected
+                ilc_ptr[c] = 1;
+                is_ptr[c] = 1;
             }
             csz_ptr[root_cid] = static_cast<std::int32_t>(rc);
 
             for (std::int32_t i = 0; i < cond_count; i++) {
                 if (cond_c_ptr[i] >= rc) {
                     lb_ptr[cond_c_ptr[i]] = cond_l_ptr[i];
-                    ilc_ptr[cond_p_ptr[i]] = 0; // not a leaf
-                    // Store children (max 2 per cluster in binary tree)
+                    ilc_ptr[cond_p_ptr[i]] = 0;
                     if (cc0_ptr[cond_p_ptr[i]] < 0)
                         cc0_ptr[cond_p_ptr[i]] = cond_c_ptr[i];
                     else
@@ -643,7 +708,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 }
             }
 
-            // Compute stability
             for (std::int32_t i = 0; i < cond_count; i++) {
                 const Float birth = lb_ptr[cond_p_ptr[i]];
                 const Float contrib = (cond_l_ptr[i] - birth) * static_cast<Float>(cond_s_ptr[i]);
@@ -651,7 +715,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                     stab_ptr[cond_p_ptr[i]] += contrib;
             }
 
-            // Clusters too small cannot be selected
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
                 if (csz_ptr[c] < mcs)
                     is_ptr[c] = 0;
@@ -673,7 +736,6 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                     stab_ptr[c] = child_sum;
                 }
                 else {
-                    // Deselect all descendants
                     std::int32_t dsp = 0;
                     if (cc0_ptr[c] >= 0)
                         stk_ptr[dsp++] = cc0_ptr[c];
@@ -690,73 +752,96 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 }
             }
 
-            // --- Phase 4: Label points ---
+            // --- Assign cluster labels and build mappings ---
             std::int32_t label_counter = 0;
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
                 if (is_ptr[c])
                     clab_ptr[c] = label_counter++;
             }
 
-            // Build cluster_parent mapping
             for (std::int32_t i = 0; i < cond_count; i++) {
                 if (cond_c_ptr[i] >= rc)
                     cprt_ptr[cond_c_ptr[i]] = cond_p_ptr[i];
             }
 
-            // Track which cluster each point fell out of
             for (std::int32_t i = 0; i < cond_count; i++) {
                 if (cond_c_ptr[i] < rc)
                     pff_ptr[cond_c_ptr[i]] = cond_p_ptr[i];
             }
 
-            // Label points that fell out: walk up cluster tree
-            for (std::int64_t i = 0; i < rc; i++) {
-                resp_ptr[i] = -1;
-                std::int32_t c = pff_ptr[i];
-                while (c >= root_cid && c < n_clusters) {
-                    if (is_ptr[c]) {
-                        resp_ptr[i] = clab_ptr[c];
-                        break;
-                    }
-                    c = cprt_ptr[c];
-                }
-            }
+            // Store n_clusters for kernel 5
+            nc_ptr[0] = n_clusters;
+        });
+    });
 
-            // Build dendro_parent for never-ejected points
-            for (std::int64_t e = 0; e < ec; e++) {
+    // =========================================================================
+    // Kernel 4 (parallel_for): Build dendro_parent from dendrogram edges
+    // Each work-item processes one dendrogram edge independently
+    // =========================================================================
+    auto k4_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ k3_event, ev_dp });
+        h.parallel_for(sycl::range<1>(edge_count), [=](sycl::id<1> idx) {
+            const std::int64_t e = idx[0];
+            if (dsz_ptr[e] > 0) {
                 const std::int64_t nid = rc + e;
-                if (dsz_ptr[e] > 0) {
-                    dp_ptr[dl_ptr[e]] = static_cast<std::int32_t>(nid);
-                    dp_ptr[dr_ptr[e]] = static_cast<std::int32_t>(nid);
-                }
-            }
-
-            // Label never-ejected points: walk up dendrogram
-            for (std::int64_t i = 0; i < rc; i++) {
-                if (pff_ptr[i] >= 0)
-                    continue;
-
-                std::int32_t nid = static_cast<std::int32_t>(i);
-                while (nid >= 0 && nid < static_cast<std::int32_t>(tn)) {
-                    const std::int32_t cid = dtc_ptr[nid];
-                    if (cid >= root_cid) {
-                        std::int32_t c = cid;
-                        while (c >= root_cid && c < n_clusters) {
-                            if (is_ptr[c]) {
-                                resp_ptr[i] = clab_ptr[c];
-                                break;
-                            }
-                            c = cprt_ptr[c];
-                        }
-                        break;
-                    }
-                    nid = dp_ptr[nid];
-                }
+                dp_ptr[dl_ptr[e]] = static_cast<std::int32_t>(nid);
+                dp_ptr[dr_ptr[e]] = static_cast<std::int32_t>(nid);
             }
         });
     });
 
-    return kernel_event;
+    // =========================================================================
+    // Kernel 5 (parallel_for): Label each point independently
+    // Each work-item walks up cluster tree or dendrogram tree for one point
+    // =========================================================================
+    auto k5_event = queue.submit([&](sycl::handler& h) {
+        h.depends_on({ k4_event });
+        h.parallel_for(sycl::range<1>(row_count), [=](sycl::id<1> idx) {
+            const std::int64_t i = idx[0];
+            const std::int32_t n_clusters = nc_ptr[0];
+
+            // If n_clusters == 0, kernel 3 already set resp_ptr[i] = -1
+            if (n_clusters == 0)
+                return;
+
+            const std::int32_t root_cid = static_cast<std::int32_t>(rc);
+            resp_ptr[i] = -1;
+
+            // Case 1: Point fell out of a cluster — walk up cluster tree
+            const std::int32_t fell = pff_ptr[i];
+            if (fell >= 0) {
+                std::int32_t c = fell;
+                while (c >= root_cid && c < n_clusters) {
+                    if (is_ptr[c]) {
+                        resp_ptr[i] = clab_ptr[c];
+                        return;
+                    }
+                    c = cprt_ptr[c];
+                }
+                return;
+            }
+
+            // Case 2: Point was never ejected — walk up dendrogram tree
+            std::int32_t nid = static_cast<std::int32_t>(i);
+            while (nid >= 0 && nid < static_cast<std::int32_t>(tn)) {
+                const std::int32_t cid = dtc_ptr[nid];
+                if (cid >= root_cid) {
+                    std::int32_t c = cid;
+                    while (c >= root_cid && c < n_clusters) {
+                        if (is_ptr[c]) {
+                            resp_ptr[i] = clab_ptr[c];
+                            return;
+                        }
+                        c = cprt_ptr[c];
+                    }
+                    return;
+                }
+                nid = dp_ptr[nid];
+            }
+        });
+    });
+
+    return k5_event;
 }
 
 #endif

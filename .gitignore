@@ -29,3 +29,6 @@ MODULE.bazel.lock
 # Configurations from file explorers
 .directory
 .DS_Store
+
+# Local scripts (benchmarks, validation, figures)
+scripts/

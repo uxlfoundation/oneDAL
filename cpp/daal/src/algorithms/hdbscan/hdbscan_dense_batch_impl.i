@@ -44,9 +44,9 @@ using daal::internal::ReadRows;
 using daal::internal::WriteOnlyRows;
 using daal::internal::BlasInst;
 
-template <typename algorithmFPType, CpuType cpu>
-services::Status HDBSCANBatchKernel<algorithmFPType, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                   NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples)
+template <typename algorithmFPType, Method method, CpuType cpu>
+services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
+                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();

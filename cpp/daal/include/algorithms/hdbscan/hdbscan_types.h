@@ -1,4 +1,4 @@
-/* file: hdbscan_dense_batch_fpt_cpu.cpp */
+/* file: hdbscan_types.h */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -15,10 +15,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "src/algorithms/hdbscan/hdbscan_dense_batch_impl.i"
-#include "services/daal_defines.h"
-
-using namespace daal::internal;
+#ifndef __HDBSCAN_TYPES_H__
+#define __HDBSCAN_TYPES_H__
 
 namespace daal
 {
@@ -26,12 +24,18 @@ namespace algorithms
 {
 namespace hdbscan
 {
-namespace internal
+
+/**
+ * <a name="DAAL-ENUM-ALGORITHMS__HDBSCAN__METHOD"></a>
+ * Available methods of the HDBSCAN algorithm
+ */
+enum Method
 {
+    defaultDense = 0 /*!< Default: brute-force method with full distance matrix */
+};
 
-template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, defaultDense, DAAL_CPU>;
-
-} // namespace internal
 } // namespace hdbscan
 } // namespace algorithms
 } // namespace daal
+
+#endif // __HDBSCAN_TYPES_H__
