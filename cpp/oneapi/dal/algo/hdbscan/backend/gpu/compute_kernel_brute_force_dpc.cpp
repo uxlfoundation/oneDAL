@@ -54,10 +54,8 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     auto [sq_dist, sq_dist_event] =
         pr::ndarray<Float, 2>::zeros(queue, { row_count, row_count }, sycl::usm::alloc::device);
 
-    auto dist_event = kernels_fp<Float>::compute_squared_distances(queue,
-                                                                   data_nd,
-                                                                   sq_dist,
-                                                                   { sq_dist_event });
+    auto dist_event =
+        kernels_fp<Float>::compute_squared_distances(queue, data_nd, sq_dist, { sq_dist_event });
 
     // Step 2: Compute core distances from the squared distance matrix
     auto [core_distances, core_dist_event] =
@@ -74,10 +72,8 @@ static result_t compute_kernel_dense_impl(const context_gpu& ctx,
     // Reuse sq_dist as mrd_matrix — avoids a second N×N allocation + GEMM
     auto& mrd_matrix = sq_dist;
 
-    auto mrd_compute_event = kernels_fp<Float>::compute_mrd_matrix(queue,
-                                                                   core_distances,
-                                                                   mrd_matrix,
-                                                                   { core_event });
+    auto mrd_compute_event =
+        kernels_fp<Float>::compute_mrd_matrix(queue, core_distances, mrd_matrix, { core_event });
 
     // Step 4: Build MST using Prim's algorithm on GPU with precomputed MRD matrix
     auto [mst_from, mst_from_event] =

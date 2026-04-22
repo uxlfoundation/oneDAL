@@ -499,8 +499,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     // =========================================================================
     bk::event_vector k1_deps = deps;
     k1_deps.insert(k1_deps.end(),
-                   { ev_uf_parent, ev_comp_size, ev_comp_to_node,
-                     ev_dl, ev_dr, ev_dw, ev_ds });
+                   { ev_uf_parent, ev_comp_size, ev_comp_to_node, ev_dl, ev_dr, ev_dw, ev_ds });
 
     auto k1_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(k1_deps);
@@ -575,11 +574,11 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     // Kernel 3 (single_task): Build condensed tree + EOM selection + mappings
     // Sequential — graph traversal, stability computation, cluster selection
     // =========================================================================
-    bk::event_vector k3_deps = { k2_event, ev_dtc, ev_cp, ev_cc, ev_cl,
-                                 ev_cs, ev_cca, ev_stab, ev_lb, ev_ilc,
-                                 ev_is, ev_clab, ev_csz, ev_cprt, ev_cc0,
-                                 ev_cc1, ev_pff, ev_stk, ev_stk_cid,
-                                 ev_leaf_stk, ev_nca };
+    bk::event_vector k3_deps = {
+        k2_event, ev_dtc, ev_cp,  ev_cc,  ev_cl,      ev_cs,       ev_cca,
+        ev_stab,  ev_lb,  ev_ilc, ev_is,  ev_clab,    ev_csz,      ev_cprt,
+        ev_cc0,   ev_cc1, ev_pff, ev_stk, ev_stk_cid, ev_leaf_stk, ev_nca
+    };
 
     auto k3_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(k3_deps);
@@ -656,8 +655,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 const std::int32_t ls = ns_ptr[lc_node];
                 const std::int32_t rs = ns_ptr[rc_node];
                 const Float w = nw_ptr[nid];
-                const Float lambda =
-                    (w > Float(0)) ? Float(1) / w : Float(1e30);
+                const Float lambda = (w > Float(0)) ? Float(1) / w : Float(1e30);
 
                 const bool l_big = ls >= mcs;
                 const bool r_big = rs >= mcs;

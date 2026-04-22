@@ -219,9 +219,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t min_cluster_size = 5;
     constexpr std::int64_t min_samples = 5;
 
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size,
-                                                                                  min_samples)
-                          .set_result_options(result_options::responses);
+    const auto desc =
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
     const auto cpu_result = dal::compute(desc, x);
@@ -256,9 +256,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     std::int64_t min_samples = gold_dataset::get_min_samples();
 
     using float_t = std::tuple_element_t<0, TestType>;
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size,
-                                                                                  min_samples)
-                          .set_result_options(result_options::responses);
+    const auto desc =
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses);
 
     INFO("run on CPU (no queue)");
     const auto cpu_result = dal::compute(desc, x);

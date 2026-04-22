@@ -61,8 +61,7 @@ static result_t compute_kernel_dense_impl(const context_cpu& ctx,
         daal::data_management::NumericTable::doAllocate);
 
     // Call DAAL kernel via CPU dispatch using type alias that binds Method
-    interop::status_to_exception(
-        interop::call_daal_kernel<Float, daal_hdbscan_default_dense_t>(
+    interop::status_to_exception(interop::call_daal_kernel<Float, daal_hdbscan_default_dense_t>(
         ctx,
         daal_data.get(),
         daal_assignments.get(),
