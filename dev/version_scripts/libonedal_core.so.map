@@ -98,8 +98,8 @@ global:
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::PartialResult::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::PartialResult::initialize<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::PartialResult::initialize<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
-        "daal::services::interface1::Status daal::algorithms::covariance::interface1::Rsult::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
-        "daal::services::interface1::Status daal::algorithms::covariance::interface1::Reesult::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<float>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<double>(daal::algorithms::interface1::PartialResult const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::covariance::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
