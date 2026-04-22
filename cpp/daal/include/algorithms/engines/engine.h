@@ -17,14 +17,15 @@
 
 /*
 //++
-//  Implementation engine.
+//  Public interface for random number engines.
 //--
 */
 
 #ifndef __ENGINE_H__
 #define __ENGINE_H__
 
-#include "algorithms/engines/engine_types.h"
+#include "services/daal_defines.h"
+#include "services/daal_shared_ptr.h"
 
 namespace daal
 {
@@ -36,75 +37,56 @@ namespace engines
  * @ingroup engines
  * @{
  */
+/**
+ * <a name="DAAL-ENUM-ALGORITHMS__ENGINES__ENGINETYPE"></a>
+ * \brief Available random number engine types
+ */
+enum EngineType
+{
+    mt19937Engine       = 0, /*!< Mersenne Twister engine (mt19937) */
+    mt2203Engine        = 1, /*!< Mersenne Twister engine (mt2203) */
+    mcg59Engine         = 2, /*!< Multiplicative congruential generator (mcg59) */
+    mrg32k3aEngine      = 3, /*!< Combined multiple recursive generator (mrg32k3a) */
+    philox4x32x10Engine = 4  /*!< Philox 4x32-10 counter-based engine */
+};
+
 namespace interface1
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__BATCHBASE"></a>
- *  \brief Class representing an engine
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__ENGINEIFACE"></a>
+ *  \brief Minimal public interface for random number engines
  */
-class BatchBase : public daal::algorithms::Analysis<batch>
+class DAAL_EXPORT EngineIface
 {
 public:
-    typedef algorithms::engines::Input InputType;
-    typedef algorithms::engines::Result ResultType;
-
-    InputType input; /*!< Input of the engine */
-
-    BatchBase() {}
-    virtual ~BatchBase() {}
-
-    /**
-     * Saves current engine state to destination
-     * \param[in] dest  Destination to save the state
-     *
-     * \return Status of computations
-     */
-    services::Status saveState(byte * dest) const { return saveStateImpl(dest); }
-
-    /**
-     * Rewrites current state with source one
-     * \param[in] src  Source state
-     *
-     * \return Status of computations
-     */
-    services::Status loadState(const byte * src) { return loadStateImpl(src); }
-
-    /**
-     * Enables the usage of current engine in parallel regions of code with leapfrog method
-     * \param[in] threadIdx  Index of the thread
-     * \param[in] nThreads   Number of threads
-     *
-     * \return Status of computations
-     */
-    services::Status leapfrog(size_t threadIdx, size_t nThreads) { return leapfrogImpl(threadIdx, nThreads); }
-
-    /**
-     * Enables the usage of current engine in parallel regions of code with skipAhead method
-     * \param[in] nSkip  Number of elements that will be skipped
-     *
-     * \return Status of computations
-     */
-    services::Status skipAhead(size_t nSkip) { return skipAheadImpl(nSkip); }
+    virtual ~EngineIface() {}
 
     /**
      * Returns a pointer to the newly allocated engine
      * with a copy of input objects and parameters of this engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<BatchBase> clone() const { return services::SharedPtr<BatchBase>(cloneImpl()); }
+    virtual services::SharedPtr<EngineIface> clone() const = 0;
 
 protected:
-    virtual services::Status saveStateImpl(byte * /*dest*/) const { return services::Status(); }
-    virtual services::Status loadStateImpl(const byte * /*src*/) { return services::Status(); }
-    virtual services::Status leapfrogImpl(size_t /*threadNum*/, size_t /*nThreads*/) { return services::Status(services::ErrorMethodNotSupported); }
-    virtual services::Status skipAheadImpl(size_t /*nSkip*/) { return services::Status(); }
-    virtual BatchBase * cloneImpl() const = 0;
+    EngineIface() {}
 };
-typedef services::SharedPtr<BatchBase> EnginePtr;
+typedef services::SharedPtr<EngineIface> EngineIfacePtr;
+
+/**
+ * Creates a random number engine of specified type
+ * \tparam algorithmFPType  Data type for the engine (float or double)
+ * \param[in] type  Type of the engine to create
+ * \param[in] seed  Initial seed for the engine
+ * \return Pointer to the newly created engine
+ */
+template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE>
+DAAL_EXPORT EngineIfacePtr createEngine(EngineType type, size_t seed = 777);
 
 } // namespace interface1
-using interface1::BatchBase;
-using interface1::EnginePtr;
+using interface1::EngineIface;
+using interface1::EngineIfacePtr;
+using interface1::createEngine;
 /** @} */
 } // namespace engines
 } // namespace algorithms

@@ -27,7 +27,7 @@
 #include "algorithms/implicit_als/implicit_als_model.h"
 #include "algorithms/implicit_als/implicit_als_training_types.h"
 #include "data_management/data/csr_numeric_table.h"
-#include "algorithms/engines/mt19937/mt19937.h"
+#include "algorithms/engines/engine.h"
 
 namespace daal
 {
@@ -160,10 +160,10 @@ struct DAAL_EXPORT Parameter : public daal::algorithms::Parameter
      */
     Parameter(size_t nFactors = 10, size_t fullNUsers = 0, size_t seed = 777777);
 
-    size_t nFactors;           /*!< Total number of factors */
-    size_t fullNUsers;         /*!< Full number of users */
-    size_t seed;               /*!< Seed for generating random numbers in the initialization step \DAAL_DEPRECATED_USE{ engine } */
-    engines::EnginePtr engine; /*!< Engine for generating random numbers in the initialization step */
+    size_t nFactors;                /*!< Total number of factors */
+    size_t fullNUsers;              /*!< Full number of users */
+    size_t seed;                    /*!< Seed for generating random numbers in the initialization step \DAAL_DEPRECATED_USE{ engine } */
+    engines::EngineIfacePtr engine; /*!< Engine for generating random numbers in the initialization step */
 
     services::Status check() const override;
 };

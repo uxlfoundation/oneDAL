@@ -21,7 +21,7 @@
 //--
 */
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
 #include "src/externals/service_rng.h"
 #include "src/data_management/service_numeric_table.h"
@@ -39,11 +39,11 @@ namespace internal
 using namespace daal::internal;
 
 template <CpuType cpu, typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class BatchImpl : public algorithms::engines::philox4x32x10::interface1::Batch<algorithmFPType, method>,
+class BatchImpl : public algorithms::engines::philox4x32x10::internal::Batch<algorithmFPType, method>,
                   public algorithms::engines::internal::BatchBaseImpl
 {
 public:
-    typedef algorithms::engines::philox4x32x10::interface1::Batch<algorithmFPType, method> super1;
+    typedef algorithms::engines::philox4x32x10::internal::Batch<algorithmFPType, method> super1;
     typedef algorithms::engines::internal::BatchBaseImpl super2;
     BatchImpl(size_t seed = 777) : baseRng(seed, __DAAL_BRNG_PHILOX4X32X10), super2(seed) {}
 
@@ -85,7 +85,7 @@ public:
         return s;
     }
 
-    BatchImpl<cpu, algorithmFPType, method> * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new BatchImpl<cpu, algorithmFPType, method>(*this); }
 
     bool hasSupport(engines::internal::ParallelizationTechnique technique) const override
     {

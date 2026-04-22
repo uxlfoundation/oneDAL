@@ -19,7 +19,7 @@
 //  Implementation of initializer types.
 //--
 
-#include "algorithms/engines/engine_types.h"
+#include "src/algorithms/engines/engine_types.h"
 #include "src/services/daal_strings.h"
 
 namespace daal
@@ -28,7 +28,7 @@ namespace algorithms
 {
 namespace engines
 {
-namespace interface1
+namespace internal
 {
 Input::Input() : daal::algorithms::Input(1) {}
 
@@ -70,7 +70,7 @@ services::Status Result::check(const daal::algorithms::Input * input, const daal
     return data_management::checkNumericTable(get(randomNumbers).get(), randomNumbersStr());
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

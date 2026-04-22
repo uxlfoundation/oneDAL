@@ -16,11 +16,11 @@
 
 #pragma once
 
-#include <daal/include/algorithms/engines/mt2203/mt2203.h>
-#include <daal/include/algorithms/engines/mcg59/mcg59.h>
-#include <daal/include/algorithms/engines/mrg32k3a/mrg32k3a.h>
-#include <daal/include/algorithms/engines/philox4x32x10/philox4x32x10.h>
-#include <daal/include/algorithms/engines/mt19937/mt19937.h>
+#include <daal/src/algorithms/engines/mt2203/mt2203.h>
+#include <daal/src/algorithms/engines/mcg59/mcg59.h>
+#include <daal/src/algorithms/engines/mrg32k3a/mrg32k3a.h>
+#include <daal/src/algorithms/engines/philox4x32x10/philox4x32x10.h>
+#include <daal/src/algorithms/engines/mt19937/mt19937.h>
 
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 #include "oneapi/dal/backend/primitives/rng/utils.hpp"
@@ -43,19 +43,39 @@ public:
                 engine_type_internal method = engine_type_internal::mt2203) {
         switch (method) {
             case engine_type_internal::mt2203:
-                host_engine_ = daal::algorithms::engines::mt2203::Batch<>::create(seed);
+                host_engine_ =
+                    daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                        daal::algorithms::engines::createEngine(
+                            daal::algorithms::engines::mt2203Engine,
+                            seed));
                 break;
             case engine_type_internal::mcg59:
-                host_engine_ = daal::algorithms::engines::mcg59::Batch<>::create(seed);
+                host_engine_ =
+                    daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                        daal::algorithms::engines::createEngine(
+                            daal::algorithms::engines::mcg59Engine,
+                            seed));
                 break;
             case engine_type_internal::mrg32k3a:
-                host_engine_ = daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
+                host_engine_ =
+                    daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                        daal::algorithms::engines::createEngine(
+                            daal::algorithms::engines::mrg32k3aEngine,
+                            seed));
                 break;
             case engine_type_internal::philox4x32x10:
-                host_engine_ = daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
+                host_engine_ =
+                    daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                        daal::algorithms::engines::createEngine(
+                            daal::algorithms::engines::philox4x32x10Engine,
+                            seed));
                 break;
             case engine_type_internal::mt19937:
-                host_engine_ = daal::algorithms::engines::mt19937::Batch<>::create(seed);
+                host_engine_ =
+                    daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                        daal::algorithms::engines::createEngine(
+                            daal::algorithms::engines::mt19937Engine,
+                            seed));
                 break;
             default: throw std::invalid_argument("Unsupported engine type 1");
         }

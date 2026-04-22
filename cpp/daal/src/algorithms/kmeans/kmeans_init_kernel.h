@@ -29,6 +29,7 @@
 #include "data_management/data/numeric_table.h"
 #include "data_management/data/memory_block.h"
 #include "services/daal_defines.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {

@@ -28,6 +28,7 @@
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_rng.h"
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 using namespace daal::services;
 using namespace daal::data_management;

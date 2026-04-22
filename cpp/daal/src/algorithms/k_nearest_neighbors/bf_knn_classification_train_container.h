@@ -99,7 +99,7 @@ services::Status BatchContainer<algorithmFpType, method, cpu>::compute()
     DAAL_CHECK_STATUS_VAR(status);
 
     __DAAL_CALL_KERNEL(env, internal::KNNClassificationTrainKernel, __DAAL_KERNEL_ARGUMENTS(algorithmFpType), compute, r->impl()->getData().get(),
-                       r->impl()->getLabels().get(), r.get(), *par, *par->engine);
+                       r->impl()->getLabels().get(), r.get(), *par, *services::dynamicPointerCast<engines::BatchBase>(par->engine));
 }
 
 } // namespace internal

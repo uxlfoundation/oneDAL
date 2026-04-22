@@ -1014,7 +1014,7 @@ Status KNNClassificationTrainBatchKernel<algorithmFpType, training::defaultDense
     daal::threader_for(
         blockCount, blockCount, [=, &localTLS, &firstNodeIndex, &kdTreeTable, &x, &r, &rowsPerBlock, &xColumnCount, &safeStat, &engine](int iBlock) {
             int result                     = 0;
-            engines::EnginePtr engineLocal = engine.clone();
+            engines::EnginePtr engineLocal = services::dynamicPointerCast<engines::BatchBase>(engine.clone());
 
             DAAL_CHECK_THR(engineLocal, ErrorCloneMethodFailed);
 

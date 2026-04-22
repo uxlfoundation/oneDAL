@@ -27,6 +27,7 @@
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 #include "src/algorithms/engines/engine_batch_impl.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 #include "src/externals/service_rng.h"
 #include "src/services/service_unique_ptr.h"

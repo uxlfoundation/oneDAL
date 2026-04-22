@@ -22,7 +22,7 @@
 #ifndef __PHILOX4X32X10_KERNEL_H__
 #define __PHILOX4X32X10_KERNEL_H__
 
-#include "algorithms/engines/philox4x32x10/philox4x32x10.h"
+#include "src/algorithms/engines/philox4x32x10/philox4x32x10.h"
 #include "src/algorithms/kernel.h"
 #include "data_management/data/numeric_table.h"
 

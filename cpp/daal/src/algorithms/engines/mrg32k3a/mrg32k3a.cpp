@@ -20,7 +20,7 @@
 //  with two components of order 3, optimized for batch processing.
 //--
 
-#include "algorithms/engines/mrg32k3a/mrg32k3a.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a.h"
 #include "src/algorithms/engines/mrg32k3a/mrg32k3a_batch_impl.h"
 #include "src/externals/service_dispatch.h"
 
@@ -32,7 +32,7 @@ namespace engines
 {
 namespace mrg32k3a
 {
-namespace interface1
+namespace internal
 {
 using namespace daal::services;
 using namespace mrg32k3a::internal;
@@ -50,10 +50,10 @@ SharedPtr<Batch<algorithmFPType, method> > Batch<algorithmFPType, method>::creat
     return engPtr;
 }
 
-template SharedPtr<Batch<double, defaultDense> > DAAL_EXPORT Batch<double, defaultDense>::create(size_t seed);
-template SharedPtr<Batch<float, defaultDense> > DAAL_EXPORT Batch<float, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<double, defaultDense> > Batch<double, defaultDense>::create(size_t seed);
+template SharedPtr<Batch<float, defaultDense> > Batch<float, defaultDense>::create(size_t seed);
 
-} // namespace interface1
+} // namespace internal
 } // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms

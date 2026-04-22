@@ -61,15 +61,28 @@ private:
                                                                 engine_type_internal method) {
         switch (method) {
             case engine_type_internal::mt2203:
-                return daal::algorithms::engines::mt2203::Batch<>::create(seed);
+                return daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                    daal::algorithms::engines::createEngine(daal::algorithms::engines::mt2203Engine,
+                                                            seed));
             case engine_type_internal::mcg59:
-                return daal::algorithms::engines::mcg59::Batch<>::create(seed);
+                return daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                    daal::algorithms::engines::createEngine(daal::algorithms::engines::mcg59Engine,
+                                                            seed));
             case engine_type_internal::mrg32k3a:
-                return daal::algorithms::engines::mrg32k3a::Batch<>::create(seed);
+                return daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                    daal::algorithms::engines::createEngine(
+                        daal::algorithms::engines::mrg32k3aEngine,
+                        seed));
             case engine_type_internal::philox4x32x10:
-                return daal::algorithms::engines::philox4x32x10::Batch<>::create(seed);
+                return daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                    daal::algorithms::engines::createEngine(
+                        daal::algorithms::engines::philox4x32x10Engine,
+                        seed));
             case engine_type_internal::mt19937:
-                return daal::algorithms::engines::mt19937::Batch<>::create(seed);
+                return daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                    daal::algorithms::engines::createEngine(
+                        daal::algorithms::engines::mt19937Engine,
+                        seed));
             default: throw std::invalid_argument("Unsupported engine type");
         }
     }

@@ -68,7 +68,13 @@ inline daal::data_management::NumericTablePtr daal_generate_centroids(const desc
         return init_kernel_t<Float,
                              oneapi::dal::backend::interop::to_daal_cpu_type<decltype(cpu)>::value,
                              Method>()
-            .compute(init_len_input, init_input, init_len_output, init_output, &par, *(par.engine));
+            .compute(init_len_input,
+                     init_input,
+                     init_len_output,
+                     init_output,
+                     &par,
+                     *daal::services::dynamicPointerCast<daal::algorithms::engines::BatchBase>(
+                         par.engine));
     }));
     return daal_initial_centroids;
 }

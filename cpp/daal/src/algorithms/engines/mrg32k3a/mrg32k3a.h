@@ -1,6 +1,6 @@
-/* file: mcg59.h */
+/* file: mrg32k3a.h */
 /*******************************************************************************
-* Copyright 2014 Intel Corporation
+* Copyright contributors to the oneDAL project
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,15 +17,16 @@
 
 /*
 //++
-//  Implementation of the Mersenne Twister engine in the batch processing mode
+//  Implementation of the MRG32k3a engine: a 32-bit combined multiple recursive generator
+//  with two components of order 3, optimized for batch processing.
 //--
 */
 
-#ifndef __MCG59_H__
-#define __MCG59_H__
+#ifndef __MRG32K3A_H__
+#define __MRG32K3A_H__
 
-#include "algorithms/engines/mcg59/mcg59_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/mrg32k3a/mrg32k3a_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -33,33 +34,33 @@ namespace algorithms
 {
 namespace engines
 {
-namespace mcg59
+namespace mrg32k3a
 {
 /**
- * @defgroup engines_mcg59_batch Batch
- * @ingroup engines_mcg59
+ * @defgroup engines_mrg32k3a_batch Batch
+ * @ingroup engines_mrg32k3a
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
- * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MCG59__BATCH"></a>
- * \brief Provides methods for mcg59 engine computations in the batch processing mode
+ * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__mrg32k3a__BATCH"></a>
+ * \brief Provides methods for mrg32k3a engine computations in the batch processing mode
  *
- * \tparam algorithmFPType  Data type to use in intermediate computations of mcg59 engine, double or float
- * \tparam method           Computation method of the engine, mcg59::Method
+ * \tparam algorithmFPType  Data type to use in intermediate computations of mrg32k3a engine, double or float
+ * \tparam method           Computation method of the engine, mrg32k3a::Method
  *
  * \par Enumerations
- *      - mcg59::Method          Computation methods for the mcg59 engine
+ *      - mrg32k3a::Method          Computation methods for the mrg32k3a engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -68,10 +69,10 @@ public:
     typedef typename super::ResultType ResultType;
 
     /**
-     * Creates mcg59 engine
-     * \param[in] seed  Initial condition for mcg59 engine
+     * Creates mrg32k3a engine
+     * \param[in] seed  Initial condition for mrg32k3a engine
      *
-     * \return Pointer to mcg59 engine
+     * \return Pointer to mrg32k3a engine
      */
     DAAL_DEPRECATED static services::SharedPtr<Batch<algorithmFPType, method> > create(size_t seed = 777);
 
@@ -82,14 +83,14 @@ public:
     int getMethod() const override { return (int)method; }
 
     /**
-     * Returns the structure that contains results of mcg59 engine
-     * \return Structure that contains results of mcg59 engine
+     * Returns the structure that contains results of mrg32k3a engine
+     * \return Structure that contains results of mrg32k3a engine
      */
     ResultPtr getResult() { return _result; }
 
     /**
-     * Registers user-allocated memory to store results of mcg59 engine
-     * \param[in] result  Structure to store results of mcg59 engine
+     * Registers user-allocated memory to store results of mrg32k3a engine
+     * \param[in] result  Structure to store results of mrg32k3a engine
      *
      * \return Status of computations
      */
@@ -102,14 +103,12 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mcg59 engine
-     * with a copy of input objects and parameters of this mcg59 engine
+     * Returns a pointer to the newly allocated mrg32k3a engine
+     * with a copy of input objects and parameters of this mrg32k3a engine
      * \return Pointer to the newly allocated engine
      */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
     /**
-     * Allocates memory to store the result of the mcg59 engine
+     * Allocates memory to store the result of the mrg32k3a engine
      *
      * \return Status of computations
      */
@@ -120,12 +119,14 @@ public:
         return s;
     }
 
+    ~Batch();
+
 protected:
     Batch(size_t seed = 777);
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize();
 
@@ -134,15 +135,15 @@ private:
 
     Batch & operator=(const Batch &);
 };
-typedef services::SharedPtr<Batch<> > mcg59Ptr;
-typedef services::SharedPtr<const Batch<> > mcg59ConstPtr;
+typedef services::SharedPtr<Batch<> > mrg32k3aPtr;
+typedef services::SharedPtr<const Batch<> > mrg32k3aConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::mcg59Ptr;
-using interface1::mcg59ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mrg32k3aPtr;
+using internal::mrg32k3aConstPtr;
 /** @} */
-} // namespace mcg59
+} // namespace mrg32k3a
 } // namespace engines
 } // namespace algorithms
 } // namespace daal

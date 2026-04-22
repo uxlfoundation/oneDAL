@@ -24,8 +24,8 @@
 #ifndef __MT19937_H__
 #define __MT19937_H__
 
-#include "algorithms/engines/mt19937/mt19937_types.h"
-#include "algorithms/engines/engine.h"
+#include "src/algorithms/engines/mt19937/mt19937_types.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 namespace daal
 {
@@ -40,7 +40,7 @@ namespace mt19937
  * @ingroup engines_mt19937
  * @{
  */
-namespace interface1
+namespace internal
 {
 /**
  * <a name="DAAL-CLASS-ALGORITHMS__ENGINES__MT19937__BATCH"></a>
@@ -53,13 +53,13 @@ namespace interface1
  *      - mt19937::Method          Computation methods for the mt19937 engine
  *
  * \par References
- *      - \ref engines::interface1::Input  "engines::Input" class
- *      - \ref engines::interface1::Result "engines::Result" class
+ *      - \ref engines::internal::Input  "engines::Input" class
+ *      - \ref engines::internal::Result "engines::Result" class
  *
  * \DAAL_DEPRECATED
  */
 template <typename algorithmFPType = DAAL_ALGORITHM_FP_TYPE, Method method = defaultDense>
-class DAAL_EXPORT Batch : public engines::BatchBase
+class Batch : public engines::BatchBase
 {
 public:
     typedef engines::BatchBase super;
@@ -102,13 +102,6 @@ public:
     }
 
     /**
-     * Returns a pointer to the newly allocated mt19937 engine
-     * with a copy of input objects and parameters of this mt19937 engine
-     * \return Pointer to the newly allocated engine
-     */
-    services::SharedPtr<Batch<algorithmFPType, method> > clone() const { return services::SharedPtr<Batch<algorithmFPType, method> >(cloneImpl()); }
-
-    /**
      * Allocates memory to store the result of the mt19937 engine
      *
      * \return Status of computations
@@ -125,7 +118,7 @@ protected:
 
     Batch(const Batch<algorithmFPType, method> & other);
 
-    Batch<algorithmFPType, method> * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
+    EngineCloneReturnType * cloneImpl() const override { return new Batch<algorithmFPType, method>(*this); }
 
     void initialize();
 
@@ -137,10 +130,10 @@ private:
 typedef services::SharedPtr<Batch<> > mt19937Ptr;
 typedef services::SharedPtr<const Batch<> > mt19937ConstPtr;
 
-} // namespace interface1
-using interface1::Batch;
-using interface1::mt19937Ptr;
-using interface1::mt19937ConstPtr;
+} // namespace internal
+using internal::Batch;
+using internal::mt19937Ptr;
+using internal::mt19937ConstPtr;
 /** @} */
 } // namespace mt19937
 } // namespace engines

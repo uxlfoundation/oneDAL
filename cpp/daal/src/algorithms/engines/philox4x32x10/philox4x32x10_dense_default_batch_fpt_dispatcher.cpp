@@ -30,7 +30,7 @@ namespace engines
 {
 namespace philox4x32x10
 {
-namespace interface1
+namespace internal
 {
 template <>
 void Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::initialize()
@@ -40,7 +40,7 @@ void Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::initialize()
     _result.reset(new ResultType());
 }
 template <>
-DAAL_EXPORT Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::Batch(size_t seed)
+Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::Batch(size_t seed)
 {
     initialize();
 }
@@ -48,7 +48,7 @@ DAAL_EXPORT Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>::Batch(size
 using BatchType = Batch<DAAL_FPTYPE, engines::philox4x32x10::defaultDense>;
 
 template <>
-DAAL_EXPORT BatchType::Batch(const BatchType & other) : super(other)
+BatchType::Batch(const BatchType & other) : super(other)
 {
     initialize();
 }
@@ -60,7 +60,7 @@ BatchType::~Batch()
     Analysis<batch>::_ac = NULL;
 }
 
-} // namespace interface1
+} // namespace internal
 } // namespace philox4x32x10
 } // namespace engines
 } // namespace algorithms

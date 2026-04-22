@@ -32,6 +32,7 @@
 #include "src/algorithms/distributions/uniform/uniform_kernel.h"
 #include "src/algorithms/distributions/uniform/uniform_impl.i"
 #include "src/services/service_data_utils.h"
+#include "src/algorithms/engines/engine_impl.h"
 
 using namespace daal::data_management;
 using namespace daal::internal;
