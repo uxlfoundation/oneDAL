@@ -1,4 +1,4 @@
-/* file: hdbscan_dense_batch_impl.i */
+/* file: hdbscan_cluster_utils.h */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -15,21 +15,16 @@
 * limitations under the License.
 *******************************************************************************/
 
+#ifndef __HDBSCAN_CLUSTER_UTILS_H__
+#define __HDBSCAN_CLUSTER_UTILS_H__
+
 #include <algorithm>
-#include <cmath>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <numeric>
 
-#include "src/algorithms/hdbscan/hdbscan_kernel.h"
-#include "src/algorithms/service_threading.h"
-#include "src/data_management/service_numeric_table.h"
-#include "src/externals/service_blas.h"
-#include "src/externals/service_math.h"
 #include "src/services/service_arrays.h"
 #include "src/services/service_defines.h"
-#include "src/threading/threading.h"
 
 namespace daal
 {
@@ -41,249 +36,21 @@ namespace internal
 {
 
 using daal::internal::CpuType;
-using daal::internal::ReadRows;
-using daal::internal::WriteOnlyRows;
-using daal::internal::BlasInst;
 
-template <typename algorithmFPType, Method method, CpuType cpu>
-services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples)
+/// Sort MST edges by weight and extract flat clusters via condensed tree + EOM.
+/// Shared by both brute_force and kd_tree methods.
+///
+/// Input:  mstFrom[edgeCount], mstTo[edgeCount], mstWeights[edgeCount] — unsorted MST
+/// Output: assignments[nRows] — cluster labels (-1 = noise), returns label count
+template <typename algorithmFPType, CpuType cpu>
+int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments)
 {
-    const size_t nRows     = ntData->getNumberOfRows();
-    const size_t nCols     = ntData->getNumberOfColumns();
-    const size_t edgeCount = nRows - 1;
-
-    if (nRows < 2 || minClusterSize < 2)
-    {
-        WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
-        DAAL_CHECK_BLOCK_STATUS(assignBlock);
-        int * assignments = assignBlock.get();
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
-
-        WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(ncBlock);
-        ncBlock.get()[0] = 0;
-        return services::Status();
-    }
-
-    // Read all input data
-    ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
-    DAAL_CHECK_BLOCK_STATUS(dataBlock);
-    const algorithmFPType * data = dataBlock.get();
-
-    // =========================================================================
-    // Step 1: Compute pairwise Euclidean distance matrix using GEMM
-    // dist²[i,j] = ||a_i||² + ||a_j||² - 2 * (A * A^T)[i,j]
-    // =========================================================================
-
-    // Allocate distance matrix
-    daal::services::internal::TArray<algorithmFPType, cpu> distMatrixArr(nRows * nRows);
-    algorithmFPType * distMatrix = distMatrixArr.get();
-    DAAL_CHECK_MALLOC(distMatrix);
-
-    // Compute row norms: norm[i] = sum(data[i,:]^2)
-    daal::services::internal::TArray<algorithmFPType, cpu> normsArr(nRows);
-    algorithmFPType * norms = normsArr.get();
-    DAAL_CHECK_MALLOC(norms);
-
-    const size_t normBlockSize = 512;
-    const size_t nNormBlocks   = nRows / normBlockSize + (nRows % normBlockSize > 0);
-
-    daal::threader_for(nNormBlocks, nNormBlocks, [&](size_t iBlock) {
-        const size_t begin = iBlock * normBlockSize;
-        const size_t end   = (begin + normBlockSize > nRows) ? nRows : begin + normBlockSize;
-
-        for (size_t i = begin; i < end; i++)
-        {
-            algorithmFPType sum         = algorithmFPType(0);
-            const algorithmFPType * row = data + i * nCols;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t d = 0; d < nCols; d++)
-            {
-                sum += row[d] * row[d];
-            }
-            norms[i] = sum;
-        }
-    });
-
-    // Compute A * A^T via GEMM: dist_matrix = data * data^T
-    {
-        const char transa           = 't';
-        const char transb           = 'n';
-        const DAAL_INT m            = static_cast<DAAL_INT>(nRows);
-        const DAAL_INT n            = static_cast<DAAL_INT>(nRows);
-        const DAAL_INT k            = static_cast<DAAL_INT>(nCols);
-        const algorithmFPType alpha = algorithmFPType(1);
-        const algorithmFPType beta  = algorithmFPType(0);
-        const DAAL_INT lda          = static_cast<DAAL_INT>(nCols);
-        const DAAL_INT ldb          = static_cast<DAAL_INT>(nCols);
-        const DAAL_INT ldc          = static_cast<DAAL_INT>(nRows);
-
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, data, &lda, data, &ldb, &beta, distMatrix, &ldc);
-    }
-
-    // Convert dot products to Euclidean distances: dist[i,j] = sqrt(max(0, norm[i]+norm[j]-2*dot))
-    const size_t distBlockSize = 256;
-    const size_t nDistBlocks   = nRows / distBlockSize + (nRows % distBlockSize > 0);
-
-    daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
-        const size_t i_begin = iBlock * distBlockSize;
-        const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
-
-        for (size_t i = i_begin; i < i_end; i++)
-        {
-            algorithmFPType * row    = distMatrix + i * nRows;
-            const algorithmFPType ni = norms[i];
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nRows; j++)
-            {
-                algorithmFPType d2 = ni + norms[j] - algorithmFPType(2) * row[j];
-                if (d2 < algorithmFPType(0)) d2 = algorithmFPType(0);
-                row[j] = static_cast<algorithmFPType>(sqrt(static_cast<double>(d2)));
-            }
-            row[i] = algorithmFPType(0);
-        }
-    });
-
-    // =========================================================================
-    // Step 2: Compute core distances (parallelized with threader_for)
-    // Pre-allocate one buffer per thread via TlsMem to avoid heap allocation
-    // inside the parallel loop.
-    // =========================================================================
-
-    daal::services::internal::TArray<algorithmFPType, cpu> coreDists(nRows);
-    algorithmFPType * coreDistances = coreDists.get();
-    DAAL_CHECK_MALLOC(coreDistances);
-
-    const size_t target = (minSamples > 0) ? minSamples - 1 : 0;
-    const size_t t      = (target >= nRows) ? nRows - 1 : target;
-
-    {
-        daal::TlsMem<algorithmFPType, cpu> tlsBuf(nRows);
-
-        daal::threader_for(nRows, nRows, [&](size_t i) {
-            algorithmFPType * dists = tlsBuf.local();
-            if (!dists) return;
-
-            const algorithmFPType * row = distMatrix + i * nRows;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nRows; j++)
-            {
-                dists[j] = row[j];
-            }
-
-            std::nth_element(dists, dists + t, dists + nRows);
-            coreDistances[i] = dists[t];
-        });
-    }
-
-    // =========================================================================
-    // Step 3: Build MST using Prim's algorithm with MRD
-    // Uses TArray (aligned alloc) instead of std::vector. char[] instead of
-    // vector<bool> (bit-packed, not vectorizable). Inner MRD update loop is
-    // split into a branchless SIMD-friendly pass + conditional update pass.
-    // =========================================================================
-
-    daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
-    daal::services::internal::TArray<int, cpu> mstToArr(edgeCount);
-    daal::services::internal::TArray<algorithmFPType, cpu> mstWeightsArr(edgeCount);
-    int * mstFrom                = mstFromArr.get();
-    int * mstTo                  = mstToArr.get();
-    algorithmFPType * mstWeights = mstWeightsArr.get();
-    DAAL_CHECK_MALLOC(mstFrom);
-    DAAL_CHECK_MALLOC(mstTo);
-    DAAL_CHECK_MALLOC(mstWeights);
-
-    {
-        daal::services::internal::TArray<algorithmFPType, cpu> minEdgeArr(nRows);
-        daal::services::internal::TArray<int, cpu> minFromArr(nRows);
-        daal::services::internal::TArray<char, cpu> inMstArr(nRows);
-        algorithmFPType * minEdge = minEdgeArr.get();
-        int * minFrom             = minFromArr.get();
-        char * inMst              = inMstArr.get();
-        DAAL_CHECK_MALLOC(minEdge);
-        DAAL_CHECK_MALLOC(minFrom);
-        DAAL_CHECK_MALLOC(inMst);
-
-        for (size_t j = 0; j < nRows; j++)
-        {
-            minEdge[j] = std::numeric_limits<algorithmFPType>::max();
-            minFrom[j] = 0;
-            inMst[j]   = 0;
-        }
-        inMst[0] = 1;
-
-        // Temporary buffer for branchless MRD computation
-        daal::services::internal::TArray<algorithmFPType, cpu> mrdBufArr(nRows);
-        algorithmFPType * mrdBuf = mrdBufArr.get();
-        DAAL_CHECK_MALLOC(mrdBuf);
-
-        // Initialize from node 0
-        const algorithmFPType * row0 = distMatrix;
-        const algorithmFPType core0  = coreDistances[0];
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t j = 0; j < nRows; j++)
-        {
-            algorithmFPType d = row0[j];
-            d                 = (core0 > d) ? core0 : d;
-            d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-            minEdge[j]        = d;
-        }
-        minEdge[0] = std::numeric_limits<algorithmFPType>::max();
-
-        for (size_t e = 0; e < edgeCount; e++)
-        {
-            // Find minimum edge among non-MST vertices
-            int best              = -1;
-            algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
-            for (size_t j = 0; j < nRows; j++)
-            {
-                if (!inMst[j] && minEdge[j] < bestW)
-                {
-                    bestW = minEdge[j];
-                    best  = static_cast<int>(j);
-                }
-            }
-
-            mstFrom[e]    = minFrom[best];
-            mstTo[e]      = best;
-            mstWeights[e] = bestW;
-            inMst[best]   = 1;
-
-            // Compute MRD from newly added vertex in a vectorizable pass
-            const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
-            const algorithmFPType coreBest  = coreDistances[best];
-
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nRows; j++)
-            {
-                algorithmFPType d = bestRow[j];
-                d                 = (coreBest > d) ? coreBest : d;
-                d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-                mrdBuf[j]         = d;
-            }
-
-            // Update minEdge/minFrom where MRD improves the current best
-            for (size_t j = 0; j < nRows; j++)
-            {
-                if (!inMst[j] && mrdBuf[j] < minEdge[j])
-                {
-                    minEdge[j] = mrdBuf[j];
-                    minFrom[j] = best;
-                }
-            }
-        }
-    }
+    const size_t edgeCount    = nRows - 1;
+    const size_t nDendroNodes = nRows - 1;
+    const size_t totalNodes   = 2 * nRows - 1;
 
     // =========================================================================
     // Step 4: Sort MST edges by weight
-    // Sort a single struct array in-place instead of maintaining parallel
-    // arrays with index indirection + 3 temporary copies.
     // =========================================================================
 
     struct MstEdge
@@ -296,7 +63,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     {
         daal::services::internal::TArray<MstEdge, cpu> edgesArr(edgeCount);
         MstEdge * edges = edgesArr.get();
-        DAAL_CHECK_MALLOC(edges);
+        if (!edges) return 0;
 
         for (size_t i = 0; i < edgeCount; i++)
         {
@@ -315,20 +82,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // =========================================================================
     // Step 5: Extract clusters (dendrogram -> condensed tree -> EOM -> labels)
-    // All arrays use TArray (aligned, no heap fragmentation).
-    // Stacks use pre-allocated TArray buffers with manual top pointers.
     // =========================================================================
-
-    const size_t nDendroNodes = nRows - 1;
-    const size_t totalNodes   = 2 * nRows - 1;
 
     // Phase 1: Build Kruskal dendrogram via union-find
     daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
     daal::services::internal::TArray<int, cpu> compSizeArr(nRows);
     int * ufParent = ufParentArr.get();
     int * compSize = compSizeArr.get();
-    DAAL_CHECK_MALLOC(ufParent);
-    DAAL_CHECK_MALLOC(compSize);
+    if (!ufParent || !compSize) return 0;
     for (size_t i = 0; i < nRows; i++)
     {
         ufParent[i] = static_cast<int>(i);
@@ -354,7 +115,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     daal::services::internal::TArray<DendroNode, cpu> dendroArr(nDendroNodes);
     DendroNode * dendro = dendroArr.get();
-    DAAL_CHECK_MALLOC(dendro);
+    if (!dendro) return 0;
     for (size_t i = 0; i < nDendroNodes; i++)
     {
         dendro[i] = { 0, 0, algorithmFPType(0), 0 };
@@ -362,7 +123,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     daal::services::internal::TArray<int, cpu> compToNodeArr(nRows);
     int * compToNode = compToNodeArr.get();
-    DAAL_CHECK_MALLOC(compToNode);
+    if (!compToNode) return 0;
     for (size_t i = 0; i < nRows; i++)
     {
         compToNode[i] = static_cast<int>(i);
@@ -404,10 +165,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int * leftChild              = leftChildArr.get();
     int * rightChild             = rightChildArr.get();
     algorithmFPType * nodeWeight = nodeWeightArr.get();
-    DAAL_CHECK_MALLOC(nodeSize);
-    DAAL_CHECK_MALLOC(leftChild);
-    DAAL_CHECK_MALLOC(rightChild);
-    DAAL_CHECK_MALLOC(nodeWeight);
+    if (!nodeSize || !leftChild || !rightChild || !nodeWeight) return 0;
 
     for (size_t i = 0; i < totalNodes; i++)
     {
@@ -433,11 +191,10 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         int childSize;
     };
 
-    // Pre-allocate condensed edges: worst case is ~2*nRows entries
     const size_t maxCondensed = 2 * nRows;
     daal::services::internal::TArray<CondensedEdge, cpu> condensedArr(maxCondensed);
     CondensedEdge * condensed = condensedArr.get();
-    DAAL_CHECK_MALLOC(condensed);
+    if (!condensed) return 0;
     size_t nCondensed = 0;
 
     // Find root
@@ -453,35 +210,25 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     if (root < 0)
     {
-        WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
-        DAAL_CHECK_BLOCK_STATUS(assignBlock);
-        int * assignments = assignBlock.get();
         for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
-        WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(ncBlock);
-        ncBlock.get()[0] = 0;
-        return services::Status();
+        return 0;
     }
 
     int nextCid = static_cast<int>(nRows);
     daal::services::internal::TArray<int, cpu> dendroToClusterArr(totalNodes);
     int * dendroToCluster = dendroToClusterArr.get();
-    DAAL_CHECK_MALLOC(dendroToCluster);
-    for (size_t i = 0; i < totalNodes; i++)
-    {
-        dendroToCluster[i] = -1;
-    }
+    if (!dendroToCluster) return 0;
+    for (size_t i = 0; i < totalNodes; i++) dendroToCluster[i] = -1;
     dendroToCluster[root] = nextCid++;
 
-    // Pre-allocated stack for leaf collection (max depth = nDendroNodes)
+    // Pre-allocated stacks
     daal::services::internal::TArray<int, cpu> leafStackArr(nDendroNodes + 1);
     int * leafStack = leafStackArr.get();
-    DAAL_CHECK_MALLOC(leafStack);
+    if (!leafStack) return 0;
 
-    // Pre-allocated buffer to collect fallen leaves
     daal::services::internal::TArray<int, cpu> fallenBufArr(nRows);
     int * fallenBuf = fallenBufArr.get();
-    DAAL_CHECK_MALLOC(fallenBuf);
+    if (!fallenBuf) return 0;
 
     auto collectLeaves = [&](int startNid, int * out, size_t & outCount) {
         outCount              = 0;
@@ -502,7 +249,6 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
     };
 
-    // Main condensed tree traversal stack
     struct StackItem
     {
         int node;
@@ -510,7 +256,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     };
     daal::services::internal::TArray<StackItem, cpu> mainStackArr(nDendroNodes + 1);
     StackItem * mainStack = mainStackArr.get();
-    DAAL_CHECK_MALLOC(mainStack);
+    if (!mainStack) return 0;
     int mainStackTop          = 0;
     mainStack[mainStackTop++] = { root, dendroToCluster[root] };
 
@@ -552,10 +298,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             dendroToCluster[lc] = parentCid;
             size_t nFallen      = 0;
             collectLeaves(rc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
+            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
             mainStack[mainStackTop++] = { lc, parentCid };
         }
         else if (rBig)
@@ -563,10 +306,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             dendroToCluster[rc] = parentCid;
             size_t nFallen      = 0;
             collectLeaves(lc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
+            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
             mainStack[mainStackTop++] = { rc, parentCid };
         }
         else
@@ -576,10 +316,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             size_t nFallen2 = 0;
             collectLeaves(rc, fallenBuf + nFallen, nFallen2);
             nFallen += nFallen2;
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
+            for (size_t fi = 0; fi < nFallen; fi++) condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
         }
     }
 
@@ -587,7 +324,6 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const int nClusters = nextCid;
     const int rootCid   = static_cast<int>(nRows);
 
-    // All cluster-indexed arrays: [0..nClusters), only [rootCid..nClusters) used
     daal::services::internal::TArrayCalloc<algorithmFPType, cpu> stabilityArr(nClusters);
     daal::services::internal::TArrayCalloc<algorithmFPType, cpu> lambdaBirthArr(nClusters);
     daal::services::internal::TArray<char, cpu> isLeafClusterArr(nClusters);
@@ -596,22 +332,14 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     algorithmFPType * lambdaBirth = lambdaBirthArr.get();
     char * isLeafCluster          = isLeafClusterArr.get();
     int * clusterSz               = clusterSizeArr.get();
-    DAAL_CHECK_MALLOC(stability);
-    DAAL_CHECK_MALLOC(lambdaBirth);
-    DAAL_CHECK_MALLOC(isLeafCluster);
-    DAAL_CHECK_MALLOC(clusterSz);
+    if (!stability || !lambdaBirth || !isLeafCluster || !clusterSz) return 0;
 
-    for (int c = 0; c < nClusters; c++)
-    {
-        isLeafCluster[c] = 1;
-    }
+    for (int c = 0; c < nClusters; c++) isLeafCluster[c] = 1;
     clusterSz[rootCid] = static_cast<int>(nRows);
 
-    // childClusters: flatten as per-cluster offset/count into a flat array
-    // First pass: count children per cluster
     daal::services::internal::TArrayCalloc<int, cpu> childCountArr(nClusters);
     int * childCount = childCountArr.get();
-    DAAL_CHECK_MALLOC(childCount);
+    if (!childCount) return 0;
 
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
@@ -625,35 +353,28 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
     }
 
-    // Compute offsets (exclusive prefix sum)
     daal::services::internal::TArray<int, cpu> childOffsetArr(nClusters + 1);
     int * childOffset = childOffsetArr.get();
-    DAAL_CHECK_MALLOC(childOffset);
+    if (!childOffset) return 0;
     childOffset[0] = 0;
-    for (int c = 1; c <= nClusters; c++)
-    {
-        childOffset[c] = childOffset[c - 1] + childCount[c - 1];
-    }
+    for (int c = 1; c <= nClusters; c++) childOffset[c] = childOffset[c - 1] + childCount[c - 1];
     const int totalChildren = childOffset[nClusters];
 
     daal::services::internal::TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
     int * childList = childListArr.get();
-    DAAL_CHECK_MALLOC(childList);
+    if (!childList) return 0;
 
-    // Reset counts for second pass fill
     for (int c = 0; c < nClusters; c++) childCount[c] = 0;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
         if (e.child >= static_cast<int>(nRows))
         {
-            const int off  = childOffset[e.parent] + childCount[e.parent];
-            childList[off] = e.child;
+            childList[childOffset[e.parent] + childCount[e.parent]] = e.child;
             childCount[e.parent]++;
         }
     }
 
-    // Compute stability
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e       = condensed[ei];
@@ -664,22 +385,18 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     daal::services::internal::TArray<char, cpu> isSelectedArr(nClusters);
     char * isSelected = isSelectedArr.get();
-    DAAL_CHECK_MALLOC(isSelected);
+    if (!isSelected) return 0;
     for (int c = 0; c < nClusters; c++)
     {
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
     }
 
-    // Re-use leafStack as descent stack for EOM
     for (int c = nClusters - 1; c >= rootCid; c--)
     {
         if (isLeafCluster[c]) continue;
 
         algorithmFPType childSum = algorithmFPType(0);
-        for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++)
-        {
-            childSum += stability[childList[ci]];
-        }
+        for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
 
         if (childSum > stability[c])
         {
@@ -688,20 +405,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
         else
         {
-            // Deselect all descendants
             int descTop = 0;
-            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++)
-            {
-                leafStack[descTop++] = childList[ci];
-            }
+            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) leafStack[descTop++] = childList[ci];
             while (descTop > 0)
             {
                 const int d   = leafStack[--descTop];
                 isSelected[d] = 0;
-                for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++)
-                {
-                    leafStack[descTop++] = childList[ci];
-                }
+                for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) leafStack[descTop++] = childList[ci];
             }
         }
     }
@@ -710,7 +420,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     int labelCounter = 0;
     daal::services::internal::TArray<int, cpu> clusterLabelArr(nClusters);
     int * clusterLabel = clusterLabelArr.get();
-    DAAL_CHECK_MALLOC(clusterLabel);
+    if (!clusterLabel) return 0;
     for (int c = 0; c < nClusters; c++) clusterLabel[c] = -1;
     for (int c = rootCid; c < nClusters; c++)
     {
@@ -719,7 +429,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
     int * clusterParent = clusterParentArr.get();
-    DAAL_CHECK_MALLOC(clusterParent);
+    if (!clusterParent) return 0;
     for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
@@ -729,18 +439,13 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     daal::services::internal::TArray<int, cpu> pointFellFromArr(nRows);
     int * pointFellFrom = pointFellFromArr.get();
-    DAAL_CHECK_MALLOC(pointFellFrom);
+    if (!pointFellFrom) return 0;
     for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
     for (size_t ei = 0; ei < nCondensed; ei++)
     {
         const CondensedEdge & e = condensed[ei];
         if (e.child < static_cast<int>(nRows)) pointFellFrom[e.child] = e.parent;
     }
-
-    // Write assignments
-    WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
-    DAAL_CHECK_BLOCK_STATUS(assignBlock);
-    int * assignments = assignBlock.get();
 
     for (size_t i = 0; i < nRows; i++)
     {
@@ -760,7 +465,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     // Handle points never ejected
     daal::services::internal::TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
-    DAAL_CHECK_MALLOC(dendroParent);
+    if (!dendroParent) return 0;
     for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
     for (size_t e = 0; e < nDendroNodes; e++)
     {
@@ -798,15 +503,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         }
     }
 
-    // Write number of clusters
-    WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
-    DAAL_CHECK_BLOCK_STATUS(ncBlock);
-    ncBlock.get()[0] = labelCounter;
-
-    return services::Status();
+    return labelCounter;
 }
 
 } // namespace internal
 } // namespace hdbscan
 } // namespace algorithms
 } // namespace daal
+
+#endif // __HDBSCAN_CLUSTER_UTILS_H__

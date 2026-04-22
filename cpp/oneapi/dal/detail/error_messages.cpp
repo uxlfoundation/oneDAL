@@ -195,6 +195,10 @@ MSG(kmeans_init_plus_plus_dense_method_is_not_implemented_for_gpu,
     "K-Means init++ dense method is not implemented for GPU")
 MSG(objective_function_value_lt_zero, "Objective function value is lower than zero")
 
+/* HDBSCAN */
+MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu,
+    "HDBSCAN k-d tree method is not implemented for GPU")
+
 /* k-NN */
 MSG(knn_kd_tree_method_is_not_implemented_for_gpu,
     "k-NN k-d tree method is not implemented for GPU")

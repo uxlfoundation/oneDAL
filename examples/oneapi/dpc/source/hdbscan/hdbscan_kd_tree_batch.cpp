@@ -32,7 +32,6 @@
 namespace dal = oneapi::dal;
 
 void run(sycl::queue& q) {
-    // Allow overriding data path and parameters via environment variables
     const char* data_env = std::getenv("HDBSCAN_DATA_PATH");
     const std::string data_file_name =
         data_env ? std::string(data_env) : get_data_path("data/hdbscan_dense.csv");
@@ -50,7 +49,10 @@ void run(sycl::queue& q) {
     std::cout << "Parameters: min_cluster_size=" << min_cluster_size
               << ", min_samples=" << min_samples << std::endl;
 
-    auto hdbscan_desc = dal::hdbscan::descriptor<float>(min_cluster_size, min_samples);
+    // Use kd_tree method — memory-efficient, avoids O(N²) distance matrix
+    auto hdbscan_desc =
+        dal::hdbscan::descriptor<float, dal::hdbscan::method::kd_tree>(min_cluster_size,
+                                                                       min_samples);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
 
     // Warmup run
@@ -65,7 +67,6 @@ void run(sycl::queue& q) {
     std::cout << "Cluster count: " << result.get_cluster_count() << std::endl;
     std::cout << "Time: " << std::fixed << std::setprecision(1) << ms << " ms" << std::endl;
 
-    // Output labels in machine-readable format
     const auto responses = result.get_responses();
     const auto acc = dal::row_accessor<const std::int32_t>(responses);
     const auto labels = acc.pull({ 0, -1 });
@@ -81,8 +82,9 @@ void run(sycl::queue& q) {
 
 int main(int argc, char const* argv[]) {
     for (auto d : list_devices()) {
-        std::cout << "Running on " << d.get_platform().get_info<sycl::info::platform::name>()
-                  << ", " << d.get_info<sycl::info::device::name>() << "\n"
+        const auto platform_name = d.get_platform().get_info<sycl::info::platform::name>();
+        std::cout << "Running on " << platform_name << ", "
+                  << d.get_info<sycl::info::device::name>() << "\n"
                   << std::endl;
         auto q = sycl::queue{ d };
         run(q);

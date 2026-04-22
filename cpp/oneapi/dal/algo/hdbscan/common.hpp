@@ -40,11 +40,13 @@ using v1::by_default;
 namespace method {
 namespace v1 {
 struct brute_force {};
+struct kd_tree {};
 
 using by_default = brute_force;
 } // namespace v1
 
 using v1::brute_force;
+using v1::kd_tree;
 using v1::by_default;
 
 } // namespace method
@@ -88,7 +90,8 @@ template <typename Float>
 constexpr bool is_valid_float_v = dal::detail::is_one_of_v<Float, float, double>;
 
 template <typename Method>
-constexpr bool is_valid_method_v = dal::detail::is_one_of_v<Method, method::brute_force>;
+constexpr bool is_valid_method_v =
+    dal::detail::is_one_of_v<Method, method::brute_force, method::kd_tree>;
 
 template <typename Task>
 constexpr bool is_valid_task_v = dal::detail::is_one_of_v<Task, task::clustering>;
@@ -135,7 +138,7 @@ namespace v1 {
 ///                intermediate computations. Can be :expr:`float` or
 ///                :expr:`double`.
 /// @tparam Method Tag-type that specifies an implementation of algorithm. Can
-///                be :expr:`method::brute_force`.
+///                be :expr:`method::brute_force` or :expr:`method::kd_tree`.
 /// @tparam Task   Tag-type that specifies the type of the problem to solve. Can
 ///                be :expr:`task::clustering`.
 template <typename Float = float,

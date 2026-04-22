@@ -228,6 +228,9 @@ public:
     MSG(kmeans_init_plus_plus_dense_method_is_not_implemented_for_gpu);
     MSG(objective_function_value_lt_zero);
 
+    /* HDBSCAN */
+    MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu);
+
     /* k-NN */
     MSG(knn_kd_tree_method_is_not_implemented_for_gpu);
     MSG(knn_regression_task_is_not_implemented_for_cpu);

@@ -40,6 +40,8 @@ struct compute_ops_dispatcher<Policy, Float, Method, Task> {
 
 INSTANTIATE(float, method::brute_force, task::clustering)
 INSTANTIATE(double, method::brute_force, task::clustering)
+INSTANTIATE(float, method::kd_tree, task::clustering)
+INSTANTIATE(double, method::kd_tree, task::clustering)
 
 } // namespace v1
 } // namespace oneapi::dal::hdbscan::detail

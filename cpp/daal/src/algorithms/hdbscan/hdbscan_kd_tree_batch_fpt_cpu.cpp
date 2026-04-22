@@ -1,4 +1,4 @@
-/* file: hdbscan_types.h */
+/* file: hdbscan_kd_tree_batch_fpt_cpu.cpp */
 /*******************************************************************************
 * Copyright contributors to the oneDAL project
 *
@@ -15,8 +15,10 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef __HDBSCAN_TYPES_H__
-#define __HDBSCAN_TYPES_H__
+#include "src/algorithms/hdbscan/hdbscan_kd_tree_batch_impl.i"
+#include "services/daal_defines.h"
+
+using namespace daal::internal;
 
 namespace daal
 {
@@ -24,19 +26,12 @@ namespace algorithms
 {
 namespace hdbscan
 {
-
-/**
- * <a name="DAAL-ENUM-ALGORITHMS__HDBSCAN__METHOD"></a>
- * Available methods of the HDBSCAN algorithm
- */
-enum Method
+namespace internal
 {
-    defaultDense = 0, /*!< Default: brute-force method with full distance matrix */
-    kdTree       = 1  /*!< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix */
-};
 
+template class DAAL_EXPORT HDBSCANBatchKernel<DAAL_FPTYPE, kdTree, DAAL_CPU>;
+
+} // namespace internal
 } // namespace hdbscan
 } // namespace algorithms
 } // namespace daal
-
-#endif // __HDBSCAN_TYPES_H__
