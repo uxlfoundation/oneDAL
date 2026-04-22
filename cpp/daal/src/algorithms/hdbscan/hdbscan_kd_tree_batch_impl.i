@@ -16,18 +16,18 @@
 *******************************************************************************/
 
 /*
- * HDBSCAN implementation using a k-d tree for O(N log N) neighbor search.
+ * HDBSCAN implementation using a k-d tree with Boruvka's MST algorithm.
  *
  * The approach:
- *   1. Build a k-d tree over the input data
+ *   1. Build a k-d tree over the input data (with bounding boxes per node)
  *   2. For each point, find its k-th nearest neighbor via tree search -> core distances
- *   3. Build MST under Mutual Reachability Distance using Prim's + kd-tree
- *      accelerated nearest-MRD-neighbor queries
+ *   3. Build MST under Mutual Reachability Distance using Boruvka's algorithm
+ *      with kd-tree-accelerated nearest-different-component queries
  *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
  *
- * Key advantage over brute_force: O(N * k * log N) for core distances instead
- * of O(N^2), and O(N^2) Prim's with kd-tree-pruned neighbor search.
- * Memory: O(N * k) + O(N) instead of O(N^2) for the full distance matrix.
+ * Key advantage over brute_force: O(N * k * log N) for core distances,
+ * O(N * log^2 N) for MST via Boruvka (vs O(N^2) Prim's in brute_force).
+ * Memory: O(N * D * tree_nodes) for bounding boxes + O(N) working arrays.
  */
 
 #include <algorithm>
@@ -69,6 +69,7 @@ struct KdNode
     int right;       // index of right child node (-1 if leaf)
     int pointBegin;  // range of point indices for this subtree [begin, end)
     int pointEnd;
+    int componentId; // -1 = mixed components, >= 0 = all points in same component
 };
 
 // =========================================================================
@@ -141,28 +142,19 @@ struct KnnHeap
 };
 
 // =========================================================================
-// Build k-d tree recursively
+// Build k-d tree recursively with bounding box computation
 // =========================================================================
 template <typename algorithmFPType>
 static int buildKdTree(const algorithmFPType * data, int * pointIndices, int begin, int end, int nCols, KdNode<algorithmFPType> * nodes,
-                       int & nextNode, int maxLeafSize)
+                       int & nextNode, int maxLeafSize, algorithmFPType * bboxLo, algorithmFPType * bboxHi)
 {
     const int nodeIdx              = nextNode++;
     KdNode<algorithmFPType> & node = nodes[nodeIdx];
     node.pointBegin                = begin;
     node.pointEnd                  = end;
+    node.componentId               = -1;
 
-    const int count = end - begin;
-    if (count <= maxLeafSize)
-    {
-        node.splitDim = -1;
-        node.splitVal = 0;
-        node.left     = -1;
-        node.right    = -1;
-        return nodeIdx;
-    }
-
-    // Find dimension with largest spread
+    // Compute bounding box and find dimension with largest spread
     algorithmFPType bestSpread = algorithmFPType(-1);
     int bestDim                = 0;
     for (int d = 0; d < nCols; d++)
@@ -175,12 +167,24 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
             if (val < lo) lo = val;
             if (val > hi) hi = val;
         }
+        bboxLo[nodeIdx * nCols + d]  = lo;
+        bboxHi[nodeIdx * nCols + d]  = hi;
         const algorithmFPType spread = hi - lo;
         if (spread > bestSpread)
         {
             bestSpread = spread;
             bestDim    = d;
         }
+    }
+
+    const int count = end - begin;
+    if (count <= maxLeafSize)
+    {
+        node.splitDim = -1;
+        node.splitVal = 0;
+        node.left     = -1;
+        node.right    = -1;
+        return nodeIdx;
     }
 
     node.splitDim = bestDim;
@@ -192,8 +196,8 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
 
     node.splitVal = data[pointIndices[mid] * nCols + bestDim];
 
-    node.left  = buildKdTree(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize);
-    node.right = buildKdTree(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize);
+    node.left  = buildKdTree(data, pointIndices, begin, mid, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
+    node.right = buildKdTree(data, pointIndices, mid, end, nCols, nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
 
     return nodeIdx;
 }
@@ -243,14 +247,103 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
 }
 
 // =========================================================================
-// Nearest MRD neighbor query — find nearest neighbor under MRD metric
+// Compute minimum core distance per tree node (bottom-up, O(N) total)
 // =========================================================================
 template <typename algorithmFPType>
-static void nearestMrdQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
-                            const algorithmFPType * coreDistances, const algorithmFPType * queryPoint, int queryIdx, algorithmFPType queryCoreD,
-                            int nodeIdx, const char * inMst, algorithmFPType & bestMrd, int & bestIdx)
+static algorithmFPType computeMinCoreDists(const KdNode<algorithmFPType> * nodes, const int * pointIndices, const algorithmFPType * coreDistances,
+                                           algorithmFPType * minCoreDistNode, int nodeIdx)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
+    if (node.splitDim < 0)
+    {
+        algorithmFPType minCD = std::numeric_limits<algorithmFPType>::max();
+        for (int i = node.pointBegin; i < node.pointEnd; i++)
+        {
+            const algorithmFPType cd = coreDistances[pointIndices[i]];
+            if (cd < minCD) minCD = cd;
+        }
+        minCoreDistNode[nodeIdx] = minCD;
+        return minCD;
+    }
+    const algorithmFPType leftMin  = computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, node.left);
+    const algorithmFPType rightMin = computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, node.right);
+    minCoreDistNode[nodeIdx]       = (leftMin < rightMin) ? leftMin : rightMin;
+    return minCoreDistNode[nodeIdx];
+}
+
+// =========================================================================
+// Update component IDs on tree nodes (bottom-up, O(tree_nodes) total)
+// Returns the component ID if all points in subtree are in same component,
+// or -1 if mixed.
+// =========================================================================
+template <typename algorithmFPType>
+static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * pointIndices, const int * componentOf, int nodeIdx)
+{
+    KdNode<algorithmFPType> & node = nodes[nodeIdx];
+    if (node.splitDim < 0)
+    {
+        // Leaf: check if all points share the same component
+        const int firstComp = componentOf[pointIndices[node.pointBegin]];
+        for (int i = node.pointBegin + 1; i < node.pointEnd; i++)
+        {
+            if (componentOf[pointIndices[i]] != firstComp)
+            {
+                node.componentId = -1;
+                return -1;
+            }
+        }
+        node.componentId = firstComp;
+        return firstComp;
+    }
+    const int leftComp  = updateNodeComponents(nodes, pointIndices, componentOf, node.left);
+    const int rightComp = updateNodeComponents(nodes, pointIndices, componentOf, node.right);
+    if (leftComp >= 0 && leftComp == rightComp)
+    {
+        node.componentId = leftComp;
+        return leftComp;
+    }
+    node.componentId = -1;
+    return -1;
+}
+
+// =========================================================================
+// Boruvka nearest-different-component query under MRD metric
+// Uses three-level pruning: component, bounding-box MRD lower bound, near/far
+// =========================================================================
+template <typename algorithmFPType>
+static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
+                                   const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
+                                   const algorithmFPType * minCoreDistNode, const int * componentOf, const algorithmFPType * queryPoint, int queryIdx,
+                                   algorithmFPType queryCoreD, int queryComponent, int nodeIdx, algorithmFPType & bestMrd, int & bestIdx)
+{
+    const KdNode<algorithmFPType> & node = nodes[nodeIdx];
+
+    // Pruning 1: all points in this subtree belong to the same component as query
+    if (node.componentId == queryComponent) return;
+
+    // Pruning 2: bounding-box MRD lower bound
+    {
+        algorithmFPType minSqDist  = algorithmFPType(0);
+        const algorithmFPType * lo = bboxLo + nodeIdx * nCols;
+        const algorithmFPType * hi = bboxHi + nodeIdx * nCols;
+        for (int d = 0; d < nCols; d++)
+        {
+            algorithmFPType excess = algorithmFPType(0);
+            if (queryPoint[d] < lo[d])
+                excess = lo[d] - queryPoint[d];
+            else if (queryPoint[d] > hi[d])
+                excess = queryPoint[d] - hi[d];
+            minSqDist += excess * excess;
+        }
+        const algorithmFPType minEuclDist = static_cast<algorithmFPType>(sqrt(static_cast<double>(minSqDist)));
+
+        // MRD(q, p) = max(core_q, core_p, dist(q,p)) >= max(core_q, minCoreDist_subtree, minEuclDist)
+        algorithmFPType mrdLB = minEuclDist;
+        if (queryCoreD > mrdLB) mrdLB = queryCoreD;
+        if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
+
+        if (mrdLB >= bestMrd) return;
+    }
 
     if (node.splitDim < 0)
     {
@@ -258,7 +351,7 @@ static void nearestMrdQuery(const algorithmFPType * data, int nCols, const KdNod
         for (int i = node.pointBegin; i < node.pointEnd; i++)
         {
             const int pi = pointIndices[i];
-            if (inMst[pi]) continue;
+            if (componentOf[pi] == queryComponent) continue;
 
             const algorithmFPType * row = data + pi * nCols;
             algorithmFPType dist        = algorithmFPType(0);
@@ -269,7 +362,6 @@ static void nearestMrdQuery(const algorithmFPType * data, int nCols, const KdNod
             }
             dist = static_cast<algorithmFPType>(sqrt(static_cast<double>(dist)));
 
-            // MRD = max(core(query), core(pi), dist)
             algorithmFPType mrd = dist;
             if (queryCoreD > mrd) mrd = queryCoreD;
             if (coreDistances[pi] > mrd) mrd = coreDistances[pi];
@@ -283,25 +375,17 @@ static void nearestMrdQuery(const algorithmFPType * data, int nCols, const KdNod
         return;
     }
 
+    // Visit nearer child first for tighter bestMrd
     const algorithmFPType queryVal = queryPoint[node.splitDim];
     const algorithmFPType diff     = queryVal - node.splitVal;
 
     const int nearChild = (diff <= 0) ? node.left : node.right;
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
-    nearestMrdQuery(data, nCols, nodes, pointIndices, coreDistances, queryPoint, queryIdx, queryCoreD, nearChild, inMst, bestMrd, bestIdx);
-
-    // Lower bound on distance from query to any point in far subtree
-    const algorithmFPType planeDist = (diff < 0) ? -diff : diff;
-
-    // Lower bound on MRD: max(planeDist, queryCoreD) — since core distances and
-    // actual distance are both at least planeDist to the splitting plane
-    const algorithmFPType mrdLowerBound = (queryCoreD > planeDist) ? queryCoreD : planeDist;
-
-    if (mrdLowerBound < bestMrd)
-    {
-        nearestMrdQuery(data, nCols, nodes, pointIndices, coreDistances, queryPoint, queryIdx, queryCoreD, farChild, inMst, bestMrd, bestIdx);
-    }
+    nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
+                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx);
+    nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
+                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx);
 }
 
 // =========================================================================
@@ -332,7 +416,7 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const algorithmFPType * data = dataBlock.get();
 
     // =========================================================================
-    // Step 1: Build k-d tree
+    // Step 1: Build k-d tree with bounding boxes
     // =========================================================================
 
     const int maxLeafSize = 40;
@@ -347,8 +431,16 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(pointIndices);
     for (size_t i = 0; i < nRows; i++) pointIndices[i] = static_cast<int>(i);
 
+    // Bounding boxes stored in SoA layout: bboxLo[nodeIdx * nCols + d]
+    daal::services::internal::TArray<algorithmFPType, cpu> bboxLoArr(static_cast<size_t>(maxNodes) * nCols);
+    daal::services::internal::TArray<algorithmFPType, cpu> bboxHiArr(static_cast<size_t>(maxNodes) * nCols);
+    algorithmFPType * bboxLo = bboxLoArr.get();
+    algorithmFPType * bboxHi = bboxHiArr.get();
+    DAAL_CHECK_MALLOC(bboxLo);
+    DAAL_CHECK_MALLOC(bboxHi);
+
     int nextNode = 0;
-    buildKdTree(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize);
+    buildKdTree(data, pointIndices, 0, static_cast<int>(nRows), static_cast<int>(nCols), nodes, nextNode, maxLeafSize, bboxLo, bboxHi);
     const int totalTreeNodes = nextNode;
 
     // =========================================================================
@@ -384,11 +476,19 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
-    // Step 3: Build MST using Prim's algorithm with MRD + kd-tree acceleration
+    // Step 2b: Compute per-node minimum core distances (for MRD pruning)
+    // =========================================================================
+
+    daal::services::internal::TArray<algorithmFPType, cpu> minCoreDistNodeArr(totalTreeNodes);
+    algorithmFPType * minCoreDistNode = minCoreDistNodeArr.get();
+    DAAL_CHECK_MALLOC(minCoreDistNode);
+    computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
+
+    // =========================================================================
+    // Step 3: Build MST using Boruvka's algorithm with kd-tree acceleration
     //
-    // Standard Prim's is O(N^2). With a kd-tree, each nearest-MRD-neighbor
-    // query prunes large portions of the search space, yielding O(N * log N)
-    // amortized in typical cases (degrades towards O(N^2) for very high D).
+    // O(log N) rounds, each round: N kd-tree queries at O(log N) amortized.
+    // Total: O(N * log^2 N), a major improvement over O(N^2) Prim's.
     // =========================================================================
 
     daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
@@ -402,106 +502,141 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstWeights);
 
     {
-        daal::services::internal::TArray<algorithmFPType, cpu> minEdgeArr(nRows);
-        daal::services::internal::TArray<int, cpu> minFromArr(nRows);
-        daal::services::internal::TArray<char, cpu> inMstArr(nRows);
-        algorithmFPType * minEdge = minEdgeArr.get();
-        int * minFrom             = minFromArr.get();
-        char * inMst              = inMstArr.get();
-        DAAL_CHECK_MALLOC(minEdge);
-        DAAL_CHECK_MALLOC(minFrom);
-        DAAL_CHECK_MALLOC(inMst);
+        // Union-find arrays
+        daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
+        daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
+        daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
+        int * ufParent    = ufParentArr.get();
+        int * ufRank      = ufRankArr.get();
+        int * componentOf = componentOfArr.get();
+        DAAL_CHECK_MALLOC(ufParent);
+        DAAL_CHECK_MALLOC(ufRank);
+        DAAL_CHECK_MALLOC(componentOf);
 
-        for (size_t j = 0; j < nRows; j++)
+        // Per-point best neighbor (per round)
+        daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
+        daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
+        algorithmFPType * pointBestMrd = pointBestMrdArr.get();
+        int * pointBestIdx             = pointBestIdxArr.get();
+        DAAL_CHECK_MALLOC(pointBestMrd);
+        DAAL_CHECK_MALLOC(pointBestIdx);
+
+        // Per-component best edge (per round)
+        daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
+        daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
+        daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
+        algorithmFPType * compBestMrd = compBestMrdArr.get();
+        int * compBestFrom            = compBestFromArr.get();
+        int * compBestTo              = compBestToArr.get();
+        DAAL_CHECK_MALLOC(compBestMrd);
+        DAAL_CHECK_MALLOC(compBestFrom);
+        DAAL_CHECK_MALLOC(compBestTo);
+
+        // Initialize: each point is its own component
+        for (size_t i = 0; i < nRows; i++)
         {
-            minEdge[j] = std::numeric_limits<algorithmFPType>::max();
-            minFrom[j] = 0;
-            inMst[j]   = 0;
+            ufParent[i]    = static_cast<int>(i);
+            ufRank[i]      = 0;
+            componentOf[i] = static_cast<int>(i);
         }
 
-        // Start from node 0: find its nearest MRD neighbor to all other points
-        inMst[0]                     = 1;
-        const algorithmFPType * row0 = data;
-        const algorithmFPType core0  = coreDistances[0];
-
-        // Initialize minEdge for all points from node 0
-        for (size_t j = 1; j < nRows; j++)
-        {
-            algorithmFPType dist = algorithmFPType(0);
-            for (size_t d = 0; d < nCols; d++)
+        // Union-find with path compression + union by rank
+        auto ufFind = [&](int x) -> int {
+            while (ufParent[x] != x)
             {
-                const algorithmFPType diff = row0[d] - data[j * nCols + d];
-                dist += diff * diff;
+                ufParent[x] = ufParent[ufParent[x]]; // path halving
+                x           = ufParent[x];
             }
-            dist = static_cast<algorithmFPType>(sqrt(static_cast<double>(dist)));
+            return x;
+        };
 
-            algorithmFPType mrd = dist;
-            if (core0 > mrd) mrd = core0;
-            if (coreDistances[j] > mrd) mrd = coreDistances[j];
-            minEdge[j] = mrd;
-        }
-
-        for (size_t e = 0; e < edgeCount; e++)
-        {
-            // Find minimum edge among non-MST vertices
-            int best              = -1;
-            algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
-            for (size_t j = 0; j < nRows; j++)
+        auto ufUnion = [&](int rx, int ry) {
+            if (ufRank[rx] < ufRank[ry])
+                ufParent[rx] = ry;
+            else if (ufRank[rx] > ufRank[ry])
+                ufParent[ry] = rx;
+            else
             {
-                if (!inMst[j] && minEdge[j] < bestW)
+                ufParent[ry] = rx;
+                ufRank[rx]++;
+            }
+        };
+
+        // Initial component IDs on tree nodes
+        updateNodeComponents(nodes, pointIndices, componentOf, 0);
+
+        size_t edgesAdded    = 0;
+        size_t numComponents = nRows;
+        const int iNRows     = static_cast<int>(nRows);
+        const int iNCols     = static_cast<int>(nCols);
+
+        while (numComponents > 1)
+        {
+            // Phase 1: For each point, find nearest different-component neighbor
+            daal::threader_for(iNRows, iNRows, [&](size_t i) {
+                const int comp                   = componentOf[i];
+                const algorithmFPType * queryPt  = data + i * nCols;
+                const algorithmFPType queryCoreD = coreDistances[i];
+                algorithmFPType bestMrd          = std::numeric_limits<algorithmFPType>::max();
+                int bestIdx                      = -1;
+
+                nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
+                                       static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx);
+
+                pointBestMrd[i] = bestMrd;
+                pointBestIdx[i] = bestIdx;
+            });
+
+            // Phase 2: For each component, find the lightest edge
+            for (size_t i = 0; i < nRows; i++)
+            {
+                compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+                compBestFrom[i] = -1;
+                compBestTo[i]   = -1;
+            }
+            for (size_t i = 0; i < nRows; i++)
+            {
+                if (pointBestIdx[i] < 0) continue;
+                const int comp = componentOf[i];
+                if (pointBestMrd[i] < compBestMrd[comp])
                 {
-                    bestW = minEdge[j];
-                    best  = static_cast<int>(j);
+                    compBestMrd[comp]  = pointBestMrd[i];
+                    compBestFrom[comp] = static_cast<int>(i);
+                    compBestTo[comp]   = pointBestIdx[i];
                 }
             }
 
-            mstFrom[e]    = minFrom[best];
-            mstTo[e]      = best;
-            mstWeights[e] = bestW;
-            inMst[best]   = 1;
-
-            // Use kd-tree to find nearest MRD neighbor for the newly added vertex
-            // But also update minEdge for ALL non-MST vertices from the new vertex
-            // Using kd-tree pruned distance computation
-            const algorithmFPType * bestRow = data + static_cast<size_t>(best) * nCols;
-            const algorithmFPType coreBest  = coreDistances[best];
-
-            // For each non-MST vertex, compute MRD from the newly added vertex.
-            // The kd-tree helps prune when we query nearest neighbors, but for
-            // Prim's we need to update ALL non-MST vertices. We can still use
-            // a blocked approach for better cache locality.
-            const size_t blockSize = 1024;
-            const size_t nBlocks   = (nRows + blockSize - 1) / blockSize;
-
-            for (size_t blk = 0; blk < nBlocks; blk++)
+            // Phase 3: Add edges and merge components (deduplicate)
+            size_t addedThisRound = 0;
+            for (size_t c = 0; c < nRows; c++)
             {
-                const size_t jBegin = blk * blockSize;
-                const size_t jEnd   = (jBegin + blockSize > nRows) ? nRows : jBegin + blockSize;
+                if (compBestFrom[c] < 0) continue;
+                const int u  = compBestFrom[c];
+                const int v  = compBestTo[c];
+                const int ru = ufFind(u);
+                const int rv = ufFind(v);
+                if (ru == rv) continue; // already merged by a symmetric edge
 
-                for (size_t j = jBegin; j < jEnd; j++)
-                {
-                    if (inMst[j]) continue;
+                mstFrom[edgesAdded]    = u;
+                mstTo[edgesAdded]      = v;
+                mstWeights[edgesAdded] = compBestMrd[c];
+                edgesAdded++;
+                addedThisRound++;
 
-                    algorithmFPType dist         = algorithmFPType(0);
-                    const algorithmFPType * rowJ = data + j * nCols;
-                    for (size_t d = 0; d < nCols; d++)
-                    {
-                        const algorithmFPType diff = bestRow[d] - rowJ[d];
-                        dist += diff * diff;
-                    }
-                    dist = static_cast<algorithmFPType>(sqrt(static_cast<double>(dist)));
-
-                    algorithmFPType mrd = dist;
-                    if (coreBest > mrd) mrd = coreBest;
-                    if (coreDistances[j] > mrd) mrd = coreDistances[j];
-
-                    if (mrd < minEdge[j])
-                    {
-                        minEdge[j] = mrd;
-                        minFrom[j] = best;
-                    }
-                }
+                ufUnion(ru, rv);
+                numComponents--;
             }
+
+            if (addedThisRound == 0) break; // safety: no progress possible
+
+            // Phase 4: Flatten component labels
+            for (size_t i = 0; i < nRows; i++)
+            {
+                componentOf[i] = ufFind(static_cast<int>(i));
+            }
+
+            // Phase 5: Update tree node component IDs for pruning
+            updateNodeComponents(nodes, pointIndices, componentOf, 0);
         }
     }
 
