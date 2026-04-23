@@ -47,6 +47,7 @@ public:
                     inner_alloc alloc);
     virtual ~matching_engine();
 
+    template <bool is_parallel>
     void run_and_wait(global_stack<Cpu>& gstack,
                       std::int64_t& busy_engine_count,
                       std::int64_t& current_match_count,
@@ -59,6 +60,7 @@ public:
     std::int64_t state_exploration_bit(bool check_solution = true);
     std::int64_t state_exploration_list(bool check_solution = true);
 
+    template <bool is_parallel>
     bool check_if_max_match_count_reached(std::int64_t& cumulative_match_count,
                                           std::int64_t delta,
                                           std::int64_t target_match_count);
@@ -92,8 +94,39 @@ public:
 
     std::int64_t extract_candidates(bool check_solution);
     bool check_vertex_candidate(bool check_solution, std::int64_t candidate);
+    template <bool is_parallel>
     void set_not_busy(bool& is_busy_engine, std::int64_t& busy_engine_count);
 };
+
+template <bool is_parallel>
+void increment_shared_value(std::int64_t& value, std::int64_t delta = 1) {
+    if constexpr (is_parallel) {
+        dal::detail::atomic_increment(value, delta);
+    }
+    else {
+        value += delta;
+    }
+}
+
+template <bool is_parallel>
+void decrement_shared_value(std::int64_t& value, std::int64_t delta = 1) {
+    if constexpr (is_parallel) {
+        dal::detail::atomic_decrement(value, delta);
+    }
+    else {
+        value -= delta;
+    }
+}
+
+template <bool is_parallel>
+std::int64_t load_shared_value(std::int64_t& value) {
+    if constexpr (is_parallel) {
+        return dal::detail::atomic_load(value);
+    }
+    else {
+        return value;
+    }
+}
 
 template <typename Cpu>
 class engine_bundle {
@@ -372,28 +405,31 @@ std::int64_t matching_engine<Cpu>::state_exploration() {
 }
 
 template <typename Cpu>
+template <bool is_parallel>
 bool matching_engine<Cpu>::check_if_max_match_count_reached(std::int64_t& cumulative_match_count,
                                                             std::int64_t delta,
                                                             std::int64_t target_match_count) {
     bool is_reached = false;
     if (delta > 0) {
-        dal::detail::atomic_increment(cumulative_match_count, delta);
+        increment_shared_value<is_parallel>(cumulative_match_count, delta);
     }
-    if (dal::detail::atomic_load(cumulative_match_count) >= target_match_count) {
+    if (load_shared_value<is_parallel>(cumulative_match_count) >= target_match_count) {
         is_reached = true;
     }
     return is_reached;
 }
 
 template <typename Cpu>
+template <bool is_parallel>
 void matching_engine<Cpu>::set_not_busy(bool& is_busy_engine, std::int64_t& busy_engine_count) {
     if (is_busy_engine) {
         is_busy_engine = false;
-        dal::detail::atomic_decrement(busy_engine_count);
+        decrement_shared_value<is_parallel>(busy_engine_count);
     }
 }
 
 template <typename Cpu>
+template <bool is_parallel>
 void matching_engine<Cpu>::run_and_wait(global_stack<Cpu>& gstack,
                                         std::int64_t& busy_engine_count,
                                         std::int64_t& cumulative_match_count,
@@ -407,8 +443,8 @@ void matching_engine<Cpu>::run_and_wait(global_stack<Cpu>& gstack,
     ONEDAL_ASSERT(pattern != nullptr);
     for (;;) {
         if (target_match_count > 0 &&
-            dal::detail::atomic_load(cumulative_match_count) >= target_match_count) {
-            set_not_busy(is_busy_engine, busy_engine_count);
+            load_shared_value<is_parallel>(cumulative_match_count) >= target_match_count) {
+            set_not_busy<is_parallel>(is_busy_engine, busy_engine_count);
             break;
         }
         if (hlocal_stack.states_in_stack() > 0) {
@@ -417,27 +453,28 @@ void matching_engine<Cpu>::run_and_wait(global_stack<Cpu>& gstack,
             ONEDAL_ASSERT(hlocal_stack.states_in_stack() > 0);
             const auto delta = state_exploration();
             current_match_count += delta;
-            if (target_match_count > 0 && check_if_max_match_count_reached(cumulative_match_count,
-                                                                           delta,
-                                                                           target_match_count)) {
-                set_not_busy(is_busy_engine, busy_engine_count);
+            if (target_match_count > 0 &&
+                check_if_max_match_count_reached<is_parallel>(cumulative_match_count,
+                                                              delta,
+                                                              target_match_count)) {
+                set_not_busy<is_parallel>(is_busy_engine, busy_engine_count);
                 break;
             }
         }
         else {
             gstack.pop(hlocal_stack);
             if (hlocal_stack.empty()) {
-                set_not_busy(is_busy_engine, busy_engine_count);
+                set_not_busy<is_parallel>(is_busy_engine, busy_engine_count);
                 if (target_match_count > 0 &&
-                    dal::detail::atomic_load(cumulative_match_count) >= target_match_count) {
+                    load_shared_value<is_parallel>(cumulative_match_count) >= target_match_count) {
                     break;
                 }
-                if (dal::detail::atomic_load(busy_engine_count) == 0)
+                if (load_shared_value<is_parallel>(busy_engine_count) == 0)
                     break;
             }
             else if (!is_busy_engine) {
                 is_busy_engine = true;
-                dal::detail::atomic_increment(busy_engine_count);
+                increment_shared_value<is_parallel>(busy_engine_count);
             }
         }
     }
@@ -569,13 +606,23 @@ solution<Cpu> engine_bundle<Cpu>::run(std::int64_t max_match_count) {
     global_stack<Cpu> gstack(pattern->get_vertex_count(), allocator);
     std::int64_t busy_engine_count(array_size);
     std::int64_t cumulative_match_count(0);
-    dal::detail::threader_for(array_size, array_size, [&](const int index) {
-        engine_array[index].run_and_wait(gstack,
-                                         busy_engine_count,
-                                         cumulative_match_count,
-                                         max_match_count,
-                                         false);
-    });
+
+    if (array_size == 1) {
+        engine_array[0].template run_and_wait<false>(gstack,
+                                                     busy_engine_count,
+                                                     cumulative_match_count,
+                                                     max_match_count,
+                                                     false);
+    }
+    else {
+        dal::detail::threader_for(array_size, array_size, [&](const int index) {
+            engine_array[index].template run_and_wait<true>(gstack,
+                                                            busy_engine_count,
+                                                            cumulative_match_count,
+                                                            max_match_count,
+                                                            false);
+        });
+    }
 
     auto aggregated_solution = combine_solutions(engine_array, array_size, max_match_count);
 
