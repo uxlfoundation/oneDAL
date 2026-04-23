@@ -88,64 +88,98 @@ struct get_core_wide_kernel {
         std::int32_t* cores_ptr = cores.get_mutable_data();
         Float* neighbours_ptr = neighbours.get_mutable_data();
 
+        ONEDAL_ASSERT(local_row_count <= std::numeric_limits<std::uint32_t>::max());
+        ONEDAL_ASSERT(column_count <= std::numeric_limits<std::uint32_t>::max());
+
         auto event = queue.submit([&](sycl::handler& cgh) {
             cgh.depends_on(deps);
+
             const std::int64_t wg_size = get_recommended_wg_size(queue, column_count);
             const std::int64_t block_split_size =
                 get_recommended_check_block_size(queue, column_count, wg_size);
-            cgh.parallel_for(
+
+            cgh.parallel_for<get_core_wide_kernel<Float, use_weights>>(
                 bk::make_multiple_nd_range_2d({ wg_size, local_row_count }, { wg_size, 1 }),
                 [=](sycl::nd_item<2> item) {
-                    auto sg = item.get_sub_group();
-                    const std::uint32_t sg_id = sg.get_group_id()[0];
-                    if (sg_id > 0)
+                    sycl::sub_group sg = item.get_sub_group();
+
+                    if (sg.get_group_id()[0] != 0)
                         return;
 
-                    const std::uint32_t wg_id = item.get_global_id(1);
-                    if (wg_id >= local_row_count)
+                    const std::uint32_t row_count = static_cast<std::uint32_t>(local_row_count);
+                    const std::uint32_t col_count = static_cast<std::uint32_t>(column_count);
+
+                    const std::uint32_t row_i = static_cast<std::uint32_t>(item.get_global_id(1));
+                    if (row_i >= row_count)
                         return;
 
-                    const std::uint32_t local_id = sg.get_local_id();
-                    const std::uint32_t local_size = sg.get_local_range()[0];
+                    const std::uint32_t lane = sg.get_local_id()[0];
+                    const std::uint32_t sg_size = sg.get_local_range()[0];
 
-                    Float count = neighbours_ptr[wg_id];
-                    for (std::int64_t j = 0; j < local_row_count; j++) {
+                    const Float min_obs_f = static_cast<Float>(min_observations);
+
+                    std::uint32_t block_split = static_cast<std::uint32_t>(block_split_size);
+                    block_split = block_split ? block_split : 1u;
+
+                    const std::uint32_t base_i = row_i * col_count;
+                    const Float* const xi = data_ptr + base_i;
+
+                    Float count = neighbours_ptr[row_i];
+
+                    for (std::uint32_t j = 0; j < row_count; ++j) {
+                        const Float* const xj = data_ptr + (j * col_count);
+
                         Float sum = Float(0);
-                        std::int64_t count_iter = 0;
-                        for (std::int64_t i = local_id; i < column_count; i += local_size) {
-                            count_iter++;
-                            Float val =
-                                data_ptr[wg_id * column_count + i] - data_ptr[j * column_count + i];
-                            sum += val * val;
 
-                            if (count_iter % block_split_size == 0 &&
-                                local_size * count_iter <= column_count) {
-                                Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::ext::oneapi::plus<Float>());
-                                if (distance_check > epsilon) {
-                                    break;
+                        bool pruned = false;
+                        std::uint32_t ticks = block_split;
+                        std::uint32_t iter = 0;
+
+                        for (std::uint32_t k = lane; k < col_count; k += sg_size) {
+                            ++iter;
+
+                            const Float v = xi[k] - xj[k];
+                            sum = sycl::fma(v, v, sum);
+
+                            if (--ticks == 0) {
+                                ticks = block_split;
+
+                                if (sg_size * iter <= col_count) {
+                                    const Float partial =
+                                        sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                                    if (partial > epsilon) {
+                                        pruned = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
-                        if (distance <= epsilon) {
+
+                        if (pruned) {
+                            continue;
+                        }
+
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+
+                        if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
-                            if (local_id == 0) {
-                                neighbours_ptr[wg_id] = count;
-                            }
-                            if (count >= min_observations && !use_weights) {
-                                if (local_id == 0) {
-                                    cores_ptr[wg_id] = Float(1);
+
+                            if (!use_weights && count >= min_obs_f) {
+                                if (lane == 0) {
+                                    neighbours_ptr[row_i] = count;
+                                    cores_ptr[row_i] = std::int32_t(1);
                                 }
                                 break;
                             }
                         }
                     }
-                    if (neighbours_ptr[wg_id] >= min_observations) {
-                        cores_ptr[wg_id] = Float(1);
+
+                    if (lane == 0) {
+                        neighbours_ptr[row_i] = count;
+
+                        if (count >= min_obs_f) {
+                            cores_ptr[row_i] = std::int32_t(1);
+                        }
                     }
                 });
         });
@@ -282,53 +316,88 @@ struct get_core_send_recv_replace_wide_kernel {
             cgh.parallel_for(
                 bk::make_multiple_nd_range_2d({ wg_size, local_row_count }, { wg_size, 1 }),
                 [=](sycl::nd_item<2> item) {
-                    auto sg = item.get_sub_group();
-                    const std::uint32_t sg_id = sg.get_group_id()[0];
-                    if (sg_id > 0)
-                        return;
-                    const std::uint32_t wg_id = item.get_global_id(1);
-                    if (wg_id >= local_row_count)
-                        return;
-                    const std::uint32_t local_id = sg.get_local_id();
-                    const std::uint32_t local_size = sg.get_local_range()[0];
+                    sycl::sub_group sg = item.get_sub_group();
 
-                    Float count = neighbours_ptr[wg_id];
-                    for (std::int64_t j = 0; j < row_count_replace; j++) {
+                    if (sg.get_group_id()[0] != 0)
+                        return;
+
+                    const std::uint32_t row_count_local =
+                        static_cast<std::uint32_t>(local_row_count);
+                    const std::uint32_t row_count_repl =
+                        static_cast<std::uint32_t>(row_count_replace);
+                    const std::uint32_t col_count = static_cast<std::uint32_t>(column_count);
+
+                    const std::uint32_t row_i = static_cast<std::uint32_t>(item.get_global_id(1));
+                    if (row_i >= row_count_local)
+                        return;
+
+                    const std::uint32_t lane = sg.get_local_id()[0];
+                    const std::uint32_t sg_size = sg.get_local_range()[0];
+
+                    const Float min_obs_f = static_cast<Float>(min_observations);
+
+                    std::uint32_t block_split = static_cast<std::uint32_t>(block_split_size);
+                    block_split = block_split ? block_split : 1u;
+
+                    const std::uint32_t base_i = row_i * col_count;
+                    const Float* const xi = data_ptr + base_i;
+
+                    Float count = neighbours_ptr[row_i];
+
+                    for (std::uint32_t j = 0; j < row_count_repl; ++j) {
+                        const Float* const xj = data_replace_ptr + (j * col_count);
+
                         Float sum = Float(0);
-                        std::int64_t count_iter = 0;
-                        for (std::int64_t i = local_id; i < column_count; i += local_size) {
-                            count_iter++;
-                            Float val = data_ptr[wg_id * column_count + i] -
-                                        data_replace_ptr[j * column_count + i];
-                            sum += val * val;
-                            if (count_iter % block_split_size == 0 &&
-                                local_size * count_iter <= column_count) {
-                                Float distance_check =
-                                    sycl::reduce_over_group(sg,
-                                                            sum,
-                                                            sycl::ext::oneapi::plus<Float>());
-                                if (distance_check > epsilon) {
-                                    break;
+
+                        bool pruned = false;
+                        std::uint32_t ticks = block_split;
+                        std::uint32_t iter = 0;
+
+                        for (std::uint32_t k = lane; k < col_count; k += sg_size) {
+                            ++iter;
+
+                            const Float v = xi[k] - xj[k];
+                            sum = sycl::fma(v, v, sum);
+
+                            if (--ticks == 0) {
+                                ticks = block_split;
+
+                                if (sg_size * iter <= col_count) {
+                                    const Float partial =
+                                        sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+                                    if (partial > epsilon) {
+                                        pruned = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
-                        Float distance =
-                            sycl::reduce_over_group(sg, sum, sycl::ext::oneapi::plus<Float>());
-                        if (distance <= epsilon) {
+
+                        if (pruned) {
+                            continue;
+                        }
+
+                        const Float dist = sycl::reduce_over_group(sg, sum, sycl::plus<Float>());
+
+                        if (dist <= epsilon) {
                             count += use_weights ? weights_ptr[j] : Float(1);
-                            if (local_id == 0) {
-                                neighbours_ptr[wg_id] = count;
-                            }
-                            if (count >= min_observations && !use_weights) {
-                                if (local_id == 0) {
-                                    cores_ptr[wg_id] = Float(1);
+
+                            if (!use_weights && count >= min_obs_f) {
+                                if (lane == 0) {
+                                    neighbours_ptr[row_i] = count;
+                                    cores_ptr[row_i] = std::int32_t(1);
                                 }
                                 break;
                             }
                         }
                     }
-                    if (neighbours_ptr[wg_id] >= min_observations) {
-                        cores_ptr[wg_id] = Float(1);
+
+                    if (lane == 0) {
+                        neighbours_ptr[row_i] = count;
+
+                        if (count >= min_obs_f) {
+                            cores_ptr[row_i] = std::int32_t(1);
+                        }
                     }
                 });
         });
