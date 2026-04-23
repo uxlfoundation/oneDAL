@@ -99,7 +99,7 @@ std::int32_t most_frequent_element(const std::atomic<std::int32_t> *components,
 
     std::int32_t *root_sample_counts = allocate(vertex_allocator, vertex_count);
 
-    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int32_t u) {
+    dal::detail::threader_for(vertex_count, vertex_count, [&](std::int64_t u) {
         root_sample_counts[u] = 0;
     });
 
