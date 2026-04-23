@@ -947,6 +947,84 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
 }
 
 // =========================================================================
+// Nightly tests: external datasets
+// =========================================================================
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force: susy 500K samples",
+                     "[hdbscan][nightly][batch][external-dataset][susy]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const te::dataframe data =
+        te::dataframe_builder{ "workloads/susy/dataset/susy_test.csv" }.build();
+    const table x = data.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    // SUSY: 500K x 18, min_cluster_size=50, min_samples=25
+    this->run_checks(x, 50, 25, -1);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan kd_tree: susy 500K samples",
+                     "[hdbscan][nightly][batch][external-dataset][susy]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+
+    const te::dataframe data =
+        te::dataframe_builder{ "workloads/susy/dataset/susy_test.csv" }.build();
+    const table x = data.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    // Use kd_tree method explicitly via descriptor
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(50, 25)
+                          .set_result_options(result_options::responses);
+
+    const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
+
+    INFO("check cluster count >= 0");
+    REQUIRE(result.get_cluster_count() >= 0);
+
+    INFO("check responses shape");
+    const auto responses = result.get_responses();
+    REQUIRE(responses.get_row_count() == x.get_row_count());
+    REQUIRE(responses.get_column_count() == 1);
+}
+
+TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
+                     "hdbscan brute_force vs kd_tree: susy consistency",
+                     "[hdbscan][nightly][batch][external-dataset][susy]",
+                     hdbscan_bf_only) {
+    SKIP_IF(this->not_float64_friendly());
+    using float_t = std::tuple_element_t<0, TestType>;
+
+    const te::dataframe data =
+        te::dataframe_builder{ "workloads/susy/dataset/susy_test.csv" }.build();
+    const table x = data.get_table(this->get_policy(), this->get_homogen_table_id());
+
+    const std::int64_t row_count = x.get_row_count();
+    constexpr std::int64_t mcs = 50;
+    constexpr std::int64_t ms = 25;
+
+    const auto bf_desc =
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
+            .set_result_options(result_options::responses);
+    const auto kd_desc =
+        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
+            .set_result_options(result_options::responses);
+
+    const auto bf_result = oneapi::dal::test::engine::compute(this->get_policy(), bf_desc, x);
+    const auto kd_result = oneapi::dal::test::engine::compute(this->get_policy(), kd_desc, x);
+
+    REQUIRE(bf_result.get_cluster_count() == kd_result.get_cluster_count());
+
+    const auto bf_rows = row_accessor<const float_t>(bf_result.get_responses()).pull({ 0, -1 });
+    const auto kd_rows = row_accessor<const float_t>(kd_result.get_responses()).pull({ 0, -1 });
+
+    check_same_partition(bf_rows, kd_rows, row_count);
+}
+
+// =========================================================================
 // GPU tests (conditional on ONEDAL_DATA_PARALLEL)
 // =========================================================================
 

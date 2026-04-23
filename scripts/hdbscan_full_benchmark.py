@@ -428,7 +428,7 @@ def main():
 
         try:
             os.unlink(tmpfile)
-        except:
+        except OSError:
             pass
         del data
         gc.collect()
@@ -482,7 +482,7 @@ def main():
 
         try:
             os.unlink(tmpfile)
-        except:
+        except OSError:
             pass
         del data
         gc.collect()
@@ -538,7 +538,7 @@ def main():
 
         try:
             os.unlink(tmpfile)
-        except:
+        except OSError:
             pass
         del data
         gc.collect()
