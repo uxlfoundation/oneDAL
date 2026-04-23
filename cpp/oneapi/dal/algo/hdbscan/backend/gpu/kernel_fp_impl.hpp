@@ -34,45 +34,66 @@ namespace bk = dal::backend;
 namespace pr = dal::backend::primitives;
 
 template <typename Float>
-sycl::event kernels_fp<Float>::compute_squared_distances(sycl::queue& queue,
-                                                         const pr::ndview<Float, 2>& data,
-                                                         pr::ndview<Float, 2>& sq_dist,
-                                                         const bk::event_vector& deps) {
-    ONEDAL_PROFILER_TASK(hdbscan.compute_squared_distances, queue);
+sycl::event kernels_fp<Float>::compute_distance_matrix(sycl::queue& queue,
+                                                       const pr::ndview<Float, 2>& data,
+                                                       pr::ndview<Float, 2>& dist,
+                                                       distance_metric metric,
+                                                       double degree,
+                                                       const bk::event_vector& deps) {
+    ONEDAL_PROFILER_TASK(hdbscan.compute_distance_matrix, queue);
 
     const std::int64_t n = data.get_dimension(0);
 
     ONEDAL_ASSERT(n > 0);
-    ONEDAL_ASSERT(sq_dist.get_dimension(0) == n);
-    ONEDAL_ASSERT(sq_dist.get_dimension(1) == n);
+    ONEDAL_ASSERT(dist.get_dimension(0) == n);
+    ONEDAL_ASSERT(dist.get_dimension(1) == n);
 
-    // Compute full pairwise squared L2 distance matrix using GEMM:
-    // dist²[i,j] = ||x_i||² + ||x_j||² - 2 * x_i · x_j
-    pr::squared_l2_distance<Float> dist_op(queue);
-    return dist_op(data, data, sq_dist, deps);
+    switch (metric) {
+        case distance_metric::cosine: {
+            pr::cosine_distance<Float> dist_op(queue);
+            return dist_op(data, data, dist, deps);
+        }
+        case distance_metric::manhattan: {
+            pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,
+                                                              pr::lp_metric<Float>(Float(1)));
+            return dist_op(data, data, dist, deps);
+        }
+        case distance_metric::minkowski: {
+            pr::distance<Float, pr::lp_metric<Float>> dist_op(
+                queue,
+                pr::lp_metric<Float>(static_cast<Float>(degree)));
+            return dist_op(data, data, dist, deps);
+        }
+        case distance_metric::chebyshev: {
+            pr::chebyshev_distance<Float> dist_op(queue);
+            return dist_op(data, data, dist, deps);
+        }
+        default: { // euclidean — compute squared L2 (sqrt applied later)
+            pr::squared_l2_distance<Float> dist_op(queue);
+            return dist_op(data, data, dist, deps);
+        }
+    }
 }
 
 template <typename Float>
 sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
-                                                      const pr::ndview<Float, 2>& sq_dist,
+                                                      const pr::ndview<Float, 2>& dist,
                                                       pr::ndview<Float, 1>& core_distances,
                                                       std::int64_t min_samples,
                                                       std::int64_t row_count,
+                                                      distance_metric metric,
                                                       const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_core_distances, queue);
 
     const std::int64_t n = row_count;
 
     ONEDAL_ASSERT(n > 0);
-    ONEDAL_ASSERT(sq_dist.get_dimension(0) == n);
-    ONEDAL_ASSERT(sq_dist.get_dimension(1) == n);
+    ONEDAL_ASSERT(dist.get_dimension(0) == n);
+    ONEDAL_ASSERT(dist.get_dimension(1) == n);
     ONEDAL_ASSERT(core_distances.get_dimension(0) == n);
     ONEDAL_ASSERT(min_samples >= 1);
     ONEDAL_ASSERT(min_samples <= n);
 
-    // Select k-th nearest squared distance per row using kselect
-    // Core distance index: min_samples - 1 (includes self at distance 0)
-    // We select min_samples smallest values per row, then take the last one
     const std::int64_t k = min_samples;
 
     auto [ksel_vals, ksel_vals_event] =
@@ -81,30 +102,30 @@ sycl::event kernels_fp<Float>::compute_core_distances(sycl::queue& queue,
     pr::kselect_by_rows<Float> ksel(queue, { n, n }, k);
     bk::event_vector ksel_deps = deps;
     ksel_deps.push_back(ksel_vals_event);
-    auto ksel_event = ksel(queue, sq_dist, k, ksel_vals, ksel_deps);
+    auto ksel_event = ksel(queue, dist, k, ksel_vals, ksel_deps);
 
-    // Extract the k-th value (last column) from kselect result and take sqrt
-    // ksel_vals is [n x k], we need column index k-1 from each row
     const Float* ksel_ptr = ksel_vals.get_data();
     Float* core_ptr = core_distances.get_mutable_data();
     const std::int64_t kk = k;
+    const bool needs_sqrt = (metric == distance_metric::euclidean);
 
-    auto sqrt_event = queue.submit([&](sycl::handler& h) {
+    auto extract_event = queue.submit([&](sycl::handler& h) {
         h.depends_on({ ksel_event });
         h.parallel_for(sycl::range<1>(n), [=](sycl::id<1> idx) {
             const std::int64_t i = idx[0];
-            const Float sq_val = ksel_ptr[i * kk + (kk - 1)];
-            core_ptr[i] = sycl::sqrt(sycl::fmax(sq_val, Float(0)));
+            const Float val = ksel_ptr[i * kk + (kk - 1)];
+            core_ptr[i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
         });
     });
 
-    return sqrt_event;
+    return extract_event;
 }
 
 template <typename Float>
 sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
                                                   const pr::ndview<Float, 1>& core_distances,
                                                   pr::ndview<Float, 2>& mrd_matrix,
+                                                  distance_metric metric,
                                                   const bk::event_vector& deps) {
     ONEDAL_PROFILER_TASK(hdbscan.compute_mrd_matrix, queue);
 
@@ -114,20 +135,22 @@ sycl::event kernels_fp<Float>::compute_mrd_matrix(sycl::queue& queue,
     ONEDAL_ASSERT(mrd_matrix.get_dimension(0) == n);
     ONEDAL_ASSERT(mrd_matrix.get_dimension(1) == n);
 
-    // mrd_matrix already contains squared L2 distances from compute_squared_distances.
-    // Transform in-place: mrd[i][j] = max(core_dist[i], core_dist[j], sqrt(sq_dist[i][j]))
     const Float* core_ptr = core_distances.get_data();
     Float* mrd_ptr = mrd_matrix.get_mutable_data();
+    const bool needs_sqrt = (metric == distance_metric::euclidean);
 
     auto mrd_event = queue.submit([&](sycl::handler& h) {
         h.depends_on(deps);
         h.parallel_for(sycl::range<2>(n, n), [=](sycl::id<2> idx) {
             const std::int64_t i = idx[0];
             const std::int64_t j = idx[1];
-            const Float eucl = sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)));
+            // For euclidean: mrd_matrix has squared L2, need sqrt first
+            // For other metrics: mrd_matrix has actual distances
+            const Float d = needs_sqrt ? sycl::sqrt(sycl::fmax(mrd_ptr[i * n + j], Float(0)))
+                                       : mrd_ptr[i * n + j];
             const Float cd_i = core_ptr[i];
             const Float cd_j = core_ptr[j];
-            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), eucl);
+            mrd_ptr[i * n + j] = sycl::fmax(sycl::fmax(cd_i, cd_j), d);
         });
     });
 
@@ -761,6 +784,24 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                 }
             }
 
+            // --- allow_single_cluster=false (matches sklearn default) ---
+            // If only the root is selected AND it has children, force-select
+            // its children instead. If the root is a leaf, keep it.
+            {
+                std::int32_t sel_count = 0;
+                for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                    if (is_ptr[c])
+                        sel_count++;
+                }
+                if (sel_count == 1 && is_ptr[root_cid] && !ilc_ptr[root_cid]) {
+                    is_ptr[root_cid] = 0;
+                    if (cc0_ptr[root_cid] >= 0)
+                        is_ptr[cc0_ptr[root_cid]] = 1;
+                    if (cc1_ptr[root_cid] >= 0)
+                        is_ptr[cc1_ptr[root_cid]] = 1;
+                }
+            }
+
             // --- Assign cluster labels and build mappings ---
             std::int32_t label_counter = 0;
             for (std::int32_t c = root_cid; c < n_clusters; c++) {
@@ -816,7 +857,7 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
             const std::int32_t root_cid = static_cast<std::int32_t>(rc);
             resp_ptr[i] = -1;
 
-            // Case 1: Point fell out of a cluster — walk up cluster tree
+            // Case 1: Point fell out of a cluster — walk up to deepest selected ancestor.
             const std::int32_t fell = pff_ptr[i];
             if (fell >= 0) {
                 std::int32_t c = fell;

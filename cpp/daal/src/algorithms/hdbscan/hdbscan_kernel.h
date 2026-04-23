@@ -40,7 +40,7 @@ class HDBSCANBatchKernel : public Kernel
 {
 public:
     services::Status compute(const NumericTable * ntData, NumericTable * ntAssignments, NumericTable * ntNClusters, size_t minClusterSize,
-                             size_t minSamples);
+                             size_t minSamples, int metric = euclidean, double degree = 2.0);
 };
 
 } // namespace internal

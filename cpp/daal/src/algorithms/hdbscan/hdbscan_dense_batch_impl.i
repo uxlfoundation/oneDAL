@@ -15,14 +15,27 @@
 * limitations under the License.
 *******************************************************************************/
 
+/*
+ * HDBSCAN brute-force implementation.
+ *
+ * The approach:
+ *   1. Compute full pairwise Euclidean distance matrix via GEMM
+ *   2. Compute core distances (k-th nearest neighbor distance per point)
+ *   3. Build MST under Mutual Reachability Distance using Prim's algorithm
+ *   4. Sort MST + extract clusters via condensed tree + EOM (shared code)
+ *
+ * Complexity: O(N^2) for distance matrix and Prim's MST.
+ * Memory:     O(N^2) for the distance matrix.
+ */
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <functional>
 #include <limits>
 #include <numeric>
 
 #include "src/algorithms/hdbscan/hdbscan_kernel.h"
+#include "src/algorithms/hdbscan/hdbscan_cluster_utils.h"
 #include "src/algorithms/service_threading.h"
 #include "src/data_management/service_numeric_table.h"
 #include "src/externals/service_blas.h"
@@ -40,14 +53,15 @@ namespace hdbscan
 namespace internal
 {
 
+using daal::internal::BlasInst;
 using daal::internal::CpuType;
 using daal::internal::ReadRows;
 using daal::internal::WriteOnlyRows;
-using daal::internal::BlasInst;
 
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples)
+                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
+                                                                           int metric, double degree)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -66,91 +80,216 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         return services::Status();
     }
 
-    // Read all input data
     ReadRows<algorithmFPType, cpu> dataBlock(const_cast<NumericTable *>(ntData), 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(dataBlock);
     const algorithmFPType * data = dataBlock.get();
 
     // =========================================================================
-    // Step 1: Compute pairwise Euclidean distance matrix using GEMM
-    // dist²[i,j] = ||a_i||² + ||a_j||² - 2 * (A * A^T)[i,j]
+    // Step 1: Compute pairwise distance matrix
     // =========================================================================
 
-    // Allocate distance matrix
     daal::services::internal::TArray<algorithmFPType, cpu> distMatrixArr(nRows * nRows);
     algorithmFPType * distMatrix = distMatrixArr.get();
     DAAL_CHECK_MALLOC(distMatrix);
 
-    // Compute row norms: norm[i] = sum(data[i,:]^2)
-    daal::services::internal::TArray<algorithmFPType, cpu> normsArr(nRows);
-    algorithmFPType * norms = normsArr.get();
-    DAAL_CHECK_MALLOC(norms);
-
-    const size_t normBlockSize = 512;
-    const size_t nNormBlocks   = nRows / normBlockSize + (nRows % normBlockSize > 0);
-
-    daal::threader_for(nNormBlocks, nNormBlocks, [&](size_t iBlock) {
-        const size_t begin = iBlock * normBlockSize;
-        const size_t end   = (begin + normBlockSize > nRows) ? nRows : begin + normBlockSize;
-
-        for (size_t i = begin; i < end; i++)
-        {
-            algorithmFPType sum         = algorithmFPType(0);
-            const algorithmFPType * row = data + i * nCols;
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t d = 0; d < nCols; d++)
-            {
-                sum += row[d] * row[d];
-            }
-            norms[i] = sum;
-        }
-    });
-
-    // Compute A * A^T via GEMM: dist_matrix = data * data^T
+    if (metric == euclidean || metric == cosine)
     {
-        const char transa           = 't';
-        const char transb           = 'n';
-        const DAAL_INT m            = static_cast<DAAL_INT>(nRows);
-        const DAAL_INT n            = static_cast<DAAL_INT>(nRows);
-        const DAAL_INT k            = static_cast<DAAL_INT>(nCols);
-        const algorithmFPType alpha = algorithmFPType(1);
-        const algorithmFPType beta  = algorithmFPType(0);
-        const DAAL_INT lda          = static_cast<DAAL_INT>(nCols);
-        const DAAL_INT ldb          = static_cast<DAAL_INT>(nCols);
-        const DAAL_INT ldc          = static_cast<DAAL_INT>(nRows);
+        // GEMM-accelerated path for Euclidean and Cosine
+        daal::services::internal::TArray<algorithmFPType, cpu> normsArr(nRows);
+        algorithmFPType * norms = normsArr.get();
+        DAAL_CHECK_MALLOC(norms);
 
-        BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, data, &lda, data, &ldb, &beta, distMatrix, &ldc);
+        const size_t normBlockSize = 512;
+        const size_t nNormBlocks   = (nRows + normBlockSize - 1) / normBlockSize;
+
+        daal::threader_for(nNormBlocks, nNormBlocks, [&](size_t iBlock) {
+            const size_t begin = iBlock * normBlockSize;
+            const size_t end   = (begin + normBlockSize > nRows) ? nRows : begin + normBlockSize;
+
+            for (size_t i = begin; i < end; i++)
+            {
+                algorithmFPType sum         = algorithmFPType(0);
+                const algorithmFPType * row = data + i * nCols;
+                PRAGMA_IVDEP
+                PRAGMA_VECTOR_ALWAYS
+                for (size_t d = 0; d < nCols; d++)
+                {
+                    sum += row[d] * row[d];
+                }
+                norms[i] = sum;
+            }
+        });
+
+        // Compute A * A^T via GEMM
+        {
+            const char transa           = 't';
+            const char transb           = 'n';
+            const DAAL_INT m            = static_cast<DAAL_INT>(nRows);
+            const DAAL_INT n            = static_cast<DAAL_INT>(nRows);
+            const DAAL_INT k            = static_cast<DAAL_INT>(nCols);
+            const algorithmFPType alpha = algorithmFPType(1);
+            const algorithmFPType beta  = algorithmFPType(0);
+            const DAAL_INT lda          = static_cast<DAAL_INT>(nCols);
+            const DAAL_INT ldb          = static_cast<DAAL_INT>(nCols);
+            const DAAL_INT ldc          = static_cast<DAAL_INT>(nRows);
+
+            BlasInst<algorithmFPType, cpu>::xxgemm(&transa, &transb, &m, &n, &k, &alpha, data, &lda, data, &ldb, &beta, distMatrix, &ldc);
+        }
+
+        const size_t distBlockSize = 256;
+        const size_t nDistBlocks   = (nRows + distBlockSize - 1) / distBlockSize;
+
+        if (metric == euclidean)
+        {
+            // Convert dot products to Euclidean distances
+            daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
+                const size_t i_begin = iBlock * distBlockSize;
+                const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
+
+                for (size_t i = i_begin; i < i_end; i++)
+                {
+                    algorithmFPType * row    = distMatrix + i * nRows;
+                    const algorithmFPType ni = norms[i];
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t j = 0; j < nRows; j++)
+                    {
+                        algorithmFPType d2 = ni + norms[j] - algorithmFPType(2) * row[j];
+                        if (d2 < algorithmFPType(0)) d2 = algorithmFPType(0);
+                        row[j] = static_cast<algorithmFPType>(sqrt(static_cast<double>(d2)));
+                    }
+                    row[i] = algorithmFPType(0);
+                }
+            });
+        }
+        else // cosine
+        {
+            // Convert dot products to cosine distances: 1 - dot / (||a|| * ||b||)
+            daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
+                const size_t i_begin = iBlock * distBlockSize;
+                const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
+
+                for (size_t i = i_begin; i < i_end; i++)
+                {
+                    algorithmFPType * row    = distMatrix + i * nRows;
+                    const algorithmFPType ni = static_cast<algorithmFPType>(sqrt(static_cast<double>(norms[i])));
+                    for (size_t j = 0; j < nRows; j++)
+                    {
+                        const algorithmFPType nj    = static_cast<algorithmFPType>(sqrt(static_cast<double>(norms[j])));
+                        const algorithmFPType denom = ni * nj;
+                        algorithmFPType d;
+                        if (denom > algorithmFPType(0))
+                            d = algorithmFPType(1) - row[j] / denom;
+                        else
+                            d = algorithmFPType(0);
+                        if (d < algorithmFPType(0)) d = algorithmFPType(0);
+                        row[j] = d;
+                    }
+                    row[i] = algorithmFPType(0);
+                }
+            });
+        }
+    }
+    else if (metric == manhattan)
+    {
+        const size_t rowBlockSize = 64;
+        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
+
+        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
+            const size_t i_begin = iBlock * rowBlockSize;
+            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
+
+            for (size_t i = i_begin; i < i_end; i++)
+            {
+                const algorithmFPType * row_i = data + i * nCols;
+                algorithmFPType * dist_row    = distMatrix + i * nRows;
+
+                for (size_t j = i; j < nRows; j++)
+                {
+                    const algorithmFPType * row_j = data + j * nCols;
+                    algorithmFPType d             = algorithmFPType(0);
+                    PRAGMA_IVDEP
+                    PRAGMA_VECTOR_ALWAYS
+                    for (size_t f = 0; f < nCols; f++)
+                    {
+                        algorithmFPType diff = row_i[f] - row_j[f];
+                        d += (diff >= algorithmFPType(0)) ? diff : -diff;
+                    }
+                    dist_row[j]               = d;
+                    distMatrix[j * nRows + i] = d;
+                }
+                dist_row[i] = algorithmFPType(0);
+            }
+        });
+    }
+    else if (metric == chebyshev)
+    {
+        const size_t rowBlockSize = 64;
+        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
+
+        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
+            const size_t i_begin = iBlock * rowBlockSize;
+            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
+
+            for (size_t i = i_begin; i < i_end; i++)
+            {
+                const algorithmFPType * row_i = data + i * nCols;
+                algorithmFPType * dist_row    = distMatrix + i * nRows;
+
+                for (size_t j = i; j < nRows; j++)
+                {
+                    const algorithmFPType * row_j = data + j * nCols;
+                    algorithmFPType d             = algorithmFPType(0);
+                    for (size_t f = 0; f < nCols; f++)
+                    {
+                        algorithmFPType diff = row_i[f] - row_j[f];
+                        if (diff < algorithmFPType(0)) diff = -diff;
+                        if (diff > d) d = diff;
+                    }
+                    dist_row[j]               = d;
+                    distMatrix[j * nRows + i] = d;
+                }
+                dist_row[i] = algorithmFPType(0);
+            }
+        });
+    }
+    else // minkowski
+    {
+        const double p            = degree;
+        const double invp         = 1.0 / p;
+        const size_t rowBlockSize = 64;
+        const size_t nRowBlocks   = (nRows + rowBlockSize - 1) / rowBlockSize;
+
+        daal::threader_for(nRowBlocks, nRowBlocks, [&](size_t iBlock) {
+            const size_t i_begin = iBlock * rowBlockSize;
+            const size_t i_end   = (i_begin + rowBlockSize > nRows) ? nRows : i_begin + rowBlockSize;
+
+            for (size_t i = i_begin; i < i_end; i++)
+            {
+                const algorithmFPType * row_i = data + i * nCols;
+                algorithmFPType * dist_row    = distMatrix + i * nRows;
+
+                for (size_t j = i; j < nRows; j++)
+                {
+                    const algorithmFPType * row_j = data + j * nCols;
+                    double dsum                   = 0.0;
+                    for (size_t f = 0; f < nCols; f++)
+                    {
+                        double diff = static_cast<double>(row_i[f] - row_j[f]);
+                        if (diff < 0.0) diff = -diff;
+                        dsum += pow(diff, p);
+                    }
+                    const algorithmFPType d   = static_cast<algorithmFPType>(pow(dsum, invp));
+                    dist_row[j]               = d;
+                    distMatrix[j * nRows + i] = d;
+                }
+                dist_row[i] = algorithmFPType(0);
+            }
+        });
     }
 
-    // Convert dot products to Euclidean distances: dist[i,j] = sqrt(max(0, norm[i]+norm[j]-2*dot))
-    const size_t distBlockSize = 256;
-    const size_t nDistBlocks   = nRows / distBlockSize + (nRows % distBlockSize > 0);
-
-    daal::threader_for(nDistBlocks, nDistBlocks, [&](size_t iBlock) {
-        const size_t i_begin = iBlock * distBlockSize;
-        const size_t i_end   = (i_begin + distBlockSize > nRows) ? nRows : i_begin + distBlockSize;
-
-        for (size_t i = i_begin; i < i_end; i++)
-        {
-            algorithmFPType * row    = distMatrix + i * nRows;
-            const algorithmFPType ni = norms[i];
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
-            for (size_t j = 0; j < nRows; j++)
-            {
-                algorithmFPType d2 = ni + norms[j] - algorithmFPType(2) * row[j];
-                if (d2 < algorithmFPType(0)) d2 = algorithmFPType(0);
-                row[j] = static_cast<algorithmFPType>(sqrt(static_cast<double>(d2)));
-            }
-            row[i] = algorithmFPType(0);
-        }
-    });
-
     // =========================================================================
-    // Step 2: Compute core distances (parallelized with threader_for)
-    // Pre-allocate one buffer per thread via TlsMem to avoid heap allocation
-    // inside the parallel loop.
+    // Step 2: Compute core distances (k-th nearest neighbor distance per point)
     // =========================================================================
 
     daal::services::internal::TArray<algorithmFPType, cpu> coreDists(nRows);
@@ -182,9 +321,6 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
 
     // =========================================================================
     // Step 3: Build MST using Prim's algorithm with MRD
-    // Uses TArray (aligned alloc) instead of std::vector. char[] instead of
-    // vector<bool> (bit-packed, not vectorizable). Inner MRD update loop is
-    // split into a branchless SIMD-friendly pass + conditional update pass.
     // =========================================================================
 
     daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
@@ -281,524 +417,15 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     }
 
     // =========================================================================
-    // Step 4: Sort MST edges by weight
-    // Sort a single struct array in-place instead of maintaining parallel
-    // arrays with index indirection + 3 temporary copies.
+    // Steps 4-5: Sort MST + Extract clusters (shared with kd_tree)
     // =========================================================================
 
-    struct MstEdge
-    {
-        algorithmFPType weight;
-        int from;
-        int to;
-    };
-
-    {
-        daal::services::internal::TArray<MstEdge, cpu> edgesArr(edgeCount);
-        MstEdge * edges = edgesArr.get();
-        DAAL_CHECK_MALLOC(edges);
-
-        for (size_t i = 0; i < edgeCount; i++)
-        {
-            edges[i] = { mstWeights[i], mstFrom[i], mstTo[i] };
-        }
-
-        std::sort(edges, edges + edgeCount, [](const MstEdge & a, const MstEdge & b) { return a.weight < b.weight; });
-
-        for (size_t i = 0; i < edgeCount; i++)
-        {
-            mstFrom[i]    = edges[i].from;
-            mstTo[i]      = edges[i].to;
-            mstWeights[i] = edges[i].weight;
-        }
-    }
-
-    // =========================================================================
-    // Step 5: Extract clusters (dendrogram -> condensed tree -> EOM -> labels)
-    // All arrays use TArray (aligned, no heap fragmentation).
-    // Stacks use pre-allocated TArray buffers with manual top pointers.
-    // =========================================================================
-
-    const size_t nDendroNodes = nRows - 1;
-    const size_t totalNodes   = 2 * nRows - 1;
-
-    // Phase 1: Build Kruskal dendrogram via union-find
-    daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
-    daal::services::internal::TArray<int, cpu> compSizeArr(nRows);
-    int * ufParent = ufParentArr.get();
-    int * compSize = compSizeArr.get();
-    DAAL_CHECK_MALLOC(ufParent);
-    DAAL_CHECK_MALLOC(compSize);
-    for (size_t i = 0; i < nRows; i++)
-    {
-        ufParent[i] = static_cast<int>(i);
-        compSize[i] = 1;
-    }
-
-    auto ufFind = [&](int x) -> int {
-        while (ufParent[x] != x)
-        {
-            ufParent[x] = ufParent[ufParent[x]];
-            x           = ufParent[x];
-        }
-        return x;
-    };
-
-    struct DendroNode
-    {
-        int left;
-        int right;
-        algorithmFPType weight;
-        int size;
-    };
-
-    daal::services::internal::TArray<DendroNode, cpu> dendroArr(nDendroNodes);
-    DendroNode * dendro = dendroArr.get();
-    DAAL_CHECK_MALLOC(dendro);
-    for (size_t i = 0; i < nDendroNodes; i++)
-    {
-        dendro[i] = { 0, 0, algorithmFPType(0), 0 };
-    }
-
-    daal::services::internal::TArray<int, cpu> compToNodeArr(nRows);
-    int * compToNode = compToNodeArr.get();
-    DAAL_CHECK_MALLOC(compToNode);
-    for (size_t i = 0; i < nRows; i++)
-    {
-        compToNode[i] = static_cast<int>(i);
-    }
-
-    for (size_t e = 0; e < edgeCount; e++)
-    {
-        const int ru = ufFind(mstFrom[e]);
-        const int rv = ufFind(mstTo[e]);
-        if (ru == rv) continue;
-
-        const int leftNode  = compToNode[ru];
-        const int rightNode = compToNode[rv];
-        const int newSize   = compSize[ru] + compSize[rv];
-        const int nodeId    = static_cast<int>(nRows + e);
-
-        dendro[e] = { leftNode, rightNode, mstWeights[e], newSize };
-
-        if (compSize[ru] < compSize[rv])
-        {
-            ufParent[ru]   = rv;
-            compSize[rv]   = newSize;
-            compToNode[rv] = nodeId;
-        }
-        else
-        {
-            ufParent[rv]   = ru;
-            compSize[ru]   = newSize;
-            compToNode[ru] = nodeId;
-        }
-    }
-
-    // Phase 2: Build condensed tree
-    daal::services::internal::TArray<int, cpu> nodeSizeArr(totalNodes);
-    daal::services::internal::TArray<int, cpu> leftChildArr(totalNodes);
-    daal::services::internal::TArray<int, cpu> rightChildArr(totalNodes);
-    daal::services::internal::TArray<algorithmFPType, cpu> nodeWeightArr(totalNodes);
-    int * nodeSize               = nodeSizeArr.get();
-    int * leftChild              = leftChildArr.get();
-    int * rightChild             = rightChildArr.get();
-    algorithmFPType * nodeWeight = nodeWeightArr.get();
-    DAAL_CHECK_MALLOC(nodeSize);
-    DAAL_CHECK_MALLOC(leftChild);
-    DAAL_CHECK_MALLOC(rightChild);
-    DAAL_CHECK_MALLOC(nodeWeight);
-
-    for (size_t i = 0; i < totalNodes; i++)
-    {
-        nodeSize[i]   = (i < nRows) ? 1 : 0;
-        leftChild[i]  = -1;
-        rightChild[i] = -1;
-        nodeWeight[i] = algorithmFPType(0);
-    }
-    for (size_t e = 0; e < nDendroNodes; e++)
-    {
-        const size_t nid = nRows + e;
-        nodeSize[nid]    = dendro[e].size;
-        leftChild[nid]   = dendro[e].left;
-        rightChild[nid]  = dendro[e].right;
-        nodeWeight[nid]  = dendro[e].weight;
-    }
-
-    struct CondensedEdge
-    {
-        int parent;
-        int child;
-        algorithmFPType lambdaVal;
-        int childSize;
-    };
-
-    // Pre-allocate condensed edges: worst case is ~2*nRows entries
-    const size_t maxCondensed = 2 * nRows;
-    daal::services::internal::TArray<CondensedEdge, cpu> condensedArr(maxCondensed);
-    CondensedEdge * condensed = condensedArr.get();
-    DAAL_CHECK_MALLOC(condensed);
-    size_t nCondensed = 0;
-
-    // Find root
-    int root = -1;
-    for (int e = static_cast<int>(nDendroNodes) - 1; e >= 0; e--)
-    {
-        if (dendro[e].size > 0)
-        {
-            root = static_cast<int>(nRows + e);
-            break;
-        }
-    }
-
-    if (root < 0)
-    {
-        WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
-        DAAL_CHECK_BLOCK_STATUS(assignBlock);
-        int * assignments = assignBlock.get();
-        for (size_t i = 0; i < nRows; i++) assignments[i] = -1;
-        WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
-        DAAL_CHECK_BLOCK_STATUS(ncBlock);
-        ncBlock.get()[0] = 0;
-        return services::Status();
-    }
-
-    int nextCid = static_cast<int>(nRows);
-    daal::services::internal::TArray<int, cpu> dendroToClusterArr(totalNodes);
-    int * dendroToCluster = dendroToClusterArr.get();
-    DAAL_CHECK_MALLOC(dendroToCluster);
-    for (size_t i = 0; i < totalNodes; i++)
-    {
-        dendroToCluster[i] = -1;
-    }
-    dendroToCluster[root] = nextCid++;
-
-    // Pre-allocated stack for leaf collection (max depth = nDendroNodes)
-    daal::services::internal::TArray<int, cpu> leafStackArr(nDendroNodes + 1);
-    int * leafStack = leafStackArr.get();
-    DAAL_CHECK_MALLOC(leafStack);
-
-    // Pre-allocated buffer to collect fallen leaves
-    daal::services::internal::TArray<int, cpu> fallenBufArr(nRows);
-    int * fallenBuf = fallenBufArr.get();
-    DAAL_CHECK_MALLOC(fallenBuf);
-
-    auto collectLeaves = [&](int startNid, int * out, size_t & outCount) {
-        outCount              = 0;
-        int stackTop          = 0;
-        leafStack[stackTop++] = startNid;
-        while (stackTop > 0)
-        {
-            const int nid = leafStack[--stackTop];
-            if (nid < static_cast<int>(nRows))
-            {
-                out[outCount++] = nid;
-            }
-            else
-            {
-                if (rightChild[nid] >= 0) leafStack[stackTop++] = rightChild[nid];
-                if (leftChild[nid] >= 0) leafStack[stackTop++] = leftChild[nid];
-            }
-        }
-    };
-
-    // Main condensed tree traversal stack
-    struct StackItem
-    {
-        int node;
-        int cluster;
-    };
-    daal::services::internal::TArray<StackItem, cpu> mainStackArr(nDendroNodes + 1);
-    StackItem * mainStack = mainStackArr.get();
-    DAAL_CHECK_MALLOC(mainStack);
-    int mainStackTop          = 0;
-    mainStack[mainStackTop++] = { root, dendroToCluster[root] };
-
-    const int mcs = static_cast<int>(minClusterSize);
-
-    while (mainStackTop > 0)
-    {
-        const StackItem item = mainStack[--mainStackTop];
-        const int nid        = item.node;
-        const int parentCid  = item.cluster;
-
-        if (nid < static_cast<int>(nRows)) continue;
-
-        const int lc = leftChild[nid];
-        const int rc = rightChild[nid];
-        if (lc < 0 || rc < 0) continue;
-
-        const int ls = nodeSize[lc];
-        const int rs = nodeSize[rc];
-        const algorithmFPType lambda =
-            (nodeWeight[nid] > algorithmFPType(0)) ? algorithmFPType(1) / nodeWeight[nid] : std::numeric_limits<algorithmFPType>::max();
-
-        const bool lBig = ls >= mcs;
-        const bool rBig = rs >= mcs;
-
-        if (lBig && rBig)
-        {
-            const int lcid            = nextCid++;
-            const int rcid            = nextCid++;
-            dendroToCluster[lc]       = lcid;
-            dendroToCluster[rc]       = rcid;
-            condensed[nCondensed++]   = { parentCid, lcid, lambda, ls };
-            condensed[nCondensed++]   = { parentCid, rcid, lambda, rs };
-            mainStack[mainStackTop++] = { lc, lcid };
-            mainStack[mainStackTop++] = { rc, rcid };
-        }
-        else if (lBig)
-        {
-            dendroToCluster[lc] = parentCid;
-            size_t nFallen      = 0;
-            collectLeaves(rc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
-            mainStack[mainStackTop++] = { lc, parentCid };
-        }
-        else if (rBig)
-        {
-            dendroToCluster[rc] = parentCid;
-            size_t nFallen      = 0;
-            collectLeaves(lc, fallenBuf, nFallen);
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
-            mainStack[mainStackTop++] = { rc, parentCid };
-        }
-        else
-        {
-            size_t nFallen = 0;
-            collectLeaves(lc, fallenBuf, nFallen);
-            size_t nFallen2 = 0;
-            collectLeaves(rc, fallenBuf + nFallen, nFallen2);
-            nFallen += nFallen2;
-            for (size_t fi = 0; fi < nFallen; fi++)
-            {
-                condensed[nCondensed++] = { parentCid, fallenBuf[fi], lambda, 1 };
-            }
-        }
-    }
-
-    // Phase 3: Stability and EOM selection
-    const int nClusters = nextCid;
-    const int rootCid   = static_cast<int>(nRows);
-
-    // All cluster-indexed arrays: [0..nClusters), only [rootCid..nClusters) used
-    daal::services::internal::TArrayCalloc<algorithmFPType, cpu> stabilityArr(nClusters);
-    daal::services::internal::TArrayCalloc<algorithmFPType, cpu> lambdaBirthArr(nClusters);
-    daal::services::internal::TArray<char, cpu> isLeafClusterArr(nClusters);
-    daal::services::internal::TArrayCalloc<int, cpu> clusterSizeArr(nClusters);
-    algorithmFPType * stability   = stabilityArr.get();
-    algorithmFPType * lambdaBirth = lambdaBirthArr.get();
-    char * isLeafCluster          = isLeafClusterArr.get();
-    int * clusterSz               = clusterSizeArr.get();
-    DAAL_CHECK_MALLOC(stability);
-    DAAL_CHECK_MALLOC(lambdaBirth);
-    DAAL_CHECK_MALLOC(isLeafCluster);
-    DAAL_CHECK_MALLOC(clusterSz);
-
-    for (int c = 0; c < nClusters; c++)
-    {
-        isLeafCluster[c] = 1;
-    }
-    clusterSz[rootCid] = static_cast<int>(nRows);
-
-    // childClusters: flatten as per-cluster offset/count into a flat array
-    // First pass: count children per cluster
-    daal::services::internal::TArrayCalloc<int, cpu> childCountArr(nClusters);
-    int * childCount = childCountArr.get();
-    DAAL_CHECK_MALLOC(childCount);
-
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows))
-        {
-            lambdaBirth[e.child]    = e.lambdaVal;
-            isLeafCluster[e.parent] = 0;
-            childCount[e.parent]++;
-            clusterSz[e.child] = e.childSize;
-        }
-    }
-
-    // Compute offsets (exclusive prefix sum)
-    daal::services::internal::TArray<int, cpu> childOffsetArr(nClusters + 1);
-    int * childOffset = childOffsetArr.get();
-    DAAL_CHECK_MALLOC(childOffset);
-    childOffset[0] = 0;
-    for (int c = 1; c <= nClusters; c++)
-    {
-        childOffset[c] = childOffset[c - 1] + childCount[c - 1];
-    }
-    const int totalChildren = childOffset[nClusters];
-
-    daal::services::internal::TArray<int, cpu> childListArr(totalChildren > 0 ? totalChildren : 1);
-    int * childList = childListArr.get();
-    DAAL_CHECK_MALLOC(childList);
-
-    // Reset counts for second pass fill
-    for (int c = 0; c < nClusters; c++) childCount[c] = 0;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows))
-        {
-            const int off  = childOffset[e.parent] + childCount[e.parent];
-            childList[off] = e.child;
-            childCount[e.parent]++;
-        }
-    }
-
-    // Compute stability
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e       = condensed[ei];
-        const algorithmFPType birth   = lambdaBirth[e.parent];
-        const algorithmFPType contrib = (e.lambdaVal - birth) * static_cast<algorithmFPType>(e.childSize);
-        if (contrib > algorithmFPType(0)) stability[e.parent] += contrib;
-    }
-
-    daal::services::internal::TArray<char, cpu> isSelectedArr(nClusters);
-    char * isSelected = isSelectedArr.get();
-    DAAL_CHECK_MALLOC(isSelected);
-    for (int c = 0; c < nClusters; c++)
-    {
-        isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
-    }
-
-    // Re-use leafStack as descent stack for EOM
-    for (int c = nClusters - 1; c >= rootCid; c--)
-    {
-        if (isLeafCluster[c]) continue;
-
-        algorithmFPType childSum = algorithmFPType(0);
-        for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++)
-        {
-            childSum += stability[childList[ci]];
-        }
-
-        if (childSum > stability[c])
-        {
-            isSelected[c] = 0;
-            stability[c]  = childSum;
-        }
-        else
-        {
-            // Deselect all descendants
-            int descTop = 0;
-            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++)
-            {
-                leafStack[descTop++] = childList[ci];
-            }
-            while (descTop > 0)
-            {
-                const int d   = leafStack[--descTop];
-                isSelected[d] = 0;
-                for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++)
-                {
-                    leafStack[descTop++] = childList[ci];
-                }
-            }
-        }
-    }
-
-    // Phase 4: Label points
-    int labelCounter = 0;
-    daal::services::internal::TArray<int, cpu> clusterLabelArr(nClusters);
-    int * clusterLabel = clusterLabelArr.get();
-    DAAL_CHECK_MALLOC(clusterLabel);
-    for (int c = 0; c < nClusters; c++) clusterLabel[c] = -1;
-    for (int c = rootCid; c < nClusters; c++)
-    {
-        if (isSelected[c]) clusterLabel[c] = labelCounter++;
-    }
-
-    daal::services::internal::TArray<int, cpu> clusterParentArr(nClusters);
-    int * clusterParent = clusterParentArr.get();
-    DAAL_CHECK_MALLOC(clusterParent);
-    for (int c = 0; c < nClusters; c++) clusterParent[c] = -1;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child >= static_cast<int>(nRows)) clusterParent[e.child] = e.parent;
-    }
-
-    daal::services::internal::TArray<int, cpu> pointFellFromArr(nRows);
-    int * pointFellFrom = pointFellFromArr.get();
-    DAAL_CHECK_MALLOC(pointFellFrom);
-    for (size_t i = 0; i < nRows; i++) pointFellFrom[i] = -1;
-    for (size_t ei = 0; ei < nCondensed; ei++)
-    {
-        const CondensedEdge & e = condensed[ei];
-        if (e.child < static_cast<int>(nRows)) pointFellFrom[e.child] = e.parent;
-    }
-
-    // Write assignments
     WriteOnlyRows<int, cpu> assignBlock(ntAssignments, 0, nRows);
     DAAL_CHECK_BLOCK_STATUS(assignBlock);
     int * assignments = assignBlock.get();
 
-    for (size_t i = 0; i < nRows; i++)
-    {
-        assignments[i] = -1;
-        int c          = pointFellFrom[i];
-        while (c >= rootCid && c < nClusters)
-        {
-            if (isSelected[c])
-            {
-                assignments[i] = clusterLabel[c];
-                break;
-            }
-            c = clusterParent[c];
-        }
-    }
+    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments);
 
-    // Handle points never ejected
-    daal::services::internal::TArray<int, cpu> dendroParentArr(totalNodes);
-    int * dendroParent = dendroParentArr.get();
-    DAAL_CHECK_MALLOC(dendroParent);
-    for (size_t i = 0; i < totalNodes; i++) dendroParent[i] = -1;
-    for (size_t e = 0; e < nDendroNodes; e++)
-    {
-        const size_t nid = nRows + e;
-        if (dendro[e].size > 0)
-        {
-            dendroParent[dendro[e].left]  = static_cast<int>(nid);
-            dendroParent[dendro[e].right] = static_cast<int>(nid);
-        }
-    }
-
-    for (size_t i = 0; i < nRows; i++)
-    {
-        if (pointFellFrom[i] >= 0) continue;
-
-        int nid = static_cast<int>(i);
-        while (nid >= 0 && nid < static_cast<int>(totalNodes))
-        {
-            const int cid = dendroToCluster[nid];
-            if (cid >= rootCid)
-            {
-                int c = cid;
-                while (c >= rootCid && c < nClusters)
-                {
-                    if (isSelected[c])
-                    {
-                        assignments[i] = clusterLabel[c];
-                        break;
-                    }
-                    c = clusterParent[c];
-                }
-                break;
-            }
-            nid = dendroParent[nid];
-        }
-    }
-
-    // Write number of clusters
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);
     ncBlock.get()[0] = labelCounter;

@@ -35,6 +35,19 @@ enum Method
     kdTree       = 1  /*!< K-d tree method: O(N log N) neighbor search, no N^2 distance matrix */
 };
 
+/**
+ * <a name="DAAL-ENUM-ALGORITHMS__HDBSCAN__METRIC"></a>
+ * Available distance metrics for the HDBSCAN algorithm
+ */
+enum Metric
+{
+    euclidean = 0, /*!< Euclidean (L2) distance */
+    manhattan = 1, /*!< Manhattan (L1) distance */
+    minkowski = 2, /*!< Minkowski (Lp) distance with configurable degree */
+    chebyshev = 3, /*!< Chebyshev (L-infinity) distance */
+    cosine    = 4  /*!< Cosine distance (1 - cosine_similarity) */
+};
+
 } // namespace hdbscan
 } // namespace algorithms
 } // namespace daal

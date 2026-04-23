@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "oneapi/dal/algo/hdbscan/common.hpp"
 #include "oneapi/dal/backend/common.hpp"
 #include "oneapi/dal/backend/primitives/ndarray.hpp"
 
@@ -28,27 +29,34 @@ namespace pr = dal::backend::primitives;
 
 template <typename Float>
 struct kernels_fp {
-    /// Compute full pairwise squared L2 distance matrix using GEMM.
-    /// dist²[i,j] = ||x_i||² + ||x_j||² - 2 * x_i · x_j
-    static sycl::event compute_squared_distances(sycl::queue& queue,
-                                                 const pr::ndview<Float, 2>& data,
-                                                 pr::ndview<Float, 2>& sq_dist,
-                                                 const bk::event_vector& deps = {});
+    /// Compute full pairwise distance matrix.
+    /// For euclidean: dist²[i,j] = ||x_i||² + ||x_j||² - 2 * x_i · x_j (squared L2)
+    /// For other metrics: actual distances computed directly.
+    static sycl::event compute_distance_matrix(sycl::queue& queue,
+                                               const pr::ndview<Float, 2>& data,
+                                               pr::ndview<Float, 2>& dist,
+                                               distance_metric metric,
+                                               double degree,
+                                               const bk::event_vector& deps = {});
 
-    /// Compute core distances from pre-computed squared distance matrix via kselect.
-    /// Core distance = sqrt of k-th nearest squared L2 distance, where k = min_samples.
+    /// Compute core distances from pre-computed distance matrix via kselect.
+    /// For euclidean: takes sqrt of k-th nearest squared distance.
+    /// For other metrics: k-th nearest distance is used directly.
     static sycl::event compute_core_distances(sycl::queue& queue,
-                                              const pr::ndview<Float, 2>& sq_dist,
+                                              const pr::ndview<Float, 2>& dist,
                                               pr::ndview<Float, 1>& core_distances,
                                               std::int64_t min_samples,
                                               std::int64_t row_count,
+                                              distance_metric metric,
                                               const bk::event_vector& deps = {});
 
-    /// Transform pre-computed squared distance matrix into mutual reachability distances.
-    /// mrd(i,j) = max(core_dist[i], core_dist[j], sqrt(sq_dist[i,j]))
+    /// Transform pre-computed distance matrix into mutual reachability distances.
+    /// mrd(i,j) = max(core_dist[i], core_dist[j], dist(i,j))
+    /// For euclidean: applies sqrt to convert squared L2 to Euclidean first.
     static sycl::event compute_mrd_matrix(sycl::queue& queue,
                                           const pr::ndview<Float, 1>& core_distances,
                                           pr::ndview<Float, 2>& mrd_matrix,
+                                          distance_metric metric,
                                           const bk::event_vector& deps = {});
 
     /// Build MST using Prim's algorithm on GPU with precomputed MRD matrix.

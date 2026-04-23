@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "oneapi/dal/algo/hdbscan/common.hpp"
+#include "oneapi/dal/detail/error_messages.hpp"
 #include "oneapi/dal/exceptions.hpp"
 
 namespace oneapi::dal::hdbscan {
@@ -47,6 +48,8 @@ public:
     std::int64_t min_cluster_size = 5;
     std::int64_t min_samples = 5;
     result_option_id result_options = default_result_options<Task>;
+    distance_metric metric = distance_metric::euclidean;
+    double degree = 2.0;
 };
 
 template <typename Task>
@@ -65,7 +68,7 @@ std::int64_t descriptor_base<Task>::get_min_samples() const {
 template <typename Task>
 void descriptor_base<Task>::set_min_cluster_size_impl(std::int64_t value) {
     if (value < 2) {
-        throw domain_error(dal::detail::error_messages::cluster_count_leq_zero());
+        throw domain_error(dal::detail::error_messages::hdbscan_min_cluster_size_lt_two());
     }
     impl_->min_cluster_size = value;
 }
@@ -73,7 +76,7 @@ void descriptor_base<Task>::set_min_cluster_size_impl(std::int64_t value) {
 template <typename Task>
 void descriptor_base<Task>::set_min_samples_impl(std::int64_t value) {
     if (value < 1) {
-        throw domain_error(dal::detail::error_messages::cluster_count_leq_zero());
+        throw domain_error(dal::detail::error_messages::hdbscan_min_samples_lt_one());
     }
     impl_->min_samples = value;
 }
@@ -81,6 +84,29 @@ void descriptor_base<Task>::set_min_samples_impl(std::int64_t value) {
 template <typename Task>
 result_option_id descriptor_base<Task>::get_result_options() const {
     return impl_->result_options;
+}
+
+template <typename Task>
+distance_metric descriptor_base<Task>::get_metric() const {
+    return impl_->metric;
+}
+
+template <typename Task>
+double descriptor_base<Task>::get_degree() const {
+    return impl_->degree;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_metric_impl(distance_metric value) {
+    impl_->metric = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_degree_impl(double value) {
+    if (value <= 0.0) {
+        throw domain_error(dal::detail::error_messages::hdbscan_minkowski_degree_leq_zero());
+    }
+    impl_->degree = value;
 }
 
 template <typename Task>

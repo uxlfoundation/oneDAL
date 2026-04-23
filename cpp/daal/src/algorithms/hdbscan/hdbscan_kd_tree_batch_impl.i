@@ -58,6 +58,139 @@ using daal::internal::ReadRows;
 using daal::internal::WriteOnlyRows;
 
 // =========================================================================
+// Distance functors for parameterizing kd-tree queries by metric
+// Each provides:
+//   pointDist(a, b, nCols)       — full point-to-point distance
+//   bboxLowerBound(q, lo, hi, nCols) — minimum distance from query to bbox
+//   planeDist(diff)              — distance to splitting hyperplane
+// =========================================================================
+template <typename FPType>
+struct EuclideanDist
+{
+    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    {
+        FPType sum = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            const FPType diff = a[d] - b[d];
+            sum += diff * diff;
+        }
+        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
+    }
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    {
+        FPType sum = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            FPType excess = FPType(0);
+            if (query[d] < lo[d])
+                excess = lo[d] - query[d];
+            else if (query[d] > hi[d])
+                excess = query[d] - hi[d];
+            sum += excess * excess;
+        }
+        return static_cast<FPType>(sqrt(static_cast<double>(sum)));
+    }
+    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+};
+
+template <typename FPType>
+struct ManhattanDist
+{
+    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    {
+        FPType sum = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            FPType diff = a[d] - b[d];
+            sum += (diff >= FPType(0)) ? diff : -diff;
+        }
+        return sum;
+    }
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    {
+        FPType sum = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            FPType excess = FPType(0);
+            if (query[d] < lo[d])
+                excess = lo[d] - query[d];
+            else if (query[d] > hi[d])
+                excess = query[d] - hi[d];
+            sum += excess;
+        }
+        return sum;
+    }
+    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+};
+
+template <typename FPType>
+struct MinkowskiDist
+{
+    double p;
+    double invp;
+    MinkowskiDist(double degree) : p(degree), invp(1.0 / degree) {}
+
+    FPType pointDist(const FPType * a, const FPType * b, int nCols) const
+    {
+        double sum = 0.0;
+        for (int d = 0; d < nCols; d++)
+        {
+            double diff = static_cast<double>(a[d] - b[d]);
+            if (diff < 0.0) diff = -diff;
+            sum += pow(diff, p);
+        }
+        return static_cast<FPType>(pow(sum, invp));
+    }
+    FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols) const
+    {
+        double sum = 0.0;
+        for (int d = 0; d < nCols; d++)
+        {
+            double excess = 0.0;
+            if (query[d] < lo[d])
+                excess = static_cast<double>(lo[d] - query[d]);
+            else if (query[d] > hi[d])
+                excess = static_cast<double>(query[d] - hi[d]);
+            sum += pow(excess, p);
+        }
+        return static_cast<FPType>(pow(sum, invp));
+    }
+    FPType planeDist(FPType diff) const { return (diff < FPType(0)) ? -diff : diff; }
+};
+
+template <typename FPType>
+struct ChebyshevDist
+{
+    static FPType pointDist(const FPType * a, const FPType * b, int nCols)
+    {
+        FPType mx = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            FPType diff = a[d] - b[d];
+            if (diff < FPType(0)) diff = -diff;
+            if (diff > mx) mx = diff;
+        }
+        return mx;
+    }
+    static FPType bboxLowerBound(const FPType * query, const FPType * lo, const FPType * hi, int nCols)
+    {
+        FPType mx = FPType(0);
+        for (int d = 0; d < nCols; d++)
+        {
+            FPType excess = FPType(0);
+            if (query[d] < lo[d])
+                excess = lo[d] - query[d];
+            else if (query[d] > hi[d])
+                excess = query[d] - hi[d];
+            if (excess > mx) mx = excess;
+        }
+        return mx;
+    }
+    static FPType planeDist(FPType diff) { return (diff < FPType(0)) ? -diff : diff; }
+};
+
+// =========================================================================
 // k-d tree node structure
 // =========================================================================
 template <typename FPType>
@@ -203,11 +336,11 @@ static int buildKdTree(const algorithmFPType * data, int * pointIndices, int beg
 }
 
 // =========================================================================
-// k-NN query on kd-tree
+// k-NN query on kd-tree (templated on distance functor)
 // =========================================================================
-template <typename algorithmFPType>
+template <typename algorithmFPType, typename DistFunc>
 static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
-                     const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType> & heap)
+                     const algorithmFPType * queryPoint, int nodeIdx, KnnHeap<algorithmFPType> & heap, const DistFunc & distFunc)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -218,13 +351,7 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
         {
             const int pi                = pointIndices[i];
             const algorithmFPType * row = data + pi * nCols;
-            algorithmFPType dist        = algorithmFPType(0);
-            for (int d = 0; d < nCols; d++)
-            {
-                const algorithmFPType diff = queryPoint[d] - row[d];
-                dist += diff * diff;
-            }
-            dist = static_cast<algorithmFPType>(sqrt(static_cast<double>(dist)));
+            const algorithmFPType dist  = distFunc.pointDist(queryPoint, row, nCols);
             heap.push(dist, pi);
         }
         return;
@@ -236,13 +363,13 @@ static void knnQuery(const algorithmFPType * data, int nCols, const KdNode<algor
     const int nearChild = (diff <= 0) ? node.left : node.right;
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
-    knnQuery(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap);
+    knnQuery(data, nCols, nodes, pointIndices, queryPoint, nearChild, heap, distFunc);
 
     // Prune: only visit far subtree if the splitting plane is closer than current k-th NN
-    const algorithmFPType planeDist = (diff < 0) ? -diff : diff;
-    if (planeDist < heap.maxDist())
+    const algorithmFPType pd = distFunc.planeDist(diff);
+    if (pd < heap.maxDist())
     {
-        knnQuery(data, nCols, nodes, pointIndices, queryPoint, farChild, heap);
+        knnQuery(data, nCols, nodes, pointIndices, queryPoint, farChild, heap, distFunc);
     }
 }
 
@@ -309,12 +436,14 @@ static int updateNodeComponents(KdNode<algorithmFPType> * nodes, const int * poi
 // =========================================================================
 // Boruvka nearest-different-component query under MRD metric
 // Uses three-level pruning: component, bounding-box MRD lower bound, near/far
+// Templated on distance functor to support multiple metrics.
 // =========================================================================
-template <typename algorithmFPType>
+template <typename algorithmFPType, typename DistFunc>
 static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, const KdNode<algorithmFPType> * nodes, const int * pointIndices,
                                    const algorithmFPType * coreDistances, const algorithmFPType * bboxLo, const algorithmFPType * bboxHi,
                                    const algorithmFPType * minCoreDistNode, const int * componentOf, const algorithmFPType * queryPoint, int queryIdx,
-                                   algorithmFPType queryCoreD, int queryComponent, int nodeIdx, algorithmFPType & bestMrd, int & bestIdx)
+                                   algorithmFPType queryCoreD, int queryComponent, int nodeIdx, algorithmFPType & bestMrd, int & bestIdx,
+                                   const DistFunc & distFunc)
 {
     const KdNode<algorithmFPType> & node = nodes[nodeIdx];
 
@@ -323,22 +452,12 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
 
     // Pruning 2: bounding-box MRD lower bound
     {
-        algorithmFPType minSqDist  = algorithmFPType(0);
-        const algorithmFPType * lo = bboxLo + nodeIdx * nCols;
-        const algorithmFPType * hi = bboxHi + nodeIdx * nCols;
-        for (int d = 0; d < nCols; d++)
-        {
-            algorithmFPType excess = algorithmFPType(0);
-            if (queryPoint[d] < lo[d])
-                excess = lo[d] - queryPoint[d];
-            else if (queryPoint[d] > hi[d])
-                excess = queryPoint[d] - hi[d];
-            minSqDist += excess * excess;
-        }
-        const algorithmFPType minEuclDist = static_cast<algorithmFPType>(sqrt(static_cast<double>(minSqDist)));
+        const algorithmFPType * lo    = bboxLo + nodeIdx * nCols;
+        const algorithmFPType * hi    = bboxHi + nodeIdx * nCols;
+        const algorithmFPType minDist = distFunc.bboxLowerBound(queryPoint, lo, hi, nCols);
 
-        // MRD(q, p) = max(core_q, core_p, dist(q,p)) >= max(core_q, minCoreDist_subtree, minEuclDist)
-        algorithmFPType mrdLB = minEuclDist;
+        // MRD(q, p) = max(core_q, core_p, dist(q,p)) >= max(core_q, minCoreDist_subtree, minDist)
+        algorithmFPType mrdLB = minDist;
         if (queryCoreD > mrdLB) mrdLB = queryCoreD;
         if (minCoreDistNode[nodeIdx] > mrdLB) mrdLB = minCoreDistNode[nodeIdx];
 
@@ -354,13 +473,7 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
             if (componentOf[pi] == queryComponent) continue;
 
             const algorithmFPType * row = data + pi * nCols;
-            algorithmFPType dist        = algorithmFPType(0);
-            for (int d = 0; d < nCols; d++)
-            {
-                const algorithmFPType df = queryPoint[d] - row[d];
-                dist += df * df;
-            }
-            dist = static_cast<algorithmFPType>(sqrt(static_cast<double>(dist)));
+            const algorithmFPType dist  = distFunc.pointDist(queryPoint, row, nCols);
 
             algorithmFPType mrd = dist;
             if (queryCoreD > mrd) mrd = queryCoreD;
@@ -383,9 +496,170 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
     const int farChild  = (diff <= 0) ? node.right : node.left;
 
     nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx);
+                           queryCoreD, queryComponent, nearChild, bestMrd, bestIdx, distFunc);
     nearestMrdBoruvkaQuery(data, nCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPoint, queryIdx,
-                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx);
+                           queryCoreD, queryComponent, farChild, bestMrd, bestIdx, distFunc);
+}
+
+// =========================================================================
+// Core distances + Boruvka MST, templated on distance functor
+// =========================================================================
+template <typename algorithmFPType, CpuType cpu, typename DistFunc>
+static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, size_t nCols, size_t minSamples, KdNode<algorithmFPType> * nodes,
+                                  int * pointIndices, int totalTreeNodes, algorithmFPType * bboxLo, algorithmFPType * bboxHi,
+                                  algorithmFPType * coreDistances, int * mstFrom, int * mstTo, algorithmFPType * mstWeights,
+                                  const DistFunc & distFunc)
+{
+    const int k = static_cast<int>(minSamples);
+
+    // Step 2: Compute core distances via k-NN queries on the kd-tree
+    {
+        daal::TlsMem<algorithmFPType, cpu> tlsHeapDists(k);
+        daal::TlsMem<int, cpu> tlsHeapIndices(k);
+
+        daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {
+            algorithmFPType * heapDists = tlsHeapDists.local();
+            int * heapIndices           = tlsHeapIndices.local();
+            if (!heapDists || !heapIndices) return;
+
+            KnnHeap<algorithmFPType> heap;
+            heap.init(heapDists, heapIndices, k);
+
+            knnQuery(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap, distFunc);
+
+            coreDistances[i] = heap.maxDist();
+        });
+    }
+
+    // Step 2b: Per-node minimum core distances
+    daal::services::internal::TArray<algorithmFPType, cpu> minCoreDistNodeArr(totalTreeNodes);
+    algorithmFPType * minCoreDistNode = minCoreDistNodeArr.get();
+    if (!minCoreDistNode) return;
+    computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
+
+    // Step 3: Boruvka MST
+    const size_t edgeCount = nRows - 1;
+
+    daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
+    daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
+    daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
+    int * ufParent    = ufParentArr.get();
+    int * ufRank      = ufRankArr.get();
+    int * componentOf = componentOfArr.get();
+    if (!ufParent || !ufRank || !componentOf) return;
+
+    daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
+    daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
+    algorithmFPType * pointBestMrd = pointBestMrdArr.get();
+    int * pointBestIdx             = pointBestIdxArr.get();
+    if (!pointBestMrd || !pointBestIdx) return;
+
+    daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
+    daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
+    daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
+    algorithmFPType * compBestMrd = compBestMrdArr.get();
+    int * compBestFrom            = compBestFromArr.get();
+    int * compBestTo              = compBestToArr.get();
+    if (!compBestMrd || !compBestFrom || !compBestTo) return;
+
+    for (size_t i = 0; i < nRows; i++)
+    {
+        ufParent[i]    = static_cast<int>(i);
+        ufRank[i]      = 0;
+        componentOf[i] = static_cast<int>(i);
+    }
+
+    auto ufFind = [&](int x) -> int {
+        while (ufParent[x] != x)
+        {
+            ufParent[x] = ufParent[ufParent[x]];
+            x           = ufParent[x];
+        }
+        return x;
+    };
+
+    auto ufUnion = [&](int rx, int ry) {
+        if (ufRank[rx] < ufRank[ry])
+            ufParent[rx] = ry;
+        else if (ufRank[rx] > ufRank[ry])
+            ufParent[ry] = rx;
+        else
+        {
+            ufParent[ry] = rx;
+            ufRank[rx]++;
+        }
+    };
+
+    updateNodeComponents(nodes, pointIndices, componentOf, 0);
+
+    size_t edgesAdded    = 0;
+    size_t numComponents = nRows;
+    const int iNRows     = static_cast<int>(nRows);
+    const int iNCols     = static_cast<int>(nCols);
+
+    while (numComponents > 1)
+    {
+        daal::threader_for(iNRows, iNRows, [&](size_t i) {
+            const int comp                   = componentOf[i];
+            const algorithmFPType * queryPt  = data + i * nCols;
+            const algorithmFPType queryCoreD = coreDistances[i];
+            algorithmFPType bestMrd          = std::numeric_limits<algorithmFPType>::max();
+            int bestIdx                      = -1;
+
+            nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
+                                   static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx, distFunc);
+
+            pointBestMrd[i] = bestMrd;
+            pointBestIdx[i] = bestIdx;
+        });
+
+        for (size_t i = 0; i < nRows; i++)
+        {
+            compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
+            compBestFrom[i] = -1;
+            compBestTo[i]   = -1;
+        }
+        for (size_t i = 0; i < nRows; i++)
+        {
+            if (pointBestIdx[i] < 0) continue;
+            const int comp = componentOf[i];
+            if (pointBestMrd[i] < compBestMrd[comp])
+            {
+                compBestMrd[comp]  = pointBestMrd[i];
+                compBestFrom[comp] = static_cast<int>(i);
+                compBestTo[comp]   = pointBestIdx[i];
+            }
+        }
+
+        size_t addedThisRound = 0;
+        for (size_t c = 0; c < nRows; c++)
+        {
+            if (compBestFrom[c] < 0) continue;
+            const int u  = compBestFrom[c];
+            const int v  = compBestTo[c];
+            const int ru = ufFind(u);
+            const int rv = ufFind(v);
+            if (ru == rv) continue;
+
+            mstFrom[edgesAdded]    = u;
+            mstTo[edgesAdded]      = v;
+            mstWeights[edgesAdded] = compBestMrd[c];
+            edgesAdded++;
+            addedThisRound++;
+
+            ufUnion(ru, rv);
+            numComponents--;
+        }
+
+        if (addedThisRound == 0) break;
+
+        for (size_t i = 0; i < nRows; i++)
+        {
+            componentOf[i] = ufFind(static_cast<int>(i));
+        }
+
+        updateNodeComponents(nodes, pointIndices, componentOf, 0);
+    }
 }
 
 // =========================================================================
@@ -393,7 +667,8 @@ static void nearestMrdBoruvkaQuery(const algorithmFPType * data, int nCols, cons
 // =========================================================================
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
-                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples)
+                                                                           NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
+                                                                           int metric, double degree)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -444,52 +719,12 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     const int totalTreeNodes = nextNode;
 
     // =========================================================================
-    // Step 2: Compute core distances via k-NN queries on the kd-tree
+    // Steps 2-3: Core distances + Boruvka MST (dispatched by metric)
     // =========================================================================
 
     daal::services::internal::TArray<algorithmFPType, cpu> coreDists(nRows);
     algorithmFPType * coreDistances = coreDists.get();
     DAAL_CHECK_MALLOC(coreDistances);
-
-    const int k = static_cast<int>(minSamples); // k includes the point itself in the count
-
-    {
-        // Per-thread heap buffers
-        daal::TlsMem<algorithmFPType, cpu> tlsHeapDists(k);
-        daal::TlsMem<int, cpu> tlsHeapIndices(k);
-
-        daal::threader_for(static_cast<int>(nRows), static_cast<int>(nRows), [&](size_t i) {
-            algorithmFPType * heapDists = tlsHeapDists.local();
-            int * heapIndices           = tlsHeapIndices.local();
-            if (!heapDists || !heapIndices) return;
-
-            KnnHeap<algorithmFPType> heap;
-            heap.init(heapDists, heapIndices, k);
-
-            knnQuery(data, static_cast<int>(nCols), nodes, pointIndices, data + i * nCols, 0, heap);
-
-            // Core distance = distance to k-th nearest neighbor (the max in the heap)
-            // The heap max is the k-th NN distance. If k includes self (dist=0),
-            // the k-th NN is at index k-1 (0-indexed) which is the heap root.
-            coreDistances[i] = heap.maxDist();
-        });
-    }
-
-    // =========================================================================
-    // Step 2b: Compute per-node minimum core distances (for MRD pruning)
-    // =========================================================================
-
-    daal::services::internal::TArray<algorithmFPType, cpu> minCoreDistNodeArr(totalTreeNodes);
-    algorithmFPType * minCoreDistNode = minCoreDistNodeArr.get();
-    DAAL_CHECK_MALLOC(minCoreDistNode);
-    computeMinCoreDists(nodes, pointIndices, coreDistances, minCoreDistNode, 0);
-
-    // =========================================================================
-    // Step 3: Build MST using Boruvka's algorithm with kd-tree acceleration
-    //
-    // O(log N) rounds, each round: N kd-tree queries at O(log N) amortized.
-    // Total: O(N * log^2 N), a major improvement over O(N^2) Prim's.
-    // =========================================================================
 
     daal::services::internal::TArray<int, cpu> mstFromArr(edgeCount);
     daal::services::internal::TArray<int, cpu> mstToArr(edgeCount);
@@ -501,143 +736,24 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
+    switch (metric)
     {
-        // Union-find arrays
-        daal::services::internal::TArray<int, cpu> ufParentArr(nRows);
-        daal::services::internal::TArray<int, cpu> ufRankArr(nRows);
-        daal::services::internal::TArray<int, cpu> componentOfArr(nRows);
-        int * ufParent    = ufParentArr.get();
-        int * ufRank      = ufRankArr.get();
-        int * componentOf = componentOfArr.get();
-        DAAL_CHECK_MALLOC(ufParent);
-        DAAL_CHECK_MALLOC(ufRank);
-        DAAL_CHECK_MALLOC(componentOf);
-
-        // Per-point best neighbor (per round)
-        daal::services::internal::TArray<algorithmFPType, cpu> pointBestMrdArr(nRows);
-        daal::services::internal::TArray<int, cpu> pointBestIdxArr(nRows);
-        algorithmFPType * pointBestMrd = pointBestMrdArr.get();
-        int * pointBestIdx             = pointBestIdxArr.get();
-        DAAL_CHECK_MALLOC(pointBestMrd);
-        DAAL_CHECK_MALLOC(pointBestIdx);
-
-        // Per-component best edge (per round)
-        daal::services::internal::TArray<algorithmFPType, cpu> compBestMrdArr(nRows);
-        daal::services::internal::TArray<int, cpu> compBestFromArr(nRows);
-        daal::services::internal::TArray<int, cpu> compBestToArr(nRows);
-        algorithmFPType * compBestMrd = compBestMrdArr.get();
-        int * compBestFrom            = compBestFromArr.get();
-        int * compBestTo              = compBestToArr.get();
-        DAAL_CHECK_MALLOC(compBestMrd);
-        DAAL_CHECK_MALLOC(compBestFrom);
-        DAAL_CHECK_MALLOC(compBestTo);
-
-        // Initialize: each point is its own component
-        for (size_t i = 0; i < nRows; i++)
-        {
-            ufParent[i]    = static_cast<int>(i);
-            ufRank[i]      = 0;
-            componentOf[i] = static_cast<int>(i);
-        }
-
-        // Union-find with path compression + union by rank
-        auto ufFind = [&](int x) -> int {
-            while (ufParent[x] != x)
-            {
-                ufParent[x] = ufParent[ufParent[x]]; // path halving
-                x           = ufParent[x];
-            }
-            return x;
-        };
-
-        auto ufUnion = [&](int rx, int ry) {
-            if (ufRank[rx] < ufRank[ry])
-                ufParent[rx] = ry;
-            else if (ufRank[rx] > ufRank[ry])
-                ufParent[ry] = rx;
-            else
-            {
-                ufParent[ry] = rx;
-                ufRank[rx]++;
-            }
-        };
-
-        // Initial component IDs on tree nodes
-        updateNodeComponents(nodes, pointIndices, componentOf, 0);
-
-        size_t edgesAdded    = 0;
-        size_t numComponents = nRows;
-        const int iNRows     = static_cast<int>(nRows);
-        const int iNCols     = static_cast<int>(nCols);
-
-        while (numComponents > 1)
-        {
-            // Phase 1: For each point, find nearest different-component neighbor
-            daal::threader_for(iNRows, iNRows, [&](size_t i) {
-                const int comp                   = componentOf[i];
-                const algorithmFPType * queryPt  = data + i * nCols;
-                const algorithmFPType queryCoreD = coreDistances[i];
-                algorithmFPType bestMrd          = std::numeric_limits<algorithmFPType>::max();
-                int bestIdx                      = -1;
-
-                nearestMrdBoruvkaQuery(data, iNCols, nodes, pointIndices, coreDistances, bboxLo, bboxHi, minCoreDistNode, componentOf, queryPt,
-                                       static_cast<int>(i), queryCoreD, comp, 0, bestMrd, bestIdx);
-
-                pointBestMrd[i] = bestMrd;
-                pointBestIdx[i] = bestIdx;
-            });
-
-            // Phase 2: For each component, find the lightest edge
-            for (size_t i = 0; i < nRows; i++)
-            {
-                compBestMrd[i]  = std::numeric_limits<algorithmFPType>::max();
-                compBestFrom[i] = -1;
-                compBestTo[i]   = -1;
-            }
-            for (size_t i = 0; i < nRows; i++)
-            {
-                if (pointBestIdx[i] < 0) continue;
-                const int comp = componentOf[i];
-                if (pointBestMrd[i] < compBestMrd[comp])
-                {
-                    compBestMrd[comp]  = pointBestMrd[i];
-                    compBestFrom[comp] = static_cast<int>(i);
-                    compBestTo[comp]   = pointBestIdx[i];
-                }
-            }
-
-            // Phase 3: Add edges and merge components (deduplicate)
-            size_t addedThisRound = 0;
-            for (size_t c = 0; c < nRows; c++)
-            {
-                if (compBestFrom[c] < 0) continue;
-                const int u  = compBestFrom[c];
-                const int v  = compBestTo[c];
-                const int ru = ufFind(u);
-                const int rv = ufFind(v);
-                if (ru == rv) continue; // already merged by a symmetric edge
-
-                mstFrom[edgesAdded]    = u;
-                mstTo[edgesAdded]      = v;
-                mstWeights[edgesAdded] = compBestMrd[c];
-                edgesAdded++;
-                addedThisRound++;
-
-                ufUnion(ru, rv);
-                numComponents--;
-            }
-
-            if (addedThisRound == 0) break; // safety: no progress possible
-
-            // Phase 4: Flatten component labels
-            for (size_t i = 0; i < nRows; i++)
-            {
-                componentOf[i] = ufFind(static_cast<int>(i));
-            }
-
-            // Phase 5: Update tree node component IDs for pruning
-            updateNodeComponents(nodes, pointIndices, componentOf, 0);
-        }
+    case manhattan:
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, ManhattanDist<algorithmFPType> {});
+        break;
+    case minkowski:
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, MinkowskiDist<algorithmFPType>(degree));
+        break;
+    case chebyshev:
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, ChebyshevDist<algorithmFPType> {});
+        break;
+    default: // euclidean
+        computeCoreDistAndMst<algorithmFPType, cpu>(data, nRows, nCols, minSamples, nodes, pointIndices, totalTreeNodes, bboxLo, bboxHi,
+                                                    coreDistances, mstFrom, mstTo, mstWeights, EuclideanDist<algorithmFPType> {});
+        break;
     }
 
     // =========================================================================

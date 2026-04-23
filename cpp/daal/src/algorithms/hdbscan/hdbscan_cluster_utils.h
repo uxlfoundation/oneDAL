@@ -416,6 +416,25 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
+    // Phase 3b: allow_single_cluster=false (matches sklearn default).
+    // If only the root cluster is selected AND it has children, force-select
+    // its children instead. If the root is a leaf (no children), keep it.
+    {
+        int selectedCount = 0;
+        for (int c = rootCid; c < nClusters; c++)
+        {
+            if (isSelected[c]) selectedCount++;
+        }
+        if (selectedCount == 1 && isSelected[rootCid] && !isLeafCluster[rootCid])
+        {
+            isSelected[rootCid] = 0;
+            for (int ci = childOffset[rootCid]; ci < childOffset[rootCid] + childCount[rootCid]; ci++)
+            {
+                isSelected[childList[ci]] = 1;
+            }
+        }
+    }
+
     // Phase 4: Label points
     int labelCounter = 0;
     daal::services::internal::TArray<int, cpu> clusterLabelArr(nClusters);
@@ -447,10 +466,14 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         if (e.child < static_cast<int>(nRows)) pointFellFrom[e.child] = e.parent;
     }
 
+    // Label points that fell from clusters in the condensed tree.
+    // Walk up from the fell-from cluster to find the deepest selected ancestor.
     for (size_t i = 0; i < nRows; i++)
     {
         assignments[i] = -1;
         int c          = pointFellFrom[i];
+        if (c < rootCid || c >= nClusters) continue;
+
         while (c >= rootCid && c < nClusters)
         {
             if (isSelected[c])
@@ -462,7 +485,9 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         }
     }
 
-    // Handle points never ejected
+    // Handle points never ejected (remained in leaf clusters through condensation).
+    // Walk up the dendrogram to find their condensed cluster, then find the
+    // nearest selected ancestor.
     daal::services::internal::TArray<int, cpu> dendroParentArr(totalNodes);
     int * dendroParent = dendroParentArr.get();
     if (!dendroParent) return 0;

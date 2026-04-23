@@ -16,6 +16,7 @@
 
 #include <limits>
 #include <cmath>
+#include <map>
 
 #include "oneapi/dal/algo/hdbscan/compute.hpp"
 
@@ -32,6 +33,34 @@ namespace te = dal::test::engine;
 
 constexpr inline std::uint64_t mask_full = 0xffffffffffffffff;
 
+/// Check that two label arrays define the same partition (permutation-invariant).
+/// Different implementations may assign different integer labels to the same clusters
+/// because floating-point differences can reorder MST edges.
+template <typename Float>
+static void check_same_partition(const dal::array<Float>& a_rows,
+                                 const dal::array<Float>& b_rows,
+                                 std::int64_t row_count) {
+    std::map<std::int32_t, std::int32_t> a_to_b;
+    std::map<std::int32_t, std::int32_t> b_to_a;
+
+    for (std::int64_t i = 0; i < row_count; i++) {
+        const auto a = static_cast<std::int32_t>(a_rows[i]);
+        const auto b = static_cast<std::int32_t>(b_rows[i]);
+
+        auto it = a_to_b.find(a);
+        if (it == a_to_b.end()) {
+            CAPTURE(i, a, b);
+            REQUIRE(b_to_a.find(b) == b_to_a.end());
+            a_to_b[a] = b;
+            b_to_a[b] = a;
+        }
+        else {
+            CAPTURE(i, a, b, it->second);
+            REQUIRE(it->second == b);
+        }
+    }
+}
+
 template <typename TestType, typename Derived>
 class hdbscan_test : public te::crtp_algo_fixture<TestType, Derived> {
 public:
@@ -44,6 +73,16 @@ public:
     auto get_descriptor(std::int64_t min_cluster_size, std::int64_t min_samples) const {
         return hdbscan::descriptor<float_t, method_t>(min_cluster_size, min_samples)
             .set_result_options(result_options::responses);
+    }
+
+    auto get_descriptor(std::int64_t min_cluster_size,
+                        std::int64_t min_samples,
+                        distance_metric metric,
+                        double degree = 2.0) const {
+        return hdbscan::descriptor<float_t, method_t>(min_cluster_size, min_samples)
+            .set_result_options(result_options::responses)
+            .set_metric(metric)
+            .set_degree(degree);
     }
 
     void run_checks(const table& data,
@@ -59,6 +98,30 @@ public:
         const auto compute_result =
             oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
 
+        check_compute_result(compute_result, data, expected_cluster_count);
+    }
+
+    void run_checks(const table& data,
+                    std::int64_t min_cluster_size,
+                    std::int64_t min_samples,
+                    distance_metric metric,
+                    double degree,
+                    std::int64_t expected_cluster_count) {
+        CAPTURE(min_cluster_size, min_samples, static_cast<int>(metric), degree);
+
+        INFO("create descriptor");
+        const auto hdbscan_desc = get_descriptor(min_cluster_size, min_samples, metric, degree);
+
+        INFO("run compute");
+        const auto compute_result =
+            oneapi::dal::test::engine::compute(this->get_policy(), hdbscan_desc, data);
+
+        check_compute_result(compute_result, data, expected_cluster_count);
+    }
+
+    void check_compute_result(const result_t& compute_result,
+                              const table& data,
+                              std::int64_t expected_cluster_count) {
         INFO("check cluster count");
         REQUIRE(compute_result.get_cluster_count() >= 0);
 
@@ -74,8 +137,12 @@ public:
         INFO("check response values");
         const auto rows = row_accessor<const float_t>(responses).pull({ 0, -1 });
         for (std::int64_t i = 0; i < data.get_row_count(); i++) {
-            // Responses should be >= -1 (noise) and < cluster_count
-            REQUIRE(static_cast<std::int32_t>(rows[i]) >= -1);
+            const auto label = static_cast<std::int32_t>(rows[i]);
+            // Labels should be >= -1 (noise) and < cluster_count
+            REQUIRE(label >= -1);
+            if (compute_result.get_cluster_count() > 0) {
+                REQUIRE(label < compute_result.get_cluster_count());
+            }
         }
     }
 

@@ -229,6 +229,10 @@ public:
     MSG(objective_function_value_lt_zero);
 
     /* HDBSCAN */
+    MSG(hdbscan_metric_not_compatible_with_kd_tree);
+    MSG(hdbscan_min_cluster_size_lt_two);
+    MSG(hdbscan_min_samples_lt_one);
+    MSG(hdbscan_minkowski_degree_leq_zero);
     MSG(hdbscan_kd_tree_method_is_not_implemented_for_gpu);
 
     /* k-NN */

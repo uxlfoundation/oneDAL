@@ -46,33 +46,135 @@ private:
                                                                        2.0, 2.0, 1.0, 1.5, 1.5 };
 };
 
-using hdbscan_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
+using hdbscan_bf_types = COMBINE_TYPES((float, double), (hdbscan::method::brute_force));
+using hdbscan_kd_types = COMBINE_TYPES((float, double), (hdbscan::method::kd_tree));
 
-#define HDBSCAN_BADARG_TEST(name) \
-    TEMPLATE_LIST_TEST_M(hdbscan_badarg_test, name, "[hdbscan][badarg]", hdbscan_types)
+// =========================================================================
+// brute_force badarg tests
+// =========================================================================
 
-HDBSCAN_BADARG_TEST("accepts valid min_cluster_size") {
+#define HDBSCAN_BF_BADARG_TEST(name) \
+    TEMPLATE_LIST_TEST_M(hdbscan_badarg_test, name, "[hdbscan][badarg]", hdbscan_bf_types)
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts valid min_cluster_size") {
     REQUIRE_NOTHROW(this->get_descriptor().set_min_cluster_size(2));
 }
 
-HDBSCAN_BADARG_TEST("throws if min_cluster_size is less than 2") {
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if min_cluster_size is less than 2") {
     REQUIRE_THROWS_AS(this->get_descriptor().set_min_cluster_size(1), domain_error);
 }
 
-HDBSCAN_BADARG_TEST("accepts valid min_samples") {
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if min_cluster_size is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_min_cluster_size(0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts valid min_samples") {
     REQUIRE_NOTHROW(this->get_descriptor().set_min_samples(1));
 }
 
-HDBSCAN_BADARG_TEST("throws if min_samples is less than 1") {
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if min_samples is less than 1") {
     REQUIRE_THROWS_AS(this->get_descriptor().set_min_samples(0), domain_error);
 }
 
-HDBSCAN_BADARG_TEST("throws if data is empty") {
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if data is empty") {
     REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
 }
 
-HDBSCAN_BADARG_TEST("accepts valid data") {
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts valid data") {
     REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts large min_cluster_size") {
+    // min_cluster_size > row_count is valid (all points become noise)
+    REQUIRE_NOTHROW(this->get_descriptor().set_min_cluster_size(100));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if result options are empty") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_result_options(result_option_id{}), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts euclidean metric") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_metric(hdbscan::distance_metric::euclidean));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts manhattan metric") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_metric(hdbscan::distance_metric::manhattan));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts cosine metric") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_metric(hdbscan::distance_metric::cosine));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: accepts minkowski metric with valid degree") {
+    REQUIRE_NOTHROW(
+        this->get_descriptor().set_metric(hdbscan::distance_metric::minkowski).set_degree(3.0));
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if degree is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(0.0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: throws if degree is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
+}
+
+HDBSCAN_BF_BADARG_TEST("brute_force: cosine metric computes successfully") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
+    REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
+}
+
+// =========================================================================
+// kd_tree badarg tests
+// =========================================================================
+
+#define HDBSCAN_KD_BADARG_TEST(name) \
+    TEMPLATE_LIST_TEST_M(hdbscan_badarg_test, name, "[hdbscan][badarg]", hdbscan_kd_types)
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts valid min_cluster_size") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_min_cluster_size(2));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if min_cluster_size is less than 2") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_min_cluster_size(1), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts valid min_samples") {
+    REQUIRE_NOTHROW(this->get_descriptor().set_min_samples(1));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if min_samples is less than 1") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_min_samples(0), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if data is empty") {
+    REQUIRE_THROWS_AS(this->compute(this->get_descriptor(), table{}), invalid_argument);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts valid data") {
+    REQUIRE_NOTHROW(this->compute(this->get_descriptor(), this->get_data()));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts manhattan metric") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::manhattan);
+    REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: accepts chebyshev metric") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::chebyshev);
+    REQUIRE_NOTHROW(this->compute(desc, this->get_data()));
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if cosine metric is used") {
+    auto desc = this->get_descriptor().set_metric(hdbscan::distance_metric::cosine);
+    REQUIRE_THROWS_AS(this->compute(desc, this->get_data()), invalid_argument);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if degree is zero") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(0.0), domain_error);
+}
+
+HDBSCAN_KD_BADARG_TEST("kd_tree: throws if degree is negative") {
+    REQUIRE_THROWS_AS(this->get_descriptor().set_degree(-1.0), domain_error);
 }
 
 } // namespace oneapi::dal::hdbscan::test

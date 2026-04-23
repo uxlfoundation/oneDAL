@@ -22,12 +22,17 @@ This chapter describes clustering algorithms implemented in |short_name|:
    :titlesonly:
 
    dbscan.rst
+   hdbscan.rst
    kmeans.rst
    kmeans-init.rst
 
 .. rubric:: Examples: DBSCAN
 
 .. include:: ../../../includes/clustering/dbscan-examples.rst
+
+.. rubric:: Examples: HDBSCAN
+
+.. include:: ../../../includes/clustering/hdbscan-examples.rst
 
 .. rubric:: Examples: K-Means
 

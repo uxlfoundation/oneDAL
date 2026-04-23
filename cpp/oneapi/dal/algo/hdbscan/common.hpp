@@ -22,6 +22,21 @@
 
 namespace oneapi::dal::hdbscan {
 
+namespace v1 {
+
+/// Distance metric used for computing pairwise distances in HDBSCAN.
+enum class distance_metric {
+    euclidean, ///< Euclidean (L2) distance
+    manhattan, ///< Manhattan (L1) distance
+    minkowski, ///< Minkowski (Lp) distance with configurable degree
+    chebyshev, ///< Chebyshev (L-infinity) distance
+    cosine ///< Cosine distance (1 - cosine_similarity). Brute-force only.
+};
+
+} // namespace v1
+
+using v1::distance_metric;
+
 namespace task {
 namespace v1 {
 /// Tag-type that parameterizes entities used for solving
@@ -110,11 +125,15 @@ public:
     std::int64_t get_min_cluster_size() const;
     std::int64_t get_min_samples() const;
     result_option_id get_result_options() const;
+    distance_metric get_metric() const;
+    double get_degree() const;
 
 protected:
     void set_min_cluster_size_impl(std::int64_t);
     void set_min_samples_impl(std::int64_t);
     void set_result_options_impl(const result_option_id& value);
+    void set_metric_impl(distance_metric);
+    void set_degree_impl(double);
 
 private:
     dal::detail::pimpl<descriptor_impl<Task>> impl_;
@@ -191,6 +210,28 @@ public:
 
     auto& set_result_options(const result_option_id& value) {
         base_t::set_result_options_impl(value);
+        return *this;
+    }
+
+    /// The distance metric used for pairwise distance computation.
+    /// @invariant Cosine metric is only supported with brute_force method.
+    distance_metric get_metric() const {
+        return base_t::get_metric();
+    }
+
+    auto& set_metric(distance_metric value) {
+        base_t::set_metric_impl(value);
+        return *this;
+    }
+
+    /// The degree parameter for Minkowski distance.
+    /// @invariant :expr:`degree > 0`
+    double get_degree() const {
+        return base_t::get_degree();
+    }
+
+    auto& set_degree(double value) {
+        base_t::set_degree_impl(value);
         return *this;
     }
 };

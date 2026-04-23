@@ -35,6 +35,17 @@ namespace daal_hdbscan = daal::algorithms::hdbscan;
 namespace daal_hdbscan_internal = daal::algorithms::hdbscan::internal;
 namespace interop = dal::backend::interop;
 
+static int convert_metric(distance_metric m) {
+    switch (m) {
+        case distance_metric::euclidean: return daal_hdbscan::euclidean;
+        case distance_metric::manhattan: return daal_hdbscan::manhattan;
+        case distance_metric::minkowski: return daal_hdbscan::minkowski;
+        case distance_metric::chebyshev: return daal_hdbscan::chebyshev;
+        case distance_metric::cosine: return daal_hdbscan::cosine;
+        default: return daal_hdbscan::euclidean;
+    }
+}
+
 template <typename Float, daal::internal::CpuType Cpu>
 using daal_hdbscan_kd_tree_t =
     daal_hdbscan_internal::HDBSCANBatchKernel<Float, daal_hdbscan::kdTree, Cpu>;
@@ -46,6 +57,8 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
     const std::int64_t row_count = data.get_row_count();
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
     const std::int64_t min_samples = desc.get_min_samples();
+    const int daal_metric = convert_metric(desc.get_metric());
+    const double degree = desc.get_degree();
 
     const auto daal_data = convert_to_daal_table<Float>(data);
 
@@ -64,7 +77,9 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
         daal_assignments.get(),
         daal_nclusters.get(),
         static_cast<size_t>(min_cluster_size),
-        static_cast<size_t>(min_samples)));
+        static_cast<size_t>(min_samples),
+        daal_metric,
+        degree));
 
     daal::data_management::BlockDescriptor<int> nc_block;
     daal_nclusters->getBlockOfRows(0, 1, daal::data_management::readOnly, nc_block);

@@ -41,6 +41,115 @@
 namespace oneapi::dal::hdbscan::backend {
 
 // =========================================================================
+// Host-side distance functors for Boruvka MST queries
+// =========================================================================
+
+template <typename FP>
+struct HostEuclideanDist {
+    FP pointDist(const FP* a, const FP* b, std::int32_t n) const {
+        FP sum = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP diff = a[d] - b[d];
+            sum += diff * diff;
+        }
+        return std::sqrt(sum);
+    }
+    FP bboxLowerBound(const FP* q, const FP* lo, const FP* hi, std::int32_t n) const {
+        FP sum = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP excess = FP(0);
+            if (q[d] < lo[d])
+                excess = lo[d] - q[d];
+            else if (q[d] > hi[d])
+                excess = q[d] - hi[d];
+            sum += excess * excess;
+        }
+        return std::sqrt(sum);
+    }
+};
+
+template <typename FP>
+struct HostManhattanDist {
+    FP pointDist(const FP* a, const FP* b, std::int32_t n) const {
+        FP sum = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP diff = a[d] - b[d];
+            sum += (diff >= FP(0)) ? diff : -diff;
+        }
+        return sum;
+    }
+    FP bboxLowerBound(const FP* q, const FP* lo, const FP* hi, std::int32_t n) const {
+        FP sum = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP excess = FP(0);
+            if (q[d] < lo[d])
+                excess = lo[d] - q[d];
+            else if (q[d] > hi[d])
+                excess = q[d] - hi[d];
+            sum += excess;
+        }
+        return sum;
+    }
+};
+
+template <typename FP>
+struct HostMinkowskiDist {
+    double p;
+    double invp;
+    HostMinkowskiDist(double deg) : p(deg), invp(1.0 / deg) {}
+    FP pointDist(const FP* a, const FP* b, std::int32_t n) const {
+        double sum = 0.0;
+        for (std::int32_t d = 0; d < n; d++) {
+            double diff = static_cast<double>(a[d] - b[d]);
+            if (diff < 0.0)
+                diff = -diff;
+            sum += std::pow(diff, p);
+        }
+        return static_cast<FP>(std::pow(sum, invp));
+    }
+    FP bboxLowerBound(const FP* q, const FP* lo, const FP* hi, std::int32_t n) const {
+        double sum = 0.0;
+        for (std::int32_t d = 0; d < n; d++) {
+            double excess = 0.0;
+            if (q[d] < lo[d])
+                excess = static_cast<double>(lo[d] - q[d]);
+            else if (q[d] > hi[d])
+                excess = static_cast<double>(q[d] - hi[d]);
+            sum += std::pow(excess, p);
+        }
+        return static_cast<FP>(std::pow(sum, invp));
+    }
+};
+
+template <typename FP>
+struct HostChebyshevDist {
+    FP pointDist(const FP* a, const FP* b, std::int32_t n) const {
+        FP mx = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP diff = a[d] - b[d];
+            if (diff < FP(0))
+                diff = -diff;
+            if (diff > mx)
+                mx = diff;
+        }
+        return mx;
+    }
+    FP bboxLowerBound(const FP* q, const FP* lo, const FP* hi, std::int32_t n) const {
+        FP mx = FP(0);
+        for (std::int32_t d = 0; d < n; d++) {
+            FP excess = FP(0);
+            if (q[d] < lo[d])
+                excess = lo[d] - q[d];
+            else if (q[d] > hi[d])
+                excess = q[d] - hi[d];
+            if (excess > mx)
+                mx = excess;
+        }
+        return mx;
+    }
+};
+
+// =========================================================================
 // Host-side kd-tree for Boruvka MST (used after GPU computes core distances)
 // =========================================================================
 
@@ -163,7 +272,7 @@ static std::int32_t host_update_components(std::vector<HostKdNode<FP>>& nodes,
     return -1;
 }
 
-template <typename FP>
+template <typename FP, typename DistFunc>
 static void host_nearest_mrd_query(const FP* data,
                                    std::int32_t n_cols,
                                    const std::vector<HostKdNode<FP>>& nodes,
@@ -178,25 +287,17 @@ static void host_nearest_mrd_query(const FP* data,
                                    std::int32_t query_comp,
                                    std::int32_t node_idx,
                                    FP& best_mrd,
-                                   std::int32_t& best_idx) {
+                                   std::int32_t& best_idx,
+                                   const DistFunc& dist_func) {
     const auto& node = nodes[node_idx];
 
     if (node.component_id == query_comp)
         return;
 
     // Bounding-box MRD lower bound
-    FP min_sq = FP(0);
     const FP* lo = bbox_lo + node_idx * n_cols;
     const FP* hi = bbox_hi + node_idx * n_cols;
-    for (std::int32_t dd = 0; dd < n_cols; dd++) {
-        FP excess = FP(0);
-        if (query_pt[dd] < lo[dd])
-            excess = lo[dd] - query_pt[dd];
-        else if (query_pt[dd] > hi[dd])
-            excess = query_pt[dd] - hi[dd];
-        min_sq += excess * excess;
-    }
-    FP mrd_lb = std::sqrt(min_sq);
+    FP mrd_lb = dist_func.bboxLowerBound(query_pt, lo, hi, n_cols);
     if (query_core > mrd_lb)
         mrd_lb = query_core;
     if (min_core[node_idx] > mrd_lb)
@@ -210,12 +311,7 @@ static void host_nearest_mrd_query(const FP* data,
             if (comp_of[pi] == query_comp)
                 continue;
             const FP* row = data + pi * n_cols;
-            FP dist = FP(0);
-            for (std::int32_t dd = 0; dd < n_cols; dd++) {
-                const FP df = query_pt[dd] - row[dd];
-                dist += df * df;
-            }
-            dist = std::sqrt(dist);
+            FP dist = dist_func.pointDist(query_pt, row, n_cols);
             FP mrd_val = dist;
             if (query_core > mrd_val)
                 mrd_val = query_core;
@@ -246,7 +342,8 @@ static void host_nearest_mrd_query(const FP* data,
                            query_comp,
                            near,
                            best_mrd,
-                           best_idx);
+                           best_idx,
+                           dist_func);
     host_nearest_mrd_query(data,
                            n_cols,
                            nodes,
@@ -261,7 +358,8 @@ static void host_nearest_mrd_query(const FP* data,
                            query_comp,
                            far,
                            best_mrd,
-                           best_idx);
+                           best_idx,
+                           dist_func);
 }
 
 namespace bk = oneapi::dal::backend;
@@ -272,6 +370,116 @@ using dal::backend::context_gpu;
 using descriptor_t = detail::descriptor_base<task::clustering>;
 using result_t = compute_result<task::clustering>;
 using input_t = compute_input<task::clustering>;
+
+/// Run Boruvka MST with the given distance functor
+template <typename Float, typename DistFunc>
+static void run_boruvka_mst(const Float* h_data,
+                            const Float* h_core,
+                            std::int32_t n32,
+                            std::int32_t d32,
+                            std::vector<HostKdNode<Float>>& tree_nodes,
+                            std::vector<std::int32_t>& pt_indices,
+                            std::vector<Float>& bbox_lo,
+                            std::vector<Float>& bbox_hi,
+                            std::vector<Float>& min_core_node,
+                            std::vector<std::int32_t>& from_vec,
+                            std::vector<std::int32_t>& to_vec,
+                            std::vector<Float>& weight_vec,
+                            const DistFunc& dist_func) {
+    std::vector<std::int32_t> uf_parent(n32), uf_rank(n32, 0), comp_of(n32);
+    std::iota(uf_parent.begin(), uf_parent.end(), 0);
+    std::iota(comp_of.begin(), comp_of.end(), 0);
+
+    auto uf_find = [&](std::int32_t x) -> std::int32_t {
+        while (uf_parent[x] != x) {
+            uf_parent[x] = uf_parent[uf_parent[x]];
+            x = uf_parent[x];
+        }
+        return x;
+    };
+    auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
+        if (uf_rank[rx] < uf_rank[ry])
+            uf_parent[rx] = ry;
+        else if (uf_rank[rx] > uf_rank[ry])
+            uf_parent[ry] = rx;
+        else {
+            uf_parent[ry] = rx;
+            uf_rank[rx]++;
+        }
+    };
+
+    host_update_components(tree_nodes, pt_indices.data(), comp_of.data(), 0);
+
+    std::vector<Float> pt_best_mrd(n32);
+    std::vector<std::int32_t> pt_best_idx(n32);
+    std::vector<Float> comp_best_mrd(n32);
+    std::vector<std::int32_t> comp_best_from(n32), comp_best_to(n32);
+
+    std::int64_t edges_added = 0;
+    std::int64_t num_components = n32;
+
+    while (num_components > 1) {
+        for (std::int32_t i = 0; i < n32; i++) {
+            Float bm = std::numeric_limits<Float>::max();
+            std::int32_t bi = -1;
+            host_nearest_mrd_query(h_data,
+                                   d32,
+                                   tree_nodes,
+                                   pt_indices.data(),
+                                   h_core,
+                                   bbox_lo.data(),
+                                   bbox_hi.data(),
+                                   min_core_node.data(),
+                                   comp_of.data(),
+                                   h_data + i * d32,
+                                   h_core[i],
+                                   comp_of[i],
+                                   0,
+                                   bm,
+                                   bi,
+                                   dist_func);
+            pt_best_mrd[i] = bm;
+            pt_best_idx[i] = bi;
+        }
+
+        std::fill(comp_best_mrd.begin(), comp_best_mrd.end(), std::numeric_limits<Float>::max());
+        std::fill(comp_best_from.begin(), comp_best_from.end(), -1);
+        std::fill(comp_best_to.begin(), comp_best_to.end(), -1);
+        for (std::int32_t i = 0; i < n32; i++) {
+            if (pt_best_idx[i] < 0)
+                continue;
+            const std::int32_t c = comp_of[i];
+            if (pt_best_mrd[i] < comp_best_mrd[c]) {
+                comp_best_mrd[c] = pt_best_mrd[i];
+                comp_best_from[c] = i;
+                comp_best_to[c] = pt_best_idx[i];
+            }
+        }
+
+        std::int64_t added = 0;
+        for (std::int32_t c = 0; c < n32; c++) {
+            if (comp_best_from[c] < 0)
+                continue;
+            const std::int32_t u = comp_best_from[c], v = comp_best_to[c];
+            const std::int32_t ru = uf_find(u), rv = uf_find(v);
+            if (ru == rv)
+                continue;
+            from_vec[edges_added] = u;
+            to_vec[edges_added] = v;
+            weight_vec[edges_added] = comp_best_mrd[c];
+            edges_added++;
+            added++;
+            uf_union(ru, rv);
+            num_components--;
+        }
+        if (added == 0)
+            break;
+
+        for (std::int32_t i = 0; i < n32; i++)
+            comp_of[i] = uf_find(i);
+        host_update_components(tree_nodes, pt_indices.data(), comp_of.data(), 0);
+    }
+}
 
 /// Choose block size so that the B×N distance block fits in ~256 MB of device memory.
 /// For Float=float (4 bytes): block_size = 256MB / (N * 4) = 64M / N.
@@ -299,79 +507,80 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
     const std::int64_t min_cluster_size = desc.get_min_cluster_size();
     const std::int64_t min_samples = desc.get_min_samples();
     const std::int64_t edge_count = row_count - 1;
+    const auto metric = desc.get_metric();
+    const double degree = desc.get_degree();
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
     // =========================================================================
     // Step 1: Blocked core distance computation
-    // Process block_size rows at a time: compute B×N squared distances via GEMM,
-    // run kselect to find k-th nearest per row, take sqrt.
+    // Process block_size rows at a time: compute B×N distances,
+    // run kselect to find k-th nearest per row.
     // Peak memory: O(B×N) + O(B×k) instead of O(N²).
     // =========================================================================
 
     const std::int64_t block_size = choose_block_size(row_count, sizeof(Float));
-    const std::int64_t k = min_samples; // includes self-distance at 0
+    const std::int64_t k = min_samples;
+    const bool needs_sqrt = (metric == distance_metric::euclidean);
 
     auto [core_distances, core_dist_event] =
         pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
     sycl::event ev_core_dist = core_dist_event;
 
-    // Compute norms once (reused for each block's GEMM distance)
-    auto [norms, norms_event] =
-        pr::ndarray<Float, 1>::zeros(queue, row_count, sycl::usm::alloc::device);
-    sycl::event ev_norms = norms_event;
-
-    // Compute squared norms: norms[i] = sum(data[i,:]^2)
-    const Float* data_ptr = data_nd.get_data();
-    Float* norms_ptr = norms.get_mutable_data();
-    const std::int64_t d = col_count;
-
-    auto norms_compute_event = queue.submit([&](sycl::handler& h) {
-        h.depends_on({ ev_norms });
-        h.parallel_for(sycl::range<1>(row_count), [=](sycl::id<1> idx) {
-            const std::int64_t i = idx[0];
-            Float s = Float(0);
-            for (std::int64_t f = 0; f < d; f++) {
-                const Float v = data_ptr[i * d + f];
-                s += v * v;
-            }
-            norms_ptr[i] = s;
-        });
-    });
-
     Float* core_ptr = core_distances.get_mutable_data();
     sycl::event prev_block_event = ev_core_dist;
+    const std::int64_t d = col_count;
 
     for (std::int64_t b_start = 0; b_start < row_count; b_start += block_size) {
         const std::int64_t b_end = std::min(b_start + block_size, row_count);
         const std::int64_t b_rows = b_end - b_start;
 
-        // Create a view of the block rows: data_nd[b_start:b_end, :]
         auto block_view = pr::ndview<Float, 2>::wrap(data_nd.get_data() + b_start * col_count,
                                                      { b_rows, col_count });
 
-        // Allocate B×N squared distance block
-        auto [sq_dist_block, sq_dist_block_event] =
+        auto [dist_block, dist_block_event] =
             pr::ndarray<Float, 2>::zeros(queue, { b_rows, row_count }, sycl::usm::alloc::device);
-        sycl::event ev_sq_dist_block = sq_dist_block_event;
+        sycl::event ev_dist_block = dist_block_event;
 
-        // Compute squared distances: sq_dist_block[i,j] = ||block[i] - data[j]||²
-        // Using the norms: sq_dist[i,j] = norms_block[i] + norms[j] - 2 * block[i] · data[j]^T
-        pr::squared_l2_distance<Float> dist_op(queue);
-        auto dist_event = dist_op(block_view,
-                                  data_nd,
-                                  sq_dist_block,
-                                  { ev_sq_dist_block, norms_compute_event, prev_block_event });
+        // Compute distance block using appropriate metric
+        sycl::event dist_event;
+        switch (metric) {
+            case distance_metric::manhattan: {
+                pr::distance<Float, pr::lp_metric<Float>> dist_op(queue,
+                                                                  pr::lp_metric<Float>(Float(1)));
+                dist_event =
+                    dist_op(block_view, data_nd, dist_block, { ev_dist_block, prev_block_event });
+                break;
+            }
+            case distance_metric::minkowski: {
+                pr::distance<Float, pr::lp_metric<Float>> dist_op(
+                    queue,
+                    pr::lp_metric<Float>(static_cast<Float>(degree)));
+                dist_event =
+                    dist_op(block_view, data_nd, dist_block, { ev_dist_block, prev_block_event });
+                break;
+            }
+            case distance_metric::chebyshev: {
+                pr::chebyshev_distance<Float> dist_op(queue);
+                dist_event =
+                    dist_op(block_view, data_nd, dist_block, { ev_dist_block, prev_block_event });
+                break;
+            }
+            default: { // euclidean
+                pr::squared_l2_distance<Float> dist_op(queue);
+                dist_event =
+                    dist_op(block_view, data_nd, dist_block, { ev_dist_block, prev_block_event });
+                break;
+            }
+        }
 
-        // Kselect: find k smallest squared distances per row
         auto [ksel_vals, ksel_vals_event] =
             pr::ndarray<Float, 2>::zeros(queue, { b_rows, k }, sycl::usm::alloc::device);
         sycl::event ev_ksel_vals = ksel_vals_event;
 
         pr::kselect_by_rows<Float> ksel(queue, { b_rows, row_count }, k);
-        auto ksel_event = ksel(queue, sq_dist_block, k, ksel_vals, { dist_event, ev_ksel_vals });
+        auto ksel_event = ksel(queue, dist_block, k, ksel_vals, { dist_event, ev_ksel_vals });
 
-        // Extract k-th value (column k-1) per row, sqrt, store as core distance
         const Float* ksel_ptr = ksel_vals.get_data();
         const std::int64_t kk = k;
         const std::int64_t offset = b_start;
@@ -380,15 +589,14 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
             h.depends_on({ ksel_event });
             h.parallel_for(sycl::range<1>(b_rows), [=](sycl::id<1> idx) {
                 const std::int64_t i = idx[0];
-                const Float sq_val = ksel_ptr[i * kk + (kk - 1)];
-                core_ptr[offset + i] = sycl::sqrt(sycl::fmax(sq_val, Float(0)));
+                const Float val = ksel_ptr[i * kk + (kk - 1)];
+                core_ptr[offset + i] = needs_sqrt ? sycl::sqrt(sycl::fmax(val, Float(0))) : val;
             });
         });
 
         prev_block_event = extract_event;
     }
 
-    // Wait for all core distances to be computed
     prev_block_event.wait_and_throw();
 
     // =========================================================================
@@ -432,106 +640,72 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
     std::vector<Float> min_core_node(tree_nodes.size(), std::numeric_limits<Float>::max());
     host_compute_min_core_dists(tree_nodes, pt_indices.data(), h_core, min_core_node, 0);
 
-    // Boruvka MST
-    std::vector<std::int32_t> uf_parent(n32), uf_rank(n32, 0), comp_of(n32);
-    std::iota(uf_parent.begin(), uf_parent.end(), 0);
-    std::iota(comp_of.begin(), comp_of.end(), 0);
-
-    auto uf_find = [&](std::int32_t x) -> std::int32_t {
-        while (uf_parent[x] != x) {
-            uf_parent[x] = uf_parent[uf_parent[x]];
-            x = uf_parent[x];
-        }
-        return x;
-    };
-    auto uf_union = [&](std::int32_t rx, std::int32_t ry) {
-        if (uf_rank[rx] < uf_rank[ry])
-            uf_parent[rx] = ry;
-        else if (uf_rank[rx] > uf_rank[ry])
-            uf_parent[ry] = rx;
-        else {
-            uf_parent[ry] = rx;
-            uf_rank[rx]++;
-        }
-    };
-
-    host_update_components(tree_nodes, pt_indices.data(), comp_of.data(), 0);
-
+    // Boruvka MST — dispatch by metric
     std::vector<std::int32_t> from_vec(edge_count);
     std::vector<std::int32_t> to_vec(edge_count);
     std::vector<Float> weight_vec(edge_count);
 
-    std::vector<Float> pt_best_mrd(n32);
-    std::vector<std::int32_t> pt_best_idx(n32);
-    std::vector<Float> comp_best_mrd(n32);
-    std::vector<std::int32_t> comp_best_from(n32), comp_best_to(n32);
-
-    std::int64_t edges_added = 0;
-    std::int64_t num_components = n;
-
-    while (num_components > 1) {
-        // Phase 1: per-point nearest different-component query
-        for (std::int32_t i = 0; i < n32; i++) {
-            Float bm = std::numeric_limits<Float>::max();
-            std::int32_t bi = -1;
-            host_nearest_mrd_query(h_data,
-                                   d32,
-                                   tree_nodes,
-                                   pt_indices.data(),
-                                   h_core,
-                                   bbox_lo.data(),
-                                   bbox_hi.data(),
-                                   min_core_node.data(),
-                                   comp_of.data(),
-                                   h_data + i * d32,
-                                   h_core[i],
-                                   comp_of[i],
-                                   0,
-                                   bm,
-                                   bi);
-            pt_best_mrd[i] = bm;
-            pt_best_idx[i] = bi;
-        }
-
-        // Phase 2: per-component best edge
-        std::fill(comp_best_mrd.begin(), comp_best_mrd.end(), std::numeric_limits<Float>::max());
-        std::fill(comp_best_from.begin(), comp_best_from.end(), -1);
-        std::fill(comp_best_to.begin(), comp_best_to.end(), -1);
-        for (std::int32_t i = 0; i < n32; i++) {
-            if (pt_best_idx[i] < 0)
-                continue;
-            const std::int32_t c = comp_of[i];
-            if (pt_best_mrd[i] < comp_best_mrd[c]) {
-                comp_best_mrd[c] = pt_best_mrd[i];
-                comp_best_from[c] = i;
-                comp_best_to[c] = pt_best_idx[i];
-            }
-        }
-
-        // Phase 3: merge
-        std::int64_t added = 0;
-        for (std::int32_t c = 0; c < n32; c++) {
-            if (comp_best_from[c] < 0)
-                continue;
-            const std::int32_t u = comp_best_from[c], v = comp_best_to[c];
-            const std::int32_t ru = uf_find(u), rv = uf_find(v);
-            if (ru == rv)
-                continue;
-            from_vec[edges_added] = u;
-            to_vec[edges_added] = v;
-            weight_vec[edges_added] = comp_best_mrd[c];
-            edges_added++;
-            added++;
-            uf_union(ru, rv);
-            num_components--;
-        }
-        if (added == 0)
+    switch (metric) {
+        case distance_metric::manhattan:
+            run_boruvka_mst(h_data,
+                            h_core,
+                            n32,
+                            d32,
+                            tree_nodes,
+                            pt_indices,
+                            bbox_lo,
+                            bbox_hi,
+                            min_core_node,
+                            from_vec,
+                            to_vec,
+                            weight_vec,
+                            HostManhattanDist<Float>{});
             break;
-
-        // Phase 4-5: flatten labels + update tree
-        for (std::int32_t i = 0; i < n32; i++)
-            comp_of[i] = uf_find(i);
-        host_update_components(tree_nodes, pt_indices.data(), comp_of.data(), 0);
+        case distance_metric::minkowski:
+            run_boruvka_mst(h_data,
+                            h_core,
+                            n32,
+                            d32,
+                            tree_nodes,
+                            pt_indices,
+                            bbox_lo,
+                            bbox_hi,
+                            min_core_node,
+                            from_vec,
+                            to_vec,
+                            weight_vec,
+                            HostMinkowskiDist<Float>(degree));
+            break;
+        case distance_metric::chebyshev:
+            run_boruvka_mst(h_data,
+                            h_core,
+                            n32,
+                            d32,
+                            tree_nodes,
+                            pt_indices,
+                            bbox_lo,
+                            bbox_hi,
+                            min_core_node,
+                            from_vec,
+                            to_vec,
+                            weight_vec,
+                            HostChebyshevDist<Float>{});
+            break;
+        default: // euclidean
+            run_boruvka_mst(h_data,
+                            h_core,
+                            n32,
+                            d32,
+                            tree_nodes,
+                            pt_indices,
+                            bbox_lo,
+                            bbox_hi,
+                            min_core_node,
+                            from_vec,
+                            to_vec,
+                            weight_vec,
+                            HostEuclideanDist<Float>{});
+            break;
     }
 
     // =========================================================================

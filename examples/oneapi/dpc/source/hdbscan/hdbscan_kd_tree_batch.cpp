@@ -42,18 +42,37 @@ void run(sycl::queue& q) {
     const char* ms_env = std::getenv("HDBSCAN_MIN_SAMPLES");
     const std::int64_t min_samples = ms_env ? std::atol(ms_env) : 10;
 
+    const char* metric_env = std::getenv("HDBSCAN_METRIC");
+    const std::string metric_str = metric_env ? std::string(metric_env) : "euclidean";
+
+    const char* degree_env = std::getenv("HDBSCAN_DEGREE");
+    const double degree = degree_env ? std::atof(degree_env) : 2.0;
+
     const auto x_data = dal::read<dal::table>(q, dal::csv::data_source{ data_file_name });
 
     std::cout << "Data dimensions: " << x_data.get_row_count() << " x " << x_data.get_column_count()
               << std::endl;
     std::cout << "Parameters: min_cluster_size=" << min_cluster_size
-              << ", min_samples=" << min_samples << std::endl;
+              << ", min_samples=" << min_samples << ", metric=" << metric_str
+              << ", degree=" << degree << std::endl;
 
     // Use kd_tree method — memory-efficient, avoids O(N²) distance matrix
     auto hdbscan_desc =
         dal::hdbscan::descriptor<float, dal::hdbscan::method::kd_tree>(min_cluster_size,
                                                                        min_samples);
     hdbscan_desc.set_result_options(dal::hdbscan::result_options::responses);
+
+    // Set metric
+    if (metric_str == "manhattan") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::manhattan);
+    }
+    else if (metric_str == "minkowski") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::minkowski);
+        hdbscan_desc.set_degree(degree);
+    }
+    else if (metric_str == "chebyshev") {
+        hdbscan_desc.set_metric(dal::hdbscan::distance_metric::chebyshev);
+    }
 
     // Warmup run
     dal::compute(q, hdbscan_desc, x_data);
