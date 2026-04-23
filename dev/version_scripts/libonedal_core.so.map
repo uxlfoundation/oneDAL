@@ -167,6 +167,7 @@ global:
         "vtable for daal::algorithms::decision_forest::classification::prediction::interface1::Parameter";
         "vtable for daal::algorithms::decision_forest::classification::training::interface3::Parameter";
 
+        "vtable for daal::algorithms::decision_forest::regression::training::interface2::Parameter";
         "typeinfo for daal::algorithms::decision_forest::regression::prediction::interface1::Result";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::decision_forest::regression::prediction::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -546,8 +547,11 @@ global:
         # Explicit template instantiations and RTTI
         "vtable for daal::algorithms::optimization_solver::iterative_solver::interface2::Parameter";
         "vtable for daal::algorithms::optimization_solver::sum_of_functions::interface2::Parameter";
+        "vtable for daal::algorithms::optimization_solver::coordinate_descent::interface1::Result";
         "vtable for daal::algorithms::optimization_solver::lbfgs::interface2::Parameter";
         "vtable for daal::algorithms::optimization_solver::lbfgs::interface2::Result";
+        "daal::services::interface1::Status daal::algorithms::optimization_solver::coordinate_descent::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
+        "daal::services::interface1::Status daal::algorithms::optimization_solver::coordinate_descent::interface1::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
         "daal::services::interface1::Status daal::algorithms::optimization_solver::lbfgs::interface2::Result::allocate<double>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
 
