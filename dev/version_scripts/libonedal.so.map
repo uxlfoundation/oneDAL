@@ -177,15 +177,20 @@ global:
         oneapi::dal::v1::table::*;
         oneapi::dal::v1::csr_table::*;
         oneapi::dal::v1::homogen_table::*;
+        oneapi::dal::v1::heterogen_table::*;
 
         "void oneapi::dal::v1::homogen_table::init_impl<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, long, long, oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v1::data_type const&, oneapi::dal::v1::data_layout)";
 
         "oneapi::dal::v1::csr_table::init_impl(oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v2::array<long> const&, oneapi::dal::v2::array<long> const&, long, oneapi::dal::v1::data_type const&, oneapi::dal::v1::sparse_indexing)";
 
+        oneapi::dal::detail::v2::chunked_array_base::*;
+
         oneapi::dal::v1::table_metadata::*;
 
         "oneapi::dal::detail::v1::homogen_table_builder::homogen_table_builder()";
         "oneapi::dal::detail::v1::get_pull_rows_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_column_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_csr_block_iface_impl(oneapi::dal::detail::v1::table_iface*)";
 
         # error handling
 
@@ -232,8 +237,15 @@ global:
         "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none> const&)";
 
         "_onedal_threader_get_max_threads";
+        "_onedal_threader_for_int64";
 
         oneapi::dal::preview::*;
+
+        # Graph CSV reader template specializations (return type in demangled name
+        # prevents matching by the wildcard above)
+        "void oneapi::dal::preview::csv::detail::filter_neighbors_and_fill_new_degrees<int, long>(int*, long*, int*, long)";
+        "long oneapi::dal::preview::csv::detail::compute_prefix_sum<long, int>(int const*, long, long*)";
+        "void oneapi::dal::preview::csv::detail::fill_filtered_neighs<int, long>(long const*, int const*, int const*, long const*, int*, long)";
 
         # Explicitly exclude backend implementation
 
