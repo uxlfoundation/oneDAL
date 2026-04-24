@@ -241,7 +241,11 @@ daal_static_lib(
 daal_dynamic_lib(
     name = "core_dynamic",
     lib_name = "onedal_core",
-    deps = [
+    def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal_core.so.map",
+        "//conditions:default": None,
+    }),
+        deps = [
         ":core",
         ":all_algorithms",
     ],
@@ -250,6 +254,10 @@ daal_dynamic_lib(
 daal_dynamic_lib(
     name = "thread_dynamic",
     lib_name = "onedal_thread",
+    def_file = select({
+        "@platforms//os:linux": "@onedal//dev/version_scripts:libonedal_thread.so.map",
+        "//conditions:default": None,
+    }),
     deps = [
         ":threading_tbb",
     ],

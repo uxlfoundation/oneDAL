@@ -1,0 +1,259 @@
+/*
+ * Copyright contributors to the oneDAL project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Version script for libonedal.so (oneAPI C++ Interface)
+ *
+ * This file explicitly defines which symbols are exported from libonedal.so
+ */
+
+ONEDAL_2026.0 {
+global:
+    extern "C++" {
+        # Public oneAPI interface - export all algorithm namespaces
+        # "oneapi::dal::*";
+
+        # ===================================== Algorithms =====================================
+
+        # basic_statistics
+
+        oneapi::dal::basic_statistics::v1::*;
+        oneapi::dal::basic_statistics::detail::v1::*;
+
+        "oneapi::dal::basic_statistics::detail::get_max_id()";
+        "oneapi::dal::basic_statistics::detail::get_min_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_squares_id()";
+        "oneapi::dal::basic_statistics::detail::get_sum_squares_centered_id()";
+        "oneapi::dal::basic_statistics::detail::get_mean_id()";
+        "oneapi::dal::basic_statistics::detail::get_second_order_raw_moment_id()";
+        "oneapi::dal::basic_statistics::detail::get_standard_deviation_id()";
+        "oneapi::dal::basic_statistics::detail::get_variance_id()";
+        "oneapi::dal::basic_statistics::detail::get_variation_id()";
+
+        # correlation_distance
+
+        oneapi::dal::correlation_distance::v1::*;
+        oneapi::dal::correlation_distance::detail::v1::*;
+
+        # cosine_distance
+
+        oneapi::dal::cosine_distance::v1::*;
+        oneapi::dal::cosine_distance::detail::v1::*;
+
+        # covariance
+
+        oneapi::dal::covariance::v1::*;
+        oneapi::dal::covariance::detail::v1::*;
+
+        "oneapi::dal::covariance::detail::get_cor_matrix_id()";
+        "oneapi::dal::covariance::detail::get_cov_matrix_id()";
+        "oneapi::dal::covariance::detail::get_means_id()";
+
+        # dbscan
+
+        oneapi::dal::dbscan::v1::*;
+        oneapi::dal::dbscan::detail::v1::*;
+
+        "oneapi::dal::dbscan::detail::get_core_flags_id()";
+        "oneapi::dal::dbscan::detail::get_core_observations_id()";
+        "oneapi::dal::dbscan::detail::get_core_observation_indices_id()";
+        "oneapi::dal::dbscan::detail::get_responses_id()";
+
+        # decision_forest
+
+        oneapi::dal::decision_forest::v1::*;
+        oneapi::dal::decision_forest::v2::*;
+        oneapi::dal::decision_forest::detail::v1::*;
+
+        # decision_tree
+
+        oneapi::dal::decision_tree::v1::*;
+
+        # distances (minkowski_distance)
+
+        # oneapi::dal::chebyshev_distance::v1::*;
+        oneapi::dal::chebyshev_distance::detail::v1::*;
+        # oneapi::dal::minkowski_distance::v1::*;
+        oneapi::dal::minkowski_distance::detail::v1::*;
+
+        # finiteness_checker
+
+        oneapi::dal::finiteness_checker::v1::*;
+        oneapi::dal::finiteness_checker::detail::v1::*;
+
+        # kernel functions: linear_kernel, polynomial_kernel, rbf_kernel, sigmoid_kernel
+
+        oneapi::dal::linear_kernel::v1::*;
+        oneapi::dal::linear_kernel::detail::v1::*;
+        oneapi::dal::polynomial_kernel::v1::*;
+        oneapi::dal::polynomial_kernel::detail::v1::*;
+        oneapi::dal::sigmoid_kernel::v1::*;
+        oneapi::dal::sigmoid_kernel::detail::v1::*;
+        oneapi::dal::rbf_kernel::v1::*;
+        oneapi::dal::rbf_kernel::detail::v1::*;
+
+        # kmeans
+
+        oneapi::dal::kmeans::v1::*;
+        oneapi::dal::kmeans::detail::v1::*;
+
+        oneapi::dal::kmeans_init::v1::*;
+        oneapi::dal::kmeans_init::detail::v1::*;
+
+        "oneapi::dal::kmeans::detail::get_compute_exact_objective_function_id()";
+
+        # knn
+
+        oneapi::dal::knn::v1::*;
+        oneapi::dal::knn::detail::v1::*;
+
+        "oneapi::dal::knn::detail::get_distances_id()";
+        "oneapi::dal::knn::detail::get_indices_id()";
+        "oneapi::dal::knn::detail::get_responses_id()";
+
+        # linear_regression
+
+        oneapi::dal::linear_regression::v1::*;
+        oneapi::dal::linear_regression::detail::v1::*;
+
+        "oneapi::dal::linear_regression::detail::get_coefficients_id()";
+        "oneapi::dal::linear_regression::detail::get_intercept_id()";
+
+        # logistic_regression
+
+        oneapi::dal::logistic_regression::v1::*;
+        oneapi::dal::logistic_regression::detail::v1::*;
+
+        "oneapi::dal::logistic_regression::detail::get_class_count_id()";
+        "oneapi::dal::logistic_regression::detail::get_coefficients_id()";
+        "oneapi::dal::logistic_regression::detail::get_intercept_id()";
+        "oneapi::dal::logistic_regression::detail::get_inner_iterations_count_id()";
+        "oneapi::dal::logistic_regression::detail::get_iterations_count_id()";
+
+        # objective_function
+
+        oneapi::dal::objective_function::v1::*;
+        oneapi::dal::objective_function::detail::v1::*;
+
+        "oneapi::dal::objective_function::detail::get_value_id()";
+        "oneapi::dal::objective_function::detail::get_gradient_id()";
+        "oneapi::dal::objective_function::detail::get_hessian_id()";
+
+        oneapi::dal::logloss_objective::detail::v1::*;
+
+        # pca
+
+        oneapi::dal::pca::v1::*;
+        oneapi::dal::pca::detail::v1::*;
+
+        "oneapi::dal::pca::detail::get_eigenvalues_id()";
+        "oneapi::dal::pca::detail::get_eigenvectors_id()";
+        "oneapi::dal::pca::detail::get_explained_variances_ratio_id()";
+        "oneapi::dal::pca::detail::get_means_id()";
+        "oneapi::dal::pca::detail::get_singular_values_id()";
+        "oneapi::dal::pca::detail::get_variances_id()";
+
+        # svm
+
+        oneapi::dal::svm::v1::*;
+        oneapi::dal::svm::detail::v1::*;
+
+        # tables
+
+        oneapi::dal::v1::table::*;
+        oneapi::dal::v1::csr_table::*;
+        oneapi::dal::v1::homogen_table::*;
+        oneapi::dal::v1::heterogen_table::*;
+
+        "void oneapi::dal::v1::homogen_table::init_impl<oneapi::dal::detail::v1::default_host_policy>(oneapi::dal::detail::v1::default_host_policy const&, long, long, oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v1::data_type const&, oneapi::dal::v1::data_layout)";
+
+        "oneapi::dal::v1::csr_table::init_impl(oneapi::dal::v2::array<unsigned char> const&, oneapi::dal::v2::array<long> const&, oneapi::dal::v2::array<long> const&, long, oneapi::dal::v1::data_type const&, oneapi::dal::v1::sparse_indexing)";
+
+        oneapi::dal::detail::v2::chunked_array_base::*;
+
+        oneapi::dal::v1::table_metadata::*;
+
+        "oneapi::dal::detail::v1::homogen_table_builder::homogen_table_builder()";
+        "oneapi::dal::detail::v1::get_pull_rows_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_column_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+        "oneapi::dal::detail::v1::get_pull_csr_block_iface_impl(oneapi::dal::detail::v1::table_iface*)";
+
+        # error handling
+
+        oneapi::dal::detail::v1::error_messages::*;
+
+        "vtable for oneapi::dal::v1::domain_error";
+        "vtable for oneapi::dal::v1::host_bad_alloc";
+        "vtable for oneapi::dal::v1::invalid_argument";
+        "vtable for oneapi::dal::v1::internal_error";
+        "vtable for oneapi::dal::v1::out_of_range";
+        "vtable for oneapi::dal::v1::range_error";
+        "vtable for oneapi::dal::v1::uninitialized_optional_result";
+        "typeinfo for oneapi::dal::v1::domain_error";
+        "typeinfo for oneapi::dal::v1::host_bad_alloc";
+        "typeinfo for oneapi::dal::v1::invalid_argument";
+        "typeinfo for oneapi::dal::v1::internal_error";
+        "typeinfo for oneapi::dal::v1::out_of_range";
+        "typeinfo for oneapi::dal::v1::range_error";
+        "typeinfo for oneapi::dal::v1::uninitialized_optional_result";
+
+        "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_mul_overflow(long const&, long const&)";
+        "oneapi::dal::detail::v2::integer_overflow_ops<long>::check_sum_overflow(long const&, long const&)";
+
+        # CSV
+
+        oneapi::dal::csv::v1::*;
+        oneapi::dal::csv::detail::v1::*;
+
+        # services
+
+        "oneapi::dal::detail::v1::malloc(oneapi::dal::detail::v1::default_host_policy const&, unsigned long)";
+        "oneapi::dal::detail::v1::memcpy(oneapi::dal::detail::v1::default_host_policy const&, void*, void const*, long)";
+        "oneapi::dal::detail::v1::free(oneapi::dal::detail::v1::default_host_policy const&, void*)";
+
+        "vtable for oneapi::dal::v1::unimplemented";
+        "typeinfo for oneapi::dal::v1::unimplemented";
+
+        "oneapi::dal::detail::v1::host_policy::host_policy()";
+
+        "oneapi::dal::detail::v1::from_daal_cpu_type(int)";
+
+        "oneapi::dal::detail::v1::to_string[abi:cxx11](oneapi::dal::detail::v1::cpu_extension)";
+
+        "oneapi::dal::detail::v1::spmd_policy_base<oneapi::dal::preview::spmd::device_memory_access::v1::none>::spmd_policy_base(oneapi::dal::preview::spmd::v1::communicator<oneapi::dal::preview::spmd::device_memory_access::v1::none> const&)";
+
+        "_onedal_threader_get_max_threads";
+        "_onedal_threader_for_int64";
+
+        oneapi::dal::preview::*;
+
+        # Graph CSV reader template specializations (return type in demangled name
+        # prevents matching by the wildcard above)
+        "void oneapi::dal::preview::csv::detail::filter_neighbors_and_fill_new_degrees<int, long>(int*, long*, int*, long)";
+        "long oneapi::dal::preview::csv::detail::compute_prefix_sum<long, int>(int const*, long, long*)";
+        "void oneapi::dal::preview::csv::detail::fill_filtered_neighs<int, long>(long const*, int const*, int const*, long const*, int*, long)";
+
+        # Explicitly exclude backend implementation
+
+        "!oneapi::dal::backend::*";
+        "!oneapi::dal::*::backend::*";
+    };
+
+local:
+    # Hide everything else by default
+    *;
+};
