@@ -31,7 +31,7 @@ function add_repo {
 }
 
 function install_dpcpp {
-    # DPC++ compiler version monitored by Renovate and sets exact value available via apt
+    # DPC++ compiler and runtime-libs versions monitored by Renovate and set exact values available via apt
     sudo apt-get install -y intel-oneapi-compiler-dpcpp-cpp=2025.3.3-30 intel-oneapi-runtime-libs=2025.3.0-177
 }
 
