@@ -230,7 +230,7 @@ The most used Bazel commands are `build`, `test` and `run`.
   ```sh
   bazel build //:release
   ```
-  This automatically builds all required ISA variants (SSE2, SSE4.2, AVX2, AVX-512) and includes DPC++ libraries by default.
+  This automatically builds all required ISA variants (SSE2, AVX2, AVX-512) and includes DPC++ libraries by default.
 
   - To build for a specific CPU architecture only (useful for speeding up CI), use `--cpu`:
     ```sh
