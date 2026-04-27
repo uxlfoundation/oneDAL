@@ -50,7 +50,12 @@ daal_patch_kernel_defines(
 
 daal_module(
     name = "public_includes",
-    hdrs = glob(["include/**/*.h"], exclude=["**/daal_kernel_defines.h"]),
+    hdrs = glob([
+        "include/**/*.h",
+    ], exclude = [
+        "**/daal_kernel_defines.h",
+        "**/daal_win.h",
+    ]),
     includes = [ "include" ],
 )
 
