@@ -50,6 +50,8 @@ public:
     result_option_id result_options = default_result_options<Task>;
     distance_metric metric = distance_metric::euclidean;
     double degree = 2.0;
+    cluster_selection_method cluster_selection = cluster_selection_method::eom;
+    bool allow_single_cluster = false;
 };
 
 template <typename Task>
@@ -107,6 +109,26 @@ void descriptor_base<Task>::set_degree_impl(double value) {
         throw domain_error(dal::detail::error_messages::hdbscan_minkowski_degree_leq_zero());
     }
     impl_->degree = value;
+}
+
+template <typename Task>
+cluster_selection_method descriptor_base<Task>::get_cluster_selection() const {
+    return impl_->cluster_selection;
+}
+
+template <typename Task>
+bool descriptor_base<Task>::get_allow_single_cluster() const {
+    return impl_->allow_single_cluster;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_cluster_selection_impl(cluster_selection_method value) {
+    impl_->cluster_selection = value;
+}
+
+template <typename Task>
+void descriptor_base<Task>::set_allow_single_cluster_impl(bool value) {
+    impl_->allow_single_cluster = value;
 }
 
 template <typename Task>

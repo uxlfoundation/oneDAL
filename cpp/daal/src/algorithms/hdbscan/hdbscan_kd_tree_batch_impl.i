@@ -623,10 +623,11 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
         {
             if (pointBestIdx[i] < 0) continue;
             const int comp = componentOf[i];
+            const int ii   = static_cast<int>(i);
             if (pointBestMrd[i] < compBestMrd[comp])
             {
                 compBestMrd[comp]  = pointBestMrd[i];
-                compBestFrom[comp] = static_cast<int>(i);
+                compBestFrom[comp] = ii;
                 compBestTo[comp]   = pointBestIdx[i];
             }
         }
@@ -668,7 +669,8 @@ static void computeCoreDistAndMst(const algorithmFPType * data, size_t nRows, si
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree)
+                                                                           int metric, double degree, int clusterSelection,
+                                                                           bool allowSingleCluster)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -764,7 +766,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_BLOCK_STATUS(assignBlock);
     int * assignments = assignBlock.get();
 
-    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments);
+    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
+                                                                        clusterSelection, allowSingleCluster);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

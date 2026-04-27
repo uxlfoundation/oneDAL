@@ -76,7 +76,8 @@ struct kernels_fp {
                                           std::int64_t edge_count,
                                           const bk::event_vector& deps = {});
 
-    /// Extract flat clusters using EOM on device. Labels: -1 = noise.
+    /// Extract flat clusters on device. Labels: -1 = noise.
+    /// cluster_selection: 0 = EOM (default), 1 = leaf
     static sycl::event extract_clusters(sycl::queue& queue,
                                         const pr::ndview<std::int32_t, 1>& mst_from,
                                         const pr::ndview<std::int32_t, 1>& mst_to,
@@ -84,7 +85,9 @@ struct kernels_fp {
                                         pr::ndview<std::int32_t, 1>& responses,
                                         std::int64_t row_count,
                                         std::int64_t min_cluster_size,
-                                        const bk::event_vector& deps = {});
+                                        const bk::event_vector& deps = {},
+                                        std::int32_t cluster_selection = 0,
+                                        bool allow_single_cluster = false);
 };
 
 #endif

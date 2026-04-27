@@ -61,7 +61,8 @@ using daal::internal::WriteOnlyRows;
 template <typename algorithmFPType, Method method, CpuType cpu>
 services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const NumericTable * ntData, NumericTable * ntAssignments,
                                                                            NumericTable * ntNClusters, size_t minClusterSize, size_t minSamples,
-                                                                           int metric, double degree)
+                                                                           int metric, double degree, int clusterSelection,
+                                                                           bool allowSingleCluster)
 {
     const size_t nRows     = ntData->getNumberOfRows();
     const size_t nCols     = ntData->getNumberOfColumns();
@@ -333,6 +334,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_MALLOC(mstTo);
     DAAL_CHECK_MALLOC(mstWeights);
 
+    // Build MST using Prim's algorithm with MRD weights.
+    // O(N^2) time using dense distance matrix, O(N) extra space.
     {
         daal::services::internal::TArray<algorithmFPType, cpu> minEdgeArr(nRows);
         daal::services::internal::TArray<int, cpu> minFromArr(nRows);
@@ -344,38 +347,30 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
         DAAL_CHECK_MALLOC(minFrom);
         DAAL_CHECK_MALLOC(inMst);
 
-        for (size_t j = 0; j < nRows; j++)
+        for (size_t i = 0; i < nRows; i++)
         {
-            minEdge[j] = std::numeric_limits<algorithmFPType>::max();
-            minFrom[j] = 0;
-            inMst[j]   = 0;
+            minEdge[i] = std::numeric_limits<algorithmFPType>::max();
+            minFrom[i] = 0;
+            inMst[i]   = 0;
         }
-        inMst[0] = 1;
 
-        // Temporary buffer for branchless MRD computation
-        daal::services::internal::TArray<algorithmFPType, cpu> mrdBufArr(nRows);
-        algorithmFPType * mrdBuf = mrdBufArr.get();
-        DAAL_CHECK_MALLOC(mrdBuf);
-
-        // Initialize from node 0
-        const algorithmFPType * row0 = distMatrix;
-        const algorithmFPType core0  = coreDistances[0];
-        PRAGMA_IVDEP
-        PRAGMA_VECTOR_ALWAYS
-        for (size_t j = 0; j < nRows; j++)
+        // Start from node 0
+        inMst[0]                        = 1;
+        const algorithmFPType core0     = coreDistances[0];
+        const algorithmFPType * distRow = distMatrix;
+        for (size_t j = 1; j < nRows; j++)
         {
-            algorithmFPType d = row0[j];
+            algorithmFPType d = distRow[j];
             d                 = (core0 > d) ? core0 : d;
             d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
             minEdge[j]        = d;
         }
-        minEdge[0] = std::numeric_limits<algorithmFPType>::max();
 
         for (size_t e = 0; e < edgeCount; e++)
         {
-            // Find minimum edge among non-MST vertices
-            int best              = -1;
-            algorithmFPType bestW = std::numeric_limits<algorithmFPType>::max();
+            // Find minimum edge to non-MST node
+            int best                = -1;
+            algorithmFPType bestW   = std::numeric_limits<algorithmFPType>::max();
             for (size_t j = 0; j < nRows; j++)
             {
                 if (!inMst[j] && minEdge[j] < bestW)
@@ -390,26 +385,18 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
             mstWeights[e] = bestW;
             inMst[best]   = 1;
 
-            // Compute MRD from newly added vertex in a vectorizable pass
-            const algorithmFPType * bestRow = distMatrix + static_cast<size_t>(best) * nRows;
-            const algorithmFPType coreBest  = coreDistances[best];
-
-            PRAGMA_IVDEP
-            PRAGMA_VECTOR_ALWAYS
+            // Update min_edge for remaining nodes
+            const algorithmFPType * bestRow  = distMatrix + static_cast<size_t>(best) * nRows;
+            const algorithmFPType coreBest   = coreDistances[best];
             for (size_t j = 0; j < nRows; j++)
             {
+                if (inMst[j]) continue;
                 algorithmFPType d = bestRow[j];
                 d                 = (coreBest > d) ? coreBest : d;
                 d                 = (coreDistances[j] > d) ? coreDistances[j] : d;
-                mrdBuf[j]         = d;
-            }
-
-            // Update minEdge/minFrom where MRD improves the current best
-            for (size_t j = 0; j < nRows; j++)
-            {
-                if (!inMst[j] && mrdBuf[j] < minEdge[j])
+                if (d < minEdge[j])
                 {
-                    minEdge[j] = mrdBuf[j];
+                    minEdge[j] = d;
                     minFrom[j] = best;
                 }
             }
@@ -424,7 +411,8 @@ services::Status HDBSCANBatchKernel<algorithmFPType, method, cpu>::compute(const
     DAAL_CHECK_BLOCK_STATUS(assignBlock);
     int * assignments = assignBlock.get();
 
-    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments);
+    int labelCounter = sortMstAndExtractClusters<algorithmFPType, cpu>(mstFrom, mstTo, mstWeights, nRows, minClusterSize, assignments,
+                                                                        clusterSelection, allowSingleCluster);
 
     WriteOnlyRows<int, cpu> ncBlock(ntNClusters, 0, 1);
     DAAL_CHECK_BLOCK_STATUS(ncBlock);

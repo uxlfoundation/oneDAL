@@ -42,8 +42,10 @@ using daal::internal::CpuType;
 ///
 /// Input:  mstFrom[edgeCount], mstTo[edgeCount], mstWeights[edgeCount] — unsorted MST
 /// Output: assignments[nRows] — cluster labels (-1 = noise), returns label count
+/// clusterSelection: 0 = EOM, 1 = leaf
 template <typename algorithmFPType, CpuType cpu>
-int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments)
+int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstWeights, size_t nRows, size_t minClusterSize, int * assignments,
+                              int clusterSelection = 0, bool allowSingleCluster = false)
 {
     const size_t edgeCount    = nRows - 1;
     const size_t nDendroNodes = nRows - 1;
@@ -70,7 +72,16 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
             edges[i] = { mstWeights[i], mstFrom[i], mstTo[i] };
         }
 
-        std::sort(edges, edges + edgeCount, [](const MstEdge & a, const MstEdge & b) { return a.weight < b.weight; });
+        // Sort by (weight, min(from,to), max(from,to)) for deterministic ordering.
+        std::sort(edges, edges + edgeCount, [](const MstEdge & a, const MstEdge & b) {
+            if (a.weight != b.weight) return a.weight < b.weight;
+            const int aLo = (a.from < a.to) ? a.from : a.to;
+            const int aHi = (a.from < a.to) ? a.to : a.from;
+            const int bLo = (b.from < b.to) ? b.from : b.to;
+            const int bHi = (b.from < b.to) ? b.to : b.from;
+            if (aLo != bLo) return aLo < bLo;
+            return aHi < bHi;
+        });
 
         for (size_t i = 0; i < edgeCount; i++)
         {
@@ -391,34 +402,47 @@ int sortMstAndExtractClusters(int * mstFrom, int * mstTo, algorithmFPType * mstW
         isSelected[c] = (c >= rootCid && clusterSz[c] >= mcs) ? 1 : 0;
     }
 
-    for (int c = nClusters - 1; c >= rootCid; c--)
+    if (clusterSelection == 1)
     {
-        if (isLeafCluster[c]) continue;
-
-        algorithmFPType childSum = algorithmFPType(0);
-        for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
-
-        if (childSum > stability[c])
+        // Leaf selection: select all leaf clusters in the condensed tree
+        for (int c = rootCid; c < nClusters; c++)
         {
-            isSelected[c] = 0;
-            stability[c]  = childSum;
+            isSelected[c] = (isLeafCluster[c] && clusterSz[c] >= mcs) ? 1 : 0;
         }
-        else
+    }
+    else
+    {
+        // EOM selection: bottom-up stability comparison
+        for (int c = nClusters - 1; c >= rootCid; c--)
         {
-            int descTop = 0;
-            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) leafStack[descTop++] = childList[ci];
-            while (descTop > 0)
+            if (isLeafCluster[c]) continue;
+
+            algorithmFPType childSum = algorithmFPType(0);
+            for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) childSum += stability[childList[ci]];
+
+            if (childSum > stability[c])
             {
-                const int d   = leafStack[--descTop];
-                isSelected[d] = 0;
-                for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) leafStack[descTop++] = childList[ci];
+                isSelected[c] = 0;
+                stability[c]  = childSum;
+            }
+            else
+            {
+                int descTop = 0;
+                for (int ci = childOffset[c]; ci < childOffset[c] + childCount[c]; ci++) leafStack[descTop++] = childList[ci];
+                while (descTop > 0)
+                {
+                    const int d   = leafStack[--descTop];
+                    isSelected[d] = 0;
+                    for (int ci = childOffset[d]; ci < childOffset[d] + childCount[d]; ci++) leafStack[descTop++] = childList[ci];
+                }
             }
         }
     }
 
-    // Phase 3b: allow_single_cluster=false (matches sklearn default).
-    // If only the root cluster is selected AND it has children, force-select
-    // its children instead. If the root is a leaf (no children), keep it.
+    // Phase 3b: allow_single_cluster enforcement.
+    // When allow_single_cluster is false (default) and only the root cluster
+    // is selected AND it has children, force-select its children instead.
+    if (!allowSingleCluster)
     {
         int selectedCount = 0;
         for (int c = rootCid; c < nClusters; c++)

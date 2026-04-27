@@ -250,7 +250,7 @@ static void build_mst_on_host(const Float* dist_matrix,
         mst_weights[e] = best_w;
         in_mst[best] = true;
 
-        // Update min_edge for remaining nodes using precomputed distances
+        // Update min_edge for remaining nodes
         const Float* best_row = dist_matrix + static_cast<std::int64_t>(best) * row_count;
         const Float core_best = core_distances[best];
         for (std::int64_t j = 0; j < row_count; j++) {
@@ -282,7 +282,7 @@ static inline Float euclidean_dist(const Float* data,
     return static_cast<Float>(std::sqrt(static_cast<double>(sum)));
 }
 
-/// Legacy build_mst interface (for GPU backend that computes MRD matrix separately)
+/// Legacy build_mst interface (for GPU backend that computes MRD on-the-fly)
 template <typename Float>
 static void build_mst_on_host(const Float* data,
                               const Float* core_distances,
@@ -344,7 +344,15 @@ static void sort_mst_by_weight_on_host(std::int32_t* mst_from,
     std::vector<std::int64_t> order(edge_count);
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(), [&](std::int64_t a, std::int64_t b) {
-        return mst_weights[a] < mst_weights[b];
+        if (mst_weights[a] != mst_weights[b])
+            return mst_weights[a] < mst_weights[b];
+        const auto a_lo = std::min(mst_from[a], mst_to[a]);
+        const auto a_hi = std::max(mst_from[a], mst_to[a]);
+        const auto b_lo = std::min(mst_from[b], mst_to[b]);
+        const auto b_hi = std::max(mst_from[b], mst_to[b]);
+        if (a_lo != b_lo)
+            return a_lo < b_lo;
+        return a_hi < b_hi;
     });
 
     std::vector<std::int32_t> sorted_from(edge_count);
@@ -362,7 +370,8 @@ static void sort_mst_by_weight_on_host(std::int32_t* mst_from,
 }
 
 /// Extract flat cluster labels from sorted MST edges.
-/// Implements the full HDBSCAN pipeline: dendrogram -> condensed tree -> EOM -> labels.
+/// Implements the full HDBSCAN pipeline: dendrogram -> condensed tree -> cluster selection -> labels.
+/// cluster_selection: 0 = EOM (default), 1 = leaf
 /// Returns the number of clusters found. Noise points are labeled -1.
 template <typename Float>
 static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
@@ -370,7 +379,9 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
                                               const Float* weights_ptr,
                                               std::int32_t* responses,
                                               std::int64_t row_count,
-                                              std::int64_t min_cluster_size) {
+                                              std::int64_t min_cluster_size,
+                                              int cluster_selection = 0,
+                                              bool allow_single_cluster = false) {
     ONEDAL_ASSERT(row_count > 0);
     ONEDAL_ASSERT(min_cluster_size >= 2);
 
@@ -587,31 +598,53 @@ static std::int64_t extract_clusters_from_mst(const std::int32_t* from_ptr,
         }
     }
 
-    // Bottom-up EOM: compare parent stability vs sum of children
-    for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
-        if (is_leaf_cluster[c])
-            continue;
-
-        Float child_sum = Float(0);
-        for (auto cc : child_clusters[c])
-            child_sum += stability[cc];
-
-        if (child_sum > stability[c]) {
-            is_selected[c] = false;
-            stability[c] = child_sum;
+    if (cluster_selection == 1) {
+        // Leaf selection: select all leaf clusters in the condensed tree
+        for (std::int32_t c = root_cid; c < n_clusters; c++) {
+            is_selected[c] = is_leaf_cluster[c] && (cluster_size[c] >= min_cluster_size);
         }
-        else {
-            // Parent wins: deselect all descendants
-            std::vector<std::int32_t> desc_stack;
+    }
+    else {
+        // Bottom-up EOM: compare parent stability vs sum of children
+        for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
+            if (is_leaf_cluster[c])
+                continue;
+
+            Float child_sum = Float(0);
             for (auto cc : child_clusters[c])
-                desc_stack.push_back(cc);
-            while (!desc_stack.empty()) {
-                auto d = desc_stack.back();
-                desc_stack.pop_back();
-                is_selected[d] = false;
-                for (auto dd : child_clusters[d])
-                    desc_stack.push_back(dd);
+                child_sum += stability[cc];
+
+            if (child_sum > stability[c]) {
+                is_selected[c] = false;
+                stability[c] = child_sum;
             }
+            else {
+                // Parent wins: deselect all descendants
+                std::vector<std::int32_t> desc_stack;
+                for (auto cc : child_clusters[c])
+                    desc_stack.push_back(cc);
+                while (!desc_stack.empty()) {
+                    auto d = desc_stack.back();
+                    desc_stack.pop_back();
+                    is_selected[d] = false;
+                    for (auto dd : child_clusters[d])
+                        desc_stack.push_back(dd);
+                }
+            }
+        }
+    }
+
+    // Phase 3b: allow_single_cluster enforcement.
+    if (!allow_single_cluster) {
+        std::int32_t sel_count = 0;
+        for (std::int32_t c = root_cid; c < n_clusters; c++) {
+            if (is_selected[c])
+                sel_count++;
+        }
+        if (sel_count == 1 && is_selected[root_cid] && !is_leaf_cluster[root_cid]) {
+            is_selected[root_cid] = false;
+            for (auto cc : child_clusters[root_cid])
+                is_selected[cc] = true;
         }
     }
 

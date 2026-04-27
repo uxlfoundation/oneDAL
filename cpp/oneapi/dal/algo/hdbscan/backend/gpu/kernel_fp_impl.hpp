@@ -87,6 +87,8 @@ struct cluster_work_ptrs {
     std::int64_t edge_count;
     std::int64_t min_cluster_size;
     std::int64_t total_nodes;
+    std::int32_t cluster_selection; // 0 = EOM, 1 = leaf
+    bool allow_single_cluster;
 };
 
 template <typename Float>
@@ -234,8 +236,6 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     ONEDAL_ASSERT(mst_weights.get_dimension(0) == edge_count);
 
     // Prim's algorithm on the host using MRD data copied from device.
-    // This avoids both the race condition in parallel atomic min-reduction
-    // and the massive kernel launch overhead of per-iteration submission.
     // The MRD matrix is already computed on GPU; we copy it to host for
     // the inherently sequential MST construction, then copy results back.
 
@@ -246,8 +246,6 @@ sycl::event kernels_fp<Float>::build_mst(sycl::queue& queue,
     auto mrd_host = mrd_matrix.to_host(queue);
     const Float* mrd_ptr = mrd_host.get_data();
 
-    // Host-side Prim's algorithm (identical to cluster_utils.hpp::build_mst_on_host
-    // but operates on the precomputed MRD matrix instead of raw data + core distances)
     std::vector<Float> min_edge_vec(n, std::numeric_limits<Float>::max());
     std::vector<std::int32_t> min_from_vec(n, 0);
     std::vector<bool> in_mst_vec(n, false);
@@ -608,42 +606,48 @@ sycl::event build_condensed_tree_eom_kernel(sycl::queue& queue,
                     w.is_ptr[c] = 0;
             }
 
-            // Bottom-up EOM
-            for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
-                if (w.ilc_ptr[c])
-                    continue;
-
-                Float child_sum = Float(0);
-                if (w.cc0_ptr[c] >= 0)
-                    child_sum += w.stab_ptr[w.cc0_ptr[c]];
-                if (w.cc1_ptr[c] >= 0)
-                    child_sum += w.stab_ptr[w.cc1_ptr[c]];
-
-                if (child_sum > w.stab_ptr[c]) {
-                    w.is_ptr[c] = 0;
-                    w.stab_ptr[c] = child_sum;
+            if (w.cluster_selection == 1) {
+                // Leaf selection: select all leaf clusters
+                for (std::int32_t c = root_cid; c < n_clusters; c++) {
+                    w.is_ptr[c] = (w.ilc_ptr[c] && w.csz_ptr[c] >= w.min_cluster_size) ? 1 : 0;
                 }
-                else {
-                    std::int32_t dsp = 0;
+            }
+            else {
+                // Bottom-up EOM
+                for (std::int32_t c = n_clusters - 1; c >= root_cid; c--) {
+                    if (w.ilc_ptr[c])
+                        continue;
+
+                    Float child_sum = Float(0);
                     if (w.cc0_ptr[c] >= 0)
-                        w.stk_ptr[dsp++] = w.cc0_ptr[c];
+                        child_sum += w.stab_ptr[w.cc0_ptr[c]];
                     if (w.cc1_ptr[c] >= 0)
-                        w.stk_ptr[dsp++] = w.cc1_ptr[c];
-                    while (dsp > 0) {
-                        const std::int32_t d = w.stk_ptr[--dsp];
-                        w.is_ptr[d] = 0;
-                        if (w.cc0_ptr[d] >= 0)
-                            w.stk_ptr[dsp++] = w.cc0_ptr[d];
-                        if (w.cc1_ptr[d] >= 0)
-                            w.stk_ptr[dsp++] = w.cc1_ptr[d];
+                        child_sum += w.stab_ptr[w.cc1_ptr[c]];
+
+                    if (child_sum > w.stab_ptr[c]) {
+                        w.is_ptr[c] = 0;
+                        w.stab_ptr[c] = child_sum;
+                    }
+                    else {
+                        std::int32_t dsp = 0;
+                        if (w.cc0_ptr[c] >= 0)
+                            w.stk_ptr[dsp++] = w.cc0_ptr[c];
+                        if (w.cc1_ptr[c] >= 0)
+                            w.stk_ptr[dsp++] = w.cc1_ptr[c];
+                        while (dsp > 0) {
+                            const std::int32_t d = w.stk_ptr[--dsp];
+                            w.is_ptr[d] = 0;
+                            if (w.cc0_ptr[d] >= 0)
+                                w.stk_ptr[dsp++] = w.cc0_ptr[d];
+                            if (w.cc1_ptr[d] >= 0)
+                                w.stk_ptr[dsp++] = w.cc1_ptr[d];
+                        }
                     }
                 }
             }
 
-            // --- allow_single_cluster=false (matches sklearn default) ---
-            // If only the root is selected AND it has children, force-select
-            // its children instead. If the root is a leaf, keep it.
-            {
+            // --- allow_single_cluster enforcement ---
+            if (!w.allow_single_cluster) {
                 std::int32_t sel_count = 0;
                 for (std::int32_t c = root_cid; c < n_clusters; c++) {
                     if (w.is_ptr[c])
@@ -769,7 +773,9 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
                                                 pr::ndview<std::int32_t, 1>& responses,
                                                 std::int64_t row_count,
                                                 std::int64_t min_cluster_size,
-                                                const bk::event_vector& deps) {
+                                                const bk::event_vector& deps,
+                                                std::int32_t cluster_selection,
+                                                bool allow_single_cluster) {
     ONEDAL_PROFILER_TASK(hdbscan.extract_clusters, queue);
 
     ONEDAL_ASSERT(row_count > 0);
@@ -904,6 +910,8 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     w.edge_count = edge_count;
     w.min_cluster_size = min_cluster_size;
     w.total_nodes = total_nodes;
+    w.cluster_selection = cluster_selection;
+    w.allow_single_cluster = allow_single_cluster;
 
     // Submit kernels via helpers
     auto k2_event = build_dendrogram_kernels(queue, w, all_events);

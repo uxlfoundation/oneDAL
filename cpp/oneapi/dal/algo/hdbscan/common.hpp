@@ -33,9 +33,16 @@ enum class distance_metric {
     cosine ///< Cosine distance (1 - cosine_similarity). Brute-force only.
 };
 
+/// Method used to select clusters from the condensed tree.
+enum class cluster_selection_method {
+    eom, ///< Excess of Mass — selects clusters maximizing stability (default)
+    leaf ///< Select all leaf nodes in the condensed tree (finer-grained clusters)
+};
+
 } // namespace v1
 
 using v1::distance_metric;
+using v1::cluster_selection_method;
 
 namespace task {
 namespace v1 {
@@ -127,6 +134,8 @@ public:
     result_option_id get_result_options() const;
     distance_metric get_metric() const;
     double get_degree() const;
+    cluster_selection_method get_cluster_selection() const;
+    bool get_allow_single_cluster() const;
 
 protected:
     void set_min_cluster_size_impl(std::int64_t);
@@ -134,6 +143,8 @@ protected:
     void set_result_options_impl(const result_option_id& value);
     void set_metric_impl(distance_metric);
     void set_degree_impl(double);
+    void set_cluster_selection_impl(cluster_selection_method);
+    void set_allow_single_cluster_impl(bool);
 
 private:
     dal::detail::pimpl<descriptor_impl<Task>> impl_;
@@ -232,6 +243,28 @@ public:
 
     auto& set_degree(double value) {
         base_t::set_degree_impl(value);
+        return *this;
+    }
+
+    /// The cluster selection method: eom (Excess of Mass) or leaf.
+    cluster_selection_method get_cluster_selection() const {
+        return base_t::get_cluster_selection();
+    }
+
+    auto& set_cluster_selection(cluster_selection_method value) {
+        base_t::set_cluster_selection_impl(value);
+        return *this;
+    }
+
+    /// Whether to allow a single cluster result.
+    /// When false (default), if only the root cluster is selected,
+    /// its children are selected instead.
+    bool get_allow_single_cluster() const {
+        return base_t::get_allow_single_cluster();
+    }
+
+    auto& set_allow_single_cluster(bool value) {
+        base_t::set_allow_single_cluster_impl(value);
         return *this;
     }
 };

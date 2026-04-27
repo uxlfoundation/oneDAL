@@ -509,6 +509,9 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
     const std::int64_t edge_count = row_count - 1;
     const auto metric = desc.get_metric();
     const double degree = desc.get_degree();
+    const std::int32_t cluster_selection =
+        (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;
+    const bool allow_single_cluster = desc.get_allow_single_cluster();
 
     const auto data_nd = pr::table2ndarray<Float>(queue, local_data, sycl::usm::alloc::device);
 
@@ -748,7 +751,9 @@ static result_t compute_kernel_kd_tree_impl(const context_gpu& ctx,
                                                              arr_responses,
                                                              row_count,
                                                              min_cluster_size,
-                                                             { sort_event, ev_responses });
+                                                             { sort_event, ev_responses },
+                                                             cluster_selection,
+                                                             allow_single_cluster);
     cluster_event.wait_and_throw();
 
     // Count clusters from responses on device

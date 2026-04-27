@@ -59,6 +59,9 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
     const std::int64_t min_samples = desc.get_min_samples();
     const int daal_metric = convert_metric(desc.get_metric());
     const double degree = desc.get_degree();
+    const int cluster_selection =
+        (desc.get_cluster_selection() == cluster_selection_method::leaf) ? 1 : 0;
+    const bool allow_single_cluster = desc.get_allow_single_cluster();
 
     const auto daal_data = convert_to_daal_table<Float>(data);
 
@@ -79,7 +82,9 @@ static result_t compute_kernel_kd_tree_impl(const context_cpu& ctx,
         static_cast<size_t>(min_cluster_size),
         static_cast<size_t>(min_samples),
         daal_metric,
-        degree));
+        degree,
+        cluster_selection,
+        allow_single_cluster));
 
     daal::data_management::BlockDescriptor<int> nc_block;
     daal_nclusters->getBlockOfRows(0, 1, daal::data_management::readOnly, nc_block);
