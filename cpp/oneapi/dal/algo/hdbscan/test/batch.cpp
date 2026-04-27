@@ -977,8 +977,9 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     // Use kd_tree method explicitly via descriptor
     using float_t = std::tuple_element_t<0, TestType>;
 
-    const auto desc = hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(50, 25)
-                          .set_result_options(result_options::responses);
+    const auto desc =
+        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(50, 25).set_result_options(
+            result_options::responses);
 
     const auto result = oneapi::dal::test::engine::compute(this->get_policy(), desc, x);
 
@@ -1007,11 +1008,11 @@ TEMPLATE_LIST_TEST_M(hdbscan_batch_test,
     constexpr std::int64_t ms = 25;
 
     const auto bf_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms)
-            .set_result_options(result_options::responses);
+        hdbscan::descriptor<float_t, hdbscan::method::brute_force>(mcs, ms).set_result_options(
+            result_options::responses);
     const auto kd_desc =
-        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms)
-            .set_result_options(result_options::responses);
+        hdbscan::descriptor<float_t, hdbscan::method::kd_tree>(mcs, ms).set_result_options(
+            result_options::responses);
 
     const auto bf_result = oneapi::dal::test::engine::compute(this->get_policy(), bf_desc, x);
     const auto kd_result = oneapi::dal::test::engine::compute(this->get_policy(), kd_desc, x);

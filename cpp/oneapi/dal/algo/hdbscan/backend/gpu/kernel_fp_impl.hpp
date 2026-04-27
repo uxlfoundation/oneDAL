@@ -856,14 +856,11 @@ sycl::event kernels_fp<Float>::extract_clusters(sycl::queue& queue,
     // Collect all allocation events into a single dependency vector
     bk::event_vector all_events = deps;
     all_events.insert(all_events.end(),
-                      { uf_parent_ev,   comp_size_ev,  comp_to_node_ev, dl_ev,
-                        dr_ev,          dw_ev,         ds_ev,           ns_ev,
-                        lc_ev,          rc_ev,         nw_ev,           dtc_ev,
-                        cp_ev,          cc_ev,         cl_ev,           cs_ev,
-                        cca_ev,         stab_ev,       lb_ev,           ilc_ev,
-                        is_ev,          clab_ev,       csz_ev,          cprt_ev,
-                        cc0_ev,         cc1_ev,        pff_ev,          dp_ev,
-                        stk_ev,         stk_cid_ev,    leaf_stk_ev,    nca_ev });
+                      { uf_parent_ev, comp_size_ev, comp_to_node_ev, dl_ev,   dr_ev,  dw_ev,  ds_ev,
+                        ns_ev,        lc_ev,        rc_ev,           nw_ev,   dtc_ev, cp_ev,  cc_ev,
+                        cl_ev,        cs_ev,        cca_ev,          stab_ev, lb_ev,  ilc_ev, is_ev,
+                        clab_ev,      csz_ev,       cprt_ev,         cc0_ev,  cc1_ev, pff_ev, dp_ev,
+                        stk_ev,       stk_cid_ev,   leaf_stk_ev,     nca_ev });
 
     // Fill working data pointers
     cluster_work_ptrs<Float> w;

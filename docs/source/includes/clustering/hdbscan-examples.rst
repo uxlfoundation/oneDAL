@@ -18,5 +18,5 @@
 
       Batch Processing:
 
-      - :dpc_example:`hdbscan_brute_force_batch.cpp <hdbscan/hdbscan_brute_force_batch.cpp>`
-      - :dpc_example:`hdbscan_kd_tree_batch.cpp <hdbscan/hdbscan_kd_tree_batch.cpp>`
+      - :ref:`dpc_hdbscan_brute_force_batch.cpp`
+      - :ref:`dpc_hdbscan_kd_tree_batch.cpp`
