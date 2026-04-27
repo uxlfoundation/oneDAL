@@ -29,6 +29,9 @@
 //                        not the user, decides which operations are eligible.
 //                        Currently: float32 Euclidean GEMM, dims >= 64, on
 //                        hardware with AMX-BF16.
+//    require_bf16     -- use BF16 operands for operations that have an implemented
+//                        BF16 path and can execute it on the current hardware.
+//                        Unsupported algorithms/hardware still use the regular path.
 //
 //  Hardware availability is queried independently from the stored precision hint.
 //  The getter/setter operate only on the requested precision value. Dispatchers
@@ -47,13 +50,18 @@ namespace
 {
 
 /// Parse ONEDAL_FLOAT32_MATMUL_PRECISION env var.
-/// Recognised values: "ALLOW_BF16" / "allow_bf16".  Everything else → strict.
+/// Recognised values: "ALLOW_BF16" / "allow_bf16" and "REQUIRE_BF16" / "require_bf16".
+/// Everything else → strict.
 static daal::internal::Float32MatmulPrecision parse_env_precision()
 {
     const char * val = std::getenv("ONEDAL_FLOAT32_MATMUL_PRECISION");
     if (val && (std::strcmp(val, "ALLOW_BF16") == 0 || std::strcmp(val, "allow_bf16") == 0))
     {
         return daal::internal::Float32MatmulPrecision::allow_bf16;
+    }
+    if (val && (std::strcmp(val, "REQUIRE_BF16") == 0 || std::strcmp(val, "require_bf16") == 0))
+    {
+        return daal::internal::Float32MatmulPrecision::require_bf16;
     }
     return daal::internal::Float32MatmulPrecision::strict;
 }

@@ -54,9 +54,16 @@ DAAL_EXPORT DAAL_UINT64 daal_serv_cpu_feature_detect();
  *     Accumulation and output remain float32.
  *     Falls back to sgemm silently on hardware without AMX-BF16.
  *
+ *   require_bf16
+ *     Use BF16 operands for operations that have an implemented BF16 path and
+ *     can execute it on the current hardware. This is intended for experiments
+ *     and explicit user/frontend opt-in. Unsupported algorithms, unsupported
+ *     hardware, and allocation failures still fall back to the regular path.
+ *
  * Activation:
- *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=ALLOW_BF16  (before loading oneDAL)
+ *   env var:       ONEDAL_FLOAT32_MATMUL_PRECISION=ALLOW_BF16 or REQUIRE_BF16
  *   programmatic:  daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::allow_bf16)
+ *                 or daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision::require_bf16)
  *
  * NOTE: This API is internal and subject to change without notice.
  *       Do not expose in public headers until the design is finalised.
@@ -67,9 +74,11 @@ namespace internal
 {
 enum Float32MatmulPrecision
 {
-    strict     = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
-    allow_bf16 = 1, /*!< Allow BF16 operands where oneDAL deems accuracy impact acceptable.
-                     *   Accumulation and output remain float32. */
+    strict       = 0, /*!< Full float32, IEEE-754, bit-exact (default). */
+    allow_bf16   = 1, /*!< Allow BF16 operands where oneDAL deems accuracy impact acceptable.
+                       *   Accumulation and output remain float32. */
+    require_bf16 = 2, /*!< Use BF16 operands for supported operations on supported hardware.
+                       *   Accumulation and output remain float32. */
 };
 } // namespace internal
 } // namespace daal
@@ -81,7 +90,14 @@ DAAL_EXPORT daal::internal::Float32MatmulPrecision daal_get_float32_matmul_preci
 DAAL_EXPORT void daal_set_float32_matmul_precision(daal::internal::Float32MatmulPrecision p);
 inline bool daal_allow_amx_bf16_matmul()
 {
-    return daal_has_amx_bf16() && (daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::allow_bf16);
+    const daal::internal::Float32MatmulPrecision p = daal_get_float32_matmul_precision();
+    return daal_has_amx_bf16() &&
+           (p == daal::internal::Float32MatmulPrecision::allow_bf16 || p == daal::internal::Float32MatmulPrecision::require_bf16);
+}
+
+inline bool daal_require_amx_bf16_matmul()
+{
+    return daal_has_amx_bf16() && daal_get_float32_matmul_precision() == daal::internal::Float32MatmulPrecision::require_bf16;
 }
 
 void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t * abcd);

@@ -172,9 +172,22 @@ private:
     T * _ptr;
 };
 
-inline bool allow_bf16_gemm()
+inline bool allow_bf16_gemm(DAAL_INT m, DAAL_INT n, DAAL_INT k)
 {
-    return daal_allow_amx_bf16_matmul();
+    if (!daal_allow_amx_bf16_matmul())
+    {
+        return false;
+    }
+
+    // require_bf16 is an explicit opt-in for experiments/frontends: use BF16
+    // for supported operations on supported hardware, without the performance
+    // heuristic. allow_bf16 keeps the conservative threshold.
+    if (daal_require_amx_bf16_matmul())
+    {
+        return true;
+    }
+
+    return m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim;
 }
 
 inline MKL_BF16 convert_f32_to_bf16_rne(float value)
@@ -212,7 +225,7 @@ struct BF16GemmDispatcher<float, cpu>
 {
     static void compute(const float * a, const float * b, DAAL_INT m, DAAL_INT n, DAAL_INT k, float * out, MKL_BF16 * b16 = nullptr)
     {
-        if (allow_bf16_gemm() && m >= kBF16MinDim && n >= kBF16MinDim && k >= kBF16MinDim)
+        if (allow_bf16_gemm(m, n, k))
         {
             const size_t szA = static_cast<size_t>(n) * static_cast<size_t>(k);
             const size_t szB = static_cast<size_t>(m) * static_cast<size_t>(k);
