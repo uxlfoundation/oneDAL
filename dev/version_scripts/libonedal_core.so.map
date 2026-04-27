@@ -186,6 +186,9 @@ global:
         "vtable for daal::algorithms::decision_forest::regression::internal::ModelImpl";
         "typeinfo for daal::algorithms::decision_forest::regression::internal::ModelImpl";
 
+        # RTTI and destructor for dtrees internal Tree (needed by decision_forest examples)
+        "typeinfo for daal::algorithms::dtrees::internal::Tree";
+
 
         # Elastic Net
 
@@ -267,8 +270,13 @@ global:
 
         # Implicit ALS
 
+        daal::algorithms::implicit_als::interface1::*;
         daal::algorithms::implicit_als::prediction::ratings::interface1::*;
         daal::algorithms::implicit_als::training::interface1::*;
+
+        "typeinfo for daal::algorithms::implicit_als::interface1::PartialModel";
+        "typeinfo for daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep1";
+        "typeinfo for daal::algorithms::implicit_als::training::interface1::DistributedPartialResultStep4";
 
         # Explicit template instantiations and RTTI
         "daal::services::interface1::Status daal::algorithms::implicit_als::prediction::ratings::interface1::Result::allocate<float>(daal::algorithms::interface1::Input const*, daal::algorithms::interface1::Parameter const*, int)";
@@ -895,6 +903,19 @@ global:
     # dtrees::internal::ModelImpl
     _ZN4daal10algorithms6dtrees8internal9ModelImpl*;
     _ZNK4daal10algorithms6dtrees8internal9ModelImpl*;
+    # dtrees::internal::MemoryManager
+    _ZN4daal10algorithms6dtrees8internal13MemoryManager*;
+    _ZNK4daal10algorithms6dtrees8internal13MemoryManager*;
+    # dtrees::internal::Tree
+    _ZN4daal10algorithms6dtrees8internal4Tree*;
+    _ZNK4daal10algorithms6dtrees8internal4Tree*;
+    _ZTIN4daal10algorithms6dtrees8internal4TreeE;
+    # decision_forest::classification::internal::ModelImpl methods
+    _ZN4daal10algorithms15decision_forest14classification8internal9ModelImpl*;
+    _ZNK4daal10algorithms15decision_forest14classification8internal9ModelImpl*;
+    # decision_forest::regression::internal::ModelImpl methods
+    _ZN4daal10algorithms15decision_forest10regression8internal9ModelImpl*;
+    _ZNK4daal10algorithms15decision_forest10regression8internal9ModelImpl*;
 
 
     # Kernel Functions
