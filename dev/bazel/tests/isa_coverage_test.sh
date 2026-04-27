@@ -16,9 +16,9 @@
 #===============================================================================
 #
 # Verifies that libonedal_core.so contains CPU dispatch symbols for all
-# required ISA variants: sse2, sse42, avx2, avx512 (CpuType E0/E2/E4/E6).
+# required ISA variants: sse2, avx2, avx512 (CpuType E0/E4/E6).
 #
-# Make builds all 4 ISA variants by default. Building via //:release
+# Make builds the required ISA variants by default. Building via //:release
 # automatically compiles all ISA variants (cfg transition on release rule).
 # This test enforces that contract.
 
@@ -39,10 +39,10 @@ PASS=0
 FAIL=0
 
 check_isa() {
-    local cpu_type="$1"   # e.g. CpuTypeE2
-    local isa_name="$2"   # e.g. sse42
+    local cpu_type="$1"   # e.g. CpuTypeE4
+    local isa_name="$2"   # e.g. avx2
     local count
-    count=$(nm -D "${LIB}" | grep -c "${cpu_type}" || true)
+    count=$(nm -D --defined-only "${LIB}" | grep -c "${cpu_type}" || true)
     if [[ "${count}" -gt 0 ]]; then
         echo "  OK  ${isa_name} (${cpu_type}): ${count} dispatch symbols"
         PASS=$((PASS + 1))
@@ -55,7 +55,6 @@ check_isa() {
 
 echo "=== ISA coverage check: $(basename "${LIB}") ==="
 check_isa "CpuTypeE0" "sse2"
-check_isa "CpuTypeE2" "sse42"
 check_isa "CpuTypeE4" "avx2"
 check_isa "CpuTypeE6" "avx512"
 
@@ -64,6 +63,6 @@ if [[ "${FAIL}" -gt 0 ]]; then
     echo "RESULT: FAILED (${FAIL} ISA(s) missing, ${PASS} present)"
     exit 1
 else
-    echo "RESULT: PASSED (all 4 ISA variants present)"
+    echo "RESULT: PASSED (all required ISA variants present)"
     exit 0
 fi
