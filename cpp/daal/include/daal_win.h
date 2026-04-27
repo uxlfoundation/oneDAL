@@ -232,5 +232,6 @@
 #include "algorithms/dbscan/dbscan_types.h"
 #include "algorithms/dbscan/dbscan_batch.h"
 #include "algorithms/dbscan/dbscan_distributed.h"
+#include "algorithms/hdbscan/hdbscan_types.h"
 
 #endif /* #ifndef __DAAL_H__ */
