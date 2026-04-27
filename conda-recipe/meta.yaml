@@ -30,7 +30,10 @@ source:
   - path: ..
 
 build:
-  skip: true  # [not (linux64 or win)]
+  # oneDAL conda packaging currently supports Linux x86_64 only.
+  # Skip other platforms up front instead of partially resolving Windows-only
+  # compiler packages for a recipe whose build/test scripts are Linux-only.
+  skip: true  # [not linux64]
   number: {{ buildnumber }}
   string: h{{ git_hash }}_{{ buildnumber }}_{{ cxx_compiler }}
   include_recipe: False
@@ -43,7 +46,7 @@ build:
   script_env:
     # All build targets are used by default and AVX2 only for CI.
     # Override REQCPU to reduce manual build time if needed: `REQCPU=avx512 conda build .`
-    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64 or win]
+    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64]
     # Converting compiler name from "conda-forge" to "oneDAL Make" naming scheme
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
@@ -53,15 +56,14 @@ requirements:
   build:
     - python
     - make  # [linux]
-    - cmake  # [linux64 or win]
+    - cmake  # [linux64]
     - {{ compiler('cxx') }}
     - dpcpp_impl_linux-64  # [linux64]
-    - dpcpp_impl_win-64  # [win]
-    - onedpl-devel  # [linux64 or win]
-    - mkl-devel  # [linux64 or win]
-    - mkl-static  # [linux64 or win]
-    - mkl-devel-dpcpp  # [linux64 or win]
-    - onemkl-sycl-include  # [linux64 or win]
+    - onedpl-devel  # [linux64]
+    - mkl-devel  # [linux64]
+    - mkl-static  # [linux64]
+    - mkl-devel-dpcpp  # [linux64]
+    - onemkl-sycl-include  # [linux64]
   host:
     - tbb-devel
 
@@ -72,7 +74,6 @@ outputs:
       # dal must not pull GPU/SYCL runtime (intel-sycl-rt).
       ignore_run_exports_from:
         - dpcpp_impl_linux-64  # [linux64]
-        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -109,7 +110,6 @@ outputs:
     build:
       ignore_run_exports_from:
         - dpcpp_impl_linux-64  # [linux64]
-        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     test:
       commands:
@@ -121,7 +121,6 @@ outputs:
     build:
       ignore_run_exports_from:
         - dpcpp_impl_linux-64  # [linux64]
-        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -137,7 +136,6 @@ outputs:
     build:
       ignore_run_exports_from:
         - dpcpp_impl_linux-64  # [linux64]
-        - dpcpp_impl_win-64  # [win]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -146,7 +144,7 @@ outputs:
         - tbb-devel
     test:
       requires:
-        - cmake  # [linux64 or win]
+        - cmake  # [linux64]
         - {{ compiler('cxx') }}
         - {{ pin_subpackage('dal-static', exact=True) }}
         - mkl-devel
