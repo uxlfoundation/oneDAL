@@ -22,6 +22,15 @@ test -f $CONDA_PREFIX/lib/pkgconfig/dal-static-threading-host.pc
 # Load oneDAL environment helpers required by pkg-config/CMake example builds.
 . "$CONDA_PREFIX/env/vars.sh"
 
+# The conda MKLConfig.cmake used in CI can lag behind oneDAL's Linux dynamic
+# linkage and reject MKL_THREADING=gnu_thread (and SYCL gnu_thread).  This is
+# the same temporary workaround used by oneDAL CI until conda MKL packages carry
+# the fixed config.
+if [ -f ".ci/env/MKLConfig.cmake" ] && [ -f "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake" ]; then
+    cp ".ci/env/MKLConfig.cmake" "$CONDA_PREFIX/lib/cmake/mkl/MKLConfig.cmake"
+    echo "Replaced MKLConfig.cmake with patched version from .ci/env/"
+fi
+
 run_examples() {
     interface_name=$1
     linking_type=$2
