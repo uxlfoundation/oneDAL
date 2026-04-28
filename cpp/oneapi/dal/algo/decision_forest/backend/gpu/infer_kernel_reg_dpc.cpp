@@ -17,6 +17,7 @@
 #include "oneapi/dal/backend/dispatcher.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/infer_kernel.hpp"
 #include "oneapi/dal/algo/decision_forest/backend/gpu/infer_kernel_impl.hpp"
+#include "oneapi/dal/detail/profiler.hpp"
 
 namespace oneapi::dal::decision_forest::backend {
 
@@ -32,6 +33,7 @@ static result_t call_daal_kernel(const context_gpu& ctx,
                                  const descriptor_t& desc,
                                  const model_t& trained_model,
                                  const table& data) {
+    ONEDAL_PROFILER_TASK(df_reg_infer);
     infer_kernel_impl<Float, std::int32_t, task::regression> infer_impl(ctx);
     return infer_impl(desc, trained_model, data);
 }
