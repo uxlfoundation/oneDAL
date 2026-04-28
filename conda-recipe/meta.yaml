@@ -30,16 +30,23 @@ source:
   - path: ..
 
 build:
-  skip: true  # [not (linux64 or win)]
+  # oneDAL conda packaging currently supports Linux x86_64 only.
+  # Skip other platforms up front instead of partially resolving Windows-only
+  # compiler packages for a recipe whose build/test scripts are Linux-only.
+  skip: true  # [not linux64]
   number: {{ buildnumber }}
   string: h{{ git_hash }}_{{ buildnumber }}_{{ cxx_compiler }}
   include_recipe: False
-  ignore_run_exports_from:
-    - dpcpp_impl_linux-64  # [linux64 or win]
+  # Note: ignore_run_exports_from is NOT set globally here.
+  # It is set per-output: dal (CPU) ignores dpcpp_impl run_exports so it
+  # does not pull GPU/SYCL runtime.  dal-gpu does NOT ignore them, so it
+  # automatically inherits the compatible intel-sycl-rt pin declared by
+  # dpcpp_impl_linux-64 via run_exports, keeping SYCL runtime in sync
+  # with the compiler used at build time.
   script_env:
     # All build targets are used by default and AVX2 only for CI.
     # Override REQCPU to reduce manual build time if needed: `REQCPU=avx512 conda build .`
-    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64 or win]
+    - REQCPU={{ environ.get('REQCPU', 'sse2 avx2 avx512') }}  # [linux64]
     # Converting compiler name from "conda-forge" to "oneDAL Make" naming scheme
     - CONDA_CXX_COMPILER=icx  # [ cxx_compiler == "dpcpp" ]
     - CONDA_CXX_COMPILER=clang  # [ cxx_compiler == "clangxx" ]
@@ -49,19 +56,24 @@ requirements:
   build:
     - python
     - make  # [linux]
-    - cmake  # [linux64 or win]
+    - cmake  # [linux64]
     - {{ compiler('cxx') }}
-    - dpcpp_impl_linux-64  # [linux64 or win]
-    - onedpl-devel  # [linux64 or win]
-    - mkl-devel  # [linux64 or win]
-    - mkl-static  # [linux64 or win]
-    - mkl-devel-dpcpp  # [linux64 or win]
-    - onemkl-sycl-include  # [linux64 or win]
+    - dpcpp_impl_linux-64  # [linux64]
+    - onedpl-devel  # [linux64]
+    - mkl-devel  # [linux64]
+    - mkl-static  # [linux64]
+    - mkl-devel-dpcpp  # [linux64]
+    - onemkl-sycl-include  # [linux64]
   host:
     - tbb-devel
 
 outputs:
   - name: dal
+    build:
+      # Suppress dpcpp_impl run_exports for the CPU-only package:
+      # dal must not pull GPU/SYCL runtime (intel-sycl-rt).
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -69,12 +81,35 @@ outputs:
     test:
       commands:
         - test -f $PREFIX/lib/libonedal_core.so.{{ major_binary_version }}  # [linux]
-        - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
         - test -f $PREFIX/lib/libonedal_thread.so.{{ major_binary_version }}  # [linux]
     about:
-      summary: oneAPI Data Analytics Library (oneDAL) runtime libraries
+      summary: oneAPI Data Analytics Library (oneDAL) CPU runtime libraries
+
+  - name: dal-gpu
+    build:
+      skip: true  # [cxx_compiler != "dpcpp" or not linux64]
+      # Do NOT set ignore_run_exports_from here: dpcpp_impl_linux-64 declares
+      # run_exports with a compatible intel-sycl-rt pin.  dal-gpu inherits it
+      # automatically — no manual pin needed.
+    script: pack.sh  # [linux]
+    requirements:
+      run:
+        - {{ pin_subpackage('dal', exact=True) }}
+        # intel-sycl-rt is intentionally absent from the explicit run: list.
+        # It is injected automatically via run_exports from dpcpp_impl_linux-64,
+        # ensuring the SYCL runtime version matches the compiler used to build.
+        - mkl-dpcpp  # [linux64]
+    test:
+      commands:
+        - test -f $PREFIX/lib/libonedal_dpc.so.{{ major_binary_version }}  # [linux]
+        - test -f $PREFIX/lib/libonedal_parameters_dpc.so.{{ major_binary_version }}  # [linux]
+    about:
+      summary: oneAPI Data Analytics Library (oneDAL) GPU/DPC++ runtime library
 
   - name: dal-include
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64]
     script: pack.sh  # [linux]
     test:
       commands:
@@ -83,6 +118,9 @@ outputs:
       summary: Headers for building against oneAPI Data Analytics Library (oneDAL)
 
   - name: dal-static
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -95,6 +133,9 @@ outputs:
       summary: Static libraries for oneAPI Data Analytics Library (oneDAL)
 
   - name: dal-devel
+    build:
+      ignore_run_exports_from:
+        - dpcpp_impl_linux-64  # [linux64]
     script: pack.sh  # [linux]
     requirements:
       run:
@@ -103,15 +144,22 @@ outputs:
         - tbb-devel
     test:
       requires:
-        - cmake  # [linux64 or win]
+        - cmake  # [linux64]
         - {{ compiler('cxx') }}
-        - dal-static =={{ version }}
+        - {{ pin_subpackage('dal-static', exact=True) }}
         - mkl-devel
         - mkl-static
-        - mkl-devel-dpcpp  # [ cxx_compiler == "dpcpp" ]
+        - mkl-devel-dpcpp  # [cxx_compiler == "dpcpp" and linux64]
+        # Do not use exact=True here: conda-build may add a variant hash to
+        # dal-gpu's final build string (for example hd6b6ff7_0), while
+        # pin_subpackage(..., exact=True) in test requirements can render as
+        # build "0" before final output hashing.  Pinning by version is enough
+        # for tests to select the dal-gpu artifact produced by this recipe.
+        - {{ pin_subpackage('dal-gpu', min_pin='x.x.x', max_pin='x.x.x') }}  # [cxx_compiler == "dpcpp" and linux64]
       source_files:
         - examples
         - data
+        - .ci/env/MKLConfig.cmake
       script: test-devel.sh  # [linux]
     about:
       summary: Devel package for building against oneAPI Data Analytics Library (oneDAL)
