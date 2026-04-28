@@ -29,11 +29,23 @@ onedal_repo = repos.prebuilt_libs_repo_rule(
 
         # Dynamic
         "lib/intel64/libonedal_core.so",
+        "lib/intel64/libonedal_core.so.%{version_binary_major}",
+        "lib/intel64/libonedal_core.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_thread.so",
+        "lib/intel64/libonedal_thread.so.%{version_binary_major}",
+        "lib/intel64/libonedal_thread.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal.so",
+        "lib/intel64/libonedal.so.%{version_binary_major}",
+        "lib/intel64/libonedal.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_dpc.so",
+        "lib/intel64/libonedal_dpc.so.%{version_binary_major}",
+        "lib/intel64/libonedal_dpc.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_parameters.so",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}",
+        "lib/intel64/libonedal_parameters.so.%{version_binary_major}.%{version_binary_minor}",
         "lib/intel64/libonedal_parameters_dpc.so",
+        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}",
+        "lib/intel64/libonedal_parameters_dpc.so.%{version_binary_major}.%{version_binary_minor}",
     ],
     build_template = "@onedal//dev/bazel/deps:onedal.tpl.BUILD",
 )
